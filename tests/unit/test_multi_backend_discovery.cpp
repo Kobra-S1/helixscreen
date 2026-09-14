@@ -224,8 +224,81 @@ TEST_CASE_METHOD(MultiBackendFixture,
     REQUIRE(systems[0].type == AmsType::AFC);
 }
 
+// ----------------------------------------------------------------------------
+// multiACE on a Snapmaker U1 (prestonbrown/helixscreen#1426)
+//
+// A U1 running multiACE reports both `ace` and the U1's own `filament_detect`.
+// AmsBackendAce cannot read multiACE's per-unit `aces[]` slot shape, so the
+// Snapmaker backend has to keep the printer. The cases below are one matrix:
+// the rule must fire on both markers together, must NOT fire on either marker
+// alone, and must not reach past ACE to a filament system we can read. Drop any
+// one of those and it becomes "ACE never wins" or "the U1 never wins".
+// ----------------------------------------------------------------------------
+
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: ace alongside filament_detect keeps the Snapmaker backend",
+                 "[ams][ace][snapmaker][multi-backend]") {
+    helix::PrinterDiscovery hw;
+    // A U1's object list with multiACE installed: the stock four-toolhead
+    // machine plus multiACE's `ace` object.
+    nlohmann::json objects = nlohmann::json::array(
+        {"ace", "filament_detect", "toolchanger", "tool T0", "tool T1", "tool T2", "tool T3",
+         "extruder", "extruder1", "extruder2", "extruder3", "print_task_config", "toolhead"});
+    hw.parse_objects(objects);
+
+    // The ACE branch ran and matched: without this the case could pass on a
+    // typo in the object name rather than on the rule under test.
+    REQUIRE(hw.ace_object_names() == std::vector<std::string>{"ace"});
+
+    REQUIRE_FALSE(hw.has_mmu());
+    REQUIRE(hw.has_snapmaker());
+    REQUIRE(hw.mmu_type() == AmsType::SNAPMAKER);
+
+    // Exactly one backend, and it is the U1's. A toolchanger with four tools is
+    // also present, so SNAPMAKER here also proves the fallback did not slide
+    // down to TOOL_CHANGER.
+    const auto& systems = hw.detected_ams_systems();
+    REQUIRE(systems.size() == 1);
+    REQUIRE(systems[0].type == AmsType::SNAPMAKER);
+}
+
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: ace without filament_detect still registers the ACE backend",
+                 "[ams][ace][multi-backend]") {
+    helix::PrinterDiscovery hw;
+    // A real Anycubic hub: no U1 marker anywhere in the list.
+    nlohmann::json objects = nlohmann::json::array({"ace", "extruder", "heater_bed", "gcode_move"});
+    hw.parse_objects(objects);
+
+    REQUIRE_FALSE(hw.has_snapmaker());
+    REQUIRE(hw.has_mmu());
+    REQUIRE(hw.mmu_type() == AmsType::ACE);
+
+    const auto& systems = hw.detected_ams_systems();
+    REQUIRE(systems.size() == 1);
+    REQUIRE(systems[0].type == AmsType::ACE);
+}
+
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: filament_detect without ace is an unmodded Snapmaker U1",
+                 "[ams][ace][snapmaker][multi-backend]") {
+    helix::PrinterDiscovery hw;
+    nlohmann::json objects =
+        nlohmann::json::array({"filament_detect", "toolchanger", "tool T0", "tool T1", "tool T2",
+                               "tool T3", "extruder", "extruder1", "extruder2", "extruder3"});
+    hw.parse_objects(objects);
+
+    REQUIRE(hw.ace_object_names().empty());
+    REQUIRE_FALSE(hw.has_mmu());
+    REQUIRE(hw.mmu_type() == AmsType::SNAPMAKER);
+
+    const auto& systems = hw.detected_ams_systems();
+    REQUIRE(systems.size() == 1);
+    REQUIRE(systems[0].type == AmsType::SNAPMAKER);
+}
+
 // A Snapmaker U1 running a filament system we CAN read keeps that system. The
-// yield is scoped to the AFC-Lite stub, not to "any MMU on a U1".
+// yields are scoped to the AFC-Lite stub and to ACE, not to "any MMU on a U1".
 TEST_CASE_METHOD(MultiBackendFixture,
                  "PrinterDiscovery: a readable MMU alongside filament_detect still outranks the U1",
                  "[ams][snapmaker][multi-backend]") {

@@ -643,14 +643,35 @@ class PrinterDiscovery {
                          "the printer and its four toolheads.");
         }
 
+        // multiACE hangs ACE Pro units off a Snapmaker U1's four toolheads and
+        // registers a plain `ace` object, so it matches ACE detection above and
+        // outranks the U1 fallback below. Its slots live per unit under
+        // `aces[]`, not in the top-level `slots` array AmsBackendAce requires,
+        // so an ACE backend would attach and read nothing while the Snapmaker
+        // backend that drives those toolheads stayed suppressed. objects.list
+        // carries names without status, so the discriminator is co-presence:
+        // filament_detect is published by U1 firmware alone, and no ACE stack
+        // this chain matches runs on an unmodded U1. Yielding the printer back
+        // costs the ACE-specific affordances and keeps filament management
+        // (prestonbrown/helixscreen#1426). The object names stay recorded: the
+        // hardware really does carry them, and nothing subscribes them once the
+        // type is no longer ACE.
+        if (has_mmu_ && mmu_type_ == AmsType::ACE && has_snapmaker_) {
+            has_mmu_ = false;
+            spdlog::info("[PrinterDiscovery] ACE object alongside filament_detect: multiACE on a "
+                         "Snapmaker U1. Its slot shape is unreadable, so the Snapmaker backend "
+                         "keeps the printer.");
+        }
+
         // Collect all detected AMS systems
         detected_ams_systems_.clear();
 
         // Register the filament management backend. When a real MMU (AFC, Happy
         // Hare, etc.) is present, it always wins — even on Snapmaker U1 hardware
         // that also reports filament_detect. The Snapmaker backend is a basic
-        // 4-slot fallback for U1s without an aftermarket MMU. Toolchanger alone
-        // only handles tool switching, not filament management.
+        // 4-slot fallback for U1s without an aftermarket MMU, and for a U1 whose
+        // MMU is one we cannot read. Toolchanger alone only handles tool
+        // switching, not filament management.
         if (has_mmu_) {
             if (mmu_type_ == AmsType::HAPPY_HARE) {
                 detected_ams_systems_.push_back({AmsType::HAPPY_HARE, "Happy Hare"});

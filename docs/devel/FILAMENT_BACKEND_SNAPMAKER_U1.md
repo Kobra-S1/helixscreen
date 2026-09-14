@@ -62,11 +62,11 @@ One unit ("SnapSwap"), four slots, one per toolhead:
 **Wired to one object.** `PrinterDiscovery::parse_objects()` sets `has_snapmaker_` when
 the Klipper object list contains `filament_detect` — unique to U1 firmware
 (`include/printer_discovery.h#parse_objects`). Registration order matters: a real aftermarket
-MMU (AFC, Happy Hare, …) always wins even on U1 hardware that also reports
+MMU (AFC, Happy Hare, …) wins even on U1 hardware that also reports
 `filament_detect`; the Snapmaker backend is the fallback for a stock U1 with no MMU,
 and a bare `toolchanger` object alone is not enough (`include/printer_discovery.h#parse_objects`).
 
-`AmsType::AFC` has one exception to that precedence. PAXX ships **AFC-Lite**, a status-only
+Two filament types are exceptions to that precedence. For `AmsType::AFC`, PAXX ships **AFC-Lite**, a status-only
 layer that impersonates [AFC](FILAMENT_BACKEND_AFC.md) so Fluidd and Mainsail will draw their
 AFC panel for the U1's four extruders; its own docs call it "a status reporting stub" that
 "does not implement actual AFC hardware control", and every macro it defines wraps the U1's
@@ -77,6 +77,13 @@ the printer stays here. The discriminator is exact: real AFC's AFC_unit.py is a 
 with no `load_config_prefix`, so every real unit registers its own hardware type
 (`AFC_BoxTurtle`, `AFC_OpenAMS`, `AFC_HTLF`, …) and a Box Turtle genuinely wired to a U1 keeps
 its AFC backend.
+
+For `AmsType::ACE`, an `ace` object beside
+`filament_detect` is [multiACE](FILAMENT_BACKEND_ACE.md), whose slots are nested per unit
+under `aces[]` rather than in the top-level `slots` array `AmsBackendAce` reads, so
+detection declines it and leaves the printer here (prestonbrown/helixscreen#1426). The other
+U1 + ACE Pro mod, DnG-Crafts/U1-Ace, registers `ace_device`, matches no ACE pattern at all,
+and reaches this backend without the exception being involved.
 
 ### Status the Backend Reads
 
