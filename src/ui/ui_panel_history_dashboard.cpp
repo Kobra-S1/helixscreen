@@ -423,13 +423,11 @@ void HistoryDashboardPanel::fetch_totals_for_all_time() {
                         [this, totals]() { update_all_time_statistics(totals); });
         },
         [this, token](const MoonrakerError& error) {
-            if (token.expired())
-                return;
-            spdlog::warn("[{}] Failed to fetch totals, falling back to cached: {}", get_name(),
-                         error.message);
-
-            token.defer("HistoryDashboard::totals_fallback",
-                        [this]() { update_statistics(cached_jobs_); });
+            token.defer("HistoryDashboard::totals_fallback", [this, msg = error.message]() {
+                spdlog::warn("[{}] Failed to fetch totals, falling back to cached: {}", get_name(),
+                             msg);
+                update_statistics(cached_jobs_);
+            });
         });
 }
 

@@ -1481,10 +1481,8 @@ void SpoolmanOverlay::restart_and_verify() {
     auto token = lifetime_.token();
     api_->restart_moonraker(
         [this, token]() {
-            if (token.expired())
-                return;
-            spdlog::info("[{}] Moonraker restart initiated", get_name());
             token.defer("SpoolmanOverlay::restart_wait", [this]() {
+                spdlog::info("[{}] Moonraker restart initiated", get_name());
                 set_setup_status(lv_tr("Waiting for Moonraker..."));
                 lv_timer_create(
                     [](lv_timer_t* timer) {
