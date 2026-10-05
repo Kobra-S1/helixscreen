@@ -218,8 +218,6 @@ void SpoolmanPanel::refresh_spools() {
 
     // Shared handler: update cached spools and active ID, then repopulate
     auto apply_spools = [this, tok](std::vector<SpoolInfo> spools, int active_id) {
-        if (tok.expired())
-            return;
         tok.defer([this, spools = std::move(spools), active_id]() {
             cached_spools_ = spools;
             active_spool_id_ = active_id;
@@ -254,8 +252,6 @@ void SpoolmanPanel::refresh_spools() {
                 });
         },
         [this, name, tok](const MoonrakerError& err) {
-            if (tok.expired())
-                return;
             spdlog::error("[{}] Failed to fetch spools: {}", name, err.message);
             tok.defer([this]() {
                 cached_spools_.clear();

@@ -394,9 +394,7 @@ void CameraWidget::start_stream() {
     stream_->start(
         stream_url, snapshot_url,
         [this, token](lv_draw_buf_t* frame) {
-            if (token.expired())
-                return;
-
+            // token.defer() drops the callback itself once the stream is torn down.
             token.defer("CameraWidget::frame", [this, frame]() {
                 // Re-evaluate fps on the UI thread (overlay/edit state is UI-thread only)
                 update_stream_fps();
@@ -417,9 +415,6 @@ void CameraWidget::start_stream() {
             });
         },
         [this, token](const char* msg) {
-            if (token.expired())
-                return;
-
             std::string status(msg);
             token.defer("CameraWidget::status",
                         [this, status]() { set_status_text(status.c_str()); });
@@ -771,8 +766,6 @@ void open_standalone_camera_fullscreen(lv_obj_t* parent_screen) {
     s_standalone->stream->start(
         stream_url, snapshot_url,
         [token](lv_draw_buf_t* frame) {
-            if (token.expired())
-                return;
             token.defer("StandaloneCameraFullscreen::frame", [frame]() {
                 if (!s_standalone || !s_standalone->image)
                     return;
@@ -785,8 +778,6 @@ void open_standalone_camera_fullscreen(lv_obj_t* parent_screen) {
             });
         },
         [token](const char* msg) {
-            if (token.expired())
-                return;
             std::string status(msg);
             token.defer("StandaloneCameraFullscreen::status", [status]() {
                 spdlog::debug("[CameraWidget] Standalone stream status: {}", status);

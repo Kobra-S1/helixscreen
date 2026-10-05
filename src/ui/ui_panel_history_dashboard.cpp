@@ -419,9 +419,6 @@ void HistoryDashboardPanel::fetch_totals_for_all_time() {
 
     api->history().get_history_totals(
         [this, token](const PrintHistoryTotals& totals) {
-            if (token.expired())
-                return;
-
             token.defer("HistoryDashboard::totals_received",
                         [this, totals]() { update_all_time_statistics(totals); });
         },
