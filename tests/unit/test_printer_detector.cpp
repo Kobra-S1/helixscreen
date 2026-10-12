@@ -2876,6 +2876,75 @@ TEST_CASE_METHOD(PrinterDetectorFixture,
     CHECK(full.confidence > without.confidence);
 }
 
+// ============================================================================
+// A real FLSUN T1 Pro on stock FLSUN OS
+// ============================================================================
+// delta_calibrate is a config section only on FLSUN OS, so it is absent from
+// the object list; box_light and locate_printing_gcode are FLSUN's own modules.
+
+static PrinterHardwareData flsun_t1_pro_hardware(const std::string& hostname) {
+    return PrinterHardwareData{
+        .heaters = {"heater_bed", "extruder"},
+        .sensors = {"temperature_sensor Armv7 mcu", "temperature_sensor mcu_temp"},
+        .fans = {"fan", "heater_fan heat_sink_fan"},
+        .leds = {},
+        .hostname = hostname,
+        .printer_objects = {"webhooks",
+                            "configfile",
+                            "mcu",
+                            "tmc5160 stepper_c",
+                            "tmc5160 stepper_a",
+                            "tmc5160 stepper_b",
+                            "tmc5160 extruder",
+                            "fan",
+                            "heaters",
+                            "heater_fan heat_sink_fan",
+                            "heater_bed",
+                            "temperature_host mcu",
+                            "temperature_sensor Armv7 mcu",
+                            "temperature_sensor mcu_temp",
+                            "filament_switch_sensor filament_sensor",
+                            "gcode_move",
+                            "probe",
+                            "bed_mesh",
+                            "output_pin relay_pin",
+                            "output_pin BOXFAN_pin",
+                            "idle_timeout",
+                            "pause_resume",
+                            "print_stats",
+                            "virtual_sdcard",
+                            "exclude_object",
+                            "save_variables",
+                            "display_status",
+                            "save_temp_variables",
+                            "box_light",
+                            "locate_printing_gcode",
+                            "motion_report",
+                            "query_endstops",
+                            "system_stats",
+                            "toolhead",
+                            "extruder",
+                            "gcode_macro START_PRINT",
+                            "gcode_macro BED_LEVEL_1",
+                            "gcode_macro BED_LEVEL_2",
+                            "gcode_macro _START_PRINT_VARS"},
+        .steppers = {"stepper_a", "stepper_b", "stepper_c"},
+        .kinematics = "delta"};
+}
+
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: a stock FLSUN T1 Pro identifies as itself",
+                 "[printer][real_world][flsun]") {
+    auto result = PrinterDetector::detect(flsun_t1_pro_hardware("FLSunT1Pro"));
+
+    REQUIRE(result.detected());
+    CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+            result.runner_up_confidence, result.margin());
+    CHECK(result.type_name == "FLSUN T1 Pro");
+    CHECK(result.margin() >= PrinterDetector::DETECT_MIN_MARGIN);
+    CHECK(PrinterDetector::meets_autosave_threshold(result));
+}
+
 TEST_CASE_METHOD(PrinterDetectorFixture,
                  "PrinterDetector: M191 alone cannot identify a printer as a Qidi",
                  "[printer][qidi][macro]") {

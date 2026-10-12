@@ -20,6 +20,7 @@ The tarball is only one of the two ways a preset gets applied. The other is dete
 | `ad5m.json` | Flashforge Adventurer 5M / 5M Pro | Touch calibration, hardware mappings, ForgeX macros |
 | `ad5x.json` | Flashforge Adventurer 5X | Same hardware as AD5M, different display settings |
 | `cc1.json` | Elegoo Centauri Carbon (COSMOS firmware) | Factory white-balance calibration (per-channel panel gain), hardware mappings, load-cell probe, Moonraker on port 80 |
+| `flsun_t1.json` | FLSUN T1 Pro (stock FLSUN OS) | Network-detected. Hardware mappings, Bed Level quick button on FLSUN's `BED_LEVEL_1`, enclosure light as an on/off macro device (`F106 S1` / `F106 S0`) |
 | `artillery-m1-pro.json` | Artillery M1 Pro | Network-detected. Touch calibration, hardware mappings, sound disabled (CPU overload) |
 | `voron-v2-afc.json` | Voron V2 with AFC | Reference config, not auto-baked. Carries no `preset` key and is deliberately unlinked: its 15-sensor BoxTurtle filament block and machine-specific snapshot describe one rig, not the Voron 2.4 model |
 | `qidi_q2.json` | Qidi Q2 + QIDI Box (Happy Hare) | Network-detected (applied by the wizard, not baked); hardware mappings + Happy Hare filament-sensor roles |
