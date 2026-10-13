@@ -5,6 +5,37 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-10-13
+
+<!-- whatsnew
+- Plugin installs work on Creality K1-series printers
+- The QR scanner finds cameras Moonraker lists, and a stock K1's built-in camera
+- Creality CFS auto-refill shows and sets the right state
+- Update failures say why, before downloading
+- Fix for repeated 3D G-code viewer crashes on some GPUs
+-->
+
+### Fixed
+
+- **Plugin installs on Creality K1-series printers** (#1790) - the installer now finds
+  Moonraker where a K1 keeps it, and when an install fails the reason is logged instead of
+  discarded.
+- **QR scanner finds the camera on more printers** (#1788) - builds without the camera
+  widget (K1/KE, AD5M, CC1, K2, U1) now read Moonraker's webcam list, and a stock K1's
+  camera on 127.0.0.1:8080, which Moonraker doesn't list, is found by probing. AD5X is
+  excluded from the probe because its kernel crashes when a streamer is woken.
+- **Creality CFS auto-refill** - the setting is read from the box's first status frame, so
+  it no longer shows Off until a re-query, and the toggle sends the value you pick.
+- **Update failures explain themselves** (#1778) - when an update can't be installed (for
+  example, a full root overlay), the dialog shows the actual cause instead of a stray line of
+  advice, and the space check runs before the download.
+- **3D G-code viewer crash on GPU driver start-up** (#1742) - a crash while the GPU driver
+  initializes now falls back to the 2D viewer on later opens instead of crashing every time.
+- **Wi-Fi shutdown closes its event socket once** - stopping Wi-Fi could close a file
+  another part of the app had just opened.
+- **Power device teardown** - the power device list stops reacting to print state once torn
+  down, and no longer leaks on every reconnect.
+
 ## [1.0.4] - 2026-10-08
 
 <!-- whatsnew
@@ -6896,6 +6927,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.0.5]: https://github.com/prestonbrown/helixscreen/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/prestonbrown/helixscreen/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/prestonbrown/helixscreen/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/prestonbrown/helixscreen/compare/v1.0.1...v1.0.2
