@@ -316,26 +316,20 @@ jobs:
         echo "All shared libraries resolve"
 
     - name: Run unit tests
-      timeout-minutes: 10
+      timeout-minutes: 14
       run: |
-        NPROCS=$(( $(nproc) * 2 ))
-        echo "Running $NPROCS test shards in parallel..."
-        pids=""
+        sudo apt-get install -y gdb
+        NPROCS=8
         for i in $(seq 0 $((NPROCS-1))); do
-          # Subshell + pipefail: without both, $! is the sed at the end of the
-          # pipeline and `wait` collects sed's status, so a failing shard exits 0.
-          (set -o pipefail; ./build/bin/helix-tests "~[.] ~[slow]" --shard-count $NPROCS --shard-index $i 2>&1 | sed "s/^/[shard $i] /") &
-          pids="$pids $!"
+          [ $i -eq 6 ] && continue
+          (./build/bin/helix-tests "~[.] ~[slow]" --shard-count $NPROCS --shard-index $i > /tmp/shard$i.log 2>&1) &
         done
-        failed=0
-        for pid in $pids; do
-          wait $pid || failed=1
+        for n in 1 2 3; do
+          echo "=== shard 6 under gdb, attempt $n ==="
+          gdb -batch -ex "set disable-randomization off" -ex "handle SIGSEGV stop print" -ex run -ex "bt 60" -ex "x/6i \$pc" -ex "thread apply all bt 8" --args ./build/bin/helix-tests "~[.] ~[slow]" --shard-count $NPROCS --shard-index 6 2>&1 | grep -vE "^\[(New|Thread) " | tail -250
         done
-        if [ $failed -eq 1 ]; then
-          echo "One or more test shards failed!"
-          exit 1
-        fi
-        echo "All tests passed"
+        wait
+        exit 1
 
     - name: Setup Python
       uses: actions/setup-python@v6
