@@ -218,4 +218,37 @@ TEST_CASE("wpa hidden join sends scan_ssid 1; a visible join omits it", "[networ
     std::filesystem::remove_all(cfg_dir, ec);
 }
 
+// The monitor connection must still be open when it detaches. libhv and
+// wpa_ctrl each close the descriptor they hold, so if they shared one the
+// DETACH would go out on an already-closed (or, worse, reused) fd and never
+// reach the daemon - and the second close would hit whatever reused it.
+TEST_CASE("wpa teardown detaches the monitor connection while it is still open",
+          "[network][wpa][1293]") {
+    WpaFakeFixture fx;
+    auto detaches = [&fx] {
+        const std::vector<std::string> cmds = fx.fake->commands();
+        return std::count(cmds.begin(), cmds.end(), "DETACH");
+    };
+
+    SECTION("stop() with the event loop running") {
+        WifiBackendWpaSupplicant backend(kWatchdogMs);
+        REQUIRE(backend.start().success());
+        REQUIRE(backend.is_running());
+        REQUIRE(detaches() == 0);
+
+        backend.stop();
+        CHECK(detaches() == 1);
+    }
+
+    SECTION("destroying a backend that is still running") {
+        {
+            WifiBackendWpaSupplicant backend(kWatchdogMs);
+            REQUIRE(backend.start().success());
+            REQUIRE(backend.is_running());
+            REQUIRE(detaches() == 0);
+        }
+        CHECK(detaches() == 1);
+    }
+}
+
 #endif // !__APPLE__

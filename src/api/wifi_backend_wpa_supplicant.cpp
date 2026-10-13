@@ -95,6 +95,7 @@ std::string validate_wpa_string(const std::string& input, const std::string& fie
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <future>
@@ -422,6 +423,10 @@ WifiBackendWpaSupplicant::~WifiBackendWpaSupplicant() {
     // cleanup_wpa() frees conn/mon_conn while init_wpa() is still using them.
     hv::EventLoopThread::stop();
     hv::EventLoopThread::join();
+
+    // The loop freed its hio_t handles, and closed their fds, on its way out;
+    // mon_io_ points into that freed loop.
+    mon_io_ = nullptr;
 
     // Thread is now fully stopped - safe to free resources
     cleanup_wpa();
@@ -985,11 +990,23 @@ void WifiBackendWpaSupplicant::init_wpa() {
     }
     spdlog::trace("[WifiBackend] Monitor socket fd: {}", monfd);
 
-    // Register with libhv event loop for async I/O
-    mon_io_ = hio_get(loop()->loop(), monfd);
+    // Register a duplicate of the monitor socket with libhv. Both sides close
+    // the fd they hold - libhv in hio_close() and in hloop_free() when the loop
+    // ends, wpa_ctrl in wpa_ctrl_close() - so one shared fd would be closed
+    // twice, and the second close can land on a descriptor another thread has
+    // just been handed. dup() rather than fcntl(F_DUPFD) because the sanitizers
+    // intercept it, so their fd tables stay accurate.
+    int io_fd = ::dup(monfd);
+    if (io_fd >= 0) {
+        ::fcntl(io_fd, F_SETFD, FD_CLOEXEC);
+        mon_io_ = hio_get(loop()->loop(), io_fd);
+    }
     if (mon_io_ == nullptr) {
         LOG_ERROR_INTERNAL("Failed to register monitor socket with libhv");
         dispatch_event("INIT_FAILED", "Failed to initialize WiFi event handling");
+        if (io_fd >= 0) {
+            ::close(io_fd);
+        }
         wpa_ctrl_close(mon_conn);
         mon_conn = nullptr;
         signal_init_complete();
@@ -1137,8 +1154,9 @@ void WifiBackendWpaSupplicant::cleanup_wpa() {
 
     spdlog::trace("[WifiBackend] Cleaning up wpa_supplicant connections");
 
-    // Stop libhv I/O monitoring BEFORE closing the socket
-    // This prevents callbacks on a closed fd and allows re-registration
+    // Stop libhv I/O monitoring first, so no read callback fires during the
+    // teardown below. This closes libhv's duplicate of the monitor socket; the
+    // monitor connection's own fd stays open for the DETACH.
     if (mon_io_) {
         spdlog::trace("[WifiBackend] Stopping libhv I/O monitoring");
         hio_read_stop(mon_io_);
