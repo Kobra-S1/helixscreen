@@ -188,3 +188,27 @@ TEST_CASE_METHOD(LVGLTestFixture, "PowerDeviceState leaves unflagged devices rea
     ps.reset_print_start_state();
     drain_queue();
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "PowerDeviceState teardown detaches its print-lifecycle observer",
+                 "[power_device_state][lifetime]") {
+    // The print-lifecycle subject outlives this teardown, so an observer left
+    // attached to it keeps calling back into a torn-down state and its context
+    // is never freed. Repeated teardown/rediscovery must not accumulate them.
+    auto& ps = get_printer_state();
+    ps.init_subjects(false);
+    auto& state = PowerDeviceState::instance();
+    state.deinit_subjects();
+
+    lv_subject_t* lifecycle = ps.print_state().get_print_lifecycle_subject();
+    REQUIRE(lifecycle != nullptr);
+    const uint32_t baseline = lv_ll_get_len(&lifecycle->subs_ll);
+
+    for (int cycle = 0; cycle < 3; ++cycle) {
+        state.set_devices({{"psu", "gpio", "on", true}});
+        drain_queue();
+        REQUIRE(lv_ll_get_len(&lifecycle->subs_ll) == baseline + 1);
+
+        state.deinit_subjects();
+        CHECK(lv_ll_get_len(&lifecycle->subs_ll) == baseline);
+    }
+}
