@@ -394,6 +394,13 @@ void AboutSettingsOverlay::show_update_download_modal(bool start_immediately) {
         update_download_modal_ = nullptr;
     }
 
+    if (!download_status_observer_) {
+        download_status_observer_ = helix::ui::observe_int_sync<AboutSettingsOverlay>(
+            UpdateChecker::instance().download_status_subject(), this,
+            [](AboutSettingsOverlay* self, int status) { self->on_download_status(status); });
+    }
+    download_modal_closed_by_user_ = false;
+
     if (!update_download_modal_) {
         // Clear any stale Error/Complete status carried over from a prior
         // download attempt — otherwise the modal briefly flashes that
@@ -418,7 +425,27 @@ void AboutSettingsOverlay::show_update_download_modal(bool start_immediately) {
                                                      text);
 }
 
+void AboutSettingsOverlay::on_download_status(int status) {
+    if (status != static_cast<int>(UpdateChecker::DownloadStatus::Error) ||
+        download_modal_closed_by_user_) {
+        return;
+    }
+    // Asked of the stack, not the pointer: a dismissed dialog stays a valid
+    // object for its exit animation, and its address can be reused after.
+    const auto& stack = ModalStack::instance();
+    lv_obj_t* backdrop = update_download_modal_ ? stack.backdrop_for(update_download_modal_)
+                                                : nullptr;
+    if (backdrop && !stack.is_exiting(backdrop)) {
+        return;
+    }
+    // Reopened as-is: the status, text and error are already the failure's, and
+    // the modal binds straight to them.
+    spdlog::info("[AboutSettings] Update failed after its dialog closed - reopening it");
+    update_download_modal_ = helix::ui::modal_show("update_download_modal");
+}
+
 void AboutSettingsOverlay::hide_update_download_modal() {
+    download_modal_closed_by_user_ = true;
     if (update_download_modal_) {
         helix::ui::modal_hide(update_download_modal_);
         update_download_modal_ = nullptr;
