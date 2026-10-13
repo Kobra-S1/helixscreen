@@ -199,7 +199,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "PowerDeviceState teardown detaches its print-
     auto& state = PowerDeviceState::instance();
     state.deinit_subjects();
 
-    lv_subject_t* lifecycle = ps.print_state().get_print_lifecycle_subject();
+    lv_subject_t* lifecycle = ps.get_print_lifecycle_subject();
     REQUIRE(lifecycle != nullptr);
     const uint32_t baseline = lv_ll_get_len(&lifecycle->subs_ll);
 
