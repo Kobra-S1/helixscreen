@@ -257,6 +257,33 @@ void QrScannerOverlay::start_scanning() {
     scan_active_ = true;
     last_decoded_id_ = -1;
     lv_subject_set_int(&success_subject_, 0);
+
+    // A configured, attached barcode scanner reads the label itself, so the
+    // camera and the bed move it needs are skipped.
+    if (helix::UsbScannerMonitor::configured_scanner_present()) {
+        update_status(lv_tr("Scan the spool label with your barcode scanner"));
+        spdlog::info("[{}] Configured barcode scanner present: skipping camera and bed move",
+                     get_name());
+    } else {
+        start_camera();
+    }
+
+    // Disable LVGL keyboard input while the scanner monitor is active.
+    // Barcode scanners appear as USB HID keyboards — without this, their
+    // keystrokes trigger unintended UI navigation.
+    disable_lvgl_keyboards(true);
+
+    // Start USB barcode scanner monitor
+    auto tok_usb = lifetime_.token();
+    usb_monitor_.start([this, tok_usb](int spool_id) {
+        if (tok_usb.expired())
+            return;
+        tok_usb.defer([this, spool_id]() { on_spool_id_detected(spool_id); });
+    });
+    spdlog::debug("[{}] USB scanner monitor started", get_name());
+}
+
+void QrScannerOverlay::start_camera() {
     update_status(lv_tr("Point camera at QR code on spool"));
 
     // On moving-bed printers, lower the bed to give room for QR scanning
@@ -372,20 +399,6 @@ void QrScannerOverlay::start_scanning() {
         }
     }
 #endif
-
-    // Disable LVGL keyboard input while the scanner monitor is active.
-    // Barcode scanners appear as USB HID keyboards — without this, their
-    // keystrokes trigger unintended UI navigation.
-    disable_lvgl_keyboards(true);
-
-    // Start USB barcode scanner monitor
-    auto tok_usb = lifetime_.token();
-    usb_monitor_.start([this, tok_usb](int spool_id) {
-        if (tok_usb.expired())
-            return;
-        tok_usb.defer([this, spool_id]() { on_spool_id_detected(spool_id); });
-    });
-    spdlog::debug("[{}] USB scanner monitor started", get_name());
 }
 
 void QrScannerOverlay::stop_scanning() {

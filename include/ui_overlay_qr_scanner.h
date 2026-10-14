@@ -93,6 +93,8 @@ class QrScannerOverlay : public OverlayBase {
 
   private:
     void start_scanning();
+    /// Lowers a moving bed for camera clearance and starts the camera or snapshot decode.
+    void start_camera();
     void stop_scanning();
     void on_spool_id_detected(int spool_id);
     void lookup_spool(int spool_id);

@@ -2384,6 +2384,7 @@ translations:
   Scan Spool QR Code: Сканировать QR-код катушки
   Scan and select a Bluetooth printer first: Сначала найдите и выберите Bluetooth-принтер
   Scan for Printers: Поиск принтеров
+  Scan the spool label with your barcode scanner: 'Отсканируйте этикетку катушки сканером штрих-кодов'
   Scan with your phone to save these values: Отсканируйте телефоном, чтобы сохранить эти значения
   Scanner: Сканер
   ? Scanner bonded but didn't attach as a keyboard. Try turning the scanner off and

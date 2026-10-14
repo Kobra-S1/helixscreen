@@ -2224,6 +2224,7 @@ translations:
   Scan Spool QR Code: スプール QR コードをスキャン
   Scan and select a Bluetooth printer first: 先に Bluetooth プリンターをスキャンして選択してください
   Scan for Printers: プリンターをスキャン
+  Scan the spool label with your barcode scanner: 'バーコードスキャナーでスプールのラベルをスキャンしてください'
   Scan with your phone to save these values: スマートフォンでスキャンして値を保存
   Scanner: スキャナー
   ? Scanner bonded but didn't attach as a keyboard. Try turning the scanner off and

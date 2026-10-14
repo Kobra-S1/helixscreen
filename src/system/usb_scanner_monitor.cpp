@@ -220,6 +220,29 @@ int UsbScannerMonitor::check_spoolman_pattern(const std::string& input) {
 
 #ifdef __linux__
 
+bool UsbScannerMonitor::use_configured_scanner(const std::string& usb_id, const std::string& bt_mac,
+                                               bool usb_present, bool bt_present) {
+    return (!bt_mac.empty() && bt_present) || (!usb_id.empty() && usb_present);
+}
+
+bool UsbScannerMonitor::configured_scanner_present() {
+    auto& settings = helix::SettingsManager::instance();
+    std::string bt_mac = settings.get_scanner_bt_address();
+    std::string usb_id = settings.get_scanner_device_id();
+
+    bool bt_present = !bt_mac.empty() && helix::input::find_bt_hid_device_by_mac(bt_mac);
+    bool usb_present = !usb_id.empty() && helix::input::find_configured_hid_device(
+                                              "/dev/input", "/sys/class/input", usb_id,
+                                              helix::input::read_device_blacklist_from_config());
+
+    bool use = use_configured_scanner(usb_id, bt_mac, usb_present, bt_present);
+    spdlog::info("UsbScannerMonitor: configured scanner usb='{}' present={} bt='{}' present={} "
+                 "-> {}",
+                 usb_id, usb_present, helix::redact::mac(bt_mac), bt_present,
+                 use ? "barcode scanner" : "camera");
+    return use;
+}
+
 std::vector<UsbScannerMonitor::ScannerSource> UsbScannerMonitor::find_scanner_devices() {
     // Prefer a paired Bluetooth HID scanner if one is configured. BT HID
     // scanners don't have the caps-lock LED handshake quirk that some USB

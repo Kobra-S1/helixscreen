@@ -2167,6 +2167,7 @@
   <translation tag="Scan Spool QR Code" es="Escanear Código QR de Bobina"/>
   <translation tag="Scan and select a Bluetooth printer first" es="Escanee y seleccione una impresora Bluetooth primero"/>
   <translation tag="Scan for Printers" es="Buscar Impresoras"/>
+  <translation tag="Scan the spool label with your barcode scanner" es="Escanee la etiqueta de la bobina con su escáner de código de barras"/>
   <translation tag="Scan with your phone to save these values" es="Escanee con su teléfono para guardar estos valores"/>
   <translation tag="Scanner" es="Escáner"/>
   <translation tag="Scanner bonded but didn&apos;t attach as a keyboard. Try turning the scanner off and on, then tap Pair again. If that fails, add ClassicBondedOnly=false to /etc/bluetooth/input.conf." es="El escáner está vinculado pero no se conectó como teclado. Intente apagar y encender el escáner, y luego toque Pair de nuevo. Si eso falla, agregue ClassicBondedOnly=false a /etc/bluetooth/input.conf."/>

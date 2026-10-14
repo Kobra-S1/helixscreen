@@ -2167,6 +2167,7 @@
   <translation tag="Scan Spool QR Code" ru="Сканировать QR-код катушки"/>
   <translation tag="Scan and select a Bluetooth printer first" ru="Сначала найдите и выберите Bluetooth-принтер"/>
   <translation tag="Scan for Printers" ru="Поиск принтеров"/>
+  <translation tag="Scan the spool label with your barcode scanner" ru="Отсканируйте этикетку катушки сканером штрих-кодов"/>
   <translation tag="Scan with your phone to save these values" ru="Отсканируйте телефоном, чтобы сохранить эти значения"/>
   <translation tag="Scanner" ru="Сканер"/>
   <translation tag="Scanner bonded but didn&apos;t attach as a keyboard. Try turning the scanner off and on, then tap Pair again. If that fails, add ClassicBondedOnly=false to /etc/bluetooth/input.conf." ru="Сканер сопряжён, но не подключился как клавиатура. Попробуйте выключить и включить сканер, затем снова нажмите Pair. Если не поможет, добавьте ClassicBondedOnly=false в /etc/bluetooth/input.conf."/>

@@ -2167,6 +2167,7 @@
   <translation tag="Scan Spool QR Code" zh="扫描料盘 QR 码"/>
   <translation tag="Scan and select a Bluetooth printer first" zh="请先扫描并选择蓝牙打印机"/>
   <translation tag="Scan for Printers" zh="扫描打印机"/>
+  <translation tag="Scan the spool label with your barcode scanner" zh="请用条码扫描器扫描料盘标签"/>
   <translation tag="Scan with your phone to save these values" zh="用手机扫描以保存这些数值"/>
   <translation tag="Scanner" zh="扫描器"/>
   <translation tag="Scanner bonded but didn&apos;t attach as a keyboard. Try turning the scanner off and on, then tap Pair again. If that fails, add ClassicBondedOnly=false to /etc/bluetooth/input.conf." zh="扫描器已绑定但未作为键盘连接。请尝试关闭再开启扫描器，然后再次点击 Pair。如果仍然失败，请在 /etc/bluetooth/input.conf 中添加 ClassicBondedOnly=false。"/>

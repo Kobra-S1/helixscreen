@@ -2214,6 +2214,7 @@ translations:
   Scan Spool QR Code: 扫描料盘 QR 码
   Scan and select a Bluetooth printer first: 请先扫描并选择蓝牙打印机
   Scan for Printers: 扫描打印机
+  Scan the spool label with your barcode scanner: '请用条码扫描器扫描料盘标签'
   Scan with your phone to save these values: 用手机扫描以保存这些数值
   Scanner: 扫描器
   ? Scanner bonded but didn't attach as a keyboard. Try turning the scanner off and
