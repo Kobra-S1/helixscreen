@@ -408,3 +408,58 @@ TEST_CASE_METHOD(LVGLTestFixture, "DisplaySettingsManager preview_brightness doe
         CHECK(config->get<int>("/brightness", -1) == 55);
     }
 }
+
+// A newer release stores the screensaver as a registry name instead of a type number, so
+// a config written there must still read correctly here.
+TEST_CASE("DisplaySettingsManager::screensaver_type_from_config reads names and numbers",
+          "[display_settings][screensaver]") {
+    Config* config = Config::get_instance();
+    const std::string path = "/display/screensaver_type";
+    constexpr int fallback = 1;
+
+    auto read = [&](const json& value) {
+        config->set<json>(path, value);
+        return DisplaySettingsManager::screensaver_type_from_config(config, fallback);
+    };
+
+    CHECK(read("off") == 0);
+    CHECK(read("OFF") == 0);
+    CHECK(read("Off") == 0);
+    CHECK(read("toasters") == 1);
+    CHECK(read("starfield") == 2);
+    CHECK(read("Pipes") == 3);
+    CHECK(read(3) == 3);
+    CHECK(read(0) == 0);
+    CHECK(read("maze") == fallback);
+    CHECK(read("hyperspace") == fallback);
+    CHECK(read("flipclock") == fallback);
+    CHECK(read("logo") == fallback);
+    CHECK(read("bounce") == fallback);
+    CHECK(read("") == fallback);
+    CHECK(read("not a saver") == fallback);
+    CHECK(read(true) == fallback);
+    CHECK(read(json::object()) == fallback);
+    CHECK(read(nullptr) == fallback);
+
+    CHECK(DisplaySettingsManager::screensaver_type_from_config(nullptr, fallback) == fallback);
+    config->set<int>(path, 1);
+}
+
+#ifdef HELIX_ENABLE_SCREENSAVER
+TEST_CASE_METHOD(LVGLTestFixture, "DisplaySettingsManager reads a named screensaver at init",
+                 "[display_settings][screensaver]") {
+    Config* config = Config::get_instance();
+    config->set<std::string>("/display/screensaver_type", "off");
+    DisplaySettingsManager::instance().deinit_subjects();
+    DisplaySettingsManager::instance().init_subjects();
+    CHECK(DisplaySettingsManager::instance().get_screensaver_type() == 0);
+
+    config->set<std::string>("/display/screensaver_type", "starfield");
+    DisplaySettingsManager::instance().deinit_subjects();
+    DisplaySettingsManager::instance().init_subjects();
+    CHECK(DisplaySettingsManager::instance().get_screensaver_type() == 2);
+
+    DisplaySettingsManager::instance().deinit_subjects();
+    config->set<int>("/display/screensaver_type", 1);
+}
+#endif

@@ -13,6 +13,8 @@
 
 namespace helix {
 
+class Config;
+
 /** @brief Time display format (12-hour with AM/PM or 24-hour) */
 enum class TimeFormat { HOUR_12 = 0, HOUR_24 = 1 };
 
@@ -260,6 +262,16 @@ class DisplaySettingsManager {
     // =========================================================================
     // SCREENSAVER
     // =========================================================================
+
+    /**
+     * @brief Screensaver type stored at /display/screensaver_type
+     *
+     * Accepts a type number or a saver name in any case ("off", "toasters", "starfield",
+     * "pipes"), since newer releases store the name. A name this build has no saver for,
+     * any other value, a missing key or a null config reads as `fallback`. A number is
+     * returned unclamped.
+     */
+    static int screensaver_type_from_config(const Config* config, int fallback);
 
 #ifdef HELIX_ENABLE_SCREENSAVER
     /** @brief Get screensaver type (0=Off, 1=Flying Toasters, 2=Starfield, 3=3D Pipes) */

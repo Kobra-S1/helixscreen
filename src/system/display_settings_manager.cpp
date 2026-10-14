@@ -18,6 +18,7 @@
 #include "wizard_config_paths.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 
@@ -357,7 +358,7 @@ void DisplaySettingsManager::init_subjects() {
 
     int screensaver_type = screensaver_default;
     if (config->exists("/display/screensaver_type")) {
-        screensaver_type = config->get<int>("/display/screensaver_type", screensaver_default);
+        screensaver_type = screensaver_type_from_config(config, screensaver_default);
     } else if (config->exists("/display/screensaver_enabled")) {
         // Legacy migration: true → tier default, false → Off.
         // The v14→v15 migration will later flip Flying Toasters to Off on low tiers anyway,
@@ -949,6 +950,31 @@ std::string DisplaySettingsManager::get_timezone_options() {
 // =============================================================================
 // SCREENSAVER
 // =============================================================================
+
+int DisplaySettingsManager::screensaver_type_from_config(const Config* config, int fallback) {
+    // Index is the type number.
+    static constexpr const char* NAMES[] = {"off", "toasters", "starfield", "pipes"};
+
+    const json* node = config ? config->try_get_json("/display/screensaver_type") : nullptr;
+    if (node == nullptr) {
+        return fallback;
+    }
+    if (node->is_number()) {
+        return node->get<int>();
+    }
+    if (!node->is_string()) {
+        return fallback;
+    }
+    std::string name = node->get<std::string>();
+    std::transform(name.begin(), name.end(), name.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    for (int i = 0; i < static_cast<int>(std::size(NAMES)); ++i) {
+        if (name == NAMES[i]) {
+            return i;
+        }
+    }
+    return fallback;
+}
 
 #ifdef HELIX_ENABLE_SCREENSAVER
 int DisplaySettingsManager::get_screensaver_type() const {
