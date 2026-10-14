@@ -218,12 +218,12 @@ int UsbScannerMonitor::check_spoolman_pattern(const std::string& input) {
     return QrDecoder::parse_spoolman_id(input);
 }
 
-#ifdef __linux__
-
 bool UsbScannerMonitor::use_configured_scanner(const std::string& usb_id, const std::string& bt_mac,
                                                bool usb_present, bool bt_present) {
     return (!bt_mac.empty() && bt_present) || (!usb_id.empty() && usb_present);
 }
+
+#ifdef __linux__
 
 bool UsbScannerMonitor::configured_scanner_present() {
     auto& settings = helix::SettingsManager::instance();
@@ -528,6 +528,9 @@ void UsbScannerMonitor::start(ScanCallback) {
 }
 void UsbScannerMonitor::stop() {}
 void UsbScannerMonitor::monitor_thread_func() {}
+bool UsbScannerMonitor::configured_scanner_present() {
+    return false;
+}
 
 #endif // __linux__
 
