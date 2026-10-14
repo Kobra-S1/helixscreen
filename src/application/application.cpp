@@ -60,6 +60,7 @@
 #include "screenshot.h"
 #include "sensor_state.h"
 #include "sound_manager.h"
+#include "spoolman_active_spool_sync.h"
 #include "spoolman_manager.h"
 #include "static_panel_registry.h"
 #include "static_subject_registry.h"
@@ -3521,55 +3522,7 @@ void Application::setup_discovery_callbacks() {
                 });
             };
 
-            // Sync external spool from Moonraker's active Spoolman spool
-            // This ensures the filament panel shows the correct spool on startup,
-            // even if the active spool was changed via Spoolman's web UI or another client
-            {
-                IMoonrakerAPI* api_for_spool = api;
-                api_for_spool->spoolman().get_spoolman_status(
-                    [api_for_spool, sync_external_spool](bool connected, int active_spool_id) {
-                        if (!connected || active_spool_id <= 0) {
-                            spdlog::debug("[Application] No active Spoolman spool to sync "
-                                          "(connected={}, spool_id={})",
-                                          connected, active_spool_id);
-                            return;
-                        }
-
-                        // Check if existing external spool already matches
-                        auto existing = AmsState::instance().get_external_spool_info();
-                        if (existing && existing->spoolman_id == active_spool_id) {
-                            spdlog::debug("[Application] External spool already matches active "
-                                          "Spoolman spool {}",
-                                          active_spool_id);
-                            return;
-                        }
-
-                        // Fetch spool details and populate external spool
-                        spdlog::info("[Application] Syncing external spool from Moonraker active "
-                                     "spool {}",
-                                     active_spool_id);
-                        api_for_spool->spoolman().get_spoolman_spool(
-                            active_spool_id,
-                            [active_spool_id,
-                             sync_external_spool](const std::optional<SpoolInfo>& spool_opt) {
-                                if (!spool_opt) {
-                                    spdlog::warn("[Application] Active spool {} not found in "
-                                                 "Spoolman",
-                                                 active_spool_id);
-                                    return;
-                                }
-                                sync_external_spool(*spool_opt, "synced");
-                            },
-                            [active_spool_id](const MoonrakerError& err) {
-                                spdlog::warn("[Application] Failed to fetch active spool {}: {}",
-                                             active_spool_id, err.message);
-                            });
-                    },
-                    [](const MoonrakerError& err) {
-                        spdlog::debug("[Application] Spoolman status unavailable: {}", err.message);
-                    },
-                    true); // silent: Spoolman not configured is normal
-            }
+            helix::spoolman_sync::request_startup_sync(api->spoolman(), sync_external_spool);
 
             // Listen for Moonraker active spool changes (user changes spool in
             // Spoolman web UI or another client while HelixScreen is running)
