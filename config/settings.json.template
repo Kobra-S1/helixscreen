@@ -86,7 +86,7 @@
     "dim_brightness": 30,
     "_dim_brightness_comment": "Brightness percentage when dimmed (1-100). Default: 30%.",
     "screensaver_type": 1,
-    "_screensaver_type_comment": "Screensaver during display sleep. 0=Off (blank screen), 1=Clock (default). Replaces legacy screensaver_enabled boolean.",
+    "_screensaver_type_comment": "Screensaver during display sleep. 0=Off (blank screen), 1=Flying Toasters, 2=Starfield, 3=3D Pipes. Default: 1, or 0 on low-power hardware. Replaces legacy screensaver_enabled boolean.",
     "drm_device": "",
     "_drm_device_comment": "Override DRM device path (e.g., '/dev/dri/card1'). Empty string enables auto-detection. Pi 5 has multiple DRM cards: card0 (v3d, 3D only), card1 (DSI touchscreen), card2 (vc4/HDMI). Auto-detection finds the first with dumb buffer support and a connected display.",
     "gcode_render_mode": 2,

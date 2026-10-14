@@ -959,8 +959,9 @@ int DisplaySettingsManager::screensaver_type_from_config(const Config* config, i
     if (node == nullptr) {
         return fallback;
     }
-    if (node->is_number()) {
-        return node->get<int>();
+    if (node->is_number_integer()) {
+        return static_cast<int>(
+            std::clamp(node->get<long long>(), 0LL, static_cast<long long>(std::size(NAMES)) - 1));
     }
     if (!node->is_string()) {
         return fallback;

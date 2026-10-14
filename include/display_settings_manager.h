@@ -268,8 +268,8 @@ class DisplaySettingsManager {
      *
      * Accepts a type number or a saver name in any case ("off", "toasters", "starfield",
      * "pipes"), since newer releases store the name. A name this build has no saver for,
-     * any other value, a missing key or a null config reads as `fallback`. A number is
-     * returned unclamped.
+     * a non-integer number, any other value, a missing key or a null config reads as
+     * `fallback`. An integer is clamped to the types this build has.
      */
     static int screensaver_type_from_config(const Config* config, int fallback);
 

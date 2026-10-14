@@ -430,6 +430,10 @@ TEST_CASE("DisplaySettingsManager::screensaver_type_from_config reads names and 
     CHECK(read("Pipes") == 3);
     CHECK(read(3) == 3);
     CHECK(read(0) == 0);
+    CHECK(read(-4) == 0);
+    CHECK(read(9) == 3);
+    CHECK(read(1e20) == fallback);
+    CHECK(read(2.5) == fallback);
     CHECK(read("maze") == fallback);
     CHECK(read("hyperspace") == fallback);
     CHECK(read("flipclock") == fallback);
