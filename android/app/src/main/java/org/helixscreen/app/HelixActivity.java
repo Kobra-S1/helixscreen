@@ -1,9 +1,12 @@
 package org.helixscreen.app;
 
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -21,6 +24,15 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
+
+import com.google.android.gms.tasks.Tasks;
+import com.google.android.play.core.appupdate.AppUpdateInfo;
+import com.google.android.play.core.appupdate.AppUpdateManager;
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory;
+import com.google.android.play.core.appupdate.AppUpdateOptions;
+import com.google.android.play.core.install.model.AppUpdateType;
+import com.google.android.play.core.install.model.UpdateAvailability;
 
 import org.helixscreen.app.BuildConfig;
 import org.libsdl.app.SDLActivity;
@@ -569,6 +581,101 @@ public class HelixActivity extends SDLActivity {
         } catch (Exception e) {
             Log.w("HelixInstaller", "Installer lookup failed: " + errorText(e));
             return "";
+        }
+    }
+
+    // =========================================================================
+    // JNI Play update bridge, called from native update checker and About panel
+    // =========================================================================
+
+    private static final int PLAY_UPDATE_REQUEST_CODE = 0x4855;
+
+    /** True when Play reports an update this install can take now. */
+    private static boolean playOffersUpdate(AppUpdateInfo info) {
+        int availability = info.updateAvailability();
+        return availability == UpdateAvailability.UPDATE_AVAILABLE
+                || availability == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS;
+    }
+
+    /**
+     * Ask Google Play whether it will serve this device an update. Blocks for up
+     * to timeoutSec, so native code calls it from its update-checker worker
+     * thread; Tasks.await refuses to run on the main thread.
+     *
+     * @return the available versionCode, 0 when Play has no update for this
+     *         device, or -1 when Play could not be asked
+     */
+    public static long queryPlayUpdate(int timeoutSec) {
+        try {
+            Context ctx = SDLActivity.getContext();
+            if (ctx == null) {
+                Log.i("HelixPlayUpdate", "No context for the Play query");
+                return -1;
+            }
+            AppUpdateManager manager = AppUpdateManagerFactory.create(ctx);
+            AppUpdateInfo info =
+                    Tasks.await(manager.getAppUpdateInfo(), timeoutSec, TimeUnit.SECONDS);
+            Log.i("HelixPlayUpdate", "Play availability " + info.updateAvailability()
+                    + ", versionCode " + info.availableVersionCode());
+            return playOffersUpdate(info) ? info.availableVersionCode() : 0;
+        } catch (Exception e) {
+            Log.i("HelixPlayUpdate", "Play query failed: " + errorText(e));
+            return -1;
+        }
+    }
+
+    /**
+     * Start Play's immediate in-app update flow. Play runs the download, install
+     * and restart in its own full-screen UI, so nothing here has to track
+     * progress or finish the install. When Play cannot start the flow, the Play
+     * listing opens instead (marketUrl, or webUrl when no app handles it).
+     *
+     * @return false when there is no activity to start anything from
+     */
+    public static boolean startPlayUpdate(final String marketUrl, final String webUrl) {
+        final Context ctx = SDLActivity.getContext();
+        if (!(ctx instanceof HelixActivity)) return false;
+        final HelixActivity helix = (HelixActivity) ctx;
+        helix.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                final AppUpdateManager manager = AppUpdateManagerFactory.create(helix);
+                manager.getAppUpdateInfo()
+                        .addOnSuccessListener(info -> {
+                            try {
+                                if (playOffersUpdate(info)
+                                        && info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+                                        && manager.startUpdateFlowForResult(info, helix,
+                                                AppUpdateOptions.defaultOptions(
+                                                        AppUpdateType.IMMEDIATE),
+                                                PLAY_UPDATE_REQUEST_CODE)) {
+                                    return;
+                                }
+                                Log.i("HelixPlayUpdate", "Play update flow unavailable"
+                                        + " (availability " + info.updateAvailability() + ")");
+                            } catch (Exception e) {
+                                Log.i("HelixPlayUpdate", "Play update flow failed: " + errorText(e));
+                            }
+                            openPlayListing(helix, marketUrl, webUrl);
+                        })
+                        .addOnFailureListener(e -> {
+                            Log.i("HelixPlayUpdate", "Play query failed: " + errorText(e));
+                            openPlayListing(helix, marketUrl, webUrl);
+                        });
+            }
+        });
+        return true;
+    }
+
+    private static void openPlayListing(Context ctx, String marketUrl, String webUrl) {
+        try {
+            ctx.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(marketUrl)));
+        } catch (ActivityNotFoundException e) {
+            try {
+                ctx.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(webUrl)));
+            } catch (ActivityNotFoundException e2) {
+                Log.w("HelixPlayUpdate", "No app opens the Play listing");
+            }
         }
     }
 

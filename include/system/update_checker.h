@@ -619,6 +619,18 @@ class UpdateChecker {
      */
     void report_result(Status status, std::optional<ReleaseInfo> info, const std::string& error);
 
+#ifdef __ANDROID__
+    /**
+     * @brief On a Play install, report what Google Play will serve instead of the manifest
+     *
+     * @param manifest The fetched manifest release (empty version if the fetch failed)
+     * @param manifest_error Why the manifest fetch failed (empty on success)
+     * @return true if the check was reported here; false for a non-Play install,
+     *         whose manifest result the caller reports as usual
+     */
+    bool report_play_verdict(ReleaseInfo manifest, const std::string& manifest_error);
+#endif
+
     void init_subjects();
 
     // State (protected by mutex_)

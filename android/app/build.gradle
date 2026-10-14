@@ -318,4 +318,6 @@ preBuild.dependsOn genBuildStamp
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
+    // Play In-App Updates: a Play install announces only what Play will serve it.
+    implementation 'com.google.android.play:app-update:2.1.0'
 }

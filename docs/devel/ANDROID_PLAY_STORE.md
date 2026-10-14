@@ -260,6 +260,23 @@ Google is phasing in a requirement that the developer behind a package name be a
 - **Enforcement starts 2026-09-30**, and only for **Brazil, Indonesia, Singapore, and Thailand**, and only on *participating* app stores. Our sideload channel (direct APK download from a GitHub release) is not affected by that wave. Global enforcement is **2027**.
 - **Register early anyway.** It costs nothing now, and it parks the package name — `org.helixscreen.app` is not reserved by anything today.
 
+## How a Play install finds and takes updates
+
+The update checker reads the same release manifest on every platform, but a Play install
+(installer `com.android.vending`) can only update through Play, which may lag a GitHub
+release for days: not uploaded yet, in review, or in a staged rollout. So on a Play install
+`UpdateChecker` asks Play itself through the In-App Updates library
+(`com.google.android.play:app-update`) and announces only the version Play reports for this
+device, decoded from its versionCode by the inverse of `scripts/android-version-code.sh`.
+Play saying no, or not answering, announces nothing. The decision is
+`src/system/android_update_source.cpp#decide_update`; sideloaded and other-store installs
+keep the manifest comparison and the GitHub release page.
+
+"Install Update" on a Play install starts Play's immediate update flow (Play's own
+full-screen download, install and restart) and opens the Play listing when the flow cannot
+start. Neither path can be exercised without a Play-installed build: use Internal app
+sharing or the internal track with two versionCodes.
+
 ## Promoting a release
 
 The automation stops at **internal / draft**. Promote manually:

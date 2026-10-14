@@ -39,6 +39,7 @@
 #include "system/telemetry_manager.h"
 #include "system/tls_trust.h"
 #ifdef __ANDROID__
+#include "system/android_update_source.h"
 #include "system/http_android.h"
 #endif
 #include "version.h"
@@ -639,10 +640,9 @@ std::string UpdateChecker::install_failure_detail(const std::vector<std::string>
             // substantive line is the cause, and a bare "[ERROR]" separator
             // names nothing.
             const auto tag = line.find("[ERROR]");
-            const bool substantive =
-                line.find(" failed (exit ") != std::string::npos ||
-                (tag != std::string::npos &&
-                 line.find_first_not_of(" \t", tag + 7) != std::string::npos);
+            const bool substantive = line.find(" failed (exit ") != std::string::npos ||
+                                     (tag != std::string::npos &&
+                                      line.find_first_not_of(" \t", tag + 7) != std::string::npos);
             if (substantive && bracket_error.empty()) {
                 bracket_error = line;
             }
@@ -667,12 +667,11 @@ std::string UpdateChecker::service_dest_probe_error(const std::string& init_dir)
     // no fresh blocks and succeeds on a full filesystem, which would read as
     // "has room". Unique name so a crashed probe's leftover never satisfies a
     // later existence check.
-    const std::string probe =
-        init_dir + "/.helixscreen-space-probe." + std::to_string(getpid());
+    const std::string probe = init_dir + "/.helixscreen-space-probe." + std::to_string(getpid());
     FILE* f = std::fopen(probe.c_str(), "wb");
     if (f == nullptr) {
-        spdlog::warn("[UpdateChecker] Service destination probe could not create {}: {}",
-                     probe, strerror(errno));
+        spdlog::warn("[UpdateChecker] Service destination probe could not create {}: {}", probe,
+                     strerror(errno));
         return fmt::format(lv_tr("Error: cannot write the service file in {}"), init_dir);
     }
     std::fputs("probe\n", f);
@@ -1334,7 +1333,8 @@ void UpdateChecker::start_download() {
         const std::string failure = service_dest_probe_error(init_service_dest_dir());
         if (!failure.empty()) {
             spdlog::error("[UpdateChecker] Service destination unwritable, not "
-                          "downloading: {}", failure);
+                          "downloading: {}",
+                          failure);
             report_download_status(DownloadStatus::Error, 0, failure,
                                    "Service destination unwritable before download");
             TelemetryManager::instance().record_update_failure("service_dest_unwritable", "",
@@ -2781,6 +2781,12 @@ void UpdateChecker::do_check() {
             return;
         }
 
+#ifdef __ANDROID__
+        if (report_play_verdict(ok ? info : ReleaseInfo{}, ok ? "" : error)) {
+            return;
+        }
+#endif
+
         if (!ok) {
             spdlog::warn("[UpdateChecker] {}", error);
             report_result(Status::Error, std::nullopt, error);
@@ -2830,6 +2836,48 @@ void UpdateChecker::do_check() {
         report_result(Status::Error, std::nullopt, "Internal error (unknown exception)");
     }
 }
+
+#ifdef __ANDROID__
+bool UpdateChecker::report_play_verdict(ReleaseInfo manifest, const std::string& manifest_error) {
+    namespace android = helix::android;
+    const std::string installer = android::installer_package();
+    android::PlayUpdateQuery play;
+    if (android::installed_by_play(installer)) {
+        play = android::query_play_update(HTTP_TIMEOUT_SECONDS);
+    }
+    const auto verdict = android::decide_update(installer, play, manifest.version);
+    if (verdict.kind == android::UpdateVerdict::Kind::Manifest) {
+        return false;
+    }
+    if (cancelled_) {
+        spdlog::debug("[UpdateChecker] Check cancelled during Play query");
+        return true;
+    }
+    if (!manifest_error.empty()) {
+        spdlog::info("[UpdateChecker] Manifest unavailable, Google Play decides: {}",
+                     manifest_error);
+    }
+
+    if (verdict.kind == android::UpdateVerdict::Kind::None) {
+        spdlog::info("[UpdateChecker] No update announced for this Play install: {}",
+                     verdict.reason);
+        report_result(Status::UpToDate, std::nullopt, "");
+        return true;
+    }
+
+    ReleaseInfo info;
+    if (verdict.manifest_describes_it) {
+        info = std::move(manifest);
+    } else {
+        info.version = verdict.version;
+        info.tag_name = "v" + verdict.version;
+    }
+    info.is_downgrade = false;
+    spdlog::info("[UpdateChecker] Google Play offers {} -> {}", HELIX_VERSION, info.version);
+    report_result(Status::UpdateAvailable, info, "");
+    return true;
+}
+#endif
 
 // ============================================================================
 // Channel-specific fetch methods
