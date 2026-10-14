@@ -298,11 +298,39 @@ TEST_CASE("CFS flat schema: chained boxes become one unit per box", "[ams][cfs][
         REQUIRE(info.get_slot_global(3)->material == "PET-CF");
     }
 
-    SECTION("the one environment reading stays on the first box") {
-        REQUIRE(info.units[0].environment.has_value());
-        for (size_t n = 1; n < 4; ++n) {
-            REQUIRE_FALSE(info.units[n].environment.has_value());
+    const auto units_with_environment = [](const AmsSystemInfo& parsed) {
+        std::vector<int> out;
+        for (const auto& u : parsed.units) {
+            if (u.environment.has_value()) {
+                out.push_back(u.unit_index);
+            }
         }
+        return out;
+    };
+
+    SECTION("with no box_addr the one environment reading stays on the first box") {
+        REQUIRE(units_with_environment(info) == std::vector<int>{0});
+    }
+
+    SECTION("the environment reading lands on the box load_path.box_addr names") {
+        box["load_path"]["box_addr"] = 4;
+        const auto addressed = AmsBackendCfs::parse_box_status(box);
+        REQUIRE(units_with_environment(addressed) == std::vector<int>{3});
+        CHECK(addressed.units[3].environment->temperature_c == 29.0f);
+        CHECK(addressed.units[3].environment->humidity_pct == 22.0f);
+
+        box["load_path"]["box_addr"] = 2;
+        REQUIRE(units_with_environment(AmsBackendCfs::parse_box_status(box)) ==
+                std::vector<int>{1});
+    }
+
+    SECTION("a box_addr naming no listed box keeps it on the first box") {
+        box["load_path"]["box_addr"] = 9;
+        REQUIRE(units_with_environment(AmsBackendCfs::parse_box_status(box)) ==
+                std::vector<int>{0});
+        box["load_path"]["box_addr"] = 0;
+        REQUIRE(units_with_environment(AmsBackendCfs::parse_box_status(box)) ==
+                std::vector<int>{0});
     }
 
     SECTION("loaded_slot past the first box is a bay, not the external holder") {

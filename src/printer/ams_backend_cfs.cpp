@@ -1356,11 +1356,21 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
     // CFS box holds four, so bay i belongs to box i / 4 - the same numbering
     // the stock parse gets from its per-box keys. One unit per box is what
     // lets a chained setup reach the multi-unit overview. The payload carries a
-    // single temp/humidity reading with no box named, so it stays on the first
-    // unit rather than being presented as a per-box reading.
+    // single temp/humidity reading, taken from the box load_path.box_addr names
+    // (1-based; null when nothing is loaded). Only that box shows it; with no
+    // usable address it stays on the first box.
     std::vector<SlotInfo> bays = std::move(unit.slots);
     unit.slots.clear();
     const int bay_count = static_cast<int>(bays.size());
+    const int box_count = std::max(1, (bay_count + 3) / 4);
+    int environment_box = 1;
+    if (auto path_it = box_json.find("load_path");
+        path_it != box_json.end() && path_it->is_object()) {
+        const int box_addr = helix::json_util::safe_int(*path_it, "box_addr", 0);
+        if (box_addr >= 1 && box_addr <= box_count) {
+            environment_box = box_addr;
+        }
+    }
     for (int first = 0; first == 0 || first < bay_count; first += 4) {
         const int n = first / 4 + 1;
         AmsUnit box = unit;
@@ -1368,7 +1378,7 @@ AmsSystemInfo AmsBackendCfs::parse_flat_box_status(const nlohmann::json& box_jso
         box.name = "T" + std::to_string(n);
         box.display_name = "CFS Unit " + std::to_string(n);
         box.first_slot_global_index = first;
-        if (n > 1) {
+        if (n != environment_box) {
             box.environment.reset();
         }
         for (int i = first; i < std::min(first + 4, bay_count); ++i) {
