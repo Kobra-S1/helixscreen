@@ -329,6 +329,20 @@ For stable releases (tag without `-`), the `notify-website` job will fire a
 auto-rebuilding helixscreen.org from the new tag's `docs/user/`. No manual
 website deploy needed. Prereleases skip this.
 
+**Stable releases need a manual Google Play upload. Prompt Preston for it, every time.**
+`PLAY_SERVICE_ACCOUNT_JSON` is unset, so `publish-android` uploads nothing and the
+closed-testing track keeps serving the previous version until someone uploads this one.
+When the Release run is green, as its own message (never folded into the push summary):
+1. `gh release download v{NEW_VERSION} -p 'helixscreen-android-v{NEW_VERSION}.aab' -D ~/Downloads`
+2. `gh run download <release run id> -n release-android-whatsnew` for the release notes text.
+3. Tell Preston v{NEW_VERSION} is not on Play yet and walk him through
+   main's `docs/devel/ANDROID_PLAY_STORE.md` (`git show origin/main:docs/devel/ANDROID_PLAY_STORE.md`)
+   "Uploading a stable release by hand", with the AAB
+   path and the `<en-US>` release notes ready to paste. Browser automation cannot do the
+   upload (the AAB is far over its upload limit).
+Prereleases skip this: betas never go to Play. Delete this block once the service account
+exists and the workflow uploads on its own.
+
 ### If "Keep local":
 Show: "Release commit and tag created locally. Push when ready:\n`git push origin main && git push origin v{NEW_VERSION}`"
 
