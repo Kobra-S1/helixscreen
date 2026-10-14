@@ -298,6 +298,28 @@ TEST_CASE_METHOD(TextInputBindingFixture, "text_input bind_text writes edits bac
     CHECK(std::string(lv_textarea_get_text(ta)) == "typed by user");
 }
 
+TEST_CASE_METHOD(TextInputBindingFixture,
+                 "text_input bind_text keeps the cursor where a mid-string insert left it",
+                 "[text_input][xml][bind_text]") {
+    const char* attrs[] = {"bind_text", "ti_text_subject", nullptr};
+    lv_obj_t* ta = create_text_input(test_screen(), attrs);
+    REQUIRE(ta != nullptr);
+    REQUIRE(std::string(lv_textarea_get_text(ta)) == "initial");
+
+    // A keystroke with the cursor placed by hand: add_char fires VALUE_CHANGED,
+    // which writes the new text back to the subject.
+    lv_textarea_set_cursor_pos(ta, 2);
+    lv_textarea_add_char(ta, 'X');
+
+    REQUIRE(std::string(lv_subject_get_string(text_subject())) == "inXitial");
+    CHECK(std::string(lv_textarea_get_text(ta)) == "inXitial");
+    CHECK(lv_textarea_get_cursor_pos(ta) == 3);
+
+    // An external subject change still replaces the text.
+    lv_subject_copy_string(text_subject(), "from subject");
+    CHECK(std::string(lv_textarea_get_text(ta)) == "from subject");
+}
+
 TEST_CASE_METHOD(TextInputBindingFixture, "text_input bind_text refuses a bad subject",
                  "[text_input][xml][bind_text]") {
     SECTION("an unknown subject name leaves the widget usable but unbound") {
