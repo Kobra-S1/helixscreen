@@ -430,6 +430,7 @@ void TelemetryManager::init(const std::string& config_dir) {
     current_panel_.clear();
     overlay_open_count_ = 0;
     overlay_visits_.clear();
+    widget_interactions_.clear();
     connect_count_ = 0;
     disconnect_count_ = 0;
     total_connected_sec_ = 0;

@@ -16,7 +16,9 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
+#include "../test_helpers/scoped_moonraker_api.h"
 #include "../test_helpers/telemetry_manager_test_access.h"
+#include "../test_helpers/telemetry_test_fixture.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -49,108 +51,6 @@ using json = nlohmann::json;
 namespace fs = std::filesystem;
 
 // TelemetryManager is a global singleton (not namespaced)
-
-// ============================================================================
-// Test Fixture
-// ============================================================================
-
-/**
- * @brief Test fixture for TelemetryManager testing
- *
- * Provides a unique temporary directory for each test and initializes
- * TelemetryManager with that directory as the config root. Cleans up
- * after each test to ensure isolation.
- */
-class TelemetryTestFixture {
-  public:
-    TelemetryTestFixture() {
-        // Create unique temp directory per test run
-        temp_dir_ = fs::temp_directory_path() /
-                    ("helix_telemetry_test_" +
-                     std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-        fs::create_directories(temp_dir_);
-
-        auto& tm = TelemetryManager::instance();
-        tm.shutdown();
-
-        // Drain any deferred UI callbacks queued by prior tests. Some of those
-        // callbacks (settings observers, panel-change notifiers) can route into
-        // TelemetryManager::record_* and end up enqueuing a phantom event in
-        // the next test. Drain happens BEFORE init so callbacks see the
-        // !initialized_ guard and bail out before touching the queue.
-        helix::ui::UpdateQueue::instance().drain();
-
-        // Reset Config's /telemetry_enabled to false BEFORE init() so the
-        // singleton reload at the end of init() lands at a known false state.
-        // Without this, a prior test's set_enabled(true) persisted into the
-        // global Config, init() reloaded it as true, and any error/setting
-        // change between init() and our explicit set_enabled(false) below
-        // would gate-pass and enqueue (off-by-one queue size on macOS where
-        // the whole suite shares one process).
-        //
-        // Also clear the Config singleton's path. Some prior tests
-        // (test_external_spool.cpp's TempConfigFixture, test_filament_
-        // consumption_tracker.cpp) call Config::get_instance()->init(<temp_dir>)
-        // and then delete the directory. The singleton retains a now-dangling
-        // path; subsequent set_enabled(true) → Config::save() fails its
-        // ofstream open, calls CONFIG_RECORD_ERROR, and enqueues a phantom
-        // telemetry "file_io" event between our clear_queue() and the test's
-        // first assertion. Empty path makes save() a no-op (line 1426).
-        if (auto* cfg = helix::Config::get_instance()) {
-            cfg->clear_path();
-            cfg->set<bool>("/telemetry_enabled", false);
-        }
-
-        // Frozen before init() so every window starts on the manual clock and
-        // holds only the time a test steps, however slowly the test runs.
-        TelemetryManagerTestAccess::freeze_clock(tm);
-        tm.init(temp_dir_.string());
-        tm.set_enabled(false);
-        tm.clear_queue();
-    }
-
-    ~TelemetryTestFixture() {
-        // Drain BEFORE shutdown(), while the subject these callbacks write is
-        // still alive. set_enabled() defers its subject write, so the ctor's
-        // set_enabled(false) — plus any set_enabled() in the test body — is
-        // still queued at this point. Leaving them for whichever fixture
-        // drained next is what made TelemetryManager::set_enabled the single
-        // largest producer in the cross-test leak report: 185 callbacks across
-        // 96 tests, 21% of the suite total (#1166).
-        helix::ui::UpdateQueue::instance().drain();
-
-        TelemetryManager::instance().shutdown();
-        TelemetryManagerTestAccess::unfreeze_clock(TelemetryManager::instance());
-
-        // Clean up temp directory - best effort
-        std::error_code ec;
-        fs::remove_all(temp_dir_, ec);
-    }
-
-    [[nodiscard]] fs::path temp_dir() const {
-        return temp_dir_;
-    }
-
-    /**
-     * @brief Write arbitrary content to a file in the temp directory
-     */
-    void write_file(const std::string& filename, const std::string& content) {
-        std::ofstream ofs(temp_dir_ / filename);
-        ofs << content;
-        ofs.close();
-    }
-
-    /**
-     * @brief Read content from a file in the temp directory
-     */
-    [[nodiscard]] std::string read_file(const std::string& filename) const {
-        std::ifstream ifs(temp_dir_ / filename);
-        return {std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()};
-    }
-
-  protected:
-    fs::path temp_dir_;
-};
 
 // ============================================================================
 // UUID v4 Generation [telemetry][uuid]
@@ -1931,23 +1831,6 @@ class StubUrlClient : public MoonrakerClientMock {
     std::string url_;
 };
 
-/// Installs a global Moonraker API for a scope and restores the previous one.
-class ScopedMoonrakerApi {
-  public:
-    explicit ScopedMoonrakerApi(IMoonrakerAPI* api) : previous_(get_moonraker_api()) {
-        set_moonraker_api(api);
-    }
-    ~ScopedMoonrakerApi() {
-        set_moonraker_api(previous_);
-    }
-
-    ScopedMoonrakerApi(const ScopedMoonrakerApi&) = delete;
-    ScopedMoonrakerApi& operator=(const ScopedMoonrakerApi&) = delete;
-
-  private:
-    IMoonrakerAPI* previous_;
-};
-
 /// Record a hardware_profile with `websocket_url` in place and return the event.
 ///
 /// Uses the shared PrinterState rather than a fresh one: a default-constructed
@@ -3464,62 +3347,6 @@ namespace {
 
 constexpr const char* ENVELOPE_KEYS[] = {"schema_version", "app_version", "app_platform",
                                          "app_board", "boot_id"};
-
-/// Drive every record_* path that appends to the queue and return the events,
-/// keyed by event name.
-std::map<std::string, json> record_one_of_every_event(TelemetryManager& tm,
-                                                      TelemetryTestFixture& fx) {
-    std::map<std::string, json> by_name;
-    auto collect = [&]() {
-        for (const auto& e : tm.get_queue_snapshot()) {
-            by_name[e.value("event", "")] = e;
-        }
-        tm.clear_queue();
-    };
-
-    tm.record_session();
-    collect();
-    tm.record_print_outcome("completed", 600, 5, 300.0f, "PLA", 200, 60);
-    collect();
-    tm.record_update_failure("download_failed", "0.14.0", "pi");
-    collect();
-    fx.write_file("update_success.json",
-                  R"({"version":"0.14.0","from_version":"0.13.4","platform":"pi",)"
-                  R"("timestamp":"2026-02-26T12:00:00Z"})");
-    tm.check_previous_update();
-    collect();
-    tm.record_memory_snapshot("hourly");
-    collect();
-    helix::MemoryWarningEvent warning;
-    warning.level = helix::MemoryPressureLevel::warning;
-    tm.record_memory_warning(warning);
-    collect();
-    tm.record_hardware_profile();
-    collect();
-    tm.record_settings_snapshot();
-    collect();
-    tm.record_panel_usage();
-    collect();
-    tm.record_connection_stability();
-    collect();
-    tm.record_frame_time(8000); // a snapshot is only built once a frame was sampled
-    tm.record_performance_snapshot();
-    collect();
-    tm.notify_setting_changed("theme", "dark", "light");
-    tm.flush_settings_changes();
-    collect();
-    helix::async_lifetime::note_skipped("Envelope::cb");
-    tm.record_async_lifetime_snapshot();
-    collect();
-    tm.record_print_start_context("local", true, 5000000, 3600, "PrusaSlicer", 1, false);
-    collect();
-    tm.record_error("moonraker_api", "timeout", "get_printer_objects");
-    collect();
-    fx.write_file("crash.txt", "signal:11\nname:SIGSEGV\nversion:0.14.0\n");
-    tm.check_previous_crash();
-    collect();
-    return by_name;
-}
 
 } // namespace
 
