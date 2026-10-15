@@ -14,6 +14,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_moonraker_api.h"
@@ -1984,9 +1985,17 @@ json settings_snapshot_now() {
 }
 } // namespace
 
-TEST_CASE_METHOD(TelemetryTestFixture, "settings_snapshot theme_changed follows the active theme",
+namespace {
+/// theme_manager_apply_theme() is a no-op until the theme runtime has a
+/// display, so a theme test brings up LVGL and the theme itself.
+class TelemetryThemeFixture : public LVGLUITestFixture {
+  protected:
+    TelemetryTestFixture telemetry_;
+};
+} // namespace
+
+TEST_CASE_METHOD(TelemetryThemeFixture, "settings_snapshot theme_changed follows the active theme",
                  "[telemetry][settings]") {
-    lv_init_safe();
     TelemetryManager::instance().set_enabled(true);
 
     const helix::ThemeData saved_theme = theme_manager_get_active_theme();
@@ -1994,6 +2003,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "settings_snapshot theme_changed follows 
 
     helix::ThemeData fallback = helix::get_builtin_fallback_theme();
     theme_manager_apply_theme(fallback, saved_dark);
+    REQUIRE(theme_manager_get_active_theme().filename == fallback.filename);
     auto event = settings_snapshot_now();
     REQUIRE(event.contains("theme_changed"));
     CHECK(event["theme_changed"] == false);
@@ -2001,6 +2011,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "settings_snapshot theme_changed follows 
     helix::ThemeData onedark = helix::load_theme_from_file("onedark");
     REQUIRE(onedark.is_valid());
     theme_manager_apply_theme(onedark, saved_dark);
+    REQUIRE(theme_manager_get_active_theme().filename == onedark.filename);
     event = settings_snapshot_now();
     REQUIRE(event.contains("theme_changed"));
     CHECK(event["theme_changed"] == true);

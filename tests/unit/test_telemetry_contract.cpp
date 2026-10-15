@@ -5,15 +5,17 @@
  * @brief Client half of the telemetry contract.
  *
  * Every event the client sends is built here from fixed inputs and compared
- * to tests/fixtures/telemetry/<event>.json. The worker's contract test
- * (server/telemetry-worker/src/__tests__/contract.test.ts) reads the same
- * files and requires each field to be written to Analytics Engine or listed
- * as R2-only, so renaming a field on either side turns one of them red.
+ * to tests/fixtures/telemetry/<event>.json. The deployed worker is built from
+ * main, whose contract test (server/telemetry-worker/src/__tests__/
+ * contract.test.ts) requires each field of main's copies of these files to be
+ * written to Analytics Engine or listed as R2-only. A field this line sends
+ * that main's do not must be checked against that test by hand.
  *
  * `HELIX_UPDATE_GOLDENS=1 ./build/bin/helix-tests "[contract]"` rewrites the
  * goldens instead of comparing; review the diff before committing it.
  */
 
+#include "../test_helpers/display_manager_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_moonraker_api.h"
 #include "../test_helpers/scoped_moonraker_client.h"
@@ -111,13 +113,78 @@ class ContractClient : public MoonrakerClientMock {
     std::string url_ = "ws://127.0.0.1:7125/websocket";
 };
 
+class ContractDisplayBackend : public DisplayBackend {
+  public:
+    lv_display_t* create_display(int, int) override {
+        return nullptr;
+    }
+    lv_indev_t* create_input_pointer() override {
+        return nullptr;
+    }
+    DisplayBackendType type() const override {
+        return DisplayBackendType::DRM;
+    }
+    const char* name() const override {
+        return "contract";
+    }
+    bool is_available() const override {
+        return true;
+    }
+};
+
+class ContractBacklight : public BacklightBackend {
+  public:
+    bool set_brightness(int) override {
+        return true;
+    }
+    int get_brightness() const override {
+        return 100;
+    }
+    bool is_available() const override {
+        return true;
+    }
+    const char* name() const override {
+        return "contract";
+    }
+};
+
+/// A device's display for a scope: an 800x480 DRM panel with a backlight and
+/// hardware blanking, published as DisplayManager::instance() the way init()
+/// publishes the real one. The display fields of session and hardware_profile
+/// exist only while a DisplayManager does.
+class ScopedContractDisplay {
+  public:
+    ScopedContractDisplay() : previous_(DisplayManager::instance()) {
+        DisplayManagerTestAccess::set_backend(dm_, std::make_unique<ContractDisplayBackend>());
+        DisplayManagerTestAccess::set_backlight(dm_, std::make_unique<ContractBacklight>());
+        DisplayManagerTestAccess::set_use_hardware_blank(dm_, true);
+        DisplayManagerTestAccess::set_size(dm_, 800, 480);
+        DisplayManagerTestAccess::set_active_instance(&dm_);
+    }
+    ~ScopedContractDisplay() {
+        DisplayManagerTestAccess::set_active_instance(previous_);
+    }
+
+    ScopedContractDisplay(const ScopedContractDisplay&) = delete;
+    ScopedContractDisplay& operator=(const ScopedContractDisplay&) = delete;
+
+  private:
+    DisplayManager dm_;
+    DisplayManager* previous_;
+};
+
 /// One golden value that does not come from the test's inputs, and the fixed
-/// value the golden holds in its place.
+/// value the golden holds in its place. A pin replaces only a value of its own
+/// JSON type (an array: of its element's type), so a field that changes type
+/// still differs from the golden.
 struct Pinned {
     const char* event; ///< event name, or "*" for every event
     const char* path;  ///< dotted path inside the event
     json value;
-    bool insert_if_absent; ///< a host may lack the probe that fills it
+    /// A host may lack the probe that fills the field, so the golden records the
+    /// device's shape whatever this host reports. The cost: the client dropping
+    /// such a field goes unnoticed here (a rename is still caught).
+    bool insert_if_absent;
 };
 
 const std::vector<Pinned>& pinned_values() {
@@ -206,6 +273,27 @@ std::vector<std::string> split_path(const std::string& path) {
     return keys;
 }
 
+bool same_kind(const json& a, const json& b) {
+    return (a.is_number() && b.is_number()) || a.type() == b.type();
+}
+
+/// `placeholder` when `actual` has its type; for an array placeholder, when
+/// every element of `actual` has the type of the placeholder's element.
+json pinned_value(const json& actual, const json& placeholder) {
+    if (placeholder.is_array()) {
+        if (!actual.is_array()) {
+            return actual;
+        }
+        for (const auto& element : actual) {
+            if (!same_kind(element, placeholder[0])) {
+                return actual;
+            }
+        }
+        return placeholder;
+    }
+    return same_kind(actual, placeholder) ? placeholder : actual;
+}
+
 void apply_pin(json& event, const Pinned& pin) {
     const auto keys = split_path(pin.path);
     json* node = &event;
@@ -215,7 +303,12 @@ void apply_pin(json& event, const Pinned& pin) {
         }
         node = &(*node)[keys[i]];
     }
-    if (node->is_object() && (pin.insert_if_absent || node->contains(keys.back()))) {
+    if (!node->is_object()) {
+        return;
+    }
+    if (node->contains(keys.back())) {
+        (*node)[keys.back()] = pinned_value((*node)[keys.back()], pin.value);
+    } else if (pin.insert_if_absent) {
         (*node)[keys.back()] = pin.value;
     }
 }
@@ -245,6 +338,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Contract: every event matches its golden
     MoonrakerAPI api(client, state);
     api.hardware() = contract_printer();
     ScopedMoonrakerApi installed_api(&api);
+    ScopedContractDisplay display;
 
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);

@@ -23,6 +23,7 @@
     "has_timelapse": false
   },
   "device_id": "<device_id>",
+  "display_backend": "DRM/KMS",
   "event": "hardware_profile",
   "extruders": {
     "count": 1,

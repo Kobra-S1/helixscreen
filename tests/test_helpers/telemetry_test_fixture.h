@@ -44,22 +44,15 @@ class TelemetryTestFixture {
         // !initialized_ guard and bail out before touching the queue.
         helix::ui::UpdateQueue::instance().drain();
 
-        // Reset Config's /telemetry_enabled to false BEFORE init() so the
-        // singleton reload at the end of init() lands at a known false state.
-        // Without this, a prior test's set_enabled(true) persisted into the
-        // global Config, init() reloaded it as true, and any error/setting
-        // change between init() and our explicit set_enabled(false) below
-        // would gate-pass and enqueue (off-by-one queue size on macOS where
-        // the whole suite shares one process).
+        // init() reloads /telemetry_enabled from the process-wide Config, so it
+        // is set false first: a value another test persisted would otherwise
+        // let an error or setting change between init() and set_enabled(false)
+        // below enqueue an event.
         //
-        // Also clear the Config singleton's path. Some prior tests
-        // (test_external_spool.cpp's TempConfigFixture, test_filament_
-        // consumption_tracker.cpp) call Config::get_instance()->init(<temp_dir>)
-        // and then delete the directory. The singleton retains a now-dangling
-        // path; subsequent set_enabled(true) → Config::save() fails its
-        // ofstream open, calls CONFIG_RECORD_ERROR, and enqueues a phantom
-        // telemetry "file_io" event between our clear_queue() and the test's
-        // first assertion. Empty path makes save() a no-op (line 1426).
+        // The Config path is cleared as well. A test that pointed Config at a
+        // temp directory and deleted it leaves a path save() cannot open, and
+        // that failure records a "file_io" telemetry error into the queue. With
+        // an empty path save() does nothing.
         if (auto* cfg = helix::Config::get_instance()) {
             cfg->clear_path();
             cfg->set<bool>("/telemetry_enabled", false);
@@ -75,12 +68,9 @@ class TelemetryTestFixture {
 
     ~TelemetryTestFixture() {
         // Drain BEFORE shutdown(), while the subject these callbacks write is
-        // still alive. set_enabled() defers its subject write, so the ctor's
-        // set_enabled(false) — plus any set_enabled() in the test body — is
-        // still queued at this point. Leaving them for whichever fixture
-        // drained next is what made TelemetryManager::set_enabled the single
-        // largest producer in the cross-test leak report: 185 callbacks across
-        // 96 tests, 21% of the suite total (#1166).
+        // still alive. set_enabled() defers its subject write, so every
+        // set_enabled() this test made is still queued here, and leaving them
+        // would run them inside whichever test drains next (#1166).
         helix::ui::UpdateQueue::instance().drain();
 
         TelemetryManager::instance().shutdown();
@@ -136,7 +126,7 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
     collect();
     tm.record_print_outcome("completed", 600, 5, 300.0f, "PLA", 200, 60);
     collect();
-    tm.record_update_failure("download_failed", "0.14.0", "pi");
+    tm.record_update_failure("download_failed", "0.14.0", "pi", 404, 52428800, 2);
     collect();
     fx.write_file("update_success.json",
                   R"({"version":"0.14.0","from_version":"0.13.4","platform":"pi",)"

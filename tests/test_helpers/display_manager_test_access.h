@@ -26,6 +26,12 @@ class DisplayManagerTestAccess {
         dm.m_use_power_off = use_power_off;
     }
 
+    /// The size width()/height() report while no lv_display_t is attached.
+    static void set_size(DisplayManager& dm, int width, int height) {
+        dm.m_width = width;
+        dm.m_height = height;
+    }
+
     static void set_backlight(DisplayManager& dm, std::unique_ptr<BacklightBackend> backlight) {
         dm.m_backlight = std::move(backlight);
     }
