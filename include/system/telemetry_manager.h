@@ -96,6 +96,24 @@ extern std::atomic<int> active_panel_int;
 extern std::atomic<bool> gcode_renderer_loaded;
 } // namespace telemetry_context
 
+/**
+ * @brief Stable telemetry id for an overlay
+ *
+ * The root object's name is the XML component's identity and does not change
+ * with wording or translation; the lifecycle name is the fallback for roots
+ * that carry none. Both missing or empty yields "unnamed".
+ *
+ * @param root_obj_name Overlay root's lv_obj name (may be null)
+ * @param lifecycle_name IPanelLifecycle::get_name() (may be null)
+ */
+inline std::string overlay_telemetry_id(const char* root_obj_name, const char* lifecycle_name) {
+    if (root_obj_name && *root_obj_name)
+        return root_obj_name;
+    if (lifecycle_name && *lifecycle_name)
+        return lifecycle_name;
+    return "unnamed";
+}
+
 } // namespace helix
 
 /**
@@ -318,7 +336,7 @@ class TelemetryManager {
      * Increments the overlay open counter and per-overlay visit count.
      * Always tracks regardless of enabled state.
      *
-     * @param overlay_name Human-readable overlay name (from IPanelLifecycle::get_name())
+     * @param overlay_name Stable overlay id (see overlay_telemetry_id())
      */
     void notify_overlay_opened(const std::string& overlay_name);
 
@@ -438,17 +456,6 @@ class TelemetryManager {
      * Must be called from the LVGL/main thread only (accesses frame ring buffer).
      */
     void record_performance_snapshot();
-
-    /**
-     * @brief Record a feature adoption event
-     *
-     * Captures which optional features (AMS, camera, macros, etc.) are actively
-     * used, recorded once per session after FEATURE_ADOPTION_DELAY_MS. No-op if
-     * telemetry is disabled.
-     *
-     * Must be called from the LVGL/main thread only.
-     */
-    void record_feature_adoption();
 
     /**
      * @brief Record an AsyncLifetimeGuard skip-rate snapshot
@@ -829,9 +836,6 @@ class TelemetryManager {
      *  wider period costs resolution, not samples. */
     static constexpr uint32_t FRAME_PERF_INTERVAL_MS = 60 * 60 * 1000;
 
-    /** @brief Delay after session start before recording feature adoption */
-    static constexpr uint32_t FEATURE_ADOPTION_DELAY_MS = 5 * 60 * 1000;
-
     /** @brief Debounce window for aggregating settings changes before recording */
     static constexpr uint32_t SETTINGS_DEBOUNCE_MS = 30 * 1000;
 
@@ -1021,12 +1025,6 @@ class TelemetryManager {
     nlohmann::json build_performance_snapshot_event() const;
 
     /**
-     * @brief Build a feature adoption event JSON object
-     * @return JSON event listing which optional features are actively used
-     */
-    nlohmann::json build_feature_adoption_event() const;
-
-    /**
      * @brief Build a settings changes event JSON object
      * @return JSON event with list of setting name/old/new value triples
      */
@@ -1061,12 +1059,6 @@ class TelemetryManager {
     /// that boot's id and next snapshot_seq, then delete the file. A delta the
     /// loaded queue already holds under the same key is not emitted twice.
     void recover_accumulator();
-
-    /// Create and arm the feature adoption delay LVGL timer
-    void start_feature_adoption_timer();
-
-    /// Delete the feature adoption delay LVGL timer (safe if nullptr)
-    void stop_feature_adoption_timer();
 
     /// Create and arm the settings debounce LVGL timer
     void start_settings_debounce_timer();
@@ -1347,13 +1339,6 @@ class TelemetryManager {
 
     /// ID of the panel active at the time of the most recent frame sample
     uint16_t current_panel_id_{0};
-
-    // =========================================================================
-    // FEATURE ADOPTION STATE (LVGL/main thread only)
-    // =========================================================================
-
-    /// One-shot LVGL timer that fires after FEATURE_ADOPTION_DELAY_MS
-    lv_timer_t* feature_adoption_timer_{nullptr};
 
     // =========================================================================
     // SETTINGS CHANGE DEBOUNCE STATE (LVGL/main thread only)

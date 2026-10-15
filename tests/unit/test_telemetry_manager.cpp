@@ -1220,7 +1220,7 @@ class TelemetrySchedulerFixture : public LVGLTestFixture {
     /// Count the LVGL timers this TelemetryManager owns.
     ///
     /// Every telemetry timer passes `this` as its lv_timer user_data
-    /// (auto-send, snapshot, frame-perf, feature-adoption, settings-debounce),
+    /// (auto-send, snapshot, frame-perf, settings-debounce),
     /// so keying on that ignores whatever else the suite has left armed and
     /// keeps the count independent of how many timers start_auto_send()
     /// happens to create.
@@ -2059,6 +2059,48 @@ TEST_CASE_METHOD(TelemetryTestFixture, "record_settings_snapshot creates valid e
     // Settings should have at least theme and locale
     CHECK(event.contains("theme"));
     CHECK(event.contains("locale"));
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "record_settings_snapshot carries the adoption flags",
+                 "[telemetry][settings]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    tm.clear_queue();
+    tm.record_settings_snapshot();
+
+    auto snapshot = tm.get_queue_snapshot();
+    auto it = std::find_if(snapshot.begin(), snapshot.end(), [](const json& e) {
+        return e.value("event", "") == "settings_snapshot";
+    });
+    REQUIRE(it != snapshot.end());
+
+    for (const char* flag : {"spoolman_configured", "theme_changed", "multi_printer"}) {
+        INFO("flag: " << flag);
+        REQUIRE(it->contains(flag));
+        CHECK(it->at(flag).is_boolean());
+    }
+}
+
+// ============================================================================
+// Overlay ids [telemetry][overlay_id]
+// ============================================================================
+
+TEST_CASE("overlay_telemetry_id prefers the root's object name", "[telemetry][overlay_id]") {
+    CHECK(helix::overlay_telemetry_id("fan_control_overlay", "Fan Control") ==
+          "fan_control_overlay");
+    CHECK(helix::overlay_telemetry_id("fan_control_overlay", nullptr) == "fan_control_overlay");
+}
+
+TEST_CASE("overlay_telemetry_id falls back to the lifecycle name", "[telemetry][overlay_id]") {
+    CHECK(helix::overlay_telemetry_id(nullptr, "Fan Control") == "Fan Control");
+    CHECK(helix::overlay_telemetry_id("", "Fan Control") == "Fan Control");
+}
+
+TEST_CASE("overlay_telemetry_id is 'unnamed' when nothing names the overlay",
+          "[telemetry][overlay_id]") {
+    CHECK(helix::overlay_telemetry_id("", nullptr) == "unnamed");
+    CHECK(helix::overlay_telemetry_id(nullptr, nullptr) == "unnamed");
+    CHECK(helix::overlay_telemetry_id(nullptr, "") == "unnamed");
 }
 
 // ============================================================================
@@ -3050,35 +3092,6 @@ TEST_CASE_METHOD(TelemetryTestFixture,
 }
 
 // ============================================================================
-// Feature Adoption [telemetry][adoption]
-// ============================================================================
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Feature adoption: event contains feature flags",
-                 "[telemetry][adoption]") {
-    auto& tm = TelemetryManager::instance();
-    tm.set_enabled(true);
-
-    tm.notify_panel_changed("macros");
-    tm.notify_panel_changed("camera");
-    tm.notify_widget_interaction("led_control");
-
-    tm.record_feature_adoption();
-
-    REQUIRE(tm.queue_size() == 1);
-    auto queue = tm.get_queue_snapshot();
-    auto event = queue[0];
-    REQUIRE(event["event"] == "feature_adoption");
-    REQUIRE(event.contains("features"));
-
-    auto& features = event["features"];
-    REQUIRE(features["macros"] == true);
-    REQUIRE(features["camera"] == true);
-    REQUIRE(features["led_control"] == true);
-    REQUIRE(features["bed_mesh"] == false);
-    REQUIRE(features["console_gcode"] == false);
-}
-
-// ============================================================================
 // Settings Changes [telemetry][settings]
 // ============================================================================
 
@@ -3318,8 +3331,6 @@ std::map<std::string, json> record_one_of_every_event(TelemetryManager& tm,
     tm.record_frame_time(8000); // a snapshot is only built once a frame was sampled
     tm.record_performance_snapshot();
     collect();
-    tm.record_feature_adoption();
-    collect();
     tm.notify_setting_changed("theme", "dark", "light");
     tm.flush_settings_changes();
     collect();
@@ -3349,7 +3360,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Envelope: every event carries all five e
     for (const char* name :
          {"session", "print_outcome", "update_failed", "update_success", "memory_snapshot",
           "memory_warning", "hardware_profile", "settings_snapshot", "panel_usage",
-          "connection_stability", "performance_snapshot", "feature_adoption", "settings_changes",
+          "connection_stability", "performance_snapshot", "settings_changes",
           "async_lifetime_skips", "print_start_context", "error_encountered", "crash"}) {
         INFO("event: " << name);
         REQUIRE(events.count(name) == 1);

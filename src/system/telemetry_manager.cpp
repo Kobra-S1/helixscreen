@@ -540,7 +540,6 @@ void TelemetryManager::shutdown() {
     } else {
         auto_send_timer_ = nullptr;
         snapshot_timer_ = nullptr;
-        feature_adoption_timer_ = nullptr;
         settings_debounce_timer_ = nullptr;
     }
 
@@ -1237,7 +1236,6 @@ void TelemetryManager::start_auto_send() {
 
     start_snapshot_timer();
     start_frame_perf_timer();
-    start_feature_adoption_timer();
 }
 
 void TelemetryManager::on_auto_send_tick() {
@@ -1262,7 +1260,6 @@ void TelemetryManager::stop_auto_send() {
     }
     stop_snapshot_timer();
     stop_frame_perf_timer();
-    stop_feature_adoption_timer();
     stop_settings_debounce_timer();
 }
 
@@ -2406,6 +2403,12 @@ nlohmann::json TelemetryManager::build_settings_snapshot_event() const {
     event["time_format"] =
         DisplaySettingsManager::instance().get_time_format() == TimeFormat::HOUR_12 ? "12h" : "24h";
 
+    // Adoption flags with no overlay or widget visit to derive them from.
+    event["spoolman_configured"] = get_printer_state().is_spoolman_available();
+    event["theme_changed"] = active_theme.name != helix::DEFAULT_THEME;
+    auto* cfg = Config::get_instance();
+    event["multi_printer"] = cfg && cfg->get_printer_ids().size() > 1;
+
     // Home widget placement snapshot
     try {
         json widgets = json::array();
@@ -2806,83 +2809,6 @@ void TelemetryManager::record_performance_snapshot() {
 
     frame_ring_count_ = 0;
     frame_ring_idx_ = 0;
-}
-
-// =============================================================================
-// Feature Adoption Event
-// =============================================================================
-
-nlohmann::json TelemetryManager::build_feature_adoption_event() const {
-    json event;
-    stamp_envelope(event);
-    event["event"] = "feature_adoption";
-    event["device_id"] = get_hashed_device_id();
-    event["timestamp"] = get_timestamp();
-
-    auto has_panel = [&](const std::string& name) -> bool {
-        auto it = panel_visits_.find(name);
-        return it != panel_visits_.end() && it->second > 0;
-    };
-
-    auto has_widget = [&](const std::string& name) -> bool {
-        auto it = widget_interactions_.find(name);
-        return it != widget_interactions_.end() && it->second > 0;
-    };
-
-    json features;
-    features["macros"] = has_panel("macros") || has_widget("favorite_macro");
-    features["filament_management"] = has_panel("filament") || has_widget("filament");
-    features["camera"] = has_panel("camera");
-    features["console_gcode"] = has_panel("console");
-    features["bed_mesh"] = has_panel("bed_mesh");
-    features["input_shaper"] = has_panel("input_shaper");
-    features["manual_probe"] = has_widget("manual_probe");
-    features["spoolman"] = has_widget("spoolman");
-    features["led_control"] = has_widget("led_control");
-    features["power_devices"] = has_widget("power_device");
-    features["multi_printer"] = has_widget("printer_switcher");
-    features["theme_changed"] = (theme_manager_get_active_theme().name != helix::DEFAULT_THEME);
-    features["timelapse"] = has_widget("timelapse");
-    features["favorites"] = has_widget("favorite_macro");
-    features["pid_calibration"] = has_panel("pid_calibration");
-    features["firmware_retraction"] = has_panel("firmware_retraction");
-
-    event["features"] = features;
-    return event;
-}
-
-void TelemetryManager::record_feature_adoption() {
-    if (shutting_down_.load() || !initialized_.load() || !enabled_.load())
-        return;
-
-    spdlog::debug("[TelemetryManager] Recording feature adoption");
-    auto event = build_feature_adoption_event();
-    enqueue_event(event);
-}
-
-void TelemetryManager::start_feature_adoption_timer() {
-    if (feature_adoption_timer_)
-        return;
-
-    feature_adoption_timer_ = lv_timer_create(
-        [](lv_timer_t* timer) {
-            auto* self = static_cast<TelemetryManager*>(lv_timer_get_user_data(timer));
-            if (self && !self->shutting_down_.load()) {
-                self->record_feature_adoption();
-            }
-            lv_timer_delete(timer);
-            if (self)
-                self->feature_adoption_timer_ = nullptr;
-        },
-        FEATURE_ADOPTION_DELAY_MS, this);
-    lv_timer_set_repeat_count(feature_adoption_timer_, 1);
-}
-
-void TelemetryManager::stop_feature_adoption_timer() {
-    if (feature_adoption_timer_) {
-        lv_timer_delete(feature_adoption_timer_);
-        feature_adoption_timer_ = nullptr;
-    }
 }
 
 // =============================================================================

@@ -2030,7 +2030,8 @@ void NavigationManager::push_overlay(lv_obj_t* overlay_panel, bool hide_previous
             }
 #endif
         }
-        TelemetryManager::instance().notify_overlay_opened(overlay_name);
+        TelemetryManager::instance().notify_overlay_opened(helix::overlay_telemetry_id(
+            lv_obj_get_name(overlay_panel), lc ? lc->get_name() : nullptr));
         crash_handler::breadcrumb::note("overlay+", overlay_name.c_str());
 
         // Lifecycle: Deactivate what's currently visible before showing new overlay
