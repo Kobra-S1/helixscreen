@@ -3041,6 +3041,14 @@ void TelemetryManager::save_accumulator() const {
         std::ofstream ofs(tmp_path);
         ofs << helix::json_util::safe_dump(state, 2);
         ofs.close();
+        // A short write (full disk) must not replace the last good file.
+        if (!ofs) {
+            std::error_code rm_ec;
+            fs::remove(tmp_path, rm_ec);
+            spdlog::warn("[TelemetryManager] Short write saving accumulator to {}",
+                         tmp_path.string());
+            return;
+        }
         fs::rename(tmp_path, path);
         spdlog::debug("[TelemetryManager] Accumulator saved to {} (seq={})", path.string(),
                       snapshot_seq_);
