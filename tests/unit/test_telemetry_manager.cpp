@@ -2480,27 +2480,453 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Snapshot: snapshot_seq increments on eac
     REQUIRE(second_seq == 1);
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "Snapshot: state persisted to disk and recovered",
-                 "[telemetry][snapshot]") {
+// ============================================================================
+// Delta snapshots [telemetry][snapshot][delta]
+// ============================================================================
+
+namespace {
+
+using namespace std::chrono_literals;
+
+/// Queued events named @p kind, oldest first.
+std::vector<json> queued_events(const TelemetryManager& tm, const std::string& kind) {
+    std::vector<json> out;
+    for (const auto& e : tm.get_queue_snapshot()) {
+        if (e.value("event", "") == kind) {
+            out.push_back(e);
+        }
+    }
+    return out;
+}
+
+int sum_field(const std::vector<json>& events, const char* field) {
+    int total = 0;
+    for (const auto& e : events) {
+        total += e.value(field, 0);
+    }
+    return total;
+}
+
+int sum_map_entry(const std::vector<json>& events, const char* map, const std::string& key) {
+    int total = 0;
+    for (const auto& e : events) {
+        if (e.contains(map) && e[map].contains(key)) {
+            total += e[map][key].get<int>();
+        }
+    }
+    return total;
+}
+
+const char* ACCUMULATOR_FILE = "telemetry_snapshot.json";
+
+} // namespace
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Snapshot deltas: three windows sum to the true totals",
+                 "[telemetry][snapshot][delta]") {
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
 
-    tm.notify_panel_changed("status");
-    tm.notify_panel_changed("temperature");
+    tm.notify_connection_state_changed(2); // t=0 connected
+    tm.notify_panel_changed("home");
+    TelemetryManagerTestAccess::advance_clock(tm, 1h);
+    tm.notify_panel_changed("controls"); // t=1h
+    tm.notify_overlay_opened("temp_graph");
+    tm.notify_widget_interaction("led_control:2");
+    TelemetryManagerTestAccess::advance_clock(tm, 1h);
+    tm.fire_periodic_snapshot(); // t=2h, seq 0
+
+    TelemetryManagerTestAccess::advance_clock(tm, 30min);
+    tm.notify_connection_state_changed(0); // t=2h30 outage starts
+    TelemetryManagerTestAccess::advance_clock(tm, 10min);
+    tm.notify_connection_state_changed(2); // t=2h40 outage ends
+    tm.notify_panel_changed("home");
+    tm.notify_overlay_opened("temp_graph");
+    tm.fire_periodic_snapshot(); // t=2h40, seq 1
+
+    TelemetryManagerTestAccess::advance_clock(tm, 2h);
+    tm.notify_klippy_state_changed(3);
+    tm.fire_periodic_snapshot(); // t=4h40, seq 2
+
+    auto panels = queued_events(tm, "panel_usage");
+    auto conns = queued_events(tm, "connection_stability");
+    REQUIRE(panels.size() == 3);
+    REQUIRE(conns.size() == 3);
+
+    // Each window covers its own span and nothing before it.
+    const int window_sec[] = {7200, 2400, 7200};
+    for (int i = 0; i < 3; ++i) {
+        INFO("window " << i);
+        CHECK(panels[i]["snapshot_seq"] == i);
+        CHECK(conns[i]["snapshot_seq"] == i);
+        CHECK(panels[i]["session_duration_sec"] == window_sec[i]);
+        CHECK(conns[i]["session_duration_sec"] == window_sec[i]);
+    }
+
+    CHECK(sum_field(panels, "session_duration_sec") == 16800);
+    CHECK(sum_map_entry(panels, "panel_time_sec", "home") == 3600 + 7200);
+    CHECK(sum_map_entry(panels, "panel_time_sec", "controls") == 6000);
+    CHECK(sum_map_entry(panels, "panel_visits", "home") == 2);
+    CHECK(sum_map_entry(panels, "panel_visits", "controls") == 1);
+    CHECK(sum_map_entry(panels, "overlay_visits", "temp_graph") == 2);
+    CHECK(sum_field(panels, "overlay_open_count") == 2);
+    CHECK(sum_map_entry(panels, "widget_interactions", "led_control") == 1);
+
+    CHECK(sum_field(conns, "connect_count") == 2);
+    CHECK(sum_field(conns, "disconnect_count") == 1);
+    CHECK(sum_field(conns, "total_connected_sec") == 16800 - 600);
+    CHECK(sum_field(conns, "total_disconnected_sec") == 600);
+    CHECK(sum_field(conns, "klippy_error_count") == 1);
+    CHECK(conns[1]["longest_disconnect_sec"] == 600);
+    CHECK(conns[2]["longest_disconnect_sec"] == 0);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Snapshot deltas: a window's sub-second remainder carries into the next",
+                 "[telemetry][snapshot][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    tm.notify_connection_state_changed(2);
+    tm.notify_panel_changed("home");
+
+    for (int i = 0; i < 4; ++i) {
+        TelemetryManagerTestAccess::advance_clock(tm, 1500ms);
+        tm.fire_periodic_snapshot();
+    }
+
+    auto panels = queued_events(tm, "panel_usage");
+    auto conns = queued_events(tm, "connection_stability");
+    REQUIRE(panels.size() == 4);
+    REQUIRE(conns.size() == 4);
+    CHECK(sum_field(panels, "session_duration_sec") == 6);
+    CHECK(sum_map_entry(panels, "panel_time_sec", "home") == 6);
+    CHECK(sum_field(conns, "session_duration_sec") == 6);
+    CHECK(sum_field(conns, "total_connected_sec") == 6);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Snapshot deltas: an outage spanning a snapshot is measured whole, once",
+                 "[telemetry][snapshot][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.notify_connection_state_changed(2);
+    TelemetryManagerTestAccess::advance_clock(tm, 3h + 50min);
+    tm.notify_connection_state_changed(0); // t=3h50
+    TelemetryManagerTestAccess::advance_clock(tm, 10min);
+    tm.fire_periodic_snapshot(); // t=4h, outage open
+    TelemetryManagerTestAccess::advance_clock(tm, 20min);
+    tm.notify_connection_state_changed(2); // t=4h20, outage closes after 1800s
+    TelemetryManagerTestAccess::advance_clock(tm, 1h);
     tm.fire_periodic_snapshot();
+
+    auto conns = queued_events(tm, "connection_stability");
+    REQUIRE(conns.size() == 2);
+
+    CHECK(conns[0]["longest_disconnect_sec"].get<int>() >= 600);
+    CHECK(conns[0]["total_disconnected_sec"] == 600);
+    CHECK(conns[1]["longest_disconnect_sec"] == 1800);
+    CHECK(conns[1]["total_disconnected_sec"] == 1200);
+    CHECK(sum_field(conns, "disconnect_count") == 1);
+    CHECK(sum_field(conns, "total_disconnected_sec") == 1800);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Snapshot deltas: an unclean exit's persisted window is sent under its own boot",
+                 "[telemetry][snapshot][delta]") {
+    auto& tm = TelemetryManager::instance();
+    TelemetryManagerTestAccess::disable_network(tm);
+    tm.set_enabled(true);
+
+    tm.notify_connection_state_changed(2);
+    tm.notify_panel_changed("home");
+    TelemetryManagerTestAccess::advance_clock(tm, 4h);
+    tm.fire_periodic_snapshot(); // seq 0 covers [0, 4h]
+
+    TelemetryManagerTestAccess::advance_clock(tm, 10min);
+    tm.notify_panel_changed("controls");
+    tm.notify_overlay_opened("temp_graph");
+    TelemetryManagerTestAccess::advance_clock(tm, 30min);
+    TelemetryManagerTestAccess::fire_auto_send_tick(tm); // persists [4h, 4h40]
+
+    // Activity after the last persist dies with the power.
+    TelemetryManagerTestAccess::advance_clock(tm, 20min);
+    tm.notify_panel_changed("home");
+
+    const std::string old_boot = TelemetryManagerTestAccess::boot_id(tm);
+    TelemetryManagerTestAccess::simulate_unclean_exit(tm);
+    tm.init(temp_dir().string());
+    REQUIRE(tm.is_enabled());
+    const std::string new_boot = TelemetryManagerTestAccess::boot_id(tm);
+    REQUIRE(new_boot != old_boot);
+
+    std::vector<json> recovered_panels;
+    for (const auto& e : queued_events(tm, "panel_usage")) {
+        if (e["boot_id"] == old_boot && e["snapshot_seq"] == 1) {
+            recovered_panels.push_back(e);
+        }
+    }
+    REQUIRE(recovered_panels.size() == 1);
+    const auto& panel = recovered_panels[0];
+    CHECK(panel["session_duration_sec"] == 2400);
+    CHECK(panel["panel_visits"] == json{{"controls", 1}});
+    CHECK(panel["panel_time_sec"] == json{{"home", 600}, {"controls", 1800}});
+    CHECK(panel["overlay_visits"] == json{{"temp_graph", 1}});
+    CHECK(panel["overlay_open_count"] == 1);
+    CHECK(panel["is_shutdown"] == false);
+    CHECK(panel["schema_version"] == 3);
+    CHECK(panel["app_version"] == HELIX_VERSION);
+
+    std::vector<json> recovered_conns;
+    for (const auto& e : queued_events(tm, "connection_stability")) {
+        if (e["boot_id"] == old_boot && e["snapshot_seq"] == 1) {
+            recovered_conns.push_back(e);
+        }
+    }
+    REQUIRE(recovered_conns.size() == 1);
+    CHECK(recovered_conns[0]["session_duration_sec"] == 2400);
+    CHECK(recovered_conns[0]["total_connected_sec"] == 2400);
+    CHECK(recovered_conns[0]["connect_count"] == 0);
+
+    // Recovered once: the file is gone, so a second boot has nothing to resend,
+    // and the deltas are already in the saved queue in case one follows.
+    CHECK_FALSE(fs::exists(temp_dir() / ACCUMULATOR_FILE));
+    int saved_recovered = 0;
+    for (const auto& e : json::parse(read_file("telemetry_queue.json"))) {
+        if (e.value("boot_id", "") == old_boot && e.value("snapshot_seq", -1) == 1) {
+            ++saved_recovered;
+        }
+    }
+    CHECK(saved_recovered == 2);
+
+    // The new boot's first delta starts from zero at seq 0.
     tm.clear_queue();
+    tm.notify_panel_changed("status");
+    TelemetryManagerTestAccess::advance_clock(tm, 5min);
+    tm.fire_periodic_snapshot();
+    auto fresh = queued_events(tm, "panel_usage");
+    REQUIRE(fresh.size() == 1);
+    CHECK(fresh[0]["boot_id"] == new_boot);
+    CHECK(fresh[0]["snapshot_seq"] == 0);
+    CHECK(fresh[0]["panel_visits"] == json{{"status", 1}});
+    CHECK(fresh[0]["session_duration_sec"] == 300);
+}
 
-    // Verify snapshot file exists
-    auto snap_path = temp_dir() / "telemetry_snapshot.json";
-    REQUIRE(fs::exists(snap_path));
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Snapshot deltas: a window already in the saved queue is not recovered twice",
+                 "[telemetry][snapshot][delta]") {
+    auto& tm = TelemetryManager::instance();
+    TelemetryManagerTestAccess::disable_network(tm);
+    tm.set_enabled(true);
 
-    // Read the snapshot file
-    std::ifstream ifs(snap_path);
-    auto snap_json = nlohmann::json::parse(ifs);
-    REQUIRE(snap_json.contains("snapshot_seq"));
-    REQUIRE(snap_json["snapshot_seq"] == 1);
-    REQUIRE(snap_json.contains("panel_time_sec"));
-    REQUIRE(snap_json.contains("panel_visits"));
+    tm.notify_panel_changed("home");
+    TelemetryManagerTestAccess::advance_clock(tm, 1h);
+    TelemetryManagerTestAccess::fire_auto_send_tick(tm); // accumulator: seq 0, [0, 1h]
+    const std::string pre_snapshot = read_file(ACCUMULATOR_FILE);
+    REQUIRE_FALSE(pre_snapshot.empty());
+
+    TelemetryManagerTestAccess::advance_clock(tm, 1h);
+    tm.fire_periodic_snapshot(); // seq 0 queued and saved
+
+    // Power lost after the queue save, before the accumulator file was rewritten.
+    write_file(ACCUMULATOR_FILE, pre_snapshot);
+    const std::string old_boot = TelemetryManagerTestAccess::boot_id(tm);
+    TelemetryManagerTestAccess::simulate_unclean_exit(tm);
+    tm.init(temp_dir().string());
+
+    int old_seq0 = 0;
+    for (const auto& e : queued_events(tm, "panel_usage")) {
+        if (e["boot_id"] == old_boot && e["snapshot_seq"] == 0) {
+            ++old_seq0;
+        }
+    }
+    CHECK(old_seq0 == 1);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Snapshot deltas: the accumulator file holds only the unsent window",
+                 "[telemetry][snapshot][delta]") {
+    auto& tm = TelemetryManager::instance();
+    TelemetryManagerTestAccess::disable_network(tm);
+    tm.set_enabled(true);
+
+    tm.notify_panel_changed("home");
+    TelemetryManagerTestAccess::advance_clock(tm, 1h);
+    tm.fire_periodic_snapshot();
+    TelemetryManagerTestAccess::advance_clock(tm, 10min);
+    tm.notify_panel_changed("controls");
+    TelemetryManagerTestAccess::fire_auto_send_tick(tm);
+
+    REQUIRE(fs::exists(temp_dir() / ACCUMULATOR_FILE));
+    auto state = json::parse(read_file(ACCUMULATOR_FILE));
+    CHECK(state["boot_id"] == TelemetryManagerTestAccess::boot_id(tm));
+    CHECK(state["snapshot_seq"] == 1);
+    CHECK(state["app_version"] == HELIX_VERSION);
+    REQUIRE(state.contains("panel_usage"));
+    CHECK(state["panel_usage"]["session_duration_sec"] == 600);
+    CHECK(state["panel_usage"]["panel_visits"] == json{{"controls", 1}});
+    CHECK(state["panel_usage"]["panel_time_sec"] == json{{"home", 600}});
+    REQUIRE(state.contains("connection_stability"));
+    CHECK(state["connection_stability"]["session_duration_sec"] == 600);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Snapshot deltas: a cumulative file without a boot id is discarded",
+                 "[telemetry][snapshot][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    write_file(ACCUMULATOR_FILE,
+               R"({"snapshot_seq":5,"panel_visits":{"home":900},"connect_count":40})");
+
+    TelemetryManagerTestAccess::simulate_unclean_exit(tm);
+    tm.init(temp_dir().string());
+    REQUIRE(tm.is_enabled());
+
+    CHECK(queued_events(tm, "panel_usage").empty());
+    CHECK_FALSE(fs::exists(temp_dir() / ACCUMULATOR_FILE));
+
+    tm.fire_periodic_snapshot();
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 1);
+    CHECK(panels[0]["snapshot_seq"] == 0);
+    CHECK_FALSE(panels[0]["panel_visits"].contains("home"));
+    auto conns = queued_events(tm, "connection_stability");
+    REQUIRE(conns.size() == 1);
+    CHECK(conns[0]["connect_count"] == 0);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Snapshot deltas: fire_periodic_snapshot leaves the new events in the queue file",
+                 "[telemetry][snapshot][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    tm.notify_panel_changed("home");
+
+    tm.fire_periodic_snapshot();
+
+    REQUIRE(fs::exists(temp_dir() / "telemetry_queue.json"));
+    auto saved = json::parse(read_file("telemetry_queue.json"));
+    REQUIRE(saved.is_array());
+    std::set<std::string> kinds;
+    for (const auto& e : saved) {
+        if (e.value("boot_id", "") == TelemetryManagerTestAccess::boot_id(tm) &&
+            e.value("snapshot_seq", -1) == 0) {
+            kinds.insert(e.value("event", ""));
+        }
+    }
+    CHECK(kinds.count("panel_usage") == 1);
+    CHECK(kinds.count("connection_stability") == 1);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Queue: at capacity a delta merges into the queued one of its kind",
+                 "[telemetry][queue][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.record_session(); // the oldest event, and the one a drop-oldest would take
+    tm.notify_connection_state_changed(2);
+    tm.notify_panel_changed("home");
+    TelemetryManagerTestAccess::advance_clock(tm, 1h);
+    tm.fire_periodic_snapshot(); // seq 0
+    while (tm.queue_size() < TelemetryManager::MAX_QUEUE_SIZE) {
+        tm.record_session();
+    }
+
+    tm.notify_panel_changed("controls");
+    tm.notify_panel_changed("home");
+    TelemetryManagerTestAccess::advance_clock(tm, 1h);
+    tm.fire_periodic_snapshot(); // seq 1, merges
+
+    CHECK(tm.queue_size() == TelemetryManager::MAX_QUEUE_SIZE);
+    CHECK(tm.get_queue_snapshot()[0]["event"] == "session");
+
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 1);
+    CHECK(panels[0]["snapshot_seq"] == 1);
+    CHECK(panels[0]["session_duration_sec"] == 7200);
+    CHECK(panels[0]["panel_visits"]["home"] == 2);
+    CHECK(panels[0]["panel_visits"]["controls"] == 1);
+    CHECK(panels[0]["panel_time_sec"]["home"] == 7200);
+
+    auto conns = queued_events(tm, "connection_stability");
+    REQUIRE(conns.size() == 1);
+    CHECK(conns[0]["snapshot_seq"] == 1);
+    CHECK(conns[0]["session_duration_sec"] == 7200);
+    CHECK(conns[0]["connect_count"] == 1);
+    CHECK(conns[0]["total_connected_sec"] == 7200);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Queue: at capacity a non-delta evicts the oldest non-delta, never a delta",
+                 "[telemetry][queue][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.notify_panel_changed("home");
+    tm.record_panel_usage();
+    while (tm.queue_size() < TelemetryManager::MAX_QUEUE_SIZE) {
+        tm.record_session();
+    }
+
+    tm.record_print_outcome("completed", 600, 10, 1500.0f, "PLA", 210, 60);
+
+    auto queue = tm.get_queue_snapshot();
+    REQUIRE(queue.size() == TelemetryManager::MAX_QUEUE_SIZE);
+    CHECK(queue[0]["event"] == "panel_usage");
+    CHECK(queue.back()["event"] == "print_outcome");
+    CHECK(TelemetryManagerTestAccess::events_dropped_since_send(tm) == 1);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Queue: a merge never touches the batch a send has in flight",
+                 "[telemetry][queue][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.notify_panel_changed("home");
+    tm.record_panel_usage(); // index 0, inside the in-flight batch
+    while (tm.queue_size() < TelemetryManager::MAX_QUEUE_SIZE) {
+        tm.record_session();
+    }
+    TelemetryManagerTestAccess::set_in_flight(tm, TelemetryManager::MAX_BATCH_SIZE);
+
+    tm.notify_panel_changed("controls");
+    tm.record_panel_usage();
+
+    auto queue = tm.get_queue_snapshot();
+    REQUIRE(queue.size() == TelemetryManager::MAX_QUEUE_SIZE);
+    REQUIRE(queue[0]["event"] == "panel_usage");
+    CHECK(queue[0]["panel_visits"] == json{{"home", 1}});
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 2);
+    CHECK(panels[1]["panel_visits"] == json{{"controls", 1}});
+
+    // remove_sent_events() ends the send, after which the newest one merges.
+    tm.remove_sent_events(TelemetryManager::MAX_BATCH_SIZE);
+    while (tm.queue_size() < TelemetryManager::MAX_QUEUE_SIZE) {
+        tm.record_session();
+    }
+    tm.notify_panel_changed("home");
+    tm.record_panel_usage();
+    panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 1);
+    CHECK(panels[0]["panel_visits"]["controls"] == 1);
+    CHECK(panels[0]["panel_visits"]["home"] == 1);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Crash event: a crash file without a version reports app_version unknown",
+                 "[telemetry][crash]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    write_file("crash.txt", "signal:7\nname:SIGBUS\n");
+
+    tm.check_previous_crash();
+
+    REQUIRE(tm.queue_size() == 1);
+    auto event = tm.get_queue_snapshot()[0];
+    REQUIRE(event["event"] == "crash");
+    CHECK(event["app_version"] == "unknown");
 }
 
 // ============================================================================

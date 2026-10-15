@@ -106,8 +106,9 @@ extern std::atomic<bool> gcode_renderer_loaded;
  * active after explicit user opt-in via the settings UI.
  *
  * Events are persisted to disk so they survive restarts. The event
- * queue is capped at MAX_QUEUE_SIZE; oldest events are dropped when
- * the cap is reached.
+ * queue is capped at MAX_QUEUE_SIZE; at the cap, delta events merge into
+ * a queued one of the same kind and other events evict the oldest
+ * non-delta event.
  */
 class TelemetryManager {
   public:
@@ -288,10 +289,12 @@ class TelemetryManager {
     void record_settings_snapshot();
 
     /**
-     * @brief Record a panel usage summary event at shutdown
+     * @brief Enqueue a panel_usage delta and start a new window
      *
-     * Finalizes panel time tracking and enqueues a panel_usage event
-     * with per-panel visit counts, time spent, and overlay count.
+     * The event carries the per-panel visit counts, time, widget interactions
+     * and overlay visits accumulated since this kind's previous delta, and
+     * session_duration_sec is that window's length. The accumulators reset to
+     * zero afterwards, so summing a boot's rows gives its totals.
      * No-op if telemetry is disabled.
      *
      * Must be called from the LVGL/main thread only (accesses session trackers).
@@ -393,10 +396,12 @@ class TelemetryManager {
                       const std::string& context);
 
     /**
-     * @brief Record a connection stability summary event at shutdown
+     * @brief Enqueue a connection_stability delta and start a new window
      *
-     * Finalizes connection time tracking and enqueues a connection_stability
-     * event with connect/disconnect counts, durations, and Klippy errors.
+     * Counts and durations cover the window since this kind's previous delta.
+     * An outage still open at the window's end keeps its start, so
+     * longest_disconnect_sec measures it whole: to now while it is open, and
+     * in full in the window where it closes.
      * No-op if telemetry is disabled.
      *
      * Must be called from the LVGL/main thread only (accesses session trackers).
@@ -488,10 +493,12 @@ class TelemetryManager {
     void record_frame_time(uint32_t frame_time_us);
 
     /**
-     * @brief Trigger an immediate performance snapshot (e.g., at shutdown)
+     * @brief Emit this window's delta events and persist them
      *
-     * Fires the snapshot logic outside the normal timer cadence. Resets
-     * the snapshot timer if it is running. No-op if telemetry is disabled.
+     * Enqueues the panel_usage and connection_stability deltas under the
+     * current snapshot_seq, advances it, then saves the queue and the (now
+     * empty) accumulator so a power cut cannot lose or repeat the window.
+     * No-op if telemetry is disabled.
      *
      * Must be called from the LVGL/main thread only.
      */
@@ -897,11 +904,28 @@ class TelemetryManager {
     /**
      * @brief Add an event to the queue (mutex-protected)
      *
-     * Drops the oldest event if the queue is at MAX_QUEUE_SIZE.
+     * At MAX_QUEUE_SIZE a delta event (panel_usage, connection_stability)
+     * whose kind is already queued merges into the newest queued one; any
+     * other event evicts the oldest non-delta event. Delta events are never
+     * evicted, since a lost delta is gone for good. Events in the batch a send
+     * has in flight are never touched: the send removes them by count.
      *
      * @param event JSON event object to enqueue
      */
     void enqueue_event(nlohmann::json event);
+
+    /// Copy the next batch from the front of the queue and mark it in flight.
+    nlohmann::json claim_batch();
+
+    /// Clear the in-flight mark once a send has finished with its batch.
+    void release_in_flight();
+
+    /// The hourly auto-send timer's work: send, memory snapshot, persistence.
+    void on_auto_send_tick();
+
+    /// The clock every session tracker reads. Offset only by
+    /// TelemetryManagerTestAccess, so a test can cover hours without waiting.
+    std::chrono::steady_clock::time_point tracker_now() const;
 
     /**
      * @brief Build a session start event JSON object
@@ -968,17 +992,22 @@ class TelemetryManager {
      */
     nlohmann::json build_settings_snapshot_event() const;
 
-    /**
-     * @brief Build a panel usage summary event JSON object
-     * @return JSON event with per-panel visit counts, time, and overlay count
-     */
-    nlohmann::json build_panel_usage_event() const;
+    /// The panel_usage fields accumulated since the window began, as of @p now.
+    nlohmann::json panel_usage_delta(std::chrono::steady_clock::time_point now) const;
 
-    /**
-     * @brief Build a connection stability summary event JSON object
-     * @return JSON event with connect/disconnect counts and durations
-     */
-    nlohmann::json build_connection_stability_event() const;
+    /// The connection_stability fields accumulated since the window began, as
+    /// of @p now. An open outage is measured from its real start.
+    nlohmann::json connection_stability_delta(std::chrono::steady_clock::time_point now) const;
+
+    /// Zero the panel accumulators and start a new window at @p now.
+    void reset_panel_usage_window(std::chrono::steady_clock::time_point now);
+
+    /// Zero the connection accumulators and start a new window at @p now.
+    /// The open outage, if any, keeps its start.
+    void reset_connection_window(std::chrono::steady_clock::time_point now);
+
+    /// Envelope, identity and sequence around a delta payload of @p kind.
+    nlohmann::json build_delta_event(const char* kind, const nlohmann::json& payload) const;
 
     /**
      * @brief Build a performance snapshot event JSON object
@@ -1019,11 +1048,14 @@ class TelemetryManager {
     /** @brief Stop the frame performance snapshot timer */
     void stop_frame_perf_timer();
 
-    /// Persist snapshot sequence counter to disk so it survives restarts
-    void save_snapshot_state() const;
+    /// Persist the unsent accumulator with this boot's id and next
+    /// snapshot_seq, so an unclean exit loses only the time since the save.
+    void save_accumulator() const;
 
-    /// Load snapshot sequence counter from disk (called from init())
-    void load_snapshot_state();
+    /// Emit a previous boot's persisted accumulator as one delta per kind under
+    /// that boot's id and next snapshot_seq, then delete the file. A delta the
+    /// loaded queue already holds under the same key is not emitted twice.
+    void recover_accumulator();
 
     /// Create and arm the feature adoption delay LVGL timer
     void start_feature_adoption_timer();
@@ -1133,7 +1165,7 @@ class TelemetryManager {
     // EVENT QUEUE (mutex-protected)
     // =========================================================================
 
-    /// Protects queue_, events_dropped_since_send_, device_uuid_, device_salt_,
+    /// Protects queue_, events_dropped_since_send_, in_flight_, device_uuid_, device_salt_,
     /// error_rate_limit_
     mutable std::mutex mutex_;
 
@@ -1143,6 +1175,10 @@ class TelemetryManager {
     /// Events enqueue_event() discarded since the last batch reached the
     /// server. Non-zero means the next batch under-reports its window.
     size_t events_dropped_since_send_ = 0;
+
+    /// Leading queue_ entries a send has in flight. enqueue_event() leaves
+    /// them alone, because the send removes them by count when it succeeds.
+    size_t in_flight_ = 0;
 
     // =========================================================================
     // CONFIGURATION
@@ -1218,7 +1254,8 @@ class TelemetryManager {
     // =========================================================================
     // SESSION TRACKERS (panel usage + connection stability)
     // All accessed from LVGL/main thread only — no mutex needed.
-    // notify_*() called via LVGL observers, record_*() called from shutdown().
+    // notify_*() called via LVGL observers; record_*() from the snapshot timer
+    // and shutdown(). Each holds only the window since that kind's last delta.
     // =========================================================================
 
     // Panel usage tracking
@@ -1245,6 +1282,16 @@ class TelemetryManager {
     int klippy_shutdown_count_{0};
     bool connection_tracking_connected_{false};
     std::chrono::steady_clock::time_point connection_state_start_time_;
+    /// Start of the outage in progress. Never moved by a snapshot, so an
+    /// outage spanning one is measured whole.
+    std::chrono::steady_clock::time_point outage_start_time_;
+
+    /// Start of the window the next delta of each kind covers.
+    std::chrono::steady_clock::time_point panel_window_start_;
+    std::chrono::steady_clock::time_point connection_window_start_;
+
+    /// Added to steady_clock::now() by tracker_now(). Zero outside tests.
+    std::chrono::steady_clock::duration clock_offset_{};
 
     // =========================================================================
     // PERIODIC SNAPSHOT STATE (LVGL/main thread only)
@@ -1256,7 +1303,8 @@ class TelemetryManager {
     /// LVGL timer that fires every FRAME_PERF_INTERVAL_MS for frame performance snapshots
     lv_timer_t* frame_perf_timer_{nullptr};
 
-    /// Monotonically increasing sequence number for snapshot events (persisted)
+    /// Sequence number of the next delta snapshot. Starts at 0 every boot;
+    /// with device_id and boot_id it is the delta's idempotency key.
     int snapshot_seq_{0};
 
     /// True when fire_periodic_snapshot() is called from shutdown path

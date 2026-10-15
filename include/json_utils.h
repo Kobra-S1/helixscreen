@@ -240,6 +240,12 @@ inline bool to_u64(const nlohmann::json& v, std::uint64_t& out) {
 
 } // namespace detail
 
+/// An int64_t from a number or a numeric string.
+inline std::int64_t as_int64(const nlohmann::json& v, std::int64_t def = 0) {
+    std::int64_t out = 0;
+    return detail::to_i64(v, out) ? out : def;
+}
+
 /// Safely extract an int from a JSON field that may be number, string, or null.
 /// Returns `def` for null/missing/wrong-type, for non-finite floats, and for
 /// values outside the int range — a JSON 5000000000 yields `def`, not a
