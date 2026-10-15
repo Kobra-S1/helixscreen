@@ -81,10 +81,23 @@ class TelemetryManagerTestAccess {
         t.pending_settings_changes_.clear();
     }
 
+    /// Stop the session trackers' clock: from here it moves only by
+    /// advance_clock(). It survives init(), as time does across a reboot.
+    static void freeze_clock(TelemetryManager& t) {
+        t.manual_clock_ = std::chrono::steady_clock::now();
+    }
+
+    static void unfreeze_clock(TelemetryManager& t) {
+        t.manual_clock_.reset();
+    }
+
     /// Move the session trackers' clock forward, so a test can place a
     /// disconnect at hour 3:50 without waiting for it.
     static void advance_clock(TelemetryManager& t, std::chrono::steady_clock::duration by) {
-        t.clock_offset_ += by;
+        if (!t.manual_clock_) {
+            freeze_clock(t);
+        }
+        *t.manual_clock_ += by;
     }
 
     /// Run the hourly auto-send timer's body once.

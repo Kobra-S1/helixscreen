@@ -423,7 +423,6 @@ void TelemetryManager::init(const std::string& config_dir) {
         in_flight_ = 0;
         attempted_ = 0;
     }
-    clock_offset_ = {};
 
     // Reset session trackers
     panel_time_sec_.clear();
@@ -1252,7 +1251,7 @@ void TelemetryManager::on_auto_send_tick() {
 }
 
 std::chrono::steady_clock::time_point TelemetryManager::tracker_now() const {
-    return std::chrono::steady_clock::now() + clock_offset_;
+    return manual_clock_ ? *manual_clock_ : std::chrono::steady_clock::now();
 }
 
 void TelemetryManager::stop_auto_send() {

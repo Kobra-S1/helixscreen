@@ -95,6 +95,9 @@ class TelemetryTestFixture {
             cfg->set<bool>("/telemetry_enabled", false);
         }
 
+        // Frozen before init() so every window starts on the manual clock and
+        // holds only the time a test steps, however slowly the test runs.
+        TelemetryManagerTestAccess::freeze_clock(tm);
         tm.init(temp_dir_.string());
         tm.set_enabled(false);
         tm.clear_queue();
@@ -111,6 +114,7 @@ class TelemetryTestFixture {
         helix::ui::UpdateQueue::instance().drain();
 
         TelemetryManager::instance().shutdown();
+        TelemetryManagerTestAccess::unfreeze_clock(TelemetryManager::instance());
 
         // Clean up temp directory - best effort
         std::error_code ec;

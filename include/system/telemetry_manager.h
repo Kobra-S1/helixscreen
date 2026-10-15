@@ -928,8 +928,8 @@ class TelemetryManager {
     /// The hourly auto-send timer's work: send, memory snapshot, persistence.
     void on_auto_send_tick();
 
-    /// The clock every session tracker reads. Offset only by
-    /// TelemetryManagerTestAccess, so a test can cover hours without waiting.
+    /// The clock every session tracker reads: steady_clock, or the manual clock
+    /// TelemetryManagerTestAccess sets so a test can cover hours without waiting.
     std::chrono::steady_clock::time_point tracker_now() const;
 
     /**
@@ -1301,8 +1301,10 @@ class TelemetryManager {
     std::chrono::steady_clock::time_point panel_window_start_;
     std::chrono::steady_clock::time_point connection_window_start_;
 
-    /// Added to steady_clock::now() by tracker_now(). Zero outside tests.
-    std::chrono::steady_clock::duration clock_offset_{};
+    /// Set only by TelemetryManagerTestAccess. When present, tracker_now()
+    /// returns it instead of steady_clock, so a window holds exactly the time a
+    /// test steps and none of the real time the test spends running.
+    std::optional<std::chrono::steady_clock::time_point> manual_clock_;
 
     // =========================================================================
     // PERIODIC SNAPSHOT STATE (LVGL/main thread only)
