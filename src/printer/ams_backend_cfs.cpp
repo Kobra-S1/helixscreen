@@ -554,9 +554,8 @@ bool AmsBackendCfs::owns_filament_sensor(const std::string& bare_name,
 void AmsBackendCfs::on_started() {
     spdlog::info("[AMS CFS] Backend started — querying initial box state");
 
-    // A start is a new session: the merged stock and flat frames and whether
-    // the auto-refill bit has been seen describe the last one.
-    stock_box_state_ = nlohmann::json::object();
+    // A start is a new session: the merged flat frames and whether the
+    // auto-refill bit has been seen describe the last one.
     flat_box_state_ = nlohmann::json::object();
     {
         std::lock_guard<std::mutex> lock(mutex_);
