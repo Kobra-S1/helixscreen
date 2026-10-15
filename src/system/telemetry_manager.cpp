@@ -421,6 +421,7 @@ void TelemetryManager::init(const std::string& config_dir) {
         std::lock_guard<std::mutex> lock(mutex_);
         queue_.clear();
         in_flight_ = 0;
+        attempted_ = 0;
     }
     clock_offset_ = {};
 
@@ -1001,6 +1002,7 @@ nlohmann::json TelemetryManager::get_queue_snapshot() const {
 void TelemetryManager::clear_queue() {
     std::lock_guard<std::mutex> lock(mutex_);
     queue_.clear();
+    attempted_ = 0;
     // A purge ends the window the count describes. Carrying it forward would
     // mark the first batch after the next opt-in as incomplete when nothing
     // from that window was ever discarded.
@@ -1014,6 +1016,10 @@ void TelemetryManager::clear_queue() {
 
 nlohmann::json TelemetryManager::build_batch() const {
     std::lock_guard<std::mutex> lock(mutex_);
+    return front_batch_locked();
+}
+
+nlohmann::json TelemetryManager::front_batch_locked() const {
     size_t batch_size = std::min(queue_.size(), MAX_BATCH_SIZE);
     return json(std::vector<json>(queue_.begin(), queue_.begin() + static_cast<long>(batch_size)));
 }
@@ -1023,6 +1029,7 @@ void TelemetryManager::remove_sent_events(size_t count) {
     size_t to_remove = std::min(count, queue_.size());
     queue_.erase(queue_.begin(), queue_.begin() + static_cast<long>(to_remove));
     in_flight_ = 0;
+    attempted_ -= std::min(attempted_, to_remove);
     spdlog::debug("[TelemetryManager] Removed {} sent events, {} remaining", to_remove,
                   queue_.size());
 
@@ -1040,8 +1047,10 @@ void TelemetryManager::remove_sent_events(size_t count) {
 
 nlohmann::json TelemetryManager::claim_batch() {
     std::lock_guard<std::mutex> lock(mutex_);
-    in_flight_ = std::min(queue_.size(), MAX_BATCH_SIZE);
-    return json(std::vector<json>(queue_.begin(), queue_.begin() + static_cast<long>(in_flight_)));
+    json batch = front_batch_locked();
+    in_flight_ = batch.size();
+    attempted_ = std::max(attempted_, in_flight_);
+    return batch;
 }
 
 void TelemetryManager::release_in_flight() {
@@ -1087,10 +1096,10 @@ void TelemetryManager::try_send(bool force) {
 
     // Send on background thread; joined on next try_send() call or shutdown().
     // Wrap — EAGAIN under thread exhaustion throws std::system_error ([L083]).
-    // build_batch() above copies from queue_ without removing — events are
-    // only removed via remove_sent_events() inside do_send on success — so on
-    // spawn failure the queue is already in the right state. Just log; the
-    // next try_send tick will retry.
+    // claim_batch() above copies the front of queue_ and marks it in flight;
+    // events leave only through remove_sent_events() inside do_send on
+    // success. If the thread never starts, nothing will release the claim, so
+    // it is released here and the next try_send tick retries the same events.
     try {
         send_thread_ = std::thread([this, batch = std::move(batch)]() { do_send(batch); });
     } catch (const std::system_error& e) {
@@ -1399,6 +1408,10 @@ void TelemetryManager::load_queue() {
             queue_.erase(queue_.begin());
         }
 
+        // A previous process may have delivered any of these without living to
+        // remove them, so none is a merge target.
+        attempted_ = queue_.size();
+
         spdlog::info("[TelemetryManager] Loaded {} events from queue", queue_.size());
     } catch (const json::exception& e) {
         spdlog::warn("[TelemetryManager] Failed to parse queue file (corrupt?): {}", e.what());
@@ -1607,10 +1620,19 @@ void TelemetryManager::enqueue_event(nlohmann::json event) {
     if (queue_.size() >= MAX_QUEUE_SIZE) {
         const size_t first_free = std::min(in_flight_, queue_.size());
         const std::string kind = helix::json_util::safe_string(event, "event");
+        const bool delta = is_delta_event(event);
 
-        if (is_delta_event(event)) {
-            for (size_t i = queue_.size(); i-- > first_free;) {
-                if (helix::json_util::safe_string(queue_[i], "event") == kind) {
+        if (delta) {
+            // A row a send has attempted may already be stored. It may only be
+            // resent as it is, where its key dedups; merging would report its
+            // window again under the new seq. Rows of another boot stay apart
+            // so per-boot and per-version attribution holds.
+            const size_t first_mergeable =
+                std::min(std::max(in_flight_, attempted_), queue_.size());
+            const std::string boot = helix::json_util::safe_string(event, "boot_id");
+            for (size_t i = queue_.size(); i-- > first_mergeable;) {
+                if (helix::json_util::safe_string(queue_[i], "event") == kind &&
+                    helix::json_util::safe_string(queue_[i], "boot_id") == boot) {
                     merge_older_delta(event, queue_[i]);
                     queue_[i] = std::move(event);
                     spdlog::debug("[TelemetryManager] Queue at capacity ({}), merged {} delta",
@@ -1624,13 +1646,22 @@ void TelemetryManager::enqueue_event(nlohmann::json event) {
         auto victim = std::find_if(queue_.begin() + static_cast<long>(first_free), queue_.end(),
                                    [](const json& queued) { return !is_delta_event(queued); });
         if (victim == queue_.end()) {
-            spdlog::debug("[TelemetryManager] Queue at capacity ({}) with nothing evictable, "
-                          "dropping incoming {} event",
-                          MAX_QUEUE_SIZE, kind);
+            if (delta) {
+                spdlog::warn("[TelemetryManager] Queue at capacity ({}) with nothing evictable, "
+                             "dropping incoming {} delta: its window is lost",
+                             MAX_QUEUE_SIZE, kind);
+            } else {
+                spdlog::debug("[TelemetryManager] Queue at capacity ({}) with nothing evictable, "
+                              "dropping incoming {} event",
+                              MAX_QUEUE_SIZE, kind);
+            }
             return;
         }
         spdlog::debug("[TelemetryManager] Queue at capacity ({}), dropping oldest {} event",
                       MAX_QUEUE_SIZE, helix::json_util::safe_string(*victim, "event"));
+        if (static_cast<size_t>(victim - queue_.begin()) < attempted_) {
+            --attempted_;
+        }
         queue_.erase(victim);
     }
 

@@ -905,17 +905,22 @@ class TelemetryManager {
      * @brief Add an event to the queue (mutex-protected)
      *
      * At MAX_QUEUE_SIZE a delta event (panel_usage, connection_stability)
-     * whose kind is already queued merges into the newest queued one; any
-     * other event evicts the oldest non-delta event. Delta events are never
-     * evicted, since a lost delta is gone for good. Events in the batch a send
-     * has in flight are never touched: the send removes them by count.
+     * merges into the newest queued one of its kind and boot that no send has
+     * attempted; any other event evicts the oldest non-delta event. Delta
+     * events are never evicted, since a lost delta is gone for good. Events in
+     * the batch a send has in flight are never touched: the send removes them
+     * by count.
      *
      * @param event JSON event object to enqueue
      */
     void enqueue_event(nlohmann::json event);
 
-    /// Copy the next batch from the front of the queue and mark it in flight.
+    /// Copy the next batch from the front of the queue and mark it in flight
+    /// and attempted.
     nlohmann::json claim_batch();
+
+    /// The body of build_batch() and claim_batch(). Caller holds mutex_.
+    nlohmann::json front_batch_locked() const;
 
     /// Clear the in-flight mark once a send has finished with its batch.
     void release_in_flight();
@@ -1165,8 +1170,8 @@ class TelemetryManager {
     // EVENT QUEUE (mutex-protected)
     // =========================================================================
 
-    /// Protects queue_, events_dropped_since_send_, in_flight_, device_uuid_, device_salt_,
-    /// error_rate_limit_
+    /// Protects queue_, events_dropped_since_send_, in_flight_, attempted_, device_uuid_,
+    /// device_salt_, error_rate_limit_
     mutable std::mutex mutex_;
 
     /// Pending events awaiting transmission
@@ -1179,6 +1184,12 @@ class TelemetryManager {
     /// Leading queue_ entries a send has in flight. enqueue_event() leaves
     /// them alone, because the send removes them by count when it succeeds.
     size_t in_flight_ = 0;
+
+    /// Leading queue_ entries a send has POSTed, or a previous process loaded,
+    /// without a confirmed removal. The server may already hold them, so they
+    /// are only ever resent as they are and never merged into. Cleared only by
+    /// remove_sent_events(), never by a failed send.
+    size_t attempted_ = 0;
 
     // =========================================================================
     // CONFIGURATION

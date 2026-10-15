@@ -110,6 +110,13 @@ class TelemetryManagerTestAccess {
         t.in_flight_ = count;
     }
 
+    /// A send that claimed the front batch and ended without a confirmed
+    /// removal: a non-2xx, a timeout, or a 2xx that arrived during shutdown.
+    static void fail_send(TelemetryManager& t) {
+        t.claim_batch();
+        t.release_in_flight();
+    }
+
     static std::string boot_id(const TelemetryManager& t) {
         return t.boot_id_;
     }

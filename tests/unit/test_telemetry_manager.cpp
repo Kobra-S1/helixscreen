@@ -2914,6 +2914,122 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     CHECK(panels[0]["panel_visits"]["home"] == 1);
 }
 
+TEST_CASE_METHOD(TelemetryTestFixture, "Queue: a merge never touches a row a failed send attempted",
+                 "[telemetry][queue][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.notify_panel_changed("home");
+    tm.record_panel_usage(); // index 0, inside the attempted batch
+    while (tm.queue_size() < TelemetryManager::MAX_QUEUE_SIZE) {
+        tm.record_session();
+    }
+    TelemetryManagerTestAccess::fail_send(tm);
+
+    tm.notify_panel_changed("controls");
+    tm.record_panel_usage();
+
+    REQUIRE(tm.queue_size() == TelemetryManager::MAX_QUEUE_SIZE);
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 2);
+    CHECK(panels[0]["panel_visits"] == json{{"home", 1}});
+    CHECK(panels[1]["panel_visits"] == json{{"controls", 1}});
+
+    // Only the attempted prefix is excluded: the unattempted row still merges.
+    tm.notify_panel_changed("status");
+    tm.record_panel_usage();
+    panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 2);
+    CHECK(panels[0]["panel_visits"] == json{{"home", 1}});
+    CHECK(panels[1]["panel_visits"] == json{{"controls", 1}, {"status", 1}});
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Queue: rows loaded from disk are never merged into",
+                 "[telemetry][queue][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.notify_panel_changed("home");
+    tm.record_panel_usage();
+    while (tm.queue_size() < TelemetryManager::MAX_QUEUE_SIZE) {
+        tm.record_session();
+    }
+    tm.save_queue();
+    tm.load_queue(); // as a new process would: any loaded row may be delivered
+
+    tm.notify_panel_changed("controls");
+    tm.record_panel_usage();
+
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 2);
+    CHECK(panels[0]["panel_visits"] == json{{"home", 1}});
+    CHECK(panels[1]["panel_visits"] == json{{"controls", 1}});
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Queue: deltas from different boots are never merged",
+                 "[telemetry][queue][delta]") {
+    auto& tm = TelemetryManager::instance();
+    TelemetryManagerTestAccess::disable_network(tm);
+    tm.set_enabled(true);
+
+    tm.notify_panel_changed("home");
+    TelemetryManagerTestAccess::advance_clock(tm, 1h);
+    TelemetryManagerTestAccess::fire_auto_send_tick(tm); // persists the home window
+    const std::string old_boot = TelemetryManagerTestAccess::boot_id(tm);
+    TelemetryManagerTestAccess::simulate_unclean_exit(tm);
+    tm.init(temp_dir().string());
+    REQUIRE(queued_events(tm, "panel_usage").size() == 1); // the recovered delta
+
+    while (tm.queue_size() < TelemetryManager::MAX_QUEUE_SIZE) {
+        tm.record_session();
+    }
+    tm.notify_panel_changed("status");
+    TelemetryManagerTestAccess::advance_clock(tm, 10min);
+    tm.fire_periodic_snapshot();
+
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 2);
+    CHECK(panels[0]["boot_id"] == old_boot);
+    CHECK(panels[0]["panel_visits"] == json{{"home", 1}});
+    CHECK(panels[1]["boot_id"] == TelemetryManagerTestAccess::boot_id(tm));
+    CHECK(panels[1]["panel_visits"] == json{{"status", 1}});
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Queue: a merge keeps the longest outage and one-sided map keys",
+                 "[telemetry][queue][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.record_session();
+    tm.notify_connection_state_changed(2);
+    TelemetryManagerTestAccess::advance_clock(tm, 10min);
+    tm.notify_connection_state_changed(0);
+    TelemetryManagerTestAccess::advance_clock(tm, 10min); // a 600s outage
+    tm.notify_connection_state_changed(2);
+    tm.notify_widget_interaction("led_control");
+    tm.fire_periodic_snapshot(); // seq 0
+    while (tm.queue_size() < TelemetryManager::MAX_QUEUE_SIZE) {
+        tm.record_session();
+    }
+
+    tm.notify_connection_state_changed(0);
+    TelemetryManagerTestAccess::advance_clock(tm, 5min); // a 300s outage
+    tm.notify_connection_state_changed(2);
+    tm.notify_widget_interaction("fan_control");
+    tm.fire_periodic_snapshot(); // seq 1, merges
+
+    auto conns = queued_events(tm, "connection_stability");
+    REQUIRE(conns.size() == 1);
+    CHECK(conns[0]["longest_disconnect_sec"] == 600);
+    CHECK(conns[0]["disconnect_count"] == 2);
+    CHECK(conns[0]["total_disconnected_sec"] == 900);
+
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 1);
+    CHECK(panels[0]["widget_interactions"] == json{{"fan_control", 1}, {"led_control", 1}});
+}
+
 TEST_CASE_METHOD(TelemetryTestFixture,
                  "Crash event: a crash file without a version reports app_version unknown",
                  "[telemetry][crash]") {
