@@ -3144,6 +3144,183 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     CHECK(panels[0]["widget_interactions"] == json{{"fan_control", 1}, {"led_control", 1}});
 }
 
+namespace {
+
+void fill_queue_with_sessions(TelemetryManager& tm, size_t until) {
+    while (tm.queue_size() < until) {
+        tm.record_session();
+    }
+}
+
+/// A full queue whose only panel_usage row sits at index 0.
+void fill_queue_behind_panel_row(TelemetryManager& tm, const std::string& panel) {
+    tm.notify_panel_changed(panel);
+    tm.record_panel_usage();
+    REQUIRE(tm.queue_size() == 1);
+    fill_queue_with_sessions(tm, TelemetryManager::MAX_QUEUE_SIZE);
+}
+
+/// One real try_send(), past the interval gate, run to its end.
+void send_now(TelemetryManager& tm) {
+    TelemetryManagerTestAccess::set_backoff(tm, 1);
+    TelemetryManagerTestAccess::set_last_send_time(tm, std::chrono::steady_clock::now() - 24h * 30);
+    const auto before = TelemetryManagerTestAccess::last_send_time(tm);
+    tm.try_send();
+    TelemetryManagerTestAccess::join_send_thread(tm);
+    REQUIRE(TelemetryManagerTestAccess::last_send_time(tm) != before);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Queue: a send's claim marks its rows attempted, so nothing merges into them",
+                 "[telemetry][queue][delta]") {
+    auto& tm = TelemetryManager::instance();
+    TelemetryManagerTestAccess::disable_network(tm);
+    tm.set_enabled(true);
+    fill_queue_behind_panel_row(tm, "home");
+
+    send_now(tm);
+
+    tm.notify_panel_changed("controls");
+    tm.record_panel_usage();
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 2);
+    CHECK(panels[0]["panel_visits"] == json{{"home", 1}});
+    CHECK(panels[1]["panel_visits"] == json{{"controls", 1}});
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Queue: a finished send releases its batch for eviction",
+                 "[telemetry][queue]") {
+    auto& tm = TelemetryManager::instance();
+    TelemetryManagerTestAccess::disable_network(tm);
+    tm.set_enabled(true);
+    tm.record_print_outcome("completed", 600, 5, 300.0f, "PLA", 200, 60);
+    fill_queue_with_sessions(tm, TelemetryManager::MAX_QUEUE_SIZE);
+    REQUIRE(tm.get_queue_snapshot()[0]["event"] == "print_outcome");
+
+    send_now(tm);
+
+    // Nothing is in flight any more, so the oldest row is the one evicted.
+    tm.record_session();
+    REQUIRE(tm.queue_size() == TelemetryManager::MAX_QUEUE_SIZE);
+    CHECK(queued_events(tm, "print_outcome").empty());
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Queue: a confirmed removal ends the claim on the rows that remain",
+                 "[telemetry][queue][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    fill_queue_with_sessions(tm, TelemetryManager::MAX_BATCH_SIZE);
+    tm.notify_panel_changed("home");
+    tm.record_panel_usage(); // first row after the claimed batch
+    fill_queue_with_sessions(tm, TelemetryManager::MAX_QUEUE_SIZE);
+
+    TelemetryManagerTestAccess::claim_batch(tm);
+    tm.remove_sent_events(TelemetryManager::MAX_BATCH_SIZE);
+    REQUIRE(tm.get_queue_snapshot()[0]["event"] == "panel_usage");
+    fill_queue_with_sessions(tm, TelemetryManager::MAX_QUEUE_SIZE);
+
+    tm.notify_panel_changed("controls");
+    tm.record_panel_usage();
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 1);
+    CHECK(panels[0]["panel_visits"] == json{{"home", 1}, {"controls", 1}});
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Queue: a purge forgets which rows a send attempted",
+                 "[telemetry][queue][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    fill_queue_behind_panel_row(tm, "status");
+    TelemetryManagerTestAccess::fail_send(tm);
+
+    tm.clear_queue();
+    fill_queue_behind_panel_row(tm, "home");
+    tm.notify_panel_changed("controls");
+    tm.record_panel_usage();
+
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 1);
+    CHECK(panels[0]["panel_visits"] == json{{"home", 1}, {"controls", 1}});
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Queue: a new boot inherits no claim on the queue",
+                 "[telemetry][queue][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    fill_queue_behind_panel_row(tm, "status");
+    TelemetryManagerTestAccess::fail_send(tm);
+    TelemetryManagerTestAccess::set_in_flight(tm, TelemetryManager::MAX_BATCH_SIZE);
+
+    TelemetryManagerTestAccess::simulate_unclean_exit(tm);
+    tm.init(temp_dir().string()); // nothing was saved, so nothing is loaded
+    REQUIRE(tm.queue_size() == 0);
+
+    fill_queue_behind_panel_row(tm, "home");
+    tm.notify_panel_changed("controls");
+    tm.record_panel_usage();
+
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 1);
+    CHECK(panels[0]["panel_visits"] == json{{"home", 1}, {"controls", 1}});
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Snapshot deltas: a new boot reports none of the last boot's widget taps",
+                 "[telemetry][snapshot][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    tm.notify_panel_changed("home");
+    tm.notify_widget_interaction("led_control");
+
+    TelemetryManagerTestAccess::simulate_unclean_exit(tm);
+    tm.init(temp_dir().string());
+    tm.notify_panel_changed("controls");
+    tm.notify_widget_interaction("fan_control");
+    tm.record_panel_usage();
+
+    auto panels = queued_events(tm, "panel_usage");
+    REQUIRE(panels.size() == 1);
+    CHECK(panels[0]["widget_interactions"] == json{{"fan_control", 1}});
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Snapshot deltas: an outage the first notification opens is measured from it",
+                 "[telemetry][snapshot][delta]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.notify_connection_state_changed(0); // first notification: already disconnected
+    TelemetryManagerTestAccess::advance_clock(tm, 10min);
+    tm.record_connection_stability(); // the outage is still open
+
+    TelemetryManagerTestAccess::advance_clock(tm, 5min);
+    tm.notify_connection_state_changed(2); // closes after 900s
+    tm.record_connection_stability();
+
+    auto conns = queued_events(tm, "connection_stability");
+    REQUIRE(conns.size() == 2);
+    CHECK(conns[0]["longest_disconnect_sec"] == 600);
+    CHECK(conns[1]["longest_disconnect_sec"] == 900);
+}
+
+TEST_CASE_METHOD(TelemetrySchedulerFixture,
+                 "Scheduler: the auto-send timer persists the unsent window",
+                 "[telemetry][scheduler][snapshot]") {
+    auto& tm = TelemetryManager::instance();
+    TelemetryManagerTestAccess::disable_network(tm);
+    tm.set_enabled(true);
+    tm.start_auto_send();
+    REQUIRE_FALSE(fs::exists(temp_dir() / ACCUMULATOR_FILE));
+
+    lv_tick_inc(TelemetryManager::INITIAL_SEND_DELAY_MS);
+    lv_timer_handler();
+
+    CHECK(fs::exists(temp_dir() / ACCUMULATOR_FILE));
+}
+
 TEST_CASE_METHOD(TelemetryTestFixture,
                  "Crash event: a crash file without a version reports app_version unknown",
                  "[telemetry][crash]") {

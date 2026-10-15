@@ -130,6 +130,19 @@ class TelemetryManagerTestAccess {
         t.release_in_flight();
     }
 
+    /// A send that has claimed the front batch and not yet ended.
+    static void claim_batch(TelemetryManager& t) {
+        t.claim_batch();
+    }
+
+    /// Wait for the send thread try_send() spawned, so its end-of-send state
+    /// is settled before a test reads the queue.
+    static void join_send_thread(TelemetryManager& t) {
+        if (t.send_thread_.joinable()) {
+            t.send_thread_.join();
+        }
+    }
+
     static std::string boot_id(const TelemetryManager& t) {
         return t.boot_id_;
     }
