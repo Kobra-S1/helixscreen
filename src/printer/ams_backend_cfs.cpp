@@ -534,6 +534,7 @@ AmsBackendCfs::AmsBackendCfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client
     macro_variant_ = (PrinterDetector::is_creality_k1() || PrinterDetector::is_creality_hi())
                          ? CfsMacroVariant::K1
                          : CfsMacroVariant::K2;
+    model_macro_variant_ = macro_variant_;
 
     spdlog::info("[AMS CFS] Backend created — macro variant: {}",
                  macro_variant_ == CfsMacroVariant::K1 ? "K1 (BOX_*)" : "K2 (CR_BOX_*)");
@@ -553,8 +554,10 @@ bool AmsBackendCfs::owns_filament_sensor(const std::string& bare_name,
 void AmsBackendCfs::on_started() {
     spdlog::info("[AMS CFS] Backend started — querying initial box state");
 
-    // A start is a new session: whether the auto-refill bit has been seen
-    // describes the last one.
+    // A start is a new session: the merged stock and flat frames and whether
+    // the auto-refill bit has been seen describe the last one.
+    stock_box_state_ = nlohmann::json::object();
+    flat_box_state_ = nlohmann::json::object();
     {
         std::lock_guard<std::mutex> lock(mutex_);
         endless_spool_enable_reported_ = false;
@@ -1520,38 +1523,76 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
             box.contains("filament") || box.contains("map") || box.contains("auto_refill");
         bool has_unit_data =
             box.contains("T1") || box.contains("T2") || box.contains("T3") || box.contains("T4");
-        // Flat schema: a `slots` array is the payload that carries everything —
-        // there is no top-level/per-unit split to reason about, so its presence
-        // alone marks a full update.
-        const bool is_flat = detect_schema(box) == CfsSchema::Flat;
+        // A `slots` array or a T{n} unit names the frame's schema. A frame with
+        // neither is a delta of whichever schema the box spoke last: after a
+        // flat frame, a frame carrying only temp_c is a flat frame, and after a
+        // T{n} one, a frame carrying only filament_useup or map is a stock one.
+        //
+        // The Fork dialect belongs to the flat module, so a box speaking stock
+        // again takes back the model's own dialect along with the schema.
+        if (has_unit_data && schema_ != CfsSchema::Stock) {
+            schema_ = CfsSchema::Stock;
+            if (macro_variant_ == CfsMacroVariant::Fork) {
+                macro_variant_ = model_macro_variant_;
+            }
+            spdlog::info("[AMS CFS] Stock box schema reported, flat state dropped");
+        }
+        const bool is_flat =
+            detect_schema(box) == CfsSchema::Flat || (schema_ == CfsSchema::Flat && !has_unit_data);
         bool is_full_update = has_top_level || has_unit_data || is_flat;
+
+        // Frames are deltas in both schemas, so the parse reads the box as the
+        // merge of every frame since the session began or the schema changed.
+        // A stock unit leaves only when a frame reports it disconnected.
+        //
+        // The two merges differ on purpose. A stock frame is merged
+        // recursively, since a T{n} frame may name only the unit fields that
+        // changed. Klipper diffs box.py's flat object per top-level field and
+        // sends each changed field whole, so a flat field replaces its
+        // predecessor outright: a recursive merge would keep a key that left a
+        // nested object (a deleted `materials` entry) and erase an explicit
+        // null instead of storing it.
+        if (is_flat) {
+            if (!stock_box_state_.empty()) {
+                stock_box_state_ = nlohmann::json::object();
+            }
+            if (!flat_box_state_.is_object()) {
+                flat_box_state_ = nlohmann::json::object();
+            }
+            for (const auto& [key, value] : box.items()) {
+                flat_box_state_[key] = value;
+            }
+        } else {
+            if (!flat_box_state_.empty()) {
+                flat_box_state_ = nlohmann::json::object();
+            }
+            if (!stock_box_state_.is_object()) {
+                stock_box_state_ = nlohmann::json::object();
+            }
+            stock_box_state_.merge_patch(box);
+        }
+        const nlohmann::json& state = is_flat ? flat_box_state_ : stock_box_state_;
+
+        // A flat session has nothing to parse until the box has stated its
+        // slots.
+        if (is_flat && detect_schema(state) != CfsSchema::Flat) {
+            is_full_update = false;
+        }
 
         if (is_flat && schema_ != CfsSchema::Flat) {
             schema_ = CfsSchema::Flat;
             // Select the command dialect from the explicit API version, not by
             // assuming every `slots[]` payload implements the same commands.
-            if (detect_fork_dialect(box)) {
+            if (detect_fork_dialect(state)) {
                 macro_variant_ = CfsMacroVariant::Fork;
                 spdlog::info("[AMS CFS] Flat box schema + fork dialect detected "
                              "(community box.py, API v{}) — Fork control enabled",
-                             helix::json_util::safe_int(box, "api_version", 0));
+                             helix::json_util::safe_int(state, "api_version", 0));
             } else {
                 spdlog::warn("[AMS CFS] Flat box schema without a supported API version — "
                              "slot display active, control paths disabled (no verified "
                              "command dialect)");
             }
-        }
-
-        // Stock frames are deltas: a frame naming only T3 says nothing about T1
-        // and T2, so the parse reads the box as the merge of every frame since
-        // the last flat one.
-        if (is_flat) {
-            stock_box_state_ = nlohmann::json::object();
-        } else {
-            if (!stock_box_state_.is_object()) {
-                stock_box_state_ = nlohmann::json::object();
-            }
-            stock_box_state_.merge_patch(box);
         }
 
         if (is_full_update) {
@@ -1565,11 +1606,11 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
                 std::lock_guard<std::mutex> lock(mutex_);
                 own_labels = pushed_material_codes_;
             }
-            auto new_info = parse_box_status(is_flat ? box : stock_box_state_, &own_labels);
+            auto new_info = parse_box_status(state, &own_labels);
 
             // Payload reads happen before the lock; the values converge under
             // it with everything else below.
-            const int external_index = is_flat ? find_external_slot_index(box) : -1;
+            const int external_index = is_flat ? find_external_slot_index(state) : -1;
 
             // Firmware-sourced mapping tick. box.map is what the CFS itself
             // reports — verified on a live K2: BOX_MODIFY_TN T1A=T1B echoed back

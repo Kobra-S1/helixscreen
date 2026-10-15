@@ -5062,3 +5062,217 @@ TEST_CASE("CFS action completion runs from the UpdateQueue, not the answering th
     REQUIRE(ran);
     CHECK(ran_from != nullptr);
 }
+
+// ============================================================================
+// Flat frames are deltas. Klipper sends a status object's changed top-level
+// fields only, each one whole, so a frame that edits a slot carries `slots`
+// and nothing else. The backend reads the box as the sum of every frame since
+// the session began (Jacob10383/k2-plus-custom-firmware#3).
+// ============================================================================
+
+namespace {
+
+/// A Fork flat box with two chained boxes (eight bays) and the external
+/// holder, bay 2 threaded through to the toolhead.
+json make_two_box_flat_json() {
+    json slots = json::array();
+    for (int i = 0; i < 8; ++i) {
+        slots.push_back({{"index", i},
+                         {"external", false},
+                         {"present", true},
+                         {"loaded", i == 2},
+                         {"material", "PLA"},
+                         {"brand", "Sunlu"},
+                         {"color", "#111111"}});
+    }
+    slots.push_back({{"index", 8}, {"external", true}, {"present", true}, {"loaded", false}});
+    return json{{"api_version", 1},
+                {"temp_c", 27},
+                {"humidity_pct", 54},
+                {"loaded_slot", 2},
+                {"runout_swap_enabled", true},
+                {"filament_detected", true},
+                {"materials", {{"PLA", {{"target_temp", 233}}}, {"PETG", {{"target_temp", 245}}}}},
+                {"load_path", {{"box_addr", nullptr}}},
+                {"slots", slots}};
+}
+
+/// The frame Klipper sends when a status object goes from @p before to
+/// @p after: every top-level field whose value changed, carried whole.
+json klipper_delta(const json& before, const json& after) {
+    json out = json::object();
+    for (const auto& [key, value] : after.items()) {
+        if (!before.contains(key) || before[key] != value) {
+            out[key] = value;
+        }
+    }
+    return out;
+}
+
+std::vector<int> units_with_environment(const AmsSystemInfo& info) {
+    std::vector<int> out;
+    for (const auto& u : info.units) {
+        if (u.environment.has_value()) {
+            out.push_back(u.unit_index);
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("CFS flat: a slots-only delta keeps the environment and the loaded bay",
+          "[ams][cfs][flat][environment]") {
+    CfsRemapHelper backend;
+    const json full = make_two_box_flat_json();
+    CfsTestAccess::handle_status(backend, make_cfs_notification(full));
+    REQUIRE(units_with_environment(backend.get_system_info()) == std::vector<int>{0});
+    REQUIRE(backend.get_system_info().current_slot == 2);
+
+    // A brand edit: a firmware material also reaches the lane_data mirror's
+    // override layer, which is not what this case is about.
+    json edited = full;
+    edited["slots"][1]["brand"] = "Jayo";
+    const json delta = klipper_delta(full, edited);
+    REQUIRE(delta.size() == 1);
+    REQUIRE(delta.contains("slots"));
+    CfsTestAccess::handle_status(backend, make_cfs_notification(delta));
+
+    const auto info = backend.get_system_info();
+    REQUIRE(info.units.size() == 2);
+    REQUIRE(units_with_environment(info) == std::vector<int>{0});
+    CHECK(info.units[0].environment->temperature_c == 27.0f);
+    CHECK(info.units[0].environment->humidity_pct == 54.0f);
+    CHECK(info.units[0].slots[1].brand == "Jayo");
+    CHECK(info.current_slot == 2);
+    CHECK(info.current_tool == 2);
+}
+
+TEST_CASE("CFS flat: an environment-only delta updates the reading and keeps the slots",
+          "[ams][cfs][flat][environment]") {
+    CfsRemapHelper backend;
+    const json full = make_two_box_flat_json();
+    CfsTestAccess::handle_status(backend, make_cfs_notification(full));
+    REQUIRE(backend.get_system_info().supports_bypass);
+
+    json warmer = full;
+    warmer["temp_c"] = 31;
+    const json delta = klipper_delta(full, warmer);
+    REQUIRE(delta == json{{"temp_c", 31}});
+    CfsTestAccess::handle_status(backend, make_cfs_notification(delta));
+
+    const auto info = backend.get_system_info();
+    REQUIRE(info.units.size() == 2);
+    REQUIRE(info.total_slots == 8);
+    CHECK(info.units[0].slots[0].material == "PLA");
+    CHECK(info.units[0].slots[0].brand == "Sunlu");
+    REQUIRE(units_with_environment(info) == std::vector<int>{0});
+    CHECK(info.units[0].environment->temperature_c == 31.0f);
+    CHECK(info.units[0].environment->humidity_pct == 54.0f);
+    CHECK(info.supports_bypass);
+    CHECK(CfsTestAccess::macro_variant(backend) == CfsMacroVariant::Fork);
+}
+
+TEST_CASE("CFS flat: a load_path delta moves the environment to box_addr and back",
+          "[ams][cfs][flat][environment]") {
+    CfsRemapHelper backend;
+    const json full = make_two_box_flat_json();
+    CfsTestAccess::handle_status(backend, make_cfs_notification(full));
+    REQUIRE(units_with_environment(backend.get_system_info()) == std::vector<int>{0});
+
+    json on_box2 = full;
+    on_box2["load_path"]["box_addr"] = 2;
+    CfsTestAccess::handle_status(backend, make_cfs_notification(klipper_delta(full, on_box2)));
+    auto info = backend.get_system_info();
+    REQUIRE(units_with_environment(info) == std::vector<int>{1});
+    CHECK(info.units[1].environment->temperature_c == 27.0f);
+
+    CfsTestAccess::handle_status(backend, make_cfs_notification(klipper_delta(on_box2, full)));
+    info = backend.get_system_info();
+    REQUIRE(units_with_environment(info) == std::vector<int>{0});
+    CHECK(info.units[0].environment->humidity_pct == 54.0f);
+}
+
+TEST_CASE("CFS flat: a delta field replaces its predecessor whole", "[ams][cfs][flat]") {
+    CfsRemapHelper backend;
+    const json full = make_two_box_flat_json();
+    CfsTestAccess::handle_status(backend, make_cfs_notification(full));
+    REQUIRE(backend.get_system_info().units[0].slots[0].nozzle_temp_max == 233);
+
+    json edited = full;
+    edited["materials"].erase("PLA");
+    CfsTestAccess::handle_status(backend, make_cfs_notification(klipper_delta(full, edited)));
+
+    const auto info = backend.get_system_info();
+    CHECK(info.units[0].slots[0].material == "PLA");
+    CHECK(info.units[0].slots[0].nozzle_temp_max != 233);
+}
+
+TEST_CASE("CFS flat: a new session forgets the last one's frames", "[ams][cfs][flat]") {
+    CfsRemapHelper backend;
+    const json full = make_two_box_flat_json();
+    CfsTestAccess::handle_status(backend, make_cfs_notification(full));
+    REQUIRE(units_with_environment(backend.get_system_info()) == std::vector<int>{0});
+
+    CfsTestAccess::call_on_started(backend);
+
+    SECTION("a slots-only frame does not inherit the old session's reading") {
+        CfsTestAccess::handle_status(backend,
+                                     make_cfs_notification(json{{"slots", full["slots"]}}));
+        const auto info = backend.get_system_info();
+        REQUIRE(info.units.size() == 2);
+        CHECK(units_with_environment(info).empty());
+    }
+
+    SECTION("a delta before the first full frame changes nothing, then joins the merge") {
+        CfsTestAccess::handle_status(backend, make_cfs_notification(json{{"temp_c", 31}}));
+        auto info = backend.get_system_info();
+        CHECK(info.current_slot == 2);
+        CHECK(info.units.size() == 2);
+
+        json answered = full;
+        answered.erase("temp_c");
+        CfsTestAccess::handle_status(backend, make_cfs_notification(answered));
+        info = backend.get_system_info();
+        CHECK(info.current_slot == 2);
+        REQUIRE(units_with_environment(info) == std::vector<int>{0});
+        CHECK(info.units[0].environment->temperature_c == 31.0f);
+    }
+}
+
+TEST_CASE("CFS: a stock unit frame after flat ones returns to stock", "[ams][cfs][flat]") {
+    CfsRemapHelper backend;
+    CfsTestAccess::handle_status(backend, make_cfs_notification(make_two_box_flat_json()));
+    REQUIRE(CfsTestAccess::macro_variant(backend) == CfsMacroVariant::Fork);
+
+    CfsTestAccess::handle_status(backend, make_cfs_notification(json::parse(R"({
+        "state": "connect", "filament": 1, "auto_refill": 1, "filament_useup": 0,
+        "map": {"T1A": "T1A", "T1B": "T1B", "T1C": "T1C", "T1D": "T1D"},
+        "T1": {
+            "state": "connect", "filament": "None", "temperature": "27",
+            "dry_and_humidity": "48", "version": "1.1.3", "sn": "SERIAL", "mode": "0",
+            "vender": ["Creality", "Creality", "Creality", "Creality"],
+            "remain_len": ["35", "57", "-1", "-1"],
+            "color_value": ["0000000", "0FFFFFF", "00A2989", "0C12E1F"],
+            "material_type": ["101001", "101001", "101001", "101001"],
+            "change_color_num": ["-1", "-1", "-1", "-1"]
+        }})")));
+    auto info = backend.get_system_info();
+    REQUIRE(info.units.size() == 1);
+    CHECK(CfsTestAccess::macro_variant(backend) != CfsMacroVariant::Fork);
+    CHECK_FALSE(info.filament_runout);
+
+    // Stock deltas that name no unit read as stock: the runout latch and the
+    // tool map come from them, and the merged units survive.
+    CfsTestAccess::handle_status(
+        backend, make_cfs_notification(json{{"filament", 1}, {"filament_useup", 1}}));
+    CfsTestAccess::handle_status(
+        backend, make_cfs_notification(json{{"map", json{{"T1A", "T1B"}, {"T1B", "T1A"}}}}));
+    info = backend.get_system_info();
+    CHECK(info.filament_runout);
+    REQUIRE(info.units.size() == 1);
+    CHECK(info.units[0].slots[0].brand == "Creality");
+    REQUIRE(info.tool_to_slot_map.size() >= 2);
+    CHECK(info.tool_to_slot_map[0] == 1);
+    CHECK(info.tool_to_slot_map[1] == 0);
+}
