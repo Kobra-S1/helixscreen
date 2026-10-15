@@ -757,7 +757,7 @@ class TelemetryManager {
     static constexpr uint32_t AUTO_SEND_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
     /** @brief Schema version for event JSON structure */
-    static constexpr int SCHEMA_VERSION = 2;
+    static constexpr int SCHEMA_VERSION = 3;
 
     /** @brief HTTPS endpoint for telemetry submission */
     static constexpr const char* ENDPOINT_URL = "https://telemetry.helixscreen.org/v1/events";
@@ -881,6 +881,18 @@ class TelemetryManager {
      * @return JSON crash event following the telemetry schema
      */
     nlohmann::json build_crash_event(const nlohmann::json& crash_data) const;
+
+    /**
+     * @brief Write the envelope keys every event carries.
+     *
+     * Sets schema_version, app_version, app_platform, app_board and boot_id.
+     * Every build_*_event calls this first; a builder whose event describes a
+     * version other than the running binary's overwrites app_version afterwards.
+     */
+    void stamp_envelope(nlohmann::json& event) const;
+
+    /// 16 lowercase hex characters from the same RNG as generate_uuid_v4().
+    static std::string generate_boot_id();
 
     /**
      * @brief Add an event to the queue (mutex-protected)
@@ -1112,6 +1124,10 @@ class TelemetryManager {
 
     /// Random salt for double-hashing, stored alongside UUID
     std::string device_salt_;
+
+    /// 16 lowercase hex characters minted by init(), never persisted. Identifies
+    /// one process lifetime so the server can tell a restart from a retry.
+    std::string boot_id_;
 
     // =========================================================================
     // EVENT QUEUE (mutex-protected)

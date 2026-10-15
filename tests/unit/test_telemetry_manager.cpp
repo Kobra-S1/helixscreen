@@ -22,12 +22,15 @@
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "system/telemetry_manager.h"
+#include "system/update_checker.h"
+#include "version.h"
 
 #include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <regex>
 #include <set>
 #include <string>
@@ -1303,11 +1306,7 @@ TEST_CASE_METHOD(TelemetrySchedulerFixture, "Scheduler: shutdown stops auto-send
 // Schema Version 2 - Hardware Survey [telemetry][session][v2]
 // ============================================================================
 
-TEST_CASE("SCHEMA_VERSION is 2", "[telemetry][session][v2]") {
-    REQUIRE(TelemetryManager::SCHEMA_VERSION == 2);
-}
-
-TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: schema_version is 2",
+TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: schema_version is the current version",
                  "[telemetry][session][v2]") {
     auto& tm = TelemetryManager::instance();
     tm.set_enabled(true);
@@ -1315,7 +1314,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: schema_version is 2",
     tm.record_session();
     auto event = tm.get_queue_snapshot()[0];
 
-    REQUIRE(event["schema_version"] == 2);
+    REQUIRE(event["schema_version"] == TelemetryManager::SCHEMA_VERSION);
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Session event v2: app section has display backend fields",
@@ -1503,7 +1502,7 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Update failed event: has required envelo
     auto snapshot = tm.get_queue_snapshot();
     auto event = snapshot[0];
 
-    REQUIRE(event["schema_version"] == 2);
+    REQUIRE(event["schema_version"] == TelemetryManager::SCHEMA_VERSION);
     REQUIRE(event["event"] == "update_failed");
     REQUIRE(event.contains("device_id"));
     REQUIRE(event.contains("timestamp"));
@@ -1594,7 +1593,7 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     auto snapshot = tm.get_queue_snapshot();
     auto event = snapshot[0];
 
-    REQUIRE(event["schema_version"] == 2);
+    REQUIRE(event["schema_version"] == TelemetryManager::SCHEMA_VERSION);
     REQUIRE(event["event"] == "update_success");
     REQUIRE(event["version"] == "0.14.0");
     REQUIRE(event["from_version"] == "0.13.4");
@@ -2722,4 +2721,160 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     REQUIRE(event["total_skips"] == 1);
     REQUIRE(event["tags"].size() == 1);
     REQUIRE(event["tags"][0]["tag"] == "AfterOptIn::cb");
+}
+
+// ============================================================================
+// Event envelope [telemetry][envelope]
+// ============================================================================
+
+namespace {
+
+constexpr const char* ENVELOPE_KEYS[] = {"schema_version", "app_version", "app_platform",
+                                         "app_board", "boot_id"};
+
+/// Drive every record_* path that appends to the queue and return the events,
+/// keyed by event name.
+std::map<std::string, json> record_one_of_every_event(TelemetryManager& tm,
+                                                      TelemetryTestFixture& fx) {
+    std::map<std::string, json> by_name;
+    auto collect = [&]() {
+        for (const auto& e : tm.get_queue_snapshot()) {
+            by_name[e.value("event", "")] = e;
+        }
+        tm.clear_queue();
+    };
+
+    tm.record_session();
+    collect();
+    tm.record_print_outcome("completed", 600, 5, 300.0f, "PLA", 200, 60);
+    collect();
+    tm.record_update_failure("download_failed", "0.14.0", "pi");
+    collect();
+    fx.write_file("update_success.json",
+                  R"({"version":"0.14.0","from_version":"0.13.4","platform":"pi",)"
+                  R"("timestamp":"2026-02-26T12:00:00Z"})");
+    tm.check_previous_update();
+    collect();
+    tm.record_memory_snapshot("hourly");
+    collect();
+    helix::MemoryWarningEvent warning;
+    warning.level = helix::MemoryPressureLevel::warning;
+    tm.record_memory_warning(warning);
+    collect();
+    tm.record_hardware_profile();
+    collect();
+    tm.record_settings_snapshot();
+    collect();
+    tm.record_panel_usage();
+    collect();
+    tm.record_connection_stability();
+    collect();
+    tm.record_frame_time(8000); // a snapshot is only built once a frame was sampled
+    tm.record_performance_snapshot();
+    collect();
+    tm.record_feature_adoption();
+    collect();
+    tm.notify_setting_changed("theme", "dark", "light");
+    tm.flush_settings_changes();
+    collect();
+    helix::async_lifetime::note_skipped("Envelope::cb");
+    tm.record_async_lifetime_snapshot();
+    collect();
+    tm.record_print_start_context("local", true, 5000000, 3600, "PrusaSlicer", 1, false);
+    collect();
+    tm.record_error("moonraker_api", "timeout", "get_printer_objects");
+    collect();
+    fx.write_file("crash.txt", "signal:11\nname:SIGSEGV\nversion:0.14.0\n");
+    tm.check_previous_crash();
+    collect();
+    return by_name;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Envelope: every event carries all five envelope keys",
+                 "[telemetry][envelope]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    auto events = record_one_of_every_event(tm, *this);
+
+    // A builder dropping out of the sweep would otherwise pass vacuously.
+    for (const char* name :
+         {"session", "print_outcome", "update_failed", "update_success", "memory_snapshot",
+          "memory_warning", "hardware_profile", "settings_snapshot", "panel_usage",
+          "connection_stability", "performance_snapshot", "feature_adoption", "settings_changes",
+          "async_lifetime_skips", "print_start_context", "error_encountered", "crash"}) {
+        INFO("event: " << name);
+        REQUIRE(events.count(name) == 1);
+    }
+
+    for (const auto& [name, event] : events) {
+        for (const char* key : ENVELOPE_KEYS) {
+            INFO("event: " << name << ", key: " << key);
+            REQUIRE(event.contains(key));
+            if (std::string(key) == "schema_version") {
+                CHECK(event[key] == 3);
+            } else {
+                REQUIRE(event[key].is_string());
+                // This line has no board resolver, so app_board is present but empty.
+                if (std::string(key) != "app_board") {
+                    CHECK_FALSE(event[key].get<std::string>().empty());
+                }
+            }
+        }
+        CHECK(event["app_version"] == (name == "crash" ? json("0.14.0") : json(HELIX_VERSION)));
+        CHECK(event["app_platform"] == UpdateChecker::get_platform_key());
+        CHECK(event["app_board"] == "");
+    }
+}
+
+TEST_CASE("Envelope: SCHEMA_VERSION is 3", "[telemetry][envelope]") {
+    REQUIRE(TelemetryManager::SCHEMA_VERSION == 3);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Envelope: boot_id is 16 lowercase hex characters",
+                 "[telemetry][envelope]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    tm.record_session();
+    auto boot_id = tm.get_queue_snapshot()[0]["boot_id"].get<std::string>();
+
+    REQUIRE(boot_id.size() == 16);
+    CHECK(std::all_of(boot_id.begin(), boot_id.end(),
+                      [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); }));
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Envelope: boot_id is stable within a boot, new per init",
+                 "[telemetry][envelope]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.record_session();
+    tm.record_error("moonraker_api", "timeout", "ctx");
+    auto queue = tm.get_queue_snapshot();
+    REQUIRE(queue.size() == 2);
+    CHECK(queue[0]["boot_id"] == queue[1]["boot_id"]);
+    const auto first_boot = queue[0]["boot_id"];
+
+    tm.shutdown();
+    tm.init(temp_dir().string());
+    tm.set_enabled(true);
+    tm.clear_queue();
+    tm.record_session();
+    CHECK(tm.get_queue_snapshot()[0]["boot_id"] != first_boot);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Envelope: update events keep version fields beside app_version",
+                 "[telemetry][envelope]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.record_update_failure("download_failed", "1.0.5", "pi");
+    auto event = tm.get_queue_snapshot()[0];
+
+    CHECK(event["version"] == "1.0.5");
+    CHECK(event["from_version"] == HELIX_VERSION);
+    CHECK(event["app_version"] == HELIX_VERSION);
 }

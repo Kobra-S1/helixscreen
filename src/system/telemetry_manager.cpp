@@ -374,6 +374,9 @@ void TelemetryManager::init(const std::string& config_dir) {
     // Load or generate device identity
     ensure_device_id();
 
+    // One id per init(); never persisted, so a restart is a new boot.
+    boot_id_ = generate_boot_id();
+
     // Restore persisted event queue
     load_queue();
 
@@ -1096,27 +1099,49 @@ void TelemetryManager::stop_auto_send() {
 // Device ID Utilities
 // =============================================================================
 
-std::string TelemetryManager::generate_uuid_v4() {
-    unsigned char bytes[16];
+namespace {
 
-    // Try /dev/urandom for high-quality randomness
+/// Fill @p out with random bytes from /dev/urandom, or std::random_device when
+/// that is unavailable. Shared by every identifier the manager mints.
+void fill_random_bytes(unsigned char* out, size_t count) {
     std::ifstream urandom("/dev/urandom", std::ios::binary);
     if (urandom.good()) {
-        urandom.read(reinterpret_cast<char*>(bytes), sizeof(bytes));
-    } else {
-        // Fallback to std::random_device
-        spdlog::warn("[TelemetryManager] /dev/urandom unavailable, using std::random_device");
-        std::random_device rd;
-        for (int i = 0; i < 16; i += 4) {
-            uint32_t val = rd();
-            bytes[i] = static_cast<unsigned char>(val & 0xFF);
-            bytes[i + 1] = static_cast<unsigned char>((val >> 8) & 0xFF);
-            bytes[i + 2] = static_cast<unsigned char>((val >> 16) & 0xFF);
-            if (i + 3 < 16) {
-                bytes[i + 3] = static_cast<unsigned char>((val >> 24) & 0xFF);
-            }
+        urandom.read(reinterpret_cast<char*>(out), static_cast<std::streamsize>(count));
+        return;
+    }
+    spdlog::warn("[TelemetryManager] /dev/urandom unavailable, using std::random_device");
+    std::random_device rd;
+    for (size_t i = 0; i < count; i += 4) {
+        uint32_t val = rd();
+        for (size_t b = 0; b < 4 && i + b < count; ++b) {
+            out[i + b] = static_cast<unsigned char>((val >> (8 * b)) & 0xFF);
         }
     }
+}
+
+} // namespace
+
+std::string TelemetryManager::generate_boot_id() {
+    unsigned char bytes[8];
+    fill_random_bytes(bytes, sizeof(bytes));
+    char hex[17];
+    std::snprintf(hex, sizeof(hex), "%02x%02x%02x%02x%02x%02x%02x%02x", bytes[0], bytes[1],
+                  bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7]);
+    return std::string(hex);
+}
+
+void TelemetryManager::stamp_envelope(json& event) const {
+    event["schema_version"] = SCHEMA_VERSION;
+    event["app_version"] = HELIX_VERSION;
+    event["app_platform"] = UpdateChecker::get_platform_key();
+    // No board resolver on this line; the key is still sent so every event has one shape.
+    event["app_board"] = "";
+    event["boot_id"] = boot_id_;
+}
+
+std::string TelemetryManager::generate_uuid_v4() {
+    unsigned char bytes[16];
+    fill_random_bytes(bytes, sizeof(bytes));
 
     // Set version 4 (bits 12-15 of time_hi_and_version)
     bytes[6] = (bytes[6] & 0x0F) | 0x40;
@@ -1293,7 +1318,7 @@ void TelemetryManager::check_previous_crash() {
 nlohmann::json TelemetryManager::build_crash_event(const nlohmann::json& crash_data) const {
     // Build a crash event following the telemetry schema
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "crash";
     event["device_id"] = get_hashed_device_id();
 
@@ -1301,7 +1326,9 @@ nlohmann::json TelemetryManager::build_crash_event(const nlohmann::json& crash_d
     event["timestamp"] =
         crash_data.contains("timestamp") ? crash_data["timestamp"] : json(get_timestamp());
 
-    // Copy crash-specific fields (signal info, backtrace, register state)
+    // Copy crash-specific fields (signal info, backtrace, register state).
+    // "app_version" is in this list on purpose: it overwrites the envelope's
+    // running version with the version that crashed.
     for (const char* key :
          {"signal", "signal_name", "app_version", "uptime_sec", "backtrace", "fault_addr",
           "fault_code", "fault_code_name", "reg_pc", "reg_sp", "reg_lr", "reg_bp", "load_base"}) {
@@ -1334,9 +1361,6 @@ nlohmann::json TelemetryManager::build_crash_event(const nlohmann::json& crash_d
             event["memory_map"] = std::move(filtered_maps);
         }
     }
-
-    // Add platform (not in crash file — determined at runtime)
-    event["app_platform"] = UpdateChecker::get_platform_key();
 
     return event;
 }
@@ -1422,7 +1446,7 @@ void TelemetryManager::enqueue_event(nlohmann::json event) {
 
 nlohmann::json TelemetryManager::build_session_event() const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "session";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
@@ -1666,7 +1690,7 @@ nlohmann::json TelemetryManager::build_print_outcome_event(const std::string& ou
                                                            const std::string& filament_type,
                                                            int nozzle_temp, int bed_temp) const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "print_outcome";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
@@ -1687,7 +1711,7 @@ nlohmann::json TelemetryManager::build_update_failed_event(const std::string& re
                                                            int http_code, int64_t file_size,
                                                            int exit_code) const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "update_failed";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
@@ -1714,7 +1738,7 @@ nlohmann::json TelemetryManager::build_update_success_event(const std::string& v
                                                             const std::string& platform,
                                                             const std::string& timestamp) const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "update_success";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = timestamp;
@@ -1727,12 +1751,10 @@ nlohmann::json TelemetryManager::build_update_success_event(const std::string& v
 
 nlohmann::json TelemetryManager::build_memory_snapshot_event(const std::string& trigger) const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "memory_snapshot";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
-    event["app_version"] = HELIX_VERSION;
-    event["app_platform"] = UpdateChecker::get_platform_key();
     event["trigger"] = trigger;
 
     // Calculate uptime from init_time_
@@ -1793,12 +1815,10 @@ nlohmann::json TelemetryManager::build_memory_snapshot_event(const std::string& 
 nlohmann::json
 TelemetryManager::build_memory_warning_event(const helix::MemoryWarningEvent& warning) const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "memory_warning";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
-    event["app_version"] = HELIX_VERSION;
-    event["app_platform"] = UpdateChecker::get_platform_key();
     event["level"] = helix::pressure_level_to_string(warning.level);
     event["reason"] = warning.reason;
 
@@ -1991,7 +2011,7 @@ nlohmann::json TelemetryManager::build_hw_macros_section(const helix::PrinterDis
 
 nlohmann::json TelemetryManager::build_hardware_profile_event() const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "hardware_profile";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
@@ -2142,12 +2162,10 @@ nlohmann::json TelemetryManager::build_hardware_profile_event() const {
 
 nlohmann::json TelemetryManager::build_settings_snapshot_event() const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "settings_snapshot";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
-    event["app_version"] = HELIX_VERSION;
-    event["app_platform"] = UpdateChecker::get_platform_key();
 
     const auto& active_theme = theme_manager_get_active_theme();
     bool dark_mode = DisplaySettingsManager::instance().get_dark_mode();
@@ -2191,12 +2209,10 @@ nlohmann::json TelemetryManager::build_settings_snapshot_event() const {
 
 nlohmann::json TelemetryManager::build_panel_usage_event() const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "panel_usage";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
-    event["app_version"] = HELIX_VERSION;
-    event["app_platform"] = UpdateChecker::get_platform_key();
 
     // Session duration from init_time_
     auto now = std::chrono::steady_clock::now();
@@ -2238,7 +2254,7 @@ nlohmann::json TelemetryManager::build_panel_usage_event() const {
 
 nlohmann::json TelemetryManager::build_connection_stability_event() const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "connection_stability";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
@@ -2343,7 +2359,7 @@ nlohmann::json TelemetryManager::build_print_start_context_event(
     int estimated_duration_sec, const std::string& slicer, int tool_count_used,
     bool ams_active) const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "print_start_context";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
@@ -2362,7 +2378,7 @@ nlohmann::json TelemetryManager::build_error_event(const std::string& category,
                                                    const std::string& code,
                                                    const std::string& context) const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "error_encountered";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
@@ -2506,12 +2522,10 @@ void TelemetryManager::record_frame_time(uint32_t frame_time_us) {
 
 nlohmann::json TelemetryManager::build_performance_snapshot_event() const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "performance_snapshot";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
-    event["app_version"] = HELIX_VERSION;
-    event["app_platform"] = UpdateChecker::get_platform_key();
     event["snapshot_seq"] = snapshot_seq_;
     event["is_shutdown"] = is_shutdown_snapshot_;
 
@@ -2631,12 +2645,10 @@ void TelemetryManager::record_performance_snapshot() {
 
 nlohmann::json TelemetryManager::build_feature_adoption_event() const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "feature_adoption";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
-    event["app_version"] = HELIX_VERSION;
-    event["app_platform"] = UpdateChecker::get_platform_key();
 
     auto has_panel = [&](const std::string& name) -> bool {
         auto it = panel_visits_.find(name);
@@ -2732,12 +2744,10 @@ void TelemetryManager::flush_settings_changes() {
 
 nlohmann::json TelemetryManager::build_settings_changes_event() const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "settings_changes";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
-    event["app_version"] = HELIX_VERSION;
-    event["app_platform"] = UpdateChecker::get_platform_key();
 
     json changes = json::array();
     for (const auto& c : pending_settings_changes_) {
@@ -2812,12 +2822,10 @@ void TelemetryManager::record_async_lifetime_snapshot() {
 nlohmann::json TelemetryManager::build_async_lifetime_snapshot_event(
     const helix::async_lifetime::SkipSnapshot& snap) const {
     json event;
-    event["schema_version"] = SCHEMA_VERSION;
+    stamp_envelope(event);
     event["event"] = "async_lifetime_skips";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
-    event["app_version"] = HELIX_VERSION;
-    event["app_platform"] = UpdateChecker::get_platform_key();
 
     auto now = std::chrono::steady_clock::now();
     auto uptime = std::chrono::duration_cast<std::chrono::seconds>(now - init_time_);
