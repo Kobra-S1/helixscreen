@@ -132,7 +132,7 @@ Recorded every 4 hours alongside panel usage. Measures UI responsiveness so we c
 | `frame_time_p95_ms` | 95th percentile frame time (ms) | `16` |
 | `frame_time_p99_ms` | 99th percentile frame time (ms) | `28` |
 | `dropped_frame_count` | Frames slower than 33ms | `42` |
-| `total_frame_count` | Total frames rendered | `432000` |
+| `total_frame_count` | Frames sampled in the same window as the dropped count | `1024` |
 | `worst_panel` | Panel with highest frame times | `"temperature"` |
 
 No user content is included — just timing data about how smoothly the UI renders.

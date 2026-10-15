@@ -14,7 +14,11 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/config_test_access.h"
+#include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/telemetry_manager_test_access.h"
+#include "../test_helpers/update_queue_test_access.h"
+#include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
@@ -23,6 +27,8 @@
 #include "printer_state.h"
 #include "system/telemetry_manager.h"
 #include "system/update_checker.h"
+#include "theme_loader.h"
+#include "theme_manager.h"
 #include "version.h"
 
 #include <algorithm>
@@ -2081,6 +2087,90 @@ TEST_CASE_METHOD(TelemetryTestFixture, "record_settings_snapshot carries the ado
     }
 }
 
+namespace {
+json settings_snapshot_now() {
+    auto& tm = TelemetryManager::instance();
+    tm.clear_queue();
+    tm.record_settings_snapshot();
+    for (const auto& e : tm.get_queue_snapshot()) {
+        if (e.value("event", "") == "settings_snapshot") {
+            return e;
+        }
+    }
+    return json::object();
+}
+} // namespace
+
+TEST_CASE_METHOD(TelemetryTestFixture, "settings_snapshot theme_changed follows the active theme",
+                 "[telemetry][settings]") {
+    lv_init_safe();
+    TelemetryManager::instance().set_enabled(true);
+
+    const helix::ThemeData saved_theme = theme_manager_get_active_theme();
+    const bool saved_dark = theme_manager_is_dark_mode();
+
+    helix::ThemeData fallback = helix::get_builtin_fallback_theme();
+    theme_manager_apply_theme(fallback, saved_dark);
+    auto event = settings_snapshot_now();
+    REQUIRE(event.contains("theme_changed"));
+    CHECK(event["theme_changed"] == false);
+
+    helix::ThemeData onedark = helix::load_theme_from_file("onedark");
+    REQUIRE(onedark.is_valid());
+    theme_manager_apply_theme(onedark, saved_dark);
+    event = settings_snapshot_now();
+    REQUIRE(event.contains("theme_changed"));
+    CHECK(event["theme_changed"] == true);
+
+    theme_manager_apply_theme(saved_theme, saved_dark);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "settings_snapshot multi_printer follows the printer count",
+                 "[telemetry][settings]") {
+    TelemetryManager::instance().set_enabled(true);
+    auto* cfg = helix::Config::get_instance();
+    auto& data = helix::ConfigTestAccess::data(*cfg);
+    const json saved_printers = data.contains("printers") ? data["printers"] : json();
+
+    data["printers"] = json::object({{"one", json::object()}});
+    auto event = settings_snapshot_now();
+    REQUIRE(event.contains("multi_printer"));
+    CHECK(event["multi_printer"] == false);
+
+    data["printers"]["two"] = json::object();
+    event = settings_snapshot_now();
+    REQUIRE(event.contains("multi_printer"));
+    CHECK(event["multi_printer"] == true);
+
+    if (saved_printers.is_null()) {
+        data.erase("printers");
+    } else {
+        data["printers"] = saved_printers;
+    }
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "settings_snapshot spoolman_configured follows availability",
+                 "[telemetry][settings]") {
+    lv_init_safe();
+    TelemetryManager::instance().set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto& queue = helix::ui::UpdateQueue::instance();
+
+    state.set_spoolman_available(true);
+    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+    auto event = settings_snapshot_now();
+    REQUIRE(event.contains("spoolman_configured"));
+    CHECK(event["spoolman_configured"] == true);
+
+    state.set_spoolman_available(false);
+    helix::ui::UpdateQueueTestAccess::drain_all(queue);
+    event = settings_snapshot_now();
+    REQUIRE(event.contains("spoolman_configured"));
+    CHECK(event["spoolman_configured"] == false);
+}
+
 // ============================================================================
 // Overlay ids [telemetry][overlay_id]
 // ============================================================================
@@ -2274,19 +2364,50 @@ TEST_CASE_METHOD(TelemetryTestFixture, "new events are no-op when disabled",
     CHECK(TelemetryManager::instance().queue_size() == 0);
 }
 
-TEST_CASE_METHOD(TelemetryTestFixture, "record_error rejects unknown categories",
+TEST_CASE_METHOD(TelemetryTestFixture, "record_error accepts any identifier-shaped category",
                  "[telemetry][error]") {
-    TelemetryManager::instance().set_enabled(true);
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
 
-    TelemetryManager::instance().record_error("invalid_category", "code", "ctx");
-    CHECK(TelemetryManager::instance().queue_size() == 0);
+    tm.record_error("ui", "main_loop_hang", "ctx");
+    REQUIRE(tm.queue_size() == 1);
+    CHECK(tm.get_queue_snapshot()[0]["category"] == "ui");
 
-    TelemetryManager::instance().record_error("", "code", "ctx");
-    CHECK(TelemetryManager::instance().queue_size() == 0);
+    // Digits and underscores are part of the alphabet; 32 characters is the cap.
+    tm.record_error("a_1", "code", "ctx");
+    tm.record_error(std::string(32, 'x'), "code", "ctx");
+    CHECK(tm.queue_size() == 3);
+}
 
-    // Valid category should work
-    TelemetryManager::instance().record_error("moonraker_api", "timeout", "ctx");
-    CHECK(TelemetryManager::instance().queue_size() == 1);
+TEST_CASE_METHOD(TelemetryTestFixture, "record_error rejects categories outside [a-z0-9_]{1,32}",
+                 "[telemetry][error]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    for (const std::string& bad :
+         {std::string(""), std::string("Bad Category"), std::string("UPPER"),
+          std::string("dash-ed"), std::string("dot.ted"), std::string("slash/ed"),
+          std::string(33, 'x'), std::string("caf\xc3\xa9"), std::string("new\nline")}) {
+        INFO("category: " << bad);
+        tm.record_error(bad, "code", "ctx");
+        CHECK(tm.queue_size() == 0);
+    }
+
+    // The rejects above did not consume any category's rate-limit slot.
+    tm.record_error("moonraker_api", "timeout", "ctx");
+    CHECK(tm.queue_size() == 1);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "record_error rate limits each new category separately",
+                 "[telemetry][error]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.record_error("ui", "main_loop_hang", "a");
+    tm.record_error("ui", "main_loop_hang", "b");
+    CHECK(tm.queue_size() == 1);
+    tm.record_error("display_driver", "init_failed", "c");
+    CHECK(tm.queue_size() == 2);
 }
 
 // ============================================================================
@@ -2406,6 +2527,59 @@ TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: dropped frames detected abov
     auto event = snapshot[0];
     REQUIRE(event["dropped_frame_count"] == 2);
     REQUIRE(event["total_frame_count"] == 3);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: drop rate is dropped over total, exactly",
+                 "[telemetry][frame]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.notify_panel_changed("status");
+    constexpr int N = 40;
+    constexpr int D = 10;
+    for (int i = 0; i < N; ++i) {
+        tm.record_frame_time(i < D ? 40000 : 8000);
+    }
+
+    tm.record_performance_snapshot();
+    auto event = tm.get_queue_snapshot()[0];
+    CHECK(event["dropped_frame_count"] == D);
+    CHECK(event["total_frame_count"] == N);
+    CHECK(event["dropped_frame_count"].get<double>() / event["total_frame_count"].get<double>() ==
+          Catch::Approx(0.25));
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: total shares the dropped count's window",
+                 "[telemetry][frame]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    // Older than the ring: all dropped, and overwritten by the second batch.
+    tm.notify_panel_changed("status");
+    const size_t ring = TelemetryManager::FRAME_RING_SIZE;
+    for (size_t i = 0; i < ring; ++i) {
+        tm.record_frame_time(40000);
+    }
+    // The ring's retained window: a quarter dropped.
+    for (size_t i = 0; i < ring; ++i) {
+        tm.record_frame_time(i % 4 == 0 ? 40000 : 8000);
+    }
+
+    tm.record_performance_snapshot();
+    auto event = tm.get_queue_snapshot()[0];
+    CHECK(event["total_frame_count"] == static_cast<int64_t>(ring));
+    CHECK(event["dropped_frame_count"] == static_cast<int64_t>(ring / 4));
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: the event carries no task_handler_max_ms",
+                 "[telemetry][frame]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.notify_panel_changed("status");
+    tm.record_frame_time(8000);
+    tm.record_performance_snapshot();
+    CHECK_FALSE(tm.get_queue_snapshot()[0].contains("task_handler_max_ms"));
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture, "Frame time: worst panel is identified by p95",

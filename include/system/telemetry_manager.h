@@ -405,7 +405,9 @@ class TelemetryManager {
      *
      * Thread-safe: may be called from any thread.
      *
-     * @param category Error category ("moonraker_api", "websocket", "file_io", "display")
+     * @param category Error category, a short identifier matching [a-z0-9_]{1,32}
+     *                 (e.g. "moonraker_api", "websocket", "file_io", "display"); anything
+     *                 else is dropped
      * @param code Error code ("timeout", "http_4xx", "http_5xx", "parse_error",
      * "connection_refused")
      * @param context Pre-defined context string (not user data)
@@ -1331,7 +1333,8 @@ class TelemetryManager {
     /// Write index for the next sample (mod FRAME_RING_SIZE)
     size_t frame_ring_idx_{0};
 
-    /// Number of valid samples currently in the ring (capped at FRAME_RING_SIZE)
+    /// Qualifying frames recorded since the last snapshot; exceeds FRAME_RING_SIZE once the
+    /// ring wraps, so the retained sample count is min(this, FRAME_RING_SIZE)
     size_t frame_ring_count_{0};
 
     /// Ordered list of panel names for panel_id → name lookup

@@ -2405,7 +2405,7 @@ nlohmann::json TelemetryManager::build_settings_snapshot_event() const {
 
     // Adoption flags with no overlay or widget visit to derive them from.
     event["spoolman_configured"] = get_printer_state().is_spoolman_available();
-    event["theme_changed"] = active_theme.name != helix::DEFAULT_THEME;
+    event["theme_changed"] = active_theme.filename != helix::DEFAULT_THEME;
     auto* cfg = Config::get_instance();
     event["multi_printer"] = cfg && cfg->get_printer_ids().size() > 1;
 
@@ -2487,12 +2487,16 @@ void TelemetryManager::record_error(const std::string& category, const std::stri
         return;
     }
 
-    // Validate category against allow-list to prevent unbounded map growth
-    static const std::array<std::string_view, 5> ALLOWED_CATEGORIES = {
-        "moonraker_api", "websocket", "file_io", "display", "memory"};
-    if (std::find(ALLOWED_CATEGORIES.begin(), ALLOWED_CATEGORIES.end(), category) ==
-        ALLOWED_CATEGORIES.end()) {
-        spdlog::trace("[TelemetryManager] Ignoring error with unknown category: {}", category);
+    // The category keys the rate-limit map and is sent as-is, so it must be a short
+    // identifier: [a-z0-9_]{1,32}. Anything else could carry free text.
+    constexpr size_t MAX_CATEGORY_LEN = 32;
+    const bool category_ok =
+        !category.empty() && category.size() <= MAX_CATEGORY_LEN &&
+        std::all_of(category.begin(), category.end(), [](char c) {
+            return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_';
+        });
+    if (!category_ok) {
+        spdlog::trace("[TelemetryManager] Ignoring error with invalid category");
         return;
     }
 
@@ -2710,7 +2714,6 @@ nlohmann::json TelemetryManager::build_performance_snapshot_event() const {
         event["total_frame_count"] = 0;
         event["worst_panel"] = "";
         event["worst_panel_p95_ms"] = 0;
-        event["task_handler_max_ms"] = 0;
         return event;
     }
 
@@ -2740,7 +2743,9 @@ nlohmann::json TelemetryManager::build_performance_snapshot_event() const {
     event["frame_time_p95_ms"] = percentile(0.95);
     event["frame_time_p99_ms"] = percentile(0.99);
     event["dropped_frame_count"] = dropped;
-    event["total_frame_count"] = static_cast<int64_t>(frame_ring_count_);
+    // Same window as `dropped`: both come from the ring's retained samples, so
+    // dropped / total is a true rate even after the ring wraps.
+    event["total_frame_count"] = static_cast<int64_t>(count);
 
     // Per-panel breakdown
     json panels_obj = json::object();
@@ -2788,7 +2793,6 @@ nlohmann::json TelemetryManager::build_performance_snapshot_event() const {
     event["worst_panel"] = worst_panel;
     event["worst_panel_p95_ms"] = worst_p95;
     event["panels"] = panels_obj;
-    event["task_handler_max_ms"] = 0;
 
     return event;
 }
