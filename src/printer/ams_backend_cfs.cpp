@@ -1579,7 +1579,6 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
             if (macro_variant_ == CfsMacroVariant::Fork) {
                 macro_variant_ = model_macro_variant_;
             }
-            reset_fingerprints_for_schema_change();
             spdlog::info("[AMS CFS] Stock box schema reported, flat state dropped");
         }
         const bool is_flat =
@@ -1626,7 +1625,6 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
 
         if (is_flat && schema_ != CfsSchema::Flat) {
             schema_ = CfsSchema::Flat;
-            reset_fingerprints_for_schema_change();
             // Select the command dialect from the explicit API version, not by
             // assuming every `slots[]` payload implements the same commands.
             if (detect_fork_dialect(state)) {
@@ -4267,13 +4265,46 @@ std::map<int, int> AmsBackendCfs::collect_insert_probes_locked(const nlohmann::j
     return probes;
 }
 
-void AmsBackendCfs::reset_fingerprints_for_schema_change() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    rfid_tracker_.clear();
+// The colour half of a fingerprint as RRGGBB, uppercase: stock's "0RRGGBB"
+// loses its leading pad, so a stock and a flat reading of one colour compare
+// equal. Empty when the fingerprint carries no colour.
+static std::string fingerprint_rgb(const std::string& fingerprint) {
+    const auto pipe = fingerprint.find('|');
+    if (pipe == std::string::npos) {
+        return "";
+    }
+    std::string color = fingerprint.substr(pipe + 1);
+    if (color.size() == 7 && color[0] == '0') {
+        color.erase(0, 1);
+    }
+    for (auto& c : color) {
+        c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    }
+    return color;
 }
 
 bool AmsBackendCfs::check_hardware_event_clear(SlotInfo& slot, int slot_index,
                                                const std::string& observed_uid) {
+    // A baseline read in the other schema cannot equal any reading of this
+    // one, so only the colour, the one field both spell alike, still compares.
+    // A different colour is a swap and stays a Changed comparison; the same
+    // colour, or none on either side, makes the reading a first observation.
+    if (!observed_uid.empty()) {
+        const auto base_schema = rfid_baseline_schema_.find(slot_index);
+        const auto base = rfid_tracker_.baseline(slot_index);
+        if (base && base_schema != rfid_baseline_schema_.end() && base_schema->second != schema_) {
+            const std::string base_rgb = fingerprint_rgb(*base);
+            const std::string observed_rgb = fingerprint_rgb(observed_uid);
+            if (base_rgb.empty() || observed_rgb.empty() || base_rgb == observed_rgb) {
+                spdlog::info("{} Slot {} fingerprint {} is from the other box schema, "
+                             "re-baselining on {}",
+                             backend_log_tag(), slot_index, *base, observed_uid);
+                rfid_tracker_.forget_baseline(slot_index);
+            }
+        }
+        rfid_baseline_schema_[slot_index] = schema_;
+    }
+
     std::string old_uid;
     const auto event = rfid_tracker_.observe(slot_index, observed_uid, &old_uid);
 

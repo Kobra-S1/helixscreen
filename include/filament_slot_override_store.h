@@ -410,6 +410,10 @@ class SlotFingerprintTracker {
     /// Current baseline for a slot, or nullopt when none observed yet.
     [[nodiscard]] std::optional<std::string> baseline(int slot_index) const;
 
+    /// Drop a slot's baseline, so its next observation is a first one. Pending
+    /// expectations are kept.
+    void forget_baseline(int slot_index);
+
     /// Whether an unconsumed expectation is pending for a slot.
     [[nodiscard]] bool has_expected(int slot_index) const;
 

@@ -3490,3 +3490,18 @@ TEST_CASE("merge_override rule matrix", "[ams][override-merge]") {
         CHECK(slot.remaining_weight_g == 0.f);
     }
 }
+
+TEST_CASE("SlotFingerprintTracker forget_baseline keeps the slot's expectation",
+          "[filament_slot_override][ams]") {
+    helix::ams::SlotFingerprintTracker t;
+    REQUIRE(t.observe(0, "A") == helix::ams::FingerprintEvent::Baseline);
+    REQUIRE(t.observe(1, "X") == helix::ams::FingerprintEvent::Baseline);
+    t.expect(0, "B");
+
+    t.forget_baseline(0);
+    CHECK_FALSE(t.baseline(0).has_value());
+    CHECK(t.baseline(1) == "X");
+    CHECK(t.has_expected(0));
+    CHECK(t.observe(0, "C") == helix::ams::FingerprintEvent::Baseline);
+    CHECK(t.observe(0, "B") == helix::ams::FingerprintEvent::OwnWriteEcho);
+}

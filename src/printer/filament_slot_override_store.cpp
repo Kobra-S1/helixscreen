@@ -1784,6 +1784,10 @@ void SlotFingerprintTracker::forget_expected(int slot_index) {
     expected_.erase(slot_index);
 }
 
+void SlotFingerprintTracker::forget_baseline(int slot_index) {
+    baseline_.erase(slot_index);
+}
+
 std::optional<std::string> SlotFingerprintTracker::baseline(int slot_index) const {
     auto it = baseline_.find(slot_index);
     if (it == baseline_.end())
