@@ -264,6 +264,21 @@ target_compile_definitions(main PRIVATE
     HELIX_HAS_BED_MESH_3D=1
     HELIX_HAS_PLUGINS=1
     HELIX_HAS_TIMELAPSE_VIEWER=1
+    # The app drives an arbitrary printer over the network, like the pi/x86
+    # hosts, so every vendor filament system stays on.
+    HELIX_HAS_CFS=1
+    HELIX_HAS_IFS=1
+    HELIX_HAS_ACE=1
+    HELIX_HAS_QIDI=1
+    HELIX_HAS_SNAPMAKER=1
+    # Label printing has not been built or tested on Android.
+    HELIX_HAS_LABEL_PRINTER=0
+    # The Belt Tension panel reads Klipper's /tmp results, so it needs the
+    # screen co-located with Klipper.
+    HELIX_HAS_BELT_TUNER=0
+    # FONT_SOURCES above globs every face under assets/fonts/*.c, hi-DPI rungs
+    # included.
+    HELIX_HAS_HIDPI_FONTS=1
     ENABLE_GLES_3D
     $<$<CONFIG:Debug>:HELIX_ENABLE_MOCKS>
     LV_CONF_INCLUDE_SIMPLE
