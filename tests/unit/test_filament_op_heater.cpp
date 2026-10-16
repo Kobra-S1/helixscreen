@@ -591,10 +591,10 @@ TEST_CASE_METHOD(HeaterFixture, "A second tap while heating cancels and turns th
     CHECK_FALSE(sent_load());
 }
 
-TEST_CASE_METHOD(HeaterFixture, "Cancelling puts back the target someone else had set",
+TEST_CASE_METHOD(HeaterFixture, "Cancelling leaves alone a target someone else had set",
                  "[filament][preheat][heater][cancel]") {
     set_print_state("paused");
-    feed_nozzle(25, 150); // the user's own target, lower than the load needs
+    feed_nozzle(25, 150); // someone's own target, lower than the load needs
     runout_load();
     REQUIRE(heater->get().pending());
     client.clear_gcode_script_history();
@@ -602,15 +602,52 @@ TEST_CASE_METHOD(HeaterFixture, "Cancelling puts back the target someone else ha
     REQUIRE(heater->get().cancel());
     drain_all();
 
-    CHECK(sent(std::string(HEAT_GCODE) + "150"));
-    CHECK_FALSE(sent(std::string(HEAT_GCODE) + "0"));
+    CHECK_FALSE(heater->get().pending());
+    CHECK_FALSE(sent(HEAT_GCODE)); // neither back to 150 nor off
 }
 
-TEST_CASE_METHOD(HeaterFixture, "A different op replaces a pending preheat rather than cancel it",
+TEST_CASE_METHOD(HeaterFixture, "Another op from the same dialog is refused while a preheat waits",
                  "[filament][preheat][heater][cancel]") {
     set_print_state("paused");
     feed_nozzle(25, 0);
     runout_load();
+    REQUIRE(heater->get().pending());
+
+    FilamentRunoutHandlerTestAccess::dispatch_unload(*handler);
+    drain_all();
+    REQUIRE(heater->get().pending()); // the load still waits
+
+    feed_nozzle(220, 220);
+    CHECK(sent_load());
+    CHECK_FALSE(sent("UNLOAD_FILAMENT"));
+}
+
+TEST_CASE_METHOD(HeaterFixture,
+                 "Load then Purge from the runout dialog loads, and refuses the purge",
+                 "[filament][preheat][heater][cancel]") {
+    set_print_state("paused");
+    feed_nozzle(25, 0);
+    runout_load();
+    REQUIRE(heater->get().pending());
+    client.clear_gcode_script_history();
+
+    FilamentRunoutHandlerTestAccess::dispatch_purge(*handler);
+    drain_all();
+    REQUIRE(heater->get().pending());
+    CHECK_FALSE(sent(HEAT_GCODE)); // the purge sent no heat of its own
+
+    feed_nozzle(220, 220);
+    CHECK(sent_load());
+    CHECK_FALSE(sent("PURGE"));
+}
+
+TEST_CASE_METHOD(HeaterFixture, "An op from another dialog replaces the pending preheat",
+                 "[filament][preheat][heater][cancel]") {
+    set_print_state("standby");
+    feed_nozzle(25, 0);
+    PrintStatusWidget widget;
+    PrintStatusWidgetTestAccess::dispatch_load(widget);
+    drain_all();
     REQUIRE(heater->get().pending());
 
     FilamentRunoutHandlerTestAccess::dispatch_unload(*handler);
@@ -668,6 +705,42 @@ TEST_CASE_METHOD(HeaterFixture, "A reload requested during a pause is not abando
 
     feed_nozzle(220, 220);
     CHECK(sent_load());
+}
+
+TEST_CASE_METHOD(HeaterFixture, "A paused reload still heating when the print resumes is dropped",
+                 "[filament][preheat][heater][print_guard][runout]") {
+    set_print_state("paused");
+    feed_nozzle(25, 0);
+    runout_load();
+    REQUIRE(heater->get().pending());
+
+    client.clear_gcode_script_history();
+    set_print_state("printing");
+    CHECK_FALSE(heater->get().pending());
+    // The resumed print runs on whatever target it has: turning it off would
+    // starve the print.
+    CHECK_FALSE(sent(std::string(HEAT_GCODE) + "0"));
+
+    feed_nozzle(220, 220);
+    CHECK_FALSE(sent_load());
+}
+
+TEST_CASE_METHOD(HeaterFixture,
+                 "A paused reload still heating when the print is cancelled is dropped",
+                 "[filament][preheat][heater][print_guard][runout]") {
+    set_print_state("paused");
+    feed_nozzle(25, 0);
+    FilamentRunoutHandlerTestAccess::dispatch_unload(*handler);
+    drain_all();
+    REQUIRE(heater->get().pending());
+
+    client.clear_gcode_script_history();
+    set_print_state("cancelled");
+    CHECK_FALSE(heater->get().pending());
+    CHECK(sent(std::string(HEAT_GCODE) + "0")); // it was off when the user asked
+
+    feed_nozzle(220, 220);
+    CHECK_FALSE(sent("UNLOAD_FILAMENT"));
 }
 
 TEST_CASE_METHOD(HeaterFixture, "A target that never lands times the preheat out",
@@ -804,6 +877,52 @@ TEST_CASE_METHOD(HeaterFixture, "A preheat takes over a cooldown left from the p
 
     REQUIRE(heater->get().pending());
     CHECK_FALSE(cd.has_pending_timer());
+}
+
+TEST_CASE_METHOD(HeaterFixture, "A preheat over a pending cooldown counts the nozzle as off",
+                 "[filament][preheat][heater][cooldown]") {
+    // The target the previous op left is heat a cooldown still owes: cancelling
+    // this preheat turns it off rather than leaving it as someone's target.
+    auto& cd = PostOpCooldownManager::instance();
+    set_print_state("standby");
+    cd.schedule();
+    drain_all();
+    REQUIRE(cd.has_pending_timer());
+
+    feed_nozzle(100, 200);
+    PrintStatusWidget widget;
+    PrintStatusWidgetTestAccess::dispatch_load(widget);
+    drain_all();
+    REQUIRE(heater->get().pending());
+    client.clear_gcode_script_history();
+
+    REQUIRE(heater->get().cancel());
+    drain_all();
+    CHECK(sent(std::string(HEAT_GCODE) + "0"));
+}
+
+TEST_CASE_METHOD(HeaterFixture, "A load that runs at once over a pending cooldown is cooled after",
+                 "[filament][preheat][heater][cooldown]") {
+    auto& cd = PostOpCooldownManager::instance();
+    set_print_state("standby");
+    cd.schedule();
+    drain_all();
+    REQUIRE(cd.has_pending_timer());
+
+    feed_nozzle(222, 220); // still hot from the previous op
+    PrintStatusWidget widget;
+    PrintStatusWidgetTestAccess::dispatch_load(widget);
+    drain_all();
+    REQUIRE_FALSE(heater->get().pending());
+    REQUIRE(sent_load());
+    CHECK_FALSE(sent(HEAT_GCODE));
+
+    REQUIRE(wait_until(
+        [&cd]() {
+            drain_all();
+            return cd.has_pending_timer();
+        },
+        3000));
 }
 
 TEST_CASE_METHOD(HeaterFixture, "A backend op's end on the action feed schedules the cooldown",

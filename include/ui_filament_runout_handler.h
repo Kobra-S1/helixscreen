@@ -42,12 +42,14 @@ namespace helix::ui {
  * Shared by the pause-time dialog and the idle one (PrintStatusWidget). Routes
  * through the shared plan_load() ladder, never prompts for macro parameters
  * (a param modal would stack on the live dialog) and never navigates away. The
- * dialog closes on the press, so the wait for a hot nozzle and the load itself
- * belong to the app's FilamentOpHeater, not to the dialog.
+ * dialog can be closed, or its owner destroyed, before the nozzle is hot, so the
+ * wait and the load itself belong to the app's FilamentOpHeater, not to the
+ * dialog.
  *
  * @param log_tag Static storage duration.
- * @param owner   Names the asking dialog to the heater, so a second tap of the
- *                same button cancels the pending preheat.
+ * @param owner   Names the asking dialog to the heater: a second tap of the same
+ *                button cancels the pending preheat, and another of its buttons
+ *                is refused while it waits.
  *
  * Main thread only.
  */

@@ -200,8 +200,12 @@ void FilamentOpHeater::forget(FilamentOpTicket ticket) {
 }
 
 void FilamentOpHeater::restore_prior(int prior_target_c) {
+    // Back off only if it was off: a target someone else set stays theirs.
+    if (prior_target_c != 0) {
+        return;
+    }
     if (auto* c = get_temperature_controller()) {
-        c->set_target(HeaterType::Nozzle, static_cast<double>(prior_target_c), {.toast = false});
+        c->set_target(HeaterType::Nozzle, 0.0, {.toast = false});
     }
 }
 
@@ -216,6 +220,15 @@ FilamentOpHeater::Outcome FilamentOpHeater::run_after_preheat(PreheatRequest req
                          filament_heat_op_name(req.op));
             cancel();
             return Outcome::Cancelled;
+        }
+        if (waiting.owner == req.owner) {
+            // The dialog stays open while the nozzle heats, so its other buttons
+            // are still there: replacing would silently drop the op the user
+            // asked for first (a Purge tapped behind a waiting Load).
+            spdlog::info("{} {} refused — the {} preheat still waits", req.log_tag,
+                         filament_heat_op_name(req.op), filament_heat_op_name(waiting.op));
+            NOTIFY_WARNING(lv_tr("Operation already in progress"));
+            return Outcome::Refused;
         }
         spdlog::info("{} {} replaces the pending {} preheat", req.log_tag,
                      filament_heat_op_name(req.op), filament_heat_op_name(waiting.op));
@@ -282,6 +295,7 @@ FilamentOpHeater::Outcome FilamentOpHeater::run_after_preheat(PreheatRequest req
     // the target read just now is heat this heater sent.
     p.prior_target_c = inherited ? *inherited : in.target_c;
     p.job_free_at_request = !job_holds;
+    p.lifecycle_at_request = state_.get_print_lifecycle();
     p.started = now();
     p.req = std::move(req);
     start_heating(std::move(p), decision.send_c,
@@ -379,8 +393,8 @@ void FilamentOpHeater::on_temperature() {
     if (!preheat_reached(current, pending_->wait_c, pending_->floor_c)) {
         return;
     }
-    // A job that took the machine while we heated owns the nozzle now.
-    if (pending_->job_free_at_request && job_holds_machine(state_.get_print_lifecycle())) {
+    // The print changed hands while we heated: the op is no longer the user's.
+    if (print_moved_on()) {
         on_lifecycle();
         return;
     }
@@ -409,15 +423,27 @@ void FilamentOpHeater::on_target(int target_deci) {
             /*restore=*/false);
 }
 
+bool FilamentOpHeater::print_moved_on() const {
+    if (!pending_) {
+        return false;
+    }
+    const PrintState now_state = state_.get_print_lifecycle();
+    // An idle request is overtaken by any job; a paused one by the pause ending,
+    // whichever way it ends: a reload must never land in a resumed print.
+    return pending_->job_free_at_request ? job_holds_machine(now_state)
+                                         : now_state != pending_->lifecycle_at_request;
+}
+
 void FilamentOpHeater::on_lifecycle() {
-    if (!pending_ || !pending_->job_free_at_request) {
+    if (!print_moved_on()) {
         return;
     }
-    if (job_holds_machine(state_.get_print_lifecycle())) {
-        // The print owns the heater now.
-        abandon("A print took the machine during the preheat", lv_tr("Preheat cancelled"),
-                /*restore=*/false);
-    }
+    // A job that holds the machine now owns the heater; a print that ended
+    // leaves it to us to put back.
+    const bool job_holds = job_holds_machine(state_.get_print_lifecycle());
+    abandon(job_holds ? "The print took the machine during the preheat"
+                      : "The print ended during the preheat",
+            lv_tr("Preheat cancelled"), /*restore=*/!job_holds);
 }
 
 void FilamentOpHeater::check_deadlines() {

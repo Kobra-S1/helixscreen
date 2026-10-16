@@ -361,8 +361,9 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
 // ============================================================================
 //
 // Each button asks the app's FilamentOpHeater for a hot nozzle first. The dialog
-// closes on the press, so the op that runs once the nozzle is hot owns nothing
-// of this handler: it re-plans against the backend there is then and reaches the
+// stays open while the nozzle heats, but it can be closed and this handler
+// destroyed before then, so the op that runs once hot owns nothing of the
+// handler: it re-plans against the backend there is then and reaches the
 // printer through get_moonraker_api().
 
 namespace {

@@ -6,8 +6,8 @@
  * @brief The nozzle heat before a filament op the runout dialogs dispatch.
  *
  * Load, Unload and Purge need a hotend above Klipper's min_extrude_temp, and the
- * runout guidance dialogs close the moment a button is pressed, before the
- * nozzle can get there. So the wait belongs to an app-lifetime service, not to
+ * runout guidance dialog that asks can be closed, or its owner destroyed, before
+ * the nozzle gets there. So the wait belongs to an app-lifetime service, not to
  * the dialog.
  *
  * Two layers:
@@ -26,6 +26,7 @@
 
 #include "filament_op_dispatch.h"
 #include "filament_op_slot_resolver.h"
+#include "print_lifecycle_state.h"
 
 #include <chrono>
 #include <cstdint>
@@ -151,14 +152,18 @@ struct PreheatRequest {
  * Main thread only. One preheat at a time, because there is one nozzle:
  *   - the SAME request again (op, slot and owner) while it waits is the user
  *     changing their mind, so it cancels the pending one and runs nothing;
- *   - any other request replaces it, and takes over the heat it sent.
+ *   - another op from the same owner is refused with a toast: the dialog stays
+ *     open while the nozzle heats, and its first op must not be dropped;
+ *   - a request from another owner replaces it, and takes over the heat it sent.
  *
  * A preheat ends without running its op when the target it sent never lands,
- * when that target is taken away, when it runs past PREHEAT_TIMEOUT, or, for a
- * request made while no job held the machine, when a job takes it. A preheat
- * that times out or is cancelled puts the nozzle target back where it found it;
- * one whose target was taken away or that a print overtook leaves it to
- * whoever moved it.
+ * when that target is taken away, when it runs past PREHEAT_TIMEOUT, for a
+ * request made while no job held the machine when a job takes it, and for one
+ * made during a pause when the pause ends (resumed, cancelled, finished). One
+ * that times out, is cancelled or outlives its print turns the nozzle back off
+ * if it was off when the request arrived; a target someone else set stays.
+ * One whose target was taken away, or that a running print overtook, leaves
+ * the heater to whoever moved it.
  */
 class FilamentOpHeater {
   public:
@@ -182,6 +187,7 @@ class FilamentOpHeater {
         Ran,       ///< No heat needed (or skipped); run() has returned
         Heating,   ///< run() waits for the nozzle
         Cancelled, ///< A re-tap withdrew the pending request; run() never runs
+        Refused,   ///< The same owner's other op still waits; run() never runs
     };
 
     /// Run @p req.run now, or heat first and run it once hot.
@@ -192,9 +198,8 @@ class FilamentOpHeater {
         return pending_.has_value();
     }
 
-    /// Withdraw the pending preheat: the nozzle target goes back to what it was
-    /// when the request arrived, and the op never runs. False when nothing was
-    /// pending.
+    /// Withdraw the pending preheat: the nozzle goes back off if it was off when
+    /// the request arrived, and the op never runs. False when nothing was pending.
     bool cancel();
 
     /// The op @p ticket names finished. Schedules the post-op cooldown when this
@@ -223,6 +228,7 @@ class FilamentOpHeater {
         int prior_target_c = 0; ///< The nozzle target before we sent ours
         bool target_seen = false;
         bool job_free_at_request = true;
+        PrintState lifecycle_at_request = PrintState::Idle;
         TimePoint started{};
     };
 
@@ -242,6 +248,9 @@ class FilamentOpHeater {
     void on_temperature();
     void on_target(int target_deci);
     void on_lifecycle();
+    /// Whether the print has moved on from where it stood at the request: any
+    /// job for an idle request, leaving the pause for a paused one.
+    [[nodiscard]] bool print_moved_on() const;
     void on_ams_action(int action);
     void check_deadlines();
     /// Take the pending preheat out and stop watching the nozzle, then run its op
@@ -250,7 +259,7 @@ class FilamentOpHeater {
     void end_pending(bool run);
     /// End the pending preheat unrun: toast, put the target back when @p restore.
     void abandon(const char* why, const char* toast, bool restore);
-    /// Put the nozzle target back to @p prior_target_c.
+    /// Turn the nozzle back off when @p prior_target_c says it was off.
     void restore_prior(int prior_target_c);
     void cancel_deadline_timer();
     [[nodiscard]] TimePoint now() const;
