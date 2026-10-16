@@ -2972,6 +2972,57 @@ TEST_CASE("CFS flat-schema fingerprint change clears override (hardware swap det
     CHECK(rig.api->mock_get_db_value("lane_data", "lane1").is_null());
 }
 
+TEST_CASE("CFS schema change starts fresh fingerprint baselines",
+          "[ams][cfs][flat][filament_slot_override]") {
+    CfsOverrideRig rig("cfs_schema_change_fingerprints");
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spool_name = "PolyLite Orange";
+    ovr.material = "PLA";
+    ovr.color_rgb = 0xFF5500;
+    ovr.color_set = true;
+    ovr.user_locked_material = true;
+    ovr.user_locked_color = true;
+
+    const json stock = make_single_unit_box({"101001", "101001", "101001", "101001"},
+                                            {"0FF5500", "0FFFFFF", "00A2989", "0C12E1F"});
+    const json flat = make_flat_box("PLA", "Polymaker", "PolyLite Orange", "#FF5500");
+
+    SECTION("stock to flat") {
+        CfsTestAccess::seed_override(*rig.backend, 0, ovr);
+        rig.poll(stock);
+        REQUIRE(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "101001|0FF5500");
+
+        // The same spool in the other schema's spelling is a baseline, not a swap.
+        rig.poll(flat);
+        REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+        CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PLA|FF5500");
+        rig.poll(flat);
+        REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+
+        // A real change in the new schema still clears.
+        rig.poll(make_flat_box("PETG", "Polymaker", "PolyLite Orange", "#FF5500"));
+        CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    }
+
+    SECTION("flat to stock") {
+        CfsTestAccess::seed_override(*rig.backend, 0, ovr);
+        rig.poll(flat);
+        REQUIRE(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PLA|FF5500");
+
+        rig.poll(stock);
+        REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+        CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "101001|0FF5500");
+        rig.poll(stock);
+        REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+
+        rig.poll(make_single_unit_box({"106001", "101001", "101001", "101001"},
+                                      {"0FF5500", "0FFFFFF", "00A2989", "0C12E1F"}));
+        CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    }
+}
+
 TEST_CASE("CFS flat-schema bay with no identity is not a fingerprint signal",
           "[ams][cfs][flat][filament_slot_override]") {
     CfsOverrideRig rig("cfs_flat_identity_less_noop");

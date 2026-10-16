@@ -707,6 +707,14 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     [[nodiscard]] bool check_hardware_event_clear(SlotInfo& slot, int slot_index,
                                                   const std::string& observed_uid);
 
+    /// Forget every swap-fingerprint baseline and pending echo expectation.
+    /// The stock (`material_type|color_value`) and flat (`MATERIAL|RRGGBB`)
+    /// fingerprints have different spellings for the same spool, so comparing
+    /// one schema's baseline with the other's reading would report a swap on
+    /// every bay. Called when the box changes schema; the next frame of the
+    /// new schema is a fresh baseline. Takes mutex_.
+    void reset_fingerprints_for_schema_change();
+
     /// Clear a stale auto-mirrored override when firmware reports the bay
     /// EMPTY. CFS has no other ejection path: the RFID fingerprint LATCHES
     /// after a spool is pulled, so check_hardware_event_clear sees Unchanged

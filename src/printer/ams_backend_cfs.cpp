@@ -1579,6 +1579,7 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
             if (macro_variant_ == CfsMacroVariant::Fork) {
                 macro_variant_ = model_macro_variant_;
             }
+            reset_fingerprints_for_schema_change();
             spdlog::info("[AMS CFS] Stock box schema reported, flat state dropped");
         }
         const bool is_flat =
@@ -1625,6 +1626,7 @@ void AmsBackendCfs::handle_status_update(const nlohmann::json& notification) {
 
         if (is_flat && schema_ != CfsSchema::Flat) {
             schema_ = CfsSchema::Flat;
+            reset_fingerprints_for_schema_change();
             // Select the command dialect from the explicit API version, not by
             // assuming every `slots[]` payload implements the same commands.
             if (detect_fork_dialect(state)) {
@@ -4263,6 +4265,11 @@ std::map<int, int> AmsBackendCfs::collect_insert_probes_locked(const nlohmann::j
         }
     }
     return probes;
+}
+
+void AmsBackendCfs::reset_fingerprints_for_schema_change() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    rfid_tracker_.clear();
 }
 
 bool AmsBackendCfs::check_hardware_event_clear(SlotInfo& slot, int slot_index,
