@@ -451,7 +451,7 @@ Remaining gaps, degraded rather than broken:
 
 | Stock feature | Flat behavior |
 |---------------|---------------|
-| RFID fingerprinting (`build_cfs_slot_uid`) for hardware-change detection | No per-slot UID in the schema; baseline/clear logic no-ops |
+| RFID fingerprinting (`build_cfs_slot_uid`) for hardware-change detection | No per-slot UID in the schema, so `build_cfs_flat_slot_uid` fingerprints each bay as `MATERIAL\|RRGGBB` and a change drives the same swap clear as stock (brand and name alone are not a swap; our own `_BOX_SLOT_SET` echo is expected and kept). A schema change starts fresh baselines. Baselines are not persisted on 1.0, so a spool changed while HelixScreen was off still shows the stored value after restart |
 | `set_tool_mapping` via TNN + `box.map` | No equivalent — the module maps tools to slots 1:1 |
 | Bypass / external spool load | **Implemented.** The `external: true` entry is observable and `T<external>` is a registered command (verified from the port's own box.py — re-fetched 2026-08-17, sha256 `a5b4d19e…9eeb6f23`, 2892 lines, `API_VERSION = 1`): the change engine runs the same attended flow for the holder as for a bay (heat → wastebin → wait `EXTERNAL_WAIT = 30 s` for insertion → feed 30 mm → flush), `BOX_UNLOAD`'s external branch ejects it, and mid-print `T<external>` pauses for attended loading. `supports_bypass` turns on for the Fork dialect when the payload carries the entry; `loaded_slot` naming it maps to the -2 sentinel. The entry is still skipped when building `unit.slots`, so it never renders as a fifth bay. See `FILAMENT_BACKEND_CFS.md` § "CFS" |
 

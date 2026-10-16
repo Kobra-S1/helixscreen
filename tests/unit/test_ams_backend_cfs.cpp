@@ -2705,18 +2705,55 @@ json make_unit_box_explicit(const std::vector<std::string>& material_types,
     return box;
 }
 
+// Flat-schema (community Kalico box.py) frame with bay 0 carrying the identity
+// a test varies and the other bays identity-less. api_version 1 makes it the
+// identified Fork dialect, so identity writebacks are reachable; only the
+// fields these tests exercise are spelled out.
+json make_flat_box(const std::string& material, const std::string& brand, const std::string& name,
+                   const std::string& color) {
+    json box;
+    box["api_version"] = 1;
+    box["driver_ready"] = true;
+    box["loaded_slot"] = -1;
+    box["slots"] = json::array({json{{"index", 0},
+                                     {"external", false},
+                                     {"present", true},
+                                     {"material", material},
+                                     {"brand", brand},
+                                     {"name", name},
+                                     {"color", color}},
+                                json{{"index", 1}, {"external", false}, {"present", false}},
+                                json{{"index", 2}, {"external", false}, {"present", false}},
+                                json{{"index", 3}, {"external", false}, {"present", false}}});
+    return box;
+}
+
+// Flat-schema rig backend whose every gcode dispatch fails, for the write
+// paths that must drop their echo expectation when the command never reaches
+// the box (a later frame reporting the pushed value is then a genuine change,
+// not our echo).
+class FlatFailDispatchCfs : public AmsBackendCfs {
+  public:
+    FlatFailDispatchCfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client)
+        : AmsBackendCfs(api, client) {}
+
+    AmsError execute_gcode(const std::string&) override {
+        return AmsErrorHelper::not_supported("fixture dispatch failure");
+    }
+};
+
 // Backend + store + tmp cache wired together — every override test repeats this.
-struct CfsOverrideRig {
+template <typename BackendT = AmsBackendCfs> struct CfsOverrideRig {
     CfsTmpCacheDir tmp;
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     helix::PrinterState state;
     std::unique_ptr<MoonrakerAPIMock> api;
-    std::unique_ptr<AmsBackendCfs> backend;
+    std::unique_ptr<BackendT> backend;
 
     explicit CfsOverrideRig(const std::string& name) : tmp(name) {
         state.init_subjects(false);
         api = std::make_unique<MoonrakerAPIMock>(client, state);
-        backend = std::make_unique<AmsBackendCfs>(api.get(), nullptr);
+        backend = std::make_unique<BackendT>(api.get(), nullptr);
         auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(api.get(), "cfs");
         FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
         CfsTestAccess::inject_override_store(*backend, std::move(store));
@@ -2855,6 +2892,230 @@ TEST_CASE("CFS genuine swap while a color push is in flight still clears the ove
                                               {"01A1A1A", "0FFFFFF", "00A2989", "0C12E1F"});
     rig.poll(box_late_echo);
     CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+}
+
+TEST_CASE("CFS flat-schema material change on the box reaches the slot",
+          "[ams][cfs][flat][filament_slot_override]") {
+    CfsOverrideRig rig("cfs_flat_material_follows");
+
+    // First frame: the auto-mirror fills the empty override from firmware.
+    rig.poll(make_flat_box("PLA", "Sunlu", "PLA Basic", "#FF5500"));
+    REQUIRE(rig.backend->get_slot_info(0).material == "PLA");
+
+    // A full frame stating a different material for the same bay. The mirror's
+    // copy of the old material must not paint over what the box now says.
+    rig.poll(make_flat_box("PETG", "Sunlu", "PLA Basic", "#FF5500"));
+    CHECK(rig.backend->get_slot_info(0).material == "PETG");
+
+    // The next frame republishes the new firmware truth for OrcaSlicer.
+    rig.poll(make_flat_box("PETG", "Sunlu", "PLA Basic", "#FF5500"));
+    CHECK(rig.backend->get_slot_info(0).material == "PETG");
+    auto stored = rig.api->mock_get_db_value("lane_data", "lane1");
+    REQUIRE(!stored.is_null());
+    CHECK(stored["material"] == "PETG");
+}
+
+TEST_CASE("CFS stock material change on the box reaches the slot",
+          "[ams][cfs][filament_slot_override]") {
+    CfsOverrideRig rig("cfs_stock_material_follows");
+
+    rig.poll(make_single_unit_box({"101001", "101001", "101001", "101001"},
+                                  {"0FF5500", "0FFFFFF", "00A2989", "0C12E1F"}));
+    const std::string first = rig.backend->get_slot_info(0).material;
+    REQUIRE(!first.empty());
+    REQUIRE(first.find("PETG") == std::string::npos);
+
+    // 106001 is Creality CR-PETG: a different tag in the same bay.
+    rig.poll(make_single_unit_box({"106001", "101001", "101001", "101001"},
+                                  {"0FF5500", "0FFFFFF", "00A2989", "0C12E1F"}));
+    CHECK(rig.backend->get_slot_info(0).material.find("PETG") != std::string::npos);
+}
+
+TEST_CASE("CFS flat-schema fingerprint change clears override (hardware swap detected)",
+          "[ams][cfs][flat][filament_slot_override]") {
+    CfsOverrideRig rig("cfs_flat_swap_clears");
+
+    rig.api->mock_set_db_value(
+        "lane_data", "lane1",
+        json{{"vendor", "Polymaker"}, {"spool_id", 42}, {"material", "PLA"}, {"color", "#FF5500"}});
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spool_name = "PolyLite Orange";
+    ovr.spoolman_id = 42;
+    ovr.material = "PLA";
+    ovr.color_rgb = 0xFF5500;
+    CfsTestAccess::seed_override(*rig.backend, 0, ovr);
+
+    // First flat frame establishes the baseline from bay 0's identity. No clear.
+    json box1 = make_flat_box("PLA", "Polymaker", "PolyLite Orange", "#FF5500");
+    rig.poll(box1);
+
+    // The fingerprint is the evidence fields only: material and colour.
+    REQUIRE(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PLA|FF5500");
+    REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    REQUIRE(!rig.api->mock_get_db_value("lane_data", "lane1").is_null());
+
+    // Same identity again: the same spool re-observed, the override stands.
+    rig.poll(box1);
+    REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+
+    // Brand and name are presentation, not identity: no clear.
+    rig.poll(make_flat_box("PLA", "Jayo", "Other", "#FF5500"));
+    REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+
+    // A different material and colour is a different physical spool.
+    rig.poll(make_flat_box("PETG", "Bambu", "Basic Green", "#00FF00"));
+
+    CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PETG|00FF00");
+    CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    CHECK(rig.api->mock_get_db_value("lane_data", "lane1").is_null());
+}
+
+TEST_CASE("CFS schema change starts fresh fingerprint baselines",
+          "[ams][cfs][flat][filament_slot_override]") {
+    CfsOverrideRig rig("cfs_schema_change_fingerprints");
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spool_name = "PolyLite Orange";
+    ovr.material = "PLA";
+    ovr.color_rgb = 0xFF5500;
+    ovr.color_set = true;
+    ovr.user_locked_material = true;
+    ovr.user_locked_color = true;
+
+    const json stock = make_single_unit_box({"101001", "101001", "101001", "101001"},
+                                            {"0FF5500", "0FFFFFF", "00A2989", "0C12E1F"});
+    const json flat = make_flat_box("PLA", "Polymaker", "PolyLite Orange", "#FF5500");
+
+    SECTION("stock to flat") {
+        CfsTestAccess::seed_override(*rig.backend, 0, ovr);
+        rig.poll(stock);
+        REQUIRE(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "101001|0FF5500");
+
+        // The same spool in the other schema's spelling is a baseline, not a swap.
+        rig.poll(flat);
+        REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+        CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PLA|FF5500");
+        rig.poll(flat);
+        REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+
+        // A real change in the new schema still clears.
+        rig.poll(make_flat_box("PETG", "Polymaker", "PolyLite Orange", "#FF5500"));
+        CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    }
+
+    SECTION("flat to stock") {
+        CfsTestAccess::seed_override(*rig.backend, 0, ovr);
+        rig.poll(flat);
+        REQUIRE(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PLA|FF5500");
+
+        rig.poll(stock);
+        REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+        CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "101001|0FF5500");
+        rig.poll(stock);
+        REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+
+        rig.poll(make_single_unit_box({"106001", "101001", "101001", "101001"},
+                                      {"0FF5500", "0FFFFFF", "00A2989", "0C12E1F"}));
+        CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    }
+}
+
+TEST_CASE("CFS flat-schema bay with no identity is not a fingerprint signal",
+          "[ams][cfs][flat][filament_slot_override]") {
+    CfsOverrideRig rig("cfs_flat_identity_less_noop");
+
+    rig.api->mock_set_db_value("lane_data", "lane1",
+                               json{{"vendor", "Polymaker"}, {"spool_id", 42}});
+
+    helix::ams::FilamentSlotOverride ovr;
+    ovr.brand = "Polymaker";
+    ovr.spoolman_id = 42;
+    CfsTestAccess::seed_override(*rig.backend, 0, ovr);
+
+    json box1 = make_flat_box("PLA", "Polymaker", "PolyLite Orange", "#FF5500");
+    rig.poll(box1);
+    REQUIRE(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PLA|FF5500");
+
+    // Bay 0 occupied but carrying no identity ("None" is this module's spelling
+    // of absent): an empty fingerprint, which must not touch the baseline or
+    // clear. A frame that could not read the tag must not mask the swap the
+    // next good read reports.
+    rig.poll(make_flat_box("None", "None", "None", "None"));
+    CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PLA|FF5500");
+    CHECK(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    CHECK(!rig.api->mock_get_db_value("lane_data", "lane1").is_null());
+
+    rig.poll(box1);
+    CHECK(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+}
+
+TEST_CASE("CFS flat-schema identity writeback echo does not self-wipe the override",
+          "[ams][cfs][flat][filament_slot_override][firmware_writeback]") {
+    CfsOverrideRig rig("cfs_flat_echo_survives");
+
+    json box_before = make_flat_box("PLA", "Polymaker", "PolyLite Orange", "#FF5500");
+    rig.poll(box_before);
+    REQUIRE(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PLA|FF5500");
+
+    // User assigns a new identity. The fork branch pushes _BOX_SLOT_SET, whose
+    // values box.py echoes back in a later status frame.
+    SlotInfo edit;
+    edit.material = "asa-cf";
+    edit.brand = "Polymaker";
+    edit.spool_name = "PolyLite ASA";
+    edit.color_rgb = 0x1A1A1A;
+    REQUIRE(rig.backend->set_slot_info(0, edit, /*persist=*/true).success());
+
+    auto staged = CfsTestAccess::get_override(*rig.backend, 0);
+    REQUIRE(staged.has_value());
+    REQUIRE(staged->material == "asa-cf");
+
+    // Polls before the echo lands read the OLD identity: unchanged, no clear.
+    rig.poll(box_before);
+    REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+
+    // The echo reports exactly what we pushed: material uppercased by
+    // slot_set_gcode, color in the #RRGGBB form it wrote.
+    rig.poll(make_flat_box("ASA-CF", "Polymaker", "PolyLite ASA", "#1A1A1A"));
+
+    auto after_echo = CfsTestAccess::get_override(*rig.backend, 0);
+    REQUIRE(after_echo.has_value());
+    CHECK(after_echo->material == "asa-cf");
+    CHECK(after_echo->color_rgb == 0x1A1A1Au);
+    CHECK(rig.backend->get_slot_info(0).material == "asa-cf");
+    CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "ASA-CF|1A1A1A");
+
+    // A genuine swap after the echo still clears the override.
+    rig.poll(make_flat_box("PETG", "Bambu", "Basic Green", "#00FF00"));
+    CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+}
+
+TEST_CASE("CFS flat-schema dispatch failure drops the echo expectation",
+          "[ams][cfs][flat][filament_slot_override]") {
+    CfsOverrideRig<FlatFailDispatchCfs> rig("cfs_flat_dispatch_fails");
+
+    rig.poll(make_flat_box("PLA", "Polymaker", "PolyLite Orange", "#FF5500"));
+    REQUIRE(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "PLA|FF5500");
+
+    // The _BOX_SLOT_SET push fails, so no echo is ever coming. The override
+    // still stages: the push is best-effort.
+    SlotInfo edit;
+    edit.material = "asa-cf";
+    edit.brand = "Polymaker";
+    edit.spool_name = "PolyLite ASA";
+    edit.color_rgb = 0x1A1A1A;
+    (void)rig.backend->set_slot_info(0, edit, /*persist=*/true);
+    REQUIRE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+
+    // A later frame reporting exactly the value we tried to push is not our
+    // echo (the command never landed): it clears the override like any
+    // genuine change instead of being swallowed as OwnWriteEcho.
+    rig.poll(make_flat_box("ASA-CF", "Polymaker", "PolyLite ASA", "#1A1A1A"));
+    CHECK_FALSE(CfsTestAccess::get_override(*rig.backend, 0).has_value());
+    CHECK(CfsTestAccess::last_rfid_uid(*rig.backend, 0) == "ASA-CF|1A1A1A");
 }
 
 // =============================================================================
