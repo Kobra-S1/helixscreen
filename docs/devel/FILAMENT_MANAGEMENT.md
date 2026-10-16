@@ -468,6 +468,10 @@ The `user_locked_color` / `user_locked_material` flags gate whether the
 display fields from firmware truth. A locked field is **never** auto-refreshed —
 this exists to protect a deliberate user choice from the AD5X post-print
 `FFMInfo` revert, which re-emits the *old* type after a print (**#965**).
+Locks persist in lane_data as `helix_locked_color` / `helix_locked_material`,
+which HelixScreen always writes. lane_data is shared with other tools, so a
+record without those keys is another tool's and loads unlocked: it tracks
+firmware.
 
 **The reconcile detectors** live in `ams_backend_ad5x_ifs.cpp`:
 `check_external_color_change` and `check_external_type_change`, both called from
@@ -488,10 +492,9 @@ Two footguns this area has repeatedly hit (fixed in #1065; keep them fixed):
 2. **Insert can't clear a lock, so the display sticks.** The only thing that
    clears a lock is an external `CHANGE_ZCOLOR` in the gcode stream (**#981**,
    emitted by the ZMOD COLOR macro / LCD). A **physical insert emits no
-   `CHANGE_ZCOLOR`**, so a lane whose material was locked — either by a menu
-   type-set (`set_slot_info`) or by the pessimistic `!material.empty()` load
-   default in `from_lane_data_record` — keeps painting the *previous* spool's
-   type after a new spool goes in. This is why "change type via the COLOR macro"
+   `CHANGE_ZCOLOR`**, so a lane whose material a menu type-set (`set_slot_info`)
+   locked keeps painting the *previous* spool's type after a new spool goes
+   in, across restarts too, since the lock persists in lane_data. This is why "change type via the COLOR macro"
    worked while "insert a new spool and change its type" did not.
 
    Fix: `unlock_auto_tracked_override_on_insert_locked()` runs on the

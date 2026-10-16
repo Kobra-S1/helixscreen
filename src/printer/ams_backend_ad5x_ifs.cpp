@@ -1448,11 +1448,11 @@ void AmsBackendAd5xIfs::release_locked_override_keep_identity_locked(int slot_in
 
 void AmsBackendAd5xIfs::unlock_auto_tracked_override_on_insert_locked(int slot_index) {
     // Caller holds mutex_. See the header doc + FILAMENT_MANAGEMENT.md for the
-    // full model. Short version: a lane's material/color override can be
-    // user-locked either by a menu edit (set_slot_info) or by the pessimistic
-    // !material.empty() load default (from_lane_data_record). A locked field is
-    // never refreshed by the OverwriteAlways auto-mirror, so a freshly inserted
-    // spool keeps painting the PREVIOUS spool's type/color. Only an external
+    // full model. Short version: a menu edit (set_slot_info) user-locks a lane's
+    // material/color override, and the lock persists through lane_data's
+    // helix_locked_* keys. A locked field is never refreshed by the
+    // OverwriteAlways auto-mirror, so a freshly inserted spool keeps painting
+    // the PREVIOUS spool's type/color. Only an external
     // CHANGE_ZCOLOR clears that lock (#981), and a physical insert emits none —
     // so unlock here, on the insert edge itself.
     auto it = overrides_.find(slot_index);
@@ -1473,8 +1473,8 @@ void AmsBackendAd5xIfs::unlock_auto_tracked_override_on_insert_locked(int slot_i
                  backend_log_tag(), slot_index);
     ovr.user_locked_material = false;
     ovr.user_locked_color = false;
-    // Persist the unlock so a restart doesn't reload the pessimistic
-    // !material.empty() lock default and re-stick the old type. The subsequent
+    // Persist the unlock: lane_data carries the lock keys, so an unsaved unlock
+    // reloads as locked on restart and re-sticks the old type. The subsequent
     // update_slot_from_state -> auto-mirror will save again once firmware truth
     // refreshes the material/color; this first save just makes the unlock
     // durable even if the same spool goes back in and no material delta follows.

@@ -4368,8 +4368,9 @@ bool AmsBackendCfs::clear_stale_override_on_removal_locked(SlotInfo& slot, int s
     // belongs in this slot; unloading it — or a reader that momentarily can't
     // see the tag — must not throw that away. Locks are the authoritative
     // "the user chose this" signal and they round-trip through lane_data, so
-    // this holds across restarts too. Legacy records load with locks defaulted
-    // to true wherever the field has a value, so pre-lock user data is covered.
+    // this holds across restarts too. A lane_data record loads locked only when
+    // it carries our helix_locked_* keys, so another tool's colour/material-only
+    // record is not retained over an empty bay.
     const auto& o = it->second;
     if (o.user_locked_color || o.user_locked_material) {
         return false;
