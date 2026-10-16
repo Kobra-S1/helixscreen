@@ -18,7 +18,7 @@ constexpr int kDefectExceptionId = 532;
 } // namespace
 
 U1StockSource::~U1StockSource() {
-    helix::non_filament_pause::set_explainer(nullptr);
+    helix::non_filament_pause::clear_explainer(this);
 }
 
 std::string U1StockSource::pause_explanation() const {
@@ -40,7 +40,7 @@ std::string U1StockSource::pause_explanation() const {
 void U1StockSource::start() {
     if (!state_)
         return;
-    helix::non_filament_pause::set_explainer([this]() { return pause_explanation(); });
+    helix::non_filament_pause::set_explainer(this, [this]() { return pause_explanation(); });
     // Both deferred (observe_int_sync): the state and the exception code are
     // parsed in one update_from_status() frame, and the firmware may also send
     // them in separate frames in either order. Re-evaluating on either edge,

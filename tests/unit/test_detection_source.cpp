@@ -6,6 +6,8 @@
 #include "printer_state.h"
 #include "u1_stock_detection_source.h"
 
+#include <memory>
+
 #include "../catch_amalgamated.hpp"
 
 using helix::detection::DetectionEvent;
@@ -190,4 +192,22 @@ TEST_CASE_METHOD(XMLTestFixture, "U1StockSource removes its explainer when destr
         REQUIRE(helix::non_filament_pause::explained());
     }
     CHECK_FALSE(helix::non_filament_pause::explained());
+}
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "A U1StockSource leaves another source's explainer in place when destroyed",
+                 "[detection][u1][pause_reason]") {
+    auto first = std::make_unique<helix::detection::U1StockSource>(&state());
+    first->set_capable(true);
+    first->start();
+    helix::detection::U1StockSource second(&state());
+    second.set_capable(true);
+    second.start();
+
+    first.reset();
+    state().update_from_status(
+        json{{"print_stats",
+              {{"state", "paused"},
+               {"exception", {{"id", 532}, {"code", 1}, {"message", "detected dirty bed"}}}}}});
+    CHECK(helix::non_filament_pause::explanation() == "detected dirty bed");
 }

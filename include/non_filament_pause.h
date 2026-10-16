@@ -16,20 +16,34 @@ namespace helix::non_filament_pause {
 /// Main thread only.
 using Explainer = std::function<std::string()>;
 
-inline Explainer& explainer_slot() {
-    static Explainer explainer;
-    return explainer;
+struct ExplainerSlot {
+    const void* owner = nullptr;
+    Explainer explainer;
+};
+
+inline ExplainerSlot& explainer_slot() {
+    static ExplainerSlot slot;
+    return slot;
 }
 
-/// Install (or, with an empty function, remove) the explainer.
-inline void set_explainer(Explainer explainer) {
-    explainer_slot() = std::move(explainer);
+/// Install @p owner's explainer, replacing any other.
+inline void set_explainer(const void* owner, Explainer explainer) {
+    explainer_slot() = {owner, std::move(explainer)};
+}
+
+/// Remove the explainer if @p owner is the one that installed it; another
+/// owner's stays.
+inline void clear_explainer(const void* owner) {
+    ExplainerSlot& slot = explainer_slot();
+    if (slot.owner == owner) {
+        slot = {};
+    }
 }
 
 /// The reason the installed explainer gives for the current pause; empty when
 /// it does not claim it, or with none installed.
 inline std::string explanation() {
-    const Explainer& explainer = explainer_slot();
+    const Explainer& explainer = explainer_slot().explainer;
     return explainer ? explainer() : std::string();
 }
 
