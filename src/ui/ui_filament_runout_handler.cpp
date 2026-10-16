@@ -368,7 +368,7 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
 
 namespace {
 
-constexpr const char* LOG_TAG = "[FilamentRunoutHandler]";
+constexpr const char* kLogTag = "[FilamentRunoutHandler]";
 
 /// Names this dialog's requests to the heater, so a re-tap is recognised.
 constexpr char RUNOUT_OWNER = 0;
@@ -530,7 +530,7 @@ void run_unload(FilamentOpTicket ticket) {
         }
         AmsError err = backend->unload_filament(plan.ams_arg);
         if (!err.success()) {
-            spdlog::error("{} Unload filament failed: {}", LOG_TAG, err.technical_msg);
+            spdlog::error("{} Unload filament failed: {}", kLogTag, err.technical_msg);
             report_filament_op_done(ticket, false);
             notify_ams_error(err);
         }
@@ -540,7 +540,7 @@ void run_unload(FilamentOpTicket ticket) {
     case FilamentTier::Refused:
         // NothingLoaded is plan_unload's only refusal. Say so and stay put —
         // navigating away would tear down the dialog the user is standing in.
-        spdlog::info("{} Unload refused — nothing loaded (slot={})", LOG_TAG, slot);
+        spdlog::info("{} Unload refused — nothing loaded (slot={})", kLogTag, slot);
         NOTIFY_WARNING(lv_tr("No filament loaded to unload"));
         return;
 
@@ -552,15 +552,15 @@ void run_unload(FilamentOpTicket ticket) {
         // ParamPolicy::Suppress: a MacroParamModal would stack on top of the
         // live runout dialog.
         const std::string macro_name = unload_info.get_macro();
-        spdlog::info("{} Using StandardMacros unload: {}", LOG_TAG, macro_name);
+        spdlog::info("{} Using StandardMacros unload: {}", kLogTag, macro_name);
         dispatch_filament_macro(
             macro_name, ParamPolicy::Suppress,
             [api, ticket](const helix::MacroParamResult& result) {
                 StandardMacros::instance().execute(
                     StandardMacroSlot::UnloadFilament, api, result.params,
-                    op_done(LOG_TAG, ticket, "Unload filament"),
+                    op_done(kLogTag, ticket, "Unload filament"),
                     [ticket](const MoonrakerError& err) {
-                        spdlog::error("{} Failed to unload filament: {}", LOG_TAG, err.message);
+                        spdlog::error("{} Failed to unload filament: {}", kLogTag, err.message);
                         report_filament_op_done(ticket, false);
                         NOTIFY_ERROR(lv_tr("Failed to unload: {}"), err.user_message());
                     });
@@ -573,11 +573,11 @@ void run_unload(FilamentOpTicket ticket) {
         if (!api) {
             return;
         }
-        spdlog::info("{} No backend and no unload macro — raw gcode fallback", LOG_TAG);
+        spdlog::info("{} No backend and no unload macro — raw gcode fallback", kLogTag);
         api->execute_gcode(
-            filament_unload_fallback_gcode(), op_done(LOG_TAG, ticket, "Unload fallback gcode"),
+            filament_unload_fallback_gcode(), op_done(kLogTag, ticket, "Unload fallback gcode"),
             [ticket](const MoonrakerError& err) {
-                spdlog::error("{} Unload fallback failed: {}", LOG_TAG, err.message);
+                spdlog::error("{} Unload fallback failed: {}", kLogTag, err.message);
                 report_filament_op_done(ticket, false);
                 NOTIFY_ERROR(lv_tr("Failed to unload: {}"), err.user_message());
             },
@@ -597,30 +597,30 @@ void run_purge(FilamentOpTicket ticket) {
     // the whole ladder here.
     const auto& purge_info = StandardMacros::instance().get(StandardMacroSlot::Purge);
     auto on_error = [ticket](const MoonrakerError& err) {
-        spdlog::error("{} Failed to purge: {}", LOG_TAG, err.message);
+        spdlog::error("{} Failed to purge: {}", kLogTag, err.message);
         report_filament_op_done(ticket, false);
         NOTIFY_ERROR(lv_tr("Failed to purge: {}"), err.user_message());
     };
     if (!purge_info.is_empty()) {
         const std::string macro_name = purge_info.get_macro();
-        spdlog::info("{} Using StandardMacros purge: {}", LOG_TAG, macro_name);
+        spdlog::info("{} Using StandardMacros purge: {}", kLogTag, macro_name);
         dispatch_filament_macro(macro_name, ParamPolicy::Suppress,
                                 [api, ticket, on_error](const helix::MacroParamResult& result) {
                                     StandardMacros::instance().execute(
                                         StandardMacroSlot::Purge, api, result.params,
-                                        op_done(LOG_TAG, ticket, "Purge"), on_error);
+                                        op_done(kLogTag, ticket, "Purge"), on_error);
                                 });
         return;
     }
 
-    spdlog::info("{} No purge macro configured — raw gcode fallback", LOG_TAG);
-    api->execute_gcode(purge_fallback_gcode(), op_done(LOG_TAG, ticket, "Purge fallback gcode"),
+    spdlog::info("{} No purge macro configured — raw gcode fallback", kLogTag);
+    api->execute_gcode(purge_fallback_gcode(), op_done(kLogTag, ticket, "Purge fallback gcode"),
                        on_error, IMoonrakerAPI::EXTRUSION_TIMEOUT_MS);
 }
 
 PreheatRequest runout_request(FilamentHeatOp op, PreheatSkip skip, int slot,
                               std::function<void(FilamentOpTicket)> run,
-                              const char* log_tag = LOG_TAG, const void* owner = &RUNOUT_OWNER) {
+                              const char* log_tag = kLogTag, const void* owner = &RUNOUT_OWNER) {
     PreheatRequest req;
     req.op = op;
     req.log_tag = log_tag;
@@ -648,12 +648,12 @@ void dispatch_runout_dialog_load(const char* log_tag, const void* owner) {
 }
 
 void FilamentRunoutHandler::dispatch_load() {
-    spdlog::info("{} User chose to load filament after runout", LOG_TAG);
-    dispatch_runout_dialog_load(LOG_TAG, &RUNOUT_OWNER);
+    spdlog::info("{} User chose to load filament after runout", kLogTag);
+    dispatch_runout_dialog_load(kLogTag, &RUNOUT_OWNER);
 }
 
 void FilamentRunoutHandler::dispatch_unload() {
-    spdlog::info("{} User chose to unload filament after runout", LOG_TAG);
+    spdlog::info("{} User chose to unload filament after runout", kLogTag);
     AmsBackend* backend = AmsState::instance().get_backend();
     const int slot = runout_slot(backend);
     const FilamentOpPlan plan = plan_runout_unload(backend, slot);
@@ -667,7 +667,7 @@ void FilamentRunoutHandler::dispatch_unload() {
 }
 
 void FilamentRunoutHandler::dispatch_purge() {
-    spdlog::info("{} User chose to purge after runout", LOG_TAG);
+    spdlog::info("{} User chose to purge after runout", kLogTag);
     AmsBackend* backend = AmsState::instance().get_backend();
     run_with_preheat(runout_request(FilamentHeatOp::Purge,
                                     preheat_skip_reason(FilamentHeatOp::Purge, nullptr, backend),
