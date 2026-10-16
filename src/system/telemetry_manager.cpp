@@ -649,15 +649,16 @@ void TelemetryManager::record_print_outcome(const std::string& outcome, int dura
 
 void TelemetryManager::record_update_failure(const std::string& reason, const std::string& version,
                                              const std::string& platform, int http_code,
-                                             int64_t file_size, int exit_code) {
+                                             int64_t file_size, int exit_code,
+                                             const UpdateFailureDetail& detail) {
     if (shutting_down_.load() || !initialized_.load() || !enabled_.load()) {
         return;
     }
 
     spdlog::info("[TelemetryManager] Recording update failure: reason={} version={}", reason,
                  version);
-    auto event =
-        build_update_failed_event(reason, version, platform, http_code, file_size, exit_code);
+    auto event = build_update_failed_event(reason, version, platform, http_code, file_size,
+                                           exit_code, detail);
     enqueue_event(std::move(event));
 }
 
@@ -1927,11 +1928,9 @@ nlohmann::json TelemetryManager::build_print_outcome_event(const std::string& ou
     return event;
 }
 
-nlohmann::json TelemetryManager::build_update_failed_event(const std::string& reason,
-                                                           const std::string& version,
-                                                           const std::string& platform,
-                                                           int http_code, int64_t file_size,
-                                                           int exit_code) const {
+nlohmann::json TelemetryManager::build_update_failed_event(
+    const std::string& reason, const std::string& version, const std::string& platform,
+    int http_code, int64_t file_size, int exit_code, const UpdateFailureDetail& detail) const {
     json event;
     stamp_envelope(event);
     event["event"] = "update_failed";
@@ -1950,6 +1949,16 @@ nlohmann::json TelemetryManager::build_update_failed_event(const std::string& re
     }
     if (exit_code >= 0) {
         event["exit_code"] = exit_code;
+    }
+    if (!detail.transfer_error.empty()) {
+        event["transfer_error"] = detail.transfer_error;
+        event["transfer_code"] = detail.transfer_code;
+    }
+    if (!detail.host.empty()) {
+        event["host"] = detail.host;
+    }
+    if (!detail.install_detail.empty()) {
+        event["install_detail"] = detail.install_detail;
     }
 
     return event;

@@ -114,6 +114,16 @@ inline std::string overlay_telemetry_id(const char* root_obj_name, const char* l
     return "unnamed";
 }
 
+/// Why an update failed, for an update_failed event. Every field here is
+/// already safe to send: fixed tokens, a known release host or "other", and
+/// text that went through helix::redact::telemetry_text().
+struct UpdateFailureDetail {
+    std::string transfer_error; ///< helix::tls::failure_kind_name() token
+    int transfer_code = 0;      ///< TransferFailure::code; 0 when there is none
+    std::string host;           ///< release host the transfer failed at, or "other"
+    std::string install_detail; ///< scrubbed cause line from install.sh's output
+};
+
 } // namespace helix
 
 /**
@@ -130,6 +140,8 @@ inline std::string overlay_telemetry_id(const char* root_obj_name, const char* l
  */
 class TelemetryManager {
   public:
+    using UpdateFailureDetail = helix::UpdateFailureDetail;
+
     /**
      * @brief Get singleton instance
      * @return Reference to global TelemetryManager
@@ -246,10 +258,12 @@ class TelemetryManager {
      * @param http_code HTTP status code (-1 to omit)
      * @param file_size Downloaded file size in bytes (-1 to omit)
      * @param exit_code install.sh exit code (-1 to omit)
+     * @param detail Why a download or install failed; empty fields are omitted
      */
     void record_update_failure(const std::string& reason, const std::string& version,
                                const std::string& platform, int http_code = -1,
-                               int64_t file_size = -1, int exit_code = -1);
+                               int64_t file_size = -1, int exit_code = -1,
+                               const UpdateFailureDetail& detail = {});
 
     /**
      * @brief Check for a successful update from a previous session
@@ -962,7 +976,8 @@ class TelemetryManager {
 
     nlohmann::json build_update_failed_event(const std::string& reason, const std::string& version,
                                              const std::string& platform, int http_code,
-                                             int64_t file_size, int exit_code) const;
+                                             int64_t file_size, int exit_code,
+                                             const UpdateFailureDetail& detail = {}) const;
 
     nlohmann::json build_update_success_event(const std::string& version,
                                               const std::string& from_version,

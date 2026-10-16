@@ -126,7 +126,12 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
     collect();
     tm.record_print_outcome("completed", 600, 5, 300.0f, "PLA", 200, 60);
     collect();
-    tm.record_update_failure("download_failed", "0.14.0", "pi", 404, 52428800, 2);
+    TelemetryManager::UpdateFailureDetail update_detail;
+    update_detail.transfer_error = "http";
+    update_detail.transfer_code = 0;
+    update_detail.host = "releases.helixscreen.org";
+    update_detail.install_detail = "[ERROR] Cannot write <path>";
+    tm.record_update_failure("download_failed", "0.14.0", "pi", 404, 52428800, 2, update_detail);
     collect();
     fx.write_file("update_success.json",
                   R"({"version":"0.14.0","from_version":"0.13.4","platform":"pi",)"

@@ -308,6 +308,23 @@ class UpdateChecker {
     static std::string install_failure_detail(const std::vector<std::string>& lines);
 
     /**
+     * @brief install_failure_detail() made safe for telemetry: paths, hosts, IPs
+     *        and the device's own names removed, at most 120 bytes.
+     *
+     * @param identifiers The device's host name and login, removed wherever they
+     *                    appear as a word.
+     */
+    static std::string
+    install_failure_telemetry_detail(const std::vector<std::string>& lines,
+                                     const std::vector<std::string>& identifiers);
+
+    /**
+     * @brief `host` when the update path downloads from it (our release hosts and
+     *        GitHub's), "other" for any other host, empty for empty.
+     */
+    static std::string telemetry_release_host(const std::string& host);
+
+    /**
      * @brief Probe the init destination with a real new-file write, before the
      *        archive download.
      * @param init_dir The directory the service definition installs into

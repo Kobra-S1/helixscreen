@@ -805,6 +805,38 @@ static void require_outside_install_root(const std::string& staging,
     REQUIRE(staging.rfind(install_root + "/", 0) != 0);
 }
 
+TEST_CASE("UpdateChecker install_failure_telemetry_detail scrubs the cause line",
+          "[update_checker][install_failure_detail][1813]") {
+    using UC = UpdateChecker;
+    const std::vector<std::string> lines = {
+        "[3/6] Downloaded ... ok (40 MB)",
+        "      \033[0;31m[ERROR]\033[0m Cannot write /home/alice/printer_data/x on k1max at "
+        "192.168.1.50 via mirror.example.net",
+        "[4/6] Installed files ... FAILED",
+    };
+    const std::string out = UC::install_failure_telemetry_detail(lines, {"k1max"});
+    INFO(out);
+    CHECK(out == "[ERROR] Cannot write <path> on <id> at <ip> via <host>");
+
+    const std::vector<std::string> long_line = {"[ERROR] " + std::string(300, 'x')};
+    CHECK(UC::install_failure_telemetry_detail(long_line, {}).size() == 120);
+    CHECK(UC::install_failure_telemetry_detail({"all fine"}, {}).empty());
+}
+
+TEST_CASE("UpdateChecker telemetry_release_host keeps only release hosts",
+          "[update_checker][1813]") {
+    using UC = UpdateChecker;
+    CHECK(UC::telemetry_release_host("releases.helixscreen.org") == "releases.helixscreen.org");
+    CHECK(UC::telemetry_release_host("Release-Assets.GitHubUserContent.com") ==
+          "release-assets.githubusercontent.com");
+    CHECK(UC::telemetry_release_host("objects.githubusercontent.com") ==
+          "objects.githubusercontent.com");
+    CHECK(UC::telemetry_release_host("mainsail.local") == "other");
+    CHECK(UC::telemetry_release_host("192.168.1.50") == "other");
+    CHECK(UC::telemetry_release_host("evil.releases.helixscreen.org.example") == "other");
+    CHECK(UC::telemetry_release_host("").empty());
+}
+
 TEST_CASE("UpdateChecker compute_update_staging_dir derives a safe subdir", "[update_checker]") {
     using UC = UpdateChecker;
 
@@ -2674,8 +2706,7 @@ TEST_CASE("UpdateChecker service_dest_probe_error mirrors the installer's write 
           "[update_checker][1778]") {
     using UC = UpdateChecker;
     namespace fs = std::filesystem;
-    const fs::path base =
-        fs::temp_directory_path() / ("helix-probe-" + std::to_string(getpid()));
+    const fs::path base = fs::temp_directory_path() / ("helix-probe-" + std::to_string(getpid()));
     fs::remove_all(base);
     fs::create_directories(base);
 
@@ -2696,7 +2727,10 @@ TEST_CASE("UpdateChecker service_dest_probe_error mirrors the installer's write 
 
     SECTION("a path under a non-directory fails for any uid") {
         const fs::path blocker = base / "blocker";
-        { std::ofstream out(blocker); out << "x"; }
+        {
+            std::ofstream out(blocker);
+            out << "x";
+        }
         REQUIRE_FALSE(UC::service_dest_probe_error((blocker / "init.d").string()).empty());
     }
 

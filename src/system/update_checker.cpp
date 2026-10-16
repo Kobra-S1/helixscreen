@@ -29,6 +29,7 @@
 #include "helix_install_roots.h"
 #include "hv/requests.h"
 #include "json_utils.h"
+#include "log_redact.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -933,6 +934,28 @@ static constexpr uint64_t DOWNLOAD_SPACE_FLOOR_BYTES = 50ULL * 1024 * 1024;
 // over-blocking users on tight rootfs. Bump in lockstep if archives grow.
 static constexpr uint64_t DOWNLOAD_SPACE_DEFAULT_BYTES = 120ULL * 1024 * 1024;
 
+/// The device's host name and the login it runs under, for scrubbing text bound
+/// for telemetry. From the environment, not getpwuid(): a static glibc build
+/// cannot load NSS.
+static std::vector<std::string> device_identifiers() {
+    std::vector<std::string> ids;
+    char host[256] = {};
+    if (gethostname(host, sizeof(host) - 1) == 0 && host[0])
+        ids.emplace_back(host);
+    for (const char* var : {"USER", "LOGNAME", "SUDO_USER"}) {
+        const char* v = std::getenv(var);
+        if (v && *v && std::string(v) != "root")
+            ids.emplace_back(v);
+    }
+    if (const char* home = std::getenv("HOME"); home && *home) {
+        std::string h(home);
+        const std::string leaf = h.substr(h.find_last_of('/') + 1);
+        if (!leaf.empty() && leaf != "root")
+            ids.push_back(leaf);
+    }
+    return ids;
+}
+
 // The filename used to stage the downloaded archive in TMP_DIR. The name
 // matches whatever format the release URL points at: zips keep a .zip
 // extension so downstream extract_installer_from_tarball() can dispatch on
@@ -952,6 +975,37 @@ uint64_t UpdateChecker::required_download_space_bytes(uint64_t download_bytes) {
     }
     uint64_t need = (download_bytes * 6 / 5) + FIXED_BUFFER;
     return need < DOWNLOAD_SPACE_FLOOR_BYTES ? DOWNLOAD_SPACE_FLOOR_BYTES : need;
+}
+
+std::string
+UpdateChecker::install_failure_telemetry_detail(const std::vector<std::string>& lines,
+                                                const std::vector<std::string>& identifiers) {
+    constexpr size_t kMaxTelemetryDetail = 120;
+    return helix::redact::telemetry_text(install_failure_detail(lines), identifiers,
+                                         kMaxTelemetryDetail);
+}
+
+std::string UpdateChecker::telemetry_release_host(const std::string& host) {
+    static constexpr const char* kReleaseHosts[] = {
+        "releases.helixscreen.org",
+        "dl.helixscreen.org",
+        "helixscreen.org",
+        "github.com",
+        "api.github.com",
+        "codeload.github.com",
+        "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com",
+        "raw.githubusercontent.com",
+    };
+    if (host.empty())
+        return host;
+    std::string lower = host;
+    for (auto& c : lower)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (const char* known : kReleaseHosts)
+        if (lower == known)
+            return lower;
+    return "other";
 }
 
 namespace {
@@ -1549,7 +1603,8 @@ void UpdateChecker::do_download() {
     };
 
     // Download the file using libhv
-    size_t result = helix::tls::trusted_download(url, download_path, progress_cb);
+    helix::tls::TransferFailure transfer;
+    size_t result = helix::tls::trusted_download(url, download_path, progress_cb, &transfer);
 
     if (shutting_down_.load()) {
         // reap_download_thread() may have detached this thread and shutdown()
@@ -1567,12 +1622,19 @@ void UpdateChecker::do_download() {
     }
 
     if (result == 0) {
-        spdlog::error("[UpdateChecker] Download failed from {}", url);
+        const char* kind = helix::tls::failure_kind_name(transfer.kind);
+        spdlog::error("[UpdateChecker] Download failed from {}: {} (code {}, HTTP {}, host {})",
+                      url, *kind ? kind : "unknown", transfer.code, transfer.http_status,
+                      transfer.host);
         std::remove(download_path.c_str()); // Clean up partial download
         report_download_status(DownloadStatus::Error, 0, lv_tr("Error: Download failed"),
                                "Failed to download update file");
-        TelemetryManager::instance().record_update_failure("download_failed", version,
-                                                           get_platform_key());
+        TelemetryManager::UpdateFailureDetail detail;
+        detail.transfer_error = kind;
+        detail.transfer_code = transfer.code;
+        detail.host = telemetry_release_host(transfer.host);
+        TelemetryManager::instance().record_update_failure(
+            "download_failed", version, get_platform_key(), transfer.http_status, -1, -1, detail);
         return;
     }
 
@@ -2241,8 +2303,11 @@ void UpdateChecker::do_install(const std::string& tarball_path) {
         report_download_status(DownloadStatus::Error, 0, ui_text,
                                "install.sh returned error code " + std::to_string(ret));
         std::string reason = timed_out ? "install_timeout" : "install_failed";
+        TelemetryManager::UpdateFailureDetail telemetry_detail;
+        telemetry_detail.install_detail =
+            install_failure_telemetry_detail(install_output, device_identifiers());
         TelemetryManager::instance().record_update_failure(reason, version, get_platform_key(), -1,
-                                                           -1, ret);
+                                                           -1, ret, telemetry_detail);
         return;
     }
 

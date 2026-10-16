@@ -1456,6 +1456,39 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     REQUIRE_FALSE(event.contains("file_size"));
 }
 
+TEST_CASE_METHOD(TelemetryTestFixture, "Update failed event: carries the failure detail",
+                 "[telemetry][update][1813]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    TelemetryManager::UpdateFailureDetail download;
+    download.transfer_error = "tls_cert";
+    download.transfer_code = 20;
+    download.host = "releases.helixscreen.org";
+    tm.record_update_failure("download_failed", "1.0.6", "k1", -1, -1, -1, download);
+
+    TelemetryManager::UpdateFailureDetail install;
+    install.install_detail = "[ERROR] Cannot write <path>";
+    tm.record_update_failure("install_failed", "1.0.6", "k1", -1, -1, 1, install);
+
+    tm.record_update_failure("download_failed", "1.0.6", "k1");
+
+    auto snapshot = tm.get_queue_snapshot();
+    REQUIRE(snapshot.size() == 3);
+    CHECK(snapshot[0]["transfer_error"] == "tls_cert");
+    CHECK(snapshot[0]["transfer_code"] == 20);
+    CHECK(snapshot[0]["host"] == "releases.helixscreen.org");
+    CHECK_FALSE(snapshot[0].contains("install_detail"));
+
+    CHECK(snapshot[1]["install_detail"] == "[ERROR] Cannot write <path>");
+    CHECK(snapshot[1]["exit_code"] == 1);
+    CHECK_FALSE(snapshot[1].contains("transfer_error"));
+    CHECK_FALSE(snapshot[1].contains("host"));
+
+    for (const char* field : {"transfer_error", "transfer_code", "host", "install_detail"})
+        CHECK_FALSE(snapshot[2].contains(field));
+}
+
 TEST_CASE_METHOD(TelemetryTestFixture, "Update failed event: not recorded when telemetry disabled",
                  "[telemetry][update]") {
     auto& tm = TelemetryManager::instance();
