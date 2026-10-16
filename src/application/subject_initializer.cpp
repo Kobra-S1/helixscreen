@@ -47,6 +47,7 @@
 #include "app_globals.h"
 #include "color_sensor_manager.h"
 #include "filament_catalog.h"
+#include "filament_op_heater.h"
 #include "filament_op_router.h"
 #include "filament_sensor_manager.h"
 #include "filament_variants.h"
@@ -223,6 +224,9 @@ SubjectInitializer::~SubjectInitializer() {
     // Invalidate alive guard BEFORE UsbManager destruction — prevents queued
     // USB callbacks from accessing freed PrintSelectPanel
     *m_usb_callback_alive = false;
+    // A completion report queued for the heater must find nothing, not a freed one.
+    helix::PanelWidgetManager::instance().register_shared_resource<helix::ui::FilamentOpHeater>(
+        static_cast<helix::ui::FilamentOpHeater*>(nullptr));
 }
 
 void SubjectInitializer::init_core_and_state() {
@@ -480,6 +484,12 @@ void SubjectInitializer::init_panel_subjects(IMoonrakerAPI* api) {
     m_temp_controller = std::make_unique<helix::TemperatureController>(get_printer_state(), api);
     helix::PanelWidgetManager::instance().register_shared_resource<helix::TemperatureController>(
         m_temp_controller.get());
+
+    // The nozzle heat before a runout dialog's filament op. Here, not on a panel:
+    // the dialog that asks closes before the nozzle is hot.
+    m_filament_op_heater = std::make_unique<helix::ui::FilamentOpHeater>(get_printer_state());
+    helix::PanelWidgetManager::instance().register_shared_resource<helix::ui::FilamentOpHeater>(
+        m_filament_op_heater.get());
 
     // TemperatureService (owned by SubjectInitializer - destructor handles deinit_subjects)
     m_temp_control_panel = std::make_unique<TemperatureService>(get_printer_state(), api);

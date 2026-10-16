@@ -2308,6 +2308,22 @@ class AmsBackend {
     }
 
     /**
+     * @brief Whether unload_filament(@p slot_index) brings the hotend up itself
+     *
+     * The unload counterpart of supports_auto_heat_on_load(): the command the
+     * backend sends for that unload heats the hotend, or moves no filament
+     * through it, so the UI need not preheat. Per call, because one backend can
+     * send a self-heating command for one unload and a bare retract for another.
+     * True only where the heat is shown in what the backend sends, cited where it
+     * is overridden. A wrong true runs a cold extrude; a wrong false costs a
+     * second wait.
+     */
+    [[nodiscard]] virtual bool unload_heats_hotend(int slot_index) const {
+        (void)slot_index;
+        return false;
+    }
+
+    /**
      * @brief Whether this backend persists spool assignments via firmware
      *
      * Backends like Happy Hare (MMU_GATE_MAP/SPOOLID) and AFC (SET_SPOOL_ID)

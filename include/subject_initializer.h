@@ -23,8 +23,9 @@ namespace helix {
 class TemperatureController;
 }
 namespace helix::ui {
+class FilamentOpHeater;
 class PlrOfferController;
-}
+} // namespace helix::ui
 
 /**
  * @brief Initializes all reactive subjects for LVGL data binding
@@ -143,6 +144,7 @@ class SubjectInitializer {
     std::unique_ptr<UsbManager> m_usb_manager;
     std::unique_ptr<helix::ui::PlrOfferController> m_plr_offer_controller;
     std::unique_ptr<helix::TemperatureController> m_temp_controller;
+    std::unique_ptr<helix::ui::FilamentOpHeater> m_filament_op_heater;
     std::unique_ptr<TemperatureService> m_temp_control_panel;
 
     // Alive guard for USB callback — invalidated on destruction to prevent

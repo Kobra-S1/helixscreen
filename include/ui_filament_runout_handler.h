@@ -36,6 +36,24 @@ enum class PrintState;
 namespace helix::ui {
 
 /**
+ * @brief A runout guidance dialog's "Load filament": heat if the nozzle needs it,
+ *        then load the backend's current lane.
+ *
+ * Shared by the pause-time dialog and the idle one (PrintStatusWidget). Routes
+ * through the shared plan_load() ladder, never prompts for macro parameters
+ * (a param modal would stack on the live dialog) and never navigates away. The
+ * dialog closes on the press, so the wait for a hot nozzle and the load itself
+ * belong to the app's FilamentOpHeater, not to the dialog.
+ *
+ * @param log_tag Static storage duration.
+ * @param owner   Names the asking dialog to the heater, so a second tap of the
+ *                same button cancels the pending preheat.
+ *
+ * Main thread only.
+ */
+void dispatch_runout_dialog_load(const char* log_tag, const void* owner);
+
+/**
  * @brief Manages filament runout guidance for PrintStatusPanel
  *
  * Extracted from PrintStatusPanel to reduce complexity. Handles:

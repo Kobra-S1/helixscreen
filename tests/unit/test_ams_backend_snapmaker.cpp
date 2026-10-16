@@ -252,6 +252,18 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker detection via filament_detect", "[
 
 #include "hv/json.hpp"
 
+TEST_CASE_METHOD(SnapmakerFixture, "AmsBackendSnapmaker unload heats only through AUTO_FEEDING",
+                 "[ams][snapmaker][preheat]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+    // A named slot unloads through AUTO_FEEDING ... UNLOAD=1, which heats.
+    CHECK(backend.unload_heats_hotend(2));
+    // No slot and none loaded: the bare INNER_FILAMENT_UNLOAD leaf, which does not.
+    SnapmakerTestAccess::set_current_slot(backend, -1);
+    CHECK_FALSE(backend.unload_heats_hotend(-1));
+    SnapmakerTestAccess::set_current_slot(backend, 1);
+    CHECK(backend.unload_heats_hotend(-1));
+}
+
 TEST_CASE_METHOD(SnapmakerFixture, "AmsBackendSnapmaker construction", "[ams][snapmaker]") {
     SECTION("type returns SNAPMAKER") {
         AmsBackendSnapmaker backend(nullptr, nullptr);

@@ -125,6 +125,13 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     [[nodiscard]] PathSegment get_slot_filament_segment(int slot_index) const override;
     [[nodiscard]] PathSegment infer_error_segment() const override;
 
+  public:
+    /// Unload is UNSELECT_TOOL (or the changer's own unmount): it parks a tool and
+    /// moves no filament through the hotend, so it needs no heat.
+    [[nodiscard]] bool unload_heats_hotend(int /*slot_index*/) const override {
+        return true;
+    }
+
   protected:
     // Operations. Gated by AmsSubscriptionBackend's NVI wrapper.
     AmsError do_load_filament(int slot_index) override;

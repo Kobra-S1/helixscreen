@@ -162,6 +162,12 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     // current_slot. Drives the active-lane highlight per tool.
     [[nodiscard]] bool slot_is_actively_loaded(int slot_index) const override;
 
+  public:
+    /// AUTO_FEEDING ... UNLOAD=1 runs the firmware's unload state machine, whose
+    /// unload_heating stage heats. The bare INNER_FILAMENT_UNLOAD that
+    /// do_unload_filament() falls back to with no slot resolved does not.
+    [[nodiscard]] bool unload_heats_hotend(int slot_index) const override;
+
   protected:
     // Operations. Every one of these drives the toolhead: AUTO_FEEDING forwards
     // to FEED_AUTO, which homes before it feeds, and `T{n}` moves the carriage.

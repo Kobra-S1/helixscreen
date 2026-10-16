@@ -463,6 +463,15 @@ AmsError AmsBackendSnapmaker::do_load_filament(int slot_index) {
     return execute_gcode(fmt::format("AUTO_FEEDING EXTRUDER={} LOAD=1", slot_index));
 }
 
+bool AmsBackendSnapmaker::unload_heats_hotend(int slot_index) const {
+    if (slot_index < 0) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        slot_index = system_info_.current_slot;
+    }
+    // Mirrors do_unload_filament(): no slot means the bare leaf.
+    return slot_index >= 0;
+}
+
 AmsError AmsBackendSnapmaker::do_unload_filament(int slot_index) {
     // Unload must mirror load: route through AUTO_FEEDING (the firmware macro
     // that forwards to FEED_AUTO with module/channel resolved from

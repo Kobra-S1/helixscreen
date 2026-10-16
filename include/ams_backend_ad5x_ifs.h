@@ -313,6 +313,13 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
         return true;
     }
 
+    /// The toolhead unload, _IFS_REMOVE_CURRENT_PRUTOK, heats, cuts and retracts;
+    /// the cold per-lane eject needs no heat at all (FILAMENT_BACKEND_AD5X_IFS.md,
+    /// do_unload_filament() routing).
+    [[nodiscard]] bool unload_heats_hotend(int /*slot_index*/) const override {
+        return true;
+    }
+
     // Cold per-lane eject / recover (#996). Issues `IFS_F11 PRUTOK={port}
     // CHECK=0` — a cold retract that drives one idle lane's feed motor backward
     // toward the spool. It does NOT heat the hotend and (CHECK=0) ignores the

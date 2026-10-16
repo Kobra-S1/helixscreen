@@ -346,6 +346,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         return true;
     }
 
+    /// TOOL_UNLOAD heats the extruder itself: AFC runs the unload as heat, cut,
+    /// retract (toolchange_phase_template(StepOperationType::UNLOAD)).
+    [[nodiscard]] bool unload_heats_hotend(int /*slot_index*/) const override {
+        return true;
+    }
+
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
         return RemapStrategy::Native;
     }

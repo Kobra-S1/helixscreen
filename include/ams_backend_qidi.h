@@ -124,6 +124,12 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
         return true;
     }
 
+    /// Unload is M603, the stock unload that heats before it retracts, or on
+    /// firmware without it M109 then EXTRUDER_UNLOAD (build_unload_gcode()).
+    [[nodiscard]] bool unload_heats_hotend(int /*slot_index*/) const override {
+        return true;
+    }
+
   protected:
     // Operations. Gated by AmsSubscriptionBackend's NVI wrapper.
     // select_slot_moves_toolhead() stays false: do_select_slot() is
