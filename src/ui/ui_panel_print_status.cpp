@@ -796,10 +796,15 @@ void PrintStatusPanel::init_subjects() {
         [](PrintStatusPanel* self, const char*) { self->recompute_paused_overlay_visibility(); },
         printer_state_.get_subjects_lifetime());
     // A firmware pause's reason can also arrive as print_stats.exception, in
-    // the pause's own frame or a later one.
+    // the pause's own frame or a later one, after the runout guidance went up.
     print_exception_observer_ = observe_int_sync<PrintStatusPanel>(
         printer_state_.get_print_exception_subject(), this,
-        [](PrintStatusPanel* self, int) { self->recompute_paused_overlay_visibility(); },
+        [](PrintStatusPanel* self, int) {
+            self->recompute_paused_overlay_visibility();
+            if (self->runout_handler_) {
+                self->runout_handler_->on_pause_explanation_changed();
+            }
+        },
         printer_state_.get_subjects_lifetime());
 
     // Re-evaluate the paused overlay whenever the shared controller's pending

@@ -611,6 +611,15 @@ void FilamentRunoutHandler::hide_modal() {
     hide_runout_guidance_modal();
 }
 
+void FilamentRunoutHandler::on_pause_explanation_changed() {
+    if (!runout_modal_.is_visible() || !helix::non_filament_pause::explained()) {
+        return;
+    }
+    spdlog::info("[FilamentRunoutHandler] Pause has a non-filament cause - closing runout "
+                 "guidance");
+    hide_runout_guidance_modal();
+}
+
 void FilamentRunoutHandler::hide_runout_guidance_modal() {
     if (!runout_modal_.is_visible()) {
         return;

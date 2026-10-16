@@ -19,6 +19,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
+#include "../test_helpers/print_status_panel_test_access.h"
 #include "ams_state.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
@@ -127,4 +128,48 @@ TEST_CASE_METHOD(PauseReasonFixture,
     status({{"state", "printing"}});
     status({{"state", "paused"}, {"exception", kDirtyBed}});
     CHECK(reason() == "Filament Runout");
+}
+
+TEST_CASE_METHOD(
+    PauseReasonFixture,
+    "PrintStatusPanel: a dirty-bed explanation a frame late closes the runout guidance",
+    "[print_status][pause_reason][runout_guidance]") {
+    helix::detection::U1StockSource source(&state());
+    source.set_capable(true);
+    source.start();
+    helix::ui::FilamentRunoutHandler* handler = PrintStatusPanelTestAccess::runout_handler(*panel_);
+    REQUIRE(handler != nullptr);
+
+    // The pause arrives alone, with the runout sensor empty: the guidance goes up.
+    status({{"state", "printing"}});
+    status({{"state", "paused"}});
+    REQUIRE(handler->is_modal_visible());
+
+    // The next frame names the bed check as the cause.
+    status({{"exception", kDirtyBed}});
+    CHECK_FALSE(handler->is_modal_visible());
+    CHECK(reason() == "detected dirty bed");
+
+    handler->hide_modal();
+}
+
+TEST_CASE_METHOD(
+    PauseReasonFixture,
+    "PrintStatusPanel: an exception that explains nothing leaves the runout guidance up",
+    "[print_status][pause_reason][runout_guidance]") {
+    helix::detection::U1StockSource source(&state());
+    source.set_capable(true);
+    source.start();
+    helix::ui::FilamentRunoutHandler* handler = PrintStatusPanelTestAccess::runout_handler(*panel_);
+    REQUIRE(handler != nullptr);
+
+    status({{"state", "printing"}});
+    status({{"state", "paused"}});
+    REQUIRE(handler->is_modal_visible());
+
+    // A runout exception (523 code 0) is the runout itself.
+    status({{"exception", {{"id", 523}, {"code", 0}, {"message", "e0_filament runout"}}}});
+    CHECK(handler->is_modal_visible());
+
+    handler->hide_modal();
 }

@@ -32,6 +32,11 @@
 // adding _for_testing() accessors to the production API.
 class PrintStatusPanelTestAccess {
   public:
+    /// The panel's runout handler, so a test can see the guidance it raised.
+    static helix::ui::FilamentRunoutHandler* runout_handler(PrintStatusPanel& panel) {
+        return panel.runout_handler_.get();
+    }
+
     /// Stand in the memory reading the close-time decision samples. Pass
     /// helix::get_system_memory_info to put the real one back.
     static void set_memory_info_source(helix::MemoryInfo (*source)()) {

@@ -104,6 +104,16 @@ class FilamentRunoutHandler {
      */
     void hide_modal();
 
+    /**
+     * @brief Close the runout guidance if the current pause turns out to have
+     *        a non-filament cause
+     *
+     * That cause can land a frame after the pause, by which time the guidance
+     * may already be up for it. Call when the pause's explanation may have
+     * changed; a no-op unless the pause is explained and the guidance is open.
+     */
+    void on_pause_explanation_changed();
+
     //
     // === Testing API ===
     //
