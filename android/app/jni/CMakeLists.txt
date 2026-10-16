@@ -4,6 +4,16 @@ project(HelixScreen)
 # Project root is three levels up from android/app/jni/
 get_filename_component(PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
 
+# Every config but Debug is a release build, as every cross target in mk/cross.mk
+# is: XML hot reload defaults off, the theme token table is on, and LVGL's style
+# asserts are off. AGP builds its release buildType as RelWithDebInfo, so this
+# names the one config it excludes rather than the ones it includes. lv_conf.h
+# derives LV_USE_ASSERT_STYLE from it and lv_style_t has a sentinel member only
+# under that assert, so the define is set here at directory scope, ahead of
+# every target: two targets that disagree about it disagree about the layout of
+# every style they share, and nothing at link time notices.
+add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:HELIX_RELEASE_BUILD>)
+
 # ============================================================================
 # SDL2
 # ============================================================================
@@ -271,8 +281,11 @@ target_compile_definitions(main PRIVATE
     HELIX_HAS_ACE=1
     HELIX_HAS_QIDI=1
     HELIX_HAS_SNAPMAKER=1
-    # Label printing has not been built or tested on Android.
-    HELIX_HAS_LABEL_PRINTER=0
+    # Label printing reaches network (IPP and raw) printers. The Bluetooth
+    # backends compile but find no libhelix-bluetooth.so to load, so
+    # BluetoothLoader reports Bluetooth unavailable and the settings never
+    # offer it; USB lp nodes do not exist for an app to open.
+    HELIX_HAS_LABEL_PRINTER=1
     # The Belt Tension panel reads Klipper's /tmp results, so it needs the
     # screen co-located with Klipper.
     HELIX_HAS_BELT_TUNER=0
@@ -280,6 +293,11 @@ target_compile_definitions(main PRIVATE
     # included.
     HELIX_HAS_HIDPI_FONTS=1
     ENABLE_GLES_3D
+    # The Makefile's ENABLE_SCREENSAVER default; idle handling already
+    # covers Android's own panel sleep.
+    HELIX_ENABLE_SCREENSAVER
+    # Crash reports name the build they came from, as each cross target does.
+    HELIX_BINARY_VARIANT="android"
     $<$<CONFIG:Debug>:HELIX_ENABLE_MOCKS>
     LV_CONF_INCLUDE_SIMPLE
     HELIX_VERSION="${HELIX_VERSION}"
