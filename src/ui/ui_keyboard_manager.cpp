@@ -21,6 +21,7 @@
 #include <spdlog/spdlog.h>
 
 #include <cstring>
+#include <functional>
 
 #ifdef __ANDROID__
 #include <SDL.h>
@@ -994,6 +995,56 @@ bool keyboard_animations_enabled() {
     return DisplaySettingsManager::instance().get_animations_enabled();
 #endif
 }
+
+// Where a page child is headed: a slide still in flight ends at its target, not
+// at the position it has reached so far.
+int32_t settled_y(lv_obj_t* child) {
+    lv_anim_t* a = lv_anim_get(child, (lv_anim_exec_xcb_t)lv_obj_set_y);
+    return a ? a->end_value : lv_obj_get_y(child);
+}
+
+// How far @p obj still has to move with its page before the page settles.
+int32_t pending_page_slide(lv_obj_t* screen, lv_obj_t* obj) {
+    while (obj && lv_obj_get_parent(obj) != screen) {
+        obj = lv_obj_get_parent(obj);
+    }
+    if (!obj) {
+        return 0;
+    }
+    return settled_y(obj) - lv_obj_get_y(obj);
+}
+
+// Slides every page child of @p screen (all but the keyboard) to the y
+// @p target_of returns for it, replacing any slide still in flight.
+void slide_page(lv_obj_t* screen, lv_obj_t* keyboard, lv_anim_path_cb_t path,
+                const std::function<int32_t(lv_obj_t*)>& target_of) {
+    const bool animated = keyboard_animations_enabled();
+    const uint32_t child_count = lv_obj_get_child_count(screen);
+    for (uint32_t i = 0; i < child_count; i++) {
+        lv_obj_t* child = lv_obj_get_child(screen, static_cast<int32_t>(i));
+        if (child == keyboard)
+            continue;
+
+        const int32_t target_y = target_of(child);
+        lv_anim_delete(child, (lv_anim_exec_xcb_t)lv_obj_set_y);
+        const int32_t current_y = lv_obj_get_y(child);
+        if (current_y == target_y)
+            continue;
+        if (!animated) {
+            lv_obj_set_y(child, target_y);
+            continue;
+        }
+
+        lv_anim_t a;
+        lv_anim_init(&a);
+        lv_anim_set_var(&a, child);
+        lv_anim_set_values(&a, current_y, target_y);
+        lv_anim_set_time(&a, 200);
+        lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
+        lv_anim_set_path_cb(&a, path);
+        lv_anim_start(&a);
+    }
+}
 } // namespace
 
 void KeyboardManager::init(lv_obj_t* parent) {
@@ -1279,42 +1330,18 @@ void KeyboardManager::show(lv_obj_t* textarea) {
     lv_obj_get_coords(keyboard_, &kb_coords);
     lv_obj_get_coords(textarea, &ta_coords);
 
-    int32_t kb_top = kb_coords.y1;
-    int32_t ta_bottom = ta_coords.y2;
-
+    // Measured where the page is headed: focus moving between fields runs hide()
+    // then show() in one event, so the page may be sliding back down from the
+    // previous field's lift.
     const int32_t padding = 20;
-    int32_t desired_bottom = kb_top - padding;
+    const int32_t desired_bottom = kb_coords.y1 - padding;
+    const int32_t ta_bottom = ta_coords.y2 + pending_page_slide(screen, textarea);
 
     if (ta_bottom > desired_bottom) {
-        int32_t shift_up = ta_bottom - desired_bottom;
-
+        const int32_t shift_up = ta_bottom - desired_bottom;
         spdlog::debug("[KeyboardManager] Shifting screen UP by {} px", shift_up);
-
-        uint32_t child_count = lv_obj_get_child_count(screen);
-        bool animations_enabled = keyboard_animations_enabled();
-
-        for (uint32_t i = 0; i < child_count; i++) {
-            lv_obj_t* child = lv_obj_get_child(screen, static_cast<int32_t>(i));
-            if (child == keyboard_)
-                continue;
-
-            int32_t current_y = lv_obj_get_y(child);
-            int32_t target_y = current_y - shift_up;
-
-            if (!animations_enabled) {
-                lv_obj_set_y(child, target_y);
-                continue;
-            }
-
-            lv_anim_t a;
-            lv_anim_init(&a);
-            lv_anim_set_var(&a, child);
-            lv_anim_set_values(&a, current_y, target_y);
-            lv_anim_set_time(&a, 200);
-            lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
-            lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
-            lv_anim_start(&a);
-        }
+        slide_page(screen, keyboard_, lv_anim_path_ease_out,
+                   [shift_up](lv_obj_t* child) { return settled_y(child) - shift_up; });
     }
 }
 
@@ -1374,33 +1401,8 @@ void KeyboardManager::hide() {
         lv_obj_add_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
     }
 
-    uint32_t child_count = lv_obj_get_child_count(screen);
-    bool animations_enabled = keyboard_animations_enabled();
-
     spdlog::debug("[KeyboardManager] Restoring screen children to y=0");
-
-    for (uint32_t i = 0; i < child_count; i++) {
-        lv_obj_t* child = lv_obj_get_child(screen, static_cast<int32_t>(i));
-        if (child == keyboard_)
-            continue;
-
-        int32_t current_y = lv_obj_get_y(child);
-        if (current_y != 0) {
-            if (!animations_enabled) {
-                lv_obj_set_y(child, 0);
-                continue;
-            }
-
-            lv_anim_t a;
-            lv_anim_init(&a);
-            lv_anim_set_var(&a, child);
-            lv_anim_set_values(&a, current_y, 0);
-            lv_anim_set_time(&a, 200);
-            lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
-            lv_anim_set_path_cb(&a, lv_anim_path_ease_in);
-            lv_anim_start(&a);
-        }
-    }
+    slide_page(screen, keyboard_, lv_anim_path_ease_in, [](lv_obj_t*) { return 0; });
 }
 
 bool KeyboardManager::is_visible() const {
