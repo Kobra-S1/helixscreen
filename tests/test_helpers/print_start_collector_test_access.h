@@ -16,7 +16,7 @@ class PrintStartCollectorTestAccess {
         auto when = std::chrono::steady_clock::now() - std::chrono::seconds(seconds);
         c.printing_state_start_ = when;
         c.last_signal_time_ = when;
-        c.last_heater_climb_time_ = when;
+        c.last_heater_activity_time_ = when;
     }
 
     /// Set how long ago the printer last showed pre-print activity of every
@@ -26,7 +26,7 @@ class PrintStartCollectorTestAccess {
         std::lock_guard<std::mutex> lock(c.state_mutex_);
         const auto when = std::chrono::steady_clock::now() - std::chrono::seconds(seconds);
         c.last_signal_time_ = when;
-        c.last_heater_climb_time_ = when;
+        c.last_heater_activity_time_ = when;
     }
 
     /// Age every clock stamp the collector holds by `ms`, as though that much
@@ -43,7 +43,7 @@ class PrintStartCollectorTestAccess {
         };
         age(c.printing_state_start_);
         age(c.last_signal_time_);
-        age(c.last_heater_climb_time_);
+        age(c.last_heater_activity_time_);
         age(c.hold_until_);
         age(c.temps_ready_time_);
         age(c.mesh_first_probe_time_);

@@ -23,6 +23,7 @@
       }
     }
   ],
+  "_response_patterns_comment": "Forge-X 1.4.x prints no '// State:' lines; these console lines narrate it. In sequential mode a weight is the progress shown when the line arrives. The same '// Wait extruder temperature' line announces the cool-down to the probing temperature inside the nozzle clean: by then CLEANING is on screen, and an earlier phase never replaces a later one, so it does not read as heating.",
   "response_patterns": [
     {
       "pattern": "// Wait bed temperature to reach (\\d+)",
@@ -34,7 +35,31 @@
       "pattern": "// Wait extruder temperature to reach (\\d+)",
       "phase": "HEATING_NOZZLE",
       "message": "Heating nozzle to $1\u00b0C...",
-      "weight": 15
+      "weight": 30
+    },
+    {
+      "pattern": "^info Cleaning Z-Offsets",
+      "phase": "CLEANING",
+      "message": "Cleaning nozzle...",
+      "weight": 40
+    },
+    {
+      "pattern": "^// Clean to X:",
+      "phase": "CLEANING",
+      "message": "Cleaning nozzle...",
+      "weight": 40
+    },
+    {
+      "pattern": "^// Generating new points",
+      "phase": "BED_MESH",
+      "message": "Creating bed mesh...",
+      "weight": 60
+    },
+    {
+      "pattern": "^info Cleaning nozzle with a priming line",
+      "phase": "PURGING",
+      "message": "Priming nozzle...",
+      "weight": 90
     }
   ],
   "phase_weights": {

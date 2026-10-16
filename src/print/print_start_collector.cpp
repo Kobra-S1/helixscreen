@@ -120,7 +120,7 @@ void PrintStartCollector::start() {
         // Record start time for timeout fallback
         printing_state_start_ = std::chrono::steady_clock::now();
         last_signal_time_ = printing_state_start_;
-        last_heater_climb_time_ = printing_state_start_;
+        last_heater_activity_time_ = printing_state_start_;
         hold_until_ = {};
         held_for_ = {};
         // Assume the narrower window until something says otherwise.
@@ -364,7 +364,7 @@ void PrintStartCollector::reset() {
         max_sequential_progress_ = 0;
         printing_state_start_ = std::chrono::steady_clock::now();
         last_signal_time_ = printing_state_start_;
-        last_heater_climb_time_ = printing_state_start_;
+        last_heater_activity_time_ = printing_state_start_;
         hold_until_ = {};
         held_for_ = {};
         phase_enter_times_.clear();
@@ -552,11 +552,16 @@ void PrintStartCollector::check_fallback_completion() {
     // A heater still climbing toward its target is the printer working even
     // when the console is silent: M190 and M109 print nothing a profile can
     // match, and they spend their last degree or two inside the at-target band.
+    // A heater far above its target is cooling toward it (a nozzle cooled for
+    // probing), which a wait blocks on as surely as a climb, just as silently.
     const bool bed_climbed = heater_climbed(bed_temp, bed_target, bed_climb_);
     const bool ext_climbed = heater_climbed(ext_temp, ext_target, ext_climb_);
-    if (bed_climbed || ext_climbed) {
+    const bool bed_cooling = bed_target > 0 && bed_temp > bed_target + TEMP_TOLERANCE_DECIDEGREES;
+    const bool nozzle_cooling =
+        ext_target > 0 && ext_temp > ext_target + TEMP_TOLERANCE_DECIDEGREES;
+    if (bed_climbed || ext_climbed || bed_cooling || nozzle_cooling) {
         std::lock_guard<std::mutex> lock(state_mutex_);
-        last_heater_climb_time_ = std::chrono::steady_clock::now();
+        last_heater_activity_time_ = std::chrono::steady_clock::now();
     }
 
     // The ceiling this pre-print is measured against: ABSOLUTE_MAX_TIMEOUT,
@@ -777,6 +782,8 @@ void PrintStartCollector::check_fallback_completion() {
     // Temps count only at target, the same 2C test that completes a heating
     // phase: a bed at 90% of its target can be minutes short of it. An unknown
     // nozzle target (ext_target=0) cannot be confirmed, so it never counts.
+    // A heater still cooling down to its target keeps the quiet gate shut
+    // (above), so the at-target test need not exclude it.
     bool nozzle_target_set = ext_target > 0;
     bool temps_at_target;
     {
@@ -790,7 +797,7 @@ void PrintStartCollector::check_fallback_completion() {
     // runs, and a timeout that ends it saves no phase timings, so a deadline
     // set by a short prediction could not grow. Every timeout therefore waits
     // for 90s without activity as well as for the clock. The ceiling ignores
-    // temperatures and climbing heaters, since a heater that never settles
+    // temperatures and moving heaters, since a heater that never settles
     // must not hold Preparing open, but still waits for 90s without a matched
     // line or probe line.
     const auto now = std::chrono::steady_clock::now();
@@ -800,7 +807,7 @@ void PrintStartCollector::check_fallback_completion() {
         std::lock_guard<std::mutex> lock(state_mutex_);
         const auto last_signal = std::max(last_signal_time_, hold_until_);
         signal_quiet_for = now - last_signal;
-        quiet_for = now - std::max(last_signal, last_heater_climb_time_);
+        quiet_for = now - std::max(last_signal, last_heater_activity_time_);
     }
     const bool quiet = quiet_for >= PREPRINT_QUIET_TIMEOUT;
     const auto quiet_sec = std::chrono::duration_cast<std::chrono::seconds>(quiet_for).count();
@@ -1996,12 +2003,16 @@ void PrintStartCollector::feed_thermal_sample() {
 
     if (phase == PrintStartPhase::HEATING_BED || phase == PrintStartPhase::HEATING_NOZZLE) {
         // Temps are in decidegrees (value * 10)
-        int ext_temp = lv_subject_get_int(state_.get_active_extruder_temp_subject());
-        int bed_temp = lv_subject_get_int(state_.get_bed_temp_subject());
-        mgr.get_model("extruder")
-            .record_sample(helix::ui::temperature::deci_to_degrees_f(ext_temp), now_ms);
-        mgr.get_model("heater_bed")
-            .record_sample(helix::ui::temperature::deci_to_degrees_f(bed_temp), now_ms);
+        const auto feed = [&](const char* heater, lv_subject_t* temp, lv_subject_t* target) {
+            auto& model = mgr.get_model(heater);
+            const float t = helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(temp));
+            model.note_target(helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(target)),
+                              t, now_ms);
+            model.record_sample(t, now_ms);
+        };
+        feed("extruder", state_.get_active_extruder_temp_subject(),
+             state_.get_active_extruder_target_subject());
+        feed("heater_bed", state_.get_bed_temp_subject(), state_.get_bed_target_subject());
     }
 }
 

@@ -1041,7 +1041,7 @@ void PIDCalibrationPanel::start_progress_tracking() {
         // Heat rate from shared ThermalRateManager (ensure loaded from config)
         auto& thermal_mgr = ThermalRateManager::instance();
         thermal_mgr.load_from_config(*config);
-        float heat_rate = thermal_mgr.get_model(heater_key).best_rate();
+        float heat_rate = thermal_mgr.get_model(heater_key).climb_rate();
 
         // Oscillation duration from PID-specific config path
         std::string osc_path =

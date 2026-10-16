@@ -10,7 +10,10 @@
  * These tests don't require LVGL or Moonraker - they test pure regex logic.
  */
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
+#include <fstream>
 #include <regex>
 #include <string>
 #include <utility>
@@ -535,6 +538,7 @@ TEST_CASE("PrintStart: typical noise lines should not match phases", "[print][ne
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/preprint_config_scope.h"
 #include "../test_helpers/print_start_collector_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "config.h"
@@ -4462,4 +4466,350 @@ TEST_CASE_METHOD(CosmosPrintStartReplayFixture,
     CAPTURE(result.trace);
     REQUIRE(result.trace ==
             "0:INITIALIZING 5:HEATING_BED 542:BED_MESH 550:HEATING_NOZZLE 618:COMPLETE");
+}
+
+// ============================================================================
+// COOLING HEATERS AND THE TIMEOUT FALLBACK
+// ============================================================================
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "A heater cooling to its target holds the timeout until it arrives",
+                 "[print][collector][timeout][cooling]") {
+    // A nozzle cooled for probing: target 120, still at 265. The wait blocks on
+    // it, silently, past the deadline and the quiet gate.
+    set_all_temps(1050, 1050, 2650, 2650);
+    collector().start();
+    drain_async_updates();
+    collector().enable_fallbacks();
+    PrintStartCollectorTestAccess::set_predicted_total(collector(), 200.0f);
+
+    SECTION("nozzle cooling") {
+        set_all_temps(1050, 1050, 2650, 1200);
+    }
+    SECTION("bed cooling") {
+        set_all_temps(1100, 1000, 2650, 2650);
+    }
+    PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 600);
+    collector().check_fallback_completion();
+    drain_async_updates();
+    REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
+
+    // A cooling heater is the printer working: the quiet gate counts from its
+    // last reading above the target, not from the last console line.
+    set_all_temps(1000, 1000, 1200, 1200);
+    collector().check_fallback_completion();
+    drain_async_updates();
+    REQUIRE(get_current_phase() != PrintStartPhase::COMPLETE);
+
+    // At target and 90s quiet past the deadline, the timeout stands.
+    PrintStartCollectorTestAccess::set_last_activity_seconds_ago(collector(), 91);
+    collector().check_fallback_completion();
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "A heater within the tolerance above its target counts as at target",
+                 "[print][collector][timeout][cooling]") {
+    set_all_temps(1030, 1000, 2040, 2000);
+    collector().start();
+    drain_async_updates();
+    collector().enable_fallbacks();
+    PrintStartCollectorTestAccess::set_predicted_total(collector(), 200.0f);
+    PrintStartCollectorTestAccess::set_elapsed_seconds(collector(), 600);
+    collector().check_fallback_completion();
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::COMPLETE);
+}
+
+// ============================================================================
+// REAL FORGE-X 1.4.2 PRE-PRINT REPLAY
+//
+// An AD5M Pro on Forge-X 1.4.2 (2026-10-15, KAMP, ABS 105/265): the console
+// (tests/fixtures/forgex_142_console.txt) and the heaters every 5s
+// (tests/fixtures/forgex_142_heaters.txt) at their real times. 1.4.2 prints no
+// "// State:" lines, so the profile's console patterns narrate it. The
+// pre-print ends at 849.1s, when _START_PRINT.print_started reaches
+// MoonrakerManager; nothing in this replay may complete it earlier.
+// ============================================================================
+
+namespace {
+
+int forgex_clock_ms(const std::string& hhmmss) {
+    int h = 0, m = 0;
+    double sec = 0.0;
+    if (std::sscanf(hhmmss.c_str(), "%d:%d:%lf", &h, &m, &sec) != 3) {
+        return -1;
+    }
+    return static_cast<int>(std::lround((h * 3600 + m * 60 + sec) * 1000.0));
+}
+
+std::string forgex_fixture_dir() {
+    std::string src = __FILE__;
+    auto pos = src.rfind("/tests/unit/");
+    if (pos != std::string::npos) {
+        return src.substr(0, pos) + "/tests/fixtures/";
+    }
+    return "tests/fixtures/";
+}
+
+/// Fixture lines "HH:MM:SS.mmm rest", '#' lines skipped.
+std::vector<std::pair<int, std::string>> read_forgex_fixture(const std::string& name) {
+    std::vector<std::pair<int, std::string>> rows;
+    std::ifstream f(forgex_fixture_dir() + name);
+    REQUIRE(f.good());
+    for (std::string raw; std::getline(f, raw);) {
+        if (raw.empty() || raw[0] == '#') {
+            continue;
+        }
+        rows.emplace_back(forgex_clock_ms(raw.substr(0, 12)), raw.substr(13));
+    }
+    return rows;
+}
+
+} // namespace
+
+class ForgeXReplayFixture : public PrintStartCollectorHeaterFixture {
+  public:
+    struct Result {
+        std::string trace;                 ///< "second:PHASE" for every phase change
+        int completed_at_ms{-1};           ///< timeline position of COMPLETE, -1 if never
+        std::vector<std::string> messages; ///< every distinct message shown, in order
+        PrintStartPhase cooldown_phase{PrintStartPhase::IDLE}; ///< mid cool-down
+        std::string cooldown_message;
+        float first_prediction_s{0}; ///< prediction once the bed target is set
+        float cooldown_prediction_s{0};
+        float max_prediction_s{0}; ///< highest prediction once the bed target is set
+        float min_prediction_s{1.0e9f};
+        std::string predictions; ///< "second:total" at every heater sample
+    };
+
+    ForgeXReplayFixture() {
+        ThermalRateManager::instance().reset();
+        auto profile = PrintStartProfile::load("forge_x");
+        REQUIRE(profile->name() == "Forge-X Mod");
+        collector().set_profile(std::move(profile));
+        // What the printer answered: the clean cleared the live mesh, so the
+        // denominator comes from [bed_mesh] probe_count.
+        client().set_config_bed_mesh_probe_count(5, 5);
+        client().gcode_script("BED_MESH_CLEAR");
+    }
+
+    ~ForgeXReplayFixture() override {
+        ThermalRateManager::instance().reset();
+    }
+
+    /// @param history_total_s Seconds of one saved pre-print, or 0 for none.
+    Result replay(int history_total_s = 0) {
+        struct Event {
+            int ms;
+            bool console;
+            std::string text;
+        };
+        std::vector<Event> events;
+        for (auto& [ms, text] : read_forgex_fixture("forgex_142_console.txt")) {
+            std::string line;
+            for (size_t i = 0; i < text.size(); ++i) {
+                if (text[i] == '\\' && i + 1 < text.size()) {
+                    line += text[i + 1] == 'n' ? '\n' : text[i + 1];
+                    ++i;
+                } else {
+                    line += text[i];
+                }
+            }
+            events.push_back({ms, true, line});
+        }
+        for (auto& [ms, text] : read_forgex_fixture("forgex_142_heaters.txt")) {
+            events.push_back({ms, false, text});
+        }
+        REQUIRE(events.size() == 159 + 172);
+        std::stable_sort(events.begin(), events.end(),
+                         [](const Event& a, const Event& b) { return a.ms < b.ms; });
+
+        const int t0 = forgex_clock_ms("16:19:28.442"); // SDCARD_PRINT_FILE
+        const int cooldown_ms = forgex_clock_ms("16:29:30.000") - t0;
+        Result result;
+        int now_ms = 0;
+        PrintStartPhase shown = PrintStartPhase::IDLE;
+        const auto note_phase = [&]() {
+            drain_async_updates();
+            drain_async_updates();
+            const std::string message = get_current_message();
+            if (result.messages.empty() || result.messages.back() != message) {
+                result.messages.push_back(message);
+            }
+            const PrintStartPhase phase = get_current_phase();
+            if (phase == shown) {
+                return;
+            }
+            shown = phase;
+            if (!result.trace.empty()) {
+                result.trace += ' ';
+            }
+            result.trace += std::to_string(now_ms / 1000) + ":" + std::to_string(int(phase));
+            if (phase == PrintStartPhase::COMPLETE) {
+                result.completed_at_ms = now_ms;
+            }
+        };
+
+        set_all_temps(275, 0, 348, 0);
+        collector().start();
+        collector().enable_fallbacks();
+        if (history_total_s > 0) {
+            helix::PreprintEntry entry{};
+            entry.total_seconds = history_total_s;
+            entry.timestamp = 1;
+            entry.phase_durations = {{static_cast<int>(PrintStartPhase::CLEANING), 120}};
+            entry.temp_bucket = 1;
+            entry.window = helix::PreprintWindow::PrinterEdge;
+            PrintStartCollectorTestAccess::load_prediction_entries(collector(), {entry});
+        }
+        note_phase();
+
+        for (const Event& e : events) {
+            const int at = e.ms - t0;
+            PrintStartCollectorTestAccess::advance_clock_ms(collector(), at - now_ms);
+            now_ms = at;
+            if (e.console) {
+                send_gcode_response(e.text);
+            } else {
+                float bed = 0, ext = 0;
+                int bed_target = 0, ext_target = 0;
+                REQUIRE(std::sscanf(e.text.c_str(), "%f %d %f %d", &bed, &bed_target, &ext,
+                                    &ext_target) == 4);
+                set_all_temps(static_cast<int>(std::lround(bed * 10)), bed_target * 10,
+                              static_cast<int>(std::lround(ext * 10)), ext_target * 10);
+                collector().check_fallback_completion();
+                const float predicted =
+                    PrintStartCollectorTestAccess::get_predicted_total(collector());
+                if (bed_target > 0 && result.first_prediction_s == 0.0f) {
+                    result.first_prediction_s = predicted;
+                }
+                if (now_ms >= cooldown_ms && result.cooldown_prediction_s == 0.0f) {
+                    result.cooldown_prediction_s = predicted;
+                    drain_async_updates();
+                    result.cooldown_phase = get_current_phase();
+                    result.cooldown_message = get_current_message();
+                }
+                if (bed_target > 0) {
+                    result.max_prediction_s = std::max(result.max_prediction_s, predicted);
+                    result.min_prediction_s = std::min(result.min_prediction_s, predicted);
+                }
+                result.predictions += std::to_string(now_ms / 1000) + ":" +
+                                      std::to_string(static_cast<int>(predicted)) + " ";
+                PrintStartCollectorTestAccess::run_eta_update(collector());
+            }
+            note_phase();
+        }
+        return result;
+    }
+
+  private:
+    PreprintConfigScope config_{"FlashForge Adventurer 5M Pro (ForgeX)"};
+};
+
+TEST_CASE_METHOD(ForgeXReplayFixture,
+                 "PrintStartCollector: real Forge-X 1.4.2 pre-print narrates every step and "
+                 "never times out early",
+                 "[print][collector][forge_x][integration]") {
+    constexpr float BED_X_MAX = 220.0f;
+    int history_total_s = 0;
+    float min_prediction_s = 0.0f;
+    float max_prediction_s = 1.0e6f;
+    const float max_whole_run_s = 849.0f * 1.3f;
+
+    SECTION("with the heating rates from the printer database") {
+        ThermalRateManager::instance().apply_archetype_defaults(
+            BED_X_MAX, "FlashForge Adventurer 5M Pro (ForgeX)");
+        // The first print is predicted within 15% of the 849s it took.
+        min_prediction_s = 849.0f * 0.85f;
+        max_prediction_s = 849.0f * 1.15f;
+    }
+    SECTION("with the size-guess heating rates") {
+        ThermalRateManager::instance().apply_archetype_defaults(BED_X_MAX, "");
+    }
+    SECTION("with a history shorter than this pre-print") {
+        // A saved pre-print a timeout cut short: its deadline passes while
+        // the nozzle cools silently for probing, heaters near their targets.
+        ThermalRateManager::instance().apply_archetype_defaults(BED_X_MAX, "");
+        history_total_s = 380;
+    }
+
+    const Result result = replay(history_total_s);
+    std::string shown;
+    for (const auto& m : result.messages) {
+        shown += "[" + m + "] ";
+    }
+    CAPTURE(result.trace, shown, result.first_prediction_s, result.cooldown_prediction_s);
+    if (history_total_s > 0) {
+        // The deadline (1.5x the prediction) is behind the cool-down.
+        REQUIRE(result.cooldown_prediction_s * 1.5f <= 600.0f);
+    }
+
+    // Nothing completes the pre-print before the print itself starts.
+    REQUIRE(result.completed_at_ms == -1);
+    // INITIALIZING, HEATING_BED at the bed wait, HEATING_NOZZLE at the nozzle
+    // wait, CLEANING at the clean's Z-offsets, BED_MESH at KAMP's points, the
+    // reheat after Smart Park, PURGING at the priming line.
+    REQUIRE(result.trace == "0:1 17:3 463:4 527:8 652:7 828:4 834:9");
+    REQUIRE(std::find(result.messages.begin(), result.messages.end(),
+                      "Creating bed mesh (25/25)") != result.messages.end());
+
+    // The 120C cool-down for probing stays inside the nozzle clean.
+    REQUIRE(result.cooldown_phase == PrintStartPhase::CLEANING);
+    REQUIRE(result.cooldown_message == "Cleaning nozzle...");
+    for (const auto& m : result.messages) {
+        INFO(m);
+        REQUIRE(m.find("120") == std::string::npos);
+    }
+    REQUIRE(std::find(result.messages.begin(), result.messages.end(),
+                      "Heating nozzle to 265°C...") != result.messages.end());
+    REQUIRE(std::find(result.messages.begin(), result.messages.end(), "Priming nozzle...") !=
+            result.messages.end());
+
+    REQUIRE(result.first_prediction_s >= min_prediction_s);
+    REQUIRE(result.first_prediction_s <= max_prediction_s);
+    REQUIRE(result.min_prediction_s >= min_prediction_s);
+    INFO(result.predictions);
+    REQUIRE(result.max_prediction_s <= max_whole_run_s);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "A nozzle warming beside the bed at target 0 keeps its own heating rate",
+                 "[print][collector][thermal_rate]") {
+    PreprintConfigScope config{""};
+    ThermalRateManager::instance().reset();
+    set_all_temps(250, 1000, 250, 0);
+    collector().start();
+    drain_async_updates();
+    collector().enable_fallbacks();
+
+    // Five minutes of the bed heating while the nozzle, its target still 0,
+    // drifts up 0.1C/s beside it.
+    float bed = 25.0f;
+    float ext = 25.0f;
+    const auto tick = [&](int seconds, int ext_target) {
+        PrintStartCollectorTestAccess::advance_clock_ms(collector(), seconds * 1000);
+        set_all_temps(static_cast<int>(bed * 10), 1000, static_cast<int>(ext * 10), ext_target);
+        collector().check_fallback_completion();
+        PrintStartCollectorTestAccess::run_eta_update(collector());
+        drain_async_updates();
+    };
+    for (int t = 0; t < 300; t += 5) {
+        bed = std::min(100.0f, bed + 1.25f);
+        ext += 0.5f;
+        tick(5, 0);
+    }
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
+
+    // Then the macro sets the nozzle target and it climbs 4C/s.
+    for (int t = 0; t < 10; ++t) {
+        ext += 4.0f;
+        tick(1, 2500);
+    }
+    const ThermalRateModel& model = ThermalRateManager::instance().get_model("extruder");
+    REQUIRE(model.measured_rate().has_value());
+    CAPTURE(model.climb_rate());
+    CHECK(model.climb_rate() < 0.5f);
+    ThermalRateManager::instance().reset();
 }

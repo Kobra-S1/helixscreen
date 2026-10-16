@@ -46,16 +46,40 @@ class ThermalRateModel {
     /// Feed a temperature sample. tick_ms should be monotonically increasing.
     void record_sample(float temp_c, uint32_t tick_ms);
 
-    /// Estimate seconds remaining to reach target from current temperature.
-    /// Returns 0 if current >= target.
+    /// Report the heater's target before a sample. A raised target starts a
+    /// new step at this reading: the time the heater idled under its old
+    /// target is not heating, and a step spanning it reads seconds per degree
+    /// several times too slow. Once a target has been reported, a sample
+    /// counts toward the climb only while that target is positive and above
+    /// the reading.
+    void note_target(float target_c, float temp_c, uint32_t tick_ms);
+
+    /// Estimate seconds for a climb from `current` to `target` at
+    /// climb_rate_for(target - current). Returns 0 if current >= target.
     float estimate_seconds(float current, float target) const;
 
     /// Current measured rate, or nullopt if not yet established. Weighted
     /// toward the latest steps, so it tracks how the heater is heating now.
     std::optional<float> measured_rate() const;
 
-    /// Best available rate: measured > history > default.
+    /// Best available rate for the degrees just ahead: measured > history >
+    /// default. Near a target it is the slow tail rate, so it suits the time
+    /// left in a climb under way, not a whole climb.
     float best_rate() const;
+
+    /// Best available rate for a whole climb: seconds per degree across every
+    /// step measured so far > history > default. History and the database
+    /// rates are whole-climb rates too, so the three agree in kind; the tail
+    /// rate applied to a whole climb overstates it several times over.
+    float climb_rate() const;
+
+    /// climb_rate() for a climb of `span_c` degrees. A heater's first degrees
+    /// are its fastest, so until the measured climb covers the span the
+    /// measured average is blended with a known rate (history, or a database
+    /// rate given as the default), weighted by the share of the span
+    /// measured. With no known rate the measured average stands alone: a
+    /// size guess is no better than the fast start.
+    float climb_rate_for(float span_c) const;
 
     /// Load a historical rate from previous sessions.
     void load_history(float rate_s_per_deg);
@@ -67,7 +91,9 @@ class ThermalRateModel {
     float blended_rate_for_save() const;
 
     /// Set a custom default rate (overrides FALLBACK_DEFAULT_RATE).
-    void set_default_rate(float rate_s_per_deg);
+    /// @param measured The rate was measured on this printer (a database
+    ///        entry's thermal_rates), not guessed from its size.
+    void set_default_rate(float rate_s_per_deg, bool measured = false);
 
     /// Reset all measurement state for a new tracking session.
     void reset(float start_temp);
@@ -80,6 +106,7 @@ class ThermalRateModel {
     bool has_history_ = false;
 
     float default_rate_ = FALLBACK_DEFAULT_RATE;
+    bool default_measured_ = false;
 
     float last_temp_ = 0.0f; ///< where the current step started
     uint32_t last_tick_ = 0;
@@ -92,6 +119,10 @@ class ThermalRateModel {
     uint32_t last_rise_tick_ = 0;
     bool holding_ = false;
 
+    float target_c_ = 0.0f; ///< last target note_target() reported
+    /// Whether a caller reports targets. Without them (the PID tracker) every
+    /// rise counts; with them only a rise under a positive target does.
+    bool target_known_ = false;
     float climb_seconds_ = 0.0f; ///< time across counted steps
     float climb_degrees_ = 0.0f; ///< degrees across counted steps
 };

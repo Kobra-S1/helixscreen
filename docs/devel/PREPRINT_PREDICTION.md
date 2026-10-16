@@ -221,6 +221,27 @@ The algorithm:
 
 If elapsed exceeds the prediction for the current phase, that phase contributes 0 (never negative). This prevents the remaining time from going negative if a phase runs longer than expected.
 
+### Heating Phases
+
+A heating phase's duration is a whole climb, from the temperature the heater had when the
+collector started to its target, so `ThermalRateModel::estimate_seconds()` prices it at
+`climb_rate_for(span)`, never at `best_rate()`, the EMA of the latest steps: a bed's last
+degrees are its slowest, and weights recomputed while it crawls them would price the whole
+climb at that tail rate. `climb_rate()` is seconds per degree across every step measured so
+far, else the saved or database rate, else the default; early in a climb, while the measured
+average covers only the fast part, `climb_rate_for(span)` blends it with a known rate (the
+saved history, or a database `thermal_rates` entry) by the share of the span measured. A
+size-guessed default is never blended in. `best_rate()` stays for the degrees just ahead (the
+PID calibration's remaining heat). The collector reports each heater's target before each
+sample (`ThermalRateModel::note_target()`): a raised target starts a new step, and a sample
+counts only while a positive target sits above the reading, so the minutes a nozzle idles or
+warms beside the bed at target 0 never enter its rate. A model given no targets (the PID
+calibration tracker) counts every rise.
+
+The timeout fallbacks wait for 90s without activity, and a heater counts as activity while it
+climbs and while it reads more than 5°C above a target it is cooling to: a Forge-X nozzle
+cooled to 120°C for probing spends nearly two silent minutes getting there.
+
 ### Update Frequency
 
 An LVGL timer (`eta_timer_`) fires every **5 seconds** and calls `update_eta_display()`, which:

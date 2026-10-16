@@ -413,10 +413,11 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     std::chrono::steady_clock::time_point last_signal_time_;
 
     /// When a heater last climbed a degree above its highest reading under its
-    /// current target. The deadline timeouts wait for 90s past it, which
+    /// current target, or last read more than the tolerance above a target it
+    /// is cooling to. The deadline timeouts wait for 90s past it, which
     /// carries them through a silent M190 or M109. The ceiling ignores it: a
     /// heater that never settles must not hold Preparing open.
-    std::chrono::steady_clock::time_point last_heater_climb_time_;
+    std::chrono::steady_clock::time_point last_heater_activity_time_;
 
     /// End of the silent time a matched line announced, {} when none. Until
     /// then the printer counts as talking. held_for_ is the time holds have

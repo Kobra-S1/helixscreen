@@ -75,7 +75,7 @@ void PidProgressTracker::mark_complete() {
 }
 
 float PidProgressTracker::heating_fraction() const {
-    float heat_est = (static_cast<float>(target_temp_) - start_temp_) * best_heat_rate();
+    float heat_est = thermal_model_.estimate_seconds(start_temp_, static_cast<float>(target_temp_));
     float osc_est = best_oscillation_duration();
     float total = heat_est + osc_est;
     if (total <= 0)

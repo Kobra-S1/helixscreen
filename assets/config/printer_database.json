@@ -556,7 +556,19 @@
           }
         ]
       },
-      "toolhead_style": "default"
+      "toolhead_style": "default",
+      "_print_start_default_phases_comment": "Measured on an AD5M Pro on Forge-X 1.4.2 2026-10-15 (KAMP, ABS 105/265): homing ~5s; the nozzle clean ~135s, ~112s of it the silent cool-down to 120C for probing; the 25-point mesh plus Smart Park ~150s; the priming line ~15s. Heating is omitted - the thermal model owns those.",
+      "print_start_default_phases": {
+        "HOMING": 5,
+        "CLEANING": 135,
+        "BED_MESH": 150,
+        "PURGING": 15
+      },
+      "_thermal_rates_comment": "Seconds per degree C for a first print, from the same capture: the bed took ~480s from 30C to 105C, the nozzle ~48s from 36C to 265C.",
+      "thermal_rates": {
+        "heater_bed": 6.4,
+        "extruder": 0.21
+      }
     },
     {
       "id": "flashforge_ad5x",
