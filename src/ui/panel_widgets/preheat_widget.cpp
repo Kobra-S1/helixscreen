@@ -357,15 +357,11 @@ void PreheatWidget::handle_cooldown() {
         return;
     }
 
-    // Use configured cooldown macro (user-overridable in settings.json)
-    auto* cfg = Config::get_instance();
-    MacroConfig default_cooldown{"Cool Down", "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0\n"
-                                              "SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=0"};
-    auto cooldown = cfg ? cfg->get_macro("cooldown", default_cooldown) : default_cooldown;
-
-    spdlog::info("[PreheatWidget] Cooldown requested - executing: {}", cooldown.gcode);
+    const std::string gcode =
+        helix::ui::temperature::resolve_cooldown_gcode(printer_state_.temperature_state());
+    spdlog::info("[PreheatWidget] Cooldown requested - executing: {}", gcode);
     api->execute_gcode(
-        cooldown.gcode, []() { NOTIFY_SUCCESS(lv_tr("Heaters off")); },
+        gcode, []() { NOTIFY_SUCCESS(lv_tr("Heaters off")); },
         [](const MoonrakerError& error) {
             NOTIFY_ERROR(lv_tr("Failed to cool down: {}"), error.user_message());
         });

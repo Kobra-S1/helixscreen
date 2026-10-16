@@ -58,6 +58,28 @@ struct MacroConfig {
 };
 
 /**
+ * @brief The default (no-chamber) Cool Down gcode this and every preset ship.
+ *
+ * Single source of truth for `get_default_macros()`'s seeded "cooldown" text
+ * and every preset's own `default_macros.cooldown`. A caller that wants to
+ * append dynamically-resolved heater-off commands compares the macro in use
+ * against this via `is_default_cooldown_gcode()` to tell an unmodified
+ * default from a user's own edit or a single-model preset's own hardcoded
+ * chamber line.
+ */
+extern const char* const kDefaultCooldownGcode;
+
+/**
+ * @brief True when `gcode` is exactly the shared default Cool Down text.
+ *
+ * What `helix::ui::temperature::build_cooldown_gcode()` asks before appending
+ * the off commands for the extruders and chamber heater this printer
+ * actually has, so a user-customized macro (or a single-model preset's own
+ * hardcoded chamber line) always runs exactly as written.
+ */
+bool is_default_cooldown_gcode(const std::string& gcode);
+
+/**
  * @brief Application configuration manager (singleton)
  *
  * Loads and manages application configuration from JSON file.

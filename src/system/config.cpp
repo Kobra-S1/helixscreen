@@ -51,6 +51,17 @@ using AppConstants::Update::legacy_config_backup_primary;
 
 Config* Config::instance{NULL};
 
+namespace helix {
+
+const char* const kDefaultCooldownGcode = "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0\n"
+                                          "SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=0";
+
+bool is_default_cooldown_gcode(const std::string& gcode) {
+    return gcode == kDefaultCooldownGcode;
+}
+
+} // namespace helix
+
 namespace {
 
 /// Default macro configuration - shared between init() and reset_to_defaults()
@@ -59,8 +70,7 @@ json get_default_macros() {
             {"unload_filament", {{"label", "Unload"}, {"gcode", "UNLOAD_FILAMENT"}}},
             {"macro_1", {{"label", "Clean Nozzle"}, {"gcode", "HELIX_CLEAN_NOZZLE"}}},
             {"macro_2", {{"label", "Bed Level"}, {"gcode", "HELIX_BED_MESH_IF_NEEDED"}}},
-            {"cooldown", "SET_HEATER_TEMPERATURE HEATER=extruder TARGET=0\nSET_HEATER_TEMPERATURE "
-                         "HEATER=heater_bed TARGET=0"}};
+            {"cooldown", helix::kDefaultCooldownGcode}};
 }
 
 /// Default printer configuration - shared between init() and reset_to_defaults()
