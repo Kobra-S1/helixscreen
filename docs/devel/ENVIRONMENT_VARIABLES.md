@@ -1488,7 +1488,7 @@ Read by `init_early()`, not by `init()`: the ring is allocated before the config
 
 | Property | Value |
 |----------|-------|
-| **Values** | Positive integer (message count). Zero, negative, and unparseable values are ignored. |
+| **Values** | Positive integer (message count). Zero, negative, and unparseable values are ignored. `helixscreen.env` takes `1`-`100000`. |
 | **Default** | Scales with total RAM: `clamp(total_ram_mb × 16, 2000, 20000)` |
 | **File** | `src/system/logging_init.cpp` (`ring_capacity_for_ram()`) |
 
@@ -1964,9 +1964,9 @@ Launcher-only knobs for splash handling, scheduling priority, and boot-time resp
 | `HELIX_NO_SPLASH` | `1` disables the splash entirely — no `--splash-pid`, no `--splash-bin`, no heartbeat write. For debugging. | `0` |
 | `HELIX_NICE` | Nice value applied to the launcher (children inherit it) when co-hosted with Klipper/Moonraker. `0` disables the renice. | `10` |
 | `HELIX_OOM_SCORE_ADJ` | `oom_score_adj` that `helix-screen` applies to itself when co-hosted with Klipper/Moonraker, so the OOM killer takes the UI instead of Klipper. `0` disables. Clamped to the kernel's `[-1000, 1000]`. | `300` |
-| `HELIX_BOOT_RESPAWN_MAX` | Max boot-time respawns after an early death. `0` disables the self-heal. | `0` (disabled) |
-| `HELIX_BOOT_RESPAWN_WINDOW` | Seconds after launch within which a death counts as "lost the boot race" rather than a deliberate quit. | `25` |
-| `HELIX_BOOT_RESPAWN_DELAY` | Seconds to wait before each respawn. | `3` |
+| `HELIX_BOOT_RESPAWN_MAX` | Max boot-time respawns after an early death, `0`-`10`. `0` disables the self-heal. | `0` (disabled) |
+| `HELIX_BOOT_RESPAWN_WINDOW` | Seconds after launch, `0`-`300`, within which a death counts as "lost the boot race" rather than a deliberate quit. | `25` |
+| `HELIX_BOOT_RESPAWN_DELAY` | Seconds to wait before each respawn, `0`-`60`. | `3` |
 
 **Usage Notes:**
 - The renice only happens when `helix_klipper_co_hosted` is true — a standalone display (remote Sonic Pad, dev workstation, kiosk pointed at a network printer) is never deprioritized. Raising nice is unprivileged, so it works as the non-root service user.

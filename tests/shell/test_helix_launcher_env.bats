@@ -977,21 +977,59 @@ print_env_from_file() {
     [ "$(print_env_from_file HELIX_REMOTE_SOCKET 'HELIX_REMOTE_SOCKET=/tmp/../etc/x')" = "" ]
 }
 
-@test "every env-file setting the user docs name is on the allowlist" {
+# Keys docs/devel tells users to put in helixscreen.env: an
+# `echo "KEY=..." >> .../helixscreen.env` line, or a KEY=value line in the
+# block under a `# In helixscreen.env` comment (up to a blank line or fence).
+devel_doc_env_keys() {
+    find "$WORKTREE_ROOT/docs/devel" -name '*.md' -exec awk '
+        /^```/ { inblk = 0; next }
+        /^[ \t]*#[ \t]*In helixscreen\.env/ { inblk = 1; next }
+        /^[ \t]*$/ { inblk = 0; next }
+        /echo[ \t]+["'"'"']?[A-Z][A-Z0-9_]*=.*>>.*helixscreen\.env/ {
+            s = $0; sub(/.*echo[ \t]+["'"'"']?/, "", s); sub(/=.*/, "", s); print s; next
+        }
+        inblk && /^[ \t]*(export[ \t]+)?[A-Z][A-Z0-9_]*=/ {
+            s = $0; sub(/^[ \t]*(export[ \t]+)?/, "", s); sub(/=.*/, "", s); print s
+        }' {} + | sort -u
+}
+
+@test "every env-file setting the docs name is on the allowlist" {
     # A documented setting the parse refuses is one users write to no effect.
     # docs/user names a setting as `NAME=value` or as the first cell of a
-    # variable table; gcode macro names in JSON examples are neither.
-    local keys k missing=""
-    keys=$(grep -rhoE '(\b(HELIX|MOONRAKER|MALLOC)_[A-Z0-9_]*[A-Z0-9]=|^\| *`(HELIX|MOONRAKER|MALLOC)_[A-Z0-9_]*[A-Z0-9]`)' \
+    # variable table (gcode macro names in JSON examples are neither);
+    # docs/devel names one where it tells users to write it into the file.
+    local user devel k missing=""
+    user=$(grep -rhoE '(\b(HELIX|MOONRAKER|MALLOC)_[A-Z0-9_]*[A-Z0-9]=|^\| *`(HELIX|MOONRAKER|MALLOC)_[A-Z0-9_]*[A-Z0-9]`)' \
         "$WORKTREE_ROOT/docs/user" | sed 's/^| *`//; s/`$//; s/=$//' | sort -u)
-    [ -n "$keys" ] || fail "no keys extracted from docs/user"
-    echo "$keys" | grep -qx HELIX_TOUCH_MIN_X || fail "extraction missed a table key"
-    echo "$keys" | grep -qx HELIX_DPI || fail "extraction missed a NAME= key"
-    for k in $keys; do
+    [ -n "$user" ] || fail "no keys extracted from docs/user"
+    echo "$user" | grep -qx HELIX_TOUCH_MIN_X || fail "extraction missed a table key"
+    echo "$user" | grep -qx HELIX_DPI || fail "extraction missed a NAME= key"
+    devel=$(devel_doc_env_keys)
+    echo "$devel" | grep -qx HELIX_TOUCH_CAL_DEBOUNCE || fail "extraction missed an echo >> key"
+    echo "$devel" | grep -qx HELIX_BOOT_RESPAWN_MAX || fail "extraction missed an 'In helixscreen.env' key"
+    for k in $user $devel; do
         sh -c ". '$BATS_TEST_TMPDIR/env_parse.sh'; helix_env_key_allowed '$k'" ||
             missing="$missing $k"
     done
     [ -z "$missing" ] || fail "documented settings the parse refuses:$missing"
+}
+
+@test "boot respawn, log ring and calibration debounce settings take bounded integers" {
+    local kv k
+    for kv in HELIX_BOOT_RESPAWN_MAX=0 HELIX_BOOT_RESPAWN_MAX=10 HELIX_BOOT_RESPAWN_WINDOW=300 \
+        HELIX_BOOT_RESPAWN_DELAY=0 HELIX_BOOT_RESPAWN_DELAY=60 HELIX_LOG_RING_LINES=500 \
+        HELIX_LOG_RING_LINES=100000 HELIX_TOUCH_CAL_DEBOUNCE=0 HELIX_TOUCH_CAL_DEBOUNCE=1; do
+        k="${kv%%=*}"
+        [ "$(print_env_from_file "$k" "$kv")" = "${kv#*=}" ] || fail "$kv was not exported"
+    done
+    for kv in HELIX_BOOT_RESPAWN_MAX=11 HELIX_BOOT_RESPAWN_MAX=-1 HELIX_BOOT_RESPAWN_WINDOW=301 \
+        HELIX_BOOT_RESPAWN_DELAY=61 HELIX_BOOT_RESPAWN_DELAY=3s HELIX_LOG_RING_LINES=0 \
+        HELIX_LOG_RING_LINES=100001 HELIX_LOG_RING_LINES=99999999999999999999 \
+        HELIX_TOUCH_CAL_DEBOUNCE=2 HELIX_TOUCH_CAL_DEBOUNCE=01; do
+        k="${kv%%=*}"
+        [ "$(print_env_from_file "$k" "$kv")" = "" ] || fail "$kv was exported"
+        grep -q "$k must be" "$BATS_TEST_TMPDIR/parse.log" || fail "$kv refused without a reason"
+    done
 }
 
 @test "the touch calibration and streaming settings the user docs list load" {
