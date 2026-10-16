@@ -2285,7 +2285,7 @@ check_requirements() {
     local missing=""
 
     # Need curl, wget, or python3 (urllib) to download the release.
-    if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1 && ! _has_python; then
+    if ! _has_real_curl && ! command -v wget >/dev/null 2>&1 && ! _has_python; then
         _helix_add_missing "curl, wget, or python3"
     fi
     command -v tar >/dev/null 2>&1 || _helix_add_missing "tar"
@@ -2603,7 +2603,7 @@ Moonraker is running but not responding on http://127.0.0.1:7125."
                     warnings="Moonraker is running but not responding on http://127.0.0.1:7125."
                 fi
             fi
-        elif command -v curl >/dev/null 2>&1; then
+        elif _has_real_curl; then
             if ! curl -sf --connect-timeout 5 "http://127.0.0.1:7125/server/info" >/dev/null 2>&1; then
                 if [ -n "$warnings" ]; then
                     warnings="$warnings
@@ -4567,16 +4567,19 @@ _archive_tmp_path() {
     esac
 }
 
-# Detect whether curl supports the flags we need (not BusyBox curl).
-# BusyBox curl lacks -S, -L, --connect-timeout, --max-time, --progress-bar, etc.
-# Cache the result so we only probe once.
+# Detect whether `curl` is curl proper, with the flags we pass it. Creality K1
+# firmware ships libhv's example client as /usr/bin/curl: it answers to the name,
+# prints "curl version 1.0.0" and rejects -s, -S, -L, -o and -f. Real curl's first
+# --version output starts "curl <digit>...". Shell builtins only, so it holds on
+# a PATH with no head or grep. Cache the result so we only probe once.
 _REAL_CURL=""
 _has_real_curl() {
     if [ -z "$_REAL_CURL" ]; then
-        if command -v curl >/dev/null 2>&1 && curl --version 2>/dev/null | grep -qi "curl"; then
-            _REAL_CURL=yes
-        else
-            _REAL_CURL=no
+        _REAL_CURL=no
+        if command -v curl >/dev/null 2>&1; then
+            case "$(curl --version 2>/dev/null)" in
+                "curl "[0-9]*) _REAL_CURL=yes ;;
+            esac
         fi
     fi
     [ "$_REAL_CURL" = "yes" ]
@@ -8106,19 +8109,23 @@ cleanup_unsupported_options() {
     log_success "Cleaned up unsupported options from moonraker.conf"
 }
 
-# Write release_info.json if not already present
-# Moonraker type:web needs this file to detect installed version
+# Write release_info.json naming the installed binary's version. Moonraker
+# type:web and the installer's "Update <from> -> <to>" line both read it, and a
+# tree updated by copying files in keeps whatever version it was first written
+# with, so a file naming another version is rewritten.
 write_release_info() {
     local release_info="${INSTALL_DIR}/release_info.json"
-
-    if [ -f "$release_info" ]; then
-        return 0
-    fi
 
     # Try to detect version from binary
     local version=""
     if [ -x "${INSTALL_DIR}/bin/helix-screen" ]; then
         version=$("${INSTALL_DIR}/bin/helix-screen" --version 2>/dev/null | head -n 1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^ ]*' || echo "")
+    fi
+
+    if [ -f "$release_info" ]; then
+        # No version to compare against: keep what is there.
+        [ -n "$version" ] || return 0
+        [ "$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$release_info" | head -n 1)" = "$version" ] && return 0
     fi
 
     if [ -z "$version" ]; then

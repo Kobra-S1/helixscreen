@@ -662,13 +662,37 @@ NET_DEPLOY_NO_ASSET='class NetDeploy(AppDeploy):
 # write_release_info
 # =============================================================================
 
-@test "write_release_info: already exists is a no-op" {
+@test "write_release_info: an existing file is kept when no binary reports a version" {
     echo '{"version":"v1.0.0"}' > "$INSTALL_DIR/release_info.json"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
 
     run write_release_info
     [ "$status" -eq 0 ]
     # Content unchanged
     grep -q 'v1.0.0' "$INSTALL_DIR/release_info.json"
+}
+
+@test "write_release_info: an existing file naming the binary's version is a no-op" {
+    printf '{"version":"v1.2.3","asset_name":"keep-me"}' > "$INSTALL_DIR/release_info.json"
+    printf '#!/bin/sh\necho "helix-screen v1.2.3"\n' > "$INSTALL_DIR/bin/helix-screen"
+    chmod +x "$INSTALL_DIR/bin/helix-screen"
+
+    run write_release_info
+    [ "$status" -eq 0 ]
+    grep -q 'keep-me' "$INSTALL_DIR/release_info.json"
+}
+
+@test "write_release_info: a stale version is rewritten to the binary's" {
+    echo '{"project_name":"helixscreen","version":"v1.1.0-beta.1","asset_name":"helixscreen-k1.zip"}' \
+        > "$INSTALL_DIR/release_info.json"
+    printf '#!/bin/sh\necho "helix-screen v1.1.0-beta.8"\n' > "$INSTALL_DIR/bin/helix-screen"
+    chmod +x "$INSTALL_DIR/bin/helix-screen"
+    PLATFORM="pi"
+
+    write_release_info
+
+    grep -q '"v1.1.0-beta.8"' "$INSTALL_DIR/release_info.json"
+    ! grep -q 'beta.1"' "$INSTALL_DIR/release_info.json"
 }
 
 @test "write_release_info: binary not found returns 0" {

@@ -487,19 +487,23 @@ cleanup_unsupported_options() {
     log_success "Cleaned up unsupported options from moonraker.conf"
 }
 
-# Write release_info.json if not already present
-# Moonraker type:web needs this file to detect installed version
+# Write release_info.json naming the installed binary's version. Moonraker
+# type:web and the installer's "Update <from> -> <to>" line both read it, and a
+# tree updated by copying files in keeps whatever version it was first written
+# with, so a file naming another version is rewritten.
 write_release_info() {
     local release_info="${INSTALL_DIR}/release_info.json"
-
-    if [ -f "$release_info" ]; then
-        return 0
-    fi
 
     # Try to detect version from binary
     local version=""
     if [ -x "${INSTALL_DIR}/bin/helix-screen" ]; then
         version=$("${INSTALL_DIR}/bin/helix-screen" --version 2>/dev/null | head -n 1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^ ]*' || echo "")
+    fi
+
+    if [ -f "$release_info" ]; then
+        # No version to compare against: keep what is there.
+        [ -n "$version" ] || return 0
+        [ "$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$release_info" | head -n 1)" = "$version" ] && return 0
     fi
 
     if [ -z "$version" ]; then

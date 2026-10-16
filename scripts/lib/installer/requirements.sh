@@ -33,7 +33,7 @@ check_requirements() {
     local missing=""
 
     # Need curl, wget, or python3 (urllib) to download the release.
-    if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1 && ! _has_python; then
+    if ! _has_real_curl && ! command -v wget >/dev/null 2>&1 && ! _has_python; then
         _helix_add_missing "curl, wget, or python3"
     fi
     command -v tar >/dev/null 2>&1 || _helix_add_missing "tar"
@@ -351,7 +351,7 @@ Moonraker is running but not responding on http://127.0.0.1:7125."
                     warnings="Moonraker is running but not responding on http://127.0.0.1:7125."
                 fi
             fi
-        elif command -v curl >/dev/null 2>&1; then
+        elif _has_real_curl; then
             if ! curl -sf --connect-timeout 5 "http://127.0.0.1:7125/server/info" >/dev/null 2>&1; then
                 if [ -n "$warnings" ]; then
                     warnings="$warnings
