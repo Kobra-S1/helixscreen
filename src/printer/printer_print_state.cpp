@@ -333,6 +333,15 @@ bool PrinterPrintState::status_indicates_active_print(const nlohmann::json& stat
     return printer_has_job(parse_print_job_state(st.c_str()));
 }
 
+void PrinterPrintState::clear_print_exception() {
+    print_exception_id_ = -1;
+    print_exception_code_ = -1;
+    print_exception_message_.clear();
+    if (lv_subject_get_int(&print_exception_) != -1) {
+        lv_subject_set_int(&print_exception_, -1);
+    }
+}
+
 void PrinterPrintState::update_from_status(const nlohmann::json& status) {
     // Layer tracking has two sources within a single status update:
     //   primary  — print_stats.info.{current_layer,total_layer} (slicer
@@ -404,6 +413,16 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
             // - Set outcome when print reaches a terminal state (COMPLETE/CANCELLED/ERROR)
             // - Clear outcome when a NEW print starts (PRINTING from non-PAUSED)
             if (new_state != current_state) {
+                // The exception describes one pause. Leaving the pause (a
+                // resume, a cancel, a new print) ends it, so a later pause
+                // whose frames carry no exception is not read as that one.
+                // An exception in this same frame is parsed below and latches
+                // again.
+                // RAW_PRINT_STATE_OK: the exception belongs to the printer's own
+                // pause, so the wire state is what scopes it.
+                if (new_state != PrintJobState::PAUSED) {
+                    clear_print_exception();
+                }
                 // Entering a terminal state: record the outcome
                 if (new_state == PrintJobState::COMPLETE) {
                     spdlog::info("[PrinterPrintState] Print completed - setting outcome=COMPLETE");

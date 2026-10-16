@@ -28,14 +28,22 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
+#include "../test_helpers/runout_scope_test_access.h"
+#include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
+#include "non_filament_pause.h"
+#include "printer_state.h"
 #include "runtime_config.h"
+#include "u1_stock_detection_source.h"
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -191,4 +199,127 @@ TEST_CASE_METHOD(RunoutGuidanceFixture, "every terminal state clears the latch, 
 
     CHECK_FALSE(handler->is_modal_shown_for_pause());
     CHECK_FALSE(handler->is_modal_visible());
+}
+
+namespace {
+
+nlohmann::json u1_head_switch(int head, bool detected) {
+    return nlohmann::json{{"filament_motion_sensor e" + std::to_string(head) + "_filament",
+                           {{"filament_detected", detected}, {"enabled", true}}}};
+}
+
+/// A Snapmaker U1 printing on head 2: heads 0-2 fed through to their toolheads
+/// (load_finish), head 3's filament waiting in its feeder short of the toolhead
+/// (preload_finish). Every lane reads present; head 3's toolhead switch reads
+/// empty, the others full.
+class U1RunoutGuidanceFixture : public RunoutGuidanceFixture {
+  public:
+    U1RunoutGuidanceFixture() {
+        AmsStateTestAccess::clear_recent_unloads(AmsState::instance());
+        auto be = std::make_unique<AmsBackendSnapmaker>(nullptr, nullptr);
+        u1 = be.get();
+        AmsState::instance().set_backend(std::move(be));
+
+        auto feed = [](const char* channel_state) {
+            return nlohmann::json{{"filament_detected", true}, {"channel_state", channel_state}};
+        };
+        RunoutScopeTestAccess::handle_status(
+            *u1, nlohmann::json{
+                     {"filament_feed left",
+                      {{"extruder0", feed("load_finish")}, {"extruder1", feed("load_finish")}}},
+                     {"filament_feed right",
+                      {{"extruder2", feed("load_finish")}, {"extruder3", feed("preload_finish")}}},
+                     {"toolhead", {{"extruder", "extruder2"}}}});
+        REQUIRE(u1->get_current_slot() == 2);
+        REQUIRE(u1->get_slot_info(3).is_present());
+
+        auto& fsm = FilamentSensorManager::instance();
+        std::vector<std::string> heads;
+        for (int h = 0; h < 4; ++h) {
+            heads.push_back("filament_motion_sensor e" + std::to_string(h) + "_filament");
+        }
+        fsm.discover_sensors(heads);
+        for (int h = 0; h < 4; ++h) {
+            RunoutScopeTestAccess::force_role(fsm, heads[h], FilamentSensorRole::RUNOUT);
+            set_head_switch(h, h != 3);
+        }
+        settle();
+        REQUIRE(get_runtime_config()->should_show_runout_modal());
+        REQUIRE(fsm.has_any_runout());
+    }
+
+    void set_head_switch(int head, bool detected) {
+        const auto frame = u1_head_switch(head, detected);
+        RunoutScopeTestAccess::handle_status(*u1, frame);
+        FilamentSensorManager::instance().update_from_status(frame);
+        settle();
+    }
+
+    /// The firmware's own pause frame for the U1 bed check.
+    void firmware_dirty_bed_pause() {
+        state().update_from_status(nlohmann::json{{"print_stats", {{"state", "printing"}}}});
+        state().update_from_status(nlohmann::json{
+            {"print_stats",
+             {{"state", "paused"},
+              {"exception",
+               {{"id", 532}, {"index", 0}, {"code", 1}, {"message", "detected dirty bed"}}}}}});
+        settle();
+    }
+
+    AmsBackendSnapmaker* u1 = nullptr;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(U1RunoutGuidanceFixture,
+                 "a pause with only an idle head's switch empty shows no dialog; the fed "
+                 "head's does",
+                 "[runout_guidance][gate]") {
+    transition(::PrintState::Preparing, ::PrintState::Paused);
+    CHECK_FALSE(handler->is_modal_shown_for_pause());
+    CHECK_FALSE(handler->is_modal_visible());
+
+    // Resumed; then the head being fed runs out and the firmware pauses.
+    transition(::PrintState::Paused, ::PrintState::Printing);
+    set_head_switch(2, false);
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    CHECK(handler->is_modal_shown_for_pause());
+    CHECK(handler->is_modal_visible());
+}
+
+TEST_CASE_METHOD(U1RunoutGuidanceFixture,
+                 "a U1 dirty-bed pause is explained, so no runout dialog even with the fed "
+                 "head empty",
+                 "[runout_guidance][gate]") {
+    helix::detection::U1StockSource source(&state());
+    source.set_capable(true);
+    source.start();
+
+    // The incident: heads 0-2 loaded, head 3 preloaded with an empty switch,
+    // current slot 2, and the bed check pauses the print.
+    firmware_dirty_bed_pause();
+    REQUIRE(helix::non_filament_pause::explanation() == "detected dirty bed");
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    CHECK_FALSE(handler->is_modal_visible());
+
+    // The fed head reading empty during that same pause is still not the
+    // pause's cause.
+    transition(::PrintState::Paused, ::PrintState::Printing);
+    set_head_switch(2, false);
+    REQUIRE(FilamentSensorManager::instance().has_real_runout());
+    firmware_dirty_bed_pause();
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    CHECK_FALSE(handler->is_modal_shown_for_pause());
+    CHECK_FALSE(handler->is_modal_visible());
+
+    // Once the print leaves the pause the explanation is gone, and a later
+    // plain pause with the fed head empty is a runout again.
+    state().update_from_status(nlohmann::json{{"print_stats", {{"state", "printing"}}}});
+    settle();
+    transition(::PrintState::Paused, ::PrintState::Printing);
+    CHECK(helix::non_filament_pause::explanation().empty());
+    state().update_from_status(nlohmann::json{{"print_stats", {{"state", "paused"}}}});
+    settle();
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    CHECK(handler->is_modal_visible());
 }

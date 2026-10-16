@@ -396,6 +396,35 @@ TEST_CASE("PrinterState: parses print_stats.exception structured object",
         REQUIRE(state.get_print_exception_code() == 1);
         REQUIRE(state.get_print_exception_message() == "detected dirty bed");
     }
+    SECTION("Leaving PAUSED drops the exception; a new one in the same frame latches") {
+        state.update_from_status(
+            json{{"print_stats",
+                  {{"state", "paused"},
+                   {"exception", {{"id", 532}, {"code", 1}, {"message", "detected dirty bed"}}}}}});
+        REQUIRE(state.get_print_exception_id() == 532);
+        REQUIRE(lv_subject_get_int(state.get_print_exception_subject()) == 1);
+
+        state.update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+        CHECK(state.get_print_exception_id() == -1);
+        CHECK(state.get_print_exception_code() == -1);
+        CHECK(state.get_print_exception_message().empty());
+        CHECK(lv_subject_get_int(state.get_print_exception_subject()) == -1);
+
+        // A redundant paused frame does not clear: the edge is what scopes it.
+        state.update_from_status(
+            json{{"print_stats",
+                  {{"state", "paused"},
+                   {"exception", {{"id", 523}, {"code", 0}, {"message", "e1_filament runout"}}}}}});
+        state.update_from_status(json{{"print_stats", {{"state", "paused"}}}});
+        CHECK(state.get_print_exception_id() == 523);
+
+        // Leaving and an exception in the same frame: the frame's own one wins.
+        state.update_from_status(
+            json{{"print_stats",
+                  {{"state", "standby"},
+                   {"exception", {{"id", 532}, {"code", 1}, {"message", "detected dirty bed"}}}}}});
+        CHECK(state.get_print_exception_id() == 532);
+    }
 }
 
 TEST_CASE("PrinterState: Progress percentage edge cases", "[state][progress][edge]") {

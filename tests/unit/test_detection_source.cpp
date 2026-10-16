@@ -2,6 +2,7 @@
 #include "../test_fixtures.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "detection_source.h"
+#include "non_filament_pause.h"
 #include "printer_state.h"
 #include "u1_stock_detection_source.h"
 
@@ -129,4 +130,64 @@ TEST_CASE_METHOD(XMLTestFixture, "U1StockSource fires when the noodle code lands
                                         {"level", 2}}}}}});
     drain();
     CHECK(fired == 1);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "U1StockSource explains a dirty-bed pause and nothing else",
+                 "[detection][u1][pause_reason]") {
+    helix::detection::U1StockSource src(&state());
+    src.set_capable(true);
+    src.start();
+    auto pause_with = [&](const json& exception) {
+        state().update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+        state().update_from_status(
+            json{{"print_stats", {{"state", "paused"}, {"exception", exception}}}});
+    };
+
+    SECTION("bed check: 532 code 1") {
+        pause_with(json{{"id", 532}, {"code", 1}, {"message", "detected dirty bed"}});
+        CHECK(src.pause_explanation() == "detected dirty bed");
+        CHECK(helix::non_filament_pause::explanation() == "detected dirty bed");
+    }
+    SECTION("bed check without message text still explains") {
+        pause_with(json{{"id", 532}, {"code", 1}});
+        CHECK_FALSE(src.pause_explanation().empty());
+    }
+    SECTION("a runout exception (523 code 0) is not explained") {
+        pause_with(json{{"id", 523}, {"code", 0}, {"message", "e1_filament runout"}});
+        CHECK(src.pause_explanation().empty());
+    }
+    SECTION("code 1 under another exception id is not the bed check") {
+        pause_with(json{{"id", 523}, {"code", 1}, {"message", "other"}});
+        CHECK(src.pause_explanation().empty());
+    }
+    SECTION("a printer without defect detection explains nothing") {
+        src.set_capable(false);
+        pause_with(json{{"id", 532}, {"code", 1}, {"message", "detected dirty bed"}});
+        CHECK(src.pause_explanation().empty());
+    }
+    SECTION("the explanation ends when the print leaves the pause") {
+        pause_with(json{{"id", 532}, {"code", 1}, {"message", "detected dirty bed"}});
+        REQUIRE_FALSE(src.pause_explanation().empty());
+        state().update_from_status(json{{"print_stats", {{"state", "cancelled"}}}});
+        CHECK(src.pause_explanation().empty());
+        // A later pause whose frames carry no exception is not the old one.
+        state().update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+        state().update_from_status(json{{"print_stats", {{"state", "paused"}}}});
+        CHECK(src.pause_explanation().empty());
+    }
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "U1StockSource removes its explainer when destroyed",
+                 "[detection][u1][pause_reason]") {
+    {
+        helix::detection::U1StockSource src(&state());
+        src.set_capable(true);
+        src.start();
+        state().update_from_status(
+            json{{"print_stats",
+                  {{"state", "paused"},
+                   {"exception", {{"id", 532}, {"code", 1}, {"message", "detected dirty bed"}}}}}});
+        REQUIRE(helix::non_filament_pause::explained());
+    }
+    CHECK_FALSE(helix::non_filament_pause::explained());
 }

@@ -45,6 +45,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "memory_monitor.h"
 #include "memory_utils.h"
+#include "non_filament_pause.h"
 #include "observer_factory.h"
 #include "preprint_predictor.h"
 #include "print_start_checks.h"
@@ -794,6 +795,12 @@ void PrintStatusPanel::init_subjects() {
         printer_state_.get_print_message_subject(), this,
         [](PrintStatusPanel* self, const char*) { self->recompute_paused_overlay_visibility(); },
         printer_state_.get_subjects_lifetime());
+    // A firmware pause's reason can also arrive as print_stats.exception, in
+    // the pause's own frame or a later one.
+    print_exception_observer_ = observe_int_sync<PrintStatusPanel>(
+        printer_state_.get_print_exception_subject(), this,
+        [](PrintStatusPanel* self, int) { self->recompute_paused_overlay_visibility(); },
+        printer_state_.get_subjects_lifetime());
 
     // Re-evaluate the paused overlay whenever the shared controller's pending
     // action flips (optimistic Pausing/Resuming) — decoupled from our own
@@ -883,6 +890,7 @@ void PrintStatusPanel::deinit_subjects() {
     // in its destructor trying to lv_observer_remove() on freed memory.
     end_overlay_dismissed_observer_.reset();
     print_message_observer_.reset();
+    print_exception_observer_.reset();
 
     // Fan-row observers — lifetimes BEFORE observer guards per [L084]
     fans_version_observer_.reset();
@@ -2898,8 +2906,11 @@ void PrintStatusPanel::recompute_paused_overlay_visibility() {
         reason = lv_tr("Resuming...");
     } else if (paused) {
         const char* fw_msg = lv_subject_get_string(printer_state_.get_print_message_subject());
+        const std::string explanation = helix::non_filament_pause::explanation();
         if (fw_msg && *fw_msg) {
             reason = fw_msg;
+        } else if (!explanation.empty()) {
+            reason = explanation;
         } else if (FilamentSensorManager::instance().has_real_runout()) {
             reason = lv_tr("Filament Runout");
         }

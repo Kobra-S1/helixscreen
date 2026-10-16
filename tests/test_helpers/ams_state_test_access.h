@@ -40,6 +40,13 @@ class AmsStateTestAccess {
         return ams.post_unload_runout_grace_;
     }
 
+    /// Forget every lane's recent unload, so a lane another test unloaded is
+    /// not inside its post-unload grace when this one reads it.
+    static void clear_recent_unloads(AmsState& ams) {
+        std::lock_guard<std::recursive_mutex> lock(ams.mutex_);
+        ams.last_unload_time_.fill({});
+    }
+
     /// The production window, so tests express "just inside" / "just outside"
     /// against the real constant instead of a hardcoded copy of it.
     static constexpr std::chrono::seconds grace_window() {

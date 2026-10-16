@@ -14,6 +14,7 @@
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "non_filament_pause.h"
 #include "observer_factory.h"
 #include "print_control_buttons.h"
 #include "print_lifecycle_state.h" // For PrintState enum
@@ -94,6 +95,13 @@ void FilamentRunoutHandler::check_and_show_runout_guidance() {
 
     // Skip if AMS/MMU present and not forced (runout during swaps is normal)
     if (!get_runtime_config()->should_show_runout_modal()) {
+        return;
+    }
+
+    // A pause something else already explains (a print-defect detection) is
+    // not a runout, whatever an idle lane's sensor reads.
+    if (helix::non_filament_pause::explained()) {
+        spdlog::info("[FilamentRunoutHandler] Pause has a non-filament cause - no runout guidance");
         return;
     }
 

@@ -19,6 +19,7 @@ namespace helix::detection {
 class U1StockSource : public DetectionSource {
   public:
     explicit U1StockSource(helix::PrinterState* state) : state_(state) {}
+    ~U1StockSource() override;
 
     /// Unique registration key. Exposed so DetectionManager can match on id()
     /// and static_cast instead of dynamic_cast — the firmware builds -fno-rtti.
@@ -41,8 +42,15 @@ class U1StockSource : public DetectionSource {
         capable_ = v;
     }
 
-    /// Install the print-state observer. Called once.
+    /// Install the print-state observer and the non-filament pause explainer.
+    /// Called once.
     void start();
+
+    /// The firmware's reason when the printer sits paused on a defect it
+    /// detected that is not filament (the dirty-bed check, exception 532 code
+    /// 1); empty otherwise. A runout sensor reading empty during that pause is
+    /// not what the pause is about.
+    [[nodiscard]] std::string pause_explanation() const;
 
   private:
     void evaluate();

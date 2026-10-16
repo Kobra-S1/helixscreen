@@ -491,6 +491,10 @@ class PrinterPrintState {
         return print_exception_code_;
     }
 
+    /// Drop the latched print_stats.exception (id, code, message, subject).
+    /// Main-thread only.
+    void clear_print_exception();
+
     /// print_stats.exception message — the human-readable pause reason. On these
     /// firmware pauses print_stats.message is EMPTY and the text lives here.
     [[nodiscard]] const std::string& get_print_exception_message() const {

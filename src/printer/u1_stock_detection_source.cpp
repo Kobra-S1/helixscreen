@@ -4,6 +4,7 @@
 // docs/devel/printers/SNAPMAKER_U1_SUPPORT.md.
 #include "u1_stock_detection_source.h"
 
+#include "non_filament_pause.h"
 #include "observer_factory.h"
 #include "printer_state.h"
 
@@ -11,9 +12,35 @@
 
 namespace helix::detection {
 
+namespace {
+// print_stats.exception id the U1's defect_detection raises a pause with.
+constexpr int kDefectExceptionId = 532;
+} // namespace
+
+U1StockSource::~U1StockSource() {
+    helix::non_filament_pause::set_explainer(nullptr);
+}
+
+std::string U1StockSource::pause_explanation() const {
+    if (!capable_ || !state_) {
+        return {};
+    }
+    // RAW_PRINT_STATE_OK: the printer's own paused state, which is what U1
+    // stock firmware raises when its bed check trips.
+    const bool paused = lv_subject_get_int(state_->get_print_state_enum_subject()) ==
+                        static_cast<int>(PrintJobState::PAUSED);
+    if (!paused || state_->get_print_exception_id() != kDefectExceptionId ||
+        kind_from_u1_code(state_->get_print_exception_code()) != DetectionKind::DirtyBed) {
+        return {};
+    }
+    const std::string& message = state_->get_print_exception_message();
+    return message.empty() ? std::string("detected dirty bed") : message;
+}
+
 void U1StockSource::start() {
     if (!state_)
         return;
+    helix::non_filament_pause::set_explainer([this]() { return pause_explanation(); });
     // Both deferred (observe_int_sync): the state and the exception code are
     // parsed in one update_from_status() frame, and the firmware may also send
     // them in separate frames in either order. Re-evaluating on either edge,
