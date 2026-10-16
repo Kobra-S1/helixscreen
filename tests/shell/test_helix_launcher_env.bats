@@ -977,6 +977,23 @@ print_env_from_file() {
     [ "$(print_env_from_file HELIX_REMOTE_SOCKET 'HELIX_REMOTE_SOCKET=/tmp/../etc/x')" = "" ]
 }
 
+@test "every env-file setting the user docs name is on the allowlist" {
+    # A documented setting the parse refuses is one users write to no effect.
+    # docs/user names a setting as `NAME=value` or as the first cell of a
+    # variable table; gcode macro names in JSON examples are neither.
+    local keys k missing=""
+    keys=$(grep -rhoE '(\b(HELIX|MOONRAKER|MALLOC)_[A-Z0-9_]*[A-Z0-9]=|^\| *`(HELIX|MOONRAKER|MALLOC)_[A-Z0-9_]*[A-Z0-9]`)' \
+        "$WORKTREE_ROOT/docs/user" | sed 's/^| *`//; s/`$//; s/=$//' | sort -u)
+    [ -n "$keys" ] || fail "no keys extracted from docs/user"
+    echo "$keys" | grep -qx HELIX_TOUCH_MIN_X || fail "extraction missed a table key"
+    echo "$keys" | grep -qx HELIX_DPI || fail "extraction missed a NAME= key"
+    for k in $keys; do
+        sh -c ". '$BATS_TEST_TMPDIR/env_parse.sh'; helix_env_key_allowed '$k'" ||
+            missing="$missing $k"
+    done
+    [ -z "$missing" ] || fail "documented settings the parse refuses:$missing"
+}
+
 @test "the touch calibration and streaming settings the user docs list load" {
     local kv k
     for kv in HELIX_TOUCH_MIN_X=500 HELIX_TOUCH_MAX_X=3580 HELIX_TOUCH_MIN_Y=3200 \
