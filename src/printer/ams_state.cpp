@@ -898,7 +898,9 @@ void AmsState::clear_backends() {
     runout_level_seeded_ = false;
     // Same reasoning for the post-unload grace: it was armed for a removal on
     // the backend going away, and nothing the next one reports can be that.
+    // The per-lane unload stamps are that backend's lanes too.
     post_unload_runout_grace_ = false;
+    last_unload_time_.fill({});
     post_unload_runout_grace_at_ = {};
     saw_unload_in_op_ = false;
 

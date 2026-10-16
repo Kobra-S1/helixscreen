@@ -28,7 +28,6 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
-#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/runout_scope_test_access.h"
 #include "ams_backend_snapmaker.h"
@@ -215,7 +214,6 @@ nlohmann::json u1_head_switch(int head, bool detected) {
 class U1RunoutGuidanceFixture : public RunoutGuidanceFixture {
   public:
     U1RunoutGuidanceFixture() {
-        AmsStateTestAccess::clear_recent_unloads(AmsState::instance());
         auto be = std::make_unique<AmsBackendSnapmaker>(nullptr, nullptr);
         u1 = be.get();
         AmsState::instance().set_backend(std::move(be));

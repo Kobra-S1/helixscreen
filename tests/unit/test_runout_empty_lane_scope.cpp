@@ -24,7 +24,6 @@
 #include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
-#include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/runout_scope_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
@@ -110,7 +109,6 @@ void drain() {
 // settings.json restore path) so all four lanes are RUNOUT-roled — the real
 // Snapmaker U1 configuration, which set_sensor_role()'s exclusivity can't model.
 void setup_four_lane_sensors(FilamentSensorManager& fsm) {
-    AmsStateTestAccess::clear_recent_unloads(AmsState::instance());
     RunoutScopeTestAccess::reset(fsm);
     fsm.set_master_enabled(true);
     std::vector<std::string> names;
@@ -725,4 +723,18 @@ TEST_CASE("scoped runout (issue 9): print-end forces badge hidden even with empt
 
     // PAUSED is an active print -> still reflects lane truth (red).
     CHECK(scoped_runout_for_state(fsm, PrintJobState::PAUSED, tools_used, {}) == 0);
+}
+
+TEST_CASE("A lane's recent unload does not outlive its backend", "[runout][scope]") {
+    HelixTestFixture fx;
+    auto& ams = AmsState::instance();
+    ams.set_backend(std::make_unique<AmsBackendMock>(4));
+    ams.mark_slot_unloaded(1);
+    REQUIRE(ams.was_slot_recently_unloaded(1));
+
+    // The next backend's lane 1 is a different lane: a runout on it is not
+    // the filament pulled from the old one.
+    ams.set_backend(std::make_unique<AmsBackendMock>(4));
+    CHECK_FALSE(ams.was_slot_recently_unloaded(1));
+    ams.set_backend(nullptr);
 }
