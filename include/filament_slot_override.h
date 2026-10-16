@@ -72,10 +72,9 @@ struct FilamentSlotOverride {
     // re-bootstrap.
     //
     // Persistence: emitted as `helix_locked_color` / `helix_locked_material`
-    // in the lane_data record so locks survive across restarts. Legacy
-    // records (pre-fix) load with locks defaulted to TRUE when the field has
-    // a value — pessimistic preservation of existing user data we can't
-    // attribute to either auto-mirror or user edit.
+    // in the lane_data record so locks survive across restarts. A lane_data
+    // record without these keys was written by another tool and loads
+    // unlocked, so it tracks firmware.
     bool user_locked_color = false;
     bool user_locked_material = false;
     // Recommended print temperatures, written into the lane_data record so

@@ -4923,6 +4923,120 @@ TEST_CASE("AD5X IFS user-edited slot survives firmware FFMInfo revert (#965 regr
     CHECK(db.value("color", "") == "#FF5500");
 }
 
+TEST_CASE("AD5X IFS another tool's lane_data record tracks a firmware colour+type change",
+          "[ams][ad5x_ifs][filament_slot_override][lane_data_foreign]") {
+    // An outside spool-management tool writes lane_data without our lock keys
+    // and changes the IFS slot through CHANGE_ZCOLOR. The new firmware values
+    // must surface without a restart.
+    Ad5xIfsTmpCacheDir tmp("ifs_foreign_lane_tracks_firmware");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    api.mock_set_db_value("lane_data", "lane1",
+                          nlohmann::json{{"lane", "0"},
+                                         {"color", "#FF5500"},
+                                         {"material", "PLA"},
+                                         {"name", "Galaxy Orange"},
+                                         {"vendor_name", "Polymaker"},
+                                         {"nozzle_temp", 215},
+                                         {"bed_temp", 60},
+                                         {"spool_id", 17}});
+
+    AmsBackendAd5xIfs backend(&api, nullptr);
+    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    Ad5xIfsTestAccess::inject_override_store(backend, std::move(store));
+    Ad5xIfsTestAccess::load_overrides_from_store(backend);
+    {
+        auto loaded = Ad5xIfsTestAccess::get_override(backend, 0);
+        REQUIRE(loaded.has_value());
+        REQUIRE(loaded->material == "PLA");
+    }
+    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
+
+    // Baseline poll agrees with the record.
+    Ad5xIfsTestAccess::parse_adventurer_json(backend, R"({
+        "FFMInfo": {"ffmColor1": "#FF5500", "ffmType1": "PLA"}
+    })");
+    REQUIRE(backend.get_slot_info(0).color_rgb == 0xFF5500u);
+
+    // The tool changes the slot on the firmware.
+    Ad5xIfsTestAccess::parse_adventurer_json(backend, R"({
+        "FFMInfo": {"ffmColor1": "#0055FF", "ffmType1": "PETG"}
+    })");
+
+    auto info = backend.get_slot_info(0);
+    CHECK(info.color_rgb == 0x0055FFu);
+    CHECK(info.material == "PETG");
+    CHECK(info.brand == "Polymaker");
+
+    auto staged = Ad5xIfsTestAccess::get_override(backend, 0);
+    REQUIRE(staged.has_value());
+    CHECK(staged->color_rgb == 0x0055FFu);
+    CHECK(staged->material == "PETG");
+    CHECK(staged->spoolman_id == 17);
+
+    auto db = api.mock_get_db_value("lane_data", "lane1");
+    REQUIRE(!db.is_null());
+    CHECK(db.value("color", "") == "#0055FF");
+    CHECK(db.value("material", "") == "PETG");
+}
+
+TEST_CASE("AD5X IFS a reloaded user edit still survives a firmware revert (#965)",
+          "[ams][ad5x_ifs][filament_slot_override][lane_data_foreign][965]") {
+    // The lock keys set_slot_info writes into lane_data must carry the edit
+    // across a restart: the reloaded override still outranks firmware.
+    Ad5xIfsTmpCacheDir tmp("ifs_reloaded_edit_965");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    {
+        AmsBackendAd5xIfs editor(&api, nullptr);
+        auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
+        FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+        Ad5xIfsTestAccess::inject_override_store(editor, std::move(store));
+        SlotInfo edit;
+        edit.brand = "Polymaker";
+        edit.material = "PLA";
+        edit.color_rgb = 0xFF5500;
+        editor.set_slot_info(0, edit, /*persist=*/true);
+    }
+    {
+        auto db = api.mock_get_db_value("lane_data", "lane1");
+        REQUIRE(!db.is_null());
+        REQUIRE(db.value("helix_locked_color", false));
+        REQUIRE(db.value("helix_locked_material", false));
+    }
+
+    AmsBackendAd5xIfs backend(&api, nullptr);
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    Ad5xIfsTestAccess::inject_override_store(backend, std::move(store));
+    Ad5xIfsTestAccess::load_overrides_from_store(backend);
+    Ad5xIfsTestAccess::set_port_presence(backend, 0, true);
+
+    Ad5xIfsTestAccess::parse_adventurer_json(backend, R"({
+        "FFMInfo": {"ffmColor1": "#FF5500", "ffmType1": "PLA"}
+    })");
+    // Firmware reverts to the previous spool's colour and type.
+    Ad5xIfsTestAccess::parse_adventurer_json(backend, R"({
+        "FFMInfo": {"ffmColor1": "#000000", "ffmType1": "HIPS"}
+    })");
+
+    auto info = backend.get_slot_info(0);
+    CHECK(info.color_rgb == 0xFF5500u);
+    CHECK(info.material == "PLA");
+    auto db = api.mock_get_db_value("lane_data", "lane1");
+    REQUIRE(!db.is_null());
+    CHECK(db.value("color", "") == "#FF5500");
+    CHECK(db.value("material", "") == "PLA");
+}
+
 TEST_CASE("AD5X IFS auto-mirror still tracks firmware for slots with no user lock",
           "[ams][ad5x_ifs][filament_slot_override]") {
     // Companion to the #965 regression: bootstrap (no override, or override

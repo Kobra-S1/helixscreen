@@ -2123,23 +2123,27 @@ TEST_CASE("FillUnsetOnly honors user_locked_material on an empty-but-locked fiel
     CHECK(overrides[0].material.empty());
 }
 
-TEST_CASE("load_blocking: legacy lane_data record (no helix_locked_*) loads as user-locked "
-          "(#965 pessimistic default)",
-          "[filament_slot_override]") {
-    // Pre-fix records (v0.99.60–.67) don't carry helix_locked_* fields. Many
-    // of those entries came from user edits — auto-mirror would silently
-    // clobber them on the next firmware change after upgrade. Treat legacy
-    // records with values as user-locked so existing data survives.
-    TmpCacheDir tmp("legacy_lane_data_lock_default");
+TEST_CASE("load_blocking: a lane_data record without helix_locked_* keys loads unlocked",
+          "[filament_slot_override][lock]") {
+    // lane_data is shared with other tools. A record carrying none of our lock
+    // keys is another tool's statement about the lane, so it must keep
+    // tracking firmware rather than pin its values against it.
+    TmpCacheDir tmp("foreign_lane_data_unlocked");
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
     state.init_subjects(false);
     MoonrakerAPIMock api(client, state);
 
-    api.mock_set_db_value(
-        "lane_data", "lane1",
-        nlohmann::json{
-            {"lane", "0"}, {"color", "#AABBCC"}, {"material", "PLA"}, {"vendor", "Polymaker"}});
+    // The shape an outside spool-management tool writes.
+    api.mock_set_db_value("lane_data", "lane1",
+                          nlohmann::json{{"lane", "0"},
+                                         {"color", "#AABBCC"},
+                                         {"material", "PLA"},
+                                         {"name", "Galaxy Black"},
+                                         {"vendor_name", "Polymaker"},
+                                         {"nozzle_temp", 215},
+                                         {"bed_temp", 60},
+                                         {"spool_id", 17}});
     api.mock_set_db_value("lane_data", "lane2",
                           nlohmann::json{{"lane", "1"}, {"color", "#112233"}, {"vendor", "eSun"}});
 
@@ -2149,20 +2153,50 @@ TEST_CASE("load_blocking: legacy lane_data record (no helix_locked_*) loads as u
     auto loaded = store.load_blocking();
     REQUIRE(loaded.size() == 2);
 
-    // Slot 0: both color and material present → both locked.
     const auto& s0 = loaded.at(0);
     CHECK(s0.color_rgb == 0xAABBCCu);
     CHECK(s0.material == "PLA");
-    CHECK(s0.user_locked_color);
-    CHECK(s0.user_locked_material);
+    CHECK(s0.brand == "Polymaker");
+    CHECK(s0.spoolman_id == 17);
+    CHECK_FALSE(s0.user_locked_color);
+    CHECK_FALSE(s0.user_locked_material);
 
-    // Slot 1: only color set, no material → color locked, material unlocked
-    // (material is fair game for bootstrap fill).
     const auto& s1 = loaded.at(1);
     CHECK(s1.color_rgb == 0x112233u);
-    CHECK(s1.material.empty());
-    CHECK(s1.user_locked_color);
+    CHECK_FALSE(s1.user_locked_color);
     CHECK_FALSE(s1.user_locked_material);
+}
+
+TEST_CASE("load_blocking: explicit helix_locked_* keys on a lane_data record are honored",
+          "[filament_slot_override][lock]") {
+    TmpCacheDir tmp("explicit_lane_data_locks");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+
+    api.mock_set_db_value("lane_data", "lane1",
+                          nlohmann::json{{"lane", "0"},
+                                         {"color", "#AABBCC"},
+                                         {"material", "PLA"},
+                                         {"helix_locked_color", true},
+                                         {"helix_locked_material", false}});
+    api.mock_set_db_value("lane_data", "lane2",
+                          nlohmann::json{{"lane", "1"},
+                                         {"color", "#112233"},
+                                         {"material", "PETG"},
+                                         {"helix_locked_color", false},
+                                         {"helix_locked_material", true}});
+
+    FilamentSlotOverrideStore store(&api, "ifs");
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(store, tmp.path);
+
+    auto loaded = store.load_blocking();
+    REQUIRE(loaded.size() == 2);
+    CHECK(loaded.at(0).user_locked_color);
+    CHECK_FALSE(loaded.at(0).user_locked_material);
+    CHECK_FALSE(loaded.at(1).user_locked_color);
+    CHECK(loaded.at(1).user_locked_material);
 }
 
 TEST_CASE("save + load round-trip preserves explicit lock state", "[filament_slot_override]") {

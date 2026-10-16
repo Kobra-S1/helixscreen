@@ -325,6 +325,13 @@ class Ad5xIfsTestAccess {
                                       std::unique_ptr<helix::ams::FilamentSlotOverrideStore> s) {
         b.override_store_ = std::move(s);
     }
+    // Load overrides from the injected store into the in-memory map, the step
+    // on_started() performs at startup.
+    static void load_overrides_from_store(AmsBackendAd5xIfs& b) {
+        auto loaded = b.override_store_->load_blocking();
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        b.overrides_ = std::move(loaded);
+    }
     // Drive check_external_color_change directly with a caller-chosen observed
     // color. Convenience overloads:
     //   - uint32_t form: pass a real reading (forwards as std::optional{value}).

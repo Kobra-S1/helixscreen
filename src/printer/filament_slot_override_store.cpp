@@ -138,8 +138,8 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
     if (!o.product_name.empty())
         j["helix_product_name"] = o.product_name;
     // helix_locked_* are HelixScreen-internal markers. Always emit both (even
-    // when false) so a future re-load can distinguish "explicit auto-mirror,
-    // safe to track" from "missing key, fall back to pessimistic default."
+    // when false): a record without them reads as another tool's and loads
+    // unlocked.
     // OrcaSlicer's MoonrakerPrinterAgent ignores unknown fields, so the two
     // extra booleans per slot cost nothing on its side.
     j["helix_locked_color"] = o.user_locked_color;
@@ -457,15 +457,12 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
     // (Mainsail, AFC, Happy Hare) and for records written before helix_material
     // existed.
     o.material = string_with_alias(j, "helix_material", "material");
-    // Pessimistic legacy-default: pre-fix records have no helix_locked_* key.
-    // Assume the field IS user-locked when it carries a value — protects
-    // existing overrides from auto-mirror clobber after upgrade. New records
-    // (post-fix) carry the explicit flag and round-trip exactly. See struct
-    // doc + #965 for rationale. A null on the wire falls to the same
-    // pessimistic default as a missing key, which is the safe direction.
-    o.user_locked_color = helix::json_util::safe_bool(j, "helix_locked_color", o.color_set);
-    o.user_locked_material =
-        helix::json_util::safe_bool(j, "helix_locked_material", !o.material.empty());
+    // lane_data is shared with other tools, and every record HelixScreen writes
+    // carries both helix_locked_* keys. A record without them (or with a null)
+    // is another tool's statement about the lane, so its fields stay unlocked
+    // and keep tracking firmware (#965 for what a lock protects).
+    o.user_locked_color = helix::json_util::safe_bool(j, "helix_locked_color", false);
+    o.user_locked_material = helix::json_util::safe_bool(j, "helix_locked_material", false);
     // Prefer our own `vendor` key; fall back to `vendor_name`, the shared
     // lane_data spelling that Happy Hare established (mmu_server
     // push_lane_data) and AFC adopted in AFCProject/AFC-Klipper-Add-On#833, so
@@ -594,7 +591,8 @@ FilamentSlotOverride from_json(const nlohmann::json& j) {
     // (an older build would then truncate a newer cache on its next save).
     o.catalog_id = helix::json_util::safe_string(j, "catalog_id");
     o.product_name = helix::json_util::safe_string(j, "product_name");
-    // Pessimistic legacy-default — see from_lane_data_record + #965.
+    // Only HelixScreen writes this cache, so a missing key keeps any field that
+    // carries a value locked (#965).
     o.user_locked_color = helix::json_util::safe_bool(j, "user_locked_color", o.color_set);
     o.user_locked_material =
         helix::json_util::safe_bool(j, "user_locked_material", !o.material.empty());
