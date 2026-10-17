@@ -159,8 +159,9 @@ setup() {
 @test "well-known user: biqu checked before pi" {
     mock_command_fail "systemctl"
     mock_command "ps" ""
-    # id succeeds for all users (mock always returns success)
-    mock_command "id" ""
+    # Only the well-known users exist, so a real /home/*/printer_data on the
+    # machine running the suite cannot win the earlier directory scan.
+    mock_command_script "id" 'case "$1" in biqu|pi|mks|qidi) exit 0;; *) exit 1;; esac'
 
     detect_klipper_user
     [ "$KLIPPER_USER" = "biqu" ]
