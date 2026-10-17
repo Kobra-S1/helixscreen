@@ -634,8 +634,6 @@ class PrintStatusPanel : public OverlayBase {
         bool reset_progress_bar,
         bool clear_excluded_objects); ///< Enable/disable buttons based on current print state
     void update_objects_text();       ///< Update "X of Y obj" display from exclude state
-    void
-    update_view_toggle_position(bool objects_visible); ///< Shift view toggle when objects btn shown
     void animate_badge_pop_in(lv_obj_t* badge, const char* label); ///< Pop-in animation for badges
     void animate_print_complete();      ///< Celebratory animation when print finishes
     void animate_print_cancelled();     ///< Warning animation when print is cancelled
