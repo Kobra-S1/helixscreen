@@ -149,3 +149,26 @@ TEST_CASE_METHOD(MappingCancelFixture, "Cancel without touching the toggle chang
 
     CHECK(persisted());
 }
+
+TEST_CASE_METHOD(MappingCancelFixture, "A close no button answered reverts the toggle like Cancel",
+                 "[filament_mapping][modal][cancel][dismiss]") {
+    set_persisted(true);
+
+    FilamentMappingModal modal;
+    seed(modal);
+    REQUIRE(modal.show(test_screen()));
+
+    FilamentMappingModalTestAccess::toggle(modal, false);
+    REQUIRE_FALSE(persisted());
+
+    SECTION("backdrop tap") {
+        lv_obj_send_event(modal.backdrop(), LV_EVENT_CLICKED, nullptr);
+    }
+    SECTION("programmatic hide") {
+        modal.hide();
+    }
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(modal.is_visible());
+    CHECK(persisted());
+}

@@ -34,28 +34,34 @@
                    thumbnail_hidden="gcode_viewer_mode gt 0 or exclude_map_active eq 1"
                    hint_hidden="gcode_viewer_mode ne 1"/>
 
-    <!-- Objects list button: top-left corner, visible only when multi-object print -->
-    <lv_obj name="btn_objects"
-            width="#icon_button_size_lg" height="#icon_button_size_lg" ignore_layout="true" align="top_left"
-            style_translate_x="#space_md" style_translate_y="#space_md" style_bg_color="#card_bg" style_bg_opa="180"
-            style_radius="#icon_button_radius_lg" clickable="true" style_pad_all="0" scrollable="false">
-      <bind_flag_if_eq subject="exclude_objects_available" flag="hidden" ref_value="0"/>
-      <lv_label text="#icon_debug_step_over"
-                style_text_font="mdi_icons_24" style_text_color="#text_muted" align="center"/>
-      <event_cb trigger="clicked" callback="on_print_status_objects"/>
-    </lv_obj>
+    <!-- Corner controls over the art: the objects list button (multi-object
+         prints only) and the view-mode toggle. The row lays them out, so a
+         hidden objects button gives its slot back to the toggle. The row
+         itself takes no taps; drags on bare art reach the viewer below. -->
+    <lv_obj name="preview_corner_buttons"
+            width="content" height="content" ignore_layout="true" align="top_left" style_translate_x="#space_md"
+            style_translate_y="#space_md" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
+            style_border_width="0" clickable="false" scrollable="false">
+      <!-- Objects list button, visible only for a multi-object print -->
+      <lv_obj name="btn_objects"
+              width="#icon_button_size_lg" height="#icon_button_size_lg" style_bg_color="#card_bg" style_bg_opa="180"
+              style_radius="#icon_button_radius_lg" clickable="true" style_pad_all="0" scrollable="false">
+        <bind_flag_if_eq subject="exclude_objects_available" flag="hidden" ref_value="0"/>
+        <lv_label text="#icon_debug_step_over"
+                  style_text_font="mdi_icons_24" style_text_color="#text_muted" align="center"/>
+        <event_cb trigger="clicked" callback="on_print_status_objects"/>
+      </lv_obj>
 
-    <!-- View mode toggle: switches between progress (ghost layers) and complete view -->
-    <!-- Position shifts right when objects button is visible (managed in C++) -->
-    <lv_obj name="btn_view_toggle"
-            width="#icon_button_size_lg" height="#icon_button_size_lg" ignore_layout="true" align="top_left"
-            style_translate_x="#space_md" style_translate_y="#space_md" style_bg_color="#card_bg" style_bg_opa="180"
-            style_radius="#icon_button_radius_lg" clickable="true" style_pad_all="0" scrollable="false">
-      <bind_flag_if_eq subject="gcode_viewer_mode" flag="hidden" ref_value="0"/>
-      <lv_label name="btn_view_toggle_icon"
-                bind_text="view_toggle_icon" style_text_font="mdi_icons_24" style_text_color="#text_muted"
-                align="center"/>
-      <event_cb trigger="clicked" callback="on_view_toggle"/>
+      <!-- View mode toggle: switches between progress (ghost layers) and complete view -->
+      <lv_obj name="btn_view_toggle"
+              width="#icon_button_size_lg" height="#icon_button_size_lg" style_bg_color="#card_bg" style_bg_opa="180"
+              style_radius="#icon_button_radius_lg" clickable="true" style_pad_all="0" scrollable="false">
+        <bind_flag_if_eq subject="gcode_viewer_mode" flag="hidden" ref_value="0"/>
+        <lv_label name="btn_view_toggle_icon"
+                  bind_text="view_toggle_icon" style_text_font="mdi_icons_24" style_text_color="#text_muted"
+                  align="center"/>
+        <event_cb trigger="clicked" callback="on_view_toggle"/>
+      </lv_obj>
     </lv_obj>
 
     <!-- PRINT COMPLETE OVERLAY: Shown when print finishes successfully -->

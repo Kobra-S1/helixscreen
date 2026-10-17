@@ -345,7 +345,6 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
             int available = self->printer_state_.get_defined_objects().size() >= 2 ? 1 : 0;
             lv_subject_set_int(&self->exclude_objects_available_subject_, available);
             self->update_objects_text();
-            self->update_view_toggle_position(available != 0);
         },
         ps_subjects);
 
@@ -3492,29 +3491,6 @@ void PrintStatusPanel::on_preprint_elapsed_changed(int seconds) {
 
     format_time(lifecycle_.preprint_elapsed_seconds(), elapsed_buf_, sizeof(elapsed_buf_));
     lv_subject_copy_string(&elapsed_subject_, elapsed_buf_);
-}
-
-void PrintStatusPanel::update_view_toggle_position(bool objects_visible) {
-    if (!overlay_root_)
-        return;
-    // Resolve the card by name, not by walking up from the viewer: the previews
-    // live one level down inside preview_clear_area, while both corner buttons
-    // are direct children of thumbnail_section.
-    lv_obj_t* card = lv_obj_find_by_name(overlay_root_, "thumbnail_section");
-    if (!card)
-        return;
-    lv_obj_t* btn = lv_obj_find_by_name(card, "btn_view_toggle");
-    if (!btn)
-        return;
-
-    int32_t space_md = theme_manager_get_spacing("space_md");
-    if (objects_visible) {
-        lv_obj_t* btn_objects = lv_obj_find_by_name(card, "btn_objects");
-        int32_t obj_w = btn_objects ? lv_obj_get_width(btn_objects) : 36;
-        lv_obj_set_style_translate_x(btn, space_md + obj_w + space_md, LV_PART_MAIN);
-    } else {
-        lv_obj_set_style_translate_x(btn, space_md, LV_PART_MAIN);
-    }
 }
 
 void PrintStatusPanel::update_objects_text() {

@@ -95,6 +95,9 @@ class MacroParamModal : public Modal {
     void on_show() override;
     void on_ok() override;
     void on_cancel() override;
+    /// Every close, answered or not, drops the widget pointers and the static
+    /// instance pointer: the widgets are about to be deleted.
+    void on_hide() override;
 
   private:
     friend struct MacroParamModalTestAccess;

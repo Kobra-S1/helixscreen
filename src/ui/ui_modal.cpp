@@ -980,6 +980,9 @@ void Modal::hide(ModalCloseReason reason) {
 
     // Call hook before destruction
     on_hide();
+    if (reason != ModalCloseReason::ButtonPress) {
+        on_dismissed();
+    }
 
     // Save pointers before clearing (needed for animation)
     lv_obj_t* backdrop = backdrop_;
