@@ -1525,6 +1525,11 @@ TEST_CASE_METHOD(SnapmakerFixture,
 }
 
 namespace {
+json all_loaded_frame() {
+    return json{
+        {"print_task_config", json{{"filament_exist", json::array({true, true, true, true})}}}};
+}
+
 json untagged_frame() {
     return json{
         {"filament_detect",
@@ -1644,12 +1649,15 @@ TEST_CASE_METHOD(SnapmakerFixture,
                  "[ams][snapmaker][rfid]") {
     AmsBackendSnapmaker backend(nullptr, nullptr);
 
+    // A loaded slot, so the lane_data auto-mirror keeps an override for it.
+    SnapmakerTestAccess::handle_status(backend, all_loaded_frame());
     // The helper's tag states 190-220 nozzle, 60 bed, 1000 g.
     SnapmakerTestAccess::handle_status(
         backend,
         make_filament_detect_status(2, "PLA", 0xFF202020u, "Snapmaker", json::array({1, 2, 3, 4})));
     REQUIRE(backend.get_slot_info(2).nozzle_temp_max == 220);
     REQUIRE(backend.get_slot_info(2).total_weight_g == 1000.0f);
+    REQUIRE(SnapmakerTestAccess::get_override(backend, 2).has_value());
 
     SnapmakerTestAccess::handle_status(backend, untagged_frame());
     const SlotInfo blank;
@@ -1676,6 +1684,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker user's edit stands over a reader n
     // The helper's tag: PLA, Snapmaker, 190-220 nozzle, 60 bed.
     const json tag =
         make_filament_detect_status(0, "PLA", 0xFF202020u, "Snapmaker", json::array({1, 2, 3, 4}));
+    SnapmakerTestAccess::handle_status(backend, all_loaded_frame());
     SnapmakerTestAccess::handle_status(backend, tag);
     SlotInfo edit = backend.get_slot_info(0);
     SECTION("an edit equal to the tag") {}
@@ -1703,6 +1712,77 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker user's edit stands over a reader n
     CHECK(info.nozzle_temp_min == edit.nozzle_temp_min);
     CHECK(info.nozzle_temp_max == edit.nozzle_temp_max);
     CHECK(info.bed_temp == edit.bed_temp);
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker bound spool stands over a reader naming no tag",
+                 "[ams][snapmaker][filament_slot_override][rfid]") {
+    SnapmakerTmpCacheDir tmp("spool_over_untagged");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+    AmsBackendSnapmaker backend(&api, nullptr);
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+        &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    SnapmakerTestAccess::inject_override_store(backend, std::move(store));
+
+    SnapmakerTestAccess::handle_status(backend, all_loaded_frame());
+    SnapmakerTestAccess::handle_status(
+        backend,
+        make_filament_detect_status(0, "PLA", 0xFF202020u, "Snapmaker", json::array({1, 2, 3, 4})));
+
+    // The tag's own values, or a spool of another make.
+    SlotInfo bound = backend.get_slot_info(0);
+    bound.spoolman_id = 42;
+    bool differs = false;
+    SECTION("a spool equal to the tag") {}
+    SECTION("a spool differing from the tag") {
+        differs = true;
+    }
+    if (differs) {
+        bound.brand = "Polymaker";
+        bound.material = "PETG";
+        bound.nozzle_temp_min = 230;
+        bound.nozzle_temp_max = 250;
+        bound.bed_temp = 80;
+    }
+    bool persist = true;
+    SECTION("bound by a user edit") {}
+    SECTION("bound by a Spoolman reverse sync") {
+        persist = false;
+    }
+    REQUIRE(backend.set_slot_info(0, bound, persist).success());
+
+    SnapmakerTestAccess::handle_status(backend, untagged_frame());
+    auto info = backend.get_slot_info(0);
+    CHECK(info.spoolman_id == 42);
+    CHECK(info.material == bound.material);
+    CHECK(info.brand == bound.brand);
+    CHECK(info.nozzle_temp_min == bound.nozzle_temp_min);
+    CHECK(info.nozzle_temp_max == bound.nozzle_temp_max);
+    CHECK(info.bed_temp == bound.bed_temp);
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker tag reading at the default colour states no colour",
+                 "[ams][snapmaker][rfid][print_task_config]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+
+    SnapmakerTestAccess::handle_status(
+        backend, json{{"print_task_config",
+                       json{{"filament_color_rgba",
+                             json::array({"AA0000FF", "AA0000FF", "AA0000FF", "AA0000FF"})}}}});
+    // A reading at the default grey is a tag with no colour, so the colour it
+    // leaves on the slot is not the tag's to take back.
+    SnapmakerTestAccess::handle_status(
+        backend, make_filament_detect_status(0, "PLA", 0xFF000000u | AMS_DEFAULT_SLOT_COLOR,
+                                             "Snapmaker", json::array({1, 2, 3, 4})));
+    REQUIRE(backend.get_slot_info(0).color_rgb == AMS_DEFAULT_SLOT_COLOR);
+
+    SnapmakerTestAccess::handle_status(backend, untagged_frame());
+    auto info = backend.get_slot_info(0);
+    CHECK(info.color_rgb == AMS_DEFAULT_SLOT_COLOR);
+    CHECK(info.material.empty());
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,

@@ -132,18 +132,20 @@ An entry that names no tag (`MAIN_TYPE` NONE, `SUB_TYPE` absent or NONE) takes b
 channel's last tag reading wrote: a slot field still holding the reading's value falls back to
 what `print_task_config` last said for that head (`filament_type`, `filament_vendor`,
 `filament_color_rgba`), or blank/default where it never spoke; a field something else has
-written since stays. Temperatures and weight, which only the tag carries, reset to blank
-unless the slot holds a user override. A repeat of the same silence has nothing to take back
+written since stays. A slot the user edited (a locked colour or material) or bound to a
+Spoolman spool keeps every field; the auto-mirror's own override does not count. A repeat of the same silence has nothing to take back
 and reports no change, and a restart forgets the previous session's readings
 (`src/printer/ams_backend_snapmaker.cpp#retract_tag_reading_locked`). `print_task_config`'s
 `NONE` or empty `filament_type` / `filament_vendor` reaches `SlotInfo` as an empty material or
 brand, never the literal.
 
 Every row above is code-verified against `parse_rfid_info()` and the apply loop
-(`src/printer/ams_backend_snapmaker.cpp#parse_rfid_info`, `1171-1204`): tag identity rides
+(`src/printer/ams_backend_snapmaker.cpp#parse_rfid_info`,
+`src/printer/ams_backend_snapmaker.cpp#handle_status_update`): tag identity rides
 `filament_detect.info[ch].CARD_UID`, and a `MAIN_TYPE == "NONE"` tag skips the field
-apply (taking back the last reading, above) while its UID is still captured for swap detection (`:1173-1182`). Physical reads
-from real RFID spools remain rig-pending; code-verified is not field-verified.
+apply (taking back the last reading, above) while its UID is still captured for swap
+detection. Physical reads from real RFID spools remain rig-pending; code-verified is not
+field-verified.
 
 ### Commands the Backend Emits
 

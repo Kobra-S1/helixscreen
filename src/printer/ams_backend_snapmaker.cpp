@@ -1332,11 +1332,20 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         slot->nozzle_temp_max = rfid.hotend_max_temp;
                         slot->bed_temp = rfid.bed_temp;
                         slot->total_weight_g = static_cast<float>(rfid.weight_g);
-                        tag_reading_[static_cast<size_t>(i)] =
-                            TagReading{slot->material,        brand,
-                                       slot->color_rgb,       slot->spool_name,
-                                       slot->nozzle_temp_min, slot->nozzle_temp_max,
-                                       slot->bed_temp,        slot->total_weight_g};
+                        // The default colour is no tag colour, and taking it
+                        // back would erase print_task_config's.
+                        std::optional<uint32_t> tag_color;
+                        if (rfid.color_rgb != AMS_DEFAULT_SLOT_COLOR) {
+                            tag_color = rfid.color_rgb;
+                        }
+                        tag_reading_[static_cast<size_t>(i)] = TagReading{slot->material,
+                                                                          brand,
+                                                                          tag_color,
+                                                                          slot->spool_name,
+                                                                          slot->nozzle_temp_min,
+                                                                          slot->nozzle_temp_max,
+                                                                          slot->bed_temp,
+                                                                          slot->total_weight_g};
                     }
                     changed = true;
                 }
@@ -1974,39 +1983,46 @@ bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& s
     }
     tag_reading_[i].reset();
 
+    // A slot the user edited or bound to a spool states what the user chose,
+    // even where it matches the tag. The auto-mirror keeps an override for
+    // every loaded slot, so only a lock or a spool id marks a user's.
+    const auto ovr = overrides_.find(slot_index);
+    const bool user_declared =
+        slot.spoolman_id > 0 || (ovr != overrides_.end() &&
+                                 (ovr->second.user_locked_color ||
+                                  ovr->second.user_locked_material || ovr->second.spoolman_id > 0));
+    if (user_declared) {
+        return true;
+    }
+
     // A SlotInfo field still holding the reading's value got it from the tag;
     // print_task_config is the firmware's other word on the head, so it takes
     // the field back, and a head it never spoke for goes blank. A field that
-    // moved since was written by something else and stays. The user's
-    // override is laid back over all of these at the tail.
+    // moved since was written by something else and stays.
     if (slot.material == tag->material) {
         slot.material = task_field_value(task_type_[i]);
     }
     if (!tag->brand.empty() && slot.brand == tag->brand) {
         slot.brand = task_field_value(task_vendor_[i]);
     }
-    if (slot.color_rgb == tag->color_rgb) {
+    if (tag->color_rgb.has_value() && slot.color_rgb == *tag->color_rgb) {
         slot.color_rgb = task_color_[i].value_or(AMS_DEFAULT_SLOT_COLOR);
     }
     if (!tag->spool_name.empty() && slot.spool_name == tag->spool_name) {
         slot.spool_name.clear();
     }
-    // No firmware source but the tag carries temperatures or weight, so a
-    // user's own values are told apart only by the slot holding an override.
-    if (overrides_.find(slot_index) == overrides_.end()) {
-        const SlotInfo blank;
-        if (slot.nozzle_temp_min == tag->nozzle_temp_min) {
-            slot.nozzle_temp_min = blank.nozzle_temp_min;
-        }
-        if (slot.nozzle_temp_max == tag->nozzle_temp_max) {
-            slot.nozzle_temp_max = blank.nozzle_temp_max;
-        }
-        if (slot.bed_temp == tag->bed_temp) {
-            slot.bed_temp = blank.bed_temp;
-        }
-        if (slot.total_weight_g == tag->total_weight_g) {
-            slot.total_weight_g = blank.total_weight_g;
-        }
+    const SlotInfo blank;
+    if (slot.nozzle_temp_min == tag->nozzle_temp_min) {
+        slot.nozzle_temp_min = blank.nozzle_temp_min;
+    }
+    if (slot.nozzle_temp_max == tag->nozzle_temp_max) {
+        slot.nozzle_temp_max = blank.nozzle_temp_max;
+    }
+    if (slot.bed_temp == tag->bed_temp) {
+        slot.bed_temp = blank.bed_temp;
+    }
+    if (slot.total_weight_g == tag->total_weight_g) {
+        slot.total_weight_g = blank.total_weight_g;
     }
     spdlog::debug("{} Slot {} tag reader names no tag, took back the tag reading",
                   backend_log_tag(), slot_index);

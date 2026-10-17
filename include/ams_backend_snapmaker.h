@@ -427,12 +427,12 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     std::array<std::optional<uint32_t>, NUM_TOOLS> task_color_{};
 
     /// What the last tag reading on each channel wrote onto SlotInfo (an empty
-    /// brand or spool_name: the tag wrote none). Unset until a tag is read,
-    /// and again once retract_tag_reading_locked() takes it back.
+    /// brand or spool_name, or no colour: the tag stated none). Unset until a
+    /// tag is read, and again once retract_tag_reading_locked() takes it back.
     struct TagReading {
         std::string material;
         std::string brand;
-        uint32_t color_rgb = 0;
+        std::optional<uint32_t> color_rgb;
         std::string spool_name;
         int nozzle_temp_min = 0;
         int nozzle_temp_max = 0;
@@ -443,8 +443,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
 
     /// On a channel whose tag reader names no tag, take what the last tag
     /// reading wrote off @p slot, falling back to what print_task_config last
-    /// said. Returns whether there was a reading to take back. Caller holds
-    /// mutex_.
+    /// said. A slot the user declared or bound to a spool keeps its fields.
+    /// Returns whether there was a reading to take back. Caller holds mutex_.
     bool retract_tag_reading_locked(int slot_index, SlotInfo& slot);
 
     /// How a SET_PRINT_FILAMENT_CONFIG may reach @p head: false plain, true
