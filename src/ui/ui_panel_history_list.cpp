@@ -1175,6 +1175,11 @@ void HistoryListPanel::handle_reprint() {
 
     spdlog::info("[{}] Reprint requested for: {}", get_name(), job.filename);
 
+    // Copied out before navigating: a queue drain during the panel switch runs
+    // the pops below inline, and closing the list re-filters filtered_jobs_,
+    // which frees the storage `job` points into.
+    const std::string filename = job.filename;
+
     // Navigate to the Print Select file detail view (DRY - reuse existing UI)
     // Step 1: Close all history overlays (detail → list → dashboard)
     NavigationManager::instance().go_back(); // Close history detail overlay
@@ -1189,10 +1194,10 @@ void HistoryListPanel::handle_reprint() {
         get_print_select_panel(get_printer_state(), get_moonraker_api());
     if (print_panel) {
         // select_file_by_name searches the file list and shows detail view if found
-        if (print_panel->select_file_by_name(job.filename)) {
-            spdlog::info("[{}] Navigated to file details for: {}", get_name(), job.filename);
+        if (print_panel->select_file_by_name(filename)) {
+            spdlog::info("[{}] Navigated to file details for: {}", get_name(), filename);
         } else {
-            spdlog::warn("[{}] File not found in print panel: {}", get_name(), job.filename);
+            spdlog::warn("[{}] File not found in print panel: {}", get_name(), filename);
             ui_notification_warning("File not found in print list");
         }
     } else {
