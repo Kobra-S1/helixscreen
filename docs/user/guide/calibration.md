@@ -148,7 +148,7 @@ Interactive panel for dialing in your Z-offset when not printing. Works with all
 3. Tap **Start** — the printer homes and begins the calibration sequence
 4. Use the **+/−** adjustment buttons to lower the nozzle (paper test: adjust until paper drags slightly)
 5. Tap **Accept** when satisfied, or **Abort** to cancel
-6. The offset is saved to your Klipper config automatically
+6. The offset is saved to your Klipper config automatically. On printers whose firmware keeps the Z-offset itself (FlashForge with ZMOD, for example) HelixScreen applies it and the firmware stores it. On the Snapmaker U1 nothing stores it: the firmware re-applies each head's own stored offset whenever that head is picked up, so the result lasts only until the next tool change
 
 HelixScreen picks the right calibration command for your setup (`PROBE_CALIBRATE`, `Z_ENDSTOP_CALIBRATE`, or `SET_GCODE_OFFSET`) based on your printer's detected probe configuration.
 

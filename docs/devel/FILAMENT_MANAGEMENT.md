@@ -975,7 +975,11 @@ The detail panel showing slots, path visualization, hub sensors, and the current
 
 Key features:
 - Slot grid with overlap layout for >4 slots (shared via `ui_ams_slot_layout.h`)
-- Path canvas showing filament routing from slots through hub to toolhead
+- Path canvas showing filament routing from slots through hub to toolhead. On a PARALLEL
+  path a tap on another tool's head offers to switch to it through `offer_tool_change()`
+  (`TOOL_ABSTRACTION.md` § "Requesting a Tool Change from the UI"); a tube, spool, the
+  mounted head or a head mapped to no tool opens the slot context menu
+  (`FILAMENT_PATH_CANVAS.md` § "Cache & Invalidation" has the hit-test)
 - Backend selector (shown when `backend_count > 1`)
 - Unit scoping: can display a subset of slots for a single unit within a multi-unit backend
 
@@ -1065,7 +1069,8 @@ A backend fault reaches the user through one of **two independent channels**. Th
 | **AD5X IFS** | — | `AmsAction::ERROR`, raised by `evaluate_runout_locked()` or by an operation timeout | Runout: Resume (primary, hot) · Purge `M83`+`G1 E` (hot) · `IFS_UNLOCK` (danger, cold). Timeout: `IFS_UNLOCK` alone. **No "Load slot N"** — every IFS load path self-homes and trash-moves into the part |
 | **CFS** | **inverted** — `is_bang_line()` returns `nullopt`, so `!!` `key8xx` codes stay with the generic classifier. Claims only paused `respond_info` lines matching the auto-refill give-up wording | — (never assigns `AmsAction::ERROR`) | Resume (primary, hot) · Reset CFS = `BOX_ERROR_CLEAR` (danger, cold) |
 | **QIDI Box** | — | `AmsAction::ERROR`, raised by a negative `slot<N>` state word (blocked lane) | Lone dismiss — recovery gcode unknown, clearance is manual (#1041) |
-| **ACE**, **Tool changer**, **Snapmaker** | — | — | — (generic runout modal owns these; see below) |
+| **Snapmaker** | `is_bang_line()`, while paused or printing, then the firmware's `e<N> not edit filament` resume refusal, as "Filament not set" with `command_refusal` set (§ third channel below) | — | Lone OK dismiss: no one-tap gcode sets a filament type. Runout itself is the generic modal's, as below |
+| **ACE**, **Tool changer** | — | — | — (generic runout modal owns these; see below) |
 
 **There is a third channel, and it decides whether Channel A speaks at all.** When the fault
 originated in a macro *we* sent, the same rejection also comes back as the JSON-RPC error reply
@@ -1075,6 +1080,17 @@ if the answer is "the caller's own UI", it records the message and `GcodeErrorRo
 `!!` toast — Channel A never runs its presentation. This is why a backend's dispatch path must
 declare `caller_surfaces_errors` honestly: a log-only `on_error` that claims the report
 silences Channel A for a fault nobody saw. See `RPC_ERROR_OWNERSHIP.md`.
+
+A backend can take the other side of that trade for a refusal it explains better than the
+caller can. An `ErrorEvent` with `command_refusal` set is never suppressed as "already
+reported via RPC"; instead the caller routes its own report through
+`rpc_error_correlation::report_unless_explained()`, which the router claims when the active
+backend's `classify_error()` of the `!!` copy is a command refusal it will present. The
+caller's report then runs only if the explanation has not surfaced 1.5 s later. Resume
+(`dispatch_prepared_resume()`) and recovery-button sends (`RecoveryModalPresenter`) report
+this way, so the U1's `e<N> not edit filament` reads as "Filament not set" rather than a
+raw "Failed to resume:" toast. `RPC_ERROR_OWNERSHIP.md` § "A refusal the classifier
+explains" has the mechanism.
 
 **Why CFS inverts the usual gate.** Creality's box reports coded faults as `!!` lines carrying a `key8xx` JSON payload, which `error_classify::classify()` already decodes into a CRITICAL event (and a "Reset CFS" button for `key840`). Claiming those in `classify_error()` would either duplicate that path or silently replace it. The runout give-up messages ride the *other* half of the same channel — plain `respond_info` output that no classifier looks at — so taking non-`!!` lines and only non-`!!` lines is what keeps the two from colliding.
 
@@ -1087,7 +1103,7 @@ silences Channel A for a fault nobody saw. See `RPC_ERROR_OWNERSHIP.md`.
 
 A merely-`silent` request records **nothing** in the RPC ledger. `silent` means "no automatic toast from us", not "the user was told" — recording on it would mute the `!!` copy for a failure that reached no one. Only a caller that declared `caller_surfaces_errors`, or the generic fallback actually firing, earns a record. See `RPC_ERROR_OWNERSHIP.md`.
 
-`RecoveryModalPresenter` separately dedups on `detail` **plus** the action set — the action set is part of the identity because AFC legitimately emits byte-identical text on both channels with different affordances (#1171). Backends should populate `ErrorEvent::raw_detail` with the firmware's untranslated wording when `detail` has been rewritten, or the ledger has nothing the other channel can match.
+`RecoveryModalPresenter` separately dedups on `detail` **plus** the action set (a `command_refusal` event first clears that memory, since it answers the command just sent) — the action set is part of the identity because AFC legitimately emits byte-identical text on both channels with different affordances (#1171). Backends should populate `ErrorEvent::raw_detail` with the firmware's untranslated wording when `detail` has been rewritten, or the ledger has nothing the other channel can match.
 
 **Who owns the runout surface.** Both channels compete with a third, older surface: the generic sensor-driven modal (`FilamentRunoutHandler` on the pause edge, `PrintStatusWidget` when idle), gated by `RuntimeConfig::should_show_runout_modal()`. The rule is **one surface per printer**: that predicate returns false exactly for the backends in the table above that raise their own runout fault (AFC, Happy Hare, AD5X IFS, CFS), and true for hub backends that raise nothing (ACE, QIDI Box) — which the old blanket "is it a hub AMS" test silenced with nothing put in its place (#1250).
 
@@ -2264,7 +2280,7 @@ Create include/ams_backend_mysystem.h and src/printer/ams_backend_mysystem.cpp. 
 whole group gets **no error dialog at all**, silently. Read § [Two error channels](#two-error-channels)
 before implementing any of them:
 
-- `classify_error()` -- Channel A: claim one gcode-response line and return an `ErrorEvent`. The router applies **no line filtering**, so every override must gate itself (AFC and Happy Hare take only `!!` lines via `helix::is_bang_line`; CFS deliberately takes only non-`!!` lines). Return `nullopt` to defer to the generic classifier.
+- `classify_error()` -- Channel A: claim one gcode-response line and return an `ErrorEvent`. The router applies **no line filtering**, so every override must gate itself (AFC and Happy Hare take only `!!` lines via `helix::is_bang_line`; CFS deliberately takes only non-`!!` lines). Return `nullopt` to defer to the generic classifier. Set `ErrorEvent::command_refusal` only for a line that explains why the firmware refused a command the user just sent: the router also asks the hook ahead of the `!!` copy (`GcodeErrorRouter::explains_rpc_error()`), so a refusal override must be side-effect free and log nothing.
 - `current_error()` -- Channel B: the current actionable fault derived from backend **status**, consulted only by `AmsErrorBridge` on the rising edge into `AmsAction::ERROR`. Independent of channel A, not an alternative to it: AFC overrides both.
 - `build_recovery_actions()` (protected) -- The buttons the user can tap for the current fault. **The caller already holds `mutex_`**, which is non-recursive: an override that locks deadlocks. The base returns an empty vector deliberately: `decide_presentation()` keys off `recovery_actions.empty()` to pick MODAL vs MODAL_WITH_RECOVER, so recovery is strictly opt-in.
 - **Your dispatch path must pass `caller_surfaces_errors=false` when its `on_error` only logs.** `AmsSubscriptionBackend::ensure_homed_then()` and `dispatch_payload()` (`include/ams_subscription_backend.h`) take it as `std::optional<bool>`; unset means "derive from `on_error`". That derivation is wrong whenever the callback ends up in `handle_dispatch_error()`'s default -- log the message and reset the action to `AmsAction::IDLE`, which no user ever sees. Claiming the report there records the rejection for RPC dedup and silences Channel A's `!!` copy, so a failed macro reaches nobody. `scripts/check_gcode_error_ownership.py` gates the log-only shape at zero; the escape hatch is `// ERROR_OWNERSHIP_OK: <reason>`. See `RPC_ERROR_OWNERSHIP.md`.

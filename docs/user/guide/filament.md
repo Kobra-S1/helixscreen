@@ -168,6 +168,12 @@ With it on, the external spool appears on the filament path beside your slots. T
 
 **Always Show Bypass Spool**, in the same place, keeps the external spool on the filament path while bypass is disengaged. It applies to AFC systems only (Box Turtle, OpenAMS), which report a bypass sensor whether or not one is wired, so the spool is otherwise hidden until bypass is engaged.
 
+### Switching Toolheads from the Filament Path
+
+On printers with a toolhead per slot (the Snapmaker U1, tool changers, and AFC or Happy Hare set up as a tool changer), the filament path draws every toolhead. **Tap a toolhead that is not mounted** to switch to it. HelixScreen asks "Switch to T1?" first, unless you turned off [Confirm tool changes](settings/safety.md#confirm-tool-changes). The same rules apply as on the home screen's [Tool Switcher](home-panel.md#switching-tools): a paused print always asks, and a running print or a filament system waiting for you refuses the change with a message.
+
+Tapping the mounted toolhead, or any slot's filament tube or spool, opens the slot menu below instead, so a tap meant for the filament never moves the toolhead.
+
 ### Slot Context Menu
 
 **Tap any slot** to open a context menu with actions for that specific slot:
@@ -295,7 +301,7 @@ Other backends show their own (usually smaller) set of sections, or none at all.
 ### Tips
 
 - When an AMS slot is actively loaded, its material information drives spool preset behavior — you'll see a spool preset button on the Filament and Temperature panels, and purge macros receive the correct temperature automatically. See [External Spool Configuration](#external-spool-configuration) for details.
-- The filament path diagram at the bottom of the slot view is interactive — you can tap slot entry points to trigger a load.
+- The filament path diagram at the bottom of the slot view is interactive: tap a slot's spool or tube to open its slot menu, and on printers with a toolhead per slot, tap another toolhead to [switch to it](#switching-toolheads-from-the-filament-path).
 - During a load or unload, watch the step progress in the sidebar to track exactly where the operation is.
 
 ---

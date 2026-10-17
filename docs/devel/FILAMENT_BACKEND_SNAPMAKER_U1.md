@@ -183,6 +183,14 @@ conservative prefix/suffix fallback for unknown future states
   idle, and not the active lane — the firmware reports `no_filament` for any empty lane,
   which must not latch a spurious error modal on a deliberately unloaded head in a
   multi-color print (`src/printer/ams_backend_snapmaker.cpp#friendly_channel_error`, `1321-1354`).
+- **Resume refusal.** RESUME is refused while a used extruder's `filament_type` in
+  `print_task_config` is empty or `NONE` (a tagless third-party spool), with
+  `!! e<N> not edit filament`. `classify_error()` turns it, while paused or printing, into a
+  "Filament not set" modal naming the 1-based slot, with a lone OK: no single gcode fixes it,
+  and offering Resume would loop. The event sets `command_refusal`, so the resume caller's raw
+  "Failed to resume:" toast stands down for it and runs only if the explanation never
+  arrives (`RPC_ERROR_OWNERSHIP.md` § "A refusal the classifier explains";
+  `src/printer/ams_backend_snapmaker.cpp#classify_error`).
 - **`preload_finish` is terminal-for-latch but does not end the operation** — a re-unload
   of a staged lane keeps that state while the nozzle heats, and dropping to Idle there
   killed the unload step display mid-heat (`src/printer/ams_backend_snapmaker.cpp#handle_status_update`).

@@ -274,6 +274,37 @@ During a print, each tool's temperature is shown with its tool name prefix (e.g.
 
 The temperature control panel provides a dropdown to select which tool's temperature to control. On single-tool printers, the selector is hidden. The dropdown is rebuilt when `tools_version` changes.
 
+### Requesting a Tool Change from the UI
+
+Every surface that mounts another tool on a tap asks one function, so a tap refused on one
+is refused on all of them with the same words: the home tool switcher
+(`src/ui/panel_widgets/tool_switcher_widget.cpp#handle_tool_selected`), a toolhead on the
+AMS panel's PARALLEL path (`src/ui/ui_panel_ams.cpp#on_path_toolhead_clicked`) and the
+filament panel's extruder dropdown (`src/ui/ui_panel_filament.cpp#handle_extruder_changed`).
+
+- **The decision** is the pure `decide_tool_change()` (`include/tool_change_request.h`) over
+  `ToolChangeInputs`, which `tool_change_inputs()` reads from live state. In order: the
+  mounted tool is `AlreadyActive`; a print that blocks filament ops refuses with the
+  backend's own copy (`tool_change_print_refusal()` over `print_blocks_filament_op()`); a
+  backend in `AmsAction::PAUSED` refuses with "The filament system needs attention"; any
+  other action but IDLE and ERROR holds the system and is `Busy`, ignored silently; a
+  paused job is `ConfirmPaused` whatever the setting; then `ConfirmSetting` or `Immediate`
+  from the "Confirm tool changes" setting.
+- **The dispatch** is `offer_tool_change()`: refusals raise a warning toast, a confirm
+  verdict shows a `modal_confirm`, and the change goes through
+  `ToolState::request_tool_change()`. `ToolChangeHooks` reports back: `on_success`,
+  `on_failed` (after the shared "Tool change failed" toast, possibly off the main thread),
+  and `on_declined` for every path that requested nothing, a dialog dismissal included.
+  The filament panel uses `on_declined` to put its dropdown back on the mounted tool.
+  `owner_token` gates the dialog's callbacks, and `resolve_api` is asked when the change is
+  sent, so a dialog left open across a reconnect never holds a stale API.
+- **The setting** is `SafetySettingsManager::get_tool_change_require_confirmation()`
+  (`/safety/tool_change_require_confirmation`, default on, subject
+  `settings_tool_change_confirm`). Its Settings > Safety & Notifications row is hidden while
+  `tool_count` is below 2.
+- **Labels.** The confirmation names the tool by `ToolInfo::name`, the text the switcher
+  and dropdown show ("Switch to T1?").
+
 ---
 
 ## Key Files
@@ -284,6 +315,7 @@ The temperature control panel provides a dropdown to select which tool's tempera
 | `src/printer/tool_state.cpp` | Discovery, status parsing, subject management |
 | `include/printer_discovery.h` | Hardware detection: `tool_names()`, `has_tool_changer()` |
 | `include/ams_state.h` | Multi-backend filament system (linked via backend_index) |
+| `include/tool_change_request.h`, `src/ui/tool_change_request.cpp` | The one tool-change decision and dispatch every UI surface uses |
 
 ---
 

@@ -1347,6 +1347,24 @@ curl -X POST http://localhost:7125/printer/print/cancel
 
 ---
 
+### Snapmaker U1: Resume shows "Filament not set"
+
+**Symptoms:**
+- After a pause (a runout, say), tapping Resume shows **Filament not set**: "Slot 2 has no filament type set, so the printer will not resume."
+- The print stays paused
+
+**What's going on:**
+The U1 will not resume while a toolhead the print uses has no material recorded for it. Snapmaker RFID spools fill that in by themselves; a spool without a tag leaves it empty, so the printer refuses the resume.
+
+**Solution:**
+1. Open the filament system screen and tap the slot the message names
+2. Tap **Spool Info** and set the material (and colour, if you like), then save
+3. Tap **Resume** again
+
+If the printer refuses the resume for some other reason, HelixScreen shows the printer's own message as "Failed to resume: ..." instead.
+
+---
+
 ### Power cut out during a print
 
 **Symptoms:**

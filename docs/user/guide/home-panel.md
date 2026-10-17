@@ -566,10 +566,12 @@ The widget updates automatically when the active tool changes — whether you sw
 
 Tap a tool (or pick one from the popup) to make it active.
 
-- **When idle**, the tool change happens immediately.
-- **When printing or paused**, a confirmation dialog appears first — changing tools mid-print can cause issues, so you have to confirm before it proceeds.
+- **When idle**, HelixScreen asks "Switch to T1?" first. Turn off [Confirm tool changes](settings/safety.md#confirm-tool-changes) in Settings > Safety & Notifications to switch right away.
+- **When paused**, a confirmation dialog always appears first, because changing tools mid-print can cause problems. Printers whose filament change homes the toolhead itself (such as the AD5X) refuse tool changes while paused instead.
+- **While printing or preparing to print**, switching is unavailable: the tools are greyed out, and a tap shows a warning instead of changing tools.
+- **While your filament system needs attention** (it has stopped and is waiting for you), a tap shows a warning instead. While it is busy loading or unloading, a tap does nothing.
 
-Tapping the tool that's already active does nothing.
+Tapping the tool that's already active does nothing. A toolhead on your [filament system's screen](filament.md#switching-toolheads-from-the-filament-path) and the tool list on the Filament screen switch tools the same way.
 
 > **Tool Switcher vs. Active Tool Badge:** The Tool Switcher is an optional, interactive widget you add to your dashboard. The [Active Tool Badge](#active-tool-badge) is a small read-only indicator that always appears in the top bar on multi-tool printers. The badge shows the current tool; the widget lets you change it.
 

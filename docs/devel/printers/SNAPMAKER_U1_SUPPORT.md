@@ -295,19 +295,28 @@ head re-applies that offset with an absolute `SET_GCODE_OFFSET X= Y= Z=`
 from its virtual_sdcard.py on each tool change). A babystep therefore lasts until the next tool change or the end of the
 print, and Print Tune says so (`ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE`).
 
+`Z_OFFSET_APPLY_PROBE` is no way out either (measured on the device): it writes the
+first head's coil section and folds the active head's per-head offset into it, so it is
+not a save of the babystep and HelixScreen never sends it here.
+
 ## Print Start Tracking
 
-HelixScreen uses the `snapmaker_u1` print start profile (`config/print_start_profiles/snapmaker_u1.json`) to track progress through the startup sequence. The profile uses weighted progress mode with these phases:
+HelixScreen uses the `snapmaker_u1` print start profile (`assets/config/print_start_profiles/snapmaker_u1.json`) in weighted progress mode, so each phase's share of the bar comes from the ETA engine rather than the profile. The U1's PRINT_START is inlined into the slicer gcode, and the profile reads the firmware's own action codes (`// Success: Set action code <CODE>` and `// Success: Changed main state to PRINTING with action <CODE>`) plus two console lines:
 
-1. Homing (10%)
-2. Bed heating (20%)
-3. Nozzle heating (20%)
-4. Z tilt adjust (15%)
-5. Bed mesh calibration (15%)
-6. Nozzle cleaning (10%)
-7. Purging (10%)
+| Signal | Phase | Label |
+|--------|-------|-------|
+| `// trigger_mcu_pos: {` (G28 X/Y) | HOMING | Homing axes... |
+| `// z offset: ` (the G28 Z touch, after every tool pick and before the mesh) | HOMING | Probing Z... |
+| `PRINT_SWITCH_CHECKING` | INITIALIZING | Checking extruders... |
+| `PRINT_AUTO_FEEDING` / `PRINT_REPLENISHING` | INITIALIZING | Loading filament... / Replenishing filament... |
+| `PRINT_BED_DETECTING`, `DETECT_PLATE` | BED_MESH | Inspecting bed... / Detecting plate... |
+| `BED_PREHEATING` (the firmware's bed soak) | HEATING_BED | Heat Soak |
+| `BED_PRESCANNING` (four corners) | BED_MESH | Validating bed mesh... |
+| `BED_LEVELING` | BED_MESH | Bed mesh... (its message change restarts the probe count) |
+| `PRINT_PREEXTRUDING` | PURGING | Priming... |
+| `PRINT_RESUMING` | INITIALIZING | Resuming print... |
 
-The progress bar updates as each phase completes, so you can see exactly where your printer is in its startup routine.
+`// z_mesh_complete:` also comes from G28 Z, so it maps to nothing. A response pattern never moves the phase back, so the G28 Z touch just before the mesh, which follows plate detect, keeps the "Detecting plate..." label rather than showing Probing Z. Heating has no pattern: the collector detects it from temperature state. The first model layer, not an action code, ends the pre-print.
 
 ## Pre-Print Flow Calibration (Pressure Advance)
 

@@ -408,6 +408,17 @@ re-running the topology phase. Hub/buffer/bypass phases record their drawn boxes
 into `hits`, and `filament_path_click_cb()` tests taps against those rects — the
 single source of truth, no geometry re-derivation.
 
+A PARALLEL tap goes through the pure `helix::ui::parallel_tap_at()`
+(`include/ui_filament_path_canvas.h`) over a `ParallelTapLayout` built from the same
+`parallel_rows()` and `toolhead_glyph_bounds()` the renderer draws with. Above the head
+glyph's top, and above the sensor row however tall the glyph is drawn, a tap is the lane's
+(tube or spool); below that it is a head's only inside the drawn glyph, and where
+neighbours overlap the nearest column answers. A lane tap reaches the slot callback. A head
+tap reaches the toolhead callback (`filament_path_canvas_set_toolhead_callback()`), or the
+slot callback when none is set. The AMS panel's toolhead callback offers a tool change and
+falls back to the slot menu for the mounted head or a slot mapped to no tool
+(`src/ui/ui_panel_ams.cpp#on_path_toolhead_clicked`).
+
 ### What invalidates what
 
 State setters call `layered_mark_dirty(obj, static_dirty, overlay_dirty)`
@@ -504,6 +515,9 @@ use the LVGL test fixture.
 | `tests/unit/test_filament_path_geometry.cpp` | `[filament-path][geometry]` | `seg_length`, `path_length`, `path_point_at`, `route_orthogonal`, `route_polyline_filleted`, `build_merge_fan` — pure math, no LVGL |
 | `tests/unit/test_filament_path_mixed_render.cpp` | `[filament-path][mixed][topology]`, `[filament-path][parallel][topology]` | MIXED/PARALLEL produce opaque overlay pixels once laid out; `SIZE_CHANGED` reschedules the async refresh post-layout |
 | `tests/unit/test_filament_path_canvas.cpp` | `[canvas][hit_test]`, `[filament-path][canvas]` | Hit-rect tests (hub box dead-center / argument order), SIZE_CHANGED handler |
+| `tests/unit/test_toolhead_glyph_bounds.cpp` | `[filament-path][toolhead_tap]` | `toolhead_bounds()` against each style's drawn pixels |
+| `tests/unit/test_filament_path_parallel_tap.cpp` | `[filament-path][hit_test][toolhead_tap]` | A rendered PARALLEL canvas: a head tap reaches the toolhead callback (the slot callback when none is set), a tube tap the slot callback |
+| `tests/unit/test_ams_panel_toolhead_tap.cpp` | `[ams][path][hit_test]`, `[ams][path][toolhead_tap]` | `parallel_tap_at()` (glyph edges, tube above the glyph and sensor row, between columns, nearest column on overlap); the AMS panel's head tap asks or mounts, the mounted head opens the slot menu, busy is ignored, printing and a filament system needing attention refuse |
 
 ```bash
 ./build/bin/helix-tests "[filament-path]"

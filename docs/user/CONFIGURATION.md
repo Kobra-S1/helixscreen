@@ -1323,7 +1323,8 @@ Located in the `safety` section:
   "safety": {
     "estop_require_confirmation": true,
     "cancel_escalation_enabled": false,
-    "cancel_escalation_timeout_seconds": 30
+    "cancel_escalation_timeout_seconds": 30,
+    "tool_change_require_confirmation": true
   }
 }
 ```
@@ -1343,6 +1344,12 @@ Located in the `safety` section:
 **Default:** `30`
 **Options:** `15`, `30`, `60`, `120`
 **Description:** How long to wait (in seconds) after sending a cancel before escalating to emergency stop. Only applies when `cancel_escalation_enabled` is `true`.
+
+### `tool_change_require_confirmation`
+**Type:** boolean
+**Default:** `true`
+**UI:** Settings > Safety & Notifications > **Confirm tool changes** (shown only on printers with more than one tool)
+**Description:** Ask before switching to another tool from the home screen's tool switcher, a toolhead on the filament system's screen, or the Filament screen's tool list. When `false`, those taps switch straight away. A tool change during a paused print always asks, whatever this says.
 
 ---
 
