@@ -187,7 +187,7 @@ def _display_name(profile_name: str, brand: str) -> str:
     return name or profile_name
 
 
-def build_catalog(orca_root, cfs_seed, type_ranges, library_marker="OrcaFilamentLibrary"):
+def build_catalog(orca_root, seed, type_ranges, library_marker="OrcaFilamentLibrary"):
     # The OrcaFilamentLibrary is self-contained (its own base/ dir). Resolve
     # inheritance ONLY within it: loading the ~30 other vendor packs clobbers
     # same-named bases (e.g. fdm_filament_pc) in the flat name->profile map and
@@ -218,17 +218,17 @@ def build_catalog(orca_root, cfs_seed, type_ranges, library_marker="OrcaFilament
             continue  # collapse per-color duplicates
         seen.add(key)
         products.append(product)
-    _merge_cfs_seed(products, cfs_seed)
+    _merge_seed(products, seed)
     _dedupe_ids(products)
     _assert_no_degenerate_ranges(products)
     products.sort(key=lambda p: (p.get("source", ""), p["brand"].lower(), p["name"].lower(), p["id"]))
     return products, sorted(library_types)
 
 
-def _merge_cfs_seed(products, cfs_seed):
-    """Fold the CFS seed into the Orca products instead of appending it wholesale.
+def _merge_seed(products, seed):
+    """Fold the filament seed into the Orca products instead of appending it wholesale.
 
-    The seed exists to carry per-material CFS codes (used to match a physical CFS
+    The seed carries per-material CFS codes (used to match a physical CFS
     spool by its embedded code), but it names its generics "Generic TPU" while the
     Orca library names the same material "TPU". Appended as-is, the two surface as
     duplicate picker rows with conflicting temps (the seed generics are nozzle-only).
@@ -249,13 +249,17 @@ def _merge_cfs_seed(products, cfs_seed):
     so hand-edits to assets/filaments.json alone would be wiped — the seed here is
     what makes the entry durable across regen.
 
-    Despite the `cfs_seed` name, the seed file is also the durable home for
+    The seed file is also the durable home for
     `source: "helix-seed"` placeholder products: minimal Generic entries whose only
     job is to make a filament_database.h type reachable in the material picker,
     which builds its list from the catalog rather than from the type table. They
     carry no temps or density on purpose — every value inherits from
     filament_database.h so the two layers cannot drift. Orca has no profiles for
     these types, so they always take the standalone-append path below.
+
+    `source: "vendor-spec"` entries are real products Orca has no profile for,
+    carrying the temperatures the maker publishes. They take the same
+    standalone-append path, and the next regen keeps them.
     """
     def _name_key(s):
         # Fold "PLA-Silk" == "PLA Silk", but keep "+" -- it's a meaningful suffix
@@ -276,7 +280,7 @@ def _merge_cfs_seed(products, cfs_seed):
     # exactly that pair), so dropping `type` from the key costs no precision, and
     # a type disagreement now RESOLVES instead of forking.
     orca_by_key = {(p["brand"], _name_key(p["name"])): p for p in products}
-    for entry in cfs_seed:
+    for entry in seed:
         merged = dict(entry)
         merged["name"] = _display_name(entry.get("name", ""), entry.get("brand", ""))
         merged["id"] = _slug(entry.get("brand", ""), merged["name"])
@@ -286,7 +290,7 @@ def _merge_cfs_seed(products, cfs_seed):
             if seed_type and match.get("type") != seed_type:
                 # The seed is hand-curated against filament_database.h; Orca's
                 # open-enum type is not. The seed wins, and says so out loud.
-                print(f"NOTE: cfs_seed retypes {match['id']}: "
+                print(f"NOTE: seed retypes {match['id']}: "
                       f"{match.get('type')!r} -> {seed_type!r}", file=sys.stderr)
                 match["type"] = seed_type
             codes = match.setdefault("codes", {})
@@ -299,7 +303,7 @@ def _merge_cfs_seed(products, cfs_seed):
 def _assert_no_degenerate_ranges(products):
     """Refuse to emit a catalog containing a zero-width or inverted nozzle range.
 
-    build_product() already reconciles Orca's ranges, but the cfs_seed path writes
+    build_product() already reconciles Orca's ranges, but the seed path writes
     nozzle_min/nozzle_max straight through unvalidated, so this is the one gate
     every product passes regardless of source. A degenerate range is silently
     useless in the UI, which is why it survived to ship once; failing the
@@ -321,7 +325,7 @@ def _assert_no_degenerate_ranges(products):
 def _dedupe_ids(products):
     """Disambiguate duplicate `id`s in place with a `-2`, `-3`, ... suffix.
 
-    Safety net for the union of Orca-derived products and cfs_seed: no matter
+    Safety net for the union of Orca-derived products and seed: no matter
     the source, a duplicate id would silently shadow an earlier product in any
     id-keyed consumer. Logs a warning naming every colliding id.
     """
@@ -355,13 +359,13 @@ def _load_type_ranges(path):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Derive filaments.json from OrcaSlicer.")
     ap.add_argument("--orca", required=True, help="OrcaSlicer resources/profiles root")
-    ap.add_argument("--cfs-seed", required=True)
+    ap.add_argument("--seed", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--type-ranges", default="")
     ap.add_argument("--orca-tag", default="unknown")
     args = ap.parse_args(argv)
 
-    with open(args.cfs_seed, encoding="utf-8") as f:
+    with open(args.seed, encoding="utf-8") as f:
         seed = json.load(f)
     catalog, library_types = build_catalog(args.orca, seed, _load_type_ranges(args.type_ranges))
     doc = {

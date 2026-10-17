@@ -942,7 +942,7 @@ TEST_CASE_METHOD(HelixTestFixture, "two-layer closure - every material type is r
     //
     // So a new type added to filament_database.h now FAILS the build until someone
     // decides, explicitly and in the data, which of the two it is — a Generic seed
-    // entry in scripts/fixtures/cfs_seed.json, or a line in
+    // entry in scripts/fixtures/filament_seed.json, or a line in
     // RESOLUTION_ONLY_MATERIALS with the reason it is not user-selectable.
     // Neither choice can be made by accident, and neither can silently rot: a
     // RESOLUTION_ONLY entry that later gains a product fails here too.

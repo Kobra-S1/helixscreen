@@ -1120,5 +1120,29 @@
     "name": "rPETG",
     "type": "rPETG",
     "source": "helix-seed"
+  },
+  {
+    "id": "sunlu-abs",
+    "brand": "SUNLU",
+    "name": "ABS",
+    "type": "ABS",
+    "nozzle": 250,
+    "bed": 90,
+    "nozzle_min": 240,
+    "nozzle_max": 260,
+    "density": 1.04,
+    "source": "vendor-spec"
+  },
+  {
+    "id": "sunlu-asa",
+    "brand": "SUNLU",
+    "name": "ASA",
+    "type": "ASA",
+    "nozzle": 260,
+    "bed": 100,
+    "nozzle_min": 250,
+    "nozzle_max": 280,
+    "density": 1.07,
+    "source": "vendor-spec"
   }
 ]

@@ -651,7 +651,7 @@ inline std::optional<MaterialComfortRange> get_comfort_range(const std::string& 
  * must be removed rather than rotting.
  *
  * Making one of these selectable is a one-line addition to
- * scripts/fixtures/cfs_seed.json plus removing it here.
+ * scripts/fixtures/filament_seed.json plus removing it here.
  */
 // clang-format off
 inline constexpr const char* RESOLUTION_ONLY_MATERIALS[] = {

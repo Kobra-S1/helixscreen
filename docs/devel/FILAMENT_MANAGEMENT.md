@@ -738,7 +738,7 @@ Each entry in the `filaments` array is one branded product:
   "density": 1.24,              // OPTIONAL — else inherit type
   "codes": { "cfs": "07001" },  // OPTIONAL, open scheme-keyed map (see below)
   "orca_id": "OGF...",          // provenance: OrcaSlicer filament_id (NOT a CFS code)
-  "source": "orca"              // provenance: orca | cfs-seed | user
+  "source": "orca"              // provenance: orca | cfs-seed | helix-seed | vendor-spec | user
 }
 ```
 
@@ -901,7 +901,7 @@ This shallow-clones OrcaSlicer's `resources/profiles` at the pinned tag into
 `build/orca-profiles` (sparse checkout, blob-filtered), runs
 `scripts/import_orca_filaments.py` to resolve `inherits` chains, extract
 facts, and union them with the preserved CFS-code seed
-(`scripts/fixtures/cfs_seed.json`), writes `assets/filaments.json`, mirrors it
+(`scripts/fixtures/filament_seed.json`), writes `assets/filaments.json`, mirrors it
 to android/app/src/main/assets/assets/filaments.json, and discards the
 cloned Orca checkout. Nothing from the Orca clone is committed — only the
 derived output. Bump `ORCA_TAG` to refresh against newer Orca data.
