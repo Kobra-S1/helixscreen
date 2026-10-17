@@ -46,6 +46,21 @@ Enable this if you have macros that move the toolhead, heat the printer, or perf
 
 ---
 
+## Confirm tool changes
+
+> Only shown on printers with more than one tool.
+
+| State | Behavior |
+|-------|----------|
+| **On** (default) | Tapping another tool asks "Switch to T1?" before the printer moves |
+| **Off** | Tapping another tool switches to it straight away |
+
+Three places switch tools with a tap: the tool switcher on the home screen, a toolhead on your filament system's screen, and the tool list on the Filament screen. This setting decides whether those taps ask first.
+
+Some things happen whatever the switch says. A paused print always asks, because the toolhead moves while your part is still on the bed. While a print is running or starting, the change is refused with a message instead, and while the filament system is waiting for you to deal with a problem it is refused too. Tapping the filament tube on the filament system's screen never switches tools: it opens the slot menu.
+
+---
+
 ## Allow cold load/unload
 
 | State | Behavior |

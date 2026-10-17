@@ -45,6 +45,7 @@
 #include "temperature_controller.h"
 #include "temperature_service.h"
 #include "theme_manager.h"
+#include "tool_change_request.h"
 #include "tool_state.h"
 #include "toolhead_homing.h"
 
@@ -1973,24 +1974,29 @@ void FilamentPanel::handle_extruder_changed() {
 
     spdlog::info("[{}] User selected tool T{}", get_name(), selected);
 
-    ts.request_tool_change(
-        selected, api_, [selected]() { NOTIFY_SUCCESS(lv_tr("Switched to T{}"), selected); },
-        [this](const std::string& error) {
-            NOTIFY_ERROR(lv_tr("Tool change failed: {}"), error);
-            // Revert dropdown to actual active tool on UI thread
-            helix::ui::async_call(
-                [](void* ctx) {
-                    auto* panel = static_cast<FilamentPanel*>(ctx);
-                    if (panel->extruder_dropdown_) {
-                        int active = helix::ToolState::instance().active_tool_index();
-                        if (active >= 0) {
-                            lv_dropdown_set_selected(panel->extruder_dropdown_,
-                                                     static_cast<uint32_t>(active));
-                        }
-                    }
-                },
-                this);
-        });
+    helix::ui::ToolChangeHooks hooks;
+    hooks.on_success = [selected]() { NOTIFY_SUCCESS(lv_tr("Switched to T{}"), selected); };
+    hooks.on_failed =
+        lifetime_.bg_cb("FilamentPanel::tool_change_err", [this]() { revert_extruder_dropdown(); });
+    // A refused, ignored or cancelled change leaves the dropdown naming a tool
+    // that is not mounted.
+    hooks.on_declined = [this]() { revert_extruder_dropdown(); };
+    hooks.owner_token = lifetime_.token();
+    hooks.resolve_api = [this]() { return api_; };
+    helix::ui::offer_tool_change(printer_state_, selected, std::move(hooks));
+}
+
+void FilamentPanel::revert_extruder_dropdown() {
+    // A confirmation dialog can outlive the widgets it was opened over (a hot
+    // reload rebuilding the panel), and its close is what calls this.
+    if (!extruder_dropdown_ || !lv_is_initialized() || !lv_obj_is_valid(extruder_dropdown_)) {
+        return;
+    }
+    const int active = helix::ToolState::instance().active_tool_index();
+    if (active >= 0) {
+        lv_dropdown_set_selected(extruder_dropdown_, static_cast<uint32_t>(active));
+    }
+    update_filament_op_buttons();
 }
 
 void FilamentPanel::on_extruder_dropdown_changed(lv_event_t* e) {

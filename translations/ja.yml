@@ -112,6 +112,7 @@ translations:
   'AMS Active: ': 'AMS 有効: '
   API not available: APIが利用できません
   APPEARANCE: 外観
+  Ask before switching to another tool: '別のツールに切り替える前に確認する'
   AUTO FANS: 自動ファン
   AUTO STATE: 自動ステータス
   AUTOMATION: 自動化
@@ -337,6 +338,7 @@ translations:
   CHANGED FROM LAST SESSION: 前回のセッションから変更
   COLOR SENSORS: カラーセンサー
   CONFIGURATION: 設定
+  Confirm tool changes: 'ツール交換を確認する'
   CONNECTION TYPE: 接続タイプ
   CONTROLLABLE FANS: 制御可能なファン
   CPU: CPU
@@ -2007,6 +2009,7 @@ translations:
   Quick preheat with material selection: '材料を選んで素早く予熱'
   Quick toggle, long press for full control: '素早く切り替え、長押しで詳細操作'
   Quick tool switching for multi-tool printers: 'マルチツールプリンター向けの高速ツール切り替え'
+  Resolve it on the filament system screen, then try again: 'フィラメントシステム画面で解決してから再試行してください'
   RFCOMM connect failed: RFCOMM 接続に失敗しました
   'RFCOMM connect failed: ': 'RFCOMM 接続に失敗しました: '
   RSS: RSS
@@ -2476,6 +2479,7 @@ translations:
   Switch Sensors: スイッチセンサー
   Switch between light and dark themes: ライトテーマとダークテーマを切り替え
   Switch to v%s: 'v%s に切り替え'
+  Switch to {}?: '{} に切り替えますか?'
   Switched to T{}: T{} に切替えました
   Switches to a backup spool on runout: フィラメント切れ時にバックアップスプールへ切り替えます
   Switching heater control to MPC. Klipper will restart.: ヒーター制御をMPCに切り替えます。Klipperが再起動します。
@@ -2493,6 +2497,7 @@ translations:
     %d のフィラメントを必要としますが、空です — この印刷は途中で切れます。
   TD-1 filament color detection: TD-1 フィラメント色検出
   TEMPERATURE SENSORS: 温度センサー
+  The filament system needs attention: 'フィラメントシステムの対応が必要です'
   THEME COLORS: テーマカラー
   'TOGGLE: {}': '切り替え: {}'
   TOOLS: ツール

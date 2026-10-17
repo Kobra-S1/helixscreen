@@ -24,17 +24,20 @@
  * for 3, not 0). If it still passes, the test does not reach the callsite.
  */
 
+#include "ui_modal.h"
 #include "ui_panel_filament.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
+#include "../test_helpers/modal_answer.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
 #include "post_op_cooldown_manager.h"
 #include "printer_state.h"
+#include "safety_settings_manager.h"
 #include "tool_state.h"
 
 #include <lvgl.h>
@@ -144,10 +147,15 @@ struct OpSlotHarness {
     RecordingBackend* mock = nullptr;
     std::unique_ptr<FilamentPanel> panel;
     lv_obj_t* root = nullptr;
+    /// Tests that change "Confirm tool changes" leave it as they found it.
+    bool saved_confirm =
+        helix::SafetySettingsManager::instance().get_tool_change_require_confirmation();
 
     OpSlotHarness(LVGLUITestFixture& f, const AmsSystemInfo& sys, int loaded_slot,
                   const ToolTopology& topo)
         : fx(f) {
+        // A dropdown selection changes tool at once unless a test turns this on.
+        helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(false);
         // The panel wires observers on ToolState + AmsState in its ctor, so their
         // subjects must exist first.
         ToolState::instance().init_subjects(true);
@@ -185,6 +193,9 @@ struct OpSlotHarness {
     }
 
     ~OpSlotHarness() {
+        helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(
+            saved_confirm);
+        ModalStack::instance().clear();
         if (root) {
             lv_obj_delete(root); // delete UI subtree while panel subjects live
         }
@@ -361,6 +372,69 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     REQUIRE(h.mock->change_tool_calls == 1);
     CHECK(h.mock->last_change_tool == 1);
+}
+
+// With "Confirm tool changes" on, the dropdown's selection waits on the dialog,
+// and a change that does not happen leaves the dropdown on the mounted tool.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Toolchanger (PARALLEL): dropdown selection asks first and reverts on cancel",
+                 "[filament][op_slot][panel][confirm]") {
+    OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
+    h.mock->topology_ = PathTopology::PARALLEL;
+    helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(true);
+    lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
+    h.select_tool(2); // != active T0
+
+    TA::handle_extruder_changed(*h.panel);
+    CHECK(h.mock->change_tool_calls == 0);
+    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
+    CHECK(lv_dropdown_get_selected(dd) == 2);
+
+    SECTION("confirming changes tool") {
+        helix::test::answer_top_modal("btn_primary");
+        CHECK(h.mock->change_tool_calls == 1);
+        CHECK(h.mock->last_change_tool == 2);
+    }
+    SECTION("cancelling puts the dropdown back on the mounted tool") {
+        helix::test::answer_top_modal("btn_secondary");
+        CHECK(h.mock->change_tool_calls == 0);
+        CHECK(lv_dropdown_get_selected(dd) == 0);
+    }
+    SECTION("a backdrop dismissal puts it back too") {
+        helix::test::dismiss_top_modal();
+        CHECK(h.mock->change_tool_calls == 0);
+        CHECK(lv_dropdown_get_selected(dd) == 0);
+    }
+    SECTION("a programmatic close puts it back too") {
+        Modal::hide(ModalStack::instance().top_dialog());
+        process_lvgl(500);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(ModalStack::instance().stack_empty());
+        CHECK(h.mock->change_tool_calls == 0);
+        CHECK(lv_dropdown_get_selected(dd) == 0);
+    }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Toolchanger (PARALLEL): a refused dropdown selection reverts without a dialog",
+                 "[filament][op_slot][panel][confirm]") {
+    OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
+    h.mock->topology_ = PathTopology::PARALLEL;
+    helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(true);
+    lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
+
+    SECTION("while printing") {
+        set_wire_state(state(), "printing");
+    }
+    SECTION("while the filament system is busy") {
+        h.mock->sys_.action = AmsAction::LOADING;
+    }
+    h.select_tool(1);
+    TA::handle_extruder_changed(*h.panel);
+
+    CHECK(h.mock->change_tool_calls == 0);
+    CHECK(ModalStack::instance().stack_empty());
+    CHECK(lv_dropdown_get_selected(dd) == 0);
 }
 
 // ============================================================================

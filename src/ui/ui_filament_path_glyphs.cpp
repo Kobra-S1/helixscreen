@@ -400,6 +400,81 @@ int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale) {
     }
 }
 
+namespace {
+
+// Glyph extents beside and below the nozzle center, in tenths of the drawn
+// scale, rounded up. Measured from each renderer's drawn pixels; the top edge
+// is exact, restated from the renderer's highest design coordinate.
+struct Extent {
+    int32_t left, right, bottom;
+};
+
+constexpr Extent extent_of(helix::ToolheadStyle style) {
+    switch (style) {
+    case helix::ToolheadStyle::A4T:
+        return {19, 19, 35};
+    case helix::ToolheadStyle::ANTHEAD:
+        return {19, 19, 31};
+    case helix::ToolheadStyle::JABBERWOCKY:
+        return {25, 16, 36};
+    case helix::ToolheadStyle::STEALTHBURNER:
+        return {22, 21, 43};
+    case helix::ToolheadStyle::CREALITY_K1:
+        return {19, 19, 29};
+    case helix::ToolheadStyle::CREALITY_K2:
+        return {13, 13, 27};
+    default:
+        return {21, 21, 26};
+    }
+}
+
+int32_t tenths_up(int32_t scale, int32_t tenths) {
+    return (scale * tenths + 9) / 10;
+}
+
+// Each case restates its renderer's top edge: the polygon styles map their
+// highest design coordinate, the isometric bodies add their cap and iso-top
+// offset above the body, and AntHead is the scaled image's top.
+int32_t top_of(helix::ToolheadStyle style, int32_t nozzle_y, int32_t s) {
+    switch (style) {
+    case helix::ToolheadStyle::A4T:
+        return nozzle_y + (int32_t)((0 - 630) * ((float)(s * 10) / 2000.0f));
+    case helix::ToolheadStyle::STEALTHBURNER:
+        return nozzle_y + (int32_t)((78 - 500) * ((float)(s * 10) / 1000.0f));
+    case helix::ToolheadStyle::JABBERWOCKY:
+        return nozzle_y + (int32_t)((2 - 687) * ((float)(s * 10) / 2400.0f));
+    case helix::ToolheadStyle::ANTHEAD:
+        return nozzle_y - (81 * ((s * 65) / 10)) / 163;
+    case helix::ToolheadStyle::CREALITY_K1:
+        return nozzle_y - (s * 48) / 10 / 2 - (s * 6) / 10 / 2;
+    case helix::ToolheadStyle::CREALITY_K2:
+        return nozzle_y - (s * 48) / 10 / 2 - (s * 5) / 10 / 2;
+    default: {
+        // Default body plus its raised cap and bevel (each a tenth of the body).
+        const int32_t body_height = s * 4;
+        const int32_t cap_height = body_height / 10;
+        const int32_t body_depth = (s * 6) / 10;
+        return nozzle_y - body_height / 2 - 2 * cap_height - body_depth / 2;
+    }
+    }
+}
+
+} // namespace
+
+GlyphBounds toolhead_bounds(helix::ToolheadStyle style, int32_t cx, int32_t nozzle_y,
+                            int32_t scale) {
+    const Extent e = extent_of(style);
+    return {cx - tenths_up(scale, e.left), top_of(style, nozzle_y, scale),
+            cx + tenths_up(scale, e.right), nozzle_y + tenths_up(scale, e.bottom)};
+}
+
+GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t nozzle_y, int32_t scale) {
+    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
+    // draw_toolhead() draws the A4T glyph 6/5 larger.
+    return toolhead_bounds(style, cx, nozzle_y,
+                           style == helix::ToolheadStyle::A4T ? scale * 6 / 5 : scale);
+}
+
 // Tool badge (T0, T1, …) below a nozzle — matches system_path_canvas style.
 void draw_tool_badge(const RenderCtx& ctx, int32_t cx, int32_t badge_top, const char* label,
                      lv_color_t text_color, lv_opa_t opa) {

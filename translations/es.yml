@@ -118,6 +118,7 @@ translations:
   'AMS Active: ': 'AMS activo: '
   API not available: API no disponible
   APPEARANCE: APARIENCIA
+  Ask before switching to another tool: 'Preguntar antes de cambiar a otra herramienta'
   AUTO FANS: VENTILADORES AUTO
   AUTO STATE: ESTADO AUTO
   AUTOMATION: AUTOMATIZACIÓN
@@ -367,6 +368,7 @@ translations:
   CHANGED FROM LAST SESSION: CAMBIADO DESDE LA ÚLTIMA SESIÓN
   COLOR SENSORS: SENSORES DE COLOR
   CONFIGURATION: CONFIGURACIÓN
+  Confirm tool changes: 'Confirmar cambios de herramienta'
   CONNECTION TYPE: TIPO DE CONEXIÓN
   CONTROLLABLE FANS: VENTILADORES CONTROLABLES
   CPU: CPU
@@ -2175,6 +2177,7 @@ translations:
   Quick preheat with material selection: 'Precalentamiento rápido con selección de material'
   Quick toggle, long press for full control: 'Alternar rápido, mantén pulsado para el control completo'
   Quick tool switching for multi-tool printers: 'Cambio rápido de herramienta para impresoras multiherramienta'
+  Resolve it on the filament system screen, then try again: 'Resuélvalo en la pantalla del sistema de filamento y vuelva a intentarlo'
   RFCOMM connect failed: Error al conectar RFCOMM
   'RFCOMM connect failed: ': 'Error al conectar RFCOMM: '
   RSS: RSS
@@ -2695,6 +2698,7 @@ translations:
   Switch Sensors: Sensores de interruptor
   Switch between light and dark themes: Cambiar entre temas claro y oscuro
   Switch to v%s: 'Cambiar a la v%s'
+  Switch to {}?: '¿Cambiar a {}?'
   Switched to T{}: Cambiado a T{}
   Switches to a backup spool on runout: Cambia a una bobina de respaldo al agotarse
   Switching heater control to MPC. Klipper will restart.: Cambiando control del calentador
@@ -2715,6 +2719,7 @@ translations:
     filamento en la ranura %d, que está vacía — esta impresión se quedará sin filamento.
   TD-1 filament color detection: Detección de color de filamento TD-1
   TEMPERATURE SENSORS: SENSORES DE TEMPERATURA
+  The filament system needs attention: 'El sistema de filamento requiere atención'
   THEME COLORS: COLORES DEL TEMA
   'TOGGLE: {}': 'CONMUTAR: {}'
   TOOLS: HERRAMIENTAS

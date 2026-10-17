@@ -299,6 +299,7 @@ src/ui/temperature_controller.cpp
 src/ui/temperature_service.cpp
 src/ui/theme_loader.cpp
 src/ui/theme_manager_new.cpp
+src/ui/tool_change_request.cpp
 src/ui/touch_calibration.cpp
 src/ui/touch_calibration_layout.cpp
 src/ui/touch_calibration_panel.cpp

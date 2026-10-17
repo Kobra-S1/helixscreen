@@ -111,6 +111,7 @@ translations:
   'AMS Active: ': 'AMS 已激活: '
   API not available: API 不可用
   APPEARANCE: 外观
+  Ask before switching to another tool: '切换到其他工具前先询问'
   AUTO FANS: 自动风扇
   AUTO STATE: 自动状态
   AUTOMATION: 自动化
@@ -336,6 +337,7 @@ translations:
   CHANGED FROM LAST SESSION: 与上次会话相比有更改
   COLOR SENSORS: 颜色传感器
   CONFIGURATION: 配置
+  Confirm tool changes: '确认切换工具'
   CONNECTION TYPE: 连接类型
   CONTROLLABLE FANS: 可控风扇
   CPU: CPU
@@ -1997,6 +1999,7 @@ translations:
   Quick preheat with material selection: '选择材料快速预热'
   Quick toggle, long press for full control: '快速切换，长按进入完整控制'
   Quick tool switching for multi-tool printers: '多工具打印机的快速工具切换'
+  Resolve it on the filament system screen, then try again: '请在耗材系统界面中处理后重试'
   RFCOMM connect failed: RFCOMM 连接失败
   'RFCOMM connect failed: ': 'RFCOMM 连接失败: '
   RSS: RSS
@@ -2466,6 +2469,7 @@ translations:
   Switch Sensors: 开关传感器
   Switch between light and dark themes: 切换浅色和深色主题
   Switch to v%s: '切换到 v%s'
+  Switch to {}?: '切换到 {}?'
   Switched to T{}: 已切换到 T{}
   Switches to a backup spool on runout: 耗材用尽时切换到备用料盘
   Switching heater control to MPC. Klipper will restart.: 正在将加热控制切换为 MPC。Klipper 将重启。
@@ -2484,6 +2488,7 @@ translations:
     %d 号槽位中的耗材，但该槽位为空 —— 此次打印将会耗尽耗材。
   TD-1 filament color detection: TD-1 耗材颜色检测
   TEMPERATURE SENSORS: 温度传感器
+  The filament system needs attention: '耗材系统需要处理'
   THEME COLORS: 主题颜色
   'TOGGLE: {}': '切换: {}'
   TOOLS: 工具

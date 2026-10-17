@@ -505,6 +505,8 @@ class FilamentPanel : public PanelBase {
     void update_multi_filament_card_visibility();
     void apply_left_column_sizing(bool external_spool_mode);
     void handle_extruder_changed();
+    /// Point the extruder dropdown back at the mounted tool.
+    void revert_extruder_dropdown();
     static void on_extruder_dropdown_changed(lv_event_t* e);
 
     // External spool display (no-AMS mode)

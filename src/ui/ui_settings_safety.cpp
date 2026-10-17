@@ -78,6 +78,7 @@ void SafetySettingsOverlay::register_callbacks() {
         {"on_min_toast_severity_changed", on_min_toast_severity_changed},
         {"on_macro_confirm_changed", on_macro_confirm_changed},
         {"on_allow_cold_extrude_changed", on_allow_cold_extrude_changed},
+        {"on_tool_change_confirm_changed", on_tool_change_confirm_changed},
         {"on_filament_auto_cooldown_changed", on_filament_auto_cooldown_changed},
     });
 
@@ -233,6 +234,11 @@ void SafetySettingsOverlay::handle_allow_cold_extrude_changed(bool enabled) {
     SafetySettingsManager::instance().set_allow_cold_extrude(enabled);
 }
 
+void SafetySettingsOverlay::handle_tool_change_confirm_changed(bool enabled) {
+    spdlog::info("[{}] Tool change confirmation toggled: {}", get_name(), enabled ? "ON" : "OFF");
+    SafetySettingsManager::instance().set_tool_change_require_confirmation(enabled);
+}
+
 void SafetySettingsOverlay::handle_filament_auto_cooldown_changed(bool enabled) {
     spdlog::info("[{}] Post-op nozzle cooldown toggled: {}", get_name(), enabled ? "ON" : "OFF");
     SettingsManager::instance().set_filament_auto_cooldown(enabled);
@@ -299,6 +305,14 @@ void SafetySettingsOverlay::on_allow_cold_extrude_changed(lv_event_t* e) {
     auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
     get_safety_settings_overlay().handle_allow_cold_extrude_changed(enabled);
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+void SafetySettingsOverlay::on_tool_change_confirm_changed(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SafetySettingsOverlay] on_tool_change_confirm_changed");
+    auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
+    get_safety_settings_overlay().handle_tool_change_confirm_changed(enabled);
     LVGL_SAFE_EVENT_CB_END();
 }
 

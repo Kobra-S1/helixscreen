@@ -121,6 +121,7 @@ translations:
   'AMS Active: ': 'AMS actif : '
   API not available: API non disponible
   APPEARANCE: APPARENCE
+  Ask before switching to another tool: 'Demander avant de passer à un autre outil'
   AUTO FANS: VENTILATEURS AUTO
   AUTO STATE: ÉTAT AUTO
   AUTOMATION: AUTOMATISATION
@@ -373,6 +374,7 @@ translations:
   CHANGED FROM LAST SESSION: MODIFIÉ DEPUIS LA DERNIÈRE SESSION
   COLOR SENSORS: CAPTEURS DE COULEUR
   CONFIGURATION: CONFIGURATION
+  Confirm tool changes: 'Confirmer les changements d''outil'
   CONNECTION TYPE: TYPE DE CONNEXION
   CONTROLLABLE FANS: VENTILATEURS CONTRÔLABLES
   CPU: CPU
@@ -2195,6 +2197,7 @@ translations:
   Quick preheat with material selection: 'Préchauffage rapide avec sélection du matériau'
   Quick toggle, long press for full control: 'Bascule rapide, appui long pour le contrôle complet'
   Quick tool switching for multi-tool printers: 'Changement d''outil rapide pour imprimantes multi-outils'
+  Resolve it on the filament system screen, then try again: 'Résolvez-le sur l''écran du système de filament, puis réessayez'
   RFCOMM connect failed: Échec de la connexion RFCOMM
   'RFCOMM connect failed: ': 'Échec de la connexion RFCOMM : '
   RSS: RSS
@@ -2721,6 +2724,7 @@ translations:
   Switch Sensors: Capteurs à interrupteur
   Switch between light and dark themes: Basculer entre les thèmes clair et sombre
   Switch to v%s: 'Passer à la v%s'
+  Switch to {}?: 'Passer à {} ?'
   Switched to T{}: Basculé sur T{}
   Switches to a backup spool on runout: Passe à une bobine de secours en fin de filament
   Switching heater control to MPC. Klipper will restart.: Basculement du chauffage
@@ -2741,6 +2745,7 @@ translations:
     du filament dans le slot %d, qui est vide — cette impression manquera de filament.
   TD-1 filament color detection: Détection de couleur de filament TD-1
   TEMPERATURE SENSORS: CAPTEURS DE TEMPÉRATURE
+  The filament system needs attention: 'Le système de filament demande votre attention'
   THEME COLORS: COULEURS DU THÈME
   'TOGGLE: {}': 'BASCULER : {}'
   TOOLS: OUTILS

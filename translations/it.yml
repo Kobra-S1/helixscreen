@@ -118,6 +118,7 @@ translations:
   'AMS Active: ': 'AMS attivo: '
   API not available: API non disponibile
   APPEARANCE: ASPETTO
+  Ask before switching to another tool: 'Chiedi prima di passare a un altro utensile'
   AUTO FANS: VENTOLE AUTO
   AUTO STATE: STATO AUTO
   AUTOMATION: AUTOMAZIONE
@@ -368,6 +369,7 @@ translations:
   CHANGED FROM LAST SESSION: MODIFICATO DALLA SESSIONE PRECEDENTE
   COLOR SENSORS: SENSORI DI COLORE
   CONFIGURATION: CONFIGURAZIONE
+  Confirm tool changes: 'Conferma cambi utensile'
   CONNECTION TYPE: TIPO DI CONNESSIONE
   CONTROLLABLE FANS: VENTOLE CONTROLLABILI
   CPU: CPU
@@ -2172,6 +2174,7 @@ translations:
   Quick preheat with material selection: 'Preriscaldamento rapido con selezione del materiale'
   Quick toggle, long press for full control: 'Alterna rapidamente, premi a lungo per il controllo completo'
   Quick tool switching for multi-tool printers: 'Cambio utensile rapido per stampanti multi-utensile'
+  Resolve it on the filament system screen, then try again: 'Risolvi nella schermata del sistema filamento, poi riprova'
   RFCOMM connect failed: Connessione RFCOMM fallita
   'RFCOMM connect failed: ': 'Connessione RFCOMM fallita: '
   RSS: RSS
@@ -2692,6 +2695,7 @@ translations:
   Switch Sensors: Sensori a interruttore
   Switch between light and dark themes: Passa tra tema chiaro e scuro
   Switch to v%s: 'Passa alla v%s'
+  Switch to {}?: 'Passare a {}?'
   Switched to T{}: Passato a T{}
   Switches to a backup spool on runout: Passa a una bobina di riserva a filamento esaurito
   Switching heater control to MPC. Klipper will restart.: Passaggio controllo riscaldatore
@@ -2712,6 +2716,7 @@ translations:
     filamento nello slot %d, che è vuoto — questa stampa lo esaurirà.
   TD-1 filament color detection: Rilevamento colore filamento TD-1
   TEMPERATURE SENSORS: SENSORI DI TEMPERATURA
+  The filament system needs attention: 'Il sistema filamento richiede attenzione'
   THEME COLORS: COLORI TEMA
   'TOGGLE: {}': 'COMMUTA: {}'
   TOOLS: STRUMENTI

@@ -491,5 +491,50 @@ namespace helix::ui {
  * NOTE: argument order is width-then-height.
  */
 bool hub_box_hit(lv_point_t p, int32_t cx, int32_t cy, int32_t w, int32_t h, int32_t margin);
+
+/**
+ * @brief Set click callback for a toolhead on a PARALLEL (one head per tool) path
+ *
+ * A tap on a head reaches this callback; a tap on its filament tube or spool
+ * still reaches the slot callback. With none set, a head tap reaches the slot
+ * callback too.
+ *
+ * @param obj The filament_path_canvas widget
+ * @param cb Callback function (slot_index, user_data)
+ * @param user_data User data passed to callback
+ */
+void filament_path_canvas_set_toolhead_callback(lv_obj_t* obj, filament_path_slot_cb_t cb,
+                                                void* user_data);
+
+/// What a tap on a PARALLEL path landed on.
+enum class ParallelTapTarget : uint8_t {
+    None,
+    Toolhead, ///< A tool's head glyph
+    Lane,     ///< A tool's filament tube or spool, above its head glyph
+};
+
+struct ParallelTap {
+    ParallelTapTarget target = ParallelTapTarget::None;
+    int slot = -1;
+};
+
+/// Where a PARALLEL path draws its lanes and heads, for parallel_tap_at().
+struct ParallelTapLayout {
+    const int32_t* slot_x = nullptr; ///< Each column's center x
+    int slot_count = 0;
+    int32_t sensor_y = 0;        ///< A lane owns at least everything above this row
+    int32_t lane_half_width = 0; ///< A lane's reach either side of its column
+    lv_area_t head{};            ///< A head glyph's drawn bounds, x relative to its column
+};
+
+/**
+ * @brief Pure hit-test for a tap on a PARALLEL path.
+ *
+ * Above the head glyph's top a tap is a lane's, and above the sensor row it
+ * is a lane's however tall the glyph is drawn, so a tap on a tube never
+ * reaches a head. Below that a tap is a head's only inside a drawn glyph
+ * (bounds inclusive). Where neighbours overlap, the nearest column answers.
+ */
+ParallelTap parallel_tap_at(lv_point_t p, const ParallelTapLayout& layout);
 } // namespace helix::ui
 #endif

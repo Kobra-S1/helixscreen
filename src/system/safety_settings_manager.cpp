@@ -70,6 +70,11 @@ void SafetySettingsManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(allow_cold_extrude_subject_, allow_cold_extrude ? 1 : 0,
                            "settings_allow_cold_extrude", subjects_);
 
+    // Tool change confirmation (default: true = ask before mounting another tool)
+    bool tool_change_confirm = config->get<bool>("/safety/tool_change_require_confirmation", true);
+    UI_MANAGED_SUBJECT_INT(tool_change_require_confirmation_subject_, tool_change_confirm ? 1 : 0,
+                           "settings_tool_change_confirm", subjects_);
+
     // Minimum toast severity (default: 0 = All, no change for existing users). #1213.
     int min_toast_severity = config->get<int>("/notifications/min_toast_severity", 0);
     min_toast_severity =
@@ -185,6 +190,21 @@ void SafetySettingsManager::set_macro_require_confirmation(bool require) {
 
     spdlog::debug("[SafetySettingsManager] Macro run confirmation {} and saved",
                   require ? "enabled" : "disabled");
+}
+
+bool SafetySettingsManager::get_tool_change_require_confirmation() const {
+    return lv_subject_get_int(
+               const_cast<lv_subject_t*>(&tool_change_require_confirmation_subject_)) != 0;
+}
+
+void SafetySettingsManager::set_tool_change_require_confirmation(bool require) {
+    spdlog::info("[SafetySettingsManager] set_tool_change_require_confirmation({})", require);
+
+    lv_subject_set_int(&tool_change_require_confirmation_subject_, require ? 1 : 0);
+
+    Config* config = Config::get_instance();
+    config->set<bool>("/safety/tool_change_require_confirmation", require);
+    config->save();
 }
 
 bool SafetySettingsManager::get_allow_cold_extrude() const {

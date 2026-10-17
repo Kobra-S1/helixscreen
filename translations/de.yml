@@ -121,6 +121,7 @@ translations:
   'AMS Active: ': 'AMS aktiv: '
   API not available: API nicht verfügbar
   APPEARANCE: ERSCHEINUNGSBILD
+  Ask before switching to another tool: 'Vor dem Wechsel zu einem anderen Werkzeug fragen'
   AUTO FANS: AUTO-LÜFTER
   AUTO STATE: AUTO-STATUS
   AUTOMATION: AUTOMATISIERUNG
@@ -374,6 +375,7 @@ translations:
   CHANGED FROM LAST SESSION: SEIT LETZTER SITZUNG GEÄNDERT
   COLOR SENSORS: FARBSENSOREN
   CONFIGURATION: KONFIGURATION
+  Confirm tool changes: 'Werkzeugwechsel bestätigen'
   CONNECTION TYPE: VERBINDUNGSTYP
   CONTROLLABLE FANS: STEUERBARE LÜFTER
   CPU: CPU
@@ -2182,6 +2184,7 @@ translations:
   Quick preheat with material selection: 'Schnelles Vorheizen mit Materialauswahl'
   Quick toggle, long press for full control: 'Schnell umschalten, lange drücken für die volle Steuerung'
   Quick tool switching for multi-tool printers: 'Schneller Werkzeugwechsel für Multi-Werkzeug-Drucker'
+  Resolve it on the filament system screen, then try again: 'Beheben Sie es im Filamentsystem-Bildschirm und versuchen Sie es erneut'
   RFCOMM connect failed: RFCOMM-Verbindung fehlgeschlagen
   'RFCOMM connect failed: ': 'RFCOMM-Verbindung fehlgeschlagen: '
   RSS: RSS
@@ -2699,6 +2702,7 @@ translations:
   Switch Sensors: Schalter-Sensoren
   Switch between light and dark themes: Zwischen Hell- und Dunkelthemen wechseln
   Switch to v%s: 'Zu v%s wechseln'
+  Switch to {}?: 'Zu {} wechseln?'
   Switched to T{}: Gewechselt zu T{}
   Switches to a backup spool on runout: Wechselt bei leerer Spule auf eine Reserve-Spule
   Switching heater control to MPC. Klipper will restart.: Heizungsregelung wird auf
@@ -2719,6 +2723,7 @@ translations:
     Filament in Slot %d, der leer ist — bei diesem Druck geht das Filament aus.
   TD-1 filament color detection: TD-1-Filamentfarberkennung
   TEMPERATURE SENSORS: TEMPERATURSENSOREN
+  The filament system needs attention: 'Das Filamentsystem erfordert Aufmerksamkeit'
   THEME COLORS: THEMENFARBEN
   'TOGGLE: {}': 'UMSCHALTEN: {}'
   TOOLS: WERKZEUGE

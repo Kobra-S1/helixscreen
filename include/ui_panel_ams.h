@@ -21,6 +21,11 @@
 #include <memory>
 #include <vector>
 
+namespace helix {
+// Test-only accessor (tests/test_helpers/ams_panel_test_access.h).
+class AmsPanelTestAccess;
+} // namespace helix
+
 /**
  * @file ui_panel_ams.h
  * @brief AMS/Multi-filament panel - slot visualization and operations
@@ -55,6 +60,8 @@
  * @see AmsBackend for backend operations
  */
 class AmsPanel : public PanelBase {
+    friend class helix::AmsPanelTestAccess;
+
   public:
     /**
      * @brief Construct AMS panel with dependencies
@@ -259,6 +266,7 @@ class AmsPanel : public PanelBase {
     // === Path Canvas Callbacks ===
 
     static void on_path_slot_clicked(int slot_index, void* user_data);
+    static void on_path_toolhead_clicked(int slot_index, void* user_data);
     static void on_path_hub_clicked_thunk(lv_point_t click_pt, void* user_data);
     static void on_bypass_spool_clicked(void* user_data);
 

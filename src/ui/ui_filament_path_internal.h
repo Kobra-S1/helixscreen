@@ -50,6 +50,10 @@
 
 #include <array>
 
+namespace helix {
+enum class ToolheadStyle; // settings_manager.h
+} // namespace helix
+
 namespace helix::ui::fpath {
 
 namespace pg = helix::ui::pathgeo;
@@ -296,6 +300,8 @@ struct FilamentPathData {
     // Callbacks
     filament_path_slot_cb_t slot_callback = nullptr;
     void* slot_user_data = nullptr;
+    filament_path_slot_cb_t toolhead_callback = nullptr;
+    void* toolhead_user_data = nullptr;
     filament_path_bypass_cb_t bypass_callback = nullptr;
     void* bypass_user_data = nullptr;
     filament_path_buffer_cb_t buffer_callback = nullptr;
@@ -356,6 +362,16 @@ struct BaseGeometry {
 };
 
 BaseGeometry compute_base_geometry(lv_obj_t* obj, const FilamentPathData* data);
+
+/// Where a PARALLEL path draws each column's entry sensor and toolhead, and the
+/// toolhead's scale, read by the renderer and the click hit-test alike.
+struct ParallelRows {
+    int32_t sensor_y = 0;
+    int32_t toolhead_y = 0;
+    int32_t tool_scale = 0;
+};
+
+ParallelRows parallel_rows(const FilamentPathData& data, const BaseGeometry& g);
 
 // Derived per-slot drawing state. Computed in one pass so each topology body
 // reads from the array instead of rederiving inline.
@@ -441,6 +457,19 @@ void draw_toolhead(lv_layer_t* layer, int32_t cx, int32_t cy, lv_color_t color, 
 
 /// Y of the nozzle tip for the configured toolhead style (heat glow anchor).
 int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale);
+
+/// Drawn extent of a toolhead glyph, inclusive, in display coordinates.
+struct GlyphBounds {
+    int32_t left, top, right, bottom;
+};
+
+/// Bounds of @p style's glyph as its nozzle renderer draws it centered at
+/// (@p cx, @p nozzle_y) at @p scale.
+GlyphBounds toolhead_bounds(helix::ToolheadStyle style, int32_t cx, int32_t nozzle_y,
+                            int32_t scale);
+
+/// Bounds of the glyph draw_toolhead() draws for the configured style.
+GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t nozzle_y, int32_t scale);
 
 /// Tool badge ("T0", "T1", …) beneath a nozzle: rounded rect + centered label.
 void draw_tool_badge(const RenderCtx& ctx, int32_t cx, int32_t badge_top, const char* label,

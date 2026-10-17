@@ -25,8 +25,13 @@
  * backend relaxation invisible (see test_ams_paused_filament_ops.cpp).
  */
 
+#include "ui_modal.h"
+
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/modal_answer.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/tool_switcher_rig.h"
 #include "../test_helpers/tool_switcher_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
@@ -34,6 +39,7 @@
 #include "ams_state.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "safety_settings_manager.h"
 #include "tool_state.h"
 
 #include <memory>
@@ -45,77 +51,9 @@ using namespace helix;
 
 namespace {
 
-/// Backend double: the tool map is what makes ToolState delegate to the backend
-/// instead of the Tn gcode fallback, and change_tool() answers straight from a
-/// flag so the refusal has somewhere to travel FROM. self_homes is settable
-/// because it is the input that decides whether PAUSED is allowed.
-///
-/// change_tool() deliberately does NOT chain to AmsBackendMock: the mock runs
-/// the change on its own thread and emits slot events, whose deferred AmsState
-/// writes can outlive this fixture's teardown and land in a LATER test's
-/// async-lifetime skip window (test_filament_dispatch_surfaces.cpp counts those
-/// exactly). Nothing here asserts simulated motion, only the dispatch result.
-class GateBackend : public AmsBackendMock {
-  public:
-    explicit GateBackend(int slots) : AmsBackendMock(slots) {}
-
-    bool self_homes = false;
-    bool tool_change_should_fail = false;
-    int change_tool_calls = 0;
-
-    bool filament_ops_self_home() const override {
-        return self_homes;
-    }
-
-    AmsError change_tool(int /*tool_number*/) override {
-        ++change_tool_calls;
-        if (tool_change_should_fail) {
-            return AmsError(AmsResult::TOOL_CHANGE_FAILED, "forced failure",
-                            "Tool change did not complete", "Check the filament path and retry");
-        }
-        return AmsErrorHelper::success();
-    }
-};
-
 struct ToolSwitcherGateFixture : public LVGLTestFixture {
     ToolSwitcherGateFixture() {
         printer_state.init_subjects(false);
-
-        ToolState::instance().deinit_subjects();
-        ToolState::instance().init_subjects(false);
-        helix::PrinterDiscovery hw;
-        nlohmann::json objects =
-            nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "tool T2", "extruder",
-                                   "extruder1", "extruder2", "heater_bed", "gcode_move"});
-        hw.parse_objects(objects);
-        ToolState::instance().init_tools(hw);
-        REQUIRE(ToolState::instance().tool_count() == 3);
-
-        auto backend_owned = std::make_unique<GateBackend>(3);
-        backend_owned->set_tool_changer_mode(true);
-        backend_owned->set_operation_delay(0);
-        REQUIRE(backend_owned->start());
-        backend = backend_owned.get();
-        AmsState::instance().deinit_subjects();
-        AmsState::instance().init_subjects(false);
-        AmsState::instance().set_backend(std::move(backend_owned));
-
-        helix::ui::set_test_notification_warning_hook(
-            [this](const std::string& msg) { warnings.push_back(msg); });
-        helix::ui::set_test_notification_error_hook(
-            [this](const std::string& msg) { errors.push_back(msg); });
-    }
-
-    ~ToolSwitcherGateFixture() override {
-        helix::ui::set_test_notification_warning_hook(nullptr);
-        helix::ui::set_test_notification_error_hook(nullptr);
-        if (backend) {
-            backend->wait_for_operation_thread();
-            backend->stop();
-        }
-        AmsState::instance().deinit_subjects();
-        ToolState::instance().deinit_subjects();
-        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     }
 
     void set_print_state(helix::PrintJobState s) {
@@ -129,9 +67,10 @@ struct ToolSwitcherGateFixture : public LVGLTestFixture {
     }
 
     helix::PrinterState printer_state;
-    GateBackend* backend = nullptr;
-    std::vector<std::string> warnings;
-    std::vector<std::string> errors;
+    ToolChangerRig rig{3};
+    GateBackend*& backend = rig.backend;
+    std::vector<std::string>& warnings = rig.warnings;
+    std::vector<std::string>& errors = rig.errors;
 };
 
 } // namespace
@@ -306,4 +245,61 @@ TEST_CASE_METHOD(ToolSwitcherGateFixture, "inactive print states never block a t
         CAPTURE(static_cast<int>(s));
         CHECK(ToolSwitcherTestAccess::refusal(widget).success());
     }
+}
+
+// ============================================================================
+// Confirm tool changes
+// ============================================================================
+
+namespace {
+
+/// The confirmation is a modal_dialog, which LVGLUITestFixture registers.
+struct ToolSwitcherConfirmFixture : public LVGLUITestFixture {
+    ToolSwitcherConfirmFixture() {
+        helix::test::set_wire_state(state(), helix::PrintJobState::STANDBY);
+    }
+    ~ToolSwitcherConfirmFixture() override {
+        ModalStack::instance().clear();
+    }
+    ToolChangerRig rig{3};
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ToolSwitcherConfirmFixture, "with Confirm tool changes on, a tool tap asks first",
+                 "[ams][tool-switcher][tool-change][confirm]") {
+    SafetySettingsManager::instance().set_tool_change_require_confirmation(true);
+    ToolSwitcherWidget widget(state());
+    ToolSwitcherTestAccess::select_tool(widget, 1);
+
+    CHECK(rig.backend->change_tool_calls == 0);
+    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
+
+    SECTION("confirming changes tool") {
+        helix::test::answer_top_modal("btn_primary");
+        CHECK(rig.backend->change_tool_calls == 1);
+        CHECK(rig.backend->last_tool == 1);
+    }
+    SECTION("cancelling changes nothing") {
+        helix::test::answer_top_modal("btn_secondary");
+        CHECK(rig.backend->change_tool_calls == 0);
+    }
+}
+
+TEST_CASE_METHOD(ToolSwitcherConfirmFixture,
+                 "a paused print asks once whether Confirm tool changes is on or off",
+                 "[ams][tool-switcher][tool-change][confirm][paused]") {
+    const bool confirm = GENERATE(false, true);
+    CAPTURE(confirm);
+    SafetySettingsManager::instance().set_tool_change_require_confirmation(confirm);
+    helix::test::set_wire_state(state(), helix::PrintJobState::PAUSED);
+    rig.backend->self_homes = false;
+
+    ToolSwitcherWidget widget(state());
+    ToolSwitcherTestAccess::select_tool(widget, 1);
+    CHECK(rig.backend->change_tool_calls == 0);
+    helix::test::answer_top_modal("btn_primary");
+    CHECK(rig.backend->change_tool_calls == 1);
+    // One dialog, not the paused one stacked over the plain one.
+    CHECK(ModalStack::instance().stack_empty());
 }

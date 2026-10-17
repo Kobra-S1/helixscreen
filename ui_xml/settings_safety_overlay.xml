@@ -53,6 +53,16 @@
                             description_tag="Show a confirmation dialog when tapping a macro"
                             subject="settings_macro_confirm" callback="on_macro_confirm_changed"/>
         <!-- ================================================================== -->
+        <!-- TOOL CHANGE CONFIRMATION (multi-tool printers only) -->
+        <!-- ================================================================== -->
+        <setting_toggle_row name="row_tool_change_confirm"
+                            label="Confirm tool changes" label_tag="Confirm tool changes" icon="arrow_left_right"
+                            description="Ask before switching to another tool"
+                            description_tag="Ask before switching to another tool"
+                            subject="settings_tool_change_confirm" callback="on_tool_change_confirm_changed">
+          <bind_flag_if_lt subject="tool_count" flag="hidden" ref_value="2"/>
+        </setting_toggle_row>
+        <!-- ================================================================== -->
         <!-- ALLOW COLD EXTRUDE -->
         <!-- ================================================================== -->
         <setting_toggle_row name="row_allow_cold_extrude"

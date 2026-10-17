@@ -46,6 +46,7 @@
 #include "static_panel_registry.h"
 #include "system/crash_handler.h"
 #include "theme_manager.h"
+#include "tool_change_request.h"
 #include "ui/ams_drawing_utils.h"
 #include "wizard_config_paths.h"
 
@@ -796,6 +797,8 @@ void AmsPanel::setup_path_canvas() {
 
     // Set slot click callback (panel-specific)
     ui_filament_path_canvas_set_slot_callback(path_canvas_, on_path_slot_clicked, this);
+    helix::ui::filament_path_canvas_set_toolhead_callback(path_canvas_, on_path_toolhead_clicked,
+                                                          this);
 
     // Set selector/hub click callback (opens Happy Hare selector context menu)
     ui_filament_path_canvas_set_hub_callback(path_canvas_, &AmsPanel::on_path_hub_clicked_thunk,
@@ -1180,6 +1183,34 @@ void AmsPanel::handle_buffer_click() {
 
     auto info = backend->get_system_info();
     BufferStatusModal::show_for(info, 0);
+}
+
+void AmsPanel::on_path_toolhead_clicked(int slot_index, void* user_data) {
+    auto* self = static_cast<AmsPanel*>(user_data);
+    if (!self) {
+        return;
+    }
+
+    // A head tap mounts that head's tool. Its own tube and spool open the slot
+    // menu instead (on_path_slot_clicked), so a tap meant for the filament
+    // never moves the carriage.
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        return;
+    }
+    const AmsSystemInfo info = backend->get_system_info();
+    const SlotInfo* slot = info.get_slot_global(slot_index);
+    if (!slot || slot->mapped_tool < 0) {
+        on_path_slot_clicked(slot_index, user_data);
+        return;
+    }
+
+    spdlog::info("[AmsPanel] Toolhead {} (T{}) clicked", slot_index, slot->mapped_tool);
+    const auto verdict = helix::ui::offer_tool_change(self->printer_state_, slot->mapped_tool);
+    // The mounted head's tap is the slot menu's, the same as its tube's.
+    if (verdict == helix::ui::ToolChangeVerdict::AlreadyActive) {
+        on_path_slot_clicked(slot_index, user_data);
+    }
 }
 
 void AmsPanel::on_path_slot_clicked(int slot_index, void* user_data) {

@@ -113,6 +113,7 @@ translations:
   'AMS Active: ': 'AMS Active: '
   API not available: API not available
   APPEARANCE: APPEARANCE
+  Ask before switching to another tool: Ask before switching to another tool
   AUTO FANS: AUTO FANS
   AUTO STATE: AUTO STATE
   AUTOMATION: AUTOMATION
@@ -355,6 +356,7 @@ translations:
   CHANGED FROM LAST SESSION: CHANGED FROM LAST SESSION
   COLOR SENSORS: COLOR SENSORS
   CONFIGURATION: CONFIGURATION
+  Confirm tool changes: Confirm tool changes
   CONNECTION TYPE: CONNECTION TYPE
   CONTROLLABLE FANS: CONTROLLABLE FANS
   CPU: CPU
@@ -2122,6 +2124,7 @@ translations:
   Quick preheat with material selection: Quick preheat with material selection
   Quick toggle, long press for full control: Quick toggle, long press for full control
   Quick tool switching for multi-tool printers: Quick tool switching for multi-tool printers
+  Resolve it on the filament system screen, then try again: Resolve it on the filament system screen, then try again
   RFCOMM connect failed: RFCOMM connect failed
   'RFCOMM connect failed: ': 'RFCOMM connect failed: '
   RSS: RSS
@@ -2630,6 +2633,7 @@ translations:
   Switch Sensors: Switch Sensors
   Switch between light and dark themes: Switch between light and dark themes
   Switch to v%s: Switch to v%s
+  Switch to {}?: Switch to {}?
   Switched to T{}: Switched to T{}
   Switches to a backup spool on runout: Switches to a backup spool on runout
   Switching heater control to MPC. Klipper will restart.: Switching heater control
@@ -2650,6 +2654,7 @@ translations:
     filament in slot %d, which is empty — this print will run out.
   TD-1 filament color detection: TD-1 filament color detection
   TEMPERATURE SENSORS: TEMPERATURE SENSORS
+  The filament system needs attention: The filament system needs attention
   THEME COLORS: THEME COLORS
   'TOGGLE: {}': 'TOGGLE: {}'
   TOOLS: TOOLS

@@ -99,6 +99,14 @@ bool is_segment_active(PathSegment segment, PathSegment filament_segment) {
            filament_segment != PathSegment::NONE;
 }
 
+ParallelRows parallel_rows(const FilamentPathData& data, const BaseGeometry& g) {
+    ParallelRows rows;
+    rows.sensor_y = g.y_off + (int32_t)(g.height * PARALLEL_SENSOR_Y_RATIO);
+    rows.toolhead_y = g.y_off + (int32_t)(g.height * PARALLEL_TOOLHEAD_Y_RATIO);
+    rows.tool_scale = LV_MAX(6, data.theme.extruder_scale * 2 / 3);
+    return rows;
+}
+
 namespace {
 
 // ============================================================================
@@ -180,14 +188,13 @@ void render_parallel(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     constexpr float ENTRY_Y = -0.12f; // Top entry (connects to spool)
 
     int32_t entry_y = y_off + (int32_t)(height * ENTRY_Y);
-    int32_t sensor_y = y_off + (int32_t)(height * PARALLEL_SENSOR_Y_RATIO);
-    int32_t toolhead_y = y_off + (int32_t)(height * PARALLEL_TOOLHEAD_Y_RATIO);
+    const ParallelRows rows = parallel_rows(*data, ctx.geo);
 
     SlotRenderStates states = compute_slot_render_states(data);
 
     // Draw each tool as an independent column
     for (int i = 0; i < data->slot_count; i++) {
-        draw_parallel_slot(ctx, states, i, entry_y, sensor_y, toolhead_y);
+        draw_parallel_slot(ctx, states, i, entry_y, rows.sensor_y, rows.toolhead_y);
     }
 }
 

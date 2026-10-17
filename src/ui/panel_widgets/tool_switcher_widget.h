@@ -149,10 +149,6 @@ class ToolSwitcherWidget : public PanelWidget {
     /// recycled instance re-applies it on attach as well as on state change.
     void refresh_print_gating();
 
-    /// Issue the change and report any refusal. Static so the confirmation
-    /// modal's stateless event callback shares the one on_error path.
-    static void dispatch_tool_change(int tool_index);
-
     // Native SIZE_CHANGED hook on size_watch_container_ (tool_switcher_container)
     // — same mechanism as UiClogMeter::resize_arc()/UiBufferMeter::resize(),
     // and watching the same object rebuild_pills() self-measures, not an
