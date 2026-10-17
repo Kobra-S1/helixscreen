@@ -36,6 +36,12 @@ class PrinterPrintStateTestAccess {
         pps.smoothed_remaining_ = 0.0;
         pps.has_smoothed_remaining_ = false;
         pps.sdcard_active_ = false;
+        // A pause's exception survives frames that omit it, so a session reset
+        // clears it: a later test's pause would otherwise classify as the
+        // earlier test's.
+        pps.print_exception_id_ = -1;
+        pps.print_exception_code_ = -1;
+        pps.print_exception_message_.clear();
         // The job being prepared is session-scoped: it outlives
         // reset_for_new_print() by design, since it exists precisely for the
         // window before the printer reports the job. Leaving it set leaks a

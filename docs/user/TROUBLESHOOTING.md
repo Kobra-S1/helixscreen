@@ -1354,7 +1354,7 @@ curl -X POST http://localhost:7125/printer/print/cancel
 - The print stays paused
 
 **What's going on:**
-The U1 will not resume while a toolhead the print uses has no material recorded for it. Snapmaker RFID spools fill that in by themselves; a spool without a tag leaves it empty, so the printer refuses the resume.
+The U1 will not resume while a toolhead the print uses has no material recorded for it. Snapmaker RFID spools fill that in by themselves; a spool without a tag leaves it empty. When you have set that slot's material in HelixScreen, HelixScreen writes it into the printer's record before resuming, except after a runout, when you may have loaded a different spool. So this message means either the print paused on a runout or neither the printer nor HelixScreen knows what is loaded there.
 
 **Solution:**
 1. Open the filament system screen and tap the slot the message names
