@@ -2755,8 +2755,10 @@ translations:
   Temperatures: Temperaturen
   Temperatures saved: Temperaturen gespeichert
   Template: Vorlage
+  Temporary adjustment for this print: "Temporäre Anpassung für diesen Druck"
   Temporary adjustment for this print, unless saved on Controls panel: Temporäre Anpassung
     für diesen Druck, sofern nicht im Steuerungspanel gespeichert
+  Temporary for this print; a tool change resets it: "Temporär für diesen Druck; ein Werkzeugwechsel setzt sie zurück"
   Tertiary: Tertiär
   Test All Lanes: 'Alle Spuren testen'
   Test Connection: Verbindung testen

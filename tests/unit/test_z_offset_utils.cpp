@@ -4,11 +4,13 @@
 
 #include <cstring>
 #include <optional>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::zoffset;
 using helix::ZOffsetCalibrationStrategy;
+using helix::ZOffsetTuneHint;
 
 // ============================================================================
 // format_delta tests
@@ -61,19 +63,28 @@ TEST_CASE("format_offset: negative microns", "[zoffset][format]") {
 }
 
 // ============================================================================
-// is_auto_saved tests
+// no_save_step_message
 // ============================================================================
 
-TEST_CASE("is_auto_saved: FIRMWARE_MANAGED returns true", "[zoffset][strategy]") {
-    REQUIRE(is_auto_saved(ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) == true);
+TEST_CASE("no_save_step_message: a printer with a Save step has nothing to explain",
+          "[zoffset][strategy]") {
+    CHECK(no_save_step_message(ZOffsetTuneHint::SAVE_ON_CONTROLS) == nullptr);
 }
 
-TEST_CASE("is_auto_saved: PROBE_CALIBRATE returns false", "[zoffset][strategy]") {
-    REQUIRE(is_auto_saved(ZOffsetCalibrationStrategy::PROBE_CALIBRATE) == false);
-}
-
-TEST_CASE("is_auto_saved: ENDSTOP returns false", "[zoffset][strategy]") {
-    REQUIRE(is_auto_saved(ZOffsetCalibrationStrategy::ENDSTOP) == false);
+TEST_CASE("no_save_step_message: only a persisting firmware claims auto-save",
+          "[zoffset][strategy]") {
+    REQUIRE(no_save_step_message(ZOffsetTuneHint::AUTO_SAVED) != nullptr);
+    CHECK(std::string(no_save_step_message(ZOffsetTuneHint::AUTO_SAVED)) ==
+          "Z-offset is auto-saved by firmware");
+    for (auto hint : {ZOffsetTuneHint::TEMPORARY, ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE}) {
+        INFO(static_cast<int>(hint));
+        REQUIRE(no_save_step_message(hint) != nullptr);
+        CHECK(std::string(no_save_step_message(hint)).find("auto-saved") == std::string::npos);
+    }
+    CHECK(std::string(no_save_step_message(ZOffsetTuneHint::TEMPORARY)) ==
+          "Temporary adjustment for this print");
+    CHECK(std::string(no_save_step_message(ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE)) ==
+          "Temporary for this print; a tool change resets it");
 }
 
 // ============================================================================

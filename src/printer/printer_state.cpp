@@ -301,8 +301,10 @@ void PrinterState::init_subjects(bool register_xml) {
     INIT_SUBJECT_STRING(active_printer_name, "", subjects_, register_xml);
     INIT_SUBJECT_INT(multi_printer_enabled, 0, subjects_, register_xml);
 
-    // Z-offset save visibility (1 = manual save needed, 0 = firmware auto-saves)
+    // Z-offset save visibility (1 = Save Z Offset offered, 0 = no Save step)
     INIT_SUBJECT_INT(z_offset_can_save, 1, subjects_, register_xml);
+    INIT_SUBJECT_INT(z_offset_tune_hint, static_cast<int>(z_offset_tune_hint_value_), subjects_,
+                     register_xml);
 
     spdlog::trace("[PrinterState] Registered {} subjects with SubjectManager", subjects_.count());
 
@@ -1196,21 +1198,31 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
         new_strategy = ZOffsetCalibrationStrategy::FIRMWARE_MANAGED;
     }
 
-    if (type == printer_type_ && new_strategy == z_offset_calibration_strategy_) {
+    const ZOffsetTuneHint new_hint = resolve_z_offset_tune_hint(
+        new_strategy, z_offset_external_persistence_, PrinterDetector::z_offset_persists(type),
+        PrinterDetector::tool_change_resets_z_offset(type));
+
+    if (type == printer_type_ && new_strategy == z_offset_calibration_strategy_ &&
+        new_hint == z_offset_tune_hint_value_) {
         return;
     }
 
     printer_type_ = type;
     pre_print_option_set_ = new_options;
     z_offset_calibration_strategy_ = new_strategy;
+    z_offset_tune_hint_value_ = new_hint;
 
     // Synthesize runtime-dependent options (timelapse) on top of the DB load.
     apply_dynamic_options();
 
-    // Update z_offset_can_save subject: 0 when firmware/macros auto-persist (FIRMWARE_MANAGED)
+    // 0 when the strategy has no Save step (FIRMWARE_MANAGED)
     int can_save = (new_strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) ? 1 : 0;
     if (subjects_initialized_ && lv_subject_get_int(&z_offset_can_save_) != can_save) {
         lv_subject_set_int(&z_offset_can_save_, can_save);
+    }
+    if (subjects_initialized_ &&
+        lv_subject_get_int(&z_offset_tune_hint_) != static_cast<int>(new_hint)) {
+        lv_subject_set_int(&z_offset_tune_hint_, static_cast<int>(new_hint));
     }
 
     // Apply probe type override from database (e.g., prtouch_v2 for K1 series)
@@ -1318,6 +1330,18 @@ const std::string& PrinterState::get_printer_type() const {
 
 const PrePrintOptionSet& PrinterState::get_pre_print_option_set() const {
     return pre_print_option_set_;
+}
+
+ZOffsetTuneHint helix::resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy strategy,
+                                                  bool external_persistence, bool db_persists,
+                                                  bool tool_change_resets) {
+    if (strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
+        return ZOffsetTuneHint::SAVE_ON_CONTROLS;
+    }
+    if (external_persistence || db_persists) {
+        return ZOffsetTuneHint::AUTO_SAVED;
+    }
+    return tool_change_resets ? ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE : ZOffsetTuneHint::TEMPORARY;
 }
 
 ZOffsetCalibrationStrategy PrinterState::get_z_offset_calibration_strategy() const {

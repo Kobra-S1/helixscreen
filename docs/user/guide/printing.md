@@ -227,10 +227,17 @@ Choose a step size (0.05 / 0.025 / 0.01 / 0.005 mm), then tap up/down to raise o
 2. Tap **Save Z-Offset** to write to Klipper config
 3. Future prints use this as the starting point
 
-**If there is no Save Z-Offset button**, your printer's firmware stores the offset
-itself and there is nothing to save - what you dialed in is already kept and is
-re-applied at the start of the next print. This is the case on the FlashForge
-AD5M / AD5X running ZMOD, and on the Snapmaker U1.
+**If there is no Save Z-Offset button**, the Tune overlay's hint under the
+Z-offset row says which case you are in:
+
+- **"Z-offset is auto-saved by firmware"**: your printer's firmware stores the
+  offset itself and there is nothing to save - what you dialed in is already kept
+  and is re-applied at the start of the next print. This is the case on the
+  FlashForge AD5M / AD5X running ZMOD.
+- **"Temporary for this print; a tool change resets it"**: nothing saves the
+  adjustment. On the Snapmaker U1 each head keeps its own stored offset, which the
+  firmware re-applies whenever that head is picked up, so a baby step lasts only
+  until the next tool change or the end of the print.
 
 > **AD5M / AD5X (ZMOD):** the firmware clears the *live* offset when a print
 > ends, so other interfaces can show 0.000 while idle even though your real

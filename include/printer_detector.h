@@ -338,6 +338,16 @@ class PrinterDetector {
      */
     static std::string get_z_offset_calibration_strategy(const std::string& printer_name);
 
+    /// The database's `z_offset_persists` field for @p printer_name: false when the
+    /// firmware keeps a SET_GCODE_OFFSET adjustment only for the running print.
+    /// True when absent or unknown. Read only for the firmware_managed strategy.
+    static bool z_offset_persists(const std::string& printer_name);
+
+    /// The database's `"tool_change_resets_z_offset": true` flag for @p printer_name:
+    /// activating a tool re-applies that head's stored gcode offset absolutely,
+    /// replacing any adjustment. False when absent or unknown.
+    static bool tool_change_resets_z_offset(const std::string& printer_name);
+
     /// Look up probe type override from the printer database.
     /// @return Probe type string (e.g., "prtouch_v2"), or empty if not specified
     static std::string get_probe_type(const std::string& printer_name);

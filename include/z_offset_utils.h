@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "printer_state.h" // ZOffsetCalibrationStrategy
+#include "printer_state.h" // ZOffsetCalibrationStrategy, ZOffsetTuneHint
 
 #include <cstddef>
 #include <functional>
@@ -17,9 +17,13 @@ class SaveConfigWatch;
 
 namespace helix::zoffset {
 
-/// Returns true and shows toast if strategy auto-persists (FIRMWARE_MANAGED).
+/// What happens to an adjustment HelixScreen cannot save, for @p hint: the
+/// untranslated sentence, or nullptr for SAVE_ON_CONTROLS (a Save step exists).
+const char* no_save_step_message(ZOffsetTuneHint hint);
+
+/// Returns true and toasts no_save_step_message() when @p hint has no Save step.
 /// Callers should return early when this returns true.
-bool is_auto_saved(ZOffsetCalibrationStrategy strategy);
+bool no_save_step(ZOffsetTuneHint hint);
 
 /// Format microns as "+0.050mm" or "-0.025mm". Empty string if microns == 0.
 void format_delta(int microns, char* buf, size_t buf_size);

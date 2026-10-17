@@ -26,6 +26,12 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 
+#include <fstream>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -659,4 +665,147 @@ TEST_CASE("PrinterState: an unambiguously detected provider is not refuted by a 
     CHECK(state.get_z_offset_calibration_strategy() ==
           ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
     CHECK(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 0);
+}
+
+// ============================================================================
+// Z-offset tune hint: Print Tune claims auto-save only where something persists it
+// ============================================================================
+
+TEST_CASE("Z-offset tune hint claims auto-save only where something persists it",
+          "[printer_state][capabilities][zoffset]") {
+    using S = ZOffsetCalibrationStrategy;
+    using H = ZOffsetTuneHint;
+
+    // A strategy with its own Save step: the hint points at it, whatever else is known.
+    CHECK(resolve_z_offset_tune_hint(S::PROBE_CALIBRATE, false, true, false) ==
+          H::SAVE_ON_CONTROLS);
+    CHECK(resolve_z_offset_tune_hint(S::ENDSTOP, false, false, true) == H::SAVE_ON_CONTROLS);
+
+    // Firmware-managed and the firmware persists the offset.
+    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, false, true, false) == H::AUTO_SAVED);
+    // An installed persistence provider is proof on its own.
+    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, true, false, false) == H::AUTO_SAVED);
+    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, true, false, true) == H::AUTO_SAVED);
+
+    // No Save step and nothing persists: the adjustment is temporary.
+    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, false, false, false) == H::TEMPORARY);
+    CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, false, false, true) ==
+          H::TEMPORARY_TOOL_CHANGE);
+}
+
+TEST_CASE("PrinterState publishes the z-offset tune hint from the database",
+          "[printer_state][capabilities][zoffset]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto hint = [&] {
+        return static_cast<ZOffsetTuneHint>(
+            lv_subject_get_int(state.get_z_offset_tune_hint_subject()));
+    };
+
+    SECTION("Snapmaker U1: no save path, and a tool change re-applies the head's offset") {
+        state.set_printer_type_sync("Snapmaker U1");
+        CHECK(state.get_z_offset_calibration_strategy() ==
+              ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+        CHECK(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 0);
+        CHECK(hint() == ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE);
+        CHECK(state.get_z_offset_tune_hint() == ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE);
+
+        // A provider latching later is a change even though the strategy is not.
+        state.set_z_offset_external_persistence_internal("Helper-Script");
+        CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED);
+        state.clear_z_offset_external_persistence_internal();
+        CHECK(hint() == ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE);
+    }
+
+    SECTION("the other firmware-managed printers keep the auto-saved claim") {
+        for (const char* type :
+             {"FlashForge Adventurer 5M (ForgeX)", "FlashForge Adventurer 5M Pro (ForgeX)",
+              "FlashForge Adventurer 5X", "Artillery M1 Pro"}) {
+            INFO(type);
+            state.set_printer_type_sync(type);
+            CHECK(state.get_z_offset_calibration_strategy() ==
+                  ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+            CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED);
+        }
+    }
+
+    SECTION("a printer with a Save step points at it") {
+        state.set_printer_type_sync("Unknown Printer");
+        CHECK(lv_subject_get_int(state.get_z_offset_can_save_subject()) == 1);
+        CHECK(hint() == ZOffsetTuneHint::SAVE_ON_CONTROLS);
+    }
+
+    PrinterStateTestAccess::reset(state);
+}
+
+namespace {
+
+/// The z_offset_tune_hint value each z_offset_help_text_* label in @p path is
+/// shown for: its bind_flag_if_not_eq ref_value (hidden for every other value).
+std::map<std::string, int> tune_hint_label_values(const std::string& path) {
+    std::ifstream in(path);
+    REQUIRE(in.good());
+    std::stringstream buf;
+    buf << in.rdbuf();
+    const std::string xml = buf.str();
+
+    std::map<std::string, int> values;
+    const std::string name_attr = "name=\"z_offset_help_text_";
+    for (size_t pos = xml.find(name_attr); pos != std::string::npos;
+         pos = xml.find(name_attr, pos + 1)) {
+        const size_t name_start = pos + std::string("name=\"").size();
+        const std::string name = xml.substr(name_start, xml.find('"', name_start) - name_start);
+        const size_t end = xml.find("</text_small>", pos);
+        REQUIRE(end != std::string::npos);
+        const std::string element = xml.substr(pos, end - pos);
+        INFO(path << " " << name);
+        CHECK(element.find("hidden=\"true\"") != std::string::npos);
+        const std::string bind = "<bind_flag_if_not_eq subject=\"z_offset_tune_hint\" "
+                                 "flag=\"hidden\" ref_value=\"";
+        const size_t b = element.find(bind);
+        REQUIRE(b != std::string::npos);
+        CHECK(element.find("bind_flag_if_not_eq", b + bind.size()) == std::string::npos);
+        values[name] = std::stoi(element.substr(b + bind.size()));
+    }
+    return values;
+}
+
+} // namespace
+
+TEST_CASE("Print Tune shows exactly the label for the resolved z-offset tune hint",
+          "[printer_state][capabilities][zoffset][xml]") {
+    lv_init_safe();
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    state.set_printer_type_sync("Snapmaker U1");
+    const int u1_hint = lv_subject_get_int(state.get_z_offset_tune_hint_subject());
+    PrinterStateTestAccess::reset(state);
+
+    const std::map<std::string, int> expected = {
+        {"z_offset_help_text_manual", static_cast<int>(ZOffsetTuneHint::SAVE_ON_CONTROLS)},
+        {"z_offset_help_text_auto", static_cast<int>(ZOffsetTuneHint::AUTO_SAVED)},
+        {"z_offset_help_text_temporary", static_cast<int>(ZOffsetTuneHint::TEMPORARY)},
+        {"z_offset_help_text_tool_change",
+         static_cast<int>(ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE)},
+    };
+
+    for (const char* path :
+         {"ui_xml/print_tune_panel.xml", "ui_xml/portrait/print_tune_panel.xml"}) {
+        INFO(path);
+        const auto values = tune_hint_label_values(path);
+        CHECK(values == expected);
+
+        // On the U1 the tool-change label is the only one left visible.
+        std::vector<std::string> visible;
+        for (const auto& [name, value] : values) {
+            if (value == u1_hint) {
+                visible.push_back(name);
+            }
+        }
+        CHECK(visible == std::vector<std::string>{"z_offset_help_text_tool_change"});
+    }
 }

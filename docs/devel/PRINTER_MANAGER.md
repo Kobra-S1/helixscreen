@@ -319,7 +319,9 @@ The printer database (`config/printer_database.json`) is the source of truth for
 | `manufacturer` | Manufacturer name |
 | `image` | PNG filename in `assets/images/printers/` |
 | `print_start_profile` | Profile for print start phase detection |
-| `z_offset_calibration_strategy` | Z-offset calibration approach: `probe_calibrate`, `endstop`, or `firmware_managed` (firmware/macros persist it, so HelixScreen hides its own Save step). Omit to derive from probe presence. Separate from *where the value is stored* — see `include/z_offset_persistence.h` |
+| `z_offset_calibration_strategy` | Z-offset calibration approach: `probe_calibrate`, `endstop`, or `firmware_managed` (HelixScreen offers no Save step of its own). Omit to derive from probe presence. Separate from *where the value is stored* — see `include/z_offset_persistence.h` |
+| `z_offset_persists` | `false` on a `firmware_managed` printer whose firmware does not persist a `SET_GCODE_OFFSET` adjustment, so Print Tune calls the adjustment temporary instead of auto-saved. Omit (default `true`) when the firmware persists it. An installed persistence provider (`include/z_offset_persistence.h`) counts as persisting whatever this says. |
+| `tool_change_resets_z_offset` | `true` when activating a tool re-applies that head's stored gcode offset absolutely, replacing any adjustment; Print Tune then says a tool change resets it. Omit (default `false`) otherwise, including klipper-toolchanger, whose tool offsets leave the babystep alone. |
 | `heuristics` | Array of detection rules with confidence scores |
 | `print_start_capabilities` | PRINT_START macro parameters |
 | `screws_tilt_direction` | `"cw"` or `"ccw"` — override for the physical tightening direction of bed screws. Use when the vendor-shipped Klipper `screw_thread` disagrees with the actual screw geometry, causing `SCREWS_TILT_CALCULATE` directions to un-level the bed. When set to `"ccw"` (disagreeing with Klipper's default CW-M\* semantics), HelixScreen flips CW↔CCW in the displayed direction. Omit the field (or set `"cw"`) for printers whose Klipper config matches reality. Known use: FlashForge Adventurer 5M family. |

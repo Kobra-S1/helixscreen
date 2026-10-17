@@ -280,9 +280,20 @@ When the U1 is detected, the printer database record provides these metadata fie
 | `probe_type` | `eddy_current` |
 | `toolhead_style` | `snapmaker_u1` |
 | `preset` | `snapmaker_u1` |
-| `z_offset_calibration_strategy` | `probe_calibrate` |
+| `z_offset_calibration_strategy` | `firmware_managed` |
+| `z_offset_persists` | `false` |
+| `tool_change_resets_z_offset` | `true` |
 
 The `snapmaker_u1` preset causes the first-run wizard to auto-skip hardware steps that do not apply to the U1 (e.g., probe wiring, toolhead identification).
+
+**Z-offset adjustments are temporary.** HelixScreen offers no Save Z Offset step on
+the U1 (`firmware_managed`), and the firmware does not persist a `SET_GCODE_OFFSET`
+adjustment either. Each head keeps its own stored offset (`extruder.gcode_offset`,
+set by the firmware's own `PROBE_XYZ_OFFSET_CALIBRATE SAVE_INFO=1`), and activating a
+head re-applies that offset with an absolute `SET_GCODE_OFFSET X= Y= Z=`
+(the firmware's `active_gcode_offset()` in its klippy kinematics/extruder.py, called
+from its virtual_sdcard.py on each tool change). A babystep therefore lasts until the next tool change or the end of the
+print, and Print Tune says so (`ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE`).
 
 ## Print Start Tracking
 

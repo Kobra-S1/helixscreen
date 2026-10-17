@@ -2519,7 +2519,9 @@ translations:
   Temperatures: 温度
   Temperatures saved: 温度已保存
   Template: 模板
+  Temporary adjustment for this print: "此打印的临时调整"
   Temporary adjustment for this print, unless saved on Controls panel: 此打印的临时调整，除非在控制面板上保存
+  Temporary for this print; a tool change resets it: "仅限此打印的临时调整；换工具会将其重置"
   Tertiary: 第三
   Test All Lanes: '测试所有槽位'
   Test Connection: 测试连接

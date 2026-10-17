@@ -133,7 +133,7 @@ A true 4-toolhead changer, running on the U1's built-in 3.5" screen. Each of the
 - **Per-slot filament data** — material type and sub-type, brand, and color, read from the print job even when the RFID reader is off
 - **RFID filament recognition** via the built-in reader
 - **Per-extruder feed/load state and runout handling** with automatic resume
-- **Firmware-managed Z-offset** and dedicated print-start tracking; near-certain auto-detection
+- **Dedicated print-start tracking** and near-certain auto-detection. Z-offset baby steps are temporary: the firmware re-applies each head's own stored offset on every tool change. See [Printing → Z-Offset](printing.md#z-offset--baby-steps)
 
 **Requirements:** SSH access — either stock firmware 1.2+ (via its **Root access** option) or PAXX Extended Firmware (SSH on by default). Reinstall after any firmware update. See [Installation → Snapmaker U1](install-u1.md).
 

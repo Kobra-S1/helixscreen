@@ -2461,7 +2461,9 @@
   <translation tag="Temperatures" pt="Temperaturas"/>
   <translation tag="Temperatures saved" pt="Temperaturas salvas"/>
   <translation tag="Template" pt="Modelo"/>
+  <translation tag="Temporary adjustment for this print" pt="Ajuste temporário para esta impressão"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" pt="Ajuste temporário para esta impressão, a menos que salvo no painel de Controles"/>
+  <translation tag="Temporary for this print; a tool change resets it" pt="Temporário para esta impressão; uma troca de ferramenta o redefine"/>
   <translation tag="Tertiary" pt="Terciário"/>
   <translation tag="Test All Lanes" pt="Testar todas as lanes"/>
   <translation tag="Test Connection" pt="Testar Conexão"/>

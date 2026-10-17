@@ -2461,7 +2461,9 @@
   <translation tag="Temperatures" zh="温度"/>
   <translation tag="Temperatures saved" zh="温度已保存"/>
   <translation tag="Template" zh="模板"/>
+  <translation tag="Temporary adjustment for this print" zh="此打印的临时调整"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" zh="此打印的临时调整，除非在控制面板上保存"/>
+  <translation tag="Temporary for this print; a tool change resets it" zh="仅限此打印的临时调整；换工具会将其重置"/>
   <translation tag="Tertiary" zh="第三"/>
   <translation tag="Test All Lanes" zh="测试所有槽位"/>
   <translation tag="Test Connection" zh="测试连接"/>

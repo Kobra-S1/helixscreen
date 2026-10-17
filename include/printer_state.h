@@ -177,16 +177,42 @@ enum class PrintStartPhase {
  * @brief Z-offset calibration strategy — determines gcode commands for calibration and save
  *
  * Different printers need different approaches to calibrate and persist Z-offset.
- * FIRMWARE_MANAGED: firmware or macros auto-persist (FlashForge, Snapmaker U1, Artillery M1,
- * ForgeX-mod). PROBE_CALIBRATE: standard Klipper PROBE_CALIBRATE -> ACCEPT -> SAVE_CONFIG. ENDSTOP:
- * Z_ENDSTOP_CALIBRATE -> ACCEPT -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG.
+ * FIRMWARE_MANAGED: HelixScreen offers no Save step; calibration applies SET_GCODE_OFFSET and
+ * the firmware owns what happens next (FlashForge, ForgeX-mod and Artillery M1 persist it; the
+ * Snapmaker U1 does not, see ZOffsetTuneHint). PROBE_CALIBRATE: standard Klipper
+ * PROBE_CALIBRATE -> ACCEPT -> SAVE_CONFIG. ENDSTOP: Z_ENDSTOP_CALIBRATE -> ACCEPT ->
+ * Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG.
  */
 enum class ZOffsetCalibrationStrategy {
     PROBE_CALIBRATE,  ///< Standard Klipper: PROBE_CALIBRATE -> ACCEPT -> SAVE_CONFIG
-    FIRMWARE_MANAGED, ///< Firmware/macros auto-persist (FlashForge, Snapmaker U1, Artillery M1,
-                      ///< ForgeX-mod)
+    FIRMWARE_MANAGED, ///< No HelixScreen Save step: SET_GCODE_OFFSET, then the firmware's call
     ENDSTOP ///< Endstop: Z_ENDSTOP_CALIBRATE -> ACCEPT -> Z_OFFSET_APPLY_ENDSTOP -> SAVE_CONFIG
 };
+
+/**
+ * @brief What Print Tune can truthfully say about a z-offset adjustment
+ *
+ * Published as the `z_offset_tune_hint` subject; the values are the XML's ref_values.
+ */
+enum class ZOffsetTuneHint {
+    SAVE_ON_CONTROLS = 0,      ///< Temporary unless the user saves it (Save Z Offset)
+    AUTO_SAVED = 1,            ///< The firmware or an installed module persists it
+    TEMPORARY = 2,             ///< No save path: it lasts until the print ends
+    TEMPORARY_TOOL_CHANGE = 3, ///< As TEMPORARY, and a tool change re-applies the head's own
+                               ///< stored offset over it
+};
+
+/**
+ * @brief Pick the tune hint from what is known about persistence
+ *
+ * @param external_persistence an installed z-offset persistence provider is latched
+ * @param db_persists the printer database does not say the firmware drops the offset
+ *        (`z_offset_persists`, default true)
+ * @param tool_change_resets the printer database's `tool_change_resets_z_offset`
+ */
+ZOffsetTuneHint resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy strategy,
+                                           bool external_persistence, bool db_persists,
+                                           bool tool_change_resets);
 
 /**
  * @brief Convert PrintJobState enum to display string
@@ -1280,13 +1306,22 @@ class PrinterState {
     /**
      * @brief Get subject indicating whether Z-offset can be manually saved
      *
-     * Returns 1 when the printer's Z-offset calibration strategy requires
-     * HelixScreen to save (PROBE_CALIBRATE or ENDSTOP), 0 when the
-     * firmware/macros handle persistence automatically (FIRMWARE_MANAGED).
-     * Used in XML to hide the "Save Z-Offset" button for auto-saved printers.
+     * Returns 1 when the printer's Z-offset calibration strategy has a
+     * HelixScreen Save step (PROBE_CALIBRATE or ENDSTOP), 0 when it has none
+     * (FIRMWARE_MANAGED). Used in XML to hide the "Save Z-Offset" button.
      */
     lv_subject_t* get_z_offset_can_save_subject() {
         return &z_offset_can_save_;
+    }
+
+    /// The ZOffsetTuneHint for the resolved type, as an int.
+    lv_subject_t* get_z_offset_tune_hint_subject() {
+        return &z_offset_tune_hint_;
+    }
+
+    /// The ZOffsetTuneHint the current type and persistence resolve to.
+    ZOffsetTuneHint get_z_offset_tune_hint() const {
+        return z_offset_tune_hint_value_;
     }
 
     /**
@@ -2509,7 +2544,9 @@ class PrinterState {
     PrePrintOptionSet pre_print_option_set_; ///< Cached option set for current type
     ZOffsetCalibrationStrategy z_offset_calibration_strategy_ =
         ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
-    lv_subject_t z_offset_can_save_{}; ///< 1 when manual save needed, 0 when auto-saved
+    lv_subject_t z_offset_can_save_{}; ///< 1 when Save Z Offset is offered, 0 when no Save step
+    ZOffsetTuneHint z_offset_tune_hint_value_ = ZOffsetTuneHint::SAVE_ON_CONTROLS;
+    lv_subject_t z_offset_tune_hint_{};
 
     /// An installed SET_GCODE_OFFSET wrapper (Helper-Script save-zoffset,
     /// ZMOD, Forge-X) persists the z-offset itself. Folding the gcode offset

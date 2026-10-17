@@ -1737,7 +1737,25 @@ const json* find_printer_entry(const std::string& printer_name) {
     }
     return nullptr;
 }
+
+/// A boolean field of the entry named `printer_name`, @p fallback when either is absent.
+bool printer_flag(const std::string& printer_name, const char* field, bool fallback = false) {
+    const json* printer = find_printer_entry(printer_name);
+    if (printer == nullptr) {
+        return fallback;
+    }
+    const auto flag = printer->find(field);
+    return flag != printer->end() && flag->is_boolean() ? flag->get<bool>() : fallback;
+}
 } // namespace
+
+bool PrinterDetector::z_offset_persists(const std::string& printer_name) {
+    return printer_flag(printer_name, "z_offset_persists", true);
+}
+
+bool PrinterDetector::tool_change_resets_z_offset(const std::string& printer_name) {
+    return printer_flag(printer_name, "tool_change_resets_z_offset");
+}
 
 std::string PrinterDetector::get_print_start_profile(const std::string& printer_name) {
     const json* printer = find_printer_entry(printer_name);

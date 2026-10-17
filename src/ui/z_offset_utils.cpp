@@ -17,17 +17,28 @@
 
 namespace helix::zoffset {
 
-bool is_auto_saved(ZOffsetCalibrationStrategy strategy) {
-    if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
-        // FIRMWARE_MANAGED means firmware or macros handle Z-offset persistence
-        // (e.g., FlashForge firmware, Artillery M1 save-zoffset macro).
-        // HelixScreen should not offer its own save path.
-        spdlog::debug("[ZOffsetUtils] Z-offset auto-saved by firmware (firmware_managed strategy)");
-        ToastManager::instance().show(ToastSeverity::INFO,
-                                      lv_tr("Z-offset is auto-saved by firmware"), 3000);
-        return true;
+const char* no_save_step_message(ZOffsetTuneHint hint) {
+    switch (hint) {
+    case ZOffsetTuneHint::SAVE_ON_CONTROLS:
+        return nullptr;
+    case ZOffsetTuneHint::AUTO_SAVED:
+        return "Z-offset is auto-saved by firmware";
+    case ZOffsetTuneHint::TEMPORARY:
+        return "Temporary adjustment for this print";
+    case ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE:
+        return "Temporary for this print; a tool change resets it";
     }
-    return false;
+    return nullptr;
+}
+
+bool no_save_step(ZOffsetTuneHint hint) {
+    const char* message = no_save_step_message(hint);
+    if (message == nullptr) {
+        return false;
+    }
+    spdlog::debug("[ZOffsetUtils] No Save step for this printer: {}", message);
+    ToastManager::instance().show(ToastSeverity::INFO, lv_tr(message), 3000);
+    return true;
 }
 
 void format_delta(int microns, char* buf, size_t buf_size) {

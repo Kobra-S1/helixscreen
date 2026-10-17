@@ -2461,7 +2461,9 @@
   <translation tag="Temperatures" ja="温度"/>
   <translation tag="Temperatures saved" ja="温度を保存しました"/>
   <translation tag="Template" ja="テンプレート"/>
+  <translation tag="Temporary adjustment for this print" ja="この印刷のみの一時的な調整です"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" ja="コントロールパネルで保存しない限り、この印刷のみの一時的な調整です"/>
+  <translation tag="Temporary for this print; a tool change resets it" ja="この印刷のみの一時的な調整です。ツール交換でリセットされます"/>
   <translation tag="Tertiary" ja="ターシャリ"/>
   <translation tag="Test All Lanes" ja="全レーンをテスト"/>
   <translation tag="Test Connection" ja="接続テスト"/>

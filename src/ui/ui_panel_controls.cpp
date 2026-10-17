@@ -1089,9 +1089,9 @@ void ControlsPanel::handle_zoffset_tune() {
 }
 
 void ControlsPanel::handle_save_z_offset() {
-    auto strategy = printer_state_.get_z_offset_calibration_strategy();
-    if (helix::zoffset::is_auto_saved(strategy))
+    if (helix::zoffset::no_save_step(printer_state_.get_z_offset_tune_hint()))
         return;
+    const auto strategy = printer_state_.get_z_offset_calibration_strategy();
 
     int offset_microns = 0;
     if (auto* subj = printer_state_.get_gcode_z_offset_subject()) {

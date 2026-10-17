@@ -593,8 +593,7 @@ void PrintTuneOverlay::handle_z_adjust(int direction) {
 
 void PrintTuneOverlay::handle_save_z_offset() {
     if (printer_state_) {
-        auto strategy = printer_state_->get_z_offset_calibration_strategy();
-        if (helix::zoffset::is_auto_saved(strategy))
+        if (helix::zoffset::no_save_step(printer_state_->get_z_offset_tune_hint()))
             return;
     }
 

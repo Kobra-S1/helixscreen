@@ -222,3 +222,10 @@ own INI store (`/opt/config/mod_data/variables.cfg`), **not** klipper's
   is a **different** axis: it selects the *calibration* command sequence and whether
   a Save button is offered. A printer can be `firmware_managed` there without having
   a persistence provider here.
+- What Print Tune tells the user is a third answer, `ZOffsetTuneHint`
+  (`include/printer_state.h#resolve_z_offset_tune_hint`). It claims
+  "auto-saved by firmware" only for a `firmware_managed` printer whose firmware
+  persists the offset: a latched provider here, or a database row that does not set
+  `"z_offset_persists": false`. The Snapmaker U1 sets it, because its firmware keeps
+  a babystep only until the next tool change or the end of the print
+  (`docs/devel/printers/SNAPMAKER_U1_SUPPORT.md`).

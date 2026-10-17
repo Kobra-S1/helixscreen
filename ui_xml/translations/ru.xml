@@ -2461,7 +2461,9 @@
   <translation tag="Temperatures" ru="Температуры"/>
   <translation tag="Temperatures saved" ru="Температуры сохранены"/>
   <translation tag="Template" ru="Шаблон"/>
+  <translation tag="Temporary adjustment for this print" ru="Временная настройка для этой печати"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" ru="Временная настройка для этой печати, если не сохранена в панели управления"/>
+  <translation tag="Temporary for this print; a tool change resets it" ru="Временно для этой печати; смена инструмента сбрасывает её"/>
   <translation tag="Tertiary" ru="Третичный"/>
   <translation tag="Test All Lanes" ru="Проверить все слоты"/>
   <translation tag="Test Connection" ru="Тест соединения"/>
