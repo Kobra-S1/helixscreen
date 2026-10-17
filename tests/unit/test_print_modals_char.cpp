@@ -199,9 +199,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "CHAR: ExcludeObjectModal callback invocation"
         REQUIRE(cancel_called == false);
     }
 
-    SECTION("on_cancel triggers cancel callback") {
+    // The cancel callback fires from the close of a shown dialog, so a modal
+    // that was never shown has nothing to resolve. The shown paths (Cancel,
+    // ESC, backdrop, hot reload, programmatic hide) are covered in
+    // test_exclude_object_long_press_gate.cpp.
+    SECTION("on_cancel on a modal that was never shown fires nothing") {
         modal.on_cancel();
-        REQUIRE(cancel_called == true);
+        REQUIRE(cancel_called == false);
         REQUIRE(confirm_called == false);
     }
 

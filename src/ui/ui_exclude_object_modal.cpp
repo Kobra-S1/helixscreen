@@ -4,6 +4,13 @@
 #include "ui_exclude_object_modal.h"
 
 void ExcludeObjectModal::on_show() {
+    confirmed_ = false;
     wire_ok_button("btn_primary");
     wire_cancel_button("btn_secondary");
+}
+
+void ExcludeObjectModal::on_hide() {
+    if (!confirmed_ && on_cancel_cb_) {
+        on_cancel_cb_();
+    }
 }

@@ -179,7 +179,7 @@ The `PrintExcludeObjectManager` implements a state machine with three states:
 
 2. **Guard checks**: Empty names, already-excluded objects, and pending exclusions are rejected.
 
-3. **Confirmation modal**: `ExcludeObjectModal` shows "Exclude Object?" with the object name and Exclude/Cancel buttons.
+3. **Confirmation modal**: `ExcludeObjectModal` shows "Exclude Object?" with the object name and Exclude/Cancel buttons. Every close other than Exclude counts as a cancel and clears the pending guard: the Cancel button, ESC, a backdrop tap, a hot-reload rebuild and a programmatic `hide()` all resolve through `ExcludeObjectModal::on_hide()`.
 
 4. **Visual preview**: On confirm, the object is immediately shown as excluded in the G-code viewer (red/orange at reduced opacity) before the API call is made.
 
@@ -402,7 +402,7 @@ Tests are run with:
 | File | Tag | What it Tests |
 |------|-----|---------------|
 | `tests/unit/test_print_exclude_object_manager.cpp` | `[exclude_object]` | Exclusion state machine driven through the real `PrintExcludeObjectManager`: confirm, cancel, undo, timer, API, sync |
-| `tests/unit/test_exclude_object_long_press_gate.cpp` | `[exclude_object]` | Long-press gate: pending object, timer arming, clear |
+| `tests/unit/test_exclude_object_long_press_gate.cpp` | `[exclude_object]` | Long-press gate: pending object, timer arming, clear; every dismissal of the confirm clears the guard (`[dismiss]`) |
 | `tests/unit/test_excluded_objects_char.cpp` | `[excluded_objects]` | `PrinterExcludedObjectsState`: version subjects, set change detection, observer notification |
 | `tests/unit/test_moonraker_api_exclude_object.cpp` | `[security]`, `[mock]` | Input validation, injection prevention, mock client integration |
 | `tests/unit/test_gcode_object_thumbnail_renderer.cpp` | `[object-thumbnail]` | Thumbnail rendering: empty/single/multi object, sizing, cancellation, edge cases |
