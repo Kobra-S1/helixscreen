@@ -37,6 +37,17 @@ std::deque<Entry>& entries() {
     return q;
 }
 
+// Main-thread only, so no lock.
+struct Claimant {
+    const void* owner = nullptr;
+    BroadcastClaimant fn;
+};
+
+Claimant& claimant() {
+    static Claimant c;
+    return c;
+}
+
 // Caller must hold mu().
 void prune_locked() {
     const auto now = Clock::now();
@@ -70,6 +81,26 @@ bool was_recently_handled(const std::string& message) {
 void clear_for_test() {
     std::lock_guard<std::mutex> lock(mu());
     entries().clear();
+}
+
+void set_broadcast_claimant(const void* owner, BroadcastClaimant fn) {
+    claimant() = Claimant{owner, std::move(fn)};
+}
+
+void clear_broadcast_claimant(const void* owner) {
+    if (claimant().owner == owner) {
+        claimant() = Claimant{};
+    }
+}
+
+void report_unless_explained(const std::string& message, std::function<void()> report) {
+    const auto& c = claimant();
+    if (!message.empty() && c.fn && c.fn(message, report)) {
+        return;
+    }
+    if (report) {
+        report();
+    }
 }
 
 } // namespace helix::rpc_error_correlation

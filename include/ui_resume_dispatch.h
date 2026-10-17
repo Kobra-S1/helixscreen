@@ -13,7 +13,9 @@ namespace helix::ui {
 /// Run the active AMS backend's prepare_for_resume, then dispatch the
 /// Resume StandardMacro. On either error path (prep failure or macro send
 /// failure) emit a contextual `NOTIFY_ERROR` toast and invoke `on_failure`,
-/// which call sites typically use to clear optimistic-UI state.
+/// which call sites typically use to clear optimistic-UI state. A macro
+/// refusal the active backend's classifier explains gets no toast: the
+/// error router presents that explanation instead.
 ///
 /// All work is async; this returns immediately. `on_failure` and the
 /// internal toast emission fire on the **main thread** even when the
@@ -34,7 +36,7 @@ namespace helix::ui {
 ///                     and the async lambdas don't depend on the caller's
 ///                     storage outliving the dispatch.
 /// @param on_failure   Optional. Invoked on the main thread on either
-///                     error path AFTER the toast has been emitted.
+///                     error path AFTER the failure has been reported.
 ///                     Default: no-op.
 void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
                               std::function<void()> on_failure = {});

@@ -6,7 +6,9 @@
 #include "action_prompt_manager.h" // PromptData / PromptButton
 #include "async_lifetime_guard.h"
 #include "error_event.h"
+#include "lvgl.h" // lv_timer_t (claimed reports)
 
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -139,6 +141,24 @@ class GcodeErrorRouter {
     /// lines; this still handles `Error:` for the live caller).
     void process_line(const std::string& line);
 
+    /// Classify context read from the live printer state. Main thread only.
+    static ClassifyContext current_classify_context();
+
+    /// True when the active backend classifies the `!!` copy of an RPC error
+    /// carrying `message` as a command refusal this router presents.
+    [[nodiscard]] bool explains_rpc_error(const std::string& message) const;
+
+    /// The broadcast claimant installed into rpc_error_correlation: when
+    /// explains_rpc_error(), take `report` and run it after
+    /// RPC_REPORT_CLAIM_MS unless the explanation has surfaced by then.
+    bool claim_rpc_report(const std::string& message, std::function<void()>& report);
+
+    /// Context carried by one claimed report's timer. Defined in the .cpp.
+    struct ClaimCtx;
+
+    /// Claimed reports' timers, cancelled in the dtor. Main-thread only.
+    std::vector<lv_timer_t*> pending_claims_;
+
     /// CRITICAL error that carries a recovery action: delegates to the
     /// shared RecoveryModalPresenter.
     void present_recovery_modal(const ErrorEvent& e);
@@ -156,7 +176,10 @@ class GcodeErrorRouter {
     /// @param text     cleaned/translated text to display
     /// @param raw_text Klipper's pre-clean wording — the dedup identity the
     ///                 fire-time re-check matches on (see ErrorEvent::raw_detail)
-    void present_deferred_toast(const std::string& text, const std::string& raw_text);
+    /// @param command_refusal ErrorEvent::command_refusal: the fire-time
+    ///                 re-check does not suppress it
+    void present_deferred_toast(const std::string& text, const std::string& raw_text,
+                                bool command_refusal = false);
 
     /// Bytes-only truncation for transient toasts. Modals always get the
     /// full text -- they wrap to multiple lines.

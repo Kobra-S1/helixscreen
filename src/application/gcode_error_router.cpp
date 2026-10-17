@@ -31,6 +31,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <chrono>
 #include <vector>
 
@@ -46,6 +47,11 @@ constexpr const char* REPLAY_OBSERVER_NAME = "gcode_store_replay";
 /// empty gcode. Matched on the tag error_classify.cpp:73 stamps, because an
 /// empty gcode alone is not a reliable signal — see present_recover_toast().
 constexpr const char* KEY298_RECOVER_TAG = "error_classify::key298_recover";
+
+/// How long a claimed RPC report waits for the router's own explanation of
+/// the same refusal before the caller's report runs after all. Matches the
+/// RPC correlation window: both channels leave Klipper together.
+constexpr uint32_t RPC_REPORT_CLAIM_MS = 1500;
 
 /// How long a recover toast stays tappable. Longer than a plain toast: the
 /// user has to read the fault and decide, not just notice it.
@@ -84,9 +90,24 @@ double now_unix_seconds() {
 
 } // namespace
 
+/// One claimed RPC report: the caller's report to run if the router's
+/// explanation of `message` has not surfaced when the timer fires.
+struct GcodeErrorRouter::ClaimCtx {
+    GcodeErrorRouter* owner;
+    std::string message;
+    std::function<void()> report;
+};
+
 GcodeErrorRouter::GcodeErrorRouter(IMoonrakerAPI* api, IMoonrakerClient* client,
                                    helix::ui::RecoveryModalPresenter& presenter)
     : api_(api), client_(client), presenter_(presenter) {
+    // Callers ask this on the main thread, where the router is built and
+    // destroyed, so `this` outlives every call.
+    rpc_error_correlation::set_broadcast_claimant(
+        this, [this](const std::string& message, std::function<void()>& report) {
+            return claim_rpc_report(message, report);
+        });
+
     if (!client_) {
         spdlog::warn("[GcodeErrorRouter] Null client -- handlers not registered");
         return;
@@ -114,6 +135,15 @@ GcodeErrorRouter::GcodeErrorRouter(IMoonrakerAPI* api, IMoonrakerClient* client,
 }
 
 GcodeErrorRouter::~GcodeErrorRouter() {
+    rpc_error_correlation::clear_broadcast_claimant(this);
+    // A claimed report still waiting belongs to a printer scope that is going
+    // away; it is dropped with the router.
+    for (lv_timer_t* timer : pending_claims_) {
+        delete static_cast<ClaimCtx*>(lv_timer_get_user_data(timer));
+        lv_timer_delete(timer);
+    }
+    pending_claims_.clear();
+
     // Erase the map entries so no NEW invocations start after this point.
     // In-flight invocations (already past the map lookup, queued for dispatch)
     // are handled by lifetime_'s generation guard -- see the bg_cb usage in
@@ -170,10 +200,67 @@ std::string GcodeErrorRouter::truncate_for_toast(std::string text) {
 // (the AMS backends, whose detail already IS the raw text). The match remains
 // exact-string on both arms — see include/rpc_error_correlation.h for why
 // substring matching is deliberately avoided.
-static bool already_reported_via_rpc(const std::string& raw_detail, const std::string& detail) {
+//
+// A command refusal is never "already reported": its caller hands its own
+// report to this router instead (report_unless_explained).
+static bool already_reported_via_rpc(const std::string& raw_detail, const std::string& detail,
+                                     bool command_refusal) {
+    if (command_refusal)
+        return false;
     if (!raw_detail.empty() && rpc_error_correlation::was_recently_handled(raw_detail))
         return true;
     return rpc_error_correlation::was_recently_handled(detail);
+}
+
+ClassifyContext GcodeErrorRouter::current_classify_context() {
+    // Main thread only: these synchronous getters read printer state.
+    ClassifyContext ctx;
+    ctx.is_paused = get_printer_state().is_paused();
+    // RAW_PRINT_STATE_OK: classifiers offer resume/retry actions off this flag.
+    // A failure inside a host-side pre-start block is PrintPreparationManager's
+    // to report, and claiming a print is running would offer a Resume that has
+    // nothing to resume.
+    ctx.is_printing = get_printer_state().get_print_job_state() == PrintJobState::PRINTING;
+    return ctx;
+}
+
+bool GcodeErrorRouter::explains_rpc_error(const std::string& message) const {
+    auto* backend = AmsState::instance().get_backend();
+    if (!backend)
+        return false;
+    // Klipper mirrors a gcode.script rejection onto the console as `!! <message>`;
+    // this is the line process_line will classify when that copy arrives.
+    const auto ev = backend->classify_error("!! " + message, current_classify_context());
+    return ev && ev->command_refusal && decide_presentation(*ev) != PresentAs::NONE;
+}
+
+bool GcodeErrorRouter::claim_rpc_report(const std::string& message, std::function<void()>& report) {
+    if (!explains_rpc_error(message))
+        return false;
+    // process_line records the refusal's raw wording when it presents it, and
+    // that wording is this RPC error's message.
+    auto* cctx = new ClaimCtx{this, message, std::move(report)};
+    auto* t = lv_timer_create(
+        [](lv_timer_t* timer) {
+            auto* c = static_cast<ClaimCtx*>(lv_timer_get_user_data(timer));
+            // c->owner is alive: the dtor cancels every pending claim.
+            GcodeErrorRouter* r = c->owner;
+            if (!fault_surface_correlation::was_recently_surfaced(c->message)) {
+                spdlog::warn("[GcodeError] Explanation never surfaced; caller reports: {}",
+                             c->message);
+                if (c->report)
+                    c->report();
+            }
+            r->pending_claims_.erase(
+                std::remove(r->pending_claims_.begin(), r->pending_claims_.end(), timer),
+                r->pending_claims_.end());
+            delete c;
+            lv_timer_delete(timer);
+        },
+        RPC_REPORT_CLAIM_MS, cctx);
+    lv_timer_set_repeat_count(t, 1);
+    pending_claims_.push_back(t);
+    return true;
 }
 
 PresentAs decide_presentation(const ErrorEvent& e) {
@@ -201,6 +288,11 @@ PromptData build_recovery_prompt(const ErrorEvent& e) {
 }
 
 void GcodeErrorRouter::present_recovery_modal(const ErrorEvent& e) {
+    if (e.command_refusal) {
+        // It answers the command just sent: an identical refusal the user
+        // dismissed earlier must not hide this one.
+        presenter_.forget_handled_fault();
+    }
     presenter_.present(e);
 }
 
@@ -250,7 +342,7 @@ bool GcodeErrorRouter::present_recover_toast(const ErrorEvent& e) {
     if (how == RecoverDispatch::PLAIN_TOAST) {
         spdlog::warn("[GcodeError] Recovery action has nothing to run; plain toast for: {}",
                      e.detail);
-        present_deferred_toast(e.detail, e.raw_detail);
+        present_deferred_toast(e.detail, e.raw_detail, e.command_refusal);
         return true;
     }
 
@@ -320,8 +412,8 @@ bool GcodeErrorRouter::present_recover_toast(const ErrorEvent& e) {
     return true;
 }
 
-void GcodeErrorRouter::present_deferred_toast(const std::string& text,
-                                              const std::string& raw_text) {
+void GcodeErrorRouter::present_deferred_toast(const std::string& text, const std::string& raw_text,
+                                              bool command_refusal) {
     // Deferred toast for unclassified errors -- gives the late-arrival
     // RPC error response a chance to populate the correlation buffer
     // before we re-check at fire time. `raw` is carried alongside `clean`
@@ -330,13 +422,14 @@ void GcodeErrorRouter::present_deferred_toast(const std::string& text,
         std::string clean;
         std::string raw;
         std::string short_form;
+        bool command_refusal;
     };
-    auto* dctx = new DeferredCtx{text, raw_text, truncate_for_toast(text)};
+    auto* dctx = new DeferredCtx{text, raw_text, truncate_for_toast(text), command_refusal};
     auto* dt = lv_timer_create(
         [](lv_timer_t* timer) {
             auto* c = static_cast<DeferredCtx*>(lv_timer_get_user_data(timer));
             if (c) {
-                if (already_reported_via_rpc(c->raw, c->clean)) {
+                if (already_reported_via_rpc(c->raw, c->clean, c->command_refusal)) {
                     spdlog::info("[GcodeError] Suppressing deferred `!!` toast "
                                  "(caller-handled RPC error arrived after): {}",
                                  c->clean);
@@ -356,16 +449,9 @@ void GcodeErrorRouter::process_line(const std::string& line) {
     if (line.empty())
         return;
 
-    // Build classify context from current printer state. process_line runs
-    // on the MAIN thread (the ctor's lifetime_.bg_cb wrapper defers the
-    // notify body to main), so these synchronous getters are safe.
-    ClassifyContext ctx;
-    ctx.is_paused = get_printer_state().is_paused();
-    // RAW_PRINT_STATE_OK: classifiers offer resume/retry actions off this flag.
-    // A failure inside a host-side pre-start block is PrintPreparationManager's
-    // to report, and claiming a print is running would offer a Resume that has
-    // nothing to resume.
-    ctx.is_printing = get_printer_state().get_print_job_state() == PrintJobState::PRINTING;
+    // process_line runs on the MAIN thread (the ctor's lifetime_.bg_cb wrapper
+    // defers the notify body to main), so reading printer state is safe.
+    const ClassifyContext ctx = current_classify_context();
 
     // Ask the active AMS backend first (domain-aware); else the generic
     // classifier. get_backend() may return nullptr -- guarded.
@@ -393,11 +479,10 @@ void GcodeErrorRouter::process_line(const std::string& line) {
     // contextual toast. Skipping our generic surfacing avoids double-
     // notification for the same root cause. (The deferred-toast path
     // re-checks at fire time for late-arriving RPC responses.)
-    if (already_reported_via_rpc(ev->raw_detail, ev->detail)) {
+    if (already_reported_via_rpc(ev->raw_detail, ev->detail, ev->command_refusal)) {
         spdlog::info("[GcodeError] Suppressing duplicate (RPC-handled): {}", ev->detail);
         return;
     }
-
     const PresentAs how = decide_presentation(*ev);
     if (how == PresentAs::NONE) {
         // INFO is not surfaced in L0. Returning here rather than falling into
@@ -438,7 +523,7 @@ void GcodeErrorRouter::process_line(const std::string& line) {
         // deferred re-check runs one UpdateQueue tick after the ERROR edge and
         // would otherwise find nothing recorded and toast on top of a toast
         // that is already scheduled.
-        present_deferred_toast(ev->detail, ev->raw_detail);
+        present_deferred_toast(ev->detail, ev->raw_detail, ev->command_refusal);
         break;
     case PresentAs::NONE:
         return; // unreachable -- handled above; kept for switch exhaustiveness

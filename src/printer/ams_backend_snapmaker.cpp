@@ -2100,8 +2100,8 @@ AmsBackendSnapmaker::classify_error(const std::string& raw_line,
     // 1-based, matching the machine's own labels and the slicer's filament list.
     const int slot = std::stoi(digits) + 1;
 
-    spdlog::warn("{} Resume refused: extruder {} has no filament type assigned", backend_log_tag(),
-                 digits);
+    // No log here: the router asks this ahead of the `!!` copy too, and logs
+    // the classified event when it presents it.
 
     // No gcode fixes this in one tap: SET_PRINT_FILAMENT_CONFIG needs a vendor,
     // type and subtype the user has to choose. So the action set is a plain
@@ -2120,6 +2120,8 @@ AmsBackendSnapmaker::classify_error(const std::string& raw_line,
     // make_ams_fault_event leaves raw_detail empty; the router's cross-source
     // dedup matches on the firmware's untranslated wording, not our sentence.
     e.raw_detail = detail;
+    // The resume caller's own report would be the raw firmware words.
+    e.command_refusal = true;
     return e;
 }
 
