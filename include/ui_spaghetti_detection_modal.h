@@ -78,6 +78,10 @@ class SpaghettiDetectionModal : public Modal {
             on_resume_();
         hide();
     }
+    // ESC closes without resuming or aborting: those take a button.
+    void on_escape() override {
+        hide(ModalCloseReason::EscKey);
+    }
     void on_cancel() override { // Abort
         if (on_abort_)
             on_abort_();

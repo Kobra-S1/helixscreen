@@ -216,7 +216,8 @@ The Modal destructor auto-hides if visible, so storing a `Modal` subclass as a m
 | `on_hide()` | no-op | Before modal is destroyed |
 | `on_dismissed()` | no-op | After `on_hide()`, when the close was not a button's answer: backdrop tap, hot reload, a system sweep, or a programmatic `hide()` |
 | `on_ok()` | `hide(ButtonPress)` | When primary button is clicked |
-| `on_cancel()` | `hide(ButtonPress)` | When secondary button is clicked, and on ESC |
+| `on_cancel()` | `hide(ButtonPress)` | When secondary button is clicked |
+| `on_escape()` | `on_cancel()` | On ESC. Override it to close without acting (`hide(EscKey)`) when Cancel commits something: Abort, Resume, a saved preference |
 | `on_tertiary()` | `hide(ButtonPress)` | Third button clicked |
 | `on_quaternary()` | `hide(ButtonPress)` | Fourth button clicked |
 | `on_quinary()` | `hide(ButtonPress)` | Fifth button clicked |

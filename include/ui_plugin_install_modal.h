@@ -62,6 +62,10 @@ class PluginInstallModal : public Modal {
     void on_show() override;
     void on_hide() override;
     void on_cancel() override;
+    // ESC closes without recording the "don't ask again" choice.
+    void on_escape() override {
+        hide(ModalCloseReason::EscKey);
+    }
 
   private:
     helix::HelixPluginInstaller* installer_ = nullptr;

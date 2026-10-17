@@ -283,10 +283,20 @@ class Modal {
     }
 
     /**
-     * @brief Called when Cancel button is clicked, and on ESC (default: hides)
+     * @brief Called when Cancel button is clicked (default: hides)
      */
     virtual void on_cancel() {
         hide(ModalCloseReason::ButtonPress);
+    }
+
+    /**
+     * @brief Called on ESC (default: on_cancel())
+     *
+     * A modal whose Cancel button commits an action (Abort, Resume) overrides
+     * this to close without deciding anything, so a stray key cannot act.
+     */
+    virtual void on_escape() {
+        on_cancel();
     }
 
     /**

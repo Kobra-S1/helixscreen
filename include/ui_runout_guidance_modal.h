@@ -154,6 +154,10 @@ class RunoutGuidanceModal : public Modal {
     }
 
   protected:
+    // ESC closes without resuming or aborting: those take a button.
+    void on_escape() override {
+        hide(ModalCloseReason::EscKey);
+    }
     /**
      * @brief Called after modal is created and visible
      *
