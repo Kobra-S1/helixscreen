@@ -4,13 +4,16 @@
 #include "action_prompt_modal.h"
 
 #include "ui_error_reporting.h"
+#include "ui_swatch.h"
 
+#include "color_utils.h"
 #include "sound_manager.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
 
 #include <cstdlib>
+#include <optional>
 
 namespace helix::ui {
 
@@ -305,14 +308,19 @@ void ActionPromptModal::create_button(const PromptButton& btn, lv_obj_t* contain
     lv_obj_set_style_border_width(button, 0, LV_PART_MAIN);
     lv_obj_set_style_shadow_width(button, 0, LV_PART_MAIN);
 
-    // Apply button color: hex_color takes priority over named color hint
-    lv_color_t bg_color = get_button_color(btn.color);
-    if (!btn.hex_color.empty()) {
-        uint32_t hex_val = std::strtoul(btn.hex_color.c_str(), nullptr, 16);
-        bg_color = lv_color_hex(hex_val);
+    // A hex fill takes priority over the named style.
+    const std::optional<uint32_t> fill_rgb = helix::parse_hex_color(btn.hex_color);
+    const lv_color_t bg_color = fill_rgb ? lv_color_hex(*fill_rgb) : get_button_color(btn.color);
+    if (fill_rgb && btn.label.empty()) {
+        // A color tile with no text is a swatch, and wears the swatch edge so a
+        // white tile on a light card or a black one on a dark card stays visible.
+        lv_obj_set_style_border_width(button, theme_manager_get_spacing("border_width"),
+                                      LV_PART_MAIN);
+        helix::ui::apply_swatch_color(button, *fill_rgb, "");
+    } else {
+        lv_obj_set_style_bg_color(button, bg_color, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(button, LV_OPA_COVER, LV_PART_MAIN);
     }
-    lv_obj_set_style_bg_color(button, bg_color, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(button, LV_OPA_COVER, LV_PART_MAIN);
 
     // Create label inside button with contrast-aware text color
     lv_obj_t* label = lv_label_create(button);
@@ -348,7 +356,9 @@ void ActionPromptModal::create_button(const PromptButton& btn, lv_obj_t* contain
 
     spdlog::debug("[ActionPromptModal] Created button: {} (gcode: {}, color: {})", btn.label,
                   btn.gcode.empty() ? "<none>" : btn.gcode,
-                  btn.color.empty() ? "primary" : btn.color);
+                  !btn.hex_color.empty() ? btn.hex_color
+                  : btn.color.empty()    ? std::string("primary")
+                                         : btn.color);
 }
 
 lv_color_t ActionPromptModal::get_button_color(const std::string& color_name) {

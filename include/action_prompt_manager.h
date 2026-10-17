@@ -61,7 +61,8 @@ struct PromptButton {
     std::string label;      ///< Display text for the button
     std::string gcode;      ///< G-code to execute when clicked (empty = use label)
     std::string color;      ///< Color hint: primary/secondary/info/warning/error (empty = default)
-    std::string hex_color;  ///< Raw hex color override (e.g., "7c4b00"), takes priority over color
+    std::string hex_color;  ///< Fill color as sent ("7c4b00", "#e0e0e0"); always valid for
+                            ///< helix::parse_hex_color, empty = none. Takes priority over color
     bool is_footer = false; ///< True if this is a footer button
     int group_id = -1;      ///< Group ID for button grouping (-1 = not grouped)
 };
@@ -194,6 +195,8 @@ class ActionPromptManager {
      * - "label|gcode" -> separate label and gcode
      * - "label|gcode|color" -> all three fields
      * - "label||color" -> label=gcode, with color
+     * - "label|gcode|ff5722" -> a hex third field is a fill color (hex_color)
+     * - "label|gcode|style|ff5722" -> legacy fourth-field fill color, wins over field 3
      *
      * @param spec The button specification string
      * @return PromptButton with parsed fields

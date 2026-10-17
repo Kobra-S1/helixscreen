@@ -28,6 +28,7 @@
 #include "action_prompt_manager.h"
 #include "action_prompt_modal.h"
 #include "display_settings_manager.h"
+#include "theme_manager.h"
 
 #include <vector>
 
@@ -239,6 +240,61 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
         }
     }
     REQUIRE(any_wrapped);
+
+    modal_.hide();
+}
+
+// A hex in the third field (or the legacy fourth) fills the button with that
+// color; a field that is not a color leaves the themed default
+// (prestonbrown/helixscreen#1806).
+TEST_CASE_METHOD(ActionPromptLayoutFixture, "ActionPromptModal: hex button fills with the color",
+                 "[action_prompt][layout][ui_integration][hex_color][1806]") {
+    using helix::ActionPromptManager;
+    helix::PromptData data;
+    data.title = "Colors";
+    data.buttons = {
+        ActionPromptManager::parse_button_spec("Standard|GCODE_CMD_1|error"),
+        ActionPromptManager::parse_button_spec("HEX Dark (White Text)|GCODE_CMD_2|ff5722"),
+        ActionPromptManager::parse_button_spec("HEX Light (Black Text)|GCODE_CMD_3|#e0e0e0"),
+        ActionPromptManager::parse_button_spec("Legacy|GCODE_CMD_4|primary|21cc3d"),
+        ActionPromptManager::parse_button_spec("Garbage|GCODE_CMD_5|zzzzzz"),
+    };
+
+    REQUIRE(modal_.show_prompt(test_screen(), data));
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 5);
+
+    auto bg = [&](size_t i) { return lv_obj_get_style_bg_color(btns[i], LV_PART_MAIN); };
+    CHECK(lv_color_eq(bg(0), theme_manager_get_color("danger")));
+    CHECK(lv_color_eq(bg(1), lv_color_hex(0xff5722)));
+    CHECK(lv_color_eq(bg(2), lv_color_hex(0xe0e0e0)));
+    CHECK(lv_color_eq(bg(3), lv_color_hex(0x21cc3d)));
+    CHECK(lv_color_eq(bg(4), theme_manager_get_color("primary")));
+
+    modal_.hide();
+}
+
+// A Z-Mod swatch tile carries no text, so it needs an outline to stay visible
+// when its color matches the card behind it.
+TEST_CASE_METHOD(ActionPromptLayoutFixture,
+                 "ActionPromptModal: a label-less hex button is a swatch",
+                 "[action_prompt][layout][ui_integration][hex_color][1806]") {
+    using helix::ActionPromptManager;
+    helix::PromptData data;
+    data.title = "Select color";
+    data.buttons = {
+        ActionPromptManager::parse_button_spec(
+            "_ |CHANGE_ZCOLOR SLOT=1 TYPE=PLA HEX=ffffff HIDE=0|ffffff"),
+        ActionPromptManager::parse_button_spec("Named|GCODE|e0e0e0"),
+    };
+
+    REQUIRE(modal_.show_prompt(test_screen(), data));
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 2);
+
+    CHECK(lv_color_eq(lv_obj_get_style_bg_color(btns[0], LV_PART_MAIN), lv_color_hex(0xffffff)));
+    CHECK(lv_obj_get_style_border_width(btns[0], LV_PART_MAIN) > 0);
+    CHECK(lv_obj_get_style_border_width(btns[1], LV_PART_MAIN) == 0);
 
     modal_.hide();
 }
