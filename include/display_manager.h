@@ -11,6 +11,7 @@
 #include "touch_calibration.h"
 #include "touch_calibration_session.h"
 #include "touch_calibration_wrapper.h"
+#include "wake_touch_latch.h"
 
 #include <functional>
 #include <lvgl.h>
@@ -749,6 +750,8 @@ class DisplayManager : public helix::ICalibrationSink {
 
     // Runs inside sleep_aware_read_cb, so only where that wrapper is installed
     helix::ScrollClickGuard m_scroll_guard;
+    // The wrapped pointer's wake touch; sleep_aware_read_cb wraps m_pointer alone
+    helix::WakeTouchLatch m_wake_latch;
 
     // Last scroll config applied to the pointer, remembered so a post-swap input
     // rebuild (rotation fallback) can reapply it. Defaults match the clamped
@@ -850,17 +853,12 @@ class DisplayManager : public helix::ICalibrationSink {
     void setup_keyboard_group();
 
     /**
-     * @brief Temporarily disable pointer input after wake
+     * @brief End the press LVGL is tracking on every pointer, until each one lifts
      *
-     * Prevents the wake touch from triggering UI actions.
-     * Re-enables automatically after 200ms via LVGL timer.
+     * Runs on wake, so the touch that woke the display cannot click, long-press or
+     * scroll on a pointer the sleep-aware wrapper does not cover.
      */
-    void disable_input_briefly();
-
-    /**
-     * @brief Timer callback to re-enable input after wake
-     */
-    static void reenable_input_cb(lv_timer_t* timer);
+    static void cancel_pointer_presses();
 
     /**
      * @brief Sleep-aware input wrapper callback

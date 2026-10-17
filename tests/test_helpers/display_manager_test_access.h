@@ -86,6 +86,23 @@ class DisplayManagerTestAccess {
         dm.m_display_sleeping = sleeping;
     }
 
+    static void set_display_dimmed(DisplayManager& dm, bool dimmed) {
+        dm.m_display_dimmed = dimmed;
+    }
+
+    // The pointer init() builds: the backend's device, then the pointer setup that
+    // installs the sleep-aware wrapper on every backend but SDL.
+    static void create_input_devices(DisplayManager& dm) {
+        dm.m_pointer = dm.m_backend->create_input_pointer();
+        dm.configure_pointer(25, 10);
+    }
+
+#ifdef HELIX_ENABLE_SCREENSAVER
+    static void set_screensaver_active(DisplayManager& dm, bool active) {
+        dm.m_screensaver_active = active;
+    }
+#endif
+
     // Set by sleep_aware_read_cb when a press arrives while asleep or dimmed.
     static bool wake_requested(DisplayManager& dm) {
         return dm.m_wake_requested;
@@ -115,12 +132,11 @@ class DisplayManagerTestAccess {
         return dm.m_sleep_overlay;
     }
 
-    // The wake-touch gate wake_display() engages (#1245). Private on the
-    // manager and normally only reachable through a full wake, which also
-    // repaints; the gate is driven directly here so the assertions are about
-    // the gate alone.
-    static void disable_input_briefly(DisplayManager& dm) {
-        dm.disable_input_briefly();
+    // The press cancel wake_display() runs on every pointer (#1245). Private on the
+    // manager and normally only reachable through a full wake, which also repaints;
+    // driven directly here so the assertions are about the cancel alone.
+    static void cancel_pointer_presses() {
+        DisplayManager::cancel_pointer_presses();
     }
 
     // Exercises the wake-side panel restore (power-on / unblank / overlay removal)

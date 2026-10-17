@@ -375,6 +375,19 @@ input pipeline**, so gestures behave exactly as they do under a finger.
 Each command returns only after LVGL has sampled the device twice, so sequences do
 not race the indev timer.
 
+Every pointer command counts as activity before it sets the pointer state, but the
+display wakes only on the main loop's next idle tick, after the pointer may already
+have been read. On a sleeping, dimmed or screensaver-covered display that first
+`press` or `tap` can therefore be taken as the wake touch and cancel without
+clicking, depending on whether LVGL's read timer runs before that tick. Send `wake`
+first when the display may be idle. `ctl` cannot reliably produce a wake touch either:
+on every embedded backend the sleep-aware read wrapper
+(`src/application/display_manager.cpp#sleep_aware_read_cb`) reports a waking touch as
+released until it lifts (`include/wake_touch_latch.h`, with a 200 ms re-arm window for
+contact chatter), and `DisplayManager::cancel_pointer_presses()` on every wake resets
+the pointers the wrapper does not cover (SDL, the `ctl` pointer). That
+swallow is covered by `[wake_swallow]` in the unit suite.
+
 The device is created lazily on the first pointer command and coexists with the
 real SDL/evdev pointer; LVGL supports multiple pointer indevs. Instances that never
 receive a pointer command never register it.

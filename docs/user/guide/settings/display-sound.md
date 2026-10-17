@@ -146,7 +146,9 @@ When the screen dims to lower brightness: Never, 30s, 1m, 2m, 5m, or 10m of inac
 
 ### Display Sleep
 
-When the screen turns off completely: Never, 1m, 5m, 10m, 20m, or 30m of inactivity.
+When the screen turns off completely: Never, 1m, 5m, 10m, 20m, or 30m of inactivity. Touch the screen to wake it.
+
+The touch that wakes the screen, from sleep, a dimmed screen or a screensaver, only wakes it. Nothing under your finger is pressed, even if you hold it there or drag, until you lift it. Then tap what you want.
 
 ### Screensaver
 
@@ -159,7 +161,7 @@ Choose a screensaver to display during inactivity instead of dimming the screen:
 | **Starfield** | Scrolling starfield |
 | **3D Pipes** | Animated 3D pipes |
 
-When any option other than **Off** is selected, a **Test Screensaver** button appears below the dropdown. Tap it to preview the selected screensaver immediately, without waiting for the inactivity timeout.
+When any option other than **Off** is selected, a **Test Screensaver** button appears below the dropdown. Tap it to preview the selected screensaver immediately, without waiting for the inactivity timeout. Touch the screen to stop it; like any wake touch, that touch presses nothing.
 
 ### Sleep While Printing
 
