@@ -29,6 +29,13 @@ int32_t label_width_px(const std::string& label, const lv_font_t* font) {
 }
 
 /**
+ * @brief A color tile with no text: Z-Mod's color-picker swatch (#1806).
+ */
+bool is_swatch(const PromptButton& btn) {
+    return btn.label.empty() && helix::parse_hex_color(btn.hex_color).has_value();
+}
+
+/**
  * @brief Can every regular button show its label on one equal-width row?
  *
  * The equal-width row divides the container evenly, so it only works while the
@@ -63,6 +70,11 @@ bool equal_width_row_fits(lv_obj_t* container, const std::vector<PromptButton>& 
     const int32_t gap = lv_obj_get_style_pad_column(container, LV_PART_MAIN);
     const int32_t cell_pad = theme_manager_get_spacing("space_sm"); // per side, see create_button()
     const int32_t cell_width = (available - gap * (regular_count - 1)) / regular_count;
+    // A cell narrower than the smallest button is no longer a touch target:
+    // Z-Mod's 24-swatch color picker would become a row of slivers.
+    if (cell_width < theme_manager_get_spacing("button_height_sm")) {
+        return false;
+    }
 
     for (const auto& btn : buttons) {
         if (btn.is_footer) {
@@ -296,6 +308,13 @@ void ActionPromptModal::create_button(const PromptButton& btn, lv_obj_t* contain
         lv_obj_set_style_pad_left(button, theme_manager_get_spacing("space_sm"), LV_PART_MAIN);
         lv_obj_set_style_pad_right(button, theme_manager_get_spacing("space_sm"), LV_PART_MAIN);
         lv_obj_set_style_radius(button, 8, LV_PART_MAIN);
+    } else if (is_swatch(btn)) {
+        // A swatch has no label to size it, so it is a square of the smallest
+        // button size and row_wrap lays a color grid out as rows of them. A full
+        // button_height square makes Z-Mod's 24-color grid outgrow the card.
+        const int32_t side = theme_manager_get_spacing("button_height_sm");
+        lv_obj_set_size(button, side, side);
+        lv_obj_set_style_radius(button, 8, LV_PART_MAIN);
     } else {
         // Everything else: content-sized with padding, which row_wrap spreads
         // over as many lines as the labels need (<= 3 buttons, or more than
@@ -311,7 +330,7 @@ void ActionPromptModal::create_button(const PromptButton& btn, lv_obj_t* contain
     // A hex fill takes priority over the named style.
     const std::optional<uint32_t> fill_rgb = helix::parse_hex_color(btn.hex_color);
     const lv_color_t bg_color = fill_rgb ? lv_color_hex(*fill_rgb) : get_button_color(btn.color);
-    if (fill_rgb && btn.label.empty()) {
+    if (is_swatch(btn)) {
         // A color tile with no text is a swatch, and wears the swatch edge so a
         // white tile on a light card or a black one on a dark card stays visible.
         lv_obj_set_style_border_width(button, theme_manager_get_spacing("border_width"),

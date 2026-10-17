@@ -59,6 +59,26 @@ helix::PromptData make_regular_prompt(int n_buttons) {
     return data;
 }
 
+// Z-Mod's color picker as its CHANGE_ZCOLOR macro sends it (#1806): a text
+// line, 24 label-less swatches and a footer Cancel.
+helix::PromptData make_zmod_color_prompt() {
+    using helix::ActionPromptManager;
+    static const char* const kHex[24] = {
+        "ffffff", "fff245", "def578", "21cc3d", "167a4b", "156682", "24e4a0", "7bd9f0",
+        "4caaf8", "2e54dd", "48358c", "a341f7", "f435f6", "d584de", "fa6173", "f82d29",
+        "805003", "f9903b", "fcebd7", "d5c5a1", "b17c38", "8c8c89", "bebebe", "1b1b1b"};
+    helix::PromptData data;
+    data.title = "Select color";
+    data.text_lines.push_back("Spool 1: PETG-CF/");
+    for (const char* hex : kHex) {
+        data.buttons.push_back(ActionPromptManager::parse_button_spec(
+            std::string("_ |CHANGE_ZCOLOR SLOT=1 HEX=") + hex + "|" + hex));
+    }
+    data.buttons.push_back(ActionPromptManager::parse_button_spec("Cancel|RESPOND|primary"));
+    data.buttons.back().is_footer = true;
+    return data;
+}
+
 class ActionPromptLayoutFixture : public LVGLUITestFixture {
   public:
     ActionPromptLayoutFixture() {
@@ -295,6 +315,48 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(btns[0], LV_PART_MAIN), lv_color_hex(0xffffff)));
     CHECK(lv_obj_get_style_border_width(btns[0], LV_PART_MAIN) > 0);
     CHECK(lv_obj_get_style_border_width(btns[1], LV_PART_MAIN) == 0);
+
+    modal_.hide();
+}
+
+// 24 swatches cannot share one row as touch targets, so the picker wraps into
+// a grid of square tiles and the footer stays on the card.
+TEST_CASE_METHOD(ActionPromptLayoutFixture,
+                 "ActionPromptModal: a Z-Mod color picker wraps into a grid of touch targets",
+                 "[action_prompt][layout][ui_integration][hex_color][1806]") {
+    REQUIRE(modal_.show_prompt(test_screen(), make_zmod_color_prompt()));
+    lv_obj_t* dialog = modal_.dialog();
+    REQUIRE(dialog != nullptr);
+    lv_obj_update_layout(test_screen());
+
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 25);
+    const int32_t side = theme_manager_get_spacing("button_height_sm");
+    REQUIRE(side > 0);
+
+    lv_area_t card;
+    lv_obj_get_coords(dialog, &card);
+    bool wrapped = false;
+    const int32_t y0 = lv_obj_get_y(btns[0]);
+    for (size_t i = 0; i < 24; ++i) {
+        lv_area_t a;
+        lv_obj_get_coords(btns[i], &a);
+        CAPTURE(i, lv_area_get_width(&a), lv_area_get_height(&a));
+        CHECK(lv_area_get_width(&a) == side);
+        CHECK(lv_area_get_height(&a) == side);
+        CHECK(a.x1 >= card.x1);
+        CHECK(a.x2 <= card.x2);
+        CHECK(a.y2 <= card.y2);
+        if (lv_obj_get_y(btns[i]) != y0) {
+            wrapped = true;
+        }
+    }
+    CHECK(wrapped);
+
+    lv_area_t footer;
+    lv_obj_get_coords(btns[24], &footer);
+    CHECK(footer.y1 >= card.y1);
+    CHECK(footer.y2 <= card.y2);
 
     modal_.hide();
 }
