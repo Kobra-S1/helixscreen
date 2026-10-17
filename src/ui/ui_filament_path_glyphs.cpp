@@ -356,14 +356,24 @@ void draw_flow_dots_path(lv_layer_t* layer, const pg::FilamentPath& path, lv_col
 // Toolhead glyph
 // ============================================================================
 
-// One dispatch point for the user's configured toolhead style. The A4T glyph
-// is drawn 6/5 larger than the others at every call site in this widget, so
-// the boost is folded in here.
+namespace {
+
+// The A4T glyph is drawn 6/5 larger than the others at every call site in this
+// widget, so the boost is folded in here, for the drawing and its bounds alike.
+int32_t drawn_scale(helix::ToolheadStyle style, int32_t scale) {
+    return style == helix::ToolheadStyle::A4T ? scale * 6 / 5 : scale;
+}
+
+} // namespace
+
+// One dispatch point for the user's configured toolhead style.
 void draw_toolhead(lv_layer_t* layer, int32_t cx, int32_t cy, lv_color_t color, int32_t scale,
                    lv_opa_t opa) {
-    switch (helix::SettingsManager::instance().get_effective_toolhead_style()) {
+    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
+    scale = drawn_scale(style, scale);
+    switch (style) {
     case helix::ToolheadStyle::A4T:
-        draw_nozzle_a4t(layer, cx, cy, color, scale * 6 / 5, opa);
+        draw_nozzle_a4t(layer, cx, cy, color, scale, opa);
         break;
     case helix::ToolheadStyle::ANTHEAD:
         draw_nozzle_anthead(layer, cx, cy, color, scale, opa);
@@ -470,9 +480,7 @@ GlyphBounds toolhead_bounds(helix::ToolheadStyle style, int32_t cx, int32_t nozz
 
 GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t nozzle_y, int32_t scale) {
     const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
-    // draw_toolhead() draws the A4T glyph 6/5 larger.
-    return toolhead_bounds(style, cx, nozzle_y,
-                           style == helix::ToolheadStyle::A4T ? scale * 6 / 5 : scale);
+    return toolhead_bounds(style, cx, nozzle_y, drawn_scale(style, scale));
 }
 
 // Tool badge (T0, T1, …) below a nozzle — matches system_path_canvas style.

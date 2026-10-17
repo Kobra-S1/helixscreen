@@ -1349,7 +1349,7 @@ Located in the `safety` section:
 **Type:** boolean
 **Default:** `true`
 **UI:** Settings > Safety & Notifications > **Confirm tool changes** (shown only on printers with more than one tool)
-**Description:** Ask before switching to another tool from the home screen's tool switcher, a toolhead on the filament system's screen, or the Filament screen's tool list. When `false`, those taps switch straight away. A tool change during a paused print always asks, whatever this says.
+**Description:** Ask before switching to another tool from the home screen's tool switcher, a toolhead on the filament system's screen, or the Filament screen's tool list (on printers with a toolhead per tool; on a filament system feeding one shared toolhead that list only picks the slot to load, and changes no tool). When `false`, those taps switch straight away. A tool change during a paused print always asks, whatever this says.
 
 ---
 

@@ -256,6 +256,18 @@ enum class AmsAction {
     PURGING = 11     ///< Purging old filament color after load
 };
 
+namespace helix {
+/**
+ * @brief Does @p action keep the system from taking a new operation?
+ *
+ * Everything but IDLE and ERROR: an operation in flight, a sensor check, or a
+ * pause waiting on the user.
+ */
+inline bool ams_action_holds_system(AmsAction action) {
+    return action != AmsAction::IDLE && action != AmsAction::ERROR;
+}
+} // namespace helix
+
 /**
  * @brief Is the system doing anything at all right now?
  *
@@ -1428,7 +1440,7 @@ struct AmsSystemInfo {
      * @return true if actively loading, unloading, etc.
      */
     [[nodiscard]] bool is_busy() const {
-        return action != AmsAction::IDLE && action != AmsAction::ERROR;
+        return helix::ams_action_holds_system(action);
     }
 
     // === Multi-unit helpers ===

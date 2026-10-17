@@ -187,6 +187,10 @@ TEST_CASE_METHOD(ToolheadTapFixture, "a tube tap never changes tool, whatever th
         CHECK(rig.backend->change_tool_calls == 0);
         CHECK(ModalStack::instance().stack_empty());
         CHECK(AmsPanelTestAccess::context_menu_open(*panel));
+        // Closed before the next pass, so that pass proves its own tap opened it.
+        AmsPanelTestAccess::close_context_menu(*panel);
+        process_lvgl(50);
+        REQUIRE_FALSE(AmsPanelTestAccess::context_menu_open(*panel));
     }
 }
 

@@ -119,7 +119,9 @@ namespace {
 // One independent tool column: entry line → sensor dot → line → toolhead glyph
 // → tool badge.
 void draw_parallel_slot(const RenderCtx& ctx, const SlotRenderStates& states, int i,
-                        int32_t entry_y, int32_t sensor_y, int32_t toolhead_y) {
+                        int32_t entry_y, const ParallelRows& rows) {
+    const int32_t sensor_y = rows.sensor_y;
+    const int32_t toolhead_y = rows.toolhead_y;
     const FilamentPathData* data = ctx.data;
     const ThemeCache& theme = data->theme;
     lv_color_t idle_color = theme.color_idle;
@@ -131,7 +133,7 @@ void draw_parallel_slot(const RenderCtx& ctx, const SlotRenderStates& states, in
     const SlotRenderState& s = states[i];
     lv_color_t tool_color = s.has_filament ? s.color : idle_color;
 
-    int32_t tool_scale = LV_MAX(6, theme.extruder_scale * 2 / 3);
+    const int32_t tool_scale = rows.tool_scale;
     int32_t nozzle_top = toolhead_y - tool_scale * 2; // Top of heater block
 
     // Entry → sensor line: colored if filament present, hollow if idle
@@ -194,7 +196,7 @@ void render_parallel(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
 
     // Draw each tool as an independent column
     for (int i = 0; i < data->slot_count; i++) {
-        draw_parallel_slot(ctx, states, i, entry_y, rows.sensor_y, rows.toolhead_y);
+        draw_parallel_slot(ctx, states, i, entry_y, rows);
     }
 }
 

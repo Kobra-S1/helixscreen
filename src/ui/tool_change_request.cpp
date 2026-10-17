@@ -5,6 +5,7 @@
 
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
+#include "ui_update_queue.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
@@ -21,16 +22,6 @@
 #include <utility>
 
 namespace helix::ui {
-
-namespace {
-
-/// Everything but IDLE and ERROR keeps the system from taking a new operation:
-/// an operation in flight, a sensor check, or a pause waiting on the user.
-bool ams_action_holds_system(AmsAction action) {
-    return action != AmsAction::IDLE && action != AmsAction::ERROR;
-}
-
-} // namespace
 
 AmsError tool_change_print_refusal(PrintState lifecycle, bool filament_ops_self_home) {
     if (!print_blocks_filament_op(lifecycle, filament_ops_self_home)) {
@@ -110,14 +101,42 @@ void dispatch(int tool_index, const ToolChangeHooks& hooks) {
         });
 }
 
+/// Log and toast a verdict that dispatches nothing: refusals raise a warning,
+/// Busy and AlreadyActive raise nothing.
+void report_withheld(const ToolChangeDecision& decision, int tool_index) {
+    switch (decision.verdict) {
+    case ToolChangeVerdict::AlreadyActive:
+        spdlog::debug("[ToolChange] T{} already active, ignoring", tool_index);
+        break;
+    case ToolChangeVerdict::Busy:
+        spdlog::info("[ToolChange] T{} ignored: filament system busy", tool_index);
+        break;
+    case ToolChangeVerdict::RefuseNeedsAttention:
+    case ToolChangeVerdict::RefusePrint:
+        spdlog::info("[ToolChange] Tool change to T{} refused: {}", tool_index,
+                     decision.refusal.technical_msg);
+        notify_ams_warning(decision.refusal);
+        break;
+    case ToolChangeVerdict::ConfirmPaused:
+    case ToolChangeVerdict::ConfirmSetting:
+    case ToolChangeVerdict::Immediate:
+        break;
+    }
+}
+
 /// What an open confirmation owes its caller: the change on the primary
-/// button, on_declined on every other way the dialog closes. A close that
-/// fires no dialog callback (a programmatic hide) still drops the dialog's
-/// callbacks, and with them the last reference to this.
+/// button, on_declined on every other way the dialog closes. The primary
+/// button decides again from live state, because a print can start or the
+/// filament system can stop while the dialog is open. A print paused since
+/// the dialog opened asks again with the paused warning instead of changing. A
+/// close that fires no dialog callback (a programmatic hide) still drops the
+/// dialog's callbacks, and with them the last reference to this.
 class PendingChange {
   public:
-    PendingChange(int tool_index, ToolChangeHooks hooks)
-        : tool_index_(tool_index), hooks_(std::move(hooks)) {}
+    PendingChange(const PrinterState& printer_state, int tool_index, bool warned_paused,
+                  ToolChangeHooks hooks)
+        : printer_state_(printer_state), tool_index_(tool_index), warned_paused_(warned_paused),
+          hooks_(std::move(hooks)) {}
     PendingChange(const PendingChange&) = delete;
     PendingChange& operator=(const PendingChange&) = delete;
 
@@ -132,7 +151,18 @@ class PendingChange {
         if (settled_) {
             return;
         }
+        const ToolChangeDecision decision =
+            decide_tool_change(tool_change_inputs(printer_state_, tool_index_));
+        if (!decision.dispatches()) {
+            report_withheld(decision, tool_index_);
+            decline();
+            return;
+        }
         settled_ = true;
+        if (decision.verdict == ToolChangeVerdict::ConfirmPaused && !warned_paused_) {
+            reoffer();
+            return;
+        }
         dispatch(tool_index_, hooks_);
     }
 
@@ -147,7 +177,25 @@ class PendingChange {
     }
 
   private:
+    /// Offer the change afresh once this dialog has closed: confirm() runs
+    /// before the dialog hides, so a dialog raised here would stack under it.
+    void reoffer() {
+        spdlog::info("[ToolChange] Print paused while confirming T{}: asking again", tool_index_);
+        std::optional<LifetimeToken> token = hooks_.owner_token;
+        auto again = [&printer_state = printer_state_, tool_index = tool_index_,
+                      hooks = std::move(hooks_)]() mutable {
+            offer_tool_change(printer_state, tool_index, std::move(hooks));
+        };
+        if (token) {
+            token->defer("ToolChange::reoffer", std::move(again));
+        } else {
+            queue_update("ToolChange::reoffer", std::move(again));
+        }
+    }
+
+    const PrinterState& printer_state_;
     int tool_index_;
+    bool warned_paused_;
     ToolChangeHooks hooks_;
     bool settled_ = false;
 };
@@ -161,16 +209,10 @@ ToolChangeVerdict offer_tool_change(const PrinterState& printer_state, int tool_
 
     switch (decision.verdict) {
     case ToolChangeVerdict::AlreadyActive:
-        spdlog::debug("[ToolChange] T{} already active, ignoring", tool_index);
-        break;
     case ToolChangeVerdict::Busy:
-        spdlog::info("[ToolChange] T{} ignored: filament system busy", tool_index);
-        break;
     case ToolChangeVerdict::RefuseNeedsAttention:
     case ToolChangeVerdict::RefusePrint:
-        spdlog::info("[ToolChange] Tool change to T{} refused: {}", tool_index,
-                     decision.refusal.technical_msg);
-        notify_ams_warning(decision.refusal);
+        report_withheld(decision, tool_index);
         break;
     case ToolChangeVerdict::Immediate:
         dispatch(tool_index, hooks);
@@ -187,7 +229,8 @@ ToolChangeVerdict offer_tool_change(const PrinterState& printer_state, int tool_
                 : fmt::format(fmt::runtime(lv_tr("Switch to {}?")), tool_display_name(tool_index));
         ConfirmOptions options;
         options.owner_token = hooks.owner_token;
-        auto pending = std::make_shared<PendingChange>(tool_index, std::move(hooks));
+        auto pending =
+            std::make_shared<PendingChange>(printer_state, tool_index, paused, std::move(hooks));
         options.on_cancel = [pending] { pending->decline(); };
         options.on_dismiss = [pending] { pending->decline(); };
         modal_confirm(

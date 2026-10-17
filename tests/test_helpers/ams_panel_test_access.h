@@ -23,6 +23,11 @@ class AmsPanelTestAccess {
     static bool context_menu_open(const AmsPanel& p) {
         return p.context_menu_ && p.context_menu_->is_visible();
     }
+    static void close_context_menu(AmsPanel& p) {
+        if (p.context_menu_) {
+            p.context_menu_->hide();
+        }
+    }
 };
 
 } // namespace helix
