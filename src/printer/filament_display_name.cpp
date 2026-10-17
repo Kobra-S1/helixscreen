@@ -127,7 +127,7 @@ std::string first_non_blank(std::initializer_list<std::string_view> candidates) 
 } // namespace
 
 std::string compose_filament_label(std::string_view brand, std::string_view name,
-                                   std::string_view material) {
+                                   std::string_view material, std::string_view separator) {
     const std::string brand_part = normalize_ws(brand);
     const std::string name_part = normalize_ws(name);
     const std::string material_part = normalize_ws(material);
@@ -138,12 +138,12 @@ std::string compose_filament_label(std::string_view brand, std::string_view name
     const bool material_redundant = material_is_redundant(name_part, material_part);
 
     std::string label;
-    const auto append = [&label](const std::string& part) {
+    const auto append = [&label, separator](const std::string& part) {
         if (part.empty()) {
             return;
         }
         if (!label.empty()) {
-            label.push_back(' ');
+            label += separator;
         }
         label += part;
     };

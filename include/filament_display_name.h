@@ -73,14 +73,15 @@ struct SpoolIdentity {
  * `+ - _ #` count as word characters — those are the characters real material
  * names glue on ("PLA+", "PA6-CF").
  *
- * @param brand    Vendor/brand, may be empty
- * @param name     Filament or spool name, may be empty
- * @param material Material type, may be empty
+ * @param brand     Vendor/brand, may be empty
+ * @param name      Filament or spool name, may be empty
+ * @param material  Material type, may be empty
+ * @param separator What goes between the parts that remain
  * @return Joined label; **empty** when all three inputs are blank. The
  *         never-empty guarantee belongs to resolve_filament_label().
  */
 std::string compose_filament_label(std::string_view brand, std::string_view name,
-                                   std::string_view material);
+                                   std::string_view material, std::string_view separator = " ");
 
 /**
  * @brief The three naming fields, resolved but not yet joined

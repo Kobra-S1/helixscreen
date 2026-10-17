@@ -281,6 +281,48 @@ TEST_CASE_METHOD(LVGLUITestFixture, "card tap opens spool-edit; change-filament 
     close_editor_overlay();
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "spool card puts an untracked slot's spool name between brand and material",
+                 "[ams_edit_overlay][card]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo info = untracked_slot();
+    info.brand = "Snapmaker";
+    info.material = "PLA";
+    info.spool_name = "SnapSpeed";
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    lv_obj_t* label = access.widget("card_identity_label");
+    REQUIRE(label != nullptr);
+    CHECK(std::string(lv_label_get_text(label)) == "Snapmaker \xC2\xB7 SnapSpeed \xC2\xB7 PLA");
+    close_editor_overlay();
+
+    // An empty brand still reads Generic in the three-part form.
+    info.brand.clear();
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    label = access.widget("card_identity_label");
+    REQUIRE(label != nullptr);
+    CHECK(std::string(lv_label_get_text(label)) == "Generic \xC2\xB7 SnapSpeed \xC2\xB7 PLA");
+    close_editor_overlay();
+
+    // A name that already states the brand and the material prints once.
+    info.brand = "eSUN";
+    info.material = "PLA+";
+    info.spool_name = "eSUN PLA+";
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    label = access.widget("card_identity_label");
+    REQUIRE(label != nullptr);
+    CHECK(std::string(lv_label_get_text(label)) == "eSUN PLA+");
+    close_editor_overlay();
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "spool card shows Brand · Material for untracked slots",
                  "[ams_edit_overlay][card]") {
     auto& overlay = get_ams_edit_overlay();
