@@ -12,6 +12,9 @@
         "PRINT_AUTO_FEEDING":    { "phase": "INITIALIZING", "message": "Loading filament..." },
         "PRINT_REPLENISHING":    { "phase": "INITIALIZING", "message": "Replenishing filament..." },
         "DETECT_PLATE":          { "phase": "BED_MESH",     "message": "Detecting plate..." },
+        "BED_PREHEATING":        { "phase": "HEATING_BED",  "message": "Heat Soak" },
+        "BED_PRESCANNING":       { "phase": "BED_MESH",     "message": "Validating bed mesh..." },
+        "BED_LEVELING":          { "phase": "BED_MESH",     "message": "Bed mesh..." },
         "PRINT_PREEXTRUDING":    { "phase": "PURGING",      "message": "Priming..." },
         "PRINT_RESUMING":        { "phase": "INITIALIZING", "message": "Resuming print..." }
       }
@@ -22,15 +25,16 @@
         "PRINT_BED_DETECTING":   { "phase": "BED_MESH",     "message": "Inspecting bed..." },
         "PRINT_SWITCH_CHECKING": { "phase": "INITIALIZING", "message": "Checking extruders..." },
         "DETECT_PLATE":          { "phase": "BED_MESH",     "message": "Detecting plate..." },
+        "BED_PREHEATING":        { "phase": "HEATING_BED",  "message": "Heat Soak" },
+        "BED_PRESCANNING":       { "phase": "BED_MESH",     "message": "Validating bed mesh..." },
+        "BED_LEVELING":          { "phase": "BED_MESH",     "message": "Bed mesh..." },
         "PRINT_PREEXTRUDING":    { "phase": "PURGING",      "message": "Priming..." }
       }
     }
   ],
   "response_patterns": [
-    { "pattern": "^// trigger_mcu_pos: \\{", "phase": "HOMING",   "message": "Homing axes...", "weight": 5 },
-    { "pattern": "^// probe_start_x: ",       "phase": "HOMING",   "message": "Probing Z...",   "weight": 2 },
-    { "pattern": "^// z offset: ",            "phase": "BED_MESH", "message": "Bed mesh...",    "weight": 8 },
-    { "pattern": "^// z_mesh_complete: ",     "phase": "BED_MESH", "message": "Bed mesh...",    "weight": 8 }
+    { "pattern": "^// trigger_mcu_pos: \\{", "phase": "HOMING", "message": "Homing axes...", "weight": 5 },
+    { "pattern": "^// z offset: ",            "phase": "HOMING", "message": "Probing Z...",   "weight": 2 }
   ],
   "silent_progression": [],
   "phase_weights": {

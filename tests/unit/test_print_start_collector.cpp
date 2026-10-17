@@ -13,7 +13,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
+#include <iterator>
 #include <regex>
 #include <string>
 #include <utility>
@@ -3190,61 +3192,60 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
 }
 
 // ============================================================================
-// Snapmaker U1: the real bed mesh runs AFTER "Detecting plate" with no action
-// code of its own — only the bed_mesh.py "// z offset:" line (emitted at mesh
-// start) and "// z_mesh_complete:" (at the end) reach gcode_response. Without a
-// mesh-start signal the "Detecting plate" label persisted through the entire
-// real mesh (device-observed bug). "// z offset:" must relabel BED_MESH to
-// "Bed mesh" and reset the probe counter, so probes count "(1)".."(n)" under
-// the correct label. Real lines captured 2026-06-18 (gcode_store 20:21:26 /
-// 20:21:30):  "// z offset: -0.05"  then  "// probe at x: 129.915, y: 125.560
-// is z=299.043333".
+// Snapmaker U1: the mesh announces itself in three action codes, a 60 s bed
+// soak (BED_PREHEATING), four corner probes (BED_PRESCANNING), then the mesh
+// (BED_LEVELING). G28 Z prints "// z offset:" 1 ms after BED_LEVELING; that
+// Z touch must not drag the display back to homing, and the corner probes must
+// not count as mesh points. Lines from the console of a U1 print on 2026-10-16
+// (gcode_store 21:54:52.876 .. 21:55:39.041).
 // ============================================================================
 
 TEST_CASE_METHOD(SnapmakerCollectorFixture,
-                 "Snapmaker U1: z offset relabels Detecting plate -> Bed mesh and resets counter",
+                 "Snapmaker U1: BED_LEVELING restarts the count the corner pre-scan used",
                  "[print][collector][snapmaker][bed_mesh]") {
     collector().start();
     drain_async_updates();
 
-    // Plate detect runs first, counting its own probes.
-    feed_gcode("// Success: Set action code DETECT_PLATE");
-    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
-    feed_gcode("// probe at x: 13.000, y: 220.000 is z=-0.321667");
-    feed_gcode("// probe at x: 13.000, y: 233.000 is z=-0.369167");
-    {
-        std::string msg = get_current_message();
-        INFO("During plate detect: " << msg);
-        REQUIRE(msg.find("Detecting") != std::string::npos);
-        REQUIRE(msg.find("(2") != std::string::npos);
-    }
-
-    // The real mesh starts: "// z offset:" must switch the label to "Bed mesh"
-    // (NOT stay on "Detecting plate") even though BED_MESH was already detected.
+    feed_gcode("// trigger_mcu_pos: {'stepper_x': -34502, 'stepper_y': -35786}");
     feed_gcode("// z offset: -0.05");
-    {
-        std::string msg = get_current_message();
-        INFO("After z offset: " << msg);
-        REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
-        REQUIRE(msg.find("Bed mesh") != std::string::npos);
-        REQUIRE(msg.find("Detecting") == std::string::npos);
-    }
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+    REQUIRE(get_current_message() == "Probing Z...");
 
-    // Mesh probes now count from 1 under "Bed mesh" (counter reset on the
-    // sub-phase message change — must NOT carry the 2 plate-detect probes).
-    feed_gcode("// probe at x: 129.915, y: 125.560 is z=299.043333");
-    {
-        std::string msg = get_current_message();
-        INFO("First mesh probe: " << msg);
-        REQUIRE(msg.find("Bed mesh") != std::string::npos);
-        REQUIRE(msg.find("(1") != std::string::npos);
-        REQUIRE(msg.find("(3") == std::string::npos);
-    }
+    feed_gcode("// Success: Set action code BED_PREHEATING");
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
+    REQUIRE(get_current_message() == "Heat Soak");
+    feed_gcode("// Bed preheating: 59s left");
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
 
-    // z_mesh_complete keeps the label on "Bed mesh".
-    feed_gcode("// z_mesh_complete: -0.02573436601557052");
+    feed_gcode("// Success: Set action code BED_PRESCANNING");
     REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
-    REQUIRE(get_current_message().find("Bed mesh") != std::string::npos);
+    for (const char* line : {"// probe at x: 14.999, y: 15.001 is z=-0.053333",
+                             "// probe at x: 14.999, y: 15.001 is z=-0.055833",
+                             "// probe at x: 254.999, y: 15.001 is z=-0.648333",
+                             "// probe at x: 254.999, y: 15.001 is z=-0.649167",
+                             "// probe at x: 254.999, y: 255.001 is z=-0.152500",
+                             "// probe at x: 254.999, y: 255.001 is z=-0.157500",
+                             "// probe at x: 14.999, y: 255.001 is z=-0.100000",
+                             "// probe at x: 14.999, y: 255.001 is z=-0.097500"}) {
+        feed_gcode(line);
+    }
+    REQUIRE(get_current_message() == "Validating bed mesh (4)");
+
+    feed_gcode("// Success: Set action code BED_LEVELING");
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message() == "Bed mesh...");
+    REQUIRE(PrintStartCollectorTestAccess::get_mesh_probe_current(collector()) == 0);
+
+    // G28 Z re-bases the mesh; the label stays on the mesh.
+    feed_gcode("// z offset: -0.05");
+    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
+    REQUIRE(get_current_message() == "Bed mesh...");
+
+    feed_gcode("// probe at x: 33.742, y: 28.487 is z=-0.085000");
+    feed_gcode("// probe at x: 33.742, y: 28.487 is z=-0.080000");
+    REQUIRE(get_current_message() == "Bed mesh (1)");
+    feed_gcode("// probe at x: 74.442, y: 28.487 is z=-0.063333");
+    REQUIRE(get_current_message() == "Bed mesh (2)");
 }
 
 // ============================================================================
@@ -3265,7 +3266,7 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     REQUIRE(get_current_message().find("Homing axes") != std::string::npos);
 
     // Same HOMING enum, different message: the label refines in place.
-    feed_gcode("// probe_start_x: 110.0");
+    feed_gcode("// z offset: -0.05");
     REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
     REQUIRE(get_current_message().find("Probing Z") != std::string::npos);
 
@@ -3274,7 +3275,7 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     REQUIRE(get_current_message().find("Inspecting bed") != std::string::npos);
 
     // A late repeat of an earlier enum must not drag the phase back.
-    feed_gcode("// probe_start_x: 110.0");
+    feed_gcode("// z offset: -0.05");
     REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
     REQUIRE(get_current_message().find("Inspecting bed") != std::string::npos);
 }
@@ -3282,7 +3283,7 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
 // ============================================================================
 // Full U1 pre-print replay at the device's real pace (one print, klippy.log
 // timestamps): homing, Z touch, bed inspect, extruder switch check, auto-feed,
-// Z calibration mesh, plate detect + 4 probes — then ~129s of true silence
+// the new tool's Z touch, plate detect + 4 probes — then ~129s of true silence
 // while klippy-internal flow calibration and nozzle clean run (no
 // gcode_response exists for them) — then the real bed mesh (~14s), then ~39s
 // of quiet prime line before layer 1. Nothing narrates the silent prime line,
@@ -3317,7 +3318,7 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
     REQUIRE(get_current_message().find("Homing axes") != std::string::npos);
 
-    feed_gcode("// probe_start_x: 110.0");
+    feed_gcode("// z offset: -0.05");
     REQUIRE(get_current_message().find("Probing Z") != std::string::npos);
 
     feed_gcode("// Success: Set action code PRINT_BED_DETECTING");
@@ -3334,14 +3335,17 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     REQUIRE(get_current_message().find("Loading filament") != std::string::npos);
     REQUIRE(tick().find("Loading filament") != std::string::npos);
 
-    // Z calibration mesh.
+    // The picked tool touches the bed centre (G28 Z I140 J140): one point,
+    // sampled repeatedly, is not a mesh.
     feed_gcode("// z offset: -0.05");
-    REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
-    REQUIRE(get_current_message().find("Bed mesh") != std::string::npos);
-    feed_gcode("// probe at 10.000,10.000 is z=-0.100000");
-    feed_gcode("// probe at 50.000,10.000 is z=-0.105000");
-    REQUIRE(tick().find("Bed mesh") != std::string::npos);
-    feed_gcode("// z_mesh_complete: -0.02573436601557052");
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+    REQUIRE(get_current_message().find("Probing Z") != std::string::npos);
+    feed_gcode("// probe at x: 140.000, y: 140.000 is z=302.521667");
+    feed_gcode("// probe at x: 140.000, y: 140.000 is z=302.522500");
+    feed_gcode("// probe at x: 140.000, y: 140.000 is z=302.510833");
+    REQUIRE(tick().find("Probing Z") != std::string::npos);
+    feed_gcode("// z_mesh_complete: 0.2980673660155705");
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
 
     // Plate detect and its four probes: the last narrated pre-mesh step.
     feed_gcode("// Success: Set action code DETECT_PLATE");
@@ -3358,13 +3362,14 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
     quiet_ticks(129, "Detecting plate");
     REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
 
-    // The real bed mesh (~14s end to end).
-    feed_gcode("// z offset: -0.06");
+    // The real bed mesh, announced by its action code; G28 Z follows 1 ms later.
+    feed_gcode("// Success: Set action code BED_LEVELING");
+    feed_gcode("// z offset: -0.05");
     REQUIRE(get_current_message().find("Bed mesh") != std::string::npos);
-    feed_gcode("// probe at 20.000,20.000 is z=-0.300000");
-    feed_gcode("// probe at 60.000,20.000 is z=-0.305000");
+    feed_gcode("// probe at x: 33.742, y: 28.487 is z=-0.085000");
+    feed_gcode("// probe at x: 74.442, y: 28.487 is z=-0.063333");
     REQUIRE(tick().find("Bed mesh") != std::string::npos);
-    feed_gcode("// z_mesh_complete: -0.03000000000000000");
+    feed_gcode("// Mesh Bed Leveling Complete");
 
     // ~39s of quiet prime line before layer 1: the prime is not narrated, so
     // the mesh label holds until the layer edge completes the pre-print.
@@ -4812,4 +4817,106 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     CAPTURE(model.climb_rate());
     CHECK(model.climb_rate() < 0.5f);
     ThermalRateManager::instance().reset();
+}
+
+// ============================================================================
+// Snapmaker U1 replay: a 3-tool print's console from file open to the nozzle
+// heating for the prime line (tests/fixtures/u1_tool_probe_clean_console.txt,
+// 2026-10-16, t=0 at 21:48:13.136), fed at its real pace. Each G28 Z, after a
+// tool pick or before the mesh, prints "// z offset:" and touches one point;
+// the mesh is announced by BED_PREHEATING (a 60 s soak), BED_PRESCANNING (four
+// corners) and BED_LEVELING (36 points). Heater waits are not asserted here.
+// ============================================================================
+
+TEST_CASE_METHOD(SnapmakerCollectorFixture,
+                 "Snapmaker U1: real tool Z touches and the announced mesh replay in order",
+                 "[print][collector][snapmaker][integration]") {
+    struct Shown {
+        int ms; ///< since the first line
+        PrintStartPhase phase;
+        std::string message;
+        int probes;
+    };
+
+    const auto lines = read_forgex_fixture("u1_tool_probe_clean_console.txt");
+    REQUIRE(lines.size() > 200);
+
+    collector().start();
+    drain_async_updates();
+
+    const int t0 = lines.front().first;
+    int now = t0;
+    std::vector<Shown> shown;
+    for (const auto& [ms, text] : lines) {
+        PrintStartCollectorTestAccess::advance_clock_ms(collector(), ms - now);
+        now = ms;
+        feed_gcode(text);
+        Shown cur{now - t0, get_current_phase(), get_current_message(),
+                  PrintStartCollectorTestAccess::get_mesh_probe_current(collector())};
+        if (shown.empty() || cur.phase != shown.back().phase ||
+            cur.message != shown.back().message) {
+            shown.push_back(std::move(cur));
+        }
+    }
+
+    std::string trace;
+    for (const Shown& s : shown) {
+        trace += std::to_string(s.ms) + " " + std::to_string(static_cast<int>(s.phase)) + " \"" +
+                 s.message + "\" n=" + std::to_string(s.probes) + "\n";
+    }
+    CAPTURE(trace);
+
+    // The display change that starts within 1 ms of `ms`.
+    const auto shows = [&](int ms, PrintStartPhase phase, const char* message) {
+        const auto it = std::find_if(shown.begin(), shown.end(),
+                                     [&](const Shown& s) { return std::abs(s.ms - ms) <= 1; });
+        INFO("no display change at " << ms << " ms");
+        REQUIRE(it != shown.end());
+        CAPTURE(ms, it->message);
+        REQUIRE(it->phase == phase);
+        REQUIRE(it->message == message);
+    };
+
+    shows(26516, PrintStartPhase::BED_MESH, "Inspecting bed...");
+    shows(36155, PrintStartPhase::INITIALIZING, "Checking extruders...");
+
+    // The tool picked by the switch check touches the bed centre.
+    shows(55829, PrintStartPhase::HOMING, "Probing Z...");
+    for (const Shown& s : shown) {
+        if (s.ms > 55829 && s.ms < 69787) {
+            CAPTURE(s.ms, s.message);
+            REQUIRE(s.phase != PrintStartPhase::BED_MESH);
+        }
+    }
+    shows(69787, PrintStartPhase::BED_MESH, "Detecting plate...");
+
+    // The G28 Z before the mesh is an earlier phase than plate detect, so it
+    // cannot pull the display back to homing; then the announced mesh steps.
+    for (const Shown& s : shown) {
+        if (s.ms > 69787 && s.ms < 339703) {
+            CAPTURE(s.ms, s.message);
+            REQUIRE(s.phase == PrintStartPhase::BED_MESH);
+        }
+    }
+    shows(339703, PrintStartPhase::HEATING_BED, "Heat Soak");
+    shows(399740, PrintStartPhase::BED_MESH, "Validating bed mesh...");
+
+    // BED_LEVELING restarts the count, and its G28 Z 1 ms later moves nothing.
+    shows(433454, PrintStartPhase::BED_MESH, "Bed mesh...");
+    const auto leveling = std::find_if(shown.begin(), shown.end(),
+                                       [](const Shown& s) { return s.message == "Bed mesh..."; });
+    REQUIRE(leveling != shown.begin());
+    REQUIRE(std::prev(leveling)->message == "Validating bed mesh (4)");
+    REQUIRE(leveling->probes == 0);
+    REQUIRE(std::next(leveling) != shown.end());
+    REQUIRE(std::next(leveling)->message == "Bed mesh (1)");
+    for (auto it = leveling; it != shown.end(); ++it) {
+        REQUIRE(it->phase != PrintStartPhase::HOMING);
+    }
+
+    // 36 mesh points, none of the corners.
+    const auto last_mesh = std::find_if(shown.rbegin(), shown.rend(), [](const Shown& s) {
+        return s.phase == PrintStartPhase::BED_MESH;
+    });
+    REQUIRE(last_mesh->message == "Bed mesh (36)");
 }

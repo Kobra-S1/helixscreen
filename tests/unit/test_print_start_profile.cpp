@@ -1032,6 +1032,12 @@ TEST_CASE("PrintStartProfile: snapmaker_u1 action-code signals route to correct 
         {"// Success: Set action code DETECT_PLATE", PrintStartPhase::BED_MESH,
          "Detecting plate..."},
         {"// Success: Set action code PRINT_PREEXTRUDING", PrintStartPhase::PURGING, "Priming..."},
+        // --- the mesh (evidence: gcode_store 2026-10-16 21:53:52..21:55:26): a
+        //     60 s bed soak with a countdown, four corner probes, then the mesh ---
+        {"// Success: Set action code BED_PREHEATING", PrintStartPhase::HEATING_BED, "Heat Soak"},
+        {"// Success: Set action code BED_PRESCANNING", PrintStartPhase::BED_MESH,
+         "Validating bed mesh..."},
+        {"// Success: Set action code BED_LEVELING", PrintStartPhase::BED_MESH, "Bed mesh..."},
         // --- "Changed main state to PRINTING with action" verb
         //     (evidence: gcode_store 23:23:26) ---
         {"// Success: Changed main state to PRINTING with action PRINT_BED_DETECTING",
@@ -1040,6 +1046,12 @@ TEST_CASE("PrintStartProfile: snapmaker_u1 action-code signals route to correct 
          PrintStartPhase::INITIALIZING, "Checking extruders..."},
         {"// Success: Changed main state to PRINTING with action DETECT_PLATE",
          PrintStartPhase::BED_MESH, "Detecting plate..."},
+        {"// Success: Changed main state to PRINTING with action BED_PREHEATING",
+         PrintStartPhase::HEATING_BED, "Heat Soak"},
+        {"// Success: Changed main state to PRINTING with action BED_PRESCANNING",
+         PrintStartPhase::BED_MESH, "Validating bed mesh..."},
+        {"// Success: Changed main state to PRINTING with action BED_LEVELING",
+         PrintStartPhase::BED_MESH, "Bed mesh..."},
     };
 
     for (const auto& c : cases) {
@@ -1090,36 +1102,26 @@ TEST_CASE("PrintStartProfile: snapmaker_u1 response patterns match real preprint
         "// trigger_mcu_pos: {'stepper_x': -97378, 'stepper_y': 4660}", result));
     REQUIRE(result.phase == PrintStartPhase::HOMING);
 
-    // Initial single-point Z touch right AFTER homing, BEFORE bed mesh — it
-    // fires at the very start of the sequence (evidence: gcode_store 23:23:14
-    // "// probe_start_x: 5.32188, probe_start_y: 4.87969", immediately after
-    // the trigger_mcu_pos homing lines and ~3.5 min before the actual mesh).
-    // It used to be mislabelled "Z Calibration..." under BED_MESH, which made
-    // the UI show bed-mesh-flavoured text during homing. It now belongs to
-    // HOMING / "Probing Z...".
-    REQUIRE(
-        profile->try_match_pattern("// probe_start_x: 5.32188, probe_start_y: 4.87969", result));
+    // G28 X Y ends with the precise-CoreXY diagonal probe, which prints
+    // "// probe_start_x:" under a second 1 s after the trigger_mcu_pos lines
+    // (capture 2026-10-16, 21:48:29.469 then 21:48:30.282). trigger_mcu_pos
+    // already shows "Homing axes...", so the line maps to nothing.
+    REQUIRE_FALSE(
+        profile->try_match_pattern("// probe_start_x: 5.41250, probe_start_y: 4.79219", result));
+
+    // "// z offset:" opens every G28 Z: after each tool pick (G28 Z I140 J140,
+    // the new tool's coil touching the bed centre at 140,140) and once more
+    // before the mesh at (129.915,125.560). Neither is a mesh point: the
+    // mesh's first point is (33.742,28.487), after BED_LEVELING (capture
+    // 2026-10-16, 21:49:08.965 and 21:53:38.040). The line also follows
+    // BED_LEVELING by 1 ms (21:55:26.591); the collector keeps the mesh then.
+    REQUIRE(profile->try_match_pattern("// z offset: -0.05", result));
     REQUIRE(result.phase == PrintStartPhase::HOMING);
     REQUIRE(result.message == "Probing Z...");
 
-    // End-of-mesh marker (evidence: gcode_store
-    // "// z_mesh_complete: 0.02573436601557052"). The per-probe "probe at x:..."
-    // lines are consumed by the collector's mesh counter, not the profile;
-    // z_mesh_complete is the END boundary in the response stream.
-    REQUIRE(profile->try_match_pattern("// z_mesh_complete: 0.02573436601557052", result));
-    REQUIRE(result.phase == PrintStartPhase::BED_MESH);
-    REQUIRE(result.message == "Bed mesh...");
-
-    // Mesh START boundary — bed_mesh.py emits "// z offset:" right before the
-    // first mesh probe (evidence: gcode_store 20:21:26 "// z offset: -0.05",
-    // immediately preceding "// probe at x: 129.915, y: 125.560 is z=..."). This
-    // relabels the display from the prior BED_MESH sub-phase ("Detecting plate")
-    // to "Bed mesh" at the moment the real mesh begins — fixing the device bug
-    // where only the END marker fired and the stale label persisted through the
-    // whole mesh.
-    REQUIRE(profile->try_match_pattern("// z offset: -0.05", result));
-    REQUIRE(result.phase == PrintStartPhase::BED_MESH);
-    REQUIRE(result.message == "Bed mesh...");
+    // "// z_mesh_complete:" ends that same G28 Z (it re-bases the mesh to the
+    // active tool); BED_MESH_CALIBRATE never prints it, so it names no phase.
+    REQUIRE_FALSE(profile->try_match_pattern("// z_mesh_complete: 0.2980673660155705", result));
 
     // Negative cases — these must NOT match. FEED_AUTO / FLOW_CALIBRATE /
     // BED_MESH_CALIBRATE / *_CLEAN_NOZZLE are klippy-internal only and never
