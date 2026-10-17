@@ -52,9 +52,16 @@ constexpr std::array<std::string_view, 8> KNOWN_SUB_TYPES = {
     return false;
 }
 
-/// The firmware's spelling of "no filament set" in print_task_config.
-[[nodiscard]] bool is_unset_filament_type(const std::string& type) {
-    return type.empty() || type == "NONE";
+/// The firmware's spelling of "nothing set" for a print_task_config string
+/// field (filament_type, filament_vendor).
+[[nodiscard]] bool is_unset_task_field(const std::string& value) {
+    return value.empty() || value == "NONE";
+}
+
+/// @p value as SlotInfo carries it: an unset task field is an empty string,
+/// never the literal.
+[[nodiscard]] std::string task_field_value(const std::optional<std::string>& value) {
+    return value.has_value() && !is_unset_task_field(*value) ? *value : std::string{};
 }
 
 [[nodiscard]] std::string lower_ascii(std::string s) {
@@ -68,6 +75,20 @@ constexpr std::string_view PRODUCT_LINE_VENDOR = "Snapmaker";
 
 [[nodiscard]] bool is_product_line_vendor(const std::string& brand) {
     return lower_ascii(brand) == lower_ascii(std::string(PRODUCT_LINE_VENDOR));
+}
+
+/// The spool name a tag states: its SUB_TYPE, or empty when the tag names no
+/// line or names it beside a brand that cannot carry one. Firmware stores a
+/// placeholder SUB_TYPE beside any other vendor's spool, so "Generic" +
+/// "Basic" names no line.
+[[nodiscard]] std::string tag_spool_name(const std::string& sub_type, const std::string& brand) {
+    if (sub_type.empty() || sub_type == "NONE") {
+        return {};
+    }
+    if (is_known_subtype(sub_type) && !brand.empty() && !is_product_line_vendor(brand)) {
+        return {};
+    }
+    return sub_type;
 }
 
 // Map a raw firmware channel_error token to a user-facing message. The firmware
@@ -321,6 +342,9 @@ void AmsBackendSnapmaker::on_started() {
         std::lock_guard<std::mutex> lock(mutex_);
         task_type_.fill(std::nullopt);
         task_official_.fill(std::nullopt);
+        task_vendor_.fill(std::nullopt);
+        task_color_.fill(std::nullopt);
+        tag_reading_.fill(std::nullopt);
         tag_has_card_.fill(std::nullopt);
     }
     // Load persisted per-slot overrides (brand, spool name, spoolman IDs, etc.)
@@ -1273,15 +1297,26 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                     tag_has_card_[static_cast<size_t>(i)] = rfid.has_card;
                     saw_rfid_info[i] = true;
 
-                    // Skip entirely if RFID reader is disabled or no tag present
-                    if (rfid.main_type == "NONE")
+                    // An entry naming no tag skips the apply, and takes back
+                    // what an earlier tag wrote: that reading would otherwise
+                    // keep describing a spool the reader no longer reports.
+                    if (rfid.main_type == "NONE") {
+                        const bool names_identity =
+                            !rfid.sub_type.empty() && rfid.sub_type != "NONE";
+                        auto* slot = system_info_.units[0].get_slot(i);
+                        if (slot && !names_identity && retract_tag_reading_locked(i, *slot)) {
+                            changed = true;
+                        }
                         continue;
+                    }
 
                     auto* slot = system_info_.units[0].get_slot(i);
                     if (slot) {
                         slot->material = rfid.main_type;
                         auto brand = !rfid.manufacturer.empty() ? rfid.manufacturer : rfid.vendor;
-                        if (brand != "NONE")
+                        if (brand == "NONE")
+                            brand.clear();
+                        else
                             slot->brand = brand;
                         slot->color_rgb = rfid.color_rgb;
                         // SUB_TYPE is Snapmaker's filament product-line name (e.g.
@@ -1289,13 +1324,19 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         // "PolyLite"). Maps to spool_name, NOT color_name. The
                         // Snapmaker RFID doesn't expose a dedicated color-name
                         // field — color_name stays unset here and is user-editable
-                        // via the edit modal's color picker.
-                        if (rfid.sub_type != "NONE")
-                            slot->spool_name = rfid.sub_type;
+                        // via the edit modal's color picker. Blank when the tag
+                        // names no line, or names it beside a brand that cannot
+                        // carry it.
+                        slot->spool_name = tag_spool_name(rfid.sub_type, brand);
                         slot->nozzle_temp_min = rfid.hotend_min_temp;
                         slot->nozzle_temp_max = rfid.hotend_max_temp;
                         slot->bed_temp = rfid.bed_temp;
                         slot->total_weight_g = static_cast<float>(rfid.weight_g);
+                        tag_reading_[static_cast<size_t>(i)] =
+                            TagReading{slot->material,        brand,
+                                       slot->color_rgb,       slot->spool_name,
+                                       slot->nozzle_temp_min, slot->nozzle_temp_max,
+                                       slot->bed_temp,        slot->total_weight_g};
                     }
                     changed = true;
                 }
@@ -1640,11 +1681,12 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                 for (int i = 0; i < NUM_TOOLS && i < static_cast<int>(type_arr.size()); i++) {
                     if (!type_arr[i].is_string())
                         continue;
-                    auto type = type_arr[i].get<std::string>();
-                    task_type_[static_cast<size_t>(i)] = type;
+                    task_type_[static_cast<size_t>(i)] = type_arr[i].get<std::string>();
                     auto* slot = system_info_.units[0].get_slot(i);
                     if (slot) {
-                        slot->material = type; // Base type only (e.g., "PLA") for compact display
+                        // Base type only (e.g., "PLA") for compact display;
+                        // firmware's spelling of no type is no material.
+                        slot->material = task_field_value(task_type_[static_cast<size_t>(i)]);
                         changed = true;
                     }
                 }
@@ -1668,9 +1710,10 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                 for (int i = 0; i < NUM_TOOLS && i < static_cast<int>(vendor_arr.size()); i++) {
                     if (!vendor_arr[i].is_string())
                         continue;
+                    task_vendor_[static_cast<size_t>(i)] = vendor_arr[i].get<std::string>();
                     auto* slot = system_info_.units[0].get_slot(i);
                     if (slot) {
-                        slot->brand = vendor_arr[i].get<std::string>();
+                        slot->brand = task_field_value(task_vendor_[static_cast<size_t>(i)]);
                         changed = true;
                     }
                 }
@@ -1689,6 +1732,7 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                         if (hex.size() >= 6) {
                             try {
                                 slot->color_rgb = std::stoul(hex.substr(0, 6), nullptr, 16);
+                                task_color_[static_cast<size_t>(i)] = slot->color_rgb;
                             } catch (...) {
                             }
                         }
@@ -1922,6 +1966,53 @@ void AmsBackendSnapmaker::apply_overrides(SlotInfo& slot, int slot_index) {
     }
 }
 
+bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& slot) {
+    const auto i = static_cast<size_t>(slot_index);
+    const std::optional<TagReading> tag = tag_reading_[i];
+    if (!tag.has_value()) {
+        return false;
+    }
+    tag_reading_[i].reset();
+
+    // A SlotInfo field still holding the reading's value got it from the tag;
+    // print_task_config is the firmware's other word on the head, so it takes
+    // the field back, and a head it never spoke for goes blank. A field that
+    // moved since was written by something else and stays. The user's
+    // override is laid back over all of these at the tail.
+    if (slot.material == tag->material) {
+        slot.material = task_field_value(task_type_[i]);
+    }
+    if (!tag->brand.empty() && slot.brand == tag->brand) {
+        slot.brand = task_field_value(task_vendor_[i]);
+    }
+    if (slot.color_rgb == tag->color_rgb) {
+        slot.color_rgb = task_color_[i].value_or(AMS_DEFAULT_SLOT_COLOR);
+    }
+    if (!tag->spool_name.empty() && slot.spool_name == tag->spool_name) {
+        slot.spool_name.clear();
+    }
+    // No firmware source but the tag carries temperatures or weight, so a
+    // user's own values are told apart only by the slot holding an override.
+    if (overrides_.find(slot_index) == overrides_.end()) {
+        const SlotInfo blank;
+        if (slot.nozzle_temp_min == tag->nozzle_temp_min) {
+            slot.nozzle_temp_min = blank.nozzle_temp_min;
+        }
+        if (slot.nozzle_temp_max == tag->nozzle_temp_max) {
+            slot.nozzle_temp_max = blank.nozzle_temp_max;
+        }
+        if (slot.bed_temp == tag->bed_temp) {
+            slot.bed_temp = blank.bed_temp;
+        }
+        if (slot.total_weight_g == tag->total_weight_g) {
+            slot.total_weight_g = blank.total_weight_g;
+        }
+    }
+    spdlog::debug("{} Slot {} tag reader names no tag, took back the tag reading",
+                  backend_log_tag(), slot_index);
+    return true;
+}
+
 void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_index,
                                                      const std::string& observed_uid) {
     // Semantics are unchanged from the hand-rolled baseline map this used to
@@ -2143,7 +2234,7 @@ std::string AmsBackendSnapmaker::preprint_gcode(const std::set<int>& tools_used,
 
 std::string AmsBackendSnapmaker::build_filament_config_gcode(int head, const SlotInfo& slot,
                                                              bool force) {
-    if (is_unset_filament_type(slot.material) ||
+    if (is_unset_task_field(slot.material) ||
         !IMoonrakerAPI::is_safe_material_param(slot.material)) {
         return {};
     }
@@ -2203,7 +2294,7 @@ void AmsBackendSnapmaker::write_task_filament_record(int head, const SlotInfo& i
         }
         const bool record_differs =
             task_type_[idx].has_value()
-                ? is_unset_filament_type(*task_type_[idx]) ||
+                ? is_unset_task_field(*task_type_[idx]) ||
                       lower_ascii(*task_type_[idx]) != lower_ascii(info.material)
                 : material_changed;
         if (!record_differs) {
@@ -2244,8 +2335,7 @@ AmsBackendSnapmaker::resume_record_repairs_locked(int active_slot) const {
     std::vector<std::pair<int, std::string>> out;
     for (int head = 0; head < NUM_TOOLS; ++head) {
         const auto idx = static_cast<size_t>(head);
-        if (!used[idx] || !task_type_[idx].has_value() ||
-            !is_unset_filament_type(*task_type_[idx])) {
+        if (!used[idx] || !task_type_[idx].has_value() || !is_unset_task_field(*task_type_[idx])) {
             continue;
         }
         const std::optional<bool> needs_force = record_write_needs_force_locked(head);

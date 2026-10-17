@@ -114,8 +114,8 @@ The active tool is detected from extruder pin state or `toolhead.extruder`, and
 
 | Tag field | Maps to | Notes |
 |-----------|---------|-------|
-| `MAIN_TYPE` | `material` | e.g. "PLA", "PETG"; `"NONE"` skips the whole slot's RFID apply |
-| `SUB_TYPE` | `spool_name` | Snapmaker product line, e.g. "SnapSpeed" |
+| `MAIN_TYPE` | `material` | e.g. "PLA", "PETG"; `"NONE"` skips the whole slot's RFID apply, and with `SUB_TYPE` also absent or `NONE` takes back the last tag reading |
+| `SUB_TYPE` | `spool_name` | Snapmaker product line, e.g. "SnapSpeed"; blank beside a brand other than Snapmaker, where firmware keeps "Basic" as a placeholder |
 | `MANUFACTURER` (fallback `VENDOR`) | `brand` | |
 | `ARGB_COLOR` | `color_rgb` | masked to the low 24 bits |
 | `HOTEND_MIN_TEMP` / `HOTEND_MAX_TEMP` / `BED_TEMP` | `nozzle_temp_min` / `nozzle_temp_max` / `bed_temp` | |
@@ -128,10 +128,21 @@ of eight known literals ("Basic", "Matte", "SnapSpeed", "Silk", "Support", "HF",
 "95A HF"); a free-form user `spool_name` is never round-tripped to firmware as a
 SUB_TYPE (`src/printer/ams_backend_snapmaker.cpp`, `src/printer/ams_backend_snapmaker.cpp#set_slot_info`).
 
+An entry that names no tag (`MAIN_TYPE` NONE, `SUB_TYPE` absent or NONE) takes back what the
+channel's last tag reading wrote: a slot field still holding the reading's value falls back to
+what `print_task_config` last said for that head (`filament_type`, `filament_vendor`,
+`filament_color_rgba`), or blank/default where it never spoke; a field something else has
+written since stays. Temperatures and weight, which only the tag carries, reset to blank
+unless the slot holds a user override. A repeat of the same silence has nothing to take back
+and reports no change, and a restart forgets the previous session's readings
+(`src/printer/ams_backend_snapmaker.cpp#retract_tag_reading_locked`). `print_task_config`'s
+`NONE` or empty `filament_type` / `filament_vendor` reaches `SlotInfo` as an empty material or
+brand, never the literal.
+
 Every row above is code-verified against `parse_rfid_info()` and the apply loop
 (`src/printer/ams_backend_snapmaker.cpp#parse_rfid_info`, `1171-1204`): tag identity rides
 `filament_detect.info[ch].CARD_UID`, and a `MAIN_TYPE == "NONE"` tag skips the field
-apply while its UID is still captured for swap detection (`:1173-1182`). Physical reads
+apply (taking back the last reading, above) while its UID is still captured for swap detection (`:1173-1182`). Physical reads
 from real RFID spools remain rig-pending; code-verified is not field-verified.
 
 ### Commands the Backend Emits

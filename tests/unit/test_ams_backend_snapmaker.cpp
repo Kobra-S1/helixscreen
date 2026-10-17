@@ -115,6 +115,9 @@ class SnapmakerTestAccess {
         std::lock_guard<std::mutex> lock(b.mutex_);
         b.system_info_.current_tool = tool;
     }
+    static void call_on_started(AmsBackendSnapmaker& b) {
+        b.on_started();
+    }
 };
 
 // Build a filament_feed status notification for a single channel/extruder with
@@ -149,10 +152,12 @@ struct SnapmakerTmpCacheDir {
 };
 
 // Build a filament_detect status notification for a single slot with
-// configurable material, color, brand, and CARD_UID. Slot index is 0-based;
-// the notification's info array is padded to NUM_TOOLS=4 with "NONE" entries.
+// configurable material, color, brand, and CARD_UID. Slot index is 0-based.
+// The other channels carry no entry, so the frame says nothing about them;
+// @p others_none reports them as readers naming no tag instead.
 json make_filament_detect_status(int slot_index, const std::string& main_type, uint32_t argb_color,
-                                 const std::string& manufacturer, const json& card_uid) {
+                                 const std::string& manufacturer, const json& card_uid,
+                                 bool others_none = false) {
     json info_arr = json::array();
     for (int i = 0; i < 4; ++i) {
         if (i == slot_index) {
@@ -166,8 +171,10 @@ json make_filament_detect_status(int slot_index, const std::string& main_type, u
                                     {"BED_TEMP", 60},
                                     {"WEIGHT", 1000},
                                     {"CARD_UID", card_uid}});
-        } else {
+        } else if (others_none) {
             info_arr.push_back(json{{"MAIN_TYPE", "NONE"}});
+        } else {
+            info_arr.push_back(nullptr);
         }
     }
     return json{{"filament_detect", json{{"info", info_arr}}}};
@@ -1507,15 +1514,225 @@ TEST_CASE_METHOD(SnapmakerFixture,
     // Baseline advanced to the new UID.
     CHECK(SnapmakerTestAccess::last_rfid_uid(backend, 0) == "5,6,7,8");
 
-    // Override-exclusive fields reset on the live slot. spool_name is NOT
-    // override-exclusive for Snapmaker — RFID's SUB_TYPE populates it (the
-    // helper hard-codes "Basic"), and the clear preserves firmware writes
-    // the same way it preserves brand / total_weight_g.
+    // Override-exclusive fields reset on the live slot; firmware's new
+    // reading flows through. Its SUB_TYPE (the helper hard-codes "Basic")
+    // names no spool beside a Generic brand, so the spool name is blank.
     auto info = backend.get_slot_info(0);
-    CHECK(info.brand == "Generic");    // firmware's new brand flows through
-    CHECK(info.spool_name == "Basic"); // firmware's SUB_TYPE flows through
+    CHECK(info.brand == "Generic");
+    CHECK(info.spool_name.empty());
     CHECK(info.spoolman_id == 0);
     CHECK(info.material == "PETG"); // firmware's new material
+}
+
+namespace {
+json untagged_frame() {
+    return json{
+        {"filament_detect",
+         json{{"info", json::array({json{{"MAIN_TYPE", "NONE"}}, json{{"MAIN_TYPE", "NONE"}},
+                                    json{{"MAIN_TYPE", "NONE"}}, json{{"MAIN_TYPE", "NONE"}}})}}}};
+}
+} // namespace
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker product line beside another vendor's brand names no spool",
+                 "[ams][snapmaker][filament_slot_override][rfid]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+
+    // "Basic" is the placeholder SUB_TYPE firmware keeps beside any vendor.
+    SnapmakerTestAccess::handle_status(
+        backend,
+        make_filament_detect_status(0, "PLA", 0xFF202020u, "Generic", json::array({1, 2, 3, 4})));
+    CHECK(backend.get_slot_info(0).spool_name.empty());
+
+    backend.clear_slot_override(0);
+    auto info = backend.get_slot_info(0);
+    CHECK(info.spool_name.empty());
+    CHECK(info.material == "PLA");
+    CHECK(info.brand == "Generic");
+
+    // Snapmaker's own brand does carry the line.
+    SnapmakerTestAccess::handle_status(
+        backend,
+        make_filament_detect_status(1, "PLA", 0xFF202020u, "Snapmaker", json::array({1, 2, 3, 5})));
+    CHECK(backend.get_slot_info(1).spool_name == "Basic");
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker tag reader naming no tag leaves nothing of the old tag after a clear",
+                 "[ams][snapmaker][filament_slot_override][rfid]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+
+    SnapmakerTestAccess::handle_status(
+        backend,
+        make_filament_detect_status(1, "PLA", 0xFF202020u, "Snapmaker", json::array({1, 2, 3, 4})));
+    REQUIRE(backend.get_slot_info(1).material == "PLA");
+    REQUIRE(backend.get_slot_info(1).spool_name == "Basic");
+
+    // An untagged spool: the firmware's info reads NONE throughout.
+    const json untagged{
+        {"filament_detect",
+         json{{"info", json::array({json{{"MAIN_TYPE", "NONE"}},
+                                    json{{"MAIN_TYPE", "NONE"},
+                                         {"SUB_TYPE", "NONE"},
+                                         {"VENDOR", "NONE"},
+                                         {"MANUFACTURER", "NONE"},
+                                         {"CARD_UID", json::array({0, 0, 0, 0})}},
+                                    json{{"MAIN_TYPE", "NONE"}}, json{{"MAIN_TYPE", "NONE"}}})}}}};
+    SnapmakerTestAccess::handle_status(backend, untagged);
+
+    backend.clear_slot_override(1);
+    auto info = backend.get_slot_info(1);
+    CHECK(info.material.empty());
+    CHECK(info.brand.empty());
+    CHECK(info.spool_name.empty());
+    CHECK(info.product_name.empty());
+    CHECK(info.color_rgb == AMS_DEFAULT_SLOT_COLOR);
+
+    // The same silence on the next frame has nothing left to take back.
+    int events = 0;
+    backend.set_event_callback([&](const std::string& ev, const std::string&) {
+        if (ev == AmsBackend::EVENT_STATE_CHANGED)
+            ++events;
+    });
+    SnapmakerTestAccess::handle_status(backend, untagged);
+    CHECK(events == 0);
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker tag reader naming no tag falls back to print_task_config",
+                 "[ams][snapmaker][rfid][print_task_config]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+
+    SnapmakerTestAccess::handle_status(
+        backend, json{{"print_task_config",
+                       json{{"filament_type", json::array({"PETG", "PETG", "PETG", "PETG"})},
+                            {"filament_vendor", json::array({"eSUN", "eSUN", "eSUN", "eSUN"})},
+                            {"filament_color_rgba",
+                             json::array({"AA0000FF", "AA0000FF", "AA0000FF", "AA0000FF"})}}}});
+    SnapmakerTestAccess::handle_status(
+        backend,
+        make_filament_detect_status(0, "PLA", 0xFF202020u, "Snapmaker", json::array({1, 2, 3, 4})));
+    REQUIRE(backend.get_slot_info(0).material == "PLA");
+
+    SnapmakerTestAccess::handle_status(backend, untagged_frame());
+    auto info = backend.get_slot_info(0);
+    CHECK(info.material == "PETG");
+    CHECK(info.brand == "eSUN");
+    CHECK(info.color_rgb == 0xAA0000u);
+    CHECK(info.spool_name.empty());
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker print_task_config type and vendor NONE are unset",
+                 "[ams][snapmaker][print_task_config]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+
+    SnapmakerTestAccess::handle_status(
+        backend, json{{"print_task_config",
+                       json{{"filament_type", json::array({"PLA", "NONE", "PETG", ""})},
+                            {"filament_vendor", json::array({"NONE", "eSUN", "", "Sunlu"})}}}});
+    CHECK(backend.get_slot_info(0).material == "PLA");
+    CHECK(backend.get_slot_info(1).material.empty());
+    CHECK(backend.get_slot_info(2).material == "PETG");
+    CHECK(backend.get_slot_info(3).material.empty());
+    CHECK(backend.get_slot_info(0).brand.empty());
+    CHECK(backend.get_slot_info(1).brand == "eSUN");
+    CHECK(backend.get_slot_info(3).brand == "Sunlu");
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker tag reader naming no tag takes back the tag's temps and weight",
+                 "[ams][snapmaker][rfid]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+
+    // The helper's tag states 190-220 nozzle, 60 bed, 1000 g.
+    SnapmakerTestAccess::handle_status(
+        backend,
+        make_filament_detect_status(2, "PLA", 0xFF202020u, "Snapmaker", json::array({1, 2, 3, 4})));
+    REQUIRE(backend.get_slot_info(2).nozzle_temp_max == 220);
+    REQUIRE(backend.get_slot_info(2).total_weight_g == 1000.0f);
+
+    SnapmakerTestAccess::handle_status(backend, untagged_frame());
+    const SlotInfo blank;
+    auto info = backend.get_slot_info(2);
+    CHECK(info.nozzle_temp_min == blank.nozzle_temp_min);
+    CHECK(info.nozzle_temp_max == blank.nozzle_temp_max);
+    CHECK(info.bed_temp == blank.bed_temp);
+    CHECK(info.total_weight_g == blank.total_weight_g);
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker user's edit stands over a reader naming no tag",
+                 "[ams][snapmaker][filament_slot_override][rfid]") {
+    SnapmakerTmpCacheDir tmp("edit_over_untagged");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPIMock api(client, state);
+    AmsBackendSnapmaker backend(&api, nullptr);
+    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+        &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
+    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
+    SnapmakerTestAccess::inject_override_store(backend, std::move(store));
+
+    // The helper's tag: PLA, Snapmaker, 190-220 nozzle, 60 bed.
+    const json tag =
+        make_filament_detect_status(0, "PLA", 0xFF202020u, "Snapmaker", json::array({1, 2, 3, 4}));
+    SnapmakerTestAccess::handle_status(backend, tag);
+    SlotInfo edit = backend.get_slot_info(0);
+    SECTION("an edit equal to the tag") {}
+    SECTION("an edit differing from the tag") {
+        edit.material = "PETG";
+        edit.brand = "eSUN";
+        edit.nozzle_temp_min = 230;
+        edit.nozzle_temp_max = 250;
+        edit.bed_temp = 80;
+    }
+    REQUIRE(backend.set_slot_info(0, edit, /*persist=*/true).success());
+
+    // Firmware states back what the edit wrote to the tag record.
+    json echo = make_filament_detect_status(0, edit.material, 0xFF202020u, edit.brand,
+                                            json::array({1, 2, 3, 4}));
+    echo["filament_detect"]["info"][0]["HOTEND_MIN_TEMP"] = edit.nozzle_temp_min;
+    echo["filament_detect"]["info"][0]["HOTEND_MAX_TEMP"] = edit.nozzle_temp_max;
+    echo["filament_detect"]["info"][0]["BED_TEMP"] = edit.bed_temp;
+    SnapmakerTestAccess::handle_status(backend, echo);
+
+    SnapmakerTestAccess::handle_status(backend, untagged_frame());
+    auto info = backend.get_slot_info(0);
+    CHECK(info.material == edit.material);
+    CHECK(info.brand == edit.brand);
+    CHECK(info.nozzle_temp_min == edit.nozzle_temp_min);
+    CHECK(info.nozzle_temp_max == edit.nozzle_temp_max);
+    CHECK(info.bed_temp == edit.bed_temp);
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker restart forgets the previous session's tag and task values",
+                 "[ams][snapmaker][rfid]") {
+    AmsBackendSnapmaker backend(nullptr, nullptr);
+
+    // print_task_config names one colour, then the tag reads another, so the
+    // slot shows the tag's while the task colour waits behind it.
+    SnapmakerTestAccess::handle_status(
+        backend, json{{"print_task_config",
+                       json{{"filament_color_rgba",
+                             json::array({"AA0000FF", "AA0000FF", "AA0000FF", "AA0000FF"})}}}});
+    SnapmakerTestAccess::handle_status(
+        backend,
+        make_filament_detect_status(0, "PLA", 0xFF202020u, "Snapmaker", json::array({1, 2, 3, 4})));
+    REQUIRE(backend.get_slot_info(0).color_rgb == 0x202020u);
+    REQUIRE(backend.get_slot_info(0).nozzle_temp_max == 220);
+
+    SnapmakerTestAccess::call_on_started(backend);
+    SnapmakerTestAccess::handle_status(backend, untagged_frame());
+
+    // Neither value the previous session recorded is judged against: the
+    // temperatures are not taken back as that session's tag's, and the colour
+    // does not fall back to that session's task colour.
+    auto info = backend.get_slot_info(0);
+    CHECK(info.nozzle_temp_min == 190);
+    CHECK(info.nozzle_temp_max == 220);
+    CHECK(info.bed_temp == 60);
+    CHECK(info.color_rgb != 0xAA0000u);
 }
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker first RFID UID observation does NOT clear override",

@@ -418,6 +418,35 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// (SnapmakerRfidInfo::has_card). Unset until the first entry for it.
     std::array<std::optional<bool>, NUM_TOOLS> tag_has_card_{};
 
+    /// print_task_config.filament_vendor per head, as the firmware spells it.
+    /// Unset until the first frame carrying it.
+    std::array<std::optional<std::string>, NUM_TOOLS> task_vendor_{};
+
+    /// print_task_config.filament_color_rgba per head, decoded. Unset until the
+    /// first frame carrying a colour that decodes.
+    std::array<std::optional<uint32_t>, NUM_TOOLS> task_color_{};
+
+    /// What the last tag reading on each channel wrote onto SlotInfo (an empty
+    /// brand or spool_name: the tag wrote none). Unset until a tag is read,
+    /// and again once retract_tag_reading_locked() takes it back.
+    struct TagReading {
+        std::string material;
+        std::string brand;
+        uint32_t color_rgb = 0;
+        std::string spool_name;
+        int nozzle_temp_min = 0;
+        int nozzle_temp_max = 0;
+        int bed_temp = 0;
+        float total_weight_g = 0;
+    };
+    std::array<std::optional<TagReading>, NUM_TOOLS> tag_reading_{};
+
+    /// On a channel whose tag reader names no tag, take what the last tag
+    /// reading wrote off @p slot, falling back to what print_task_config last
+    /// said. Returns whether there was a reading to take back. Caller holds
+    /// mutex_.
+    bool retract_tag_reading_locked(int slot_index, SlotInfo& slot);
+
     /// How a SET_PRINT_FILAMENT_CONFIG may reach @p head: false plain, true
     /// with FORCE=1 (the firmware calls the head official but no card backs
     /// it), nullopt not at all (a real tag's record, or no card reading yet
