@@ -1176,6 +1176,7 @@ ad5x_check_chroot_context() {
 #   4. Well-known users: biqu, pi, mks
 #   5. Fallback: root
 # Sets: KLIPPER_USER, KLIPPER_HOME
+# KLIPPER_HOMES_ROOT is the test seam for /home; nothing on a device ever sets it.
 detect_klipper_user() {
     # 1. systemd service owner (most reliable on Pi)
     if command -v systemctl >/dev/null 2>&1; then
@@ -1202,15 +1203,16 @@ detect_klipper_user() {
     fi
 
     # 3. printer_data directory scan
+    local homes_root="${KLIPPER_HOMES_ROOT:-/home}"
     local pd_dir
-    for pd_dir in /home/*/printer_data; do
+    for pd_dir in "$homes_root"/*/printer_data; do
         [ -d "$pd_dir" ] || continue
         local pd_user
-        pd_user=$(echo "$pd_dir" | sed 's|^/home/||;s|/printer_data$||')
+        pd_user=$(basename "$(dirname "$pd_dir")")
         if [ -n "$pd_user" ] && id "$pd_user" >/dev/null 2>&1; then
             KLIPPER_USER="$pd_user"
             KLIPPER_GROUP=$(_resolve_primary_group "$pd_user")
-            KLIPPER_HOME="/home/$pd_user"
+            KLIPPER_HOME="$homes_root/$pd_user"
             log_info "Klipper user (printer_data): $KLIPPER_USER (group: $KLIPPER_GROUP)"
             return 0
         fi
