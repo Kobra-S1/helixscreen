@@ -28,6 +28,7 @@
 #include "action_prompt_manager.h"
 #include "action_prompt_modal.h"
 #include "display_settings_manager.h"
+#include "theme_manager.h"
 
 #include <vector>
 
@@ -55,6 +56,26 @@ helix::PromptData make_regular_prompt(int n_buttons) {
         btn.is_footer = false;
         data.buttons.push_back(std::move(btn));
     }
+    return data;
+}
+
+// Z-Mod's color picker as its CHANGE_ZCOLOR macro sends it (#1806): a text
+// line, 24 label-less swatches and a footer Cancel.
+helix::PromptData make_zmod_color_prompt() {
+    using helix::ActionPromptManager;
+    static const char* const kHex[24] = {
+        "ffffff", "fff245", "def578", "21cc3d", "167a4b", "156682", "24e4a0", "7bd9f0",
+        "4caaf8", "2e54dd", "48358c", "a341f7", "f435f6", "d584de", "fa6173", "f82d29",
+        "805003", "f9903b", "fcebd7", "d5c5a1", "b17c38", "8c8c89", "bebebe", "1b1b1b"};
+    helix::PromptData data;
+    data.title = "Select color";
+    data.text_lines.push_back("Spool 1: PETG-CF/");
+    for (const char* hex : kHex) {
+        data.buttons.push_back(ActionPromptManager::parse_button_spec(
+            std::string("_ |CHANGE_ZCOLOR SLOT=1 HEX=") + hex + "|" + hex));
+    }
+    data.buttons.push_back(ActionPromptManager::parse_button_spec("Cancel|RESPOND|primary"));
+    data.buttons.back().is_footer = true;
     return data;
 }
 
@@ -239,6 +260,103 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
         }
     }
     REQUIRE(any_wrapped);
+
+    modal_.hide();
+}
+
+// A hex in the third field (or the legacy fourth) fills the button with that
+// color; a field that is not a color leaves the themed default
+// (prestonbrown/helixscreen#1806).
+TEST_CASE_METHOD(ActionPromptLayoutFixture, "ActionPromptModal: hex button fills with the color",
+                 "[action_prompt][layout][ui_integration][hex_color][1806]") {
+    using helix::ActionPromptManager;
+    helix::PromptData data;
+    data.title = "Colors";
+    data.buttons = {
+        ActionPromptManager::parse_button_spec("Standard|GCODE_CMD_1|error"),
+        ActionPromptManager::parse_button_spec("HEX Dark (White Text)|GCODE_CMD_2|ff5722"),
+        ActionPromptManager::parse_button_spec("HEX Light (Black Text)|GCODE_CMD_3|#e0e0e0"),
+        ActionPromptManager::parse_button_spec("Legacy|GCODE_CMD_4|primary|21cc3d"),
+        ActionPromptManager::parse_button_spec("Garbage|GCODE_CMD_5|zzzzzz"),
+    };
+
+    REQUIRE(modal_.show_prompt(test_screen(), data));
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 5);
+
+    auto bg = [&](size_t i) { return lv_obj_get_style_bg_color(btns[i], LV_PART_MAIN); };
+    CHECK(lv_color_eq(bg(0), theme_manager_get_color("danger")));
+    CHECK(lv_color_eq(bg(1), lv_color_hex(0xff5722)));
+    CHECK(lv_color_eq(bg(2), lv_color_hex(0xe0e0e0)));
+    CHECK(lv_color_eq(bg(3), lv_color_hex(0x21cc3d)));
+    CHECK(lv_color_eq(bg(4), theme_manager_get_color("primary")));
+
+    modal_.hide();
+}
+
+// A Z-Mod swatch tile carries no text, so it needs an outline to stay visible
+// when its color matches the card behind it.
+TEST_CASE_METHOD(ActionPromptLayoutFixture,
+                 "ActionPromptModal: a label-less hex button is a swatch",
+                 "[action_prompt][layout][ui_integration][hex_color][1806]") {
+    using helix::ActionPromptManager;
+    helix::PromptData data;
+    data.title = "Select color";
+    data.buttons = {
+        ActionPromptManager::parse_button_spec(
+            "_ |CHANGE_ZCOLOR SLOT=1 TYPE=PLA HEX=ffffff HIDE=0|ffffff"),
+        ActionPromptManager::parse_button_spec("Named|GCODE|e0e0e0"),
+    };
+
+    REQUIRE(modal_.show_prompt(test_screen(), data));
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 2);
+
+    CHECK(lv_color_eq(lv_obj_get_style_bg_color(btns[0], LV_PART_MAIN), lv_color_hex(0xffffff)));
+    CHECK(lv_obj_get_style_border_width(btns[0], LV_PART_MAIN) > 0);
+    CHECK(lv_obj_get_style_border_width(btns[1], LV_PART_MAIN) == 0);
+
+    modal_.hide();
+}
+
+// 24 swatches cannot share one row as touch targets, so the picker wraps into
+// a grid of square tiles and the footer stays on the card.
+TEST_CASE_METHOD(ActionPromptLayoutFixture,
+                 "ActionPromptModal: a Z-Mod color picker wraps into a grid of touch targets",
+                 "[action_prompt][layout][ui_integration][hex_color][1806]") {
+    REQUIRE(modal_.show_prompt(test_screen(), make_zmod_color_prompt()));
+    lv_obj_t* dialog = modal_.dialog();
+    REQUIRE(dialog != nullptr);
+    lv_obj_update_layout(test_screen());
+
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 25);
+    const int32_t side = theme_manager_get_spacing("button_height_sm");
+    REQUIRE(side > 0);
+
+    lv_area_t card;
+    lv_obj_get_coords(dialog, &card);
+    bool wrapped = false;
+    const int32_t y0 = lv_obj_get_y(btns[0]);
+    for (size_t i = 0; i < 24; ++i) {
+        lv_area_t a;
+        lv_obj_get_coords(btns[i], &a);
+        CAPTURE(i, lv_area_get_width(&a), lv_area_get_height(&a));
+        CHECK(lv_area_get_width(&a) == side);
+        CHECK(lv_area_get_height(&a) == side);
+        CHECK(a.x1 >= card.x1);
+        CHECK(a.x2 <= card.x2);
+        CHECK(a.y2 <= card.y2);
+        if (lv_obj_get_y(btns[i]) != y0) {
+            wrapped = true;
+        }
+    }
+    CHECK(wrapped);
+
+    lv_area_t footer;
+    lv_obj_get_coords(btns[24], &footer);
+    CHECK(footer.y1 >= card.y1);
+    CHECK(footer.y2 <= card.y2);
 
     modal_.hide();
 }
