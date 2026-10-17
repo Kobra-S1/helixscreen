@@ -89,7 +89,6 @@ class ExcludeObjectModal : public Modal {
      * Invokes the confirm callback if set, then hides the modal.
      */
     void on_ok() override {
-        confirmed_ = true;
         if (on_confirm_cb_) {
             on_confirm_cb_();
         }
@@ -97,26 +96,32 @@ class ExcludeObjectModal : public Modal {
     }
 
     /**
-     * @brief Called when user clicks Cancel button (and on ESC)
+     * @brief Called when user clicks Cancel button, and on ESC
      *
-     * The cancel callback runs from on_hide(), like every other close.
+     * Invokes the cancel callback if set, then hides the modal.
      */
     void on_cancel() override {
+        if (on_cancel_cb_) {
+            on_cancel_cb_();
+        }
         hide(ModalCloseReason::ButtonPress);
     }
 
     /**
-     * @brief Every close that is not Confirm resolves as a cancel
+     * @brief A close no button answered resolves as a cancel
      *
-     * Backdrop tap, ESC, Cancel, a hot-reload rebuild and a programmatic
-     * hide() all end here. The caller holds a pending-exclusion guard that
-     * only a resolution clears, so no close may go unreported.
+     * The caller holds a pending-exclusion guard that only a resolution
+     * clears, so a backdrop tap, hot-reload rebuild or programmatic hide()
+     * must report like Cancel does.
      */
-    void on_hide() override;
+    void on_dismissed() override {
+        if (on_cancel_cb_) {
+            on_cancel_cb_();
+        }
+    }
 
   private:
     std::string object_name_;
     Callback on_confirm_cb_;
     Callback on_cancel_cb_;
-    bool confirmed_ = false;
 };

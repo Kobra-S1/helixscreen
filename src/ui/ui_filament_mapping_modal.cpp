@@ -77,23 +77,30 @@ void FilamentMappingModal::on_ok() {
     if (on_updated_cb_) {
         on_updated_cb_(mappings_);
     }
-    hide();
+    hide(ModalCloseReason::ButtonPress);
 }
 
 void FilamentMappingModal::on_cancel() {
+    revert();
+    hide(ModalCloseReason::ButtonPress);
+}
+
+void FilamentMappingModal::on_dismissed() {
+    revert();
+}
+
+void FilamentMappingModal::revert() {
     mappings_ = original_mappings_;
 
-    // The persisted preference is part of what Cancel undoes. Without this the
-    // toggle was a one-way door: flip it to see the other mode, press Cancel,
-    // and the printer kept the new preference for every future print — on every
-    // backend that can reach this picker. Written only when it actually changed
-    // so a plain Cancel does not churn the settings file.
+    // The persisted preference is part of what a cancel undoes: the toggle
+    // writes it straight through, so a flip made only to see the other mode
+    // would otherwise stick for every future print, on every backend that can
+    // reach this picker. Written only when it changed, so a plain Cancel does
+    // not churn the settings file.
     if (auto_color_map_ != original_auto_color_map_) {
         SettingsManager::instance().set_auto_color_map(original_auto_color_map_);
         auto_color_map_ = original_auto_color_map_;
     }
-
-    hide();
 }
 
 // ============================================================================

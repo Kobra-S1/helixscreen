@@ -296,11 +296,16 @@ void MacroParamModal::on_cancel() {
 }
 
 void MacroParamModal::dismiss() {
+    hide(ModalCloseReason::ButtonPress);
+}
+
+void MacroParamModal::on_hide() {
     raw_mode_ = false;
     raw_textarea_ = nullptr;
-    textareas_.clear(); // Clear before hide() -- widgets are about to be deleted
-    s_active_instance_ = nullptr;
-    hide();
+    textareas_.clear();
+    if (s_active_instance_ == this) {
+        s_active_instance_ = nullptr;
+    }
 }
 
 void MacroParamModal::populate_param_fields() {

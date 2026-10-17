@@ -264,17 +264,29 @@ class Modal {
     virtual void on_hide() {}
 
     /**
+     * @brief Called after on_hide() when the close was not a button's answer
+     *
+     * A backdrop tap, a static-path ESC, an XML hot-reload rebuild, a system
+     * sweep and a programmatic hide() all land here; a close passed
+     * ModalCloseReason::ButtonPress does not. A subclass whose caller holds
+     * state the buttons resolve (a pending guard, an unsaved preview) clears or
+     * reverts it here, so no close can leave it behind. Fires at most once per
+     * showing, from hide() only: ~Modal and ModalStack::clear() skip it.
+     */
+    virtual void on_dismissed() {}
+
+    /**
      * @brief Called when Ok button is clicked (default: hides)
      */
     virtual void on_ok() {
-        hide();
+        hide(ModalCloseReason::ButtonPress);
     }
 
     /**
-     * @brief Called when Cancel button is clicked (default: hides)
+     * @brief Called when Cancel button is clicked, and on ESC (default: hides)
      */
     virtual void on_cancel() {
-        hide();
+        hide(ModalCloseReason::ButtonPress);
     }
 
     /**
@@ -283,7 +295,7 @@ class Modal {
      * Used for 3-button modals like runout guidance (Load/Resume/Cancel Print).
      */
     virtual void on_tertiary() {
-        hide();
+        hide(ModalCloseReason::ButtonPress);
     }
 
     /**
@@ -292,21 +304,21 @@ class Modal {
      * Used for 4+ button modals like extended runout guidance.
      */
     virtual void on_quaternary() {
-        hide();
+        hide(ModalCloseReason::ButtonPress);
     }
 
     /**
      * @brief Called when Quinary button is clicked (default: hides)
      */
     virtual void on_quinary() {
-        hide();
+        hide(ModalCloseReason::ButtonPress);
     }
 
     /**
      * @brief Called when Senary button is clicked (default: hides)
      */
     virtual void on_senary() {
-        hide();
+        hide(ModalCloseReason::ButtonPress);
     }
 
   protected:
