@@ -312,16 +312,21 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     [[nodiscard]] static std::string preprint_gcode(const std::set<int>& tools_used,
                                                     const std::map<int, int>& remap);
 
+    /// Which lines of a filament record write to send.
+    enum class RecordLines { Both, Identity, Colour };
+
     /// The SET_PRINT_FILAMENT_CONFIG script that writes @p slot's identity into
     /// print_task_config for physical head @p head: one line for vendor, type
-    /// and subtype, one for colour. VENDOR is "Snapmaker" for a Snapmaker spool
-    /// and "Generic" otherwise; FILAMENT_SUBTYPE is the spool's product line
-    /// when it names one, else "Basic". Empty when the slot names no material
-    /// or one IMoonrakerAPI::is_safe_material_param() refuses; values with a
-    /// space are quoted by IMoonrakerAPI::gcode_param_value(). @p force appends
-    /// FORCE=1 to both lines, which a head the firmware calls official requires.
-    [[nodiscard]] static std::string build_filament_config_gcode(int head, const SlotInfo& slot,
-                                                                 bool force = false);
+    /// and subtype, one for colour (@p lines picks either alone). VENDOR is
+    /// "Snapmaker" for a Snapmaker spool and "Generic" otherwise;
+    /// FILAMENT_SUBTYPE is the spool's product line when it names one, else
+    /// "Basic". Empty when the slot names no material or one
+    /// IMoonrakerAPI::is_safe_material_param() refuses; values with a space are
+    /// quoted by IMoonrakerAPI::gcode_param_value(). @p force appends FORCE=1
+    /// to every line, which a head the firmware calls official requires.
+    [[nodiscard]] static std::string
+    build_filament_config_gcode(int head, const SlotInfo& slot, bool force = false,
+                                RecordLines lines = RecordLines::Both);
 
     /// Applied logical-tool -> physical-head routing for the CURRENT print.
     ///
@@ -426,6 +431,36 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// first frame carrying a colour that decodes.
     std::array<std::optional<uint32_t>, NUM_TOOLS> task_color_{};
 
+    /// print_task_config.filament_sub_type per head, as the firmware spells it.
+    /// Unset until the first frame carrying it.
+    std::array<std::optional<std::string>, NUM_TOOLS> task_subtype_{};
+
+    /// Whether each channel's filament_detect entry names a tag: MAIN_TYPE or
+    /// SUB_TYPE other than NONE. Unset until the first entry for the channel.
+    std::array<std::optional<bool>, NUM_TOOLS> tag_names_identity_{};
+
+    /// Per head: an official-flag repair has been sent this session. Under
+    /// mutex_.
+    std::array<bool, NUM_TOOLS> official_repair_sent_{};
+
+    /// Per channel: the tag reader has shown a real card this session. Under
+    /// mutex_.
+    std::array<bool, NUM_TOOLS> card_seen_{};
+
+    /// print_stats.state from this backend's own status frames; unset until a
+    /// frame carries it. Under mutex_.
+    std::optional<std::string> print_state_;
+
+    /// A user edit's record write held by record_writes_held_locked().
+    struct PendingRecordWrite {
+        SlotInfo info;
+        bool material_declared = false;
+    };
+
+    /// Per head, the latest held record write; dropped with the head's
+    /// override and at on_started(). Under mutex_.
+    std::array<std::optional<PendingRecordWrite>, NUM_TOOLS> pending_record_writes_{};
+
     /// What the last tag reading on each channel wrote onto SlotInfo (an empty
     /// brand or spool_name, or no colour: the tag stated none). Unset until a
     /// tag is read, and again once retract_tag_reading_locked() takes it back.
@@ -453,11 +488,43 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     /// beside an official flag). Caller holds mutex_.
     [[nodiscard]] std::optional<bool> record_write_needs_force_locked(int head) const;
 
-    /// After a user edit the paxx endpoint did not take, write the material
-    /// into the head's firmware record when that record names a different type
-    /// or none. @p material_changed answers for a head whose record has not
-    /// been seen. Main thread.
-    void write_task_filament_record(int head, const SlotInfo& info, bool material_changed);
+    /// Write a user edit into the head's print_task_config record, the one the
+    /// firmware's RESUME gate, the stock screen and slicers read: the identity
+    /// line when the record names a different type, vendor or subtype, the
+    /// colour line when it names a different colour, nothing when it already
+    /// agrees (every line runs FLOW_RESET_K on the head), both lines with
+    /// FORCE=1 on an official head with no card. A record not seen yet is
+    /// written only for a declared material, @p material_declared. While
+    /// record_writes_held_locked() the edit is kept in pending_record_writes_
+    /// and written by the first frame for which heads_free_locked(). Main
+    /// thread.
+    void write_task_filament_record(int head, const SlotInfo& info, bool material_declared);
+
+    /// Whether a user edit's record write must wait: this backend's own
+    /// print_stats.state reads printing, or, before its frames have named one,
+    /// the app's print job state reads PRINTING or is not initialized. Caller
+    /// holds mutex_.
+    [[nodiscard]] bool record_writes_held_locked() const;
+
+    /// Forget @p head's held record write, if it has one. Caller holds mutex_.
+    void drop_pending_record_write_locked(int head);
+
+    /// Whether this backend's own print_stats.state is known and holds no head:
+    /// neither printing nor paused. Caller holds mutex_.
+    [[nodiscard]] bool heads_free_locked() const;
+
+    /// FORCE=1 rewrites for heads whose record is flagged official while the
+    /// tag entry is filled with no card behind it, the channel has shown no
+    /// card this session, and the record holds exactly what this backend's
+    /// stored edit says. A filament_detect/set write (Extended Firmware) leaves
+    /// that flag, and the firmware then refuses plain writes from us and from
+    /// the stock screen. Nothing is returned until this backend has read a
+    /// print_stats.state that is neither printing nor paused. Marks each head
+    /// returned sent. Caller holds mutex_.
+    [[nodiscard]] std::vector<std::pair<int, std::string>> official_flag_repairs_locked();
+
+    /// Send official_flag_repairs_locked() output. Main thread, outside mutex_.
+    void dispatch_official_flag_repairs(const std::vector<std::pair<int, std::string>>& repairs);
 
     /// One SET_PRINT_FILAMENT_CONFIG script per head the paused task uses whose
     /// firmware record names no type while the slot knows its material: the

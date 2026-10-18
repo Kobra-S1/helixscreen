@@ -1914,7 +1914,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker empty RFID UID does not update bas
 // ============================================================================
 
 TEST_CASE_METHOD(SnapmakerFixture,
-                 "Snapmaker set_slot_info(persist=true) POSTs to /printer/filament_detect/set",
+                 "Snapmaker a saved edit writes the record and never POSTs to filament_detect/set",
                  "[ams][snapmaker][firmware_writeback]") {
     SnapmakerTmpCacheDir tmp("firmware_writeback_post");
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
@@ -1929,10 +1929,13 @@ TEST_CASE_METHOD(SnapmakerFixture,
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
 
     api.rest_mock().mock_clear_post_history();
+    client.clear_gcode_script_history();
+    // The backend's own frames gate record writes; give it an idle print state.
+    SnapmakerTestAccess::handle_status(backend, json{{"print_stats", {{"state", "standby"}}}});
 
     SlotInfo edit;
     edit.brand = "Polymaker";
-    edit.spool_name = "SnapSpeed"; // known SUB_TYPE — must round-trip
+    edit.spool_name = "SnapSpeed"; // known product line: rides FILAMENT_SUBTYPE
     edit.material = "PLA";
     edit.color_rgb = 0xFF5500;
     edit.nozzle_temp_min = 195;
@@ -1942,26 +1945,15 @@ TEST_CASE_METHOD(SnapmakerFixture,
     auto err = backend.set_slot_info(2, edit, /*persist=*/true);
     REQUIRE(err.success());
 
-    auto history = api.rest_mock().mock_get_post_history();
-    REQUIRE(history.size() == 1);
-    CHECK(history[0].endpoint == "/printer/filament_detect/set");
-
-    const auto& body = history[0].body;
-    REQUIRE(body.is_object());
-    CHECK(body["channel"].get<int>() == 2);
-    REQUIRE(body.contains("info"));
-    const auto& info_obj = body["info"];
-    CHECK(info_obj["VENDOR"].get<std::string>() == "Polymaker");
-    CHECK(info_obj["MAIN_TYPE"].get<std::string>() == "PLA");
-    CHECK(info_obj["SUB_TYPE"].get<std::string>() == "SnapSpeed");
-    CHECK(info_obj["RGB_1"].get<uint32_t>() == 0xFF5500u);
-    CHECK(info_obj["ALPHA"].get<int>() == 255);
-    CHECK(info_obj["HOTEND_MIN_TEMP"].get<int>() == 195);
-    CHECK(info_obj["HOTEND_MAX_TEMP"].get<int>() == 225);
-    CHECK(info_obj["BED_TEMP"].get<int>() == 60);
-    // CARD_UID and SKU intentionally omitted — let firmware preserve them.
-    CHECK_FALSE(info_obj.contains("CARD_UID"));
-    CHECK_FALSE(info_obj.contains("SKU"));
+    // The Extended Firmware's filament_detect/set flags the head official,
+    // which the firmware then refuses plain writes to; the record write uses
+    // the stock screen's command instead.
+    CHECK(api.rest_mock().mock_get_post_history().empty());
+    const auto scripts = client.gcode_script_history();
+    REQUIRE(scripts.size() == 2);
+    CHECK(scripts[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=2 VENDOR=Generic "
+                        "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=SnapSpeed");
+    CHECK(scripts[1] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=2 FILAMENT_COLOR_RGBA=FF5500FF");
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
@@ -2013,12 +2005,12 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(api.rest_mock().mock_get_post_history().size() == 0);
 }
 
-TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker firmware POST omits unknown SUB_TYPE strings",
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a free-form spool name records Basic, not the string",
                  "[ams][snapmaker][firmware_writeback]") {
-    // spool_name is a free-form user field. Only round-trip to firmware when
-    // it matches one of the known Snapmaker product lines; otherwise omit it
-    // and let firmware keep whatever it had. The free-form string still
-    // lives in lane_data via the override store.
+    // FILAMENT_SUBTYPE is restricted to Snapmaker's known product lines. A
+    // free-form spool_name ("My Custom Roll", a Spoolman filament name) is not
+    // one of them, so the record names Basic and the free-form string lives in
+    // lane_data via the override store.
     SnapmakerTmpCacheDir tmp("firmware_writeback_unknown_subtype");
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
@@ -2030,109 +2022,47 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker firmware POST omits unknown SUB_TY
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
     FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
+    SnapmakerTestAccess::handle_status(backend, json{{"print_stats", {{"state", "standby"}}}});
+    client.clear_gcode_script_history();
 
-    api.rest_mock().mock_clear_post_history();
+    SECTION("a hand-typed string") {
+        SlotInfo edit;
+        edit.brand = "Generic";
+        edit.spool_name = "My Custom Roll"; // NOT a known product line
+        edit.material = "PETG";
+        edit.color_rgb = 0x00FF00;
 
-    SlotInfo edit;
-    edit.brand = "Generic";
-    edit.spool_name = "My Custom Roll"; // NOT a known SUB_TYPE
-    edit.material = "PETG";
-    edit.color_rgb = 0x00FF00;
+        REQUIRE(backend.set_slot_info(0, edit, /*persist=*/true).success());
+        const auto scripts = client.gcode_script_history();
+        REQUIRE(scripts.size() == 2);
+        CHECK(scripts[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=Generic "
+                            "FILAMENT_TYPE=PETG FILAMENT_SUBTYPE=Basic");
+    }
+    SECTION("a Spoolman filament name") {
+        SpoolInfo spool;
+        spool.id = 42;
+        spool.vendor = "Polymaker";
+        spool.material = "PLA";
+        spool.filament_name = "Ambrosia Pink"; // parse_spool_info maps filament.name here
+        spool.color_hex = "FFB6C1";
 
-    auto err = backend.set_slot_info(0, edit, /*persist=*/true);
-    REQUIRE(err.success());
+        SlotInfo edit;
+        apply_spool_to_slot(edit, spool);
+        REQUIRE(edit.spool_name == "Ambrosia Pink");
 
-    auto history = api.rest_mock().mock_get_post_history();
-    REQUIRE(history.size() == 1);
-    const auto& info_obj = history[0].body["info"];
-    CHECK(info_obj["VENDOR"].get<std::string>() == "Generic");
-    CHECK(info_obj["MAIN_TYPE"].get<std::string>() == "PETG");
-    CHECK_FALSE(info_obj.contains("SUB_TYPE"));
+        REQUIRE(backend.set_slot_info(0, edit, /*persist=*/true).success());
+        const auto scripts = client.gcode_script_history();
+        REQUIRE(scripts.size() == 2);
+        CHECK(scripts[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=Generic "
+                            "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Basic");
+    }
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
-                 "Snapmaker firmware POST omits a Spoolman filament name as SUB_TYPE",
-                 "[ams][snapmaker][firmware_writeback][spoolman]") {
-    // Snapmaker is the one consumer that puts spool_name back on the wire to
-    // firmware. It is the same free-form guard as the test above, reached
-    // through the Spoolman picker's writer instead of a hand-typed string: a
-    // real filament name ("Ambrosia Pink") is not one of the eight known
-    // product lines, so SUB_TYPE is omitted and firmware keeps what it had.
-    SnapmakerTmpCacheDir tmp("firmware_writeback_spoolman_name");
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    helix::PrinterState state;
-    state.init_subjects(false);
-    MoonrakerAPIMock api(client, state);
-
-    AmsBackendSnapmaker backend(&api, nullptr);
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
-        &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
-    SnapmakerTestAccess::inject_override_store(backend, std::move(store));
-
-    api.rest_mock().mock_clear_post_history();
-
-    SpoolInfo spool;
-    spool.id = 42;
-    spool.vendor = "Polymaker";
-    spool.material = "PLA";
-    spool.filament_name = "Ambrosia Pink"; // parse_spool_info maps filament.name here
-    spool.color_hex = "FFB6C1";
-
-    SlotInfo edit;
-    apply_spool_to_slot(edit, spool);
-    REQUIRE(edit.spool_name == "Ambrosia Pink");
-
-    auto err = backend.set_slot_info(0, edit, /*persist=*/true);
-    REQUIRE(err.success());
-
-    auto history = api.rest_mock().mock_get_post_history();
-    REQUIRE(history.size() == 1);
-    const auto& info_obj = history[0].body["info"];
-    CHECK(info_obj["VENDOR"].get<std::string>() == "Polymaker");
-    CHECK(info_obj["MAIN_TYPE"].get<std::string>() == "PLA");
-    CHECK_FALSE(info_obj.contains("SUB_TYPE"));
-}
-
-TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker firmware POST omits zero temperatures",
+                 "Snapmaker set_slot_info(persist=false) writes nothing to firmware",
                  "[ams][snapmaker][firmware_writeback]") {
-    SnapmakerTmpCacheDir tmp("firmware_writeback_zero_temps");
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    helix::PrinterState state;
-    state.init_subjects(false);
-    MoonrakerAPIMock api(client, state);
-
-    AmsBackendSnapmaker backend(&api, nullptr);
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
-        &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
-    SnapmakerTestAccess::inject_override_store(backend, std::move(store));
-
-    api.rest_mock().mock_clear_post_history();
-
-    SlotInfo edit;
-    edit.brand = "Polymaker";
-    edit.material = "PLA";
-    edit.color_rgb = 0xFF5500;
-    // All temps left at default 0 — must be omitted so firmware keeps prior values.
-
-    auto err = backend.set_slot_info(0, edit, /*persist=*/true);
-    REQUIRE(err.success());
-
-    auto history = api.rest_mock().mock_get_post_history();
-    REQUIRE(history.size() == 1);
-    const auto& info_obj = history[0].body["info"];
-    CHECK_FALSE(info_obj.contains("HOTEND_MIN_TEMP"));
-    CHECK_FALSE(info_obj.contains("HOTEND_MAX_TEMP"));
-    CHECK_FALSE(info_obj.contains("BED_TEMP"));
-}
-
-TEST_CASE_METHOD(SnapmakerFixture,
-                 "Snapmaker set_slot_info(persist=false) does NOT POST to firmware",
-                 "[ams][snapmaker][firmware_writeback]") {
-    // Preview edits (persist=false) are in-memory only and must not write to
-    // firmware OR the override store. Mirrors the existing "no DB write" test
-    // for the override-store path.
+    // Preview edits (persist=false) are in-memory only and must not write the
+    // head's firmware record, POST, or the override store.
     SnapmakerTmpCacheDir tmp("firmware_writeback_no_persist");
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
@@ -2144,8 +2074,8 @@ TEST_CASE_METHOD(SnapmakerFixture,
         &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
     FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
     SnapmakerTestAccess::inject_override_store(backend, std::move(store));
-
-    api.rest_mock().mock_clear_post_history();
+    SnapmakerTestAccess::handle_status(backend, json{{"print_stats", {{"state", "standby"}}}});
+    client.clear_gcode_script_history();
 
     SlotInfo edit;
     edit.brand = "Draft";
@@ -2156,48 +2086,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     REQUIRE(err.success());
 
     CHECK(api.rest_mock().mock_get_post_history().empty());
-}
-
-TEST_CASE_METHOD(SnapmakerFixture,
-                 "Snapmaker firmware POST 404 on stock firmware does not fail set_slot_info",
-                 "[ams][snapmaker][firmware_writeback]") {
-    // Stock firmware (no Extended Firmware extension) returns 404 for the
-    // endpoint. The override is still persisted to lane_data, so the user's
-    // edit isn't lost — set_slot_info must report success regardless.
-    SnapmakerTmpCacheDir tmp("firmware_writeback_404");
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    helix::PrinterState state;
-    state.init_subjects(false);
-    MoonrakerAPIMock api(client, state);
-
-    AmsBackendSnapmaker backend(&api, nullptr);
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
-        &api, "snapmaker", helix::ams::LaneKeyStyle::Tool);
-    FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
-    SnapmakerTestAccess::inject_override_store(backend, std::move(store));
-
-    api.rest_mock().mock_clear_post_history();
-    RestResponse not_found;
-    not_found.success = false;
-    not_found.status_code = 404;
-    not_found.error = "Not Found";
-    api.rest_mock().mock_queue_post_response("/printer/filament_detect/set", not_found);
-
-    SlotInfo edit;
-    edit.brand = "Polymaker";
-    edit.material = "PLA";
-    edit.color_rgb = 0xFF5500;
-
-    auto err = backend.set_slot_info(0, edit, /*persist=*/true);
-    REQUIRE(err.success());
-
-    // POST was attempted...
-    CHECK(api.rest_mock().mock_get_post_history().size() == 1);
-    // ...override still made it to lane_data so the UI's view is preserved.
-    auto staged = SnapmakerTestAccess::get_override(backend, 0);
-    REQUIRE(staged.has_value());
-    CHECK(staged->brand == "Polymaker");
-    CHECK(!api.mock_get_db_value("lane_data", "T0").is_null());
+    CHECK(client.gcode_script_history().empty());
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
@@ -2728,7 +2617,10 @@ struct FilamentRecordHarness {
     std::unique_ptr<AmsBackendSnapmaker> owned;
     AmsBackendSnapmaker& backend;
 
-    explicit FilamentRecordHarness(const std::string& name)
+    /// @p print_state is the print_stats.state the backend's first frame
+    /// names; empty sends no print_stats at all.
+    explicit FilamentRecordHarness(const std::string& name,
+                                   const std::string& print_state = "standby")
         : tmp(name), api(make_api(state, client)),
           owned(std::make_unique<AmsBackendSnapmaker>(api.get(), nullptr)), backend(*owned) {
         // The API mock's halt gate reads its own state.
@@ -2737,6 +2629,14 @@ struct FilamentRecordHarness {
             api.get(), "snapmaker", helix::ams::LaneKeyStyle::Tool);
         FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
         SnapmakerTestAccess::inject_override_store(backend, std::move(store));
+        if (!print_state.empty()) {
+            print(print_state);
+        }
+    }
+
+    /// A frame naming only print_stats.state.
+    void print(const std::string& state) {
+        frame(json{{"print_stats", {{"state", state}}}});
     }
 
     ~FilamentRecordHarness() {
@@ -2871,7 +2771,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     lv_init_safe();
     FilamentRecordHarness h("record_write_stock");
     h.frame(make_task_filament({"NONE", "NONE", "NONE", "NONE"}));
-    h.stock_firmware();
     h.client.clear_gcode_script_history();
 
     REQUIRE(h.backend.set_slot_info(1, inland_pla(), /*persist=*/true).success());
@@ -2883,8 +2782,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
                        "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Basic");
     CHECK(writes[1] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 FILAMENT_COLOR_RGBA=FF5500FF");
     CHECK(writes[0].find("FORCE") == std::string::npos);
-    // The paxx write is still attempted first.
-    CHECK(h.api->rest_mock().mock_get_post_history().size() == 1);
+    CHECK(h.api->rest_mock().mock_get_post_history().empty());
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
@@ -2893,7 +2791,6 @@ TEST_CASE_METHOD(SnapmakerFixture,
     lv_init_safe();
     FilamentRecordHarness h("record_write_changed");
     h.frame(make_task_filament({"PETG", "PETG", "PETG", "PETG"}));
-    h.stock_firmware();
     h.client.clear_gcode_script_history();
 
     REQUIRE(h.backend.set_slot_info(2, inland_pla(), /*persist=*/true).success());
@@ -3039,20 +2936,289 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(h.config_writes().empty());
 }
 
-TEST_CASE_METHOD(SnapmakerFixture,
-                 "Snapmaker an accepted filament_detect/set leaves the record to firmware",
+namespace {
+
+/// filament_detect frame whose entry for @p head carries @p card_uid and no
+/// filament identity: an untagged channel, or a filament_detect/set write that
+/// was later cleared.
+json make_detect_card(int head, const json& card_uid) {
+    json info = json::array();
+    for (int i = 0; i < 4; ++i) {
+        info.push_back(i == head ? json{{"MAIN_TYPE", "NONE"}, {"CARD_UID", card_uid}}
+                                 : json{{"MAIN_TYPE", "NONE"}});
+    }
+    return json{{"filament_detect", json{{"info", info}}}};
+}
+
+/// A head as an Extended Firmware filament_detect/set write leaves it: flagged
+/// official in print_task_config, holding @p type in @p rgba.
+json make_official_task(int head, const std::string& type, const std::string& rgba) {
+    json ptc = make_task_filament({"NONE", "NONE", "NONE", "NONE"});
+    ptc["print_task_config"]["filament_type"][head] = type;
+    ptc["print_task_config"]["filament_official"][head] = true;
+    ptc["print_task_config"]["filament_color_rgba"] =
+        json::array({"FFFFFFFF", "FFFFFFFF", "FFFFFFFF", "FFFFFFFF"});
+    ptc["print_task_config"]["filament_color_rgba"][head] = rgba;
+    return ptc;
+}
+
+/// The filament_detect entry that same write leaves: filled, no card behind it.
+json make_written_entry(int head, const std::string& type, const json& card_uid = 0) {
+    json info = json::array();
+    for (int i = 0; i < 4; ++i) {
+        info.push_back(i == head ? json{{"MAIN_TYPE", type}, {"CARD_UID", card_uid}}
+                                 : json{{"MAIN_TYPE", "NONE"}});
+    }
+    return json{{"filament_detect", json{{"info", info}}}};
+}
+
+} // namespace
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a save sends only the record lines that differ",
                  "[ams][snapmaker][filament_record]") {
-    // Extended firmware mirrors the POST into print_task_config itself and marks
-    // the head official, so a second write would be redundant and refused.
+    // SET_PRINT_FILAMENT_CONFIG runs FLOW_RESET_K, so a line the record
+    // already agrees with must not be sent.
     lv_init_safe();
-    FilamentRecordHarness h("record_write_paxx");
+    FilamentRecordHarness h("record_write_lines");
+    json ptc = make_task_filament({"NONE", "pla", "NONE", "NONE"});
+    ptc["print_task_config"]["filament_vendor"] = json::array({"NONE", "Generic", "NONE", "NONE"});
+    ptc["print_task_config"]["filament_sub_type"] = json::array({"NONE", "Basic", "NONE", "NONE"});
+    ptc["print_task_config"]["filament_color_rgba"] =
+        json::array({"FFFFFFFF", "FF5500FF", "FFFFFFFF", "FFFFFFFF"});
+    h.frame(ptc);
+    h.client.clear_gcode_script_history();
+
+    SECTION("a re-save of what the record holds sends nothing") {
+        REQUIRE(h.backend.set_slot_info(1, inland_pla(), /*persist=*/true).success());
+        FilamentRecordHarness::drain();
+        CHECK(h.config_writes().empty());
+    }
+    SECTION("a colour change sends the colour line alone") {
+        SlotInfo edit = inland_pla();
+        edit.color_rgb = 0x123456;
+        REQUIRE(h.backend.set_slot_info(1, edit, /*persist=*/true).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE(writes.size() == 1);
+        CHECK(writes[0] ==
+              "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 FILAMENT_COLOR_RGBA=123456FF");
+    }
+    SECTION("a product-line change sends the identity line alone") {
+        SlotInfo edit = inland_pla();
+        edit.brand = "Snapmaker";
+        edit.spool_name = "Matte";
+        REQUIRE(h.backend.set_slot_info(1, edit, /*persist=*/true).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE(writes.size() == 1);
+        CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Snapmaker "
+                           "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Matte");
+    }
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker an unchanged save on a forced head sends nothing",
+                 "[ams][snapmaker][filament_record]") {
+    lv_init_safe();
+    FilamentRecordHarness h("record_forced_unchanged");
+    json ptc = make_official_task(1, "PLA", "FF5500FF");
+    ptc["print_task_config"]["filament_vendor"] = json::array({"NONE", "Generic", "NONE", "NONE"});
+    ptc["print_task_config"]["filament_sub_type"] = json::array({"NONE", "Basic", "NONE", "NONE"});
+    h.frame(make_detect_card(1, 0));
+    h.frame(ptc);
+    h.client.clear_gcode_script_history();
+
+    REQUIRE(h.backend.set_slot_info(1, inland_pla(), /*persist=*/true).success());
+    FilamentRecordHarness::drain();
+    CHECK(h.config_writes().empty());
+
+    // The control: a change on the same head goes out forced.
+    SlotInfo petg = inland_pla();
+    petg.material = "PETG";
+    REQUIRE(h.backend.set_slot_info(1, petg, /*persist=*/true).success());
+    FilamentRecordHarness::drain();
+    const auto writes = h.config_writes();
+    REQUIRE(writes.size() == 2);
+    CHECK(writes[0].find("FORCE=1") != std::string::npos);
+}
+
+// ============================================================================
+// Official-flag repair: a card-less head flagged official by an endpoint write
+// ============================================================================
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker clears the official flag on a card-less head it wrote",
+                 "[ams][snapmaker][filament_record][official_repair]") {
+    lv_init_safe();
+    FilamentRecordHarness h("official_repair_ours");
+    REQUIRE(h.backend.set_slot_info(3, inland_pla(), /*persist=*/true).success());
+    FilamentRecordHarness::drain();
+    h.client.clear_gcode_script_history();
+
+    h.frame(make_written_entry(3, "PLA"));
+    h.frame(make_official_task(3, "PLA", "FF5500FF"));
+
+    const auto writes = h.config_writes();
+    REQUIRE(writes.size() == 2);
+    CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=3 VENDOR=Generic "
+                       "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Basic FORCE=1");
+    CHECK(writes[1] ==
+          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=3 FILAMENT_COLOR_RGBA=FF5500FF FORCE=1");
+
+    // Once per session: the same frames again send nothing.
+    h.client.clear_gcode_script_history();
+    h.frame(make_official_task(3, "PLA", "FF5500FF"));
+    CHECK(h.config_writes().empty());
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker leaves an official flag it cannot prove it wrote",
+                 "[ams][snapmaker][filament_record][official_repair]") {
+    lv_init_safe();
+    FilamentRecordHarness h("official_repair_not_ours");
+    REQUIRE(h.backend.set_slot_info(3, inland_pla(), /*persist=*/true).success());
+    FilamentRecordHarness::drain();
+    h.client.clear_gcode_script_history();
+
+    SECTION("a real card behind the head") {
+        h.frame(make_written_entry(3, "PLA", json::array({144, 32, 196, 2})));
+        h.frame(make_official_task(3, "PLA", "FF5500FF"));
+    }
+    SECTION("an empty entry, which a reader that is off reports for a real spool") {
+        h.frame(make_detect_card(3, 0));
+        h.frame(make_official_task(3, "PLA", "FF5500FF"));
+    }
+    SECTION("a channel that showed a card earlier this session") {
+        h.frame(make_written_entry(3, "PLA", json::array({144, 32, 196, 2})));
+        h.frame(make_written_entry(3, "PLA"));
+        h.frame(make_official_task(3, "PLA", "FF5500FF"));
+    }
+    SECTION("no card reading seen yet") {
+        h.frame(make_official_task(3, "PLA", "FF5500FF"));
+    }
+    SECTION("a record naming another material") {
+        h.frame(make_written_entry(3, "PLA"));
+        h.frame(make_official_task(3, "PETG", "FF5500FF"));
+    }
+    SECTION("a record naming another colour") {
+        h.frame(make_written_entry(3, "PLA"));
+        h.frame(make_official_task(3, "PLA", "00FF00FF"));
+    }
+    SECTION("a head with no stored edit") {
+        h.frame(make_written_entry(2, "PLA"));
+        h.frame(make_official_task(2, "PLA", "FF5500FF"));
+    }
+    CHECK(h.config_writes().empty());
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker holds the official-flag repair while a print holds the heads",
+                 "[ams][snapmaker][filament_record][official_repair]") {
+    lv_init_safe();
+    const std::string state = GENERATE(std::string("printing"), std::string("paused"));
+    FilamentRecordHarness h("official_repair_mid_print", state);
+    REQUIRE(h.backend.set_slot_info(3, inland_pla(), /*persist=*/true).success());
+    FilamentRecordHarness::drain();
+    h.client.clear_gcode_script_history();
+
+    h.frame(make_written_entry(3, "PLA"));
+    h.frame(make_official_task(3, "PLA", "FF5500FF"));
+    CHECK(h.config_writes().empty());
+
+    h.print("complete");
+    CHECK(h.config_writes().size() == 2);
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker sends no repair before its own frames name a print state",
+                 "[ams][snapmaker][filament_record][official_repair]") {
+    // The app's print state may not be known when the first frames land; the
+    // backend's own print_stats is the only answer it trusts.
+    lv_init_safe();
+    FilamentRecordHarness h("official_repair_no_state", /*print_state=*/"");
+    REQUIRE(h.backend.set_slot_info(3, inland_pla(), /*persist=*/true).success());
+    FilamentRecordHarness::drain();
+    h.client.clear_gcode_script_history();
+
+    h.frame(make_written_entry(3, "PLA"));
+    h.frame(make_official_task(3, "PLA", "FF5500FF"));
+    CHECK(h.config_writes().empty());
+
+    h.print("standby");
+    CHECK(h.config_writes().size() == 2);
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker holds a save made mid-print until the heads are free",
+                 "[ams][snapmaker][filament_record]") {
+    lv_init_safe();
+    FilamentRecordHarness h("record_mid_print", "printing");
     h.frame(make_task_filament({"NONE", "NONE", "NONE", "NONE"}));
     h.client.clear_gcode_script_history();
 
     REQUIRE(h.backend.set_slot_info(1, inland_pla(), /*persist=*/true).success());
     FilamentRecordHarness::drain();
-
     CHECK(h.config_writes().empty());
+
+    h.print("printing");
+    CHECK(h.config_writes().empty());
+
+    // A pause the print raised (a runout, an M600) is no moment for it.
+    h.print("paused");
+    CHECK(h.config_writes().empty());
+
+    h.print("complete");
+    const auto writes = h.config_writes();
+    REQUIRE(writes.size() == 2);
+    CHECK(writes[0].rfind("SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Generic "
+                          "FILAMENT_TYPE=PLA",
+                          0) == 0);
+
+    // Sent once.
+    h.client.clear_gcode_script_history();
+    h.print("standby");
+    CHECK(h.config_writes().empty());
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a save made while paused goes straight out",
+                 "[ams][snapmaker][filament_record]") {
+    lv_init_safe();
+    FilamentRecordHarness h("record_while_paused", "paused");
+    h.frame(make_task_filament({"NONE", "NONE", "NONE", "NONE"}));
+    h.client.clear_gcode_script_history();
+
+    REQUIRE(h.backend.set_slot_info(1, inland_pla(), /*persist=*/true).success());
+    FilamentRecordHarness::drain();
+    CHECK(h.config_writes().size() == 2);
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker drops a held save with the head's override",
+                 "[ams][snapmaker][filament_record]") {
+    lv_init_safe();
+    FilamentRecordHarness h("record_held_dropped", "printing");
+    h.frame(make_task_filament({"NONE", "NONE", "NONE", "NONE"}));
+    REQUIRE(h.backend.set_slot_info(1, inland_pla(), /*persist=*/true).success());
+    FilamentRecordHarness::drain();
+    h.client.clear_gcode_script_history();
+
+    SECTION("a Clear Spool") {
+        h.backend.clear_slot_override(1);
+    }
+    SECTION("a restart") {
+        SnapmakerTestAccess::call_on_started(h.backend);
+    }
+    h.print("complete");
+    CHECK(h.config_writes().empty());
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker files no tag reading from a filled entry with no card",
+                 "[ams][snapmaker][rfid]") {
+    lv_init_safe();
+    FilamentRecordHarness h("written_entry_not_a_reading");
+    h.frame(make_written_entry(2, "PETG", json::array({144, 32, 196, 2})));
+    REQUIRE(h.backend.get_slot_info(2).material == "PETG");
+
+    // The same spool's entry rewritten over the API: CARD_UID 0.
+    h.frame(make_written_entry(2, "ABS"));
+    CHECK(h.backend.get_slot_info(2).material != "ABS");
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
@@ -3181,20 +3347,6 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker resume repair never runs on a Term
     CHECK(captured.result == AmsResult::RESUME_REQUIRES_RESTART);
     CHECK(h.config_writes().empty());
 }
-
-namespace {
-/// filament_detect frame whose entry for @p head carries @p card_uid and no
-/// filament identity: an untagged channel, or a filament_detect/set write that
-/// was later cleared.
-json make_detect_card(int head, const json& card_uid) {
-    json info = json::array();
-    for (int i = 0; i < 4; ++i) {
-        info.push_back(i == head ? json{{"MAIN_TYPE", "NONE"}, {"CARD_UID", card_uid}}
-                                 : json{{"MAIN_TYPE", "NONE"}});
-    }
-    return json{{"filament_detect", json{{"info", info}}}};
-}
-} // namespace
 
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker resume forces the record of a head official only by an endpoint write",

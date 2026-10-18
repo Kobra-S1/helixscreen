@@ -339,13 +339,23 @@ AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerCl
 
 void AmsBackendSnapmaker::on_started() {
     {
+        // A start forgets what each channel's firmware said: a frame arriving
+        // while the load below runs must not be judged against a silence from
+        // the previous session.
         std::lock_guard<std::mutex> lock(mutex_);
         task_type_.fill(std::nullopt);
         task_official_.fill(std::nullopt);
         task_vendor_.fill(std::nullopt);
         task_color_.fill(std::nullopt);
+        task_subtype_.fill(std::nullopt);
+        tag_names_identity_.fill(std::nullopt);
         tag_reading_.fill(std::nullopt);
         tag_has_card_.fill(std::nullopt);
+        card_seen_.fill(false);
+        print_state_.reset();
+        // The overrides reload below; a held save belongs to the session that
+        // made it.
+        pending_record_writes_.fill(std::nullopt);
     }
     // Load persisted per-slot overrides (brand, spool name, spoolman IDs, etc.)
     // from the Moonraker DB lane_data namespace BEFORE any status parse runs.
@@ -815,8 +825,9 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
     if (err.result != AmsResult::SUCCESS)
         return err;
 
-    // Whether this edit changes the material, for a head whose firmware record
-    // has not been seen yet (write_task_filament_record).
+    // Whether this edit declares the slot's material anew (the slot did not
+    // already show it), for a head whose firmware record has not been seen yet
+    // (write_task_filament_record).
     bool material_changed = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -927,101 +938,16 @@ AmsError AmsBackendSnapmaker::set_slot_info(int slot_index, const SlotInfo& info
             });
     }
 
-    // Push the user's edit back to firmware via the paxx12 Extended Firmware
-    // POST /printer/filament_detect/set endpoint (see filament_detect.md in
-    // SnapmakerU1-Extended-Firmware/docs/design/). Firmware mirrors the body
-    // into print_task_config.filament_vendor / filament_type / filament_color_rgba,
-    // which the parse path here already reads — so on the next status update
-    // OverwriteAlways auto-mirror sees firmware-truth that matches user-truth
-    // and lane_data converges. On stock firmware (no extension) the endpoint
-    // 404s; the override is still persisted to lane_data, so HelixScreen's UI
-    // works correctly. Only OrcaSlicer's MoonrakerPrinterAgent and the
-    // firmware-side LCD don't reflect user edits on stock firmware.
-    if (persist && api_) {
-        nlohmann::json info_obj = nlohmann::json::object();
-        if (!info.brand.empty())
-            info_obj["VENDOR"] = info.brand;
-        if (!info.material.empty())
-            info_obj["MAIN_TYPE"] = info.material;
-        // SUB_TYPE is restricted to Snapmaker's known product lines per the
-        // firmware spec. spool_name carries the SUB_TYPE on the read path
-        // (see handle_status_update), but UI-edited spool_name may be a free-
-        // form string ("My Custom Spool"). Only round-trip when it matches a
-        // known sub_type — otherwise omit and let firmware preserve whatever
-        // it had. The free-form string still lives in lane_data. Shares the
-        // is_known_subtype() helper with the #991 resume re-assert path.
-        if (is_known_subtype(info.spool_name)) {
-            info_obj["SUB_TYPE"] = info.spool_name;
-        }
-        info_obj["RGB_1"] = info.color_rgb;
-        info_obj["ALPHA"] = 255;
-        if (info.nozzle_temp_min > 0)
-            info_obj["HOTEND_MIN_TEMP"] = info.nozzle_temp_min;
-        if (info.nozzle_temp_max > 0)
-            info_obj["HOTEND_MAX_TEMP"] = info.nozzle_temp_max;
-        if (info.bed_temp > 0)
-            info_obj["BED_TEMP"] = info.bed_temp;
-        // CARD_UID and SKU intentionally omitted — SlotInfo doesn't carry
-        // them and we want firmware to preserve whatever the RFID tag wrote.
-
-        nlohmann::json payload = nlohmann::json::object();
-        payload["channel"] = slot_index;
-        payload["info"] = info_obj;
-
-        // Routes through MoonrakerRestAPI which dispatches on its own HTTP
-        // worker thread, NOT a raw std::thread (lesson L083: pthread EAGAIN on
-        // AD5M / CC1 / MIPS32). The member access on a rejected POST is
-        // deferred to the main thread through the lifetime token, which skips
-        // a dead owner.
-        const std::string tag = backend_log_tag();
-        auto tok = lifetime_.token();
-        api_->rest().call_rest_post(
-            "/printer/filament_detect/set", payload,
-            [this, tok, tag, slot_index, info, material_changed](const RestResponse& resp) mutable {
-                // Nor does print_task_config hold the material then, and RESUME
-                // is refused on a used head whose record names none, so the
-                // firmware's own command writes it. An accepted POST is
-                // mirrored into that record by the extension and marks the head
-                // official, which would refuse this command.
-                auto write_record = [&]() {
-                    tok.defer("AmsBackendSnapmaker::set_slot_info.record",
-                              [this, slot_index, info, material_changed]() {
-                                  write_task_filament_record(slot_index, info, material_changed);
-                              });
-                };
-                if (!resp.success) {
-                    // 404 on stock firmware (no Extended Firmware extension)
-                    // is expected — log at debug, not warn, so we don't spam
-                    // every user without the firmware update.
-                    if (resp.status_code == 404) {
-                        spdlog::debug("{} filament_detect/set unavailable (slot {}): "
-                                      "stock firmware without Extended Firmware extension",
-                                      tag, slot_index);
-                    } else {
-                        spdlog::warn("{} filament_detect/set failed for slot {}: HTTP {} {}", tag,
-                                     slot_index, resp.status_code, resp.error);
-                    }
-                    write_record();
-                    return;
-                }
-                // Success-shaped HTTP response can still carry "state":"error"
-                // (per filament_detect.md). Drain that as a warn — override is
-                // still saved to lane_data so user data isn't lost.
-                if (resp.data.is_object()) {
-                    auto state_it = resp.data.find("state");
-                    if (state_it != resp.data.end() && state_it->is_string() &&
-                        state_it->get<std::string>() == "error") {
-                        std::string msg;
-                        auto msg_it = resp.data.find("message");
-                        if (msg_it != resp.data.end() && msg_it->is_string()) {
-                            msg = msg_it->get<std::string>();
-                        }
-                        spdlog::warn("{} filament_detect/set returned error for slot {}: {}", tag,
-                                     slot_index, msg);
-                        write_record();
-                    }
-                }
-            });
+    // print_task_config is the head's firmware record: RESUME refuses a used
+    // head whose record names no type, and the stock screen and slicers read
+    // the spool from it. SET_PRINT_FILAMENT_CONFIG writes it and leaves the
+    // head unofficial. The Extended Firmware's filament_detect/set fills the
+    // same record but flags the head official, as an RFID spool, and the
+    // firmware then refuses plain writes to it. The filament_detect entry that
+    // endpoint also writes is read elsewhere only for a slicer's bed
+    // temperature.
+    if (persist) {
+        write_task_filament_record(slot_index, info, material_changed);
     }
 
     // Pass slot_index as event data so AmsState can do a targeted slot sync.
@@ -1197,9 +1123,24 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
     std::array<std::string, NUM_TOOLS> observed_uids;
     std::array<bool, NUM_TOOLS> saw_rfid_info{};
 
+    // Collected under mutex_, acted on after it is released: a record write
+    // re-takes the mutex and sends gcode.
+    std::vector<std::pair<int, std::string>> official_repairs;
+    std::vector<std::pair<int, PendingRecordWrite>> record_flushes;
+
     { // Scope lock — emit_event MUST be called outside mutex_ to avoid deadlock
       // with sync_from_backend() which acquires mutex_ via get_system_info()
         std::lock_guard<std::mutex> lock(mutex_);
+
+        // print_stats.state from this backend's own frames gates every record
+        // write (held saves, the official-flag repair): a write runs
+        // FLOW_RESET_K on its head, which must not land under a running print.
+        if (status.contains("print_stats") && status["print_stats"].is_object()) {
+            const auto& ps = status["print_stats"];
+            if (ps.contains("state") && ps["state"].is_string()) {
+                print_state_ = ps["state"].get<std::string>();
+            }
+        }
 
         // Parse extruder0..3 state
         // Klipper uses "extruder" for T0, "extruder1" for T1, etc.
@@ -1295,6 +1236,12 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                     // regardless of whether we apply the rest of the RFID fields.
                     observed_uids[i] = rfid.uid;
                     tag_has_card_[static_cast<size_t>(i)] = rfid.has_card;
+                    tag_names_identity_[static_cast<size_t>(i)] =
+                        rfid.main_type != "NONE" ||
+                        (!rfid.sub_type.empty() && rfid.sub_type != "NONE");
+                    if (rfid.has_card.value_or(false)) {
+                        card_seen_[static_cast<size_t>(i)] = true;
+                    }
                     saw_rfid_info[i] = true;
 
                     // An entry naming no tag skips the apply, and takes back
@@ -1305,6 +1252,20 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                             !rfid.sub_type.empty() && rfid.sub_type != "NONE";
                         auto* slot = system_info_.units[0].get_slot(i);
                         if (slot && !names_identity && retract_tag_reading_locked(i, *slot)) {
+                            changed = true;
+                        }
+                        continue;
+                    }
+
+                    // A filled entry whose CARD_UID names no card was written
+                    // over the API (the Extended Firmware's
+                    // filament_detect/set), not read off a spool, so it is no
+                    // tag reading: what an earlier tag left on the slot goes
+                    // with it. An entry with no readable CARD_UID says nothing
+                    // about a card either way.
+                    if (rfid.has_card == std::optional<bool>(false)) {
+                        auto* slot = system_info_.units[0].get_slot(i);
+                        if (slot && retract_tag_reading_locked(i, *slot)) {
                             changed = true;
                         }
                         continue;
@@ -1728,6 +1689,19 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
                 }
             }
 
+            // filament_sub_type: ["Basic", ...] — the product line inside the
+            // type. Tracked beside the type and vendor so a record write can
+            // send only the lines that differ; the slot's spool_name is the
+            // RFID path's to set.
+            if (ptc.contains("filament_sub_type") && ptc["filament_sub_type"].is_array()) {
+                const auto& subtype_arr = ptc["filament_sub_type"];
+                for (int i = 0; i < NUM_TOOLS && i < static_cast<int>(subtype_arr.size()); i++) {
+                    if (subtype_arr[i].is_string()) {
+                        task_subtype_[static_cast<size_t>(i)] = subtype_arr[i].get<std::string>();
+                    }
+                }
+            }
+
             // filament_color_rgba: ["080A0DFF", "E2DEDBFF", ...] — hex RGBA color per slot
             if (ptc.contains("filament_color_rgba") && ptc["filament_color_rgba"].is_array()) {
                 const auto& color_arr = ptc["filament_color_rgba"];
@@ -1874,16 +1848,14 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
             }
             // Mirror firmware-truth color/material into lane_data so OrcaSlicer's
             // MoonrakerPrinterAgent sees the spool. OverwriteAlways policy: user
-            // edits via set_slot_info now round-trip through firmware via the
-            // POST /printer/filament_detect/set endpoint (paxx12 Extended Firmware),
-            // so firmware-truth and user-truth converge — overwriting lane_data
-            // unconditionally is safe and also catches external edits (CHANGE_ZCOLOR
-            // from a print, manual gcode, OrcaSlicer, etc). On stock firmware the
-            // POST 404s, but the override is still persisted to lane_data
-            // separately, so this overwrite is the only path that could theoretically
-            // de-sync — accept that tradeoff in exchange for picking up external
-            // edits on extension-enabled firmware. See mirror_firmware_to_lane_data
-            // docs and AD5X IFS for the same pattern.
+            // edits via set_slot_info round-trip through firmware via
+            // SET_PRINT_FILAMENT_CONFIG, so firmware-truth and user-truth
+            // converge, and overwriting lane_data is safe and also catches
+            // external edits (CHANGE_ZCOLOR from a print, manual gcode, the
+            // stock screen, OrcaSlicer). A head holding an RFID tag's record is
+            // not written, and the user's override is persisted to lane_data
+            // separately. See mirror_firmware_to_lane_data docs and AD5X IFS
+            // for the same pattern.
             helix::ams::mirror_firmware_to_lane_data(
                 override_store_.get(), overrides_, i, slot->color_rgb, slot->material,
                 slot->status == SlotStatus::AVAILABLE, helix::ams::MirrorPolicy::OverwriteAlways,
@@ -1908,7 +1880,28 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
             port_present_changed = true;
         }
 
+        official_repairs = official_flag_repairs_locked();
+        // A save held across a print waits for the heads to be free: a pause
+        // the print raised (a runout, an M600) is no moment to reset a head's
+        // flow calibration behind the user's back.
+        if (heads_free_locked()) {
+            for (int head = 0; head < NUM_TOOLS; ++head) {
+                auto& pending = pending_record_writes_[static_cast<size_t>(head)];
+                if (pending) {
+                    record_flushes.emplace_back(head, std::move(*pending));
+                    pending.reset();
+                }
+            }
+        }
+
     } // Release mutex_ before emitting event
+
+    if (!official_repairs.empty()) {
+        dispatch_official_flag_repairs(official_repairs);
+    }
+    for (const auto& [head, pending] : record_flushes) {
+        write_task_filament_record(head, pending.info, pending.material_declared);
+    }
 
     if (port_present_changed) {
         AmsState::instance().set_active_tool_port_present(last_published_port_present_ != 0);
@@ -2070,6 +2063,8 @@ void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_in
     // policy. Caller already holds mutex_.
     (void)ovr_it; // erased inside clear_override_locked
     clear_override_locked(slot_index, slot);
+    // A held save described the spool that left.
+    drop_pending_record_write_locked(slot_index);
 }
 
 void AmsBackendSnapmaker::clear_override_locked(int slot_index, SlotInfo& slot) {
@@ -2127,6 +2122,7 @@ void AmsBackendSnapmaker::clear_slot_override(int slot_index) {
         }
         spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
         clear_override_locked(slot_index, *slot);
+        drop_pending_record_write_locked(slot_index);
     }
 
     emit_event(EVENT_SLOT_CHANGED, std::to_string(slot_index));
@@ -2248,26 +2244,51 @@ std::string AmsBackendSnapmaker::preprint_gcode(const std::set<int>& tools_used,
     return out;
 }
 
+namespace {
+
+/// The VENDOR and FILAMENT_SUBTYPE a record write sends for @p slot. The stock
+/// screen offers only these two vendors; anything else the firmware would
+/// store verbatim, and other Snapmaker tooling compares it.
+std::pair<std::string, std::string> record_vendor_subtype(const SlotInfo& slot) {
+    std::string vendor =
+        is_product_line_vendor(slot.brand) ? std::string(PRODUCT_LINE_VENDOR) : "Generic";
+    std::string subtype = is_known_subtype(slot.spool_name) ? slot.spool_name : "Basic";
+    return {std::move(vendor), std::move(subtype)};
+}
+
+bool same_record_word(const std::string& a, const std::string& b) {
+    return lower_ascii(a) == lower_ascii(b);
+}
+
+} // namespace
+
 std::string AmsBackendSnapmaker::build_filament_config_gcode(int head, const SlotInfo& slot,
-                                                             bool force) {
+                                                             bool force, RecordLines lines) {
     if (is_unset_task_field(slot.material) ||
         !IMoonrakerAPI::is_safe_material_param(slot.material)) {
         return {};
     }
-    // The stock screen offers only these two vendors; anything else the
-    // firmware would store verbatim, and other Snapmaker tooling compares it.
-    const std::string vendor =
-        is_product_line_vendor(slot.brand) ? std::string(PRODUCT_LINE_VENDOR) : "Generic";
-    const std::string subtype = is_known_subtype(slot.spool_name) ? slot.spool_name : "Basic";
+    const auto [vendor, subtype] = record_vendor_subtype(slot);
     const char* force_arg = force ? " FORCE=1" : "";
     // Colour rides its own line, as the stock screen sends it: the firmware's
     // colour forms are parsed apart from the identity fields.
-    return fmt::format(
-        "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={0} VENDOR={1} FILAMENT_TYPE={2} "
-        "FILAMENT_SUBTYPE={3}{5}\n"
-        "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={0} FILAMENT_COLOR_RGBA={4:06X}FF{5}",
-        head, vendor, IMoonrakerAPI::gcode_param_value(slot.material),
-        IMoonrakerAPI::gcode_param_value(subtype), slot.color_rgb & 0xFFFFFFu, force_arg);
+    const std::string identity =
+        fmt::format("SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={} VENDOR={} FILAMENT_TYPE={} "
+                    "FILAMENT_SUBTYPE={}{}",
+                    head, vendor, IMoonrakerAPI::gcode_param_value(slot.material),
+                    IMoonrakerAPI::gcode_param_value(subtype), force_arg);
+    const std::string colour =
+        fmt::format("SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={} FILAMENT_COLOR_RGBA={:06X}FF{}",
+                    head, slot.color_rgb & 0xFFFFFFu, force_arg);
+    switch (lines) {
+    case RecordLines::Identity:
+        return identity;
+    case RecordLines::Colour:
+        return colour;
+    case RecordLines::Both:
+        break;
+    }
+    return identity + "\n" + colour;
 }
 
 std::optional<bool> AmsBackendSnapmaker::record_write_needs_force_locked(int head) const {
@@ -2278,46 +2299,96 @@ std::optional<bool> AmsBackendSnapmaker::record_write_needs_force_locked(int hea
     // filament_official alone does not mean a tag: the Extended Firmware's
     // filament_detect/set marks every write carrying fields official, and a
     // later clear leaves the flag set. Only a card the reader saw is the
-    // tag's record to keep.
+    // tag's record to keep. A reader reporting no card for a head the user is
+    // editing yields to the edit: asking for it is the user's intent.
     if (tag_has_card_[idx].value_or(true)) {
         return std::nullopt;
     }
     return true;
 }
 
+bool AmsBackendSnapmaker::record_writes_held_locked() const {
+    // Every record write runs FLOW_RESET_K on its head, which must not land
+    // under a running print.
+    if (print_state_) {
+        return *print_state_ == "printing";
+    }
+    // Before this backend's own frames have named a state, the app's print
+    // state answers for a user's save, and a state nobody has read holds it.
+    // RAW_PRINT_STATE_OK: the write is gated on what the job is doing to the
+    // heads, not on the lifecycle the UI shows.
+    if (!get_printer_state().are_subjects_initialized()) {
+        return true;
+    }
+    return get_printer_state().get_print_job_state() == helix::PrintJobState::PRINTING;
+}
+
+bool AmsBackendSnapmaker::heads_free_locked() const {
+    return print_state_ && *print_state_ != "printing" && *print_state_ != "paused";
+}
+
 void AmsBackendSnapmaker::write_task_filament_record(int head, const SlotInfo& info,
-                                                     bool material_changed) {
+                                                     bool material_declared) {
     if (head < 0 || head >= NUM_TOOLS || !api_) {
         return;
     }
     const auto idx = static_cast<size_t>(head);
     bool force = false;
+    RecordLines lines = RecordLines::Both;
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (record_writes_held_locked()) {
+            spdlog::info("{} head {} filament record held until the print stops running",
+                         backend_log_tag(), head);
+            pending_record_writes_[idx] = PendingRecordWrite{info, material_declared};
+            return;
+        }
         const std::optional<bool> needs_force = record_write_needs_force_locked(head);
         if (!needs_force) {
             spdlog::debug("{} head {} holds an RFID tag's record; leaving it to the tag",
                           backend_log_tag(), head);
             return;
         }
-        force = *needs_force;
-        // The command runs FLOW_RESET_K on the head, so a save that leaves the
-        // firmware's type standing must not send it.
         if (!IMoonrakerAPI::is_safe_material_param(info.material)) {
             spdlog::warn("{} head {} material '{}' cannot be sent as a gcode parameter",
                          backend_log_tag(), head, info.material);
             return;
         }
-        const bool record_differs =
-            task_type_[idx].has_value()
-                ? is_unset_task_field(*task_type_[idx]) ||
-                      lower_ascii(*task_type_[idx]) != lower_ascii(info.material)
-                : material_changed;
-        if (!record_differs) {
-            return;
+        // Every line runs FLOW_RESET_K on the head, so a save that leaves the
+        // firmware's record standing sends nothing, forced head or not.
+        if (!task_type_[idx].has_value()) {
+            if (!material_declared) {
+                return;
+            }
+        } else {
+            const auto [vendor, subtype] = record_vendor_subtype(info);
+            const bool identity_differs =
+                is_unset_task_field(*task_type_[idx]) ||
+                !same_record_word(*task_type_[idx], info.material) ||
+                (task_vendor_[idx] && !same_record_word(*task_vendor_[idx], vendor)) ||
+                (task_subtype_[idx] && !same_record_word(*task_subtype_[idx], subtype));
+            // A colour not seen yet goes out beside an identity change, and
+            // never alone.
+            const bool colour_known = task_color_[idx].has_value();
+            const bool colour_differs =
+                colour_known && *task_color_[idx] != (info.color_rgb & 0xFFFFFFu);
+            if (identity_differs && (colour_differs || !colour_known)) {
+                lines = RecordLines::Both;
+            } else if (identity_differs) {
+                lines = RecordLines::Identity;
+            } else if (colour_differs) {
+                lines = RecordLines::Colour;
+            } else {
+                return;
+            }
+        }
+        // An official head is rewritten whole, so no line leaves the flag.
+        force = *needs_force;
+        if (force) {
+            lines = RecordLines::Both;
         }
     }
-    const std::string gcode = build_filament_config_gcode(head, info, force);
+    const std::string gcode = build_filament_config_gcode(head, info, force, lines);
     if (gcode.empty()) {
         return;
     }
@@ -2330,6 +2401,77 @@ void AmsBackendSnapmaker::write_task_filament_record(int head, const SlotInfo& i
         },
         /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr,
         /*caller_surfaces_errors=*/false);
+}
+
+void AmsBackendSnapmaker::drop_pending_record_write_locked(int head) {
+    if (head >= 0 && head < NUM_TOOLS) {
+        pending_record_writes_[static_cast<size_t>(head)].reset();
+    }
+}
+
+std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::official_flag_repairs_locked() {
+    std::vector<std::pair<int, std::string>> out;
+    // A forced rewrite runs FLOW_RESET_K, so it waits for a print state this
+    // backend has read itself and that holds no head.
+    if (system_info_.units.empty() || !heads_free_locked()) {
+        return out;
+    }
+    for (int head = 0; head < NUM_TOOLS; ++head) {
+        const auto idx = static_cast<size_t>(head);
+        if (official_repair_sent_[idx]) {
+            continue;
+        }
+        // Only a filled entry with no card behind it, on a channel that has
+        // shown no card this session, is an API write's record: an empty entry
+        // is also what a reader that is off reports for a real spool.
+        if (!task_official_[idx].value_or(false) || !tag_names_identity_[idx].value_or(false) ||
+            !tag_has_card_[idx].has_value() || *tag_has_card_[idx] || card_seen_[idx]) {
+            continue;
+        }
+        // The record has to be the one this backend's stored edit wrote. A
+        // record naming anything else came from some other writer, whose
+        // choice a forced rewrite would discard.
+        const auto ovr = overrides_.find(head);
+        if (ovr == overrides_.end() || is_unset_task_field(ovr->second.material) ||
+            !task_type_[idx] || !same_record_word(*task_type_[idx], ovr->second.material)) {
+            continue;
+        }
+        if (ovr->second.color_set && task_color_[idx] &&
+            *task_color_[idx] != (ovr->second.color_rgb & 0xFFFFFFu)) {
+            continue;
+        }
+        const SlotInfo* slot = system_info_.units[0].get_slot(head);
+        if (!slot) {
+            continue;
+        }
+        std::string gcode = build_filament_config_gcode(head, *slot, /*force=*/true);
+        if (gcode.empty()) {
+            continue;
+        }
+        official_repair_sent_[idx] = true;
+        out.emplace_back(head, std::move(gcode));
+    }
+    return out;
+}
+
+void AmsBackendSnapmaker::dispatch_official_flag_repairs(
+    const std::vector<std::pair<int, std::string>>& repairs) {
+    if (!api_) {
+        return;
+    }
+    const char* tag = backend_log_tag();
+    for (const auto& [head, gcode] : repairs) {
+        spdlog::info("{} head {} is flagged official with no card behind it; "
+                     "rewriting the record HelixScreen wrote to clear the flag",
+                     tag, head);
+        api_->execute_gcode(
+            gcode, [tag, h = head]() { spdlog::debug("{} head {} official flag cleared", tag, h); },
+            [tag, h = head](const MoonrakerError& err) {
+                spdlog::warn("{} head {} official flag repair failed: {}", tag, h, err.message);
+            },
+            /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr,
+            /*caller_surfaces_errors=*/false);
+    }
 }
 
 std::vector<std::pair<int, std::string>>

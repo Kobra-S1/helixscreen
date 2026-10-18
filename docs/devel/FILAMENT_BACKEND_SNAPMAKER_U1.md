@@ -157,24 +157,48 @@ field-verified.
 | `T<n>` | Tool change / slot select (`do_change_tool`, `:532-538`) |
 | `SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=<l> MAP_EXTRUDER=<p>` | Pre-print logical->physical remap (`build_preprint_gcode`, `:1887-1889`) |
 | `SET_PRINT_USED_EXTRUDERS EXTRUDERS=<csv>` | Pre-print feed gating — always sent, remap or not (`:1907`) |
-| `POST /printer/filament_detect/set` | Slot-metadata writeback (paxx12 Extended Firmware REST, `:854-924`) |
 | `SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=<head> VENDOR=… FILAMENT_TYPE=… FILAMENT_SUBTYPE=…` + `FILAMENT_COLOR_RGBA=…` | The head's `print_task_config` record, which RESUME requires (below) |
 
 The firmware refuses RESUME with `e<N> not edit filament` while a head the task uses has
-no `print_task_config.filament_type`. An RFID spool, `SET_PRINT_FILAMENT_CONFIG`, and on
-the Extended Firmware an accepted `filament_detect/set` POST fill it.
+no `print_task_config.filament_type`. An RFID spool or `SET_PRINT_FILAMENT_CONFIG` fills it.
 
-Every material edit POSTs `filament_detect/set` first. On the Extended Firmware an accepted
-POST fills the record itself: measured on a rig, head 1's
-`filament_type`/`filament_vendor`/`filament_sub_type` went `NONE` -> `PLA`/`Generic`/`Basic`
-within 2 s of an HTTP 200 and survived `FIRMWARE_RESTART`. The same POST sets
-`filament_official` True for that head, and nothing the endpoint accepts clears it: a POST of
-`NONE` values blanks the type and leaves the head official. Stock firmware 404s the
-endpoint. So the edit sends `SET_PRINT_FILAMENT_CONFIG` only when the POST was not accepted,
-and only when the record names a different type or none (or, before any `print_task_config`
-frame has arrived, when the edit declared a material), since every send runs
-`FLOW_RESET_K`. VENDOR is `Snapmaker` or `Generic`, FILAMENT_SUBTYPE a known product line or
+A user edit writes the head's record with `SET_PRINT_FILAMENT_CONFIG`, the command the stock
+screen sends, which leaves `filament_official` False. Only the lines that differ go out:
+the identity line when the record names a different type, vendor or subtype, the colour
+line when it names a different colour, both when the record has not been seen and the edit
+declared a material, nothing when it already agrees, since every send runs `FLOW_RESET_K`
+on the head. VENDOR is `Snapmaker` or `Generic`, FILAMENT_SUBTYPE a known product line or
 `Basic` (`src/printer/ams_backend_snapmaker.cpp#write_task_filament_record`).
+
+The Extended Firmware's `POST /printer/filament_detect/set` is not used. It fills the same
+record, but it also sets `filament_official` True for the head (measured on a rig: the flag
+rises within a second of the HTTP 200, a plain `SET_PRINT_FILAMENT_CONFIG` is then refused
+with `official filament, not configurable!`, and `FORCE=1` clears it), and nothing the
+endpoint accepts clears the flag. Temperatures from an edit live in `lane_data`.
+
+Every record write runs `FLOW_RESET_K` on its head, so none lands under a running print.
+A save made while the backend's own `print_stats.state` reads `printing` is kept and
+written by the first frame that reads neither `printing` nor `paused`, since a pause the
+print raised (a runout, an M600) is no moment to reset a head's flow calibration. A save
+made while already paused goes straight out, as the resume path writes then too, and a
+held save is dropped with the head's override (a Clear Spool, a swap) and at a restart;
+before the backend's frames name a state, the app's print job
+state decides (`src/printer/ams_backend_snapmaker.cpp#record_writes_held_locked`). A save
+the record already agrees with sends nothing, forced head or not; FORCE=1 only decides
+the flag and that both lines go.
+
+A head an earlier endpoint write left official is repaired once per session: official,
+its `filament_detect` entry filled with `CARD_UID` known to be no card, no card seen on
+the channel this session, and a record whose type (and colour, when both are known)
+matches the stored edit gets a `FORCE=1` rewrite of that edit. It waits for a
+`print_stats.state` the backend has read itself that is neither `printing` nor `paused`.
+An empty entry (what a reader that is off reports for a real spool), a real card, a
+record naming anything else, or a head with no stored edit is never touched
+(`src/printer/ams_backend_snapmaker.cpp#official_flag_repairs_locked`).
+
+A filled entry with no card behind it was written over the API, not read off a spool, so
+it files no tag reading and takes back what an earlier tag left on the slot
+(`src/printer/ams_backend_snapmaker.cpp#handle_status_update`).
 
 `filament_official` therefore does not mean an RFID tag. The backend decides that from
 `filament_detect.info[ch].CARD_UID`: the firmware reports it either as a plain integer
@@ -351,10 +375,9 @@ firmware-populated fields (`brand`, `spool_name`, `total_weight_g`) and reset on
 override-exclusive ones (`spoolman_*`, `remaining_weight_g`, `color_name`, catalog
 identity) (`src/printer/ams_backend_snapmaker.cpp#clear_override_locked`).
 
-User edits round-trip to firmware through `POST /printer/filament_detect/set`
-(`channel` + `info` with `VENDOR`/`MAIN_TYPE`/`SUB_TYPE`/`RGB_1`/`ALPHA`/temps) — an
-Extended Firmware endpoint that 404s on stock firmware; the override still persists to
-`lane_data`, so HelixScreen's UI is correct either way
+User edits round-trip to firmware through `SET_PRINT_FILAMENT_CONFIG`, which writes the
+head's `print_task_config` record on stock and Extended Firmware alike and never flags
+the head official; the override also persists to `lane_data`
 (`src/printer/ams_backend_snapmaker.cpp#set_slot_info`).
 
 ### Capabilities
