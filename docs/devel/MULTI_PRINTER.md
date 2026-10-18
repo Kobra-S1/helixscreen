@@ -234,7 +234,7 @@ Switching printers performs a "soft restart" -- the LVGL display stays alive, bu
 13. Kill all LVGL animations + clear ModalStack
 14. StaticPanelRegistry::destroy_all() (destroys overlay/panel globals, releases ObserverGuards)
 15. Release global observer guards (notification, active print media)
-16. StaticSubjectRegistry::deinit_all() (deinit subjects in LIFO order)
+16. StaticSubjectRegistry::deinit_all(Scope::PrinterSwitch) (LIFO; Process entries stay live, ProcessRunOnSwitch entries run and stay registered)
 16b. Destroy JobQueueState
 17. ObserverGuard::invalidate_all() (mark all guards as stale)
 18. Release MoonrakerManager
@@ -479,6 +479,14 @@ void MySingleton::init_subjects() {
 ```
 
 2. **Implement `deinit_subjects()`** to call `lv_subject_deinit()` on each subject.
+
+   Pick the entry's `StaticSubjectRegistry::Lifetime` by where its init runs. The default,
+   `Printer`, is right when `init_subjects()` runs again on the rebuild path (SubjectInitializer,
+   a widget's `init_subjects` hook, a lazy `ensure_*()` on first use). Subjects created once at boot
+   (component registration in `xml_registration.cpp`, a process-once guard) take `Process`, or a
+   switch removes them for good and every binding to them goes dead. Only XML bindings and C++
+   setters may observe a `Process` subject. Process-once cleanup of per-widget state that observes
+   printer subjects takes `ProcessRunOnSwitch`.
 
 3. If your singleton creates ObserverGuards, they will be safely handled by the `invalidate_all()`/`revalidate_all()` protocol during soft restart.
 
