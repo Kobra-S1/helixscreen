@@ -29,18 +29,25 @@ void afc_fault_path_deinit() {
     spdlog::debug("[AfcFaultPath] Subject deinitialized");
 }
 
-} // namespace
-
-void afc_fault_path_register() {
+/// A printer switch deinits every static subject and never re-runs component
+/// registration, so the subject comes back here, on its next use. A modal built
+/// while the name is unregistered binds nothing: the strip shows with all of
+/// its captions.
+void ensure_subject() {
     if (g_initialized) {
         return;
     }
-
     UI_MANAGED_SUBJECT_INT(g_fault_segment, 0, "afc_fault_segment", g_subjects);
     g_initialized = true;
 
     // Self-register cleanup — the subject must die before lv_deinit().
     StaticSubjectRegistry::instance().register_deinit("AfcFaultPath", afc_fault_path_deinit);
+}
+
+} // namespace
+
+void afc_fault_path_register() {
+    ensure_subject();
 
     // Registered here rather than alongside the modals that embed it: both
     // ams_loading_error_modal.xml (lazily registered by AmsPanel) and
@@ -55,18 +62,20 @@ void afc_fault_path_register() {
     spdlog::trace("[AfcFaultPath] Subject and component registered");
 }
 
-std::string afc_fault_path_apply(const std::string& message) {
+std::optional<PathSegment> afc_fault_path_publish(std::string_view message) {
     const auto segment = helix::afc::afc_fault_position(message);
-
-    if (g_initialized) {
-        lv_subject_set_int(&g_fault_segment, segment ? static_cast<int>(*segment) : 0);
+    ensure_subject();
+    lv_subject_set_int(&g_fault_segment, segment ? static_cast<int>(*segment) : 0);
+    if (segment) {
+        spdlog::debug("[AfcFaultPath] Fault position: {}", path_segment_to_string(*segment));
     }
+    return segment;
+}
 
-    if (!segment) {
+std::string afc_fault_path_apply(const std::string& message) {
+    if (!afc_fault_path_publish(message)) {
         return message;
     }
-
-    spdlog::debug("[AfcFaultPath] Fault position: {}", path_segment_to_string(*segment));
     return helix::afc::afc_strip_position_diagram(message);
 }
 

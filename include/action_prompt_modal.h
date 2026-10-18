@@ -42,6 +42,46 @@ struct ActionPromptModalTestAccess;
 
 namespace helix::ui {
 
+/// How the row of regular (non-footer) prompt buttons is laid out.
+enum class ButtonRowKind {
+    Wrap,     ///< content-sized buttons, row_wrap takes the lines they need
+    EqualRow, ///< one non-wrapping line of equal-width cells
+    Grid,     ///< equal-width cells, `cols` to a line
+};
+
+struct ButtonRowLayout {
+    ButtonRowKind kind = ButtonRowKind::Wrap;
+    int32_t cols = 0; ///< cells per line; 0 for Wrap
+};
+
+/// Measured inputs for choose_button_row_layout(), in pixels.
+struct ButtonRowMeasure {
+    int32_t count = 0;
+    bool all_swatches = false; ///< every button is a label-less color tile
+    int32_t widest_label = 0;
+    int32_t available = 0; ///< the row's content width
+    int32_t gap = 0;       ///< column gap between cells
+    int32_t cell_pad = 0;  ///< horizontal padding on each side of a cell's label
+    int32_t min_cell = 0;  ///< narrowest equal-width cell that is still a touch target
+};
+
+/// Rows of at least this many labelled buttons become a grid.
+inline constexpr int32_t kPromptGridMinButtons = 5;
+
+/**
+ * @brief Pick the layout for the row of prompt buttons.
+ *
+ * Four buttons whose labels fit an even share sit on one equal-width line
+ * (AFC's "Lane 1".."Lane 4"). Five or more labelled buttons become a grid of
+ * three columns, or two when the widest label does not fit a third: a label
+ * cut to an ellipsis can lose the suffix that tells two units apart
+ * ("HTLF_claymore_1" / "_2"), so the grid gives up a column before it
+ * truncates. Swatch rows never become a grid, and share one line only while
+ * each tile stays at least `min_cell` wide. Everything else wraps, which never
+ * clips. An unmeasured row (available <= 0) wraps.
+ */
+ButtonRowLayout choose_button_row_layout(const ButtonRowMeasure& m);
+
 /**
  * @brief Modal dialog for Klipper action:prompt messages
  *
@@ -126,17 +166,30 @@ class ActionPromptModal : public Modal {
     void populate_content();
     void create_text_lines();
     void create_buttons();
+    /// The rows fit_rows() sizes once every button exists.
+    struct RowFit {
+        lv_obj_t* grid_row = nullptr; ///< the button row, when it is a Grid
+        int32_t grid_cols = 0;
+    };
+
     /**
-     * @brief Create a single button inside @p container.
+     * @brief Size the grid cells and cap the scroll area
      *
-     * @param equal_width When true (>= 4 regular buttons whose labels all fit an
-     *        even share of the row) the button is laid out as an equal-width flex
-     *        cell (grow=1, width 0) so several short labels share one
-     *        non-wrapping row. When false the legacy content-sized layout is
-     *        used, which row_wrap then spreads over as many lines as the labels
-     *        need.
+     * Grid cells split their row, and prompt_scroll is capped at the height the
+     * card's cap leaves under the header and footer, so text and buttons scroll
+     * while the footer stays on the card.
      */
-    void create_button(const PromptButton& btn, lv_obj_t* container, bool equal_width = false);
+    void fit_rows(const RowFit& rows);
+
+    /**
+     * @brief Create a single button inside @p container, laid out for @p kind
+     *
+     * Wrap buttons are content-sized; EqualRow and Grid buttons are equal-width
+     * cells (a Grid cell's width is set later by fit_rows()). Footer buttons
+     * ignore @p kind.
+     */
+    void create_button(const PromptButton& btn, lv_obj_t* container,
+                       ButtonRowKind kind = ButtonRowKind::Wrap);
     lv_color_t get_button_color(const std::string& color_name);
     void clear_dynamic_content();
 

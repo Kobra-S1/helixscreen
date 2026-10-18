@@ -518,13 +518,18 @@ filament cleared the sensor and jammed in the extruder gears — so `TOOLHEAD` m
 
 Position alone is not enough on its own, though: it says which element differs from its
 neighbours, not that the difference means failure, and red-against-green is precisely the pair a
-colourblind user cannot separate (#1196). So the component also renders one of four captions —
-*Stopped between Hub and Toolhead*, and so on — bound to the same subject and mutually exclusive
-on it. The caption is also the only thing that can express `TOOLHEAD`, which fails at a node
-rather than in a gap.
+colourblind user cannot separate (#1196). So the label row names the failure in words: *Stopped*
+sits under the failing gap, between the two checkpoint names that bound it, and for `TOOLHEAD`
+*Jammed* takes the toolhead's own label, since that fault happens at a node rather than in a gap.
+Each word is bound to one segment value, so exactly one shows and the strip stays two rows tall.
 
 Every caller must go through `afc_fault_path_apply()` even when the message is not AFC's, or a
-previous fault's marker stays on screen.
+previous fault's marker stays on screen. `ActionPromptModal` also re-publishes from its own text
+(`afc_fault_path_publish()`) before it builds, so any action:prompt, including a firmware one such
+as `AFC_CALIBRATION`'s unit picker, shows the strip only for the fault its text names. The subject
+is torn down with every other static subject on a printer switch and comes back on its next
+publish; a modal built while it is unregistered binds nothing and shows the strip with every
+caption at once.
 
 #### Maintaining the contract across AFC versions
 

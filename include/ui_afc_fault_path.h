@@ -3,7 +3,11 @@
 
 #pragma once
 
+#include "ams_types.h"
+
+#include <optional>
 #include <string>
+#include <string_view>
 
 /**
  * @file ui_afc_fault_path.h
@@ -29,6 +33,21 @@ namespace helix::ui {
  * `StaticSubjectRegistry` so the subject dies before `lv_deinit()`.
  */
 void afc_fault_path_register();
+
+/**
+ * @brief Publish the stop point an AFC fault sentence in @p message names.
+ *
+ * Sets `afc_fault_segment` to that `PathSegment`, or to 0 (graphic hidden) when
+ * @p message names none. A modal that embeds `<afc_fault_path/>` calls this with
+ * its own text before it is built, so the strip always describes the text on
+ * screen and never a fault some earlier modal published. Registers the subject
+ * again when a printer switch has torn it down.
+ *
+ * Main thread only: it writes an LVGL subject, which fires observers.
+ *
+ * @return The recognised segment, or std::nullopt.
+ */
+std::optional<PathSegment> afc_fault_path_publish(std::string_view message);
 
 /**
  * @brief Publish an AFC fault message's stop point and strip its ASCII art.

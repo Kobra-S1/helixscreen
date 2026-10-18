@@ -25,14 +25,14 @@
 <!--   5 OUTPUT   - past the hub, never reached the head    -> Hub..Toolhead gap fails         -->
 <!--   6 TOOLHEAD - past the toolhead sensor, jammed in the extruder gears -> Toolhead fails   -->
 <!--                                                                                          -->
-<!-- The caption under the labels is the non-colour channel (prestonbrown/helixscreen#1196).   -->
-<!-- Position alone says WHERE the odd element is; only red says that it FAILED, and red       -->
-<!-- against green is exactly the pair a deuteranope cannot separate — on a printer screen in  -->
-<!-- daylight, no less. So one of four sentences names the failing gap outright. Each is       -->
-<!-- mutually exclusive on the same subject, and a hidden label is skipped by flex, so the     -->
-<!-- caption row costs nothing when the component is up for some other segment.                -->
-<!-- It also carries the one thing the graphic genuinely cannot: TOOLHEAD fails AT a node      -->
-<!-- rather than in a gap, which no amount of position reading would tell you.                 -->
+<!-- The captions are the non-colour channel (prestonbrown/helixscreen#1196). Position     -->
+<!-- alone says WHERE the odd element is; only red says that it FAILED, and red against      -->
+<!-- green is exactly the pair a deuteranope cannot separate, on a printer screen in        -->
+<!-- daylight no less. So a word names the failure where it happened: "Stopped" sits in the -->
+<!-- label row under the failing gap, between the two checkpoint names that bound it, and   -->
+<!-- for TOOLHEAD "Jammed" takes the toolhead's own label, the one fault that happens AT a  -->
+<!-- checkpoint rather than in a gap. Each is bound to one segment value, so exactly one     -->
+<!-- word shows and the strip stays two rows tall.                                          -->
 <!--                                                                                          -->
 <!-- Every element's bindings are exhaustive and mutually exclusive over the whole int range,  -->
 <!-- so exactly one is ever enabled — which is why colour comes from bind_style and NOT from   -->
@@ -108,39 +108,45 @@
       </lv_obj>
     </lv_obj>
 
-    <!-- Checkpoint names. Path vocabulary, not product names, so all four translate. -->
+    <!-- Checkpoint names, with the gap cells between them carrying "Stopped" under the gap
+         that failed. Path vocabulary, not product names, so everything translates. -->
     <lv_obj width="100%"
             height="content" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
-            scrollable="false">
-      <text_small name="afc_stop_label_spool" text="Spool" translation_tag="Spool" flex_grow="1" style_text_align="left"/>
-      <text_small name="afc_stop_label_lane" text="Lane" translation_tag="Lane" flex_grow="1" style_text_align="center"/>
-      <text_small name="afc_stop_label_hub" text="Hub" translation_tag="Hub" flex_grow="1" style_text_align="center"/>
-      <text_small name="afc_stop_label_toolhead"
-                  text="Toolhead" translation_tag="Toolhead" flex_grow="1" style_text_align="right"/>
+            scrollable="false" style_flex_cross_place="center">
+      <text_small name="afc_stop_label_spool" text="Spool" translation_tag="Spool"/>
+      <lv_obj height="content"
+              flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+        <text_small name="afc_stop_caption_spool"
+                    width="100%" align="center" long_mode="dots" style_text_align="center" style_text_color="#danger"
+                    text="Stopped" translation_tag="Stopped">
+          <bind_flag_if_not_eq subject="afc_fault_segment" flag="hidden" ref_value="1"/>
+        </text_small>
+      </lv_obj>
+      <text_small name="afc_stop_label_lane" text="Lane" translation_tag="Lane"/>
+      <lv_obj height="content"
+              flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+        <text_small name="afc_stop_caption_hub"
+                    width="100%" align="center" long_mode="dots" style_text_align="center" style_text_color="#danger"
+                    text="Stopped" translation_tag="Stopped">
+          <bind_flag_if_not_eq subject="afc_fault_segment" flag="hidden" ref_value="4"/>
+        </text_small>
+      </lv_obj>
+      <text_small name="afc_stop_label_hub" text="Hub" translation_tag="Hub"/>
+      <lv_obj height="content"
+              flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+        <text_small name="afc_stop_caption_output"
+                    width="100%" align="center" long_mode="dots" style_text_align="center" style_text_color="#danger"
+                    text="Stopped" translation_tag="Stopped">
+          <bind_flag_if_not_eq subject="afc_fault_segment" flag="hidden" ref_value="5"/>
+        </text_small>
+      </lv_obj>
+      <text_small name="afc_stop_label_toolhead" text="Toolhead" translation_tag="Toolhead">
+        <bind_flag_if_eq subject="afc_fault_segment" flag="hidden" ref_value="6"/>
+      </text_small>
+      <!-- Not a gap: the filament cleared the toolhead sensor and jammed in the extruder gears. -->
+      <text_small name="afc_stop_caption_toolhead" style_text_color="#danger" text="Jammed" translation_tag="Jammed">
+        <bind_flag_if_not_eq subject="afc_fault_segment" flag="hidden" ref_value="6"/>
+      </text_small>
     </lv_obj>
-
-    <!-- Says in words what the red element says in colour. Exactly one is ever visible; the
-         parent hides the lot when the segment is 0, so no caption needs to cover that case. -->
-    <text_small name="afc_stop_caption_spool"
-                width="100%" long_mode="wrap" style_text_align="center" text="Stopped between Spool and Lane"
-                translation_tag="Stopped between Spool and Lane">
-      <bind_flag_if_not_eq subject="afc_fault_segment" flag="hidden" ref_value="1"/>
-    </text_small>
-    <text_small name="afc_stop_caption_hub"
-                width="100%" long_mode="wrap" style_text_align="center" text="Stopped between Lane and Hub"
-                translation_tag="Stopped between Lane and Hub">
-      <bind_flag_if_not_eq subject="afc_fault_segment" flag="hidden" ref_value="4"/>
-    </text_small>
-    <text_small name="afc_stop_caption_output"
-                width="100%" long_mode="wrap" style_text_align="center" text="Stopped between Hub and Toolhead"
-                translation_tag="Stopped between Hub and Toolhead">
-      <bind_flag_if_not_eq subject="afc_fault_segment" flag="hidden" ref_value="5"/>
-    </text_small>
-    <!-- Not a gap: the filament cleared the toolhead sensor and jammed in the extruder gears. -->
-    <text_small name="afc_stop_caption_toolhead"
-                width="100%" long_mode="wrap" style_text_align="center" text="Jammed at the Toolhead"
-                translation_tag="Jammed at the Toolhead">
-      <bind_flag_if_not_eq subject="afc_fault_segment" flag="hidden" ref_value="6"/>
-    </text_small>
   </view>
 </component>

@@ -1359,6 +1359,7 @@ translations:
   Issue description: Issue description
   It can be un-archived in Spoolman's web UI.: It can be un-archived in Spoolman's web UI.
   It's a new spool: It's a new spool
+  Jammed: Jammed
   Jammed at the Toolhead: Jammed at the Toolhead
   Job Queue: Job Queue
   'Jog failed: {}': 'Jog failed: {}'
@@ -2609,6 +2610,7 @@ translations:
   Stop failed: Stop failed
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
+  Stopped: Stopped
   Stopped between Hub and Toolhead: Stopped between Hub and Toolhead
   Stopped between Lane and Hub: Stopped between Lane and Hub
   Stopped between Spool and Lane: Stopped between Spool and Lane
