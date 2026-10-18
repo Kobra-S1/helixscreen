@@ -984,6 +984,16 @@ void AmsState::reset_backend_subjects() {
     sync_endless_spool_from_backend(nullptr);
 }
 
+void AmsState::warn_if_slots_exceed_subjects(int total_slots) {
+    if (total_slots <= MAX_SLOTS || total_slots == slot_overflow_warned_total_) {
+        return;
+    }
+    slot_overflow_warned_total_ = total_slots;
+    spdlog::warn("[AMS State] Backend reports {} slots but per-slot subjects cover {}; "
+                 "slots {}-{} show unbound",
+                 total_slots, MAX_SLOTS, MAX_SLOTS + 1, total_slots);
+}
+
 bool AmsState::clear_unused_slot_subjects(int first_unused) {
     // Only fires a subject whose value actually changes.
     bool changed = false;
@@ -1824,6 +1834,7 @@ void AmsState::sync_from_backend() {
     if (lv_subject_get_int(&ams_slot_count_) != info.total_slots) {
         lv_subject_set_int(&ams_slot_count_, info.total_slots);
     }
+    warn_if_slots_exceed_subjects(info.total_slots);
 
     // Update tool change progress raw data (text formatting in UI layer)
     if (info.number_of_toolchanges > 0) {
@@ -1967,7 +1978,7 @@ void AmsState::sync_from_backend() {
     // tool_spools.json plus a Moonraker DB key, so the stale spool outlived
     // restarts. Observed on the .112 BoxTurtle: "Assigned spool 86 () to tool 0"
     // fired during an EJECT, and ToolState::clear_spool() had no callers at all.
-    for (int i = 0; i < std::min(info.total_slots, MAX_SLOTS); ++i) {
+    for (int i = 0; i < info.total_slots; ++i) {
         const SlotInfo* slot = info.get_slot_global(i);
         if (!slot || slot->mapped_tool < 0) {
             continue;
@@ -2007,7 +2018,7 @@ void AmsState::sync_from_backend() {
     if (backend->supports_per_tool_spool_assignment()) {
         auto& tool_state = ToolState::instance();
         const auto& tools = tool_state.tools();
-        for (int i = 0; i < std::min(info.total_slots, MAX_SLOTS); ++i) {
+        for (int i = 0; i < info.total_slots; ++i) {
             const SlotInfo* slot = info.get_slot_global(i);
             if (slot && slot->mapped_tool >= 0 && slot->spoolman_id == 0) {
                 int ti = slot->mapped_tool;
@@ -2230,69 +2241,74 @@ void AmsState::update_slot(int slot_index) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
 
     auto* backend = get_backend(0);
-    if (!backend || slot_index < 0 || slot_index >= MAX_SLOTS) {
+    if (!backend || slot_index < 0) {
         return;
     }
 
+    // A slot past MAX_SLOTS has no subjects of its own, but it can still be
+    // the loaded one and still map to a tool.
     SlotInfo slot = backend->get_slot_info(slot_index);
     if (slot.slot_index >= 0) {
-        bool changed = false;
-        int new_color = static_cast<int>(slot.color_rgb);
-        if (lv_subject_get_int(&slot_colors_[slot_index]) != new_color) {
-            lv_subject_set_int(&slot_colors_[slot_index], new_color);
-            changed = true;
-        }
-        int new_status = static_cast<int>(slot.status);
-        if (lv_subject_get_int(&slot_statuses_[slot_index]) != new_status) {
-            lv_subject_set_int(&slot_statuses_[slot_index], new_status);
-            changed = true;
-        }
+        if (slot_index < MAX_SLOTS) {
+            bool changed = false;
+            int new_color = static_cast<int>(slot.color_rgb);
+            if (lv_subject_get_int(&slot_colors_[slot_index]) != new_color) {
+                lv_subject_set_int(&slot_colors_[slot_index], new_color);
+                changed = true;
+            }
+            int new_status = static_cast<int>(slot.status);
+            if (lv_subject_get_int(&slot_statuses_[slot_index]) != new_status) {
+                lv_subject_set_int(&slot_statuses_[slot_index], new_status);
+                changed = true;
+            }
 
-        // Lane presentation classification, mirroring sync_from_backend(). This is
-        // the single-slot fast path, so a backend that reports per-slot updates
-        // reaches here and nowhere else; deriving status without re-deriving the
-        // lane state leaves every lane surface bound to a stale classification.
-        int new_lane_state = static_cast<int>(
-            helix::ui::classify_lane(slot.status, helix::ui::lane_has_identity(slot)));
-        if (lv_subject_get_int(&slot_lane_states_[slot_index]) != new_lane_state) {
-            lv_subject_set_int(&slot_lane_states_[slot_index], new_lane_state);
-            changed = true;
-        }
+            // Lane presentation classification, mirroring sync_from_backend(). This is
+            // the single-slot fast path, so a backend that reports per-slot updates
+            // reaches here and nowhere else; deriving status without re-deriving the
+            // lane state leaves every lane surface bound to a stale classification.
+            int new_lane_state = static_cast<int>(
+                helix::ui::classify_lane(slot.status, helix::ui::lane_has_identity(slot)));
+            if (lv_subject_get_int(&slot_lane_states_[slot_index]) != new_lane_state) {
+                lv_subject_set_int(&slot_lane_states_[slot_index], new_lane_state);
+                changed = true;
+            }
 
-        // Update remaining filament string (length when measured, weight as
-        // the fallback, "" when neither).
-        std::string remaining = slot.remaining_display();
-        if (strcmp(lv_subject_get_string(&slot_remaining_[slot_index]), remaining.c_str()) != 0) {
-            lv_subject_copy_string(&slot_remaining_[slot_index], remaining.c_str());
-        }
+            // Update remaining filament string (length when measured, weight as
+            // the fallback, "" when neither).
+            std::string remaining = slot.remaining_display();
+            if (strcmp(lv_subject_get_string(&slot_remaining_[slot_index]), remaining.c_str()) !=
+                0) {
+                lv_subject_copy_string(&slot_remaining_[slot_index], remaining.c_str());
+            }
 
-        // Material type — a delta bumps slots_version so refresh_slots() re-reads
-        // the material label even when color/status are unchanged (#1065).
-        if (strcmp(lv_subject_get_string(&slot_materials_[slot_index]), slot.material.c_str()) !=
-            0) {
-            lv_subject_copy_string(&slot_materials_[slot_index], slot.material.c_str());
-            changed = true;
-        }
+            // Material type — a delta bumps slots_version so refresh_slots() re-reads
+            // the material label even when color/status are unchanged (#1065).
+            if (strcmp(lv_subject_get_string(&slot_materials_[slot_index]),
+                       slot.material.c_str()) != 0) {
+                lv_subject_copy_string(&slot_materials_[slot_index], slot.material.c_str());
+                changed = true;
+            }
 
-        // Per-slot LIVE state: path segment, toolhead-present, active-loaded.
-        int new_segment = static_cast<int>(backend->get_slot_filament_segment(slot_index));
-        if (lv_subject_get_int(&slot_segments_[slot_index]) != new_segment) {
-            lv_subject_set_int(&slot_segments_[slot_index], new_segment);
-            changed = true;
-        }
-        int new_toolhead = backend->slot_has_filament_at_toolhead(slot_index) ? 1 : 0;
-        if (lv_subject_get_int(&slot_toolhead_present_[slot_index]) != new_toolhead) {
-            lv_subject_set_int(&slot_toolhead_present_[slot_index], new_toolhead);
-            changed = true;
-        }
-        int new_active = backend->slot_is_actively_loaded(slot_index) ? 1 : 0;
-        if (lv_subject_get_int(&slot_active_loaded_[slot_index]) != new_active) {
-            lv_subject_set_int(&slot_active_loaded_[slot_index], new_active);
-            changed = true;
-        }
+            // Per-slot LIVE state: path segment, toolhead-present, active-loaded.
+            int new_segment = static_cast<int>(backend->get_slot_filament_segment(slot_index));
+            if (lv_subject_get_int(&slot_segments_[slot_index]) != new_segment) {
+                lv_subject_set_int(&slot_segments_[slot_index], new_segment);
+                changed = true;
+            }
+            int new_toolhead = backend->slot_has_filament_at_toolhead(slot_index) ? 1 : 0;
+            if (lv_subject_get_int(&slot_toolhead_present_[slot_index]) != new_toolhead) {
+                lv_subject_set_int(&slot_toolhead_present_[slot_index], new_toolhead);
+                changed = true;
+            }
+            int new_active = backend->slot_is_actively_loaded(slot_index) ? 1 : 0;
+            if (lv_subject_get_int(&slot_active_loaded_[slot_index]) != new_active) {
+                lv_subject_set_int(&slot_active_loaded_[slot_index], new_active);
+                changed = true;
+            }
 
-        if (changed) {
-            bump_slots_version();
+            if (changed) {
+                bump_slots_version();
+            }
         }
 
         // Sync spool to ToolState if this slot maps to a tool

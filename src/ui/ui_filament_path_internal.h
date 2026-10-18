@@ -258,7 +258,7 @@ struct FilamentPathData {
     // Live slot position measurement: slot_grid pointer + cached spool_container
     // pointers for pixel-perfect lane alignment at any screen size.
     lv_obj_t* slot_grid = nullptr;
-    static constexpr int MAX_SLOTS = 16;
+    static constexpr int MAX_SLOTS = helix::AMS_MAX_SLOTS;
     lv_obj_t* spool_containers[MAX_SLOTS] = {};
 
     // Per-slot filament state (for showing all installed filaments, not just active)

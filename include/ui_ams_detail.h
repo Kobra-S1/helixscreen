@@ -6,6 +6,7 @@
 #include "ui_ams_context_menu.h"
 #include "ui_ams_slot_layout.h"
 
+#include "ams_types.h"
 #include "lvgl/lvgl.h"
 
 /**
@@ -19,7 +20,7 @@
  */
 
 /// Maximum slots supported in a single detail view
-static constexpr int AMS_DETAIL_MAX_SLOTS = 16;
+static constexpr int AMS_DETAIL_MAX_SLOTS = helix::AMS_MAX_SLOTS;
 
 /// Widget pointers resolved from an ams_unit_detail component
 struct AmsDetailWidgets {

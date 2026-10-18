@@ -32,6 +32,15 @@
 /// Default color for slots without filament info (medium gray)
 constexpr uint32_t AMS_DEFAULT_SLOT_COLOR = 0x808080;
 
+namespace helix {
+/// Slots the AMS UI binds per backend: AmsState's per-slot subjects, the path
+/// canvas, the endless-spool arrows and the slot grids all derive their caps
+/// from this one constant. AFC and Happy Hare report every lane they find, so
+/// a many-unit rig is ordinary hardware; 64 is sixteen four-lane units. A slot
+/// past it keeps working in the backend and shows unbound in the UI.
+constexpr int AMS_MAX_SLOTS = 64;
+} // namespace helix
+
 /**
  * @brief Type of AMS system detected
  *

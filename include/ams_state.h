@@ -124,7 +124,7 @@ class AmsState {
      * Per-slot subjects (color, status) are allocated statically.
      * Systems with more slots will only have subjects for the first MAX_SLOTS.
      */
-    static constexpr int MAX_SLOTS = 16;
+    static constexpr int MAX_SLOTS = helix::AMS_MAX_SLOTS;
 
     /**
      * @brief Maximum number of AMS units supported for per-unit subjects
@@ -1637,6 +1637,8 @@ class AmsState {
     /// Slot subjects from @p first_unused on back to their empty defaults.
     /// @return true if any value a lane widget redraws from changed.
     bool clear_unused_slot_subjects(int first_unused);
+    /// Warn once per slot count when the backend has more slots than subjects.
+    void warn_if_slots_exceed_subjects(int total_slots);
 
     /** @brief Sync clog detection meter subjects from system info */
     void sync_clog_meter_from_info(const AmsSystemInfo& info);
@@ -2006,6 +2008,7 @@ class AmsState {
     lv_subject_t slot_toolhead_present_[MAX_SLOTS]; // int: 0/1 per-slot toolhead sensor
     lv_subject_t slot_active_loaded_[MAX_SLOTS];    // int: 0/1 firmware seated & loaded
     lv_subject_t slot_lane_states_[MAX_SLOTS];      // int: helix::ui::LaneState (classify_lane)
+    int slot_overflow_warned_total_ = 0;            // slot count the overflow warning last named
 
     // Per-unit environment subjects (CFS temp/humidity)
     lv_subject_t unit_temp_[MAX_UNITS];     // int: tenths of C (270 = 27.0C), 0 = no data
