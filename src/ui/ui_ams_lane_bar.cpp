@@ -429,8 +429,9 @@ void ui_ams_lane_bar_register(void) {
     // Self-register cleanup — ensures lane bar data is released before
     // lv_deinit() so that lv_subject_deinit() can safely remove observers
     // from live widgets (mirrors ui_ams_slot_register()).
-    StaticSubjectRegistry::instance().register_deinit("AmsLaneBarWidgets",
-                                                      cleanup_all_lane_bar_data);
+    StaticSubjectRegistry::instance().register_deinit(
+        "AmsLaneBarWidgets", cleanup_all_lane_bar_data,
+        StaticSubjectRegistry::Lifetime::ProcessRunOnSwitch);
 
     spdlog::info("[AmsLaneBar] Registered ams_lane_bar widget with XML system");
 }

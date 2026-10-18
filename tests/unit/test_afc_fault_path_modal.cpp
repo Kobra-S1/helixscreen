@@ -28,8 +28,8 @@
  *     -> "the fault position is named in words, not only in colour" fails
  *   - drop publish_fault_path() from ActionPromptModal::show_prompt()
  *     -> "a prompt that names no fault shows no diagram after one that did" fails
- *   - drop ensure_subject() from afc_fault_path_publish()
- *     -> "the diagram still binds after a printer switch tears its subject down" fails
+ *   - register AfcFaultPath with the default (printer) lifetime
+ *     -> "the diagram still binds after a printer switch" fails
  */
 
 #include "ui_afc_fault_path.h"
@@ -323,13 +323,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(20);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "the diagram still binds after a printer switch tears its subject down",
+TEST_CASE_METHOD(LVGLUITestFixture, "the diagram still binds after a printer switch",
                  "[afc][fault][modal][action_prompt]") {
-    // A printer switch runs every StaticSubjectRegistry deinit, which drops the
-    // subject's XML name, and never re-runs component registration.
-    REQUIRE(StaticSubjectRegistry::instance().deinit_one("AfcFaultPath"));
-    REQUIRE(lv_xml_get_subject(nullptr, "afc_fault_segment") == nullptr);
+    // The subject backs a component registered once at boot, and a printer switch
+    // never re-runs component registration.
+    REQUIRE(StaticSubjectRegistry::instance().deinit_one(
+        "AfcFaultPath", StaticSubjectRegistry::Scope::PrinterSwitch));
+    REQUIRE(lv_xml_get_subject(nullptr, "afc_fault_segment") != nullptr);
 
     helix::ui::ActionPromptModal prompt;
     REQUIRE(prompt.show_prompt(lv_screen_active(), make_prompt("Select a unit to calibrate.")));

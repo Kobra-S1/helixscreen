@@ -4886,7 +4886,8 @@ void Application::tear_down_printer_state() {
 
     // 16. Deinit core singleton subjects (LIFO order via StaticSubjectRegistry).
     //     lv_subject_deinit() removes+frees all remaining observers from each subject.
-    StaticSubjectRegistry::instance().deinit_all();
+    //     A switch spares the entries whose init the rebuild does not re-run.
+    StaticSubjectRegistry::instance().deinit_all(StaticSubjectRegistry::Scope::PrinterSwitch);
 
     // 16b. Destroy JobQueueState (after deinit_all so its registered lambda runs safely)
     m_job_queue_state.reset();

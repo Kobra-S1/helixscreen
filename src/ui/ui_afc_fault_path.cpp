@@ -29,10 +29,9 @@ void afc_fault_path_deinit() {
     spdlog::debug("[AfcFaultPath] Subject deinitialized");
 }
 
-/// A printer switch deinits every static subject and never re-runs component
-/// registration, so the subject comes back here, on its next use. A modal built
-/// while the name is unregistered binds nothing: the strip shows with all of
-/// its captions.
+/// Publishing does not depend on afc_fault_path_register() having run first. A
+/// modal built while the name is unregistered binds nothing: the strip shows with
+/// all of its captions.
 void ensure_subject() {
     if (g_initialized) {
         return;
@@ -40,8 +39,10 @@ void ensure_subject() {
     UI_MANAGED_SUBJECT_INT(g_fault_segment, 0, "afc_fault_segment", g_subjects);
     g_initialized = true;
 
-    // Self-register cleanup — the subject must die before lv_deinit().
-    StaticSubjectRegistry::instance().register_deinit("AfcFaultPath", afc_fault_path_deinit);
+    // Self-register cleanup — the subject must die before lv_deinit(). It backs a
+    // component registered once at boot, so it outlives a printer switch.
+    StaticSubjectRegistry::instance().register_deinit("AfcFaultPath", afc_fault_path_deinit,
+                                                      StaticSubjectRegistry::Lifetime::Process);
 }
 
 } // namespace
