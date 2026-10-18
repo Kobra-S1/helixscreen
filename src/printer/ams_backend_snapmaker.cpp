@@ -35,9 +35,8 @@ namespace {
 
 // Snapmaker's recognized filament SUB_TYPE product lines. The RFID read path
 // stores SUB_TYPE into SlotInfo::spool_name (see handle_status_update), but a
-// user can edit spool_name to a free-form string ("My Custom Spool"). Both the
-// set_slot_info firmware round-trip (POST /printer/filament_detect/set) and the
-// #991 post-runout SET_PRINT_FILAMENT_CONFIG re-assert must only treat
+// user can edit spool_name to a free-form string ("My Custom Spool"). The
+// SET_PRINT_FILAMENT_CONFIG save and the #991 post-runout re-assert must only treat
 // spool_name as a SUB_TYPE when it matches one of these — a single source of
 // truth for "is this a real product line?".
 constexpr std::array<std::string_view, 8> KNOWN_SUB_TYPES = {
@@ -1852,8 +1851,7 @@ void AmsBackendSnapmaker::handle_status_update(const nlohmann::json& notificatio
             // SET_PRINT_FILAMENT_CONFIG, so firmware-truth and user-truth
             // converge, and overwriting lane_data is safe and also catches
             // external edits (CHANGE_ZCOLOR from a print, manual gcode, the
-            // stock screen, OrcaSlicer). A head holding an RFID tag's record is
-            // not written, and the user's override is persisted to lane_data
+            // stock screen, OrcaSlicer). The user's override is persisted to lane_data
             // separately. See mirror_firmware_to_lane_data docs and AD5X IFS
             // for the same pattern.
             helix::ams::mirror_firmware_to_lane_data(

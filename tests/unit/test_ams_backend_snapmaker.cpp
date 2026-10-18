@@ -1910,7 +1910,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker empty RFID UID does not update bas
 }
 
 // ============================================================================
-// Firmware writeback (paxx12 Extended Firmware POST /printer/filament_detect/set)
+// Firmware writeback (SET_PRINT_FILAMENT_CONFIG)
 // ============================================================================
 
 TEST_CASE_METHOD(SnapmakerFixture,
@@ -3003,6 +3003,19 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a save sends only the record lines
         CHECK(writes[0] ==
               "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 FILAMENT_COLOR_RGBA=123456FF");
     }
+    SECTION("a subtype-only change sends the identity line alone") {
+        SlotInfo edit;
+        edit.brand = "Generic";
+        edit.material = "PLA";
+        edit.spool_name = "Matte";
+        edit.color_rgb = 0xFF5500;
+        REQUIRE(h.backend.set_slot_info(1, edit, /*persist=*/true).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE(writes.size() == 1);
+        CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Generic "
+                           "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Matte");
+    }
     SECTION("a product-line change sends the identity line alone") {
         SlotInfo edit = inland_pla();
         edit.brand = "Snapmaker";
@@ -3203,6 +3216,15 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker drops a held save with the head's 
     }
     SECTION("a restart") {
         SnapmakerTestAccess::call_on_started(h.backend);
+    }
+    SECTION("a detected spool swap") {
+        // The first observation only sets the tracker's baseline; a second
+        // card with a different UID is the swap signal that clears the
+        // override, and with it the save held for the spool that left.
+        h.frame(make_filament_detect_status(1, "PETG", 0xFF00FF00u, "Generic",
+                                            json::array({9, 9, 9, 9}), true));
+        h.frame(make_filament_detect_status(1, "PETG", 0xFF00FF00u, "Generic",
+                                            json::array({8, 8, 8, 8}), true));
     }
     h.print("complete");
     CHECK(h.config_writes().empty());
