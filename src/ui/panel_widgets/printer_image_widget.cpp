@@ -321,17 +321,7 @@ void PrinterImageWidget::check_or_generate_cache() {
 void PrinterImageWidget::handle_printer_manager_clicked() {
     spdlog::info("[PrinterImageWidget] Printer image clicked - opening Printer Manager overlay");
 
-    auto& overlay = get_printer_manager_overlay();
-
-    if (!overlay.are_subjects_initialized()) {
-        overlay.init_subjects();
-        overlay.register_callbacks();
-        overlay.create(parent_screen_);
-        NavigationManager::instance().register_overlay_instance(overlay.get_root(), &overlay);
-    }
-
-    // Push overlay onto navigation stack
-    NavigationManager::instance().push_overlay(overlay.get_root());
+    helix::show_printer_manager_overlay(parent_screen_);
 }
 
 void PrinterImageWidget::printer_manager_clicked_cb(lv_event_t* e) {

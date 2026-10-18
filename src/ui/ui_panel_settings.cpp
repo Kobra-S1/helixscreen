@@ -19,6 +19,7 @@
 #include "ui_panel_memory_stats.h"
 #include "ui_panel_power.h"
 #include "ui_printer_list_overlay.h"
+#include "ui_printer_manager_overlay.h"
 #include "ui_settings_about.h"
 #include "ui_settings_display_sound.h"
 #include "ui_settings_hardware.h"
@@ -424,6 +425,7 @@ void SettingsPanel::init_subjects() {
     // Category navigation callbacks (open sub-panel overlays from top-level)
     register_xml_callbacks({
         {"on_display_sound_clicked", on_display_sound_clicked},
+        {"on_printer_clicked", on_printer_clicked},
         {"on_printing_clicked", on_printing_clicked},
         {"on_hardware_clicked", on_hardware_clicked},
         {"on_safety_clicked", on_safety_clicked},
@@ -1213,6 +1215,12 @@ void SettingsPanel::on_display_sound_clicked(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
+void SettingsPanel::on_printer_clicked(lv_event_t* /*e*/) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_printer_clicked");
+    helix::show_printer_manager_overlay(get_global_settings_panel().parent_screen_);
+    LVGL_SAFE_EVENT_CB_END();
+}
+
 void SettingsPanel::on_printing_clicked(lv_event_t* /*e*/) {
     LVGL_SAFE_EVENT_CB_BEGIN("[SettingsPanel] on_printing_clicked");
     auto& overlay = helix::settings::get_printing_settings_overlay();
@@ -1596,6 +1604,7 @@ void register_settings_panel_callbacks() {
         {"on_docs_clicked", SettingsPanel::on_docs_clicked},
         // Category navigation callbacks (open sub-panel overlays)
         {"on_display_sound_clicked", SettingsPanel::on_display_sound_clicked},
+        {"on_printer_clicked", SettingsPanel::on_printer_clicked},
         {"on_printing_clicked", SettingsPanel::on_printing_clicked},
         {"on_hardware_clicked", SettingsPanel::on_hardware_clicked},
         {"on_safety_clicked", SettingsPanel::on_safety_clicked},

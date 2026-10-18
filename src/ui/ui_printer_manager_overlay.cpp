@@ -57,6 +57,21 @@ PrinterManagerOverlay& get_printer_manager_overlay() {
     return *g_printer_manager_overlay;
 }
 
+namespace helix {
+void show_printer_manager_overlay(lv_obj_t* parent) {
+    auto& overlay = get_printer_manager_overlay();
+
+    if (!overlay.are_subjects_initialized()) {
+        overlay.init_subjects();
+        overlay.register_callbacks();
+        overlay.create(parent);
+        NavigationManager::instance().register_overlay_instance(overlay.get_root(), &overlay);
+    }
+
+    NavigationManager::instance().push_overlay(overlay.get_root());
+}
+} // namespace helix
+
 void destroy_printer_manager_overlay() {
     g_printer_manager_overlay.reset();
 }

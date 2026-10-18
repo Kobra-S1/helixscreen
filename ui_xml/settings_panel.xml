@@ -2,7 +2,7 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Settings Panel - Category Navigation -->
-<!-- Six category rows that open sub-panel overlays for grouped settings -->
+<!-- Seven category rows that open sub-panel overlays for grouped settings -->
 <!-- All styling controlled via XML - C++ only handles callbacks -->
 <component>
   <styles>
@@ -23,6 +23,12 @@
                           label="Display &amp; Sound" label_tag="Display &amp; Sound" icon="light"
                           description="Language, theme, brightness, and sound"
                           description_tag="Language, theme, brightness, and sound" callback="on_display_sound_clicked"/>
+      <!-- ================================================================== -->
+      <!-- PRINTER (name, image, model) -->
+      <!-- ================================================================== -->
+      <setting_action_row name="row_printer"
+                          label="Printer" label_tag="Printer" icon="printer" description="Name, image and model"
+                          description_tag="Name, image and model" callback="on_printer_clicked"/>
       <!-- ================================================================== -->
       <!-- PRINTING -->
       <!-- ================================================================== -->

@@ -1529,6 +1529,7 @@ translations:
   NEWLY DISCOVERED: 新发现
   Name: 名称
   Name (optional): 名称（可选）
+  Name, image and model: 名称、图片和型号
   'Name:': '名称:'
   Named actions in the LED Controls widget. Not shown under LED selection.: 在 LED 控制小组件中显示为命名操作。不会出现在 LED 选择中。
   Needs adjustment: 需要调整

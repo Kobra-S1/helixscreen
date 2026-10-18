@@ -1501,6 +1501,7 @@
   <translation tag="NEWLY DISCOVERED" ru="НЕДАВНО ОБНАРУЖЕНО"/>
   <translation tag="Name" ru="Название"/>
   <translation tag="Name (optional)" ru="Название (необязательно)"/>
+  <translation tag="Name, image and model" ru="Имя, изображение и модель"/>
   <translation tag="Name:" ru="Имя:"/>
   <translation tag="Named actions in the LED Controls widget. Not shown under LED selection." ru="Именованные действия в виджете «Управление LED». Не отображаются в разделе «Выбор LED»."/>
   <translation tag="Needs adjustment" ru="Требуется регулировка"/>

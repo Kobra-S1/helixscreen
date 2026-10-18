@@ -277,6 +277,7 @@ class SettingsPanel : public PanelBase {
 
     // Category navigation callbacks (open sub-panel overlays)
     static void on_display_sound_clicked(lv_event_t* e);
+    static void on_printer_clicked(lv_event_t* e);
     static void on_printing_clicked(lv_event_t* e);
     static void on_hardware_clicked(lv_event_t* e);
     static void on_safety_clicked(lv_event_t* e);

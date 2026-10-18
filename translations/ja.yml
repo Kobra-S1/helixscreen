@@ -1537,6 +1537,7 @@ translations:
   NEWLY DISCOVERED: 新規検出
   Name: 名前
   Name (optional): 名前（オプション）
+  Name, image and model: 名前、画像、モデル
   'Name:': '名前:'
   Named actions in the LED Controls widget. Not shown under LED selection.: LEDコントロールウィジェットの名前付きアクションです。LED選択には表示されません。
   Needs adjustment: 調整が必要

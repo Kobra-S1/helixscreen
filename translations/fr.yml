@@ -1693,6 +1693,7 @@ translations:
   NEWLY DISCOVERED: NOUVELLEMENT DÉCOUVERT
   Name: Nom
   Name (optional): Nom (facultatif)
+  Name, image and model: Nom, image et modèle
   'Name:': 'Nom :'
   Named actions in the LED Controls widget. Not shown under LED selection.: Actions nommées dans le widget Commandes LED. Non affichées dans la sélection LED.
   Needs adjustment: Ajustement nécessaire

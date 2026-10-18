@@ -1501,6 +1501,7 @@
   <translation tag="NEWLY DISCOVERED" ja="新規検出"/>
   <translation tag="Name" ja="名前"/>
   <translation tag="Name (optional)" ja="名前（オプション）"/>
+  <translation tag="Name, image and model" ja="名前、画像、モデル"/>
   <translation tag="Name:" ja="名前:"/>
   <translation tag="Named actions in the LED Controls widget. Not shown under LED selection." ja="LEDコントロールウィジェットの名前付きアクションです。LED選択には表示されません。"/>
   <translation tag="Needs adjustment" ja="調整が必要"/>

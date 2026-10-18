@@ -1501,6 +1501,7 @@
   <translation tag="NEWLY DISCOVERED" zh="新发现"/>
   <translation tag="Name" zh="名称"/>
   <translation tag="Name (optional)" zh="名称（可选）"/>
+  <translation tag="Name, image and model" zh="名称、图片和型号"/>
   <translation tag="Name:" zh="名称:"/>
   <translation tag="Named actions in the LED Controls widget. Not shown under LED selection." zh="在 LED 控制小组件中显示为命名操作。不会出现在 LED 选择中。"/>
   <translation tag="Needs adjustment" zh="需要调整"/>

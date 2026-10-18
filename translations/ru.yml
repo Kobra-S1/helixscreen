@@ -1657,6 +1657,7 @@ translations:
   NEWLY DISCOVERED: НЕДАВНО ОБНАРУЖЕНО
   Name: Название
   Name (optional): Название (необязательно)
+  Name, image and model: Имя, изображение и модель
   'Name:': 'Имя:'
   Named actions in the LED Controls widget. Not shown under LED selection.: Именованные действия в виджете «Управление LED». Не отображаются в разделе «Выбор LED».
   Needs adjustment: Требуется регулировка

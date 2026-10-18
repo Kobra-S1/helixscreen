@@ -202,6 +202,18 @@ class PrinterManagerOverlay : public OverlayBase {
 PrinterManagerOverlay& get_printer_manager_overlay();
 
 /**
+ * @brief Create the Printer Manager overlay on first use and push it onto the nav stack
+ *
+ * The single entry point shared by every control that opens the Printer Manager
+ * (home printer image widget, Settings "Printer" row).
+ *
+ * @param parent Screen the overlay is created under
+ */
+namespace helix {
+void show_printer_manager_overlay(lv_obj_t* parent);
+} // namespace helix
+
+/**
  * @brief Destroy the global PrinterManagerOverlay instance
  */
 void destroy_printer_manager_overlay();
