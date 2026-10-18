@@ -73,6 +73,16 @@ std::optional<PathSegment> afc_fault_path_publish(std::string_view message) {
     return segment;
 }
 
+int afc_fault_path_current() {
+    return g_initialized ? lv_subject_get_int(&g_fault_segment) : 0;
+}
+
+void afc_fault_path_restore(int published, int previous) {
+    if (g_initialized && lv_subject_get_int(&g_fault_segment) == published) {
+        lv_subject_set_int(&g_fault_segment, previous);
+    }
+}
+
 std::string afc_fault_path_apply(const std::string& message) {
     if (!afc_fault_path_publish(message)) {
         return message;

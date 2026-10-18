@@ -555,3 +555,35 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     ScopedGeometry medium(800, 480);
     check_afc_calibration_fits(modal_, test_screen());
 }
+
+// One label longer than the card is wide must not pan the prompt sideways.
+TEST_CASE_METHOD(ActionPromptLayoutFixture,
+                 "ActionPromptModal: a wrap-row label wider than the card ends in an ellipsis",
+                 "[action_prompt][layout][ui_integration]") {
+    helix::PromptData data;
+    data.title = "Long";
+    data.text_lines.push_back("Pick one");
+    helix::PromptButton btn;
+    btn.label = std::string(120, 'W');
+    btn.gcode = "RESPOND MSG=x";
+    btn.color = "primary";
+    data.buttons.push_back(btn);
+    REQUIRE(modal_.show_prompt(test_screen(), data));
+    lv_obj_update_layout(test_screen());
+
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 1);
+    lv_obj_t* row = lv_obj_get_parent(btns[0]);
+    CHECK(lv_obj_get_width(btns[0]) <= lv_obj_get_content_width(row));
+    lv_obj_t* label = lv_obj_get_child_by_type(btns[0], 0, &lv_label_class);
+    REQUIRE(label != nullptr);
+    CHECK(lv_obj_get_width(label) <= lv_obj_get_content_width(btns[0]));
+    CHECK(lv_label_get_long_mode(label) == LV_LABEL_LONG_MODE_DOTS);
+
+    lv_obj_t* scroll = lv_obj_find_by_name(modal_.dialog(), "prompt_scroll");
+    REQUIRE(scroll != nullptr);
+    CHECK(lv_obj_get_scroll_dir(scroll) == LV_DIR_VER);
+    CHECK(lv_obj_get_scroll_right(scroll) <= 0);
+
+    modal_.hide();
+}

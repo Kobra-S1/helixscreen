@@ -137,6 +137,17 @@ class ActionPromptModal : public Modal {
     void on_hide() override;
 
   private:
+    /// Points the AFC diagram at this prompt's own text, so a prompt that names no
+    /// fault never shows one an earlier modal published, and remembers the value it
+    /// replaced.
+    void publish_fault_path();
+    /// Hands the diagram back to the modal underneath, unless a later modal
+    /// published over this prompt's value.
+    void restore_fault_path();
+    int fault_path_before_ = 0;    ///< afc_fault_segment when this prompt published
+    int fault_path_published_ = 0; ///< the value this prompt published
+    bool fault_path_held_ = false; ///< published and not yet handed back
+
     // Grants white-box access to button widgets / containers for layout tests.
     friend struct ::ActionPromptModalTestAccess;
 
@@ -170,12 +181,14 @@ class ActionPromptModal : public Modal {
     struct RowFit {
         lv_obj_t* grid_row = nullptr; ///< the button row, when it is a Grid
         int32_t grid_cols = 0;
+        lv_obj_t* wrap_row = nullptr; ///< the button row, when it is content-sized
     };
 
     /**
      * @brief Size the grid cells and cap the scroll area
      *
-     * Grid cells split their row, and prompt_scroll is capped at the height the
+     * Grid cells split their row, a wrap-row label wider than its row ends in an
+     * ellipsis, and prompt_scroll is capped at the height the
      * card's cap leaves under the header and footer, so text and buttons scroll
      * while the footer stays on the card.
      */

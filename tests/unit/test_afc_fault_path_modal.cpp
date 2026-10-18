@@ -347,3 +347,41 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the diagram still binds after a printer swi
     prompt.hide();
     process_lvgl(20);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a prompt over the loading-error modal leaves its diagram up when it closes",
+                 "[afc][fault][modal][action_prompt]") {
+    lv_xml_register_component_from_file("A:ui_xml/ams_loading_error_modal.xml");
+    helix::ui::AmsLoadingErrorModal error_modal;
+    REQUIRE(error_modal.show(lv_screen_active(), helix::ui::afc_fault_path_apply(PRE_GEAR_FAULT),
+                             []() {}));
+    process_lvgl(20);
+    REQUIRE(graphic_visible(error_modal.dialog()));
+
+    helix::ui::ActionPromptModal prompt;
+    REQUIRE(prompt.show_prompt(lv_screen_active(), make_prompt("Select a unit to calibrate.")));
+    process_lvgl(20);
+    CHECK_FALSE(graphic_visible(prompt.dialog()));
+    prompt.hide();
+    process_lvgl(20);
+
+    CHECK(fault_segment() == static_cast<int>(PathSegment::OUTPUT));
+    CHECK(graphic_visible(error_modal.dialog()));
+    error_modal.hide();
+    process_lvgl(20);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a prompt closing does not overwrite a fault published while it was open",
+                 "[afc][fault][modal][action_prompt]") {
+    helix::ui::afc_fault_path_publish(UNKNOWN_FAULT);
+    helix::ui::ActionPromptModal prompt;
+    REQUIRE(prompt.show_prompt(lv_screen_active(), make_prompt("Select a unit to calibrate.")));
+    process_lvgl(20);
+
+    // A later modal publishes its own fault over the open prompt.
+    helix::ui::afc_fault_path_publish(PRE_GEAR_FAULT);
+    prompt.hide();
+    process_lvgl(20);
+    CHECK(fault_segment() == static_cast<int>(PathSegment::OUTPUT));
+}

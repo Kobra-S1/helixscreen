@@ -75,17 +75,6 @@ ButtonRowMeasure measure_button_row(lv_obj_t* row, const std::vector<PromptButto
     return m;
 }
 
-/// Points the AFC diagram at this prompt's own text, so a prompt that names no
-/// fault never shows one an earlier modal published.
-void publish_fault_path(const PromptData& data) {
-    std::string text;
-    for (const auto& line : data.text_lines) {
-        text += line;
-        text += '\n';
-    }
-    afc_fault_path_publish(text);
-}
-
 } // namespace
 
 ButtonRowLayout choose_button_row_layout(const ButtonRowMeasure& m) {
@@ -129,9 +118,10 @@ void ActionPromptModal::set_gcode_callback(GcodeCallback callback) {
 bool ActionPromptModal::show_prompt(lv_obj_t* parent, const PromptData& data) {
     prompt_data_ = data;
     // Before Modal::show(): the diagram binds its subject when the XML is built.
-    publish_fault_path(prompt_data_);
+    publish_fault_path();
 
     if (!Modal::show(parent)) {
+        restore_fault_path();
         return false;
     }
 
@@ -147,8 +137,31 @@ void ActionPromptModal::on_show() {
     populate_content();
 }
 
+void ActionPromptModal::publish_fault_path() {
+    std::string text;
+    for (const auto& line : prompt_data_.text_lines) {
+        text += line;
+        text += '\n';
+    }
+    // A prompt re-shown while open keeps the value it found the first time.
+    if (!fault_path_held_) {
+        fault_path_before_ = afc_fault_path_current();
+        fault_path_held_ = true;
+    }
+    const auto segment = afc_fault_path_publish(text);
+    fault_path_published_ = segment ? static_cast<int>(*segment) : 0;
+}
+
+void ActionPromptModal::restore_fault_path() {
+    if (fault_path_held_) {
+        afc_fault_path_restore(fault_path_published_, fault_path_before_);
+        fault_path_held_ = false;
+    }
+}
+
 void ActionPromptModal::on_hide() {
     clear_dynamic_content();
+    restore_fault_path();
     spdlog::debug("[ActionPromptModal] on_hide()");
 }
 
@@ -242,6 +255,8 @@ void ActionPromptModal::create_buttons() {
     if (layout.kind == ButtonRowKind::Grid) {
         rows.grid_row = button_container;
         rows.grid_cols = layout.cols;
+    } else if (layout.kind == ButtonRowKind::Wrap) {
+        rows.wrap_row = button_container;
     }
 
     // Create buttons based on PromptData
@@ -311,6 +326,26 @@ void ActionPromptModal::fit_rows(const RowFit& rows) {
         const uint32_t n = lv_obj_get_child_count(rows.grid_row);
         for (uint32_t i = 0; i < n; ++i) {
             lv_obj_set_width(lv_obj_get_child(rows.grid_row, static_cast<int32_t>(i)), cell);
+        }
+    }
+    // A content-sized button grows with its label, so one label wider than the row
+    // would widen the button past the card. Such a label keeps one line and ends in
+    // an ellipsis instead.
+    if (rows.wrap_row != nullptr) {
+        const int32_t row_w = lv_obj_get_content_width(rows.wrap_row);
+        const uint32_t n = lv_obj_get_child_count(rows.wrap_row);
+        for (uint32_t i = 0; i < n; ++i) {
+            lv_obj_t* button = lv_obj_get_child(rows.wrap_row, static_cast<int32_t>(i));
+            lv_obj_t* label = lv_obj_get_child_by_type(button, 0, &lv_label_class);
+            const int32_t cap = row_w - lv_obj_get_style_pad_left(button, LV_PART_MAIN) -
+                                lv_obj_get_style_pad_right(button, LV_PART_MAIN);
+            if (label == nullptr || cap <= 0 || lv_obj_get_width(label) <= cap) {
+                continue;
+            }
+            lv_obj_set_size(
+                label, cap,
+                lv_font_get_line_height(lv_obj_get_style_text_font(label, LV_PART_MAIN)));
+            lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
         }
     }
     lv_obj_update_layout(screen);

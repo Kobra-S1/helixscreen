@@ -41,13 +41,24 @@ void afc_fault_path_register();
  * @p message names none. A modal that embeds `<afc_fault_path/>` calls this with
  * its own text before it is built, so the strip always describes the text on
  * screen and never a fault some earlier modal published. Registers the subject
- * again when a printer switch has torn it down.
+ * if it does not exist yet.
  *
  * Main thread only: it writes an LVGL subject, which fires observers.
  *
  * @return The recognised segment, or std::nullopt.
  */
 std::optional<PathSegment> afc_fault_path_publish(std::string_view message);
+
+/// The value `afc_fault_segment` holds now: a `PathSegment`, or 0 when none.
+int afc_fault_path_current();
+
+/**
+ * @brief Hand the strip back to the modal underneath when an overlying one closes.
+ *
+ * Sets `afc_fault_segment` to @p previous only while it still holds @p published,
+ * the value the closing modal set; a later publisher's value is left alone.
+ */
+void afc_fault_path_restore(int published, int previous);
 
 /**
  * @brief Publish an AFC fault message's stop point and strip its ASCII art.
