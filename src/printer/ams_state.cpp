@@ -1626,8 +1626,8 @@ void AmsState::sync_from_backend() {
     }
     if (lv_subject_get_int(&ams_action_) != new_action) {
         spdlog::debug("[AmsState] sync_from_backend: action changed to {} ({})", new_action,
-                      ams_action_to_string(info.action));
-        lv_subject_set_int(&ams_action_, new_action);
+                      ams_action_to_string(static_cast<AmsAction>(new_action)));
+        publish_action(static_cast<AmsAction>(new_action));
     }
     // Granular firmware sub-phase (Snapmaker U1: Home/Select/Heat/Move). Most
     // backends leave operation_phase at -1, so this is a no-op for them.
@@ -2828,39 +2828,79 @@ void AmsState::set_action(AmsAction action) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     int val = static_cast<int>(action);
     if (lv_subject_get_int(&ams_action_) != val) {
-        lv_subject_set_int(&ams_action_, val);
+        publish_action(action);
         spdlog::debug("[AMS State] Action set: {}", ams_action_to_string(action));
-        // Operation ended: clear the narration label + phase index BEFORE the
-        // recompute so the cleared state is reflected in the detail string. The
-        // next swap then restarts from a clean step bar. set_action writes
-        // subjects directly (main-thread contract), so write toolchange_step_
-        // directly too.
-        if (action == AmsAction::IDLE) {
-            last_narration_label_.clear();
-            narration_phase_high_water_ = -1;
-            lv_subject_set_int(&toolchange_step_, -1);
-        }
         // Action change must propagate to the displayed detail string (e.g.
         // LOADING → IDLE while still printing should flip "Loading" → "Printing").
         recompute_action_detail();
     }
 }
 
+void AmsState::publish_action(AmsAction action) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    // Operation ended: clear the narration label + phase index before the
+    // action observers run, so they and the next recompute see the cleared
+    // state, and the next operation starts from a clean step bar.
+    if (action == AmsAction::IDLE) {
+        last_narration_label_.clear();
+        narration_phase_id_.clear();
+        narration_phase_high_water_ = -1;
+        lv_subject_set_int(&toolchange_step_, -1);
+    }
+    lv_subject_set_int(&ams_action_, static_cast<int>(action));
+}
 void AmsState::set_active_step_operation(StepOperationType op) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     const StepOperationType prev = active_step_operation_.exchange(op, std::memory_order_relaxed);
-    if (prev != op) {
-        // Each operation kind has its own phase template, so an index carried
-        // over from the previous one is not comparable with the new one's.
-        // (The sidebar re-derives the operation whenever it (re)builds the step
-        // bar, so this is also the mid-operation UNLOAD -> LOAD_SWAP upgrade.)
-        narration_phase_high_water_ = -1;
+    if (prev == op) {
+        return;
     }
+    // Each operation kind has its own phase template, so an index carried
+    // over from the previous one is not comparable with the new one's.
+    // (The sidebar re-derives the operation whenever it (re)builds the step
+    // bar, so this is also the mid-operation UNLOAD -> LOAD_SWAP upgrade, and
+    // the first build of a bar for an operation that narrated before it.)
+    narration_phase_high_water_ = -1;
+    if (lv_subject_get_int(&toolchange_step_) >= 0) {
+        lv_subject_set_int(&toolchange_step_, -1);
+    }
+    if (!narration_phase_id_.empty()) {
+        apply_narration_phase_id(std::string(narration_phase_id_));
+    }
+}
+
+void AmsState::apply_narration_phase_id(const std::string& id) {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    auto* backend = get_backend();
+    if (!backend) {
+        return;
+    }
+    const auto op = get_active_step_operation();
+    const auto tmpl = backend->toolchange_phase_template(op);
+    for (size_t k = 0; k < tmpl.size(); ++k) {
+        if (tmpl[k].id == id) {
+            spdlog::debug("[AMS State] Narration phase '{}' -> step {} ({})", id, k, tmpl[k].label);
+            if (publish_narration_phase(static_cast<int>(k), tmpl[k].label)) {
+                narration_phase_id_ = id;
+            }
+            return;
+        }
+    }
+    // No index in this template: hold the id for the operation the step bar
+    // settles on.
+    spdlog::debug("[AMS State] Narration phase '{}' is not in op {}'s template; held", id,
+                  static_cast<int>(op));
+    narration_phase_id_ = id;
 }
 
 void AmsState::set_narration_phase(int index, const std::string& label) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
+    if (publish_narration_phase(index, label)) {
+        narration_phase_id_.clear();
+    }
+}
 
+bool AmsState::publish_narration_phase(int index, const std::string& label) {
     // Firmware narration is not monotonic. AFC runs its wipe macro twice per
     // toolchange, once before and once after the kick (AFC.py
     // do_poop_kick_wipe(), v1.2.0:1390-1413; inline in TOOL_LOAD at
@@ -2868,13 +2908,14 @@ void AmsState::set_narration_phase(int index, const std::string& label) {
     // second one resolves to the same "brush" phase as the first, which sits
     // BEFORE "kick" in the template — publishing it verbatim rewinds the bar.
     //
-    // Latch the highest index instead. Reset points are the three places an
-    // index stops being comparable with its predecessor:
+    // Latch the highest index instead. Reset points are the places an index
+    // stops being comparable with its predecessor:
     //   - index < 0        explicit clear (operation over / test baseline)
     //   - index == 0       the template's first phase narrated again, i.e. the
     //                      operation restarted from the top (an AFC retry after
     //                      a resumed error re-runs TOOL_LOAD from the heat)
-    //   - set_action(IDLE) operation ended
+    //   - action -> IDLE   operation ended (publish_action, from either the UI
+    //                      or a backend sync)
     //   - set_active_step_operation() the template itself changed
     //
     // A retry that resumes PAST the first phase (nozzle already hot, so no heat
@@ -2889,7 +2930,7 @@ void AmsState::set_narration_phase(int index, const std::string& label) {
     } else if (index < narration_phase_high_water_) {
         spdlog::trace("[AMS State] Narration phase {} ('{}') ignored — already past step {}", index,
                       label, narration_phase_high_water_);
-        return;
+        return false;
     } else {
         narration_phase_high_water_ = index;
     }
@@ -2897,6 +2938,7 @@ void AmsState::set_narration_phase(int index, const std::string& label) {
     lv_subject_set_int(&toolchange_step_, index);
     last_narration_label_ = label;
     recompute_action_detail();
+    return true;
 }
 
 void AmsState::set_pending_target_slot(int slot) {

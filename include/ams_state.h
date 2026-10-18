@@ -1539,8 +1539,16 @@ class AmsState {
     ///
     /// Out-of-line because a change of operation also has to drop the narration
     /// high-water mark: phase indices are template-relative, and each
-    /// StepOperationType has its own template.
+    /// StepOperationType has its own template. The last narrated phase id is
+    /// re-resolved against the new template; an index with no id to re-resolve
+    /// is dropped.
     void set_active_step_operation(StepOperationType op);
+
+    /// Publish the narration phase @p id names in the active operation's
+    /// template (MAIN THREAD ONLY). An id the template does not contain is held
+    /// and resolved again when the operation changes, so a phase narrated
+    /// before the step bar knows its operation still reaches it.
+    void apply_narration_phase_id(const std::string& id);
 
     /// Set the current toolchange narration phase index (MAIN THREAD ONLY).
     /// Also mirrors the human label into ams_action_detail for the status line.
@@ -1843,6 +1851,19 @@ class AmsState {
 
     std::string last_narration_label_; ///< live toolchange narration phase label; top priority in
                                        ///< recompute_action_detail; cleared on IDLE
+    /// Template id of the last phase apply_narration_phase_id() published or
+    /// held; empty when the index came from set_narration_phase(). Cleared with
+    /// the label.
+    std::string narration_phase_id_;
+
+    /// Write the action subject. Reaching IDLE ends the
+    /// operation, which drops the narration latch, label and phase index; every
+    /// writer of the action goes through here so no path skips that.
+    void publish_action(AmsAction action);
+
+    /// The latched write behind set_narration_phase(); false when the latch
+    /// swallowed @p index.
+    bool publish_narration_phase(int index, const std::string& label);
 
     /// Observer that re-runs compute_action_detail() when PrinterState's
     /// print_state_enum subject changes, so the sidebar flips between
