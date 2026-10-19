@@ -112,17 +112,7 @@ void GcodeNarrationRouter::process_line(const std::string& line) {
         return;
     }
 
-    const auto op = AmsState::instance().get_active_step_operation();
-    const auto tmpl = backend->toolchange_phase_template(op);
-    for (size_t k = 0; k < tmpl.size(); ++k) {
-        if (tmpl[k].id == *id) {
-            spdlog::debug("[GcodeNarration] phase '{}' -> step {} ({})", *id, k, tmpl[k].label);
-            AmsState::instance().set_narration_phase(static_cast<int>(k), tmpl[k].label);
-            return;
-        }
-    }
-    // Matched a phase id the active operation's template doesn't contain — no
-    // index to advance to; leave the step subject untouched.
+    AmsState::instance().apply_narration_phase_id(*id);
 }
 
 void GcodeNarrationRouter::on_notify_gcode_response(const nlohmann::json& msg) {

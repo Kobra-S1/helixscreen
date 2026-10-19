@@ -1247,6 +1247,7 @@
   <translation tag="Issue description" en="Issue description"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." en="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It&apos;s a new spool" en="It&apos;s a new spool"/>
+  <translation tag="Jammed" en="Jammed"/>
   <translation tag="Jammed at the Toolhead" en="Jammed at the Toolhead"/>
   <translation tag="Job Queue" en="Job Queue"/>
   <translation tag="Jog failed: {}" en="Jog failed: {}"/>
@@ -2394,6 +2395,7 @@
   <translation tag="Stop Print?" en="Stop Print?"/>
   <translation tag="Stop failed" en="Stop failed"/>
   <translation tag="Stop printing &quot;{}&quot;?&#10;&#10;This cannot be undone after 5 seconds." en="Stop printing &quot;{}&quot;?&#10;&#10;This cannot be undone after 5 seconds."/>
+  <translation tag="Stopped" en="Stopped"/>
   <translation tag="Stopped between Hub and Toolhead" en="Stopped between Hub and Toolhead"/>
   <translation tag="Stopped between Lane and Hub" en="Stopped between Lane and Hub"/>
   <translation tag="Stopped between Spool and Lane" en="Stopped between Spool and Lane"/>

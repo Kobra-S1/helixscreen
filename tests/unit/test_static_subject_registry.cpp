@@ -17,6 +17,7 @@
 #include "../helix_test_fixture.h"
 #include "static_subject_registry.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -35,4 +36,47 @@ TEST_CASE_METHOD(HelixTestFixture, "StaticSubjectRegistry keeps one entry per na
     // The live registration wins, and nothing from the superseded one is left.
     CHECK(ran == std::vector<std::string>{"second"});
     CHECK_FALSE(registry.deinit_one(kName));
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "StaticSubjectRegistry printer switch honours each entry's lifetime",
+                 "[core][subjects]") {
+    // A switch only re-runs init on the rebuild path, so it must leave alone what
+    // boot-time registration owns and still release per-widget state that observes
+    // printer subjects. Exit runs everything.
+    using Lifetime = StaticSubjectRegistry::Lifetime;
+    using Scope = StaticSubjectRegistry::Scope;
+    auto& registry = StaticSubjectRegistry::instance();
+    static constexpr const char* kPrinter = "StaticSubjectRegistryLifetimePrinter";
+    static constexpr const char* kProcess = "StaticSubjectRegistryLifetimeProcess";
+    static constexpr const char* kRerun = "StaticSubjectRegistryLifetimeRerun";
+
+    const size_t baseline = registry.count();
+    std::vector<std::string> ran;
+    registry.register_deinit(kPrinter, [&ran]() { ran.emplace_back("printer"); });
+    registry.register_deinit(
+        kProcess, [&ran]() { ran.emplace_back("process"); }, Lifetime::Process);
+    registry.register_deinit(
+        kRerun, [&ran]() { ran.emplace_back("rerun"); }, Lifetime::ProcessRunOnSwitch);
+    REQUIRE(registry.count() == baseline + 3);
+
+    REQUIRE(registry.deinit_one(kPrinter, Scope::PrinterSwitch));
+    REQUIRE(registry.deinit_one(kProcess, Scope::PrinterSwitch));
+    REQUIRE(registry.deinit_one(kRerun, Scope::PrinterSwitch));
+    CHECK(ran == std::vector<std::string>{"printer", "rerun"});
+
+    // The printer entry is gone and free to come back from the rebuild path; the
+    // other two stay registered.
+    CHECK(registry.count() == baseline + 2);
+    CHECK_FALSE(registry.deinit_one(kPrinter, Scope::PrinterSwitch));
+    registry.register_deinit(kPrinter, [&ran]() { ran.emplace_back("printer:rebuilt"); });
+
+    // A second switch re-runs the run-on-switch cleanup; exit then runs every entry once.
+    ran.clear();
+    REQUIRE(registry.deinit_one(kRerun, Scope::PrinterSwitch));
+    REQUIRE(registry.deinit_one(kPrinter, Scope::ProcessExit));
+    REQUIRE(registry.deinit_one(kProcess, Scope::ProcessExit));
+    REQUIRE(registry.deinit_one(kRerun, Scope::ProcessExit));
+    CHECK(ran == std::vector<std::string>{"rerun", "printer:rebuilt", "process", "rerun"});
+    CHECK(registry.count() == baseline);
 }

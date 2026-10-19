@@ -716,8 +716,14 @@ static void create_spool_visualization(AmsSlotData* data) {
  * Uses observer factory pattern for type-safe lambda observers
  */
 static void setup_slot_observers(AmsSlotData* data) {
-    if (data->slot_index < 0 || data->slot_index >= AmsState::MAX_SLOTS) {
+    if (data->slot_index < 0) {
         spdlog::warn("[AmsSlot] Invalid slot index {}, skipping observers", data->slot_index);
+        return;
+    }
+    if (data->slot_index >= AmsState::MAX_SLOTS) {
+        // AmsState warns once for the whole overflow; this slot stays unbound.
+        spdlog::debug("[AmsSlot] Slot {} is past the subject ceiling, left unbound",
+                      data->slot_index);
         return;
     }
 
@@ -1065,7 +1071,11 @@ void ui_ams_slot_register(void) {
 
     // Self-register cleanup — ensures slot data is released before lv_deinit()
     // so that lv_subject_deinit() can safely remove observers from live widgets
-    StaticSubjectRegistry::instance().register_deinit("AmsSlotWidgets", cleanup_all_slot_data);
+    // Registration is process-once; the slots observe printer subjects, so the cleanup
+    // runs at every printer switch and stays registered for the next one.
+    StaticSubjectRegistry::instance().register_deinit(
+        "AmsSlotWidgets", cleanup_all_slot_data,
+        StaticSubjectRegistry::Lifetime::ProcessRunOnSwitch);
 
     spdlog::info("[AmsSlot] Registered ams_slot widget with XML system");
 }

@@ -1247,6 +1247,7 @@
   <translation tag="Issue description" ru="Описание проблемы"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." ru="Это можно восстановить из архива в веб-интерфейсе Spoolman."/>
   <translation tag="It&apos;s a new spool" ru="Это новая катушка"/>
+  <translation tag="Jammed" ru="Замятие"/>
   <translation tag="Jammed at the Toolhead" ru="Замятие в печатающей головке"/>
   <translation tag="Job Queue" ru="Очередь заданий"/>
   <translation tag="Jog failed: {}" ru="Перемещение не удалось: {}"/>
@@ -2394,6 +2395,7 @@
   <translation tag="Stop Print?" ru="Остановить печать?"/>
   <translation tag="Stop failed" ru="Ошибка остановки"/>
   <translation tag="Stop printing &quot;{}&quot;?&#10;&#10;This cannot be undone after 5 seconds." ru="Остановить печать &quot;{}&quot;?&#10;&#10;Это нельзя будет отменить через 5 секунд."/>
+  <translation tag="Stopped" ru="Остановлено"/>
   <translation tag="Stopped between Hub and Toolhead" ru="Остановка между хабом и печатающей головкой"/>
   <translation tag="Stopped between Lane and Hub" ru="Остановка между слотом и хабом"/>
   <translation tag="Stopped between Spool and Lane" ru="Остановка между катушкой и слотом"/>

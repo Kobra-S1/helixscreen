@@ -95,11 +95,15 @@ void register_favorite_macro_config_subjects() {
     lv_subject_init_int(&s_require_confirm_subject, 1);
     lv_xml_register_subject(nullptr, "fav_macro_config_tab", &s_tab_subject);
     lv_xml_register_subject(nullptr, "fav_macro_require_confirm", &s_require_confirm_subject);
-    StaticSubjectRegistry::instance().register_deinit("FavoriteMacroConfigSubjects", []() {
-        lv_subject_deinit(&s_tab_subject);
-        lv_subject_deinit(&s_require_confirm_subject);
-        s_subjects_registered = false;
-    });
+    // Registered once with the widget factories, so it outlives a printer switch.
+    StaticSubjectRegistry::instance().register_deinit(
+        "FavoriteMacroConfigSubjects",
+        []() {
+            lv_subject_deinit(&s_tab_subject);
+            lv_subject_deinit(&s_require_confirm_subject);
+            s_subjects_registered = false;
+        },
+        StaticSubjectRegistry::Lifetime::Process);
     s_subjects_registered = true;
 }
 

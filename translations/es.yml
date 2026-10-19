@@ -1397,6 +1397,7 @@ translations:
   Issue description: Descripción del problema
   It can be un-archived in Spoolman's web UI.: Se puede desarchivar en la interfaz web de Spoolman.
   It's a new spool: Es una bobina nueva
+  Jammed: Atascado
   Jammed at the Toolhead: Atascado en el cabezal
   Job Queue: Cola de trabajos
   'Jog failed: {}': 'Error en movimiento: {}'
@@ -2673,6 +2674,7 @@ translations:
   Stop failed: Detención fallida
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "¿Detener la impresión de \"{}\"?\n\nEsto no se puede deshacer después de 5 segundos."
+  Stopped: Detenido
   Stopped between Hub and Toolhead: Detenido entre el Hub y el cabezal
   Stopped between Lane and Hub: Detenido entre el carril y el Hub
   Stopped between Spool and Lane: Detenido entre la bobina y el carril

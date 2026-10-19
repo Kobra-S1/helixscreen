@@ -128,6 +128,10 @@ void MySingleton::deinit_subjects() {
 // Self-registration (last line of init_subjects()) — never from SubjectInitializer
 StaticSubjectRegistry::instance().register_deinit(
     "MySingleton", []() { MySingleton::instance().deinit_subjects(); });
+
+// Subjects created once at boot, whose init a printer switch does not re-run:
+StaticSubjectRegistry::instance().register_deinit(
+    "MyComponent", deinit_my_component_subjects, StaticSubjectRegistry::Lifetime::Process);
 ```
 
 **See [chapter 11 — Startup & shutdown](architecture/11-startup-shutdown.md) for full pattern.**

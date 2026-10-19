@@ -666,15 +666,18 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
                 // so a member ObserverGuard with no SubjectLifetime is correct.
                 step_index_subject_ = backend->get_operation_step_index_subject(op_type);
                 if (step_index_subject_) {
-                    // #1046 I-1: for narration-driven bars, seed the shared step
-                    // subject to step 0 (heat) at operation start — BEFORE observing,
-                    // so the initial observer fire highlights heat immediately and the
-                    // bar never looks dead if the matcher misses the opening `//` line.
-                    // This also discards any early narration index resolved against a
-                    // prior operation's template before this recreate ran (#1046 M-1).
+                    // For narration-driven bars with no phase yet, seed the shared
+                    // step subject to step 0 (heat) BEFORE observing, so the initial
+                    // observer fire highlights heat and the bar never looks dead if
+                    // the matcher misses the opening `//` line (#1046). A phase
+                    // already narrated for this operation is kept: an externally
+                    // started operation narrates before its action reaches us, and
+                    // set_active_step_operation() above has already re-resolved or
+                    // dropped any index from another template.
                     // Firmware-phase subjects (e.g. Snapmaker) mirror live hardware
                     // and MUST NOT be seeded — gate on the shared narration subject.
-                    if (step_index_subject_ == AmsState::instance().get_toolchange_step_subject()) {
+                    if (step_index_subject_ == AmsState::instance().get_toolchange_step_subject() &&
+                        lv_subject_get_int(step_index_subject_) < 0) {
                         lv_subject_set_int(step_index_subject_, 0);
                     }
                     step_index_observer_ = observe_int_sync<AmsOperationSidebar>(
@@ -925,6 +928,10 @@ void AmsOperationSidebar::start_operation(StepOperationType op_type, int target_
     if (step_progress_container_) {
         lv_obj_remove_flag(step_progress_container_, LV_OBJ_FLAG_HIDDEN);
     }
+
+    // An operation this UI starts begins now: no narration from before it
+    // belongs to it.
+    AmsState::instance().set_narration_phase(-1, "");
 
     // Create step progress with correct steps
     recreate_step_progress_for_operation(op_type);

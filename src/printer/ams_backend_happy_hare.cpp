@@ -1843,20 +1843,11 @@ void AmsBackendHappyHare::sync_narration_step() {
     if (!phase_id)
         return;
 
-    const auto op = AmsState::instance().get_active_step_operation();
-    const auto tmpl = toolchange_phase_template(op);
-    for (size_t k = 0; k < tmpl.size(); ++k) {
-        if (tmpl[k].id == phase_id) {
-            auto tok = lifetime_.token();
-            const int index = static_cast<int>(k);
-            std::string label = tmpl[k].label;
-            tok.defer("AmsBackendHappyHare::sync_narration_step",
-                      [index, label = std::move(label)]() {
-                          AmsState::instance().set_narration_phase(index, label);
-                      });
-            return;
-        }
-    }
+    // Resolved on the main thread, against the operation the step bar holds then.
+    auto tok = lifetime_.token();
+    tok.defer("AmsBackendHappyHare::sync_narration_step", [id = std::string(phase_id)]() {
+        AmsState::instance().apply_narration_phase_id(id);
+    });
 }
 
 void AmsBackendHappyHare::initialize_slots(int gate_count) {

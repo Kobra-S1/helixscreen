@@ -2527,15 +2527,13 @@ bool show_demo_overlay(const std::string& name) {
         // it sits below the scroll area, so it is the shape most likely to
         // overrun the 85% card cap. Unreachable in mock mode — it needs a live
         // Klipper `action:prompt_begin` — so this is the only way to measure it.
-        lv_subject_t* seg = lv_xml_get_subject(nullptr, "afc_fault_segment");
-        if (seg != nullptr) {
-            lv_subject_set_int(seg, static_cast<int>(PathSegment::HUB));
-        }
+        // The modal places the diagram from its own text, so the first line is
+        // AFC's hub fault sentence.
         helix::PromptData data;
         data.title = "Filament Runout Detected";
         data.severity = "error";
         data.text_lines = {
-            "Lane 1 ran out of filament during the print.",
+            "lane1 filament did not trigger hub sensor, CHECK FILAMENT PATH",
             "The toolhead has been parked and the print is paused.",
             "Load a new spool into lane 1, then choose how to continue.",
         };
@@ -2553,8 +2551,8 @@ bool show_demo_overlay(const std::string& name) {
     if (name == "action-prompt-many") {
         // A prompt whose buttons cannot share one row: a preheat macro offering
         // seven material presets. Each label is far wider than a seventh of the
-        // card, so this is the case that must fall back to row_wrap instead of
-        // being squeezed into equal-width cells. Unreachable in mock mode - it
+        // card, so this is the case that becomes a grid instead of being
+        // squeezed into one line of equal-width cells. Unreachable in mock mode - it
         // needs a live Klipper `action:prompt_begin` - so this is the only way
         // to check the wrapped layout against a real 480x272 panel.
         helix::PromptData data;
@@ -4888,7 +4886,8 @@ void Application::tear_down_printer_state() {
 
     // 16. Deinit core singleton subjects (LIFO order via StaticSubjectRegistry).
     //     lv_subject_deinit() removes+frees all remaining observers from each subject.
-    StaticSubjectRegistry::instance().deinit_all();
+    //     A switch spares the entries whose init the rebuild does not re-run.
+    StaticSubjectRegistry::instance().deinit_all(StaticSubjectRegistry::Scope::PrinterSwitch);
 
     // 16b. Destroy JobQueueState (after deinit_all so its registered lambda runs safely)
     m_job_queue_state.reset();

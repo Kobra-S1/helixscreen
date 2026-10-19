@@ -186,7 +186,7 @@ Buttons are color-coded by the macro author to signal intent:
 
 > **Note:** Colors are chosen by whoever wrote the macro — they're a hint, not a rule. Always read the button label. Macro authors can also specify an exact custom color.
 
-Longer menus wrap onto multiple lines automatically, and some macros place a row of **footer buttons** across the bottom of the dialog (often used for "Cancel" or menu navigation). If a prompt is flagged as an error, a red warning icon appears next to the title.
+Some macros place a row of **footer buttons** across the bottom of the dialog (often used for "Cancel" or menu navigation). Five or more buttons line up in a grid of two or three columns, and a prompt too long for the screen scrolls its text and buttons while the footer row stays in view. If a prompt is flagged as an error, a red warning icon appears next to the title.
 
 > **Tip:** Tapping any button sends its command straight to the printer and dismisses the dialog. If you're not sure what a button does, check the macro that produced the prompt — HelixScreen simply displays whatever the macro defines.
 
