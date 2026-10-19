@@ -43,6 +43,11 @@ class HttpExecutor {
     /// Launch the workers. Idempotent.
     void start();
 
+    /// Whether the workers are running. Main thread only.
+    [[nodiscard]] bool running() const {
+        return running_;
+    }
+
     /// Drain currently-executing items up to `join_timeout`, break promises
     /// on queued items, join or detach workers. Idempotent. Safe to call
     /// from the destructor.

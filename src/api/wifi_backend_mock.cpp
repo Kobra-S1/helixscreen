@@ -68,9 +68,7 @@ void WifiBackendMock::stop() {
     }
 
     running_ = false;
-    connected_ = false;
-    connected_ssid_.clear();
-    connected_ip_.clear();
+    set_connected_state(false);
 
     // Use fprintf - spdlog may be destroyed during static cleanup
     fprintf(stderr, "[WifiBackend] Mock backend stopped\n");
@@ -245,11 +243,7 @@ WiFiError WifiBackendMock::disconnect_network() {
     spdlog::info("[WifiBackend] Mock: Disconnecting from '{}'",
                  connected_ssid_); // PII_OK: mock backend, fixture SSIDs
 
-    connected_ = false;
-    std::string old_ssid = connected_ssid_;
-    connected_ssid_.clear();
-    connected_ip_.clear();
-    connected_signal_ = 0;
+    set_connected_state(false);
 
     fire_event("DISCONNECTED", "reason=user_request");
     return WiFiErrorHelper::success();
@@ -258,10 +252,7 @@ WiFiError WifiBackendMock::disconnect_network() {
 WiFiError WifiBackendMock::set_radio_enabled(bool on) {
     radio_enabled_ = on;
     if (!on) {
-        connected_ = false;
-        connected_ssid_.clear();
-        connected_ip_.clear();
-        connected_signal_ = 0;
+        set_connected_state(false);
         fire_event("DISCONNECTED", "");
     }
     return WiFiErrorHelper::success();
@@ -298,10 +289,7 @@ WiFiError WifiBackendMock::forget_network(const std::string& ssid) {
         helix::wifi::store::remove(ssid);
 
     if (connected_ && connected_ssid_ == ssid) {
-        connected_ = false;
-        connected_ssid_.clear();
-        connected_ip_.clear();
-        connected_signal_ = 0;
+        set_connected_state(false);
         fire_event("DISCONNECTED", "reason=forgotten");
     }
 
@@ -371,18 +359,15 @@ void WifiBackendMock::connect_thread_func() {
     }
 
     // Connection successful!
-    connected_ = true;
-    connected_ssid_ = connecting_ssid_;
-    connected_signal_ = it->network.signal_strength;
-
     // Generate mock IP address
     int subnet = 100 + (rng_() % 155); // 192.168.1.100-255
-    connected_ip_ = "192.168.1." + std::to_string(subnet);
+    const std::string ip = "192.168.1." + std::to_string(subnet);
+    set_connected_state(true, connecting_ssid_, ip, it->network.signal_strength);
 
-    spdlog::info("[WifiBackend] Mock: Connected to '{}', IP: {}", connected_ssid_,
-                 connected_ip_); // PII_OK: mock backend, fixture SSIDs
+    spdlog::info("[WifiBackend] Mock: Connected to '{}', IP: {}", connecting_ssid_,
+                 ip); // PII_OK: mock backend, fixture SSIDs
 
-    fire_event("CONNECTED", "ip=" + connected_ip_);
+    fire_event("CONNECTED", "ip=" + ip);
 }
 
 // ============================================================================
@@ -391,6 +376,8 @@ void WifiBackendMock::connect_thread_func() {
 
 WifiBackend::ConnectionStatus WifiBackendMock::get_status() {
     ConnectionStatus status = {};
+    std::unique_lock<std::mutex> lock(status_mutex_);
+    status_callers_.push_back(std::this_thread::get_id());
     status.connected = connected_;
     status.ssid = connected_ssid_;
     status.ip_address = connected_ip_;
@@ -402,11 +389,39 @@ WifiBackend::ConnectionStatus WifiBackendMock::get_status() {
         status.bssid = "aa:bb:cc:dd:ee:ff";
     }
 
+    if (hold_next_status_) {
+        hold_next_status_ = false;
+        status_held_ = true;
+        status_cv_.wait(lock, [this] { return !status_held_; });
+    }
     return status;
+}
+
+std::vector<std::thread::id> WifiBackendMock::status_callers() {
+    std::lock_guard<std::mutex> lock(status_mutex_);
+    return status_callers_;
+}
+
+void WifiBackendMock::clear_status_callers() {
+    std::lock_guard<std::mutex> lock(status_mutex_);
+    status_callers_.clear();
+}
+
+void WifiBackendMock::hold_next_status() {
+    std::lock_guard<std::mutex> lock(status_mutex_);
+    hold_next_status_ = true;
+}
+
+void WifiBackendMock::release_held_status() {
+    std::lock_guard<std::mutex> lock(status_mutex_);
+    hold_next_status_ = false;
+    status_held_ = false;
+    status_cv_.notify_all();
 }
 
 void WifiBackendMock::set_connected_state(bool connected, const std::string& ssid,
                                           const std::string& ip, int signal) {
+    std::lock_guard<std::mutex> lock(status_mutex_);
     connected_ = connected;
     connected_ssid_ = ssid;
     connected_ip_ = ip;

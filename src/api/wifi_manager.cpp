@@ -36,6 +36,7 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -274,6 +275,7 @@ void WiFiManager::handle_init_failed(bool silent, const std::string& msg) {
             if (!backend_) {
                 return;
             }
+            wait_for_radio_ops();
             backend_->stop();
             // The stopped backend can never deliver the SCAN_COMPLETE a
             // successful trigger_scan() owed, so resolve the scheduler now —
@@ -822,16 +824,11 @@ void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
     // less than it should: taken on the main thread, where `this` is valid.
     auto mgr_token = async_lifetime_.token();
 
-    {
-        std::lock_guard<std::mutex> lock(radio_op_mutex_);
-        ++radio_ops_inflight_;
-    }
-
     // Route through HttpExecutor::fast() (bounded 4-worker pool) rather than a
     // detached std::thread — per-call spawns fail with pthread EAGAIN under
     // thread exhaustion on memory-constrained ARM devices (#724).
-    helix::http::HttpExecutor::fast().submit([this, enabled, token, mgr_token,
-                                              cb = std::move(on_complete)]() mutable {
+    helix::http::HttpExecutor::fast().submit([this, op = radio_op_scope(), enabled, token,
+                                              mgr_token, cb = std::move(on_complete)]() mutable {
         // `this` is valid for the whole body: ~WiFiManager blocks on
         // radio_op_cv_ until radio_ops_inflight_ drains, before it touches a
         // single member.
@@ -851,19 +848,87 @@ void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
             token.defer("WiFiManager::set_enabled_async",
                         [cb = std::move(cb), success, actual]() { cb(success, actual); });
         }
-
-        {
-            // Notify under the lock, not after it. wait_for_radio_ops() wakes
-            // as soon as the count reaches zero, and ~WiFiManager() destroys
-            // radio_op_cv_ right after it returns -- which would be while this
-            // thread was still inside notify_all(). Holding the mutex across
-            // the notify keeps the waiter blocked on reacquiring it until we
-            // are done touching the condition variable.
-            std::lock_guard<std::mutex> lock(radio_op_mutex_);
-            --radio_ops_inflight_;
-            radio_op_cv_.notify_all();
-        }
     });
+}
+
+void WiFiManager::get_status_async(
+    helix::LifetimeToken token, std::function<void(const WifiBackend::ConnectionStatus&)> on_done) {
+    if (!on_done) {
+        return;
+    }
+    if (!helix::http::HttpExecutor::fast().running()) {
+        on_done(backend_ ? backend_->get_status() : WifiBackend::ConnectionStatus{});
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(status_waiters_mutex_);
+        status_waiters_.push_back({std::move(token), std::move(on_done)});
+        if (status_read_inflight_) {
+            return;
+        }
+        status_read_inflight_ = true;
+    }
+    // One owner, so the two steps run in this order however the work item's
+    // captures are destroyed: a task dropped unrun clears the in-flight mark (so
+    // the next caller starts a read that also answers everyone still waiting),
+    // and only then ends the radio op, after which ~WiFiManager may proceed.
+    begin_radio_op();
+    auto ran = std::shared_ptr<std::atomic<bool>>(
+        new std::atomic<bool>(false), [this](std::atomic<bool>* r) {
+            if (!r->load()) {
+                std::lock_guard<std::mutex> lock(status_waiters_mutex_);
+                status_read_inflight_ = false;
+            }
+            delete r;
+            end_radio_op();
+        });
+    helix::http::HttpExecutor::fast().submit([this, ran = std::move(ran)]() {
+        ran->store(true);
+        run_status_reads();
+    });
+}
+
+void WiFiManager::run_status_reads() {
+    // `this` is valid for the whole body: see radio_op_mutex_.
+    for (;;) {
+        std::vector<StatusWaiter> batch;
+        {
+            std::lock_guard<std::mutex> lock(status_waiters_mutex_);
+            if (status_waiters_.empty()) {
+                status_read_inflight_ = false;
+                return;
+            }
+            batch.swap(status_waiters_);
+        }
+        // Every waiter in the batch asked before this read began.
+        const WifiBackend::ConnectionStatus status =
+            backend_ ? backend_->get_status() : WifiBackend::ConnectionStatus{};
+        for (auto& w : batch) {
+            w.token.defer("WiFiManager::get_status_async",
+                          [cb = std::move(w.on_done), status]() { cb(status); });
+        }
+    }
+}
+
+std::shared_ptr<void> WiFiManager::radio_op_scope() {
+    begin_radio_op();
+    return std::shared_ptr<void>(nullptr, [this](void*) { end_radio_op(); });
+}
+
+void WiFiManager::begin_radio_op() {
+    std::lock_guard<std::mutex> lock(radio_op_mutex_);
+    ++radio_ops_inflight_;
+}
+
+void WiFiManager::end_radio_op() {
+    // Notify under the lock, not after it. wait_for_radio_ops() wakes as soon as
+    // the count reaches zero, and ~WiFiManager() destroys radio_op_cv_ right
+    // after it returns -- which would be while this thread was still inside
+    // notify_all(). Holding the mutex across the notify keeps the waiter blocked
+    // on reacquiring it until we are done touching the condition variable.
+    std::lock_guard<std::mutex> lock(radio_op_mutex_);
+    --radio_ops_inflight_;
+    radio_op_cv_.notify_all();
 }
 
 void WiFiManager::wait_for_radio_ops() {

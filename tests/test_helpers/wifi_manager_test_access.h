@@ -19,6 +19,7 @@
 #include "wifi_manager.h"
 
 #include <functional>
+#include <mutex>
 #include <string>
 
 namespace helix {
@@ -89,6 +90,11 @@ class WiFiManagerTestAccess {
     static void add_observer(WiFiManager& wm, helix::LifetimeToken token,
                              std::function<void()> cb) {
         wm.add_state_observer(std::move(token), std::move(cb));
+    }
+
+    static int radio_ops_inflight(WiFiManager& wm) {
+        std::lock_guard<std::mutex> lock(wm.radio_op_mutex_);
+        return wm.radio_ops_inflight_;
     }
 };
 

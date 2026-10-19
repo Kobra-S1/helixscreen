@@ -3,6 +3,12 @@
 
 #include "ui_overlay_network_settings.h"
 
+#include "wifi_backend.h"
+
+#include <cstring>
+#include <string>
+#include <vector>
+
 /**
  * @brief Reaches the overlay's cached modal pointers.
  *
@@ -40,6 +46,16 @@ class NetworkSettingsOverlayTestAccess {
     static lv_subject_t& wifi_connected(NetworkSettingsOverlay& o) {
         return o.wifi_connected_;
     }
+    /// The SSID the password modal is about. The handlers read it rather than
+    /// taking it as an argument, so a test has to seed it.
+    static void set_current_ssid(NetworkSettingsOverlay& o, const std::string& ssid) {
+        strncpy(o.current_ssid_, ssid.c_str(), sizeof(o.current_ssid_) - 1);
+        o.current_ssid_[sizeof(o.current_ssid_) - 1] = '\0';
+    }
+    /// The production handler behind the password modal's Connect button.
+    static void password_connect_clicked(NetworkSettingsOverlay& o) {
+        o.handle_password_connect_clicked();
+    }
     /// Open the hidden-network modal, exactly as the "Add other network"
     /// button does.
     static void add_other_clicked(NetworkSettingsOverlay& o) {
@@ -48,5 +64,37 @@ class NetworkSettingsOverlayTestAccess {
     /// Drive the hidden-network modal's Connect button.
     static void hidden_connect_clicked(NetworkSettingsOverlay& o) {
         o.handle_hidden_connect_clicked();
+    }
+    /// Build the scan rows synchronously, with no network connected — the click
+    /// handler reads per-row data only this path attaches.
+    static void populate(NetworkSettingsOverlay& o, const std::vector<WiFiNetwork>& networks) {
+        o.build_network_list(networks, WifiBackend::ConnectionStatus{});
+    }
+    /// What a completed scan does: the rows are built once the connection
+    /// read lands.
+    static void scan_completed(NetworkSettingsOverlay& o,
+                               const std::vector<WiFiNetwork>& networks) {
+        o.populate_network_list(networks);
+    }
+    static void update_wifi_status(NetworkSettingsOverlay& o) {
+        o.update_wifi_status();
+    }
+    static void forget_clicked(NetworkSettingsOverlay& o) {
+        o.handle_network_settings_forget();
+    }
+    static const std::string& pending_forget_ssid(NetworkSettingsOverlay& o) {
+        return o.pending_forget_ssid_;
+    }
+    static std::string ssid(NetworkSettingsOverlay& o) {
+        return o.ssid_buffer_;
+    }
+    static std::string ip(NetworkSettingsOverlay& o) {
+        return o.ip_buffer_;
+    }
+    static std::string mac(NetworkSettingsOverlay& o) {
+        return o.mac_buffer_;
+    }
+    static lv_obj_t* networks_list(NetworkSettingsOverlay& o) {
+        return o.networks_list_;
     }
 };

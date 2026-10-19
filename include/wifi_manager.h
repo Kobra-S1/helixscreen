@@ -145,6 +145,24 @@ class WiFiManager {
     // ========================================================================
     // Status Queries
     // ========================================================================
+    //
+    // The synchronous queries below each ask the backend, which on
+    // wpa_supplicant is a control-socket round trip that can wait up to 10s.
+    // UI code uses get_status_async() instead.
+
+    /**
+     * @brief Non-blocking connection status for UI callers
+     *
+     * Reads on an HttpExecutor worker; `on_done` runs on the main/LVGL thread
+     * through `token`. One read is in flight at a time: a caller arriving
+     * during it is answered by the next read, so no answer predates its
+     * request. Call from the main thread: the read is registered there, so a
+     * backend swap or the destructor waits for it. With the pool not running
+     * (ESP32 never starts it; its backend answers from memory) `on_done` runs
+     * before this returns.
+     */
+    void get_status_async(helix::LifetimeToken token,
+                          std::function<void(const WifiBackend::ConnectionStatus&)> on_done);
 
     /**
      * @brief Check if connected to any network
@@ -462,15 +480,32 @@ class WiFiManager {
     // `this`) so this stays free of member access.
     static void report_radio_result(bool enabled, const WiFiError& result, bool has_wired_fallback);
 
-    // Barrier for set_enabled_async() workers. The worker runs on an
-    // HttpExecutor thread and dereferences `this` (backend_) for the whole of
-    // apply_radio_enabled(), so the destructor waits here before any member is
-    // torn down. Unbounded on purpose: a timeout that expired would hand the
-    // worker a freed backend, and the backend calls carry their own deadlines.
+    // Barrier for set_enabled_async() and get_status_async() workers. A worker
+    // runs on an HttpExecutor thread and dereferences `this` (backend_) for the
+    // whole of its backend call, so the destructor and the backend swap wait
+    // here before touching backend_. Ops are registered on the main thread,
+    // which is busy running the swap, so none can start while it waits.
+    // Unbounded on purpose: a timeout that expired would hand the worker a
+    // freed backend, and the backend calls carry their own deadlines.
     std::mutex radio_op_mutex_;
     std::condition_variable radio_op_cv_;
     int radio_ops_inflight_ = 0;
+    void begin_radio_op();
+    void end_radio_op();
     void wait_for_radio_ops();
+    // Registers a radio op and ends it when the last copy is destroyed, so a
+    // work item the executor drops unrun still releases it. Main thread only.
+    std::shared_ptr<void> radio_op_scope();
+
+    // Callers waiting on the status read in flight (get_status_async).
+    struct StatusWaiter {
+        helix::LifetimeToken token;
+        std::function<void(const WifiBackend::ConnectionStatus&)> on_done;
+    };
+    std::mutex status_waiters_mutex_;
+    std::vector<StatusWaiter> status_waiters_;
+    bool status_read_inflight_ = false;
+    void run_status_reads();
 
     // Sysfs root used by has_non_wifi_network_path() to gate the stored-radio
     // -state reassert (Task 15: never disable the radio on a device whose
