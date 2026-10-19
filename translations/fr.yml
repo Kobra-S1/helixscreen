@@ -3174,6 +3174,7 @@ translations:
   WiFi and Ethernet configuration: Configuration WiFi et Ethernet
   WiFi control unavailable: Contrôle WiFi indisponible
   WiFi hardware unavailable: Matériel WiFi indisponible
+  WiFi isn't responding: Le WiFi ne répond pas
   WiFi radio did not change state: La radio WiFi n'a pas changé d'état
   WiFi unavailable: WiFi non disponible
   WiFi was configured but hardware is not available. Check system configuration.: Le

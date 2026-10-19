@@ -104,6 +104,14 @@
               <icon src="wifi_off" size="sm" variant="secondary"/>
               <text_small text="Not connected" translation_tag="Not connected"/>
             </lv_obj>
+            <!-- Control interface not answering (shown when wifi_unresponsive == 1); the row above keeps the last known state -->
+            <lv_obj name="wifi_unresponsive_state"
+                    width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                    style_flex_cross_place="center" style_pad_gap="#space_sm" style_margin_top="#space_xs">
+              <bind_flag_if_eq subject="wifi_unresponsive" flag="hidden" ref_value="0"/>
+              <icon src="alert" size="sm" variant="warning"/>
+              <text_small text="WiFi isn't responding"/>
+            </lv_obj>
           </lv_obj>
         </lv_obj>
         <!-- ============================================================== -->

@@ -3063,6 +3063,7 @@ translations:
   WiFi and Ethernet configuration: WiFi and Ethernet configuration
   WiFi control unavailable: WiFi control unavailable
   WiFi hardware unavailable: WiFi hardware unavailable
+  WiFi isn't responding: WiFi isn't responding
   WiFi radio did not change state: WiFi radio did not change state
   WiFi unavailable: WiFi unavailable
   WiFi was configured but hardware is not available. Check system configuration.: WiFi

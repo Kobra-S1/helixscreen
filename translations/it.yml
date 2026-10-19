@@ -3137,6 +3137,7 @@ translations:
   WiFi and Ethernet configuration: Configurazione WiFi ed Ethernet
   WiFi control unavailable: Controllo WiFi non disponibile
   WiFi hardware unavailable: Hardware WiFi non disponibile
+  WiFi isn't responding: Il WiFi non risponde
   WiFi radio did not change state: Il modulo WiFi non ha cambiato stato
   WiFi unavailable: WiFi non disponibile
   WiFi was configured but hardware is not available. Check system configuration.: Il

@@ -3145,6 +3145,7 @@ translations:
   WiFi and Ethernet configuration: WiFi- und Ethernet-Konfiguration
   WiFi control unavailable: WiFi-Steuerung nicht verfügbar
   WiFi hardware unavailable: WiFi-Hardware nicht verfügbar
+  WiFi isn't responding: WiFi antwortet nicht
   WiFi radio did not change state: WiFi-Funkmodul hat den Status nicht geändert
   WiFi unavailable: WiFi nicht verfügbar
   WiFi was configured but hardware is not available. Check system configuration.: WiFi

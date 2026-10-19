@@ -507,6 +507,7 @@ src/api/wifi_ui_utils.cpp
 src/api/wifi_manager.cpp
 src/api/wifi_interface.cpp
 src/api/wifi_scan_scheduler.cpp
+src/api/wifi_control_breaker.cpp
 src/api/wifi_backend.cpp
 src/api/moonraker_api.cpp
 src/api/moonraker_api_config.cpp

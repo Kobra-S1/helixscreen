@@ -2764,6 +2764,7 @@
   <translation tag="WiFi and Ethernet configuration" es="Configuración de WiFi y Ethernet"/>
   <translation tag="WiFi control unavailable" es="Control de WiFi no disponible"/>
   <translation tag="WiFi hardware unavailable" es="Hardware WiFi no disponible"/>
+  <translation tag="WiFi isn&apos;t responding" es="El WiFi no responde"/>
   <translation tag="WiFi radio did not change state" es="La radio WiFi no cambió de estado"/>
   <translation tag="WiFi unavailable" es="WiFi no disponible"/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." es="WiFi fue configurado pero el hardware no está disponible. Revise la configuración del sistema."/>

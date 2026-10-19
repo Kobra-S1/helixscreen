@@ -2764,6 +2764,7 @@
   <translation tag="WiFi and Ethernet configuration" ja="WiFi とイーサネットの設定"/>
   <translation tag="WiFi control unavailable" ja="WiFi 制御は利用できません"/>
   <translation tag="WiFi hardware unavailable" ja="WiFi ハードウェアが利用できません"/>
+  <translation tag="WiFi isn&apos;t responding" ja="WiFi が応答しません"/>
   <translation tag="WiFi radio did not change state" ja="WiFiの状態が変わりませんでした"/>
   <translation tag="WiFi unavailable" ja="WiFi が利用できません"/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." ja="WiFi は設定されていますが、ハードウェアが利用できません。システム設定を確認してください。"/>

@@ -411,7 +411,9 @@ void WiFiManager::add_state_observer(helix::LifetimeToken, std::function<void()>
 void WiFiManager::init_self_reference(std::shared_ptr<WiFiManager>) {}
 
 std::shared_ptr<WiFiManager> get_wifi_manager() {
-    static std::shared_ptr<WiFiManager> mgr = std::make_shared<WiFiManager>(true);
+    // This build's get_wifi_manager(): the one owner, never freed.
+    static std::shared_ptr<WiFiManager> mgr =
+        std::make_shared<WiFiManager>(true); // WIFI_MANAGER_OWNER_OK
     return mgr;
 }
 

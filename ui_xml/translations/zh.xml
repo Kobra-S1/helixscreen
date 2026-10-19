@@ -2764,6 +2764,7 @@
   <translation tag="WiFi and Ethernet configuration" zh="WiFi 和以太网配置"/>
   <translation tag="WiFi control unavailable" zh="WiFi 控制不可用"/>
   <translation tag="WiFi hardware unavailable" zh="WiFi 硬件不可用"/>
+  <translation tag="WiFi isn&apos;t responding" zh="WiFi 无响应"/>
   <translation tag="WiFi radio did not change state" zh="WiFi 状态未改变"/>
   <translation tag="WiFi unavailable" zh="WiFi 不可用"/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." zh="已配置 WiFi 但硬件不可用。请检查系统配置。"/>

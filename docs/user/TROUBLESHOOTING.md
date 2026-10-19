@@ -381,6 +381,44 @@ sudo nmcli device wifi connect "HiddenSSID" password "Password" hidden yes
 
 > **Note:** Older guides may reference `wpa_supplicant` directly, but MainsailOS and most modern systems use NetworkManager. Use `nmcli` commands instead.
 
+### "WiFi isn't responding"
+
+**Symptoms:**
+- A **WiFi isn't responding** message pops up after you tap a network, **Disconnect**, **Forget** or the WiFi switch
+- **Settings > System > Network Settings** shows **WiFi isn't responding** under the WiFi details
+- The list of networks stops updating, even when you tap **Refresh**
+
+**What it means:** The printer's own WiFi service (NetworkManager or wpa_supplicant) has stopped answering. This usually means the WiFi driver or adapter has hung. HelixScreen itself is fine: the screen keeps working and your printer stays usable.
+
+**What HelixScreen does meanwhile:**
+- Shows the last WiFi details and network list it got, instead of blanking them
+- Stops scanning for networks, so it doesn't pile more requests onto the stuck service
+- Checks the service again after about 15 seconds, then less often, up to every 2 minutes
+- As soon as the service answers, the message goes away and scanning starts again on its own. You don't need to do anything.
+
+Before HelixScreen notices the service is stuck, an action can take up to about 45 seconds to show the message. After that, tapping a network, **Disconnect**, **Forget** or the WiFi switch shows **WiFi isn't responding** right away. Nothing is sent to the WiFi service, so nothing changes.
+
+**What to try:**
+
+1. **Wait a minute, then try again.** A service that was only busy recovers by itself, and the message clears.
+2. **Check the WiFi service from a computer** (over SSH):
+   ```bash
+   # For NetworkManager systems:
+   sudo systemctl status NetworkManager
+   nmcli device wifi list
+
+   # For wpa_supplicant systems:
+   sudo wpa_cli status
+   ```
+   If these commands also hang or report errors, the problem is in the WiFi service or driver, not in HelixScreen.
+3. **Restart the WiFi service** (NetworkManager systems):
+   ```bash
+   sudo systemctl restart NetworkManager
+   ```
+   This drops the WiFi connection for a moment. If you are connected over WiFi, your SSH session will close.
+4. **Reboot the printer.** If a reboot doesn't help, turn it off at the power switch, wait ten seconds, and turn it back on. A hung WiFi adapter sometimes needs a full power cycle.
+5. **If it keeps coming back,** send a debug bundle from **Settings > Help & About > Upload Debug Bundle** and mention "WiFi isn't responding" in your report.
+
 ### WiFi permission denied
 
 **Symptoms:**

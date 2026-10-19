@@ -2764,6 +2764,7 @@
   <translation tag="WiFi and Ethernet configuration" ru="Настройка WiFi и Ethernet"/>
   <translation tag="WiFi control unavailable" ru="Управление WiFi недоступно"/>
   <translation tag="WiFi hardware unavailable" ru="Оборудование WiFi недоступно"/>
+  <translation tag="WiFi isn&apos;t responding" ru="WiFi не отвечает"/>
   <translation tag="WiFi radio did not change state" ru="Состояние модуля WiFi не изменилось"/>
   <translation tag="WiFi unavailable" ru="WiFi недоступен"/>
   <translation tag="WiFi was configured but hardware is not available. Check system configuration." ru="WiFi был настроен, но оборудование недоступно. Проверьте конфигурацию системы."/>

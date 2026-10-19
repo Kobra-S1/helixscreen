@@ -16,6 +16,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/network_settings_overlay_test_access.h"
+#include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "wifi_backend_mock.h"
 #include "wifi_manager.h"
@@ -70,6 +71,7 @@ TEST_CASE_METHOD(HiddenConnectFixture,
     lv_textarea_set_text(ssid_input, "StealthNet");
 
     Access::hidden_connect_clicked(*overlay);
+    REQUIRE(helix::WiFiManagerTestAccess::settle(*wm));
 
     // The request's hidden-ness is the whole contract here, not the join's
     // outcome — the mock refuses the SSID on its scan list either way.

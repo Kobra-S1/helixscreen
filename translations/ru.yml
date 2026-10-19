@@ -3096,6 +3096,7 @@ translations:
   WiFi and Ethernet configuration: Настройка WiFi и Ethernet
   WiFi control unavailable: Управление WiFi недоступно
   WiFi hardware unavailable: Оборудование WiFi недоступно
+  WiFi isn't responding: WiFi не отвечает
   WiFi radio did not change state: Состояние модуля WiFi не изменилось
   WiFi unavailable: WiFi недоступен
   WiFi was configured but hardware is not available. Check system configuration.: WiFi

@@ -954,3 +954,62 @@ own_endpoint_http_offenders() {
     lacks "update_checker.cpp" "$output"
     lacks "debug_bundle_collector.cpp:2" "$output"
 }
+
+# --- WiFiManager is built only by get_wifi_manager() ---
+#
+# ~WiFiManager waits, unbounded, for the WiFi control call in progress: the
+# lane worker dereferences the manager for the whole call, so a bounded wait
+# would free it under the worker. That wait is safe only because no production
+# code destroys a WiFiManager: get_wifi_manager()'s instance is never freed.
+# Any other owner in app code would put a wedged wpa_supplicant on its
+# destructor's path. Unavoidable? // WIFI_MANAGER_OWNER_OK: <reason>
+wifi_manager_owner_pattern() {
+    printf '%s' '(make_shared|make_unique)<(helix::)?WiFiManager>|new[[:space:]]+(helix::)?WiFiManager[[:space:]]*[({]|(^|[^_[:alnum:]:])(helix::)?WiFiManager[[:space:]]+[_[:alpha:]][_[:alnum:]]*[[:space:]]*[({;]'
+}
+
+wifi_manager_owner_lint_files() {
+    git ls-files --cached --others --exclude-standard src include firmware |
+        grep -E '\.(cpp|h)$'
+}
+
+check_wifi_manager_single_owner() {
+    local offenders
+    # shellcheck disable=SC2046  # paths have no spaces; word splitting is intended
+    offenders=$(code_offenders "$(wifi_manager_owner_pattern)" WIFI_MANAGER_OWNER_OK $(wifi_manager_owner_lint_files))
+    [ -z "$offenders" ] && return 0
+    echo "WiFiManager built outside get_wifi_manager() (its destructor can wait forever on a wedged daemon):"
+    printf '%s\n' "$offenders"
+    echo "Use helix::get_wifi_manager(). Unavoidable? // WIFI_MANAGER_OWNER_OK: <reason>"
+    return 1
+}
+
+@test "app code builds WiFiManager only through get_wifi_manager()" {
+    run check_wifi_manager_single_owner
+    [ "$status" -eq 0 ]
+}
+
+@test "the WiFiManager owner gate catches constructions and stays quiet on uses and opt-outs" {
+    local f="${BATS_TEST_TMPDIR}/wifi_owner_shapes.cpp"
+    cat > "$f" <<'SHAPES'
+auto wm = std::make_shared<WiFiManager>(true);
+auto wm = std::make_unique<helix::WiFiManager>(std::move(b));
+auto* wm = new WiFiManager(true);
+WiFiManager wm(std::move(b));
+helix::WiFiManager wm;
+std::shared_ptr<WiFiManager> get_wifi_manager();
+explicit WiFiManager(bool silent = false);
+WiFiManager::~WiFiManager() {
+friend class WiFiManagerTestAccess;
+WiFiManager* manager = static_cast<WiFiManager*>(p);
+// std::make_shared<WiFiManager>() in a comment
+auto wm = std::make_shared<WiFiManager>(true); // WIFI_MANAGER_OWNER_OK: the one owner
+SHAPES
+    run code_offenders "$(wifi_manager_owner_pattern)" WIFI_MANAGER_OWNER_OK "$f"
+    [ "$status" -eq 0 ]
+    [ "${#lines[@]}" -eq 5 ]
+    lacks "get_wifi_manager" "$output"
+    lacks "explicit" "$output"
+    lacks "TestAccess" "$output"
+    lacks "static_cast" "$output"
+    lacks "OWNER_OK" "$output"
+}

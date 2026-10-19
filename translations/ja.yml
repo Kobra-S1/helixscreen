@@ -2867,6 +2867,7 @@ translations:
   WiFi and Ethernet configuration: WiFi とイーサネットの設定
   WiFi control unavailable: WiFi 制御は利用できません
   WiFi hardware unavailable: WiFi ハードウェアが利用できません
+  WiFi isn't responding: WiFi が応答しません
   WiFi radio did not change state: WiFiの状態が変わりませんでした
   WiFi unavailable: WiFi が利用できません
   WiFi was configured but hardware is not available. Check system configuration.: WiFi

@@ -269,6 +269,9 @@ class WifiBackend {
         std::string mac_address; ///< Device WiFi adapter MAC address
         int signal_strength{0};  ///< Signal strength (0-100%)
         int frequency_mhz{0};    ///< Connected frequency in MHz (0 = unknown)
+        /// Set by WiFiManager, never by a backend: the control interface has
+        /// stopped answering, and the fields above are the last answer it gave.
+        bool unresponsive{false};
     };
 
     // ========================================================================

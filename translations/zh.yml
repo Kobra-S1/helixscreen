@@ -2856,6 +2856,7 @@ translations:
   WiFi and Ethernet configuration: WiFi 和以太网配置
   WiFi control unavailable: WiFi 控制不可用
   WiFi hardware unavailable: WiFi 硬件不可用
+  WiFi isn't responding: WiFi 无响应
   WiFi radio did not change state: WiFi 状态未改变
   WiFi unavailable: WiFi 不可用
   WiFi was configured but hardware is not available. Check system configuration.: 已配置
