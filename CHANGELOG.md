@@ -5,6 +5,18 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - Unreleased
+
+### Fixed
+
+- **The screen no longer freezes when Wi-Fi stops answering** - Wi-Fi scans, joins, the
+  radio switch and status checks now run in the background, so a hung Wi-Fi driver can't
+  lock up the touchscreen or drop the UI mid-scan. If the Wi-Fi service stops responding,
+  Network Settings says **WiFi isn't responding**, keeps the last network list, and checks
+  again on its own until the service recovers.
+- **Settings has a Printer row** - it opens the Printer Manager, which was otherwise only
+  reachable from the home screen's printer image widget.
+
 ## [1.0.5] - 2026-10-13
 
 <!-- whatsnew
