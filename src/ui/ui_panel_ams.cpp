@@ -956,7 +956,7 @@ void AmsPanel::update_endless_arrows_from_backend() {
     // group-to-edge projection lives in helix::printer, shared with the context
     // menu's dropdown, so a Happy Hare group and an AFC chain cannot disagree
     // about which arrow to draw.
-    static constexpr int MAX_ARROW_SLOTS = 16;
+    static constexpr int MAX_ARROW_SLOTS = helix::AMS_MAX_SLOTS;
     const auto config = backend->get_endless_spool_config();
     int slot_count = std::min(backend->get_system_info().total_slots, MAX_ARROW_SLOTS);
     if (config.empty() || slot_count <= 0) {

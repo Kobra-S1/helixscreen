@@ -1412,6 +1412,7 @@ translations:
   Issue description: Description du problème
   It can be un-archived in Spoolman's web UI.: Elle peut être désarchivée dans l'interface web de Spoolman.
   It's a new spool: C'est une nouvelle bobine
+  Jammed: Bourrage
   Jammed at the Toolhead: Bourrage à la tête d'outil
   Job Queue: File d'impression
   'Jog failed: {}': 'Échec du déplacement : {}'
@@ -2701,6 +2702,7 @@ translations:
   Stop failed: Échec de l'arrêt
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "Arrêter l'impression de \"{}\" ?\n\nCette action sera irréversible après 5 secondes."
+  Stopped: Arrêté
   Stopped between Hub and Toolhead: Arrêté entre le Hub et la tête d'outil
   Stopped between Lane and Hub: Arrêté entre la voie et le Hub
   Stopped between Spool and Lane: Arrêté entre la bobine et la voie

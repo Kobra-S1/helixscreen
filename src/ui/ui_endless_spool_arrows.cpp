@@ -5,6 +5,7 @@
 
 #include "ui_widget_memory.h"
 
+#include "ams_types.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
@@ -42,7 +43,7 @@ static constexpr int32_t BASE_HEIGHT_OFFSET = 10;
 static constexpr int32_t HEIGHT_STEP = 8; // Separation between overlapping lines
 
 // Maximum backup connections supported
-static constexpr int MAX_SLOTS = 16;
+static constexpr int MAX_SLOTS = helix::AMS_MAX_SLOTS;
 
 // ============================================================================
 // Widget State

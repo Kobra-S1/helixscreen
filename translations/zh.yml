@@ -1271,6 +1271,7 @@ translations:
   Issue description: 问题描述
   It can be un-archived in Spoolman's web UI.: 可以在 Spoolman 的网页界面中取消归档。
   It's a new spool: 这是新料盘
+  Jammed: 堵塞
   Jammed at the Toolhead: 工具头处堵塞
   Job Queue: 任务队列
   'Jog failed: {}': '移动失败: {}'
@@ -2450,6 +2451,7 @@ translations:
   Stop failed: 停止失败
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "停止打印 \"{}\"？\n\n5秒后将无法撤销。"
+  Stopped: 已停止
   Stopped between Hub and Toolhead: 停在集线器与工具头之间
   Stopped between Lane and Hub: 停在槽位与集线器之间
   Stopped between Spool and Lane: 停在料盘与槽位之间

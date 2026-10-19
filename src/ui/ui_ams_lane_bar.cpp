@@ -244,8 +244,14 @@ static void ams_lane_bar_event_cb(lv_event_t* e) {
  * symmetry with the project's dynamic-subject pattern.
  */
 static void setup_lane_bar_observers(LaneBarData* data) {
-    if (data->slot_index < 0 || data->slot_index >= AmsState::MAX_SLOTS) {
+    if (data->slot_index < 0) {
         spdlog::warn("[AmsLaneBar] Invalid slot index {}, skipping observers", data->slot_index);
+        return;
+    }
+    if (data->slot_index >= AmsState::MAX_SLOTS) {
+        // AmsState warns once for the whole overflow; this slot stays unbound.
+        spdlog::debug("[AmsLaneBar] Slot {} is past the subject ceiling, left unbound",
+                      data->slot_index);
         return;
     }
 
@@ -423,8 +429,9 @@ void ui_ams_lane_bar_register(void) {
     // Self-register cleanup — ensures lane bar data is released before
     // lv_deinit() so that lv_subject_deinit() can safely remove observers
     // from live widgets (mirrors ui_ams_slot_register()).
-    StaticSubjectRegistry::instance().register_deinit("AmsLaneBarWidgets",
-                                                      cleanup_all_lane_bar_data);
+    StaticSubjectRegistry::instance().register_deinit(
+        "AmsLaneBarWidgets", cleanup_all_lane_bar_data,
+        StaticSubjectRegistry::Lifetime::ProcessRunOnSwitch);
 
     spdlog::info("[AmsLaneBar] Registered ams_lane_bar widget with XML system");
 }

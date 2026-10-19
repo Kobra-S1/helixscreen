@@ -386,7 +386,7 @@ static void filament_path_xml_apply(lv_xml_parser_state_t* state, const char** a
             }
             needs_redraw = true;
         } else if (strcmp(name, "slot_count") == 0) {
-            data->slot_count = LV_CLAMP(atoi(value), 1, 16);
+            data->slot_count = LV_CLAMP(atoi(value), 1, FilamentPathData::MAX_SLOTS);
             needs_redraw = true;
         } else if (strcmp(name, "active_slot") == 0) {
             data->active_slot = atoi(value);
@@ -466,7 +466,7 @@ void ui_filament_path_canvas_set_slot_count(lv_obj_t* obj, int count) {
     auto* data = get_data(obj);
     if (!data)
         return;
-    int clamped = LV_CLAMP(count, 1, 16);
+    int clamped = LV_CLAMP(count, 1, FilamentPathData::MAX_SLOTS);
     if (data->slot_count == clamped)
         return;
     data->slot_count = clamped;

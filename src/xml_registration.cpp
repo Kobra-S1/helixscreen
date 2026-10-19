@@ -353,7 +353,8 @@ void register_xml_components() {
     s_noop_subject_initialized = true;
 
     // Self-register cleanup — ensures deinit runs before lv_deinit()
-    StaticSubjectRegistry::instance().register_deinit("XmlSubjects", helix::deinit_xml_subjects);
+    StaticSubjectRegistry::instance().register_deinit("XmlSubjects", helix::deinit_xml_subjects,
+                                                      StaticSubjectRegistry::Lifetime::Process);
 
     // Register custom widgets (BEFORE components that use them)
     ui_gcode_viewer_register();

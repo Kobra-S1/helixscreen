@@ -142,8 +142,7 @@ class AmsPanel : public PanelBase {
   private:
     // === Slot Management ===
 
-    static constexpr int MAX_VISIBLE_SLOTS =
-        16; ///< Max slots displayed (increased for 8+ gate systems)
+    static constexpr int MAX_VISIBLE_SLOTS = AMS_DETAIL_MAX_SLOTS; ///< Max slots displayed
     lv_obj_t* slot_widgets_[MAX_VISIBLE_SLOTS] = {nullptr};
     lv_obj_t* label_widgets_[MAX_VISIBLE_SLOTS] = {nullptr}; ///< Separate label layer for z-order
     AmsDetailWidgets detail_widgets_;                        ///< Shared component widget pointers

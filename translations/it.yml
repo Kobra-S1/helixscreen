@@ -1394,6 +1394,7 @@ translations:
   Issue description: Descrizione problema
   It can be un-archived in Spoolman's web UI.: Può essere ripristinata dall'interfaccia web di Spoolman.
   It's a new spool: È una nuova bobina
+  Jammed: Inceppato
   Jammed at the Toolhead: Inceppato nella testina
   Job Queue: Coda lavori
   'Jog failed: {}': 'Movimento fallito: {}'
@@ -2672,6 +2673,7 @@ translations:
   Stop failed: Arresto fallito
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "Interrompere la stampa di \"{}\"?\n\nNon sarà possibile annullare dopo 5 secondi."
+  Stopped: Fermato
   Stopped between Hub and Toolhead: Fermo tra Hub e testina
   Stopped between Lane and Hub: Fermo tra corsia e Hub
   Stopped between Spool and Lane: Fermo tra bobina e corsia

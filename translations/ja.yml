@@ -1278,6 +1278,7 @@ translations:
   Issue description: 問題の説明
   It can be un-archived in Spoolman's web UI.: Spoolman の Web 画面でアーカイブを解除できます。
   It's a new spool: 新しいスプールです
+  Jammed: 詰まり
   Jammed at the Toolhead: ツールヘッドで詰まり
   Job Queue: ジョブキュー
   'Jog failed: {}': 'ジョグに失敗しました: {}'
@@ -2460,6 +2461,7 @@ translations:
   Stop failed: 停止に失敗
   ? "Stop printing \"{}\"?\n\nThis cannot be undone after 5 seconds."
   : "\"{}\" の印刷を停止しますか？\n\n5秒後は取り消せません。"
+  Stopped: 停止しました
   Stopped between Hub and Toolhead: ハブとツールヘッドの間で停止
   Stopped between Lane and Hub: レーンとハブの間で停止
   Stopped between Spool and Lane: スプールとレーンの間で停止

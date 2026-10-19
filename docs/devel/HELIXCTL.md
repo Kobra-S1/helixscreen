@@ -640,7 +640,7 @@ state, constructed with representative sample data and the real lifecycle:
 `action-prompt-worst`, `action-prompt-many`.
 
 `action-prompt-many` raises a Klipper `action:prompt` carrying seven material
-presets, the case where the buttons cannot share one row and must wrap. Both
+presets, the case where the buttons cannot share one row and become a grid. Both
 `action-prompt-*` demos need a live `action:prompt_begin`, so no sequence of
 clicks reaches them in mock mode.
 

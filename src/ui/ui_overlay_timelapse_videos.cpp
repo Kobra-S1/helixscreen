@@ -157,8 +157,6 @@ void TimelapseVideosOverlay::on_activate() {
     auto tok = lifetime_.token();
     helix::TimelapseState::instance().set_on_render_complete(
         [this, tok](const std::string& filename) {
-            if (tok.expired())
-                return;
             spdlog::info("[Timelapse Videos] Render complete for '{}', refreshing list", filename);
             tok.defer([this]() { fetch_video_list(); });
         });
@@ -234,8 +232,6 @@ void TimelapseVideosOverlay::fetch_video_list() {
     api_->files().list_files(
         "timelapse", "", false,
         [this, tok](const std::vector<FileInfo>& files) {
-            if (tok.expired())
-                return;
             tok.defer([this, files]() { populate_video_grid(files); });
         },
         [](const MoonrakerError& error) {
@@ -741,8 +737,6 @@ void TimelapseVideosOverlay::play_video(const std::string& filename) {
         api_->transfers().download_file_to_path(
             "timelapse", filename, dest_path,
             [this, tok, dest_path, player](const std::string& /*path*/) {
-                if (tok.expired())
-                    return;
                 tok.defer([this, dest_path, player]() {
                     auto args = helix::timelapse::build_player_args(player, dest_path);
                     spdlog::info("[{}] Playing downloaded video: {} {}", get_name(), args[0],
@@ -794,8 +788,6 @@ void TimelapseVideosOverlay::confirm_delete(const std::string& filename) {
             api_->files().delete_file(
                 full_path,
                 [this, tok]() {
-                    if (tok.expired())
-                        return;
                     tok.defer([this]() {
                         spdlog::info("[Timelapse Videos] Video deleted, refreshing list");
                         fetch_video_list();
