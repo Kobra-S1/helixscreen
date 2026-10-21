@@ -3665,3 +3665,29 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE INSTANCE= base follows the displayed inst
         CHECK(run_slot_actions(b).front() == "ACE_FEED INDEX=2 LENGTH=50 SPEED=50");
     }
 }
+
+// The fork reports a slot's motion state as its status (feeding, unwinding,
+// shifting - which an ACE 2 slot under feed assist reports throughout - and
+// identifying while the tag is read). The spool is in the slot in all of them.
+TEST_CASE("ACE slot in motion keeps its spool", "[ams][ace][slot-status]") {
+    for (const char* word : {"feeding", "unwinding", "shifting", "identifying"}) {
+        DYNAMIC_SECTION("status " << word) {
+            AmsBackendAceTestHelper helper;
+            json unit = make_kobra_instance_object();
+            unit["slots"][0]["status"] = word;
+            AceTestAccess::parse_ace(helper, unit);
+
+            CHECK(helper.get_slot_info(0).status == SlotStatus::AVAILABLE);
+            CHECK(helper.get_slot_info(0).material == "PLA");
+        }
+    }
+
+    SECTION("empty stays empty") {
+        AmsBackendAceTestHelper helper;
+        json unit = make_kobra_instance_object();
+        unit["slots"][0]["status"] = "empty";
+        AceTestAccess::parse_ace(helper, unit);
+
+        CHECK(helper.get_slot_info(0).status == SlotStatus::EMPTY);
+    }
+}
