@@ -262,7 +262,9 @@ These are the real native verbs from GoKlipper `extras_ace.go` — the backend d
 > prestonbrown/helixscreen#1821). Once the backend has seen an `ace_instance_N` object or
 > the REST bridge's `ace_manager`, `src/printer/ams_backend_ace.cpp#slot_command` sends the
 > `INSTANCE=` form, numbered from the displayed `ace_instance_N` (0 when only `ace_manager`
-> is seen); GoKlipper and ValgACE keep `INDEX=`.
+> is seen); GoKlipper and ValgACE keep `INDEX=`. With no slot current (nothing loaded, or a
+> tool of a unit not displayed) the fork's three commands are refused rather than sent to
+> slot 0, which could feed a second strand into an occupied path.
 
 > Note: `ACE_RECOVER` and `ACE_RESET` are **not** native GoKlipper commands — do not send them on the native path.
 

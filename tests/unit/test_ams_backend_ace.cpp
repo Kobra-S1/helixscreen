@@ -3665,3 +3665,51 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE INSTANCE= base follows the displayed inst
         CHECK(run_slot_actions(b).front() == "ACE_FEED INDEX=2 LENGTH=50 SPEED=50");
     }
 }
+
+namespace {
+// Every slot-addressed action, each expected to be refused.
+void expect_slot_actions_refused(AmsBackendAceTestHelper& b) {
+    b.captured_gcodes.clear();
+    CHECK_FALSE(b.execute_device_action("ace_manual_feed", {}).success());
+    CHECK_FALSE(b.execute_device_action("ace_manual_retract", {}).success());
+    CHECK_FALSE(b.execute_device_action("ace_feed_assist_toggle", std::any(true)).success());
+    CHECK_FALSE(b.execute_device_action("ace_feed_assist_toggle", std::any(false)).success());
+    CHECK(b.captured_gcodes.empty());
+}
+} // namespace
+
+// With no slot current, the fork has no slot to address: falling back to the
+// displayed unit's slot 0 would feed a second strand into a path that holds
+// another unit's tool.
+TEST_CASE("ACE slot actions refuse on the fork while no slot is current",
+          "[ams][ace][device_actions][kobra]") {
+    AmsBackendAceTestHelper b;
+
+    SECTION("nothing loaded") {
+        const std::string surface =
+            GENERATE(as<std::string>{}, "ace_instance_0", "rest+ace_manager");
+        CAPTURE(surface);
+        present_driver_surface(b, surface);
+        REQUIRE(b.get_current_slot() == -1);
+        expect_slot_actions_refused(b);
+    }
+    SECTION("a tool of a unit not displayed is loaded") {
+        present_driver_surface(b, "rest+ace_manager");
+        b.test_parse_status_response(
+            json{{"model", "ACE Pro"}, {"ace_manager", json{{"current_index", 5}}}});
+        REQUIRE(b.get_current_slot() == -1);
+        REQUIRE(b.get_test_system_info().current_tool == 5);
+        expect_slot_actions_refused(b);
+    }
+}
+
+TEST_CASE("ACE slot actions keep slot 0 on single-hub drivers with nothing loaded",
+          "[ams][ace][device_actions]") {
+    const std::string surface = GENERATE(as<std::string>{}, "filament_hub", "ace", "rest");
+    CAPTURE(surface);
+    AmsBackendAceTestHelper b;
+    present_driver_surface(b, surface);
+    REQUIRE(b.get_current_slot() == -1);
+
+    CHECK(run_slot_actions(b).front() == "ACE_FEED INDEX=0 LENGTH=50 SPEED=50");
+}

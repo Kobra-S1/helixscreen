@@ -1973,7 +1973,19 @@ int AmsBackendAce::ace_instance_number(const std::string& key) {
 
 AmsError AmsBackendAce::do_execute_device_action(const std::string& action_id,
                                                  const std::any& value) {
-    const int slot = std::max(get_current_slot(), 0);
+    const bool slot_action = action_id == "ace_manual_feed" || action_id == "ace_manual_retract" ||
+                             action_id == "ace_feed_assist_toggle";
+    const int current_slot = get_current_slot();
+    if (slot_action && current_slot < 0) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (instance_base_ >= 0) {
+            // No slot to address: the displayed unit's slot 0 would feed a
+            // second strand into a path another unit's tool may hold.
+            return AmsError(AmsResult::WRONG_STATE, "No tool loaded",
+                            lv_tr("Load a tool before feeding or retracting"), "");
+        }
+    }
+    const int slot = std::max(current_slot, 0);
 
     if (action_id == "ace_manual_feed") {
         static constexpr int kManualFeedLength = 50;
