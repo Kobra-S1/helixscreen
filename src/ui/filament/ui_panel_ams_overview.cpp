@@ -116,6 +116,21 @@ void AmsOverviewPanel::init_subjects() {
             },
             AmsState::instance().get_subjects_lifetime());
 
+        // A load moves the strand and names its target before any slot or the
+        // seat changes; on a hub whose lanes report no motion (ACE) nothing
+        // else moves until the new tool is in.
+        auto path_changed = [](AmsOverviewPanel* self, int) {
+            self->on_state_changed("AmsOverviewPanel::refresh_units/path");
+        };
+        path_segment_observer_ =
+            observe<int>(AmsState::instance().get_path_filament_segment_subject(), this,
+                         path_changed, AmsState::instance().get_subjects_lifetime());
+        pending_target_observer_ =
+            observe<int>(AmsState::instance().get_pending_target_slot_subject(), this, path_changed,
+                         AmsState::instance().get_subjects_lifetime());
+        action_observer_ = observe<int>(AmsState::instance().get_ams_action_subject(), this,
+                                        path_changed, AmsState::instance().get_subjects_lifetime());
+
         // Which units' dryers run decides the drying glyph on the hub's off-page stubs.
         dryer_version_observer_ = observe<int>(
             AmsState::instance().get_units_dryer_version_subject(), this,
@@ -916,6 +931,9 @@ void AmsOverviewPanel::clear_panel_reference() {
     // Clear observer guards before clearing widget pointers
     slots_version_observer_.reset();
     current_slot_observer_.reset();
+    path_segment_observer_.reset();
+    pending_target_observer_.reset();
+    action_observer_.reset();
     external_spool_observer_.reset();
     bypass_active_observer_.reset();
     always_show_bypass_observer_.reset();

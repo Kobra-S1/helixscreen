@@ -852,13 +852,14 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
 
     push_unit_anchors(/*relayout=*/true);
 
-    // Set active unit based on current slot
-    int active_unit = info.get_active_unit_index();
-    ui_system_path_canvas_set_active_unit(system_path_, active_unit);
+    // The route follows the slot a toolchange is moving, as the unit view's does: the
+    // target while it loads, the seated slot otherwise. The canvas counts units by position.
+    const int path_slot = info.path_active_slot();
+    ui_system_path_canvas_set_active_unit(system_path_, info.get_unit_position_for_slot(path_slot));
 
     // Set filament color from active slot
-    if (current_slot >= 0) {
-        const SlotInfo* slot = info.get_slot_global(current_slot);
+    if (path_slot >= 0) {
+        const SlotInfo* slot = info.get_slot_global(path_slot);
         if (slot) {
             ui_system_path_canvas_set_active_color(system_path_, slot->color_rgb);
         }
@@ -942,8 +943,8 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
 
     // Translate active slot's virtual tool number to physical nozzle index
     int active_tool = -1;
-    if (current_slot >= 0) {
-        const SlotInfo* active_slot = info.get_slot_global(current_slot);
+    if (path_slot >= 0) {
+        const SlotInfo* active_slot = info.get_slot_global(path_slot);
         if (active_slot && active_slot->mapped_tool >= 0) {
             auto it = tool_layout.virtual_to_physical.find(active_slot->mapped_tool);
             if (it != tool_layout.virtual_to_physical.end()) {
@@ -961,7 +962,7 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
     // "T<n>" labels. compute_tool_badge_labels() owns that decision.
     {
         const auto badges =
-            ams_draw::compute_tool_badge_labels(tool_layout, info, current_slot, active_tool);
+            ams_draw::compute_tool_badge_labels(tool_layout, info, path_slot, active_tool);
         if (!badges.numbers.empty()) {
             ui_system_path_canvas_set_tool_label_prefix(system_path_, badges.prefix);
             ui_system_path_canvas_set_tool_virtual_numbers(system_path_, badges.numbers.data(),
