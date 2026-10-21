@@ -3040,7 +3040,7 @@ $(UNINSTALLER_BUNDLE): scripts/bundle-uninstaller.sh $(INSTALLER_SOURCES)
 deploy-pi deploy-pi-fg deploy-pi-asan deploy-pi32 deploy-pi32-fg deploy-pi32-asan \
 deploy-ad5m deploy-ad5m-fg deploy-cc1 deploy-cc1-fg deploy-k1-fg deploy-k1-dynamic-fg: $(INSTALLER_BUNDLES)
 
-.PHONY: release-pi release-pi32 release-ad5m release-cc1 release-mips release-k1 release-ad5x release-k1-dynamic release-k2 release-snapmaker-u1 release-x86 release-x86-desktop release-all release-clean pi-fbdev-docker pi32-fbdev-docker pi-all-docker pi32-all-docker x86-fbdev-docker x86-all-docker
+.PHONY: release-pi release-pi32 release-pi32-fbdev release-ad5m release-cc1 release-mips release-k1 release-ad5x release-k1-dynamic release-k2 release-snapmaker-u1 release-x86 release-x86-desktop release-all release-clean pi-fbdev-docker pi32-fbdev-docker pi-all-docker pi32-all-docker x86-fbdev-docker x86-all-docker
 
 # Host CA bundle packaged when a platform has no toolchain-extracted one.
 CA_BUNDLE ?= /etc/ssl/certs/ca-certificates.crt
@@ -3049,6 +3049,12 @@ CA_BUNDLE ?= /etc/ssl/certs/ca-certificates.crt
 # from a list takes the default.
 REL_LABEL.pi := Pi
 REL_LABEL.pi32 := Pi 32-bit
+# Pi 32-bit with only the fbdev build, as bin/helix-screen: for armhf boards
+# with a plain framebuffer and no GPU stack (Kobrian on Rockchip RV1106). It is
+# a pi32 for the asset manifest and self-update, a separate build directory
+# for the binary.
+REL_LABEL.pi32-fbdev := Pi 32-bit fbdev
+REL_PLATFORM.pi32-fbdev := pi32
 REL_LABEL.ad5m := AD5M
 REL_LABEL.cc1 := CC1
 REL_LABEL.mips := unified MIPS (K1 + AD5X)
@@ -3105,6 +3111,9 @@ endef
 # Assemble helixscreen-<plat>.zip and helixscreen-<plat>-<version>.tar.gz from
 # build/<plat>/ and the source tree. $(1) = platform key. The release-<plat>
 # targets below carry only their prerequisites.
+# The platform a release is for, where its build directory names a variant.
+rel-platform = $(or $(REL_PLATFORM.$(1)),$(1))
+
 define release-package
 	@echo "$(CYAN)$(BOLD)Packaging $(REL_LABEL.$(1)) release v$(VERSION)...$(RESET)"
 	$(call release-assert-features,build/$(1)/bin)
@@ -3155,9 +3164,9 @@ define release-package
 	cp "$$ca" $(RELEASE_DIR)/helixscreen/certs/ca-certificates.crt; \
 	echo "  $(DIM)Included CA certificates for HTTPS ($$ca)$(RESET)"
 	@find $(RELEASE_DIR)/helixscreen -name '.DS_Store' -delete 2>/dev/null || true
-	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,$(1))
+	$(call release-clean-assets,$(RELEASE_DIR)/helixscreen,$(call rel-platform,$(1)))
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
-	$(call write-release-info,$(1))
+	$(call write-release-info,$(call rel-platform,$(1)))
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-$(1).zip .
 	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar $(TAR_OWNER_FLAGS) -czvf helixscreen-$(1)-$(RELEASE_VERSION).tar.gz helixscreen
 	@rm -rf $(RELEASE_DIR)/helixscreen
@@ -3173,6 +3182,9 @@ release-pi: $(INSTALLER_BUNDLES) | build/pi/bin/helix-screen build/pi/bin/helix-
 # Package Pi 32-bit release (same structure as 64-bit Pi)
 release-pi32: $(INSTALLER_BUNDLES) | build/pi32/bin/helix-screen build/pi32/bin/helix-splash
 	$(call release-package,pi32)
+
+release-pi32-fbdev: $(INSTALLER_BUNDLES) | build/pi32-fbdev/bin/helix-screen
+	$(call release-package,pi32-fbdev)
 
 # Package AD5M release
 release-ad5m: $(INSTALLER_BUNDLES) | build/ad5m/bin/helix-screen build/ad5m/bin/helix-splash
@@ -3251,6 +3263,7 @@ package-ad5m: ad5m-docker gen-images-ad5m gen-splash-3d-ad5m gen-printer-images 
 package-cc1: cc1-docker gen-images gen-splash-3d-cc1 gen-printer-images release-cc1
 package-pi: pi-all-docker gen-images gen-splash-3d-pi gen-printer-images release-pi
 package-pi32: pi32-all-docker gen-images gen-splash-3d-pi32 gen-printer-images release-pi32
+package-pi32-fbdev: pi32-fbdev-docker gen-images gen-splash-3d-pi32 gen-printer-images release-pi32-fbdev
 package-mips: mips-docker gen-images gen-splash-3d-mips gen-printer-images release-mips
 # Board-spelled entries of the same unified package: identical build and
 # release, narrowed only to that board's splash classes.
