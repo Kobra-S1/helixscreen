@@ -692,7 +692,6 @@ void WizardConnectionStep::handle_ip_input_changed() {
     if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
         spdlog::debug("[{}] User input during auto-probe, cancelling", get_name());
         auto_probe_state_.store(AutoProbeState::FAILED); // Mark as failed to ignore callbacks
-        connection_test_.cancel();
         IMoonrakerClient* client = get_moonraker_client();
         if (client) {
             client->disconnect();
@@ -733,7 +732,6 @@ void WizardConnectionStep::handle_port_input_changed() {
     if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
         spdlog::debug("[{}] User input during auto-probe, cancelling", get_name());
         auto_probe_state_.store(AutoProbeState::FAILED); // Mark as failed to ignore callbacks
-        connection_test_.cancel();
         IMoonrakerClient* client = get_moonraker_client();
         if (client) {
             client->disconnect();

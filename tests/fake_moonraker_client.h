@@ -114,6 +114,9 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
     /// Every URL connect() was handed, oldest first.
     std::vector<std::string> connect_urls;
 
+    /// How many times disconnect() was called.
+    int disconnect_calls = 0;
+
     /// Deliver @p msg to every handler registered for @p method.
     /// @return false when nothing is subscribed — which is itself the
     ///         assertion for "the consumer never registered".
@@ -256,7 +259,9 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
     helix::ConnectFailureKind last_connect_failure() const override {
         return connect_failure;
     }
-    void disconnect() override {}
+    void disconnect() override {
+        ++disconnect_calls;
+    }
     const std::string& get_last_url() const override {
         return last_url_;
     }

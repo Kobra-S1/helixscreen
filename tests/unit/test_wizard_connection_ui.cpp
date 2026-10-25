@@ -843,3 +843,52 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(port_input != nullptr);
     CHECK(std::string(lv_textarea_get_text(port_input)) == "80");
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: a test that finds nothing leaves the live client connected",
+                 "[wizard][connection][connection_test]") {
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    helix::test::ScopedFakeConnectionTest net;
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+    lv_obj_t* root = create_step_and_test(step, test_screen());
+
+    SECTION("Test Connection") {
+        click_test(root);
+    }
+    SECTION("the auto-probe") {
+        step->arm_auto_probe_timer_for_test();
+        process_lvgl(150);
+        helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    }
+    REQUIRE_FALSE(net.asked.empty());
+    CHECK(client.disconnect_calls == 0);
+    CHECK(client.connect_urls.empty());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: leaving the step drops a test still running",
+                 "[wizard][connection][connection_test]") {
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+    std::function<void()> pending;
+    helix::set_connection_test_seams_for_test(
+        [](const std::string&, uint16_t) { return MoonrakerProbe(true); },
+        [&pending](size_t, const LanSweepLimits&, std::function<void()> body) {
+            pending = std::move(body);
+            return LanSweepWorkers{nullptr, 1};
+        });
+
+    lv_obj_t* root = create_step_and_test(step, test_screen());
+    click_test(root);
+    REQUIRE(pending);
+    step->cleanup();
+
+    pending();
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::set_connection_test_seams_for_test(nullptr, nullptr);
+
+    CHECK(client.connect_urls.empty());
+}
