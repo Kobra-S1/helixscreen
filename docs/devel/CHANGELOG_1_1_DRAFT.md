@@ -523,6 +523,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **Heater duty on every heater** (#1290) - the Controls and print status screens show how
   hard each heater is working as a percentage beside its status, so a nozzle running flat
   out and falling behind looks different from one holding temperature easily.
+- **The print screen's speed chip shows live speed and flow** - instead of the speed and flow
+  percentages, the chip beside the printer picture reads how fast the toolhead is moving right
+  now in mm/s, with the volumetric flow in mm³/s under it. The percentages live in Tune; the
+  chip turns amber while either is not 100%, and tapping it opens Tune.
 - **Runout dialogs can hide manual actions mid-print** and carry an advisory rather than a
   warning header, so a dialog that is telling you something reads differently from one asking
   you to act.

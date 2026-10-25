@@ -432,7 +432,11 @@ which returns a `CalloutMode`, the image rect, and each chip's rect and leader l
   in the chips' own fonts, takes padding and border from the live chip's style, and
   `around_text()` is the single expression for everything in a chip except its text. It
   sizes the chip and bounds the label's `max_width`, so a chip clamped narrower than its
-  text ends in dots instead of spilling.
+  text ends in dots instead of spilling. A chip is one text line (`chip_h`) unless it
+  carries its own height: `CalloutChipIn::h`, 0 for one line. A multi-line chip must set
+  it, from `CalloutChipMetrics::chip_h_for()` and, for its pinned form,
+  `compact_callout_chip_h(..., lines)`, because every stack, band slot, dock and pinned
+  spot is sized from it; its width is its widest line.
 - **Pinned chips are compact.** A pinned chip sits on the picture, so it drops its icon
   and unit letter and sets its text in `font_xs` (`printer_callout_mode` bindings in the
   XML). The text and the chip's width and height come from
