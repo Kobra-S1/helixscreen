@@ -86,6 +86,22 @@ TEST_CASE("an out-of-range screensaver type clamps to the last type",
     CHECK(helix::ui::clamp_screensaver_type(99) == last);
 }
 
+TEST_CASE("Random is a stored choice outside the registry rows",
+          "[screensaver][screensaver_registry]") {
+    const int random = static_cast<int>(ScreensaverType::RANDOM);
+    CHECK(helix::ui::clamp_screensaver_type(random) == random);
+    CHECK(helix::ui::clamp_screensaver_type(random + 1) == helix::ui::screensaver_last_type());
+    CHECK(helix::ui::find_screensaver(ScreensaverType::RANDOM) == nullptr);
+    CHECK(helix::ui::screensaver_label_key(ScreensaverType::RANDOM) ==
+          std::string(helix::ui::kScreensaverRandomLabelKey));
+    CHECK(helix::ui::screensaver_label_key(ScreensaverType::OFF) ==
+          std::string(helix::ui::kScreensaverOffLabelKey));
+    CHECK(helix::ui::screensaver_label_key(ScreensaverType::MAZE_3D) == std::string("3D Maze"));
+    const nlohmann::json stored = "random";
+    CHECK(helix::ui::screensaver_from_setting(&stored, ScreensaverType::STARFIELD) ==
+          ScreensaverType::RANDOM);
+}
+
 TEST_CASE("every registered screensaver name resolves to its row",
           "[screensaver][screensaver_registry]") {
     for (const helix::ui::ScreensaverInfo& info : kScreensavers) {
@@ -107,10 +123,13 @@ TEST_CASE("HELIX_SCREENSAVER_NOW falls back to the configured saver, then flying
     CHECK(resolve_screensaver_now("1", ScreensaverType::STARFIELD) == ScreensaverType::STARFIELD);
     CHECK(resolve_screensaver_now("bogus", ScreensaverType::PIPES_3D) == ScreensaverType::PIPES_3D);
     CHECK(resolve_screensaver_now("1", ScreensaverType::OFF) == ScreensaverType::FLYING_TOASTERS);
+    CHECK(resolve_screensaver_now("random", ScreensaverType::OFF) == ScreensaverType::RANDOM);
+    CHECK(resolve_screensaver_now("1", ScreensaverType::RANDOM) == ScreensaverType::RANDOM);
 }
 
-TEST_CASE("the settings dropdown lists Off then every registered screensaver in type order",
-          "[screensaver][screensaver_registry]") {
+TEST_CASE(
+    "the settings dropdown lists Off, every registered screensaver in type order, then Random",
+    "[screensaver][screensaver_registry]") {
     std::ifstream file("ui_xml/settings_display_overlay.xml");
     REQUIRE(file.is_open()); // helix-tests runs from the repo root
     std::stringstream buffer;
@@ -121,6 +140,7 @@ TEST_CASE("the settings dropdown lists Off then every registered screensaver in 
     for (const helix::ui::ScreensaverInfo& info : kScreensavers) {
         expected.emplace_back(info.label_key);
     }
+    expected.emplace_back(helix::ui::kScreensaverRandomLabelKey);
     CHECK(split_option_lines(attribute_of_named(xml, "row_screensaver", "options")) == expected);
     CHECK(split_option_lines(attribute_of_named(xml, "row_screensaver", "options_tag")) ==
           expected);
@@ -140,6 +160,7 @@ TEST_CASE("every screensaver label the dropdown can show has an en.xml translati
     for (const helix::ui::ScreensaverInfo& info : kScreensavers) {
         tags.emplace_back(info.label_key);
     }
+    tags.emplace_back(helix::ui::kScreensaverRandomLabelKey);
     for (const std::string& tag : tags) {
         CAPTURE(tag);
         CHECK(xml.find("<translation tag=\"" + tag + "\"") != std::string::npos);
@@ -248,20 +269,22 @@ TEST_CASE("the screensaver dropdown offers Off and every saver that is not too h
           "[screensaver][screensaver_registry]") {
     using helix::ui::screensaver_choices;
 
-    SECTION("nothing too heavy: Off then the whole registry, so the index is the type") {
+    SECTION("nothing too heavy: Off, the whole registry so the index is the type, then Random") {
         const std::vector<ScreensaverType> choices =
             screensaver_choices(HeavySet{}, ScreensaverType::FLYING_TOASTERS);
-        REQUIRE(choices.size() == kScreensaverCount + 1);
-        for (size_t i = 0; i < choices.size(); i++) {
+        REQUIRE(choices.size() == kScreensaverCount + 2);
+        for (size_t i = 0; i + 1 < choices.size(); i++) {
             CHECK(static_cast<size_t>(choices[i]) == i);
         }
+        CHECK(choices.back() == ScreensaverType::RANDOM);
     }
     SECTION("too-heavy savers are left out, the rest keep registry order") {
         const std::vector<ScreensaverType> choices =
             screensaver_choices(HeavySet{{ScreensaverType::MAZE_3D, ScreensaverType::HYPERSPACE}},
                                 ScreensaverType::MAZE_3D);
-        CHECK(choices.size() == kScreensaverCount - 1);
+        CHECK(choices.size() == kScreensaverCount);
         CHECK(choices.front() == ScreensaverType::OFF);
+        CHECK(choices.back() == ScreensaverType::RANDOM);
         CHECK(std::find(choices.begin(), choices.end(), ScreensaverType::MAZE_3D) == choices.end());
         CHECK(std::find(choices.begin(), choices.end(), ScreensaverType::HYPERSPACE) ==
               choices.end());
@@ -276,6 +299,62 @@ TEST_CASE("the screensaver dropdown offers Off and every saver that is not too h
               std::vector<ScreensaverType>{ScreensaverType::OFF, ScreensaverType::MAZE_3D});
         CHECK(screensaver_choices(all, ScreensaverType::OFF) ==
               std::vector<ScreensaverType>{ScreensaverType::OFF});
+    }
+    SECTION("every saver too heavy drops Random unless it is the stored choice") {
+        HeavySet all;
+        for (const helix::ui::ScreensaverInfo& info : kScreensavers) {
+            all.heavy.insert(info.type);
+        }
+        CHECK(screensaver_choices(all, ScreensaverType::RANDOM) ==
+              std::vector<ScreensaverType>{ScreensaverType::OFF, ScreensaverType::RANDOM});
+    }
+    SECTION("a stored Random is selected as itself") {
+        const std::vector<ScreensaverType> choices =
+            screensaver_choices(HeavySet{{ScreensaverType::MAZE_3D}}, ScreensaverType::RANDOM);
+        CHECK(helix::ui::runnable_screensaver(ScreensaverType::RANDOM,
+                                              HeavySet{{ScreensaverType::MAZE_3D}}) ==
+              ScreensaverType::RANDOM);
+        CHECK(helix::ui::screensaver_choice_index(choices, ScreensaverType::RANDOM) ==
+              choices.size() - 1);
+    }
+}
+
+TEST_CASE("a Random run picks a runnable saver other than the last one",
+          "[screensaver][screensaver_registry][screensaver_random]") {
+    using helix::ui::random_screensaver;
+
+    SECTION("every roll lands on a registered saver the board can run, never the previous") {
+        const HeavySet heavy{{ScreensaverType::MAZE_3D, ScreensaverType::HYPERSPACE}};
+        std::set<ScreensaverType> seen;
+        for (uint32_t roll = 0; roll < 4 * kScreensaverCount; roll++) {
+            CAPTURE(roll);
+            const ScreensaverType pick = random_screensaver(heavy, roll, ScreensaverType::AQUA);
+            REQUIRE(helix::ui::find_screensaver(pick) != nullptr);
+            CHECK_FALSE(heavy(pick));
+            CHECK(pick != ScreensaverType::AQUA);
+            seen.insert(pick);
+        }
+        // Rolls reach every candidate: the registry less two heavy savers and the previous one.
+        CHECK(seen.size() == kScreensaverCount - 3);
+    }
+    SECTION("the previous saver repeats when it is the only one the board can run") {
+        HeavySet heavy;
+        for (const helix::ui::ScreensaverInfo& info : kScreensavers) {
+            if (info.type != ScreensaverType::STARFIELD) {
+                heavy.heavy.insert(info.type);
+            }
+        }
+        CHECK(random_screensaver(heavy, 7, ScreensaverType::STARFIELD) ==
+              ScreensaverType::STARFIELD);
+        CHECK(random_screensaver(heavy, 7, ScreensaverType::OFF) == ScreensaverType::STARFIELD);
+    }
+    SECTION("with every saver too heavy, the default, which the manager blacks out") {
+        HeavySet all;
+        for (const helix::ui::ScreensaverInfo& info : kScreensavers) {
+            all.heavy.insert(info.type);
+        }
+        CHECK(random_screensaver(all, 3, ScreensaverType::OFF) ==
+              helix::ui::kDefaultScreensaverType);
     }
 }
 
@@ -310,6 +389,9 @@ TEST_CASE("a stored screensaver name maps to its saver whatever its case",
     CHECK(screensaver_name(ScreensaverType::OFF) == std::string("off"));
     CHECK(screensaver_from_name("off") == ScreensaverType::OFF);
     CHECK(screensaver_from_name("OFF") == ScreensaverType::OFF);
+    CHECK(screensaver_name(ScreensaverType::RANDOM) == std::string("random"));
+    CHECK(screensaver_from_name("random") == ScreensaverType::RANDOM);
+    CHECK(screensaver_from_name("Random") == ScreensaverType::RANDOM);
     CHECK(screensaver_from_name("Maze") == ScreensaverType::MAZE_3D);
     CHECK(screensaver_from_name("FLIPCLOCK") == ScreensaverType::FLIP_CLOCK);
     CHECK_FALSE(screensaver_from_name("3D Maze").has_value());
@@ -391,6 +473,29 @@ TEST_CASE_METHOD(LVGLTestFixture, "every registered saver this build draws start
         mgr.stop();
     }
     CHECK(started > 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Random starts a real saver and a different one next run",
+                 "[screensaver][screensaver_random]") {
+    helix::ScopedGateEnv gate_env;
+
+    auto& mgr = ScreensaverManager::instance();
+    mgr.start(ScreensaverType::RANDOM);
+    REQUIRE(mgr.is_active());
+    const ScreensaverType first = mgr.running_type();
+    REQUIRE(helix::ui::find_screensaver(first) != nullptr);
+
+    // Another start while it runs keeps the saver already drawn.
+    mgr.start(ScreensaverType::RANDOM);
+    CHECK(mgr.running_type() == first);
+    mgr.stop();
+    CHECK(mgr.running_type() == ScreensaverType::OFF);
+
+    mgr.start(ScreensaverType::RANDOM);
+    REQUIRE(mgr.is_active());
+    CHECK(helix::ui::find_screensaver(mgr.running_type()) != nullptr);
+    CHECK(mgr.running_type() != first);
+    mgr.stop();
 }
 
 #endif // HELIX_ENABLE_SCREENSAVER

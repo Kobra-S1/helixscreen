@@ -18,6 +18,7 @@
 #include <lvgl.h>
 #include <memory>
 #include <optional>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -190,6 +191,10 @@ class ScreensaverManager {
     /** @brief True while a screensaver or its black screen is up */
     bool is_active() const;
 
+    /// The saver running now, the type its black screen stands in for, or OFF. Never RANDOM:
+    /// a Random run reports the saver it drew.
+    ScreensaverType running_type() const;
+
     /** @brief Read configured screensaver type from DisplaySettingsManager, clamped */
     static ScreensaverType configured_type();
 
@@ -282,6 +287,9 @@ class ScreensaverManager {
     const helix::ui::ScreensaverInfo* active_info_ = nullptr;
     helix::ui::SaverOverlay black_screen_;
     ScreensaverType black_screen_type_ = ScreensaverType::OFF;
+    /// Draws a Random run's saver; last_random_ is the one it drew before.
+    std::minstd_rand random_;
+    ScreensaverType last_random_ = ScreensaverType::OFF;
     bool holds_screen_ = false;
     bool holds_refresh_period_ = false;
 

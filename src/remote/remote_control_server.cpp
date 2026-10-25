@@ -2507,10 +2507,9 @@ nlohmann::json RemoteControlServer::handle_preview_screensaver(const nlohmann::j
                     {"started", false},
                     {"reason", "a screensaver is already running"}};
         }
-        const ScreensaverType runs = savers.runnable_type(*type);
         dm->preview_screensaver(static_cast<int>(*type));
         return {{"requested", name},
-                {"runs", helix::ui::screensaver_name(runs)},
+                {"runs", helix::ui::screensaver_name(savers.running_type())},
                 {"started", savers.is_active()}};
     });
 #else

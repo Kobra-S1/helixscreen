@@ -39,6 +39,9 @@ enum class ScreensaverType : int {
     FIREFLIES = 10,
     AQUA = 11,
     HIGHFLY = 12,
+    /// Not a saver: each run starts a different registered saver the board can run. Kept clear
+    /// of the row range, so savers added later never collide with it.
+    RANDOM = 100,
 };
 
 namespace helix::ui {
@@ -88,6 +91,12 @@ inline constexpr const char* kScreensaverOffLabelKey = "Off";
 /// Stable name of OFF, the persisted value of a screensaver turned off.
 inline constexpr const char* kScreensaverOffName = "off";
 
+/// Translation key and English label of the dropdown's last option.
+inline constexpr const char* kScreensaverRandomLabelKey = "Random";
+
+/// Stable name of RANDOM.
+inline constexpr const char* kScreensaverRandomName = "random";
+
 /// What each integer /display/screensaver_type value meant, indexed by that number. Frozen:
 /// these numbers live on in old configs and backups, so the table never reorders or grows,
 /// whatever happens to ScreensaverType or kScreensavers.
@@ -105,8 +114,12 @@ constexpr int screensaver_last_type() {
     return static_cast<int>(kScreensavers[kScreensaverCount - 1].type);
 }
 
-/// A stored type made valid: below OFF reads as OFF, past the last type as the last type.
+/// A stored type made valid: below OFF reads as OFF, past the last type as the last type, and
+/// RANDOM stays RANDOM.
 constexpr int clamp_screensaver_type(int value) {
+    if (value == static_cast<int>(ScreensaverType::RANDOM)) {
+        return value;
+    }
     if (value < 0) {
         return 0;
     }
@@ -152,10 +165,23 @@ constexpr const ScreensaverInfo* find_screensaver_by_name(std::string_view name)
     return nullptr;
 }
 
-/// Persisted name of `type`: its row's stable name, or "off" for OFF and unregistered values.
+/// Persisted name of `type`: its row's stable name, "random" for RANDOM, or "off" for OFF and
+/// unregistered values.
 constexpr const char* screensaver_name(ScreensaverType type) {
+    if (type == ScreensaverType::RANDOM) {
+        return kScreensaverRandomName;
+    }
     const ScreensaverInfo* info = find_screensaver(type);
     return info != nullptr ? info->name : kScreensaverOffName;
+}
+
+/// Translation key of `type`'s dropdown option: its row's label, Random, or Off.
+constexpr const char* screensaver_label_key(ScreensaverType type) {
+    if (type == ScreensaverType::RANDOM) {
+        return kScreensaverRandomLabelKey;
+    }
+    const ScreensaverInfo* info = find_screensaver(type);
+    return info != nullptr ? info->label_key : kScreensaverOffLabelKey;
 }
 
 /// ASCII case-insensitive equality.
@@ -173,11 +199,14 @@ constexpr bool equals_ignoring_case(std::string_view a, std::string_view b) {
     return true;
 }
 
-/// The type a stored name selects, ignoring case: "off" or a registered name. nullopt for
-/// anything else.
+/// The type a stored name selects, ignoring case: "off", "random" or a registered name.
+/// nullopt for anything else.
 constexpr std::optional<ScreensaverType> screensaver_from_name(std::string_view name) {
     if (equals_ignoring_case(name, kScreensaverOffName)) {
         return ScreensaverType::OFF;
+    }
+    if (equals_ignoring_case(name, kScreensaverRandomName)) {
+        return ScreensaverType::RANDOM;
     }
     for (const ScreensaverInfo& info : kScreensavers) {
         if (equals_ignoring_case(name, info.name)) {
@@ -198,13 +227,16 @@ constexpr const char* legacy_screensaver_name(long long value) {
 /**
  * @brief Saver a HELIX_SCREENSAVER_NOW value asks for
  *
- * A registered name starts that saver. Any other value starts the configured saver, or
- * flying toasters when the configured type is OFF.
+ * A registered name starts that saver and "random" a random one. Any other value starts the
+ * configured saver, or flying toasters when the configured type is OFF.
  */
 constexpr ScreensaverType resolve_screensaver_now(std::string_view value,
                                                   ScreensaverType configured) {
     if (const ScreensaverInfo* info = find_screensaver_by_name(value)) {
         return info->type;
+    }
+    if (value == kScreensaverRandomName) {
+        return ScreensaverType::RANDOM;
     }
     return configured != ScreensaverType::OFF ? configured : ScreensaverType::FLYING_TOASTERS;
 }
@@ -235,20 +267,49 @@ runnable_screensaver(ScreensaverType configured, TooHeavy&& too_heavy,
     return configured;
 }
 
-/// What the settings dropdown offers with `configured` stored, in order: OFF, then every
-/// registered saver `too_heavy(type)` does not reject. When every saver is too heavy the
-/// configured one stays listed too, so the dropdown shows what is stored and choosing Off is
-/// a change.
+/// What the settings dropdown offers with `configured` stored, in order: OFF, every registered
+/// saver `too_heavy(type)` does not reject, then RANDOM. When every saver is too heavy the
+/// configured one stays listed, and RANDOM only when it is the one stored, so the dropdown
+/// shows what is stored and choosing Off is a change.
 template <typename TooHeavy>
 std::vector<ScreensaverType> screensaver_choices(TooHeavy&& too_heavy, ScreensaverType configured) {
     const ScreensaverType runs = runnable_screensaver(configured, too_heavy);
     std::vector<ScreensaverType> choices{ScreensaverType::OFF};
+    bool any_runnable = false;
     for (const ScreensaverInfo& row : kScreensavers) {
-        if (row.type == runs || !too_heavy(row.type)) {
+        const bool runnable = !too_heavy(row.type);
+        any_runnable = any_runnable || runnable;
+        if (row.type == runs || runnable) {
             choices.push_back(row.type);
         }
     }
+    if (any_runnable || configured == ScreensaverType::RANDOM) {
+        choices.push_back(ScreensaverType::RANDOM);
+    }
     return choices;
+}
+
+/**
+ * @brief The saver a Random run starts
+ *
+ * One of the registered savers `too_heavy(type)` does not reject, chosen by `roll`, leaving out
+ * `previous` while any other is runnable so consecutive runs differ. With every saver too heavy,
+ * the default, which the manager then shows as its black screen.
+ */
+template <typename TooHeavy>
+ScreensaverType random_screensaver(TooHeavy&& too_heavy, uint32_t roll, ScreensaverType previous) {
+    std::vector<ScreensaverType> candidates;
+    for (const ScreensaverInfo& row : kScreensavers) {
+        if (row.type != previous && !too_heavy(row.type)) {
+            candidates.push_back(row.type);
+        }
+    }
+    if (candidates.empty()) {
+        return find_screensaver(previous) != nullptr && !too_heavy(previous)
+                   ? previous
+                   : kDefaultScreensaverType;
+    }
+    return candidates[roll % candidates.size()];
 }
 
 /// Dropdown index of `runs` in `choices`, or 0 (Off) when it is missing, which choices built

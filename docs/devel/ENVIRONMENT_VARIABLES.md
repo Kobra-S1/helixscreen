@@ -588,7 +588,7 @@ Force the screensaver to start immediately instead of waiting for the idle timeo
 
 | Property | Value |
 |----------|-------|
-| **Values** | A saver name from `include/screensaver_registry.h#"kScreensavers[]"` (`toasters`, `starfield`, `pipes`, `bounce`, `fireworks`, `logo`, `maze`, `hyperspace`, `flipclock`, `fireflies`, `aqua`, `highfly`), or `1` / any other value (uses the configured type, falling back to flying toasters). A saver stored as too heavy for the board runs its fallback, as the idle screen would (`docs/devel/SCREENSAVERS.md` § "The gate") |
+| **Values** | A saver name from `include/screensaver_registry.h#"kScreensavers[]"` (`toasters`, `starfield`, `pipes`, `bounce`, `fireworks`, `logo`, `maze`, `hyperspace`, `flipclock`, `fireflies`, `aqua`, `highfly`), `random` (a random saver the board can run), or `1` / any other value (uses the configured type, falling back to flying toasters). A saver stored as too heavy for the board runs its fallback, as the idle screen would (`docs/devel/SCREENSAVERS.md` § "The gate") |
 | **Default** | Unset — normal idle-timeout behavior |
 | **File** | `src/application/display_manager.cpp`, names in `include/screensaver_registry.h` |
 

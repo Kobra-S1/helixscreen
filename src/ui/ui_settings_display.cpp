@@ -282,11 +282,10 @@ void DisplaySettingsOverlay::init_screensaver_dropdown() {
     // The closed field shows the plain label: the marked one runs under the arrow at 800x480.
     std::string closed_text;
     for (ScreensaverType type : choices) {
-        const helix::ui::ScreensaverInfo* info = helix::ui::find_screensaver(type);
         if (!options.empty()) {
             options += "\n";
         }
-        const char* label = lv_tr(info ? info->label_key : helix::ui::kScreensaverOffLabelKey);
+        const char* label = lv_tr(helix::ui::screensaver_label_key(type));
         options += label;
         if (type == runs && runs_too_heavy) {
             options += std::string(" (") + lv_tr("too slow") + ")";

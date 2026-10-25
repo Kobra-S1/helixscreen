@@ -29,6 +29,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <random>
 #include <utility>
 
 namespace helix {
@@ -48,7 +49,10 @@ ScreensaverManager& ScreensaverManager::instance() {
     return mgr;
 }
 
-ScreensaverManager::ScreensaverManager() : cpu_clock_(helix::ui::read_process_cpu_clock) {
+ScreensaverManager::ScreensaverManager()
+    : cpu_clock_(helix::ui::read_process_cpu_clock),
+      random_(static_cast<std::minstd_rand::result_type>(
+          std::chrono::steady_clock::now().time_since_epoch().count())) {
     screensavers_.push_back(std::make_unique<FlyingToasterScreensaver>());
     screensavers_.push_back(std::make_unique<PipesScreensaver>());
     screensavers_.push_back(std::make_unique<StarfieldScreensaver>());
@@ -103,8 +107,20 @@ void ScreensaverManager::start(ScreensaverType type, bool preview) {
         stop();
         return;
     }
+    // A Random run keeps the saver it drew until it stops.
+    if (type == ScreensaverType::RANDOM && is_active()) {
+        return;
+    }
 
     refresh_identity();
+    if (type == ScreensaverType::RANDOM) {
+        type = helix::ui::random_screensaver(
+            [this](ScreensaverType t) { return too_heavy_for_identity(t); },
+            static_cast<uint32_t>(random_()), last_random_);
+        last_random_ = type;
+        spdlog::info("[ScreensaverManager] Random picked screensaver type {}",
+                     static_cast<int>(type));
+    }
     const ScreensaverType runs = runnable_type_for_identity(type);
     const bool already_running =
         (active_ && active_->type() == runs && active_->is_active()) || black_screen_type_ == runs;
@@ -262,6 +278,13 @@ void ScreensaverManager::end_current(helix::SaverRunEnd how) {
         black_screen_type_ = ScreensaverType::OFF;
     }
     gate_enabled_ = false;
+}
+
+ScreensaverType ScreensaverManager::running_type() const {
+    if (active_ && active_->is_active()) {
+        return active_->type();
+    }
+    return black_screen_type_;
 }
 
 bool ScreensaverManager::is_active() const {

@@ -553,6 +553,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             expected.emplace_back(info.label_key);
         }
     }
+    expected.emplace_back(helix::ui::kScreensaverRandomLabelKey);
     CHECK(dropdown_lines(dropdown) == expected);
 
     // The stored maze shows as the saver that runs in its place, and stays stored.
@@ -569,6 +570,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(flip != expected.end());
     overlay.handle_screensaver_changed(static_cast<int>(flip - expected.begin()));
     CHECK(display.get_screensaver_type() == static_cast<int>(ScreensaverType::FLIP_CLOCK));
+    overlay.handle_screensaver_changed(static_cast<int>(expected.size() - 1));
+    CHECK(display.get_screensaver_type() == static_cast<int>(ScreensaverType::RANDOM));
+    CHECK(lv_dropdown_get_selected(dropdown) == expected.size() - 1);
     overlay.handle_screensaver_changed(0);
     CHECK(display.get_screensaver_type() == static_cast<int>(ScreensaverType::OFF));
     overlay.handle_screensaver_changed(static_cast<int>(expected.size()));

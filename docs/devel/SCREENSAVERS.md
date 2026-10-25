@@ -233,14 +233,22 @@ it the moment a running saver is marked. A static black `SaverOverlay` with no f
 the last resort, when every saver is too heavy. The stored `/display/screensaver_type` is never
 rewritten, so a config moved to a faster board runs the saver it names.
 
-The settings dropdown (`DisplaySettingsOverlay::init_screensaver_dropdown`) lists Off and the
-savers `ScreensaverManager::settings_dropdown()` keeps, so its index is not the type: the overlay keeps
+The settings dropdown (`DisplaySettingsOverlay::init_screensaver_dropdown`) lists Off, the
+savers `ScreensaverManager::settings_dropdown()` keeps, then Random, so its index is not the type: the overlay keeps
 the stable name at each position and stores the picked one. A too-heavy stored choice is hidden
 and the dropdown selects the saver that runs in its place. On a board where every saver is too
 heavy, the stored one stays listed and selected, marked "(too slow)" in the list, so choosing
 Off is a real change; the closed field shows its plain label. The XML `options` still carry the
 full registry list as the translation source, and the row's `options_tag` puts that list back
 on a language change, so the overlay rebuilds its own list after it.
+
+Random (`ScreensaverType::RANDOM`, stored as `"random"`) is a choice, not a saver: it has no
+`kScreensavers` row, and its value sits outside the row range so savers added later never
+collide with it. Each `ScreensaverManager::start(RANDOM)` draws one saver with
+`helix::ui::random_screensaver`: any registered saver the board can run, other than the one the
+previous Random run drew while another is runnable. A start while a saver is up keeps it, and a
+drawn saver that later proves too heavy falls back as any other would. Random stays listed while
+any saver can run, and when every saver is too heavy only if it is the stored choice.
 
 `HELIX_SCREENSAVER_BUDGET_PCT` replaces the budget and `HELIX_SCREENSAVER_LEVEL` forces a level
 with the gate off (`docs/devel/ENVIRONMENT_VARIABLES.md`). A forced level runs a saver stored as
