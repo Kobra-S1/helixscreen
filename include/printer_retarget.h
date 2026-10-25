@@ -25,10 +25,6 @@ bool connect_printer(MoonrakerManager& manager, const std::string& ws_url,
 /// connect_printer() to the active printer, through the global manager.
 bool connect_active_printer();
 
-/// Reconnects the live client to the host and port the active printer's config names.
-/// Main thread only. False when there is no client or manager, or the connect could not start.
-bool reconnect_active_printer();
-
 /// Points the live connection at the active printer as a different printer than the one it
 /// served: disconnects, applies the old printer's queued notifications, drops its AMS
 /// backends (discovery builds them only when none exist), shows the new printer's name, then

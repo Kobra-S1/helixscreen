@@ -5,6 +5,7 @@
 
 #include "async_lifetime_guard.h"
 #include "mdns_discovery.h"
+#include "utils/network_validation.h"
 
 #include <atomic>
 #include <chrono>
@@ -24,6 +25,9 @@
  * answer a browse. The sweep asks each address of our own /24 for /server/info on the
  * ports a connection test would try (7125, then 80), and reports the ones that answer as
  * Moonraker. MoonrakerDiscovery runs it beside mDNS and merges the two.
+ *
+ * The same /server/info check is the connection screens' Test Connection
+ * (MoonrakerConnectionTest), which never touches the app's live client.
  */
 namespace helix {
 
@@ -45,25 +49,39 @@ std::vector<std::string> lan_sweep_hosts(const LocalIpv4& local);
 /// Empty when there is no IPv4 route.
 std::optional<LocalIpv4> active_local_ipv4();
 
-/// True when @p http_response (status line, headers and body) is Moonraker's answer to
-/// GET /server/info: a 2xx whose JSON body's top-level `result` object carries Moonraker's
-/// own keys, or a 401/403 whose top-level `error` object carries `code` and `message`
-/// (Moonraker behind its login). A router's or web server's page on port 80 is not.
+/// What one /server/info request learned.
+struct MoonrakerProbe {
+    /// A bare answer, as a test's stand-in probe gives it.
+    MoonrakerProbe(bool found = false) : moonraker(found) {}
+
+    bool moonraker = false;   ///< Moonraker answered
+    std::string klippy_state; ///< Its `result.klippy_state`, when it gave one
+    /// Why not, when it did not: nothing answered in time, the port refused, or something
+    /// other than Moonraker answered (Unknown).
+    ConnectFailureKind failure = ConnectFailureKind::Unknown;
+};
+
+/// Reads @p http_response (status line, headers and body) as an answer to GET /server/info.
+/// It is Moonraker's when it is a 2xx whose JSON body's top-level `result` object carries
+/// Moonraker's own keys, or a 401/403 whose top-level `error` object carries `code` and
+/// `message` (Moonraker behind its login). A router's or web server's page on port 80 is not.
+MoonrakerProbe read_server_info_response(const std::string& http_response);
+
+/// read_server_info_response(@p http_response).moonraker
 bool is_moonraker_server_info_response(const std::string& http_response);
 
 /**
- * @brief Ask @p host:@p port for /server/info over plain HTTP and classify the answer
+ * @brief Ask @p host:@p port for /server/info over plain HTTP and read the answer
  *
- * The sweep's "is this Moonraker" check. Blocking; run it on a worker thread. It is a
- * single short HTTP request rather than the WebSocket connect of probe_moonraker_ports(),
- * which drives the app's one live client and so tests one address at a time.
+ * The one "is this Moonraker" check, for the sweep and for Test Connection. Blocking; run
+ * it on a worker thread.
  *
  * @param connect_timeout How long the TCP connect may take
  * @param total_timeout   How long the whole exchange may take
  */
-bool probe_moonraker_http(const std::string& host, uint16_t port,
-                          std::chrono::milliseconds connect_timeout,
-                          std::chrono::milliseconds total_timeout);
+MoonrakerProbe probe_moonraker_http(const std::string& host, uint16_t port,
+                                    std::chrono::milliseconds connect_timeout,
+                                    std::chrono::milliseconds total_timeout);
 
 /// How hard a sweep pushes the network. lan_sweep_default_limits() gives each platform's.
 struct LanSweepLimits {
@@ -100,6 +118,71 @@ struct LanSweepWorkers {
 LanSweepWorkers start_lan_sweep_workers(size_t count, const LanSweepLimits& limits,
                                         std::function<void()> body);
 
+/// Blocking "is Moonraker on host:port" check; runs on a worker.
+using MoonrakerProbeFn = std::function<MoonrakerProbe(const std::string& host, uint16_t port)>;
+/// How workers start; start_lan_sweep_workers() unless a test stands in.
+using StartWorkersFn =
+    std::function<LanSweepWorkers(size_t, const LanSweepLimits&, std::function<void()>)>;
+
+/**
+ * @brief Test Connection: is Moonraker at this host, and on which port
+ *
+ * Asks /server/info on each of the ports in turn (moonraker_ports_to_try() gives them) on
+ * one worker and reports on the main thread. The app's live client is never touched, so
+ * the screen behind the test keeps its printer. One test runs at a time: start() cancels
+ * the one before, and cancel() or destruction drops a result still in flight.
+ */
+class MoonrakerConnectionTest {
+  public:
+    struct Result {
+        bool reached = false;
+        int port = 0;             ///< Where Moonraker answered, when reached
+        std::string klippy_state; ///< What it said of Klipper, when it said
+        std::vector<int> tried;   ///< The ports asked, in order
+        ConnectFailureKind failure = ConnectFailureKind::Unknown; ///< The last port's, when not
+    };
+    using DoneFn = std::function<void(const Result&)>;
+
+    /// The real network, unless set_connection_test_seams_for_test() installed stand-ins.
+    MoonrakerConnectionTest();
+    ~MoonrakerConnectionTest();
+
+    MoonrakerConnectionTest(const MoonrakerConnectionTest&) = delete;
+    MoonrakerConnectionTest& operator=(const MoonrakerConnectionTest&) = delete;
+
+    /// Main thread only.
+    void start(const std::string& host, std::vector<int> ports, DoneFn on_done);
+    /// Main thread only. Does not wait for a running probe.
+    void cancel();
+    bool running() const {
+        return running_;
+    }
+
+  private:
+    void finish(const Result& result);
+
+    LanSweepLimits limits_;
+    MoonrakerProbeFn probe_;
+    StartWorkersFn start_workers_;
+    std::shared_ptr<void> worker_;
+    std::shared_ptr<std::atomic<bool>> cancelled_;
+    DoneFn on_done_;
+    bool running_ = false;
+    AsyncLifetimeGuard lifetime_;
+};
+
+/// Stand-ins every MoonrakerConnectionTest uses from its next start(); empty functions
+/// restore the real network.
+void set_connection_test_seams_for_test(MoonrakerProbeFn probe, StartWorkersFn start_workers);
+
+/// The translated status line for a failed test: the hint for @p kind, followed by the
+/// ports tried when there was more than one.
+std::string connect_failure_status(ConnectFailureKind kind, const std::vector<int>& ports_tried);
+
+/// The translated status line for a test that reached Moonraker at @p host.
+std::string connection_test_status(const std::string& host,
+                                   const MoonrakerConnectionTest::Result& result);
+
 /**
  * @brief An IMdnsDiscovery that sweeps the local /24 once per start
  *
@@ -111,13 +194,9 @@ LanSweepWorkers start_lan_sweep_workers(size_t count, const LanSweepLimits& limi
  */
 class LanSweepDiscovery : public IMdnsDiscovery {
   public:
-    /// Blocking "is Moonraker on host:port" check; runs on the sweep's workers.
-    using ProbeFn = std::function<bool(const std::string& host, uint16_t port)>;
+    using ProbeFn = MoonrakerProbeFn;
     /// Where the sweep runs from; empty skips the sweep.
     using LocalNetFn = std::function<std::optional<LocalIpv4>()>;
-    /// How workers start; start_lan_sweep_workers() unless a test stands in.
-    using StartWorkersFn =
-        std::function<LanSweepWorkers(size_t, const LanSweepLimits&, std::function<void()>)>;
 
     /// The real network under this platform's limits.
     LanSweepDiscovery();

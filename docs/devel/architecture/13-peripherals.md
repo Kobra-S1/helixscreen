@@ -244,9 +244,12 @@ private network only, a wider mask narrowed to the /24; `lan_sweep_hosts()`) on 
 `moonraker_ports_to_try()` gives an untouched default, 7125 then 80, and stops at the first that answers. Its
 check is `probe_moonraker_http()`: one plain HTTP/1.0 `GET /server/info` on a non-blocking socket, 400ms to
 connect and 1.5s in all, counted only when `is_moonraker_server_info_response()` sees Moonraker's `result`
-fields, so a router's page on port 80 is not a printer. That is lighter than the connection test's
-`probe_moonraker_ports()`, which drives the app's single live WebSocket client and so tries one address at a
-time. Only the platform pieces differ, declared at the foot of `lan_sweep.h`: where our address comes from
+fields (or Moonraker's own 401/403 error object), so a router's page on port 80 is not a printer. The same
+check is **Test Connection** on both screens: `MoonrakerConnectionTest` (`include/lan_sweep.h`) asks it on one
+worker over `moonraker_ports_to_try()`'s ports (an untouched 7125 default, then 80) and reports the port that
+answered and Klipper's state. It never touches the app's live client, so the screen behind the Change Host
+modal keeps its printer; only Save moves the client. The wizard step then connects the client to the one address
+that answered, because its later steps need that printer's hardware discovery. Only the platform pieces differ, declared at the foot of `lan_sweep.h`: where our address comes from
 (`getifaddrs` or `esp_netif`), the limits (`lan_sweep_default_limits()`) and how workers start
 (`start_lan_sweep_workers()`). On Linux and macOS 12 probes run at once on a sweep-owned `HttpExecutor`. On the
 ESP32 firmware, where that pool never starts, three detached pthreads with 12KB PSRAM stacks run them, with a

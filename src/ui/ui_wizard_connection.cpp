@@ -19,9 +19,9 @@
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "lan_sweep.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/others/translation/lv_translation.h"
-#include "moonraker_port_probe.h"
 #include "platform_info.h"
 #include "printer_discovery.h"
 #include "printer_discovery_list.h"
@@ -256,9 +256,6 @@ void WizardConnectionStep::handle_test_connection_clicked() {
         return;
     }
 
-    // Disconnect any previous connection attempt
-    client->disconnect();
-
     // Invalidate pending callbacks from previous attempts, then grab fresh token
     lifetime_.invalidate();
     auto tok = lifetime_.token();
@@ -280,23 +277,63 @@ void WizardConnectionStep::handle_test_connection_clicked() {
 
     spdlog::debug("[{}] Starting connection test to {}:{}", get_name(), ip, port_clean);
 
-    tried_ports_ = ports;
-    // Both callbacks run on the main thread, gated by tok.
-    int result = probe_moonraker_ports(
-        ip, std::move(ports), 5000, tok,
-        [this, tok](int port) {
-            adopt_probed_port(port);
-            on_connection_success(tok);
-        },
-        [this, tok](int /*port*/) { on_connection_failure(tok); });
-
-    if (result != 0) {
-        spdlog::error("[{}] Failed to initiate connection: {}", get_name(), result);
-        set_status("icon_close_circle", StatusVariant::Danger, "Error starting connection test");
-        lv_subject_set_int(&connection_testing_, 0);
-    }
+    // The HTTP check finds the port without touching the live client; the client then
+    // connects to that one address, because the next steps need its hardware discovery.
+    connection_test_.start(ip, std::move(ports),
+                           [this, tok](const MoonrakerConnectionTest::Result& result) {
+                               if (!result.reached) {
+                                   tried_ports_ = result.tried;
+                                   show_connection_failure(result.failure);
+                                   return;
+                               }
+                               adopt_probed_port(result.port);
+                               tried_ports_ = {result.port};
+                               connect_confirmed(tok, false, 5000);
+                           });
 
     LVGL_SAFE_EVENT_CB_END();
+}
+
+void WizardConnectionStep::connect_confirmed(const helix::LifetimeToken& tok, bool auto_probe,
+                                             uint32_t timeout_ms) {
+    std::string ip, port;
+    {
+        std::lock_guard<std::mutex> lock(saved_values_mutex_);
+        ip = saved_ip_;
+        port = saved_port_;
+    }
+    IMoonrakerClient* client = get_moonraker_client();
+    if (!client) {
+        auto_probe ? on_auto_probe_failure(tok)
+                   : show_connection_failure(ConnectFailureKind::Unknown);
+        return;
+    }
+    client->disconnect();
+    client->set_connection_timeout(timeout_ms);
+    const std::string ws_url = "ws://" + ip + ":" + port + "/websocket";
+    // One deferred body for both outcomes; it runs on the main thread, gated by tok.
+    auto report = [this, tok, auto_probe](bool connected) {
+        tok.defer("WizardConnectionStep::connect_result", [this, tok, auto_probe, connected]() {
+            if (auto_probe) {
+                connected ? on_auto_probe_success(tok) : on_auto_probe_failure(tok);
+            } else {
+                connected ? on_connection_success(tok) : on_connection_failure(tok);
+            }
+        });
+    };
+    const int result = client->connect(
+        ws_url.c_str(), [report]() { report(true); }, [report]() { report(false); });
+    client->set_auto_reconnect(false);
+    if (result != 0) {
+        spdlog::error("[{}] Failed to initiate connection: {}", get_name(), result);
+        if (auto_probe) {
+            on_auto_probe_failure(tok);
+        } else {
+            set_status("icon_close_circle", StatusVariant::Danger,
+                       "Error starting connection test");
+            lv_subject_set_int(&connection_testing_, 0);
+        }
+    }
 }
 
 void WizardConnectionStep::on_connection_success(const helix::LifetimeToken& tok) {
@@ -402,18 +439,20 @@ void WizardConnectionStep::on_connection_failure(const helix::LifetimeToken& /*t
 
     if (testing_state == 1) {
         IMoonrakerClient* client = get_moonraker_client();
-        const ConnectFailureKind kind =
-            client ? client->last_connect_failure() : ConnectFailureKind::Unknown;
-        spdlog::error("[Wizard Connection] Connection failed (kind={})", static_cast<int>(kind));
-
-        set_status("icon_close_circle", StatusVariant::Danger,
-                   connect_failure_status(kind, tried_ports_).c_str());
-        lv_subject_set_int(&connection_testing_, 0);
-        connection_validated_ = false;
-        lv_subject_set_int(&connection_test_passed, 0);
+        show_connection_failure(client ? client->last_connect_failure()
+                                       : ConnectFailureKind::Unknown);
     } else {
         spdlog::debug("[Wizard Connection] Ignoring disconnect (not in testing mode)");
     }
+}
+
+void WizardConnectionStep::show_connection_failure(ConnectFailureKind kind) {
+    spdlog::error("[Wizard Connection] Connection failed (kind={})", static_cast<int>(kind));
+    set_status("icon_close_circle", StatusVariant::Danger,
+               connect_failure_status(kind, tried_ports_).c_str());
+    lv_subject_set_int(&connection_testing_, 0);
+    connection_validated_ = false;
+    lv_subject_set_int(&connection_test_passed, 0);
 }
 
 // ============================================================================
@@ -489,17 +528,6 @@ void WizardConnectionStep::attempt_auto_probe() {
     // Clear timer reference (it's already fired)
     auto_probe_timer_ = nullptr;
 
-    // Get MoonrakerClient
-    IMoonrakerClient* client = get_moonraker_client();
-    if (!client) {
-        spdlog::warn("[{}] Auto-probe: MoonrakerClient not available", get_name());
-        auto_probe_state_.store(AutoProbeState::FAILED);
-        return;
-    }
-
-    // Disconnect any previous connection
-    client->disconnect();
-
     // Store probe target for callbacks (thread-safe)
     {
         std::lock_guard<std::mutex> lock(saved_values_mutex_);
@@ -513,27 +541,20 @@ void WizardConnectionStep::attempt_auto_probe() {
     // Set testing state (reuses existing subject for button disable)
     lv_subject_set_int(&connection_testing_, 1);
 
-    // Short timeout per port: the probe runs unasked, so it should give up quickly. Both
-    // callbacks run on the main thread, gated by tok.
-    int result = probe_moonraker_ports(
-        probe_ip, std::move(probe_ports), 3000, tok,
-        [this, tok](int port) {
-            if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
-                std::lock_guard<std::mutex> lock(saved_values_mutex_);
-                saved_port_ = std::to_string(port);
-            }
-            on_auto_probe_success(tok);
-        },
-        [this, tok](int /*port*/) { on_auto_probe_failure(tok); });
-
-    if (result != 0) {
-        spdlog::debug("[{}] Auto-probe: Failed to initiate connection", get_name());
-        auto_probe_state_.store(AutoProbeState::FAILED);
-        lv_subject_set_int(&connection_testing_, 0);
-        // Silent failure - reset to help text
-        set_status(nullptr, StatusVariant::None,
-                   lv_tr("Connection must be tested successfully to continue"));
-    }
+    // The same HTTP check as Test, then the live client on the one address that answered.
+    connection_test_.start(probe_ip, std::move(probe_ports),
+                           [this, tok](const MoonrakerConnectionTest::Result& result) {
+                               if (!result.reached) {
+                                   on_auto_probe_failure(tok);
+                                   return;
+                               }
+                               {
+                                   std::lock_guard<std::mutex> lock(saved_values_mutex_);
+                                   saved_port_ = std::to_string(result.port);
+                               }
+                               // Short: the probe runs unasked, so it gives up quickly.
+                               connect_confirmed(tok, true, 3000);
+                           });
 }
 
 void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok) {
@@ -671,12 +692,17 @@ void WizardConnectionStep::handle_ip_input_changed() {
     if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
         spdlog::debug("[{}] User input during auto-probe, cancelling", get_name());
         auto_probe_state_.store(AutoProbeState::FAILED); // Mark as failed to ignore callbacks
+        connection_test_.cancel();
         IMoonrakerClient* client = get_moonraker_client();
         if (client) {
             client->disconnect();
         }
         lv_subject_set_int(&connection_testing_, 0);
     }
+
+    // A test still running answers for the old address.
+    connection_test_.cancel();
+    lv_subject_set_int(&connection_testing_, 0);
 
     // The user retargeted the connection, so any discovery still in flight is
     // moot — its watchdog must not re-open the gate we clear just below.
@@ -707,12 +733,17 @@ void WizardConnectionStep::handle_port_input_changed() {
     if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
         spdlog::debug("[{}] User input during auto-probe, cancelling", get_name());
         auto_probe_state_.store(AutoProbeState::FAILED); // Mark as failed to ignore callbacks
+        connection_test_.cancel();
         IMoonrakerClient* client = get_moonraker_client();
         if (client) {
             client->disconnect();
         }
         lv_subject_set_int(&connection_testing_, 0);
     }
+
+    // A test still running answers for the old address.
+    connection_test_.cancel();
+    lv_subject_set_int(&connection_testing_, 0);
 
     // The user retargeted the connection, so any discovery still in flight is
     // moot — its watchdog must not re-open the gate we clear just below.
@@ -870,6 +901,8 @@ void WizardConnectionStep::cleanup() {
     // Expire all outstanding lifetime tokens — any pending async callbacks
     // (connection test, auto-probe, discovery, mDNS) will be silently skipped
     lifetime_.invalidate();
+
+    connection_test_.cancel();
 
     // The next visit starts from a port the app filled in.
     port_origin_ = PortOrigin::FilledIn;

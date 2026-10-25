@@ -1,6 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "moonraker_port_probe.h"
+#include "lan_sweep.h"
 #include "utils/network_validation.h"
 
 #include "../catch_amalgamated.hpp"

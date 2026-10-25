@@ -1870,6 +1870,7 @@
   <translation tag="Klipper will restart to apply changes." en="Klipper will restart to apply changes."/>
   <translation tag="Klipper will restart to apply new settings." en="Klipper will restart to apply new settings."/>
   <translation tag="Klipper: " en="Klipper: "/>
+  <translation tag="Klipper: {}" en="Klipper: {}"/>
   <translation tag="Klippy Errors" en="Klippy Errors"/>
   <translation tag="Klippy Shutdowns" en="Klippy Shutdowns"/>
   <translation tag="LED Controls" en="LED Controls"/>
@@ -2147,6 +2148,7 @@
   <translation tag="Monitoring" en="Monitoring"/>
   <translation tag="Month" en="Month"/>
   <translation tag="Moonraker" en="Moonraker"/>
+  <translation tag="Moonraker answered at {}." en="Moonraker answered at {}."/>
   <translation tag="Moonraker has no G-code folder." en="Moonraker has no G-code folder."/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." en="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen."/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." en="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started."/>
