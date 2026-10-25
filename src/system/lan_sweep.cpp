@@ -580,18 +580,23 @@ void MoonrakerConnectionTest::start(const std::string& host, std::vector<int> po
     cancel();
     on_done_ = std::move(on_done);
     running_ = true;
-    // Stand-ins are read per start, so a screen built before a test installs them uses them.
-    const ConnectionTestSeams& seams = connection_test_seams();
     auto run = std::make_shared<Run>(lifetime_.token());
     run->owner = this;
     run->host = host;
     run->ports = std::move(ports);
-    run->probe = seams.probe;
     run->limits = connection_test_limits();
     run_ = run;
     auto body = [run]() { run_on_worker(run); };
+#if defined(ESP_PLATFORM)
+    // Only the host test suite installs stand-ins.
+    LanSweepWorkers worker = start_lan_sweep_workers(1, run->limits, body);
+#else
+    // Stand-ins are read per start, so a screen built before a test installs them uses them.
+    const ConnectionTestSeams& seams = connection_test_seams();
+    run->probe = seams.probe;
     LanSweepWorkers worker = seams.start_workers ? seams.start_workers(1, run->limits, body)
                                                  : start_lan_sweep_workers(1, run->limits, body);
+#endif
     worker_ = std::move(worker.keepalive);
     if (worker.started == 0) {
         run->result.tried = run->ports;
