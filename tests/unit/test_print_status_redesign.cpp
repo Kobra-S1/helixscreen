@@ -741,6 +741,68 @@ TEST_CASE_METHOD(Landscape800, "a tuned speed does not change the mode", "[print
     PrinterStateTestAccess::get_fan_state(state()).init_fans({});
 }
 
+TEST_CASE_METHOD(Landscape800, "a fan taking the part slot mid-print sheds nothing new",
+                 "[print_status]") {
+    // At this size the one-side line mode fits the stopped aux fan only by
+    // shedding the hotend fan.
+    size_printer_area(root_, 320, 220);
+    // The [fan] has never run, so the generic fan takes the part slot once it
+    // spins, and the aux slot empties.
+    auto& fans = PrinterStateTestAccess::get_fan_state(state());
+    fans.init_fans({"fan", "heater_fan hotend_fan", "fan_generic aux"});
+    fans.update_fan_speed("fan", 0.0);
+    fans.update_fan_speed("fan_generic aux", 0.0);
+    settle();
+    settle();
+    REQUIRE(fans.classify_primary_fans().aux == "fan_generic aux");
+    const int mode = subject_int("ps_callout_mode");
+    const CalloutRect before = image_rect(root_);
+    REQUIRE(mode == static_cast<int>(CalloutMode::OneSide));
+    REQUIRE(subject_int("ps_chip_hotend_fan_shown") == 0);
+
+    fans.update_fan_speed("fan_generic aux", 0.6);
+    settle();
+    settle();
+    REQUIRE(fans.classify_primary_fans().part == "fan_generic aux");
+    REQUIRE(fans.classify_primary_fans().aux.empty());
+    // The aux slot stays budgeted, so the chips do not rearrange around its absence.
+    CHECK(subject_int("ps_callout_mode") == mode);
+    CHECK(same_rect(image_rect(root_), before));
+    CHECK(subject_int("ps_chip_hotend_fan_shown") == 0);
+    fans.init_fans({});
+}
+
+TEST_CASE_METHOD(Landscape800, "a rebuilt tree shows the exact-size copy as an exact copy",
+                 "[print_status]") {
+    tiles().use_displayed_image();
+    settle();
+    const std::string source = helix::PrinterImageManager::instance().get_displayed_image_path(
+        lv_display_get_horizontal_resolution(lv_display_get_default()));
+    REQUIRE_FALSE(source.empty());
+    lv_obj_update_layout(root_);
+    lv_obj_t* img = lv_obj_find_by_name(root_, "ps_printer_image");
+    REQUIRE(img != nullptr);
+    const std::string cache_src = "A:" + helix::get_cached_printer_image_path(
+                                             source, lv_obj_get_width(img), lv_obj_get_height(img));
+    REQUIRE(wait_until([&]() { return subject_str("ps_printer_image_src") == cache_src; }));
+    REQUIRE(lv_image_get_inner_align(img) == LV_IMAGE_ALIGN_CENTER);
+
+    // The memory-reclaim teardown, then a fresh tree whose image starts as the
+    // XML declares it: CONTAIN-scaled.
+    lv_obj_t* cached = panel().get_panel();
+    panel().destroy_overlay_ui(cached);
+    process_lvgl(50);
+    root_ = panel().create(test_screen());
+    REQUIRE(root_ != nullptr);
+    lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    settle();
+
+    img = lv_obj_find_by_name(root_, "ps_printer_image");
+    REQUIRE(img != nullptr);
+    CHECK(subject_str("ps_printer_image_src") == cache_src);
+    CHECK(lv_image_get_inner_align(img) == LV_IMAGE_ALIGN_CENTER);
+}
+
 TEST_CASE_METHOD(Landscape800, "a phase-dropped chip that turns unusual docks", "[print_status]") {
     size_printer_area(root_, 320, 208);
     three_fans_stopped(*this);
