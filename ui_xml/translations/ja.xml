@@ -676,6 +676,7 @@
   <translation tag="Choose Filament" ja="フィラメントを選択"/>
   <translation tag="Choose Layer" ja="レイヤーを選択"/>
   <translation tag="Choose Model" ja="モデルを選択"/>
+  <translation tag="Choose a discovered printer" ja="見つかったプリンターを選択"/>
   <translation tag="Choose an existing filament, or tap + New to create one." ja="既存のフィラメントを選択するか、+ 新規をタップして作成してください。"/>
   <translation tag="Choose display language" ja="表示言語を選択"/>
   <translation tag="Choose head" ja="ヘッドを選択"/>
@@ -3920,6 +3921,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" ja="ターゲットをタッチ（ポイント %1$d / 3）— タッチ %2$d / %3$d"/>
   <translation tag="TouchCalibration" ja="タッチキャリブレーション"/>
   <translation tag="Trace" ja="トレース"/>
+  <translation tag="Tried ports {} and {}." ja="ポート{}と{}を試しました。"/>
   <translation tag="Trigger" ja="トリガー"/>
   <translation tag="Troubleshooting:" ja="トラブルシューティング:"/>
   <translation tag="Try Again" ja="再試行"/>

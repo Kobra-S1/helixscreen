@@ -24,7 +24,7 @@ src/bluetooth/  # all 9 src/ files beneath
 src/config/  # all 1 src/ files beneath
 src/input/  # all 1 src/ files beneath
 src/lvgl-demo/  # all 1 src/ files beneath
-src/network/  # all 1 src/ files beneath
+src/network/  # all 2 src/ files beneath
 src/remote/  # all 8 src/ files beneath
 src/tools/  # all 1 src/ files beneath
 

@@ -30,11 +30,13 @@
 #include "host_identity.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
+#include "lan_sweep.h"
 #include "mock_persona.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "moonraker_event_routing.h"
 #include "power_device_state.h"
+#include "printer_discovery_list.h"
 #include "sensor_state.h"
 #include "unit_conversions.h"
 #ifdef HELIX_ENABLE_MOCKS
@@ -124,6 +126,11 @@ bool MoonrakerManager::init(const RuntimeConfig& runtime_config, Config* config)
             [] { return std::make_unique<helix::MdnsDiscovery>(); });
     }
 #endif
+    // The setup wizard and the host modal list printers from mDNS and the LAN sweep. A
+    // mock printer has nothing on the network to find.
+    if (!runtime_config.should_mock_mdns()) {
+        helix::set_printer_discovery_source(helix::make_moonraker_discovery);
+    }
 
     // Register callbacks for notifications and state changes
     register_callbacks();

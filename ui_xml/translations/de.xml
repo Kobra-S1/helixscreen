@@ -676,6 +676,7 @@
   <translation tag="Choose Filament" de="Filament auswählen"/>
   <translation tag="Choose Layer" de="Schicht wählen"/>
   <translation tag="Choose Model" de="Modell auswählen"/>
+  <translation tag="Choose a discovered printer" de="Gefundenen Drucker wählen"/>
   <translation tag="Choose an existing filament, or tap + New to create one." de="Vorhandenes Filament wählen oder + Neu tippen."/>
   <translation tag="Choose display language" de="Anzeigesprache wählen"/>
   <translation tag="Choose head" de="Kopf wählen"/>
@@ -3920,6 +3921,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" de="Ziel berühren (Punkt %1$d von 3) — Berührung %2$d von %3$d"/>
   <translation tag="TouchCalibration" de="Touch-Kalibrierung"/>
   <translation tag="Trace" de="Trace"/>
+  <translation tag="Tried ports {} and {}." de="Versucht: Ports {} und {}."/>
   <translation tag="Trigger" de="Auslöser"/>
   <translation tag="Troubleshooting:" de="Fehlerbehebung:"/>
   <translation tag="Try Again" de="Erneut versuchen"/>

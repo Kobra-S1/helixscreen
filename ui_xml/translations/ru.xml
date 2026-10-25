@@ -715,6 +715,7 @@
   <translation tag="Choose Filament" ru="Выбрать филамент"/>
   <translation tag="Choose Layer" ru="Выбрать слой"/>
   <translation tag="Choose Model" ru="Выберите модель"/>
+  <translation tag="Choose a discovered printer" ru="Выберите найденный принтер"/>
   <translation tag="Choose an existing filament, or tap + New to create one." ru="Выберите существующий филамент или нажмите + Новый, чтобы создать."/>
   <translation tag="Choose display language" ru="Выберите язык интерфейса"/>
   <translation tag="Choose head" ru="Выберите головку"/>
@@ -3980,6 +3981,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" ru="Коснитесь цели (точка %1$d из 3) — касание %2$d из %3$d"/>
   <translation tag="TouchCalibration" ru="Калибровка касания"/>
   <translation tag="Trace" ru="Трассировка"/>
+  <translation tag="Tried ports {} and {}." ru="Проверены порты {} и {}."/>
   <translation tag="Trigger" ru="Триггер"/>
   <translation tag="Troubleshooting:" ru="Устранение неполадок:"/>
   <translation tag="Try Again" ru="Повторить"/>

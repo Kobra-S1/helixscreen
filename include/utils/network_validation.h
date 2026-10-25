@@ -6,6 +6,7 @@
 #include "connection_state.h"
 
 #include <string>
+#include <vector>
 
 /**
  * @brief Validate IP address or hostname format
@@ -78,5 +79,31 @@ ConnectFailureKind classify_connect_failure(int io_error, int socket_error);
  * Wi-Fi is the usual reason nothing answers there.
  */
 const char* connect_failure_hint(ConnectFailureKind kind, bool is_android);
+
+/// Moonraker's own default port, which the connection fields start from.
+constexpr int kDefaultMoonrakerPort = 7125;
+/// Where Moonraker answers when a web server such as nginx fronts it.
+constexpr int kFallbackMoonrakerPort = 80;
+
+/// Where the port field's value came from.
+enum class PortOrigin {
+    FilledIn,   ///< The app put it there: the default, or the printer's saved port
+    Typed,      ///< The user edited the field
+    Discovered, ///< Picked from the printers mDNS or the LAN sweep found
+};
+
+/**
+ * @brief The ports a connection test tries for the port field's text, in order
+ *
+ * Only the untouched 7125 default is a guess, so only it falls back to port 80 when nothing
+ * answers on 7125; a saved 7125 cannot be told from the default and counts as one. Any
+ * other filled-in port (a saved one), a typed port and a discovered port are tried alone.
+ * An empty field means the default.
+ *
+ * @param port_text The port field's text (digits; surrounding whitespace ignored)
+ * @param origin    Where that text came from
+ * @return The ports to try in order; empty when port_text is not a valid port
+ */
+std::vector<int> moonraker_ports_to_try(const std::string& port_text, PortOrigin origin);
 
 } // namespace helix

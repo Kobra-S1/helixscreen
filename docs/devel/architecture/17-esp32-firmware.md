@@ -297,8 +297,9 @@ unless `CONFIG_HELIX_AMS_HTTP_POLL_BACKENDS` is on (`http_poll_ams_backends_supp
 WiFi is the shared `WiFiManager` over `wifi_backend_esp.cpp`: credentials in NVS, an all-channel scan that joins
 the strongest AP of the SSID, modem sleep off. With no stored SSID, `app_net` runs the SoftAP captive portal
 (`firmware/helixscreen-esp32/components/helixapp/provisioning_esp.h#provisioning_run_portal`) while the not-ready
-UI shows instructions. There is no mDNS: the printer address is typed into Settings, or seeded on first boot from
-`CONFIG_HELIX_HIL_MOONRAKER_URL` in a git-ignored `sdkconfig.local`. The wall clock comes from SNTP, or from
+UI shows instructions. There is no mDNS: the printer address is typed into Settings (whose host modal lists the printers
+the LAN sweep finds, three PSRAM-stack pthreads from `components/helixapp/lan_sweep_esp.cpp`; chapter 13), or
+seeded on first boot from `CONFIG_HELIX_HIL_MOONRAKER_URL` in a git-ignored `sdkconfig.local`. The wall clock comes from SNTP, or from
 Moonraker's HTTP `Date` header on a LAN with no internet (`wall_clock_esp.h`).
 
 ### Storage, settings and printers

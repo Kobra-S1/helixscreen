@@ -683,6 +683,7 @@ translations:
   Checking webcam: ウェブカメラを確認中
   Checking...: 確認中...
   Checking…: 確認中…
+  Choose a discovered printer: "見つかったプリンターを選択"
   Choose 12-hour or 24-hour time display: 12時間表示または24時間表示を選択
   Choose Filament: フィラメントを選択
   Choose Layer: 'レイヤーを選択'
@@ -4103,6 +4104,7 @@ translations:
   TouchCalibration: タッチキャリブレーション
   Trace: トレース
   Trigger: トリガー
+  'Tried ports {} and {}.': "ポート{}と{}を試しました。"
   'Troubleshooting:': 'トラブルシューティング:'
   Try adjusting your search or filters: 検索やフィルターを調整してみてください
   Try Again: '再試行'

@@ -676,6 +676,7 @@
   <translation tag="Choose Filament" zh="选择耗材"/>
   <translation tag="Choose Layer" zh="选择层"/>
   <translation tag="Choose Model" zh="选择型号"/>
+  <translation tag="Choose a discovered printer" zh="选择发现的打印机"/>
   <translation tag="Choose an existing filament, or tap + New to create one." zh="选择已有耗材，或点击 + 新建来创建。"/>
   <translation tag="Choose display language" zh="选择显示语言"/>
   <translation tag="Choose head" zh="选择打印头"/>
@@ -3920,6 +3921,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" zh="触摸目标（第 %1$d 个点，共 3 个）— 触摸 %2$d / %3$d"/>
   <translation tag="TouchCalibration" zh="触摸校准"/>
   <translation tag="Trace" zh="跟踪"/>
+  <translation tag="Tried ports {} and {}." zh="已尝试端口 {} 和 {}。"/>
   <translation tag="Trigger" zh="触发器"/>
   <translation tag="Troubleshooting:" zh="故障排除："/>
   <translation tag="Try Again" zh="重试"/>

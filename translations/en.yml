@@ -714,6 +714,7 @@ translations:
   Checking webcam: Checking webcam
   Checking...: Checking...
   Checking…: Checking…
+  Choose a discovered printer: Choose a discovered printer
   Choose 12-hour or 24-hour time display: Choose 12-hour or 24-hour time display
   Choose Filament: Choose Filament
   Choose Layer: Choose Layer
@@ -4241,6 +4242,7 @@ translations:
   TouchCalibration: TouchCalibration
   Trace: Trace
   Trigger: Trigger
+  'Tried ports {} and {}.': 'Tried ports {} and {}.'
   'Troubleshooting:': 'Troubleshooting:'
   Try adjusting your search or filters: Try adjusting your search or filters
   Try Again: Try Again

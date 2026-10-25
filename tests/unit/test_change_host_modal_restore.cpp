@@ -15,6 +15,7 @@
 #include "ui_update_queue.h"
 
 #include "../fake_moonraker_client.h"
+#include "../mocks/mock_mdns_discovery.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/moonraker_manager_test_access.h"
@@ -24,12 +25,15 @@
 #include "app_globals.h"
 #include "config.h"
 #include "moonraker_manager.h"
+#include "moonraker_port_probe.h"
 #include "platform_info.h"
+#include "printer_discovery_list.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
 #include "utils/network_validation.h"
 
+#include <algorithm>
 #include <lvgl.h>
 #include <memory>
 #include <string>
@@ -431,13 +435,54 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     client_->connect_failure = kind;
     lv_obj_t* dialog = open_and_test("10.9.9.9");
 
+    // The untouched default also tries port 80 before giving up.
+    REQUIRE(client_->fire_disconnected());
+    UpdateQueue::instance().drain();
+    REQUIRE(client_->get_last_url() == "ws://10.9.9.9:80/websocket");
     REQUIRE(client_->fire_disconnected());
     UpdateQueue::instance().drain();
 
     lv_obj_t* status = lv_obj_find_by_name(dialog, "status_text");
     REQUIRE(status != nullptr);
     CHECK(std::string(lv_label_get_text(status)) ==
-          lv_tr(helix::connect_failure_hint(kind, helix::is_android_platform())));
+          helix::connect_failure_status(kind, {7125, 80}));
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: Moonraker found on port 80 is what Save stores",
+                 "[change_host][port_fallback]") {
+    lv_obj_t* dialog = open_and_test("10.9.9.9");
+
+    REQUIRE(client_->fire_disconnected());
+    UpdateQueue::instance().drain();
+    REQUIRE(client_->get_last_url() == "ws://10.9.9.9:80/websocket");
+    REQUIRE(client_->fire_connected());
+    UpdateQueue::instance().drain();
+
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_port"))) ==
+          "80");
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
+
+    click(dialog, "modal_save_btn");
+    Config* cfg = Config::get_instance();
+    CHECK(cfg->get<int>(cfg->df() + "moonraker_port", 0) == 80);
+    CHECK(cfg->get<std::string>(cfg->df() + "moonraker_host", "") == "10.9.9.9");
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture, "Change Host: a typed port is the only port tried",
+                 "[change_host][port_fallback]") {
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_port"), "7125");
+    click(dialog, "btn_test_connection");
+
+    REQUIRE(client_->fire_disconnected());
+    UpdateQueue::instance().drain();
+
+    CHECK(client_->connect_urls == std::vector<std::string>{kTestedUrl});
 }
 
 // The K-Touch hands Add to PrinterSwitchFlow::add_printer, which reports whether it switched.
@@ -496,4 +541,106 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     helix::ConfigTestAccess::data(*cfg) = saved_data;
     helix::ConfigTestAccess::active_printer_id(*cfg) = saved_active;
     helix::ConfigTestAccess::read_only_mode(*cfg) = saved_read_only;
+}
+
+namespace {
+
+/// Records the stop the modal owes its discovery when it closes.
+class StopRecordingDiscovery : public MockMdnsDiscovery {
+  public:
+    explicit StopRecordingDiscovery(bool& stopped) : stopped_(stopped) {}
+    void stop_discovery() override {
+        stopped_ = true;
+        MockMdnsDiscovery::stop_discovery();
+    }
+
+  private:
+    bool& stopped_;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Add printer: a printer the sweep found fills host and port",
+                 "[change_host][lan_sweep]") {
+    bool stopped = false;
+    auto mock = std::make_unique<StopRecordingDiscovery>(stopped);
+    MockMdnsDiscovery* found = mock.get();
+    found->add_fake_printer("", "", "192.168.1.52", 80);
+    helix::set_printer_discovery_source(
+        [&mock]() -> std::unique_ptr<helix::IMdnsDiscovery> { return std::move(mock); });
+
+    helix::ui::show_add_printer_modal([](const std::string&, int) { return false; });
+    UpdateQueue::instance().drain();
+    helix::set_printer_discovery_source(nullptr);
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    REQUIRE(found->is_discovering());
+
+    lv_obj_t* section = lv_obj_find_by_name(dialog, "discovery_section");
+    REQUIRE(section != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* dropdown = lv_obj_find_by_name(dialog, "printer_dropdown");
+    REQUIRE(dropdown != nullptr);
+    REQUIRE(lv_dropdown_get_option_count(dropdown) == 2);
+
+    lv_dropdown_set_selected(dropdown, 1);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_ip"))) ==
+          "192.168.1.52");
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_port"))) ==
+          "80");
+
+    click(dialog, "btn_test_connection");
+    CHECK(client_->connect_urls.back() == "ws://192.168.1.52:80/websocket");
+
+    // Closing the modal stops discovery.
+    REQUIRE_FALSE(stopped);
+    click(dialog, "modal_cancel_btn");
+    CHECK(stopped);
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: a saved port other than 7125 is tried alone",
+                 "[change_host][port_fallback]") {
+    Config* cfg = Config::get_instance();
+    cfg->set<int>(cfg->df() + "moonraker_port", 80);
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    REQUIRE(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_port"))) ==
+            "80");
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    click(dialog, "btn_test_connection");
+
+    REQUIRE(client_->fire_disconnected());
+    UpdateQueue::instance().drain();
+    CHECK(client_->connect_urls == std::vector<std::string>{"ws://10.9.9.9:80/websocket"});
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Add printer: a discovered printer on 7125 is tried on 7125 alone",
+                 "[change_host][port_fallback][lan_sweep]") {
+    auto mock = std::make_unique<MockMdnsDiscovery>();
+    mock->add_fake_printer("voron", "voron.local", "192.168.1.112", 7125);
+    helix::set_printer_discovery_source(
+        [&mock]() -> std::unique_ptr<helix::IMdnsDiscovery> { return std::move(mock); });
+    helix::ui::show_add_printer_modal([](const std::string&, int) { return false; });
+    UpdateQueue::instance().drain();
+    helix::set_printer_discovery_source(nullptr);
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+
+    lv_obj_t* dropdown = lv_obj_find_by_name(dialog, "printer_dropdown");
+    REQUIRE(dropdown != nullptr);
+    lv_dropdown_set_selected(dropdown, 1);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    click(dialog, "btn_test_connection");
+
+    REQUIRE(client_->fire_disconnected());
+    UpdateQueue::instance().drain();
+    CHECK(client_->connect_urls.back() == "ws://192.168.1.112:7125/websocket");
+    CHECK(std::count(client_->connect_urls.begin(), client_->connect_urls.end(),
+                     std::string("ws://192.168.1.112:80/websocket")) == 0);
 }

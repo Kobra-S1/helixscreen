@@ -95,9 +95,24 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
         if (!on_disconnected_) {
             return false;
         }
-        on_disconnected_();
+        auto cb = on_disconnected_;
+        cb();
         return true;
     }
+
+    /// Deliver the last connect()'s on_connected, as an attempt that opened would.
+    /// @return false when connect() was never called.
+    bool fire_connected() {
+        if (!on_connected_) {
+            return false;
+        }
+        auto cb = on_connected_;
+        cb();
+        return true;
+    }
+
+    /// Every URL connect() was handed, oldest first.
+    std::vector<std::string> connect_urls;
 
     /// Deliver @p msg to every handler registered for @p method.
     /// @return false when nothing is subscribed — which is itself the
@@ -230,9 +245,11 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
     // Everything else — inert
     // ========================================================================
 
-    int connect(const char* url, std::function<void()>,
+    int connect(const char* url, std::function<void()> on_connected,
                 std::function<void()> on_disconnected) override {
         last_url_ = url ? url : "";
+        connect_urls.push_back(last_url_);
+        on_connected_ = std::move(on_connected);
         on_disconnected_ = std::move(on_disconnected);
         return connect_result;
     }
@@ -309,6 +326,7 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
 
   protected:
     std::string last_url_;
+    std::function<void()> on_connected_;
     std::function<void()> on_disconnected_;
     helix::RequestId next_request_id_ = 0;
     /// Held, not a temporary: a weak_ptr to a just-destroyed shared_ptr is

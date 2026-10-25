@@ -303,6 +303,7 @@ subject:cam_rot_90_active
 subject:cam_source_count
 subject:camera_status_text
 subject:connection_discovering
+subject:connection_discovery_active
 subject:connection_ip
 subject:connection_port
 subject:connection_status_icon

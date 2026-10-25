@@ -676,6 +676,7 @@
   <translation tag="Choose Filament" en="Choose Filament"/>
   <translation tag="Choose Layer" en="Choose Layer"/>
   <translation tag="Choose Model" en="Choose Model"/>
+  <translation tag="Choose a discovered printer" en="Choose a discovered printer"/>
   <translation tag="Choose an existing filament, or tap + New to create one." en="Choose an existing filament, or tap + New to create one."/>
   <translation tag="Choose display language" en="Choose display language"/>
   <translation tag="Choose head" en="Choose head"/>
@@ -3920,6 +3921,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" en="Touch the target (point %1$d of 3) — touch %2$d of %3$d"/>
   <translation tag="TouchCalibration" en="TouchCalibration"/>
   <translation tag="Trace" en="Trace"/>
+  <translation tag="Tried ports {} and {}." en="Tried ports {} and {}."/>
   <translation tag="Trigger" en="Trigger"/>
   <translation tag="Troubleshooting:" en="Troubleshooting:"/>
   <translation tag="Try Again" en="Try Again"/>

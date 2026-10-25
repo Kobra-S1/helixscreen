@@ -732,6 +732,7 @@ translations:
   Checking webcam: Comprobando webcam
   Checking...: Comprobando...
   Checking…: Comprobando…
+  Choose a discovered printer: "Elige una impresora encontrada"
   Choose 12-hour or 24-hour time display: Elija visualización de hora de 12 o 24 horas
   Choose Filament: Elegir Filamento
   Choose Layer: 'Elegir capa'
@@ -4341,6 +4342,7 @@ translations:
   TouchCalibration: Calibración táctil
   Trace: Traza
   Trigger: Disparador
+  'Tried ports {} and {}.': "Se probaron los puertos {} y {}."
   'Troubleshooting:': 'Solución de problemas:'
   Try adjusting your search or filters: Intente ajustar su búsqueda o filtros
   Try Again: 'Reintentar'

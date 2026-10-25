@@ -7,6 +7,7 @@
 #include "ui_observer_guard.h"
 
 #include "mdns_discovery.h"
+#include "utils/network_validation.h"
 
 #include <cstdint>
 #include <functional>
@@ -148,6 +149,8 @@ class ChangeHostModal : public Modal {
     lv_subject_t adding_subject_{};
     /// Save is held disabled: changing a host needs a passed test, adding one does not.
     lv_subject_t save_locked_subject_{};
+    /// 1 while printer discovery runs: shows the discovered-printers dropdown.
+    lv_subject_t discovery_active_subject_{};
 
     char host_ip_buf_[256] = {0};
     char host_port_buf_[8] = {0};
@@ -155,6 +158,19 @@ class ChangeHostModal : public Modal {
 
     /// Test Connection moved the live client to the typed host.
     bool client_borrowed_ = false;
+
+    /// Where the port field's value came from; moonraker_ports_to_try() decides from it.
+    helix::PortOrigin port_origin_ = helix::PortOrigin::FilledIn;
+    /// Set while the modal writes the port field itself, so the write is not an edit.
+    bool port_set_by_app_ = false;
+    /// The ports the running test tries, for the failure message.
+    std::vector<int> tried_ports_;
+
+    // === Printer discovery (mDNS + LAN sweep) while the modal is open ===
+    std::unique_ptr<helix::IMdnsDiscovery> discovery_;
+    std::vector<helix::DiscoveredPrinter> discovered_;
+    /// Separate from lifetime_, which every Test Connection invalidates.
+    helix::AsyncLifetimeGuard discovery_lifetime_;
 
     // === Completion callback ===
     CompletionCallback completion_callback_;
@@ -175,8 +191,12 @@ class ChangeHostModal : public Modal {
     void set_status(const char* icon_name, const char* color_token, const char* text);
     /// Shows the reason and returns false when the host or port cannot be used.
     bool input_valid(const char* ip, const std::string& port_clean);
-    void on_test_success();
+    void on_test_success(int port);
     void on_test_failure();
+    void start_discovery();
+    void stop_discovery();
+    void show_discovered(const std::vector<helix::DiscoveredPrinter>& printers);
+    void handle_printer_picked(uint32_t selected);
     static void on_input_changed_cb(lv_observer_t* observer, lv_subject_t* subject);
 
     // === Static callback registration ===
@@ -188,4 +208,5 @@ class ChangeHostModal : public Modal {
     static void on_test_connection_cb(lv_event_t* e);
     static void on_save_cb(lv_event_t* e);
     static void on_cancel_cb(lv_event_t* e);
+    static void on_printer_picked_cb(lv_event_t* e);
 };

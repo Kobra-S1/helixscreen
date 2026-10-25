@@ -4,6 +4,7 @@
 #include "config.h"
 
 #include "completion_alert_mode.h"
+#include "utils/network_validation.h"
 
 #if !defined(HELIX_SPLASH_ONLY) && !defined(HELIX_WATCHDOG)
 #include "system/telemetry_manager.h"
@@ -183,7 +184,7 @@ json get_default_printer_config(const std::string& moonraker_host) {
     return {
         {"moonraker_api_key", false},
         {"moonraker_host", moonraker_host},
-        {"moonraker_port", 7125},
+        {"moonraker_port", helix::kDefaultMoonrakerPort},
         {"heaters", {{"bed", "heater_bed"}, {"hotend", "extruder"}}},
         {"temp_sensors", {{"bed", "heater_bed"}, {"hotend", "extruder"}}},
         {"motion",
@@ -1180,7 +1181,7 @@ void Config::init(const std::string& config_path) {
 
     spdlog::debug("[Config] initialized: moonraker={}:{}",
                   get<std::string>(df() + "moonraker_host", "127.0.0.1"),
-                  get<int>(df() + "moonraker_port", 7125));
+                  get<int>(df() + "moonraker_port", helix::kDefaultMoonrakerPort));
 }
 
 std::string Config::df() const {
@@ -1256,7 +1257,7 @@ std::string Config::find_printer_by_host(const std::string& host, int port) cons
     for (const auto& id : get_printer_ids()) {
         const std::string base = "/printers/" + id + "/";
         if (get<std::string>(base + "moonraker_host", "") == host &&
-            get<int>(base + "moonraker_port", 7125) == port) {
+            get<int>(base + "moonraker_port", helix::kDefaultMoonrakerPort) == port) {
             return id;
         }
     }

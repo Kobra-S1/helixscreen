@@ -10,6 +10,7 @@
 #include "lvgl.h" // lv_subject_t
 #include "moonraker_error.h"
 #include "moonraker_types.h" // SafetyLimits, PowerDevice, GcodeStoreEntry
+#include "utils/network_validation.h"
 
 #include <cstdint>
 #include <functional>
@@ -88,7 +89,7 @@ class IMoonrakerAPI {
     /// Moonraker's default API port. When the HTTP base points here we assume a
     /// "direct to Moonraker" connection, where the webcam is served by a separate
     /// reverse proxy (conventionally nginx on :80) rather than the API port.
-    static constexpr int kMoonrakerDefaultPort = 7125;
+    static constexpr int kMoonrakerDefaultPort = helix::kDefaultMoonrakerPort;
 
     virtual ~IMoonrakerAPI() = default;
 

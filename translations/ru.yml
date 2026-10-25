@@ -775,6 +775,7 @@ translations:
   Checking webcam: Проверка веб-камеры
   Checking...: Проверка...
   Checking…: Проверка…
+  Choose a discovered printer: "Выберите найденный принтер"
   Choose 12-hour or 24-hour time display: Выберите 12-часовой или 24-часовой формат
     времени
   Choose Filament: Выбрать филамент
@@ -4381,6 +4382,7 @@ translations:
   TouchCalibration: Калибровка касания
   Trace: Трассировка
   Trigger: Триггер
+  'Tried ports {} and {}.': "Проверены порты {} и {}."
   'Troubleshooting:': 'Устранение неполадок:'
   Try adjusting your search or filters: Попробуйте изменить поиск или фильтры
   Try Again: 'Повторить'
