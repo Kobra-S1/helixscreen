@@ -112,7 +112,7 @@ char* format_temperature_f(float temp, char* buffer, size_t buffer_size) {
 char* format_temperature_pair_f(float current, float target, char* buffer, size_t buffer_size) {
     char current_buf[16];
     format_temp_number(current, current_buf, sizeof(current_buf));
-    if (target == 0.0f) {
+    if (target <= 0.0f) {
         snprintf(buffer, buffer_size, "%s / —°C", current_buf);
     } else {
         char target_buf[16];
@@ -123,7 +123,7 @@ char* format_temperature_pair_f(float current, float target, char* buffer, size_
 }
 
 char* format_target_or_off(int target, char* buffer, size_t buffer_size) {
-    if (target == 0) {
+    if (target <= 0) {
         snprintf(buffer, buffer_size, "— °C");
     } else {
         snprintf(buffer, buffer_size, "%d°C", target);

@@ -636,6 +636,11 @@ TEST_CASE("Temperature Utils: format_temperature_pair_f - float pair formatting"
         REQUIRE(std::string(buf) == "181 / —°C"); // em-dash for unknown
     }
 
+    SECTION("Negative target reads as unset, like the integer pair") {
+        format_temperature_pair_f(180.6f, -1.0f, buf, sizeof(buf));
+        REQUIRE(std::string(buf) == "181 / —°C");
+    }
+
     SECTION("At target, under 100") {
         format_temperature_pair_f(60.0f, 60.0f, buf, sizeof(buf));
         REQUIRE(std::string(buf) == "60.0 / 60.0°C");
@@ -826,4 +831,13 @@ TEST_CASE("Temperature Utils: default cooldown turns off every extruder heater",
         const std::string edited = std::string(kDefaultCooldownGcode) + "\nM107";
         CHECK(build_cooldown_gcode(edited, {"extruder", "extruder1"}, "") == edited);
     }
+}
+
+TEST_CASE("Temperature Utils: format_target_or_off treats a negative target as unset",
+          "[temp_utils]") {
+    char buf[16];
+    char zero[16];
+    format_target_or_off(0, zero, sizeof(zero));
+    format_target_or_off(-5, buf, sizeof(buf));
+    REQUIRE(std::string(buf) == std::string(zero));
 }
