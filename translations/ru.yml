@@ -992,9 +992,11 @@ translations:
   'Could not check {} - it stays in the queue': 'Не удалось проверить {} – остаётся в очереди'
   "Every screen and setting explained": "Описание всех экранов и настроек"
   "Getting Started": "Начало работы"
+  'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Основы: мастер настройки, переход между экранами и жесты касания."
   Load all stopped: 'Загрузка всех остановлена'
   Load stopped: 'Загрузка остановлена'
+  'Moonraker answered at {}.': "Moonraker ответил по адресу {}."
   No filament was inserted in time: 'Филамент не был вставлен вовремя'
   Print hours between filter changes. Off hides this meter.: 'Часы печати между заменами фильтра. «Выкл» скрывает этот счётчик.'
   Print hours between nozzle changes. Off hides this meter.: 'Часы печати между заменами сопла. «Выкл» скрывает этот счётчик.'

@@ -13,6 +13,7 @@
 #include <atomic>
 #include <chrono>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string>
 #include <thread>
@@ -387,4 +388,127 @@ TEST_CASE_METHOD(LVGLTestFixture, "LAN sweep: workers that never start do not ho
 
     CHECK_FALSE(sweep.is_discovering());
     CHECK(updates == 1);
+}
+
+// ============================================================================
+// Test Connection
+// ============================================================================
+
+namespace {
+
+/// Runs the test's worker body when the test says so, so a test can act in between.
+struct HeldWorker {
+    std::function<void()> body;
+    StartWorkersFn starter() {
+        return [this](size_t, const LanSweepLimits&, std::function<void()> b) {
+            body = std::move(b);
+            return LanSweepWorkers{nullptr, 1};
+        };
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "Connection test: stops at the first port Moonraker answers on",
+                 "[lan_sweep][connection_test]") {
+    std::vector<uint16_t> asked;
+    HeldWorker worker;
+    set_connection_test_seams_for_test(
+        [&asked](const std::string&, uint16_t port) {
+            asked.push_back(port);
+            MoonrakerProbe answer(port == 80);
+            answer.klippy_state = port == 80 ? "ready" : "";
+            answer.failure = ConnectFailureKind::Refused;
+            return answer;
+        },
+        worker.starter());
+    MoonrakerConnectionTest test;
+    std::optional<MoonrakerConnectionTest::Result> got;
+    test.start("10.9.9.9", {7125, 80, 8080}, [&](const auto& r) { got = r; });
+    REQUIRE(test.running());
+    worker.body();
+    drain();
+    set_connection_test_seams_for_test(nullptr, nullptr);
+
+    REQUIRE(got.has_value());
+    CHECK(got->reached);
+    CHECK(got->port == 80);
+    CHECK(got->klippy_state == "ready");
+    CHECK(got->tried == std::vector<int>{7125, 80});
+    CHECK(asked == std::vector<uint16_t>{7125, 80});
+    CHECK_FALSE(test.running());
+    CHECK(connection_test_status("10.9.9.9", *got).find("10.9.9.9:80") != std::string::npos);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Connection test: a miss reports every port and the last failure",
+                 "[lan_sweep][connection_test]") {
+    HeldWorker worker;
+    set_connection_test_seams_for_test(
+        [](const std::string&, uint16_t port) {
+            MoonrakerProbe answer;
+            answer.failure = port == 80 ? ConnectFailureKind::Timeout : ConnectFailureKind::Refused;
+            return answer;
+        },
+        worker.starter());
+    MoonrakerConnectionTest test;
+    std::optional<MoonrakerConnectionTest::Result> got;
+    test.start("10.9.9.9", {7125, 80}, [&](const auto& r) { got = r; });
+    worker.body();
+    drain();
+    set_connection_test_seams_for_test(nullptr, nullptr);
+
+    REQUIRE(got.has_value());
+    CHECK_FALSE(got->reached);
+    CHECK(got->tried == std::vector<int>{7125, 80});
+    CHECK(got->failure == ConnectFailureKind::Timeout);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Connection test: cancel and a new start drop the old answer",
+                 "[lan_sweep][connection_test]") {
+    HeldWorker first;
+    set_connection_test_seams_for_test(
+        [](const std::string&, uint16_t) { return MoonrakerProbe(true); }, first.starter());
+    MoonrakerConnectionTest test;
+    int old_answers = 0;
+    test.start("10.9.9.1", {7125}, [&](const auto&) { ++old_answers; });
+    std::function<void()> stale = first.body;
+
+    SECTION("cancel before the worker ran") {
+        test.cancel();
+        CHECK_FALSE(test.running());
+    }
+    SECTION("cancel after the worker answered, before the answer arrived") {
+        stale();
+        stale = [] {};
+        test.cancel();
+    }
+    SECTION("a second start") {
+        HeldWorker second;
+        set_connection_test_seams_for_test(
+            [](const std::string&, uint16_t) { return MoonrakerProbe(true); }, second.starter());
+        // The first test has answered, and its answer is still on its way, when the second
+        // starts.
+        stale();
+        stale = [] {};
+        int new_answers = 0;
+        test.start("10.9.9.2", {7125}, [&](const auto&) { ++new_answers; });
+        drain();
+        CHECK(new_answers == 0);
+        second.body();
+        drain();
+        CHECK(new_answers == 1);
+    }
+    stale();
+    drain();
+    set_connection_test_seams_for_test(nullptr, nullptr);
+    CHECK(old_answers == 0);
+}
+
+TEST_CASE("Connection test: /server/info gives Klipper's state", "[lan_sweep][connection_test]") {
+    const MoonrakerProbe probe = read_server_info_response(
+        "HTTP/1.1 200 OK\r\n\r\n"
+        R"({"result":{"klippy_state":"startup","components":[],"moonraker_version":"v1"}})");
+    CHECK(probe.moonraker);
+    CHECK(probe.klippy_state == "startup");
+    CHECK(read_server_info_response("HTTP/1.1 200 OK\r\n\r\n<html></html>").klippy_state.empty());
 }

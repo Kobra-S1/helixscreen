@@ -1870,6 +1870,7 @@
   <translation tag="Klipper will restart to apply changes." zh="Klipper 将重启以应用更改。"/>
   <translation tag="Klipper will restart to apply new settings." zh="Klipper 将重启以应用新设置。"/>
   <translation tag="Klipper: " zh="Klipper: "/>
+  <translation tag="Klipper: {}" zh="Klipper: {}"/>
   <translation tag="Klippy Errors" zh="Klippy 错误"/>
   <translation tag="Klippy Shutdowns" zh="Klippy 关闭次数"/>
   <translation tag="LED Controls" zh="LED 控制"/>
@@ -2147,6 +2148,7 @@
   <translation tag="Monitoring" zh="监控中"/>
   <translation tag="Month" zh="月"/>
   <translation tag="Moonraker" zh="Moonraker"/>
+  <translation tag="Moonraker answered at {}." zh="Moonraker 在 {} 响应。"/>
   <translation tag="Moonraker has no G-code folder." zh="Moonraker 没有 G-code 文件夹。"/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." zh="Moonraker 已连接 Spoolman,它会记录你的料盘和剩余耗材量。在 Spoolman 界面浏览。"/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." zh="Moonraker 在 {} 无响应。它运行在这台打印机上，请检查 Klipper 和 Moonraker 服务是否已启动。"/>

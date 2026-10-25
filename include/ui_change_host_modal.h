@@ -6,6 +6,7 @@
 #include "ui_modal.h"
 #include "ui_observer_guard.h"
 
+#include "lan_sweep.h"
 #include "mdns_discovery.h"
 #include "utils/network_validation.h"
 
@@ -156,15 +157,12 @@ class ChangeHostModal : public Modal {
     char host_port_buf_[8] = {0};
     bool subjects_initialized_ = false;
 
-    /// Test Connection moved the live client to the typed host.
-    bool client_borrowed_ = false;
-
     /// Where the port field's value came from; moonraker_ports_to_try() decides from it.
     helix::PortOrigin port_origin_ = helix::PortOrigin::FilledIn;
     /// Set while the modal writes the port field itself, so the write is not an edit.
     bool port_set_by_app_ = false;
-    /// The ports the running test tries, for the failure message.
-    std::vector<int> tried_ports_;
+    /// Test Connection; never touches the live client.
+    helix::MoonrakerConnectionTest connection_test_;
 
     // === Printer discovery (mDNS + LAN sweep) while the modal is open ===
     std::unique_ptr<helix::IMdnsDiscovery> discovery_;
@@ -191,8 +189,9 @@ class ChangeHostModal : public Modal {
     void set_status(const char* icon_name, const char* color_token, const char* text);
     /// Shows the reason and returns false when the host or port cannot be used.
     bool input_valid(const char* ip, const std::string& port_clean);
-    void on_test_success(int port);
-    void on_test_failure();
+    void on_test_success(const std::string& host,
+                         const helix::MoonrakerConnectionTest::Result& result);
+    void on_test_failure(const helix::MoonrakerConnectionTest::Result& result);
     void start_discovery();
     void stop_discovery();
     void show_discovered(const std::vector<helix::DiscoveredPrinter>& printers);

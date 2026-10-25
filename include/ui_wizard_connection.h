@@ -4,6 +4,7 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "lan_sweep.h"
 #include "lvgl/lvgl.h"
 #include "mdns_discovery.h"
 #include "utils/network_validation.h"
@@ -221,8 +222,10 @@ class WizardConnectionStep : public helix::wizard::Step {
     helix::PortOrigin port_origin_ = helix::PortOrigin::FilledIn;
     /// Set while the app writes the port field, so the write is not taken for typing.
     bool port_set_by_app_ = false;
-    /// The ports the running test tries, for the failure message.
+    /// The ports the last test tried, for the failure message.
     std::vector<int> tried_ports_;
+    /// Test Connection's HTTP check, and the auto-probe's.
+    helix::MoonrakerConnectionTest connection_test_;
 
     /// Write @p port to the port subject and field without marking it typed.
     void set_port_field(const std::string& port);
@@ -238,6 +241,11 @@ class WizardConnectionStep : public helix::wizard::Step {
     // Async callback handlers (called from WebSocket callbacks, marshal via tok.defer)
     void on_connection_success(const helix::LifetimeToken& tok);
     void on_connection_failure(const helix::LifetimeToken& tok);
+    /// Shows a failed test for @p kind with the ports tried, and keeps Next shut.
+    void show_connection_failure(helix::ConnectFailureKind kind);
+    /// Connects the live client to saved_ip_:saved_port_, the address a test confirmed,
+    /// for the hardware discovery the next steps need.
+    void connect_confirmed(const helix::LifetimeToken& tok, bool auto_probe, uint32_t timeout_ms);
 
     // Helper to set status icon and text imperatively with appropriate colors
     enum class StatusVariant { None, Success, Warning, Danger };

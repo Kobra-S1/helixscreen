@@ -101,13 +101,6 @@ bool connect_active_printer() {
     return connect_printer(*manager, active_printer_ws_url(), active_printer_http_url());
 }
 
-bool reconnect_active_printer() {
-    if (!disconnect_for_retarget()) {
-        return false;
-    }
-    return connect_active_printer();
-}
-
 bool retarget_printer_connection() {
     IMoonrakerClient* client = disconnect_for_retarget();
     if (!client) {

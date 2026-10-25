@@ -3,7 +3,6 @@
 
 #include "ui_change_host_modal.h"
 
-#include "ui_emergency_stop.h"
 #include "ui_next_tick.h"
 #include "ui_printer_list_overlay.h"
 #include "ui_printer_switch_menu.h"
@@ -14,10 +13,10 @@
 #include "host_identity.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "lan_sweep.h"
 #include "lvgl/lvgl.h"
 #include "moonraker_events.h"
 #include "moonraker_manager.h"
-#include "moonraker_port_probe.h"
 #include "platform_info.h"
 #include "printer_discovery_list.h"
 #include "printer_retarget.h"
@@ -66,7 +65,6 @@ ChangeHostModal::ChangeHostModal() {
 }
 
 ChangeHostModal::~ChangeHostModal() {
-    stop_discovery();
     deinit_subjects();
     spdlog::trace("[ChangeHostModal] Destroyed");
 }
@@ -102,7 +100,6 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
     bool result = show(parent);
     if (result && dialog()) {
         // Reset state
-        client_borrowed_ = false;
         lv_subject_set_int(&testing_subject_, 0);
         lv_subject_set_int(&validated_subject_, 0);
         update_save_lock();
@@ -148,14 +145,7 @@ void ChangeHostModal::on_hide() {
 
     active_instance_ = nullptr;
     stop_discovery();
-
-    // A test left the client on the typed host. Every way out but Save puts it back on the
-    // saved one; deferred past the exit animation like Save's reconnect.
-    if (client_borrowed_) {
-        client_borrowed_ = false;
-        helix::ui::queue_update("ChangeHostModal::restore_saved_host",
-                                [] { reconnect_active_printer(); });
-    }
+    connection_test_.cancel();
 
     // Remove observers NOW rather than relying on auto-removal when dialog
     // widget is deleted after exit animation.
@@ -227,53 +217,37 @@ void ChangeHostModal::handle_test_connection() {
         return;
     }
 
-    IMoonrakerClient* client = get_moonraker_client();
-    if (!client) {
-        set_status("icon_close_circle", "danger", "Client not available");
-        return;
-    }
-
-    EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::NORMAL);
-    client->disconnect();
-    client_borrowed_ = true;
-
-    // Cancel any in-flight test callbacks, get fresh token
-    lifetime_.invalidate();
-    auto token = lifetime_.token();
-
     lv_subject_set_int(&testing_subject_, 1);
     set_status("icon_question_circle", "text_muted", "Testing connection...");
 
-    std::vector<int> ports = moonraker_ports_to_try(port_clean, port_origin_);
-    tried_ports_ = ports;
-    // Both callbacks run on the main thread, gated by token.
-    int result = probe_moonraker_ports(
-        ip, std::move(ports), 5000, token, [this](int port) { on_test_success(port); },
-        [this](int /*port*/) { on_test_failure(); });
-
-    if (result != 0) {
-        spdlog::error("[ChangeHostModal] Failed to initiate test connection: {}", result);
-        set_status("icon_close_circle", "danger", "Error starting connection test");
-        lv_subject_set_int(&testing_subject_, 0);
-    }
+    // The live client stays on the saved printer: only Save moves it.
+    const std::string host(helix::text_io::trim(ip));
+    connection_test_.start(host, moonraker_ports_to_try(port_clean, port_origin_),
+                           [this, host](const MoonrakerConnectionTest::Result& result) {
+                               if (result.reached) {
+                                   on_test_success(host, result);
+                               } else {
+                                   on_test_failure(result);
+                               }
+                           });
 }
 
-void ChangeHostModal::on_test_success(int port) {
-    // Already on main thread — caller dispatches via tok.defer (see handle_test).
-    spdlog::info("[ChangeHostModal] Test connection successful on port {}", port);
+void ChangeHostModal::on_test_success(const std::string& host,
+                                      const MoonrakerConnectionTest::Result& result) {
+    spdlog::info("[ChangeHostModal] Moonraker answered at {}:{}", host, result.port);
 
     if (!is_visible())
         return;
 
     // A fallback port is where Moonraker answered, so the field and Save carry it.
-    const std::string port_text = std::to_string(port);
+    const std::string port_text = std::to_string(result.port);
     if (sanitize_port(lv_subject_get_string(&host_port_subject_)) != port_text) {
         port_set_by_app_ = true;
         lv_subject_copy_string(&host_port_subject_, port_text.c_str());
         port_set_by_app_ = false;
     }
 
-    set_status("icon_check_circle", "success", "Connection successful!");
+    set_status("icon_check_circle", "success", connection_test_status(host, result).c_str());
     lv_subject_set_int(&testing_subject_, 0);
     lv_subject_set_int(&validated_subject_, 1);
     update_save_lock();
@@ -281,17 +255,14 @@ void ChangeHostModal::on_test_success(int port) {
     spdlog::info("[ChangeHostModal] Test passed, Save button enabled");
 }
 
-void ChangeHostModal::on_test_failure() {
-    // Already on main thread — caller dispatches via tok.defer (see handle_test).
+void ChangeHostModal::on_test_failure(const MoonrakerConnectionTest::Result& result) {
     spdlog::warn("[ChangeHostModal] Test connection failed");
 
     if (!is_visible())
         return;
 
-    IMoonrakerClient* client = get_moonraker_client();
-    const ConnectFailureKind kind =
-        client ? client->last_connect_failure() : ConnectFailureKind::Unknown;
-    set_status("icon_close_circle", "danger", connect_failure_status(kind, tried_ports_).c_str());
+    set_status("icon_close_circle", "danger",
+               connect_failure_status(result.failure, result.tried).c_str());
     lv_subject_set_int(&testing_subject_, 0);
 
     spdlog::debug("[ChangeHostModal] Test failed, keeping Save disabled");
@@ -349,8 +320,7 @@ void ChangeHostModal::handle_save() {
         return;
     }
 
-    // Save to config. The client reconnects to the new host, so there is nothing to restore.
-    client_borrowed_ = false;
+    // Save to config; the completion callback moves the client to it.
     store_active_printer_address(host, port);
 
     // Close modal first — on_hide() removes observers and clears state
@@ -368,19 +338,11 @@ void ChangeHostModal::handle_save() {
 }
 
 void ChangeHostModal::commit_add(const std::string& host, int port) {
-    // A switch retargets the client itself, so the hand-back waits for the caller and runs
-    // only when it did not switch: a declined or unsaved switch leaves the client on the
-    // saved printer, and an add that switches cycles the transport once. The caller runs on
-    // the next tick, outside any UpdateQueue drain, where a switch runs in place and its
-    // answer is final.
-    const bool borrowed = std::exchange(client_borrowed_, false);
+    // The caller runs on the next tick, outside any UpdateQueue drain, where a switch runs
+    // in place and its answer is final.
     hide();
     auto on_add = add_callback_;
-    helix::ui::run_next_tick([on_add, host, port, borrowed]() {
-        if (!on_add(host, port) && borrowed) {
-            reconnect_active_printer();
-        }
-    });
+    helix::ui::run_next_tick([on_add, host, port]() { on_add(host, port); });
 }
 
 void ChangeHostModal::update_save_lock() {

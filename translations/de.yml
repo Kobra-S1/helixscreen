@@ -951,9 +951,11 @@ translations:
   'Could not check {} - it stays in the queue': '{} konnte nicht geprüft werden – bleibt in der Warteschlange'
   "Every screen and setting explained": "Jeder Bildschirm und jede Einstellung erklärt"
   "Getting Started": "Erste Schritte"
+  'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Die Grundlagen: der Einrichtungsassistent, die Navigation zwischen den Bildschirmen und Touch-Gesten."
   Load all stopped: Laden gestoppt
   Load stopped: Laden gestoppt
+  'Moonraker answered at {}.': "Moonraker hat unter {} geantwortet."
   No filament was inserted in time: 'Kein Filament wurde rechtzeitig eingeführt'
   Print hours between filter changes. Off hides this meter.: 'Druckstunden zwischen Filterwechseln. Aus blendet diesen Zähler aus.'
   Print hours between nozzle changes. Off hides this meter.: 'Druckstunden zwischen Düsenwechseln. Aus blendet diesen Zähler aus.'

@@ -953,9 +953,11 @@ translations:
   'Could not check {} - it stays in the queue': 'Impossible de vérifier {} – reste dans la file'
   "Every screen and setting explained": "Chaque écran et réglage expliqué"
   "Getting Started": "Premiers pas"
+  'Klipper: {}': "Klipper : {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Les bases : l'assistant de configuration, la navigation entre les écrans et les gestes tactiles."
   Load all stopped: 'Chargement global arrêté'
   Load stopped: 'Chargement arrêté'
+  'Moonraker answered at {}.': "Moonraker a répondu à {}."
   No filament was inserted in time: 'Aucun filament n''a été inséré à temps'
   Print hours between filter changes. Off hides this meter.: 'Heures d’impression entre deux changements de filtre. Désactivé masque ce compteur.'
   Print hours between nozzle changes. Off hides this meter.: 'Heures d’impression entre deux changements de buse. Désactivé masque ce compteur.'

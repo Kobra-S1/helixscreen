@@ -8,14 +8,15 @@
 #include "../fake_moonraker_client.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../mocks/mock_mdns_discovery.h"
+#include "../test_helpers/fake_connection_test.h"
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "lan_sweep.h"
 #include "lvgl/lvgl.h"
 #include "misc/lv_timer_private.h" // timer_cb — assert the cancel neutered it
 #include "moonraker_client.h"
-#include "moonraker_port_probe.h"
 #include "platform_info.h"
 #include "printer_discovery_list.h"
 #include "utils/network_validation.h"
@@ -539,8 +540,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                                ConnectFailureKind::Unknown);
 
     helix::test::FakeMoonrakerClient client;
-    client.connect_failure = kind;
     ScopedMoonrakerClient installed(&client);
+    helix::test::ScopedFakeConnectionTest net;
+    net.failure = kind;
 
     WizardConnectionStep* step = get_wizard_connection_step();
     step->init_subjects();
@@ -553,14 +555,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(btn != nullptr);
     lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
-    REQUIRE(client.get_last_url() == "ws://10.9.9.9:7125/websocket");
 
-    // The untouched default also tries port 80 before giving up.
-    REQUIRE(client.fire_disconnected());
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
-    REQUIRE(client.get_last_url() == "ws://10.9.9.9:80/websocket");
-    REQUIRE(client.fire_disconnected());
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    // The untouched default also tries port 80 before giving up, and a failed test never
+    // reaches the live client.
+    CHECK(net.asked == std::vector<std::string>{"10.9.9.9:7125", "10.9.9.9:80"});
+    CHECK(client.connect_urls.empty());
 
     lv_obj_t* status = lv_obj_find_by_name(root, "connection_status_text");
     REQUIRE(status != nullptr);
@@ -628,14 +627,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     WizardConnectionStep* step = get_wizard_connection_step();
     RestoreDefaultPortField restore{step};
 
+    helix::test::ScopedFakeConnectionTest net;
+    net.answer("10.9.9.9:80");
     lv_obj_t* root = create_step_and_test(step, test_screen());
     click_test(root);
-    REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:7125/websocket"});
+    CHECK(net.asked == std::vector<std::string>{"10.9.9.9:7125", "10.9.9.9:80"});
 
-    REQUIRE(client.fire_disconnected());
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
-    REQUIRE(client.get_last_url() == "ws://10.9.9.9:80/websocket");
-
+    // The live client goes straight to the port that answered, for discovery.
+    REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:80/websocket"});
     REQUIRE(client.fire_connected());
     helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
@@ -652,6 +651,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: a typed port is the only p
                  "[wizard][connection][port_fallback]") {
     helix::test::FakeMoonrakerClient client;
     ScopedMoonrakerClient installed(&client);
+    helix::test::ScopedFakeConnectionTest net;
     WizardConnectionStep* step = get_wizard_connection_step();
     RestoreDefaultPortField restore{step};
 
@@ -661,14 +661,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: a typed port is the only p
     lv_textarea_set_text(port_input, "7125");
     click_test(root);
 
-    REQUIRE(client.fire_disconnected());
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
-
-    CHECK(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:7125/websocket"});
+    CHECK(net.asked == std::vector<std::string>{"10.9.9.9:7125"});
     lv_obj_t* status = lv_obj_find_by_name(root, "connection_status_text");
     REQUIRE(status != nullptr);
-    CHECK(std::string(lv_label_get_text(status)) ==
-          connect_failure_status(client.connect_failure, {7125}));
+    CHECK(std::string(lv_label_get_text(status)) == connect_failure_status(net.failure, {7125}));
 }
 
 // ============================================================================
@@ -716,8 +712,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // A connection test retires its own callbacks, not discovery's.
     helix::test::FakeMoonrakerClient client;
     ScopedMoonrakerClient installed(&client);
+    helix::test::ScopedFakeConnectionTest net;
     click_test(root);
-    REQUIRE_FALSE(client.connect_urls.empty());
+    REQUIRE_FALSE(net.asked.empty());
 
     mdns->add_fake_printer("", "", "192.168.1.52", 80);
     mdns->simulate_discovery();
@@ -754,10 +751,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // Away and back: the field still says 7125, now as the app's own default.
     step->cleanup();
     root = create_step_and_test(step, test_screen());
+    helix::test::ScopedFakeConnectionTest net;
     click_test(root);
-    REQUIRE(client.fire_disconnected());
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
-    CHECK(client.get_last_url() == "ws://10.9.9.9:80/websocket");
+    CHECK(net.asked == std::vector<std::string>{"10.9.9.9:7125", "10.9.9.9:80"});
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -781,11 +777,69 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(dropdown != nullptr);
     lv_dropdown_set_selected(dropdown, 1);
     lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    helix::test::ScopedFakeConnectionTest net;
     click_test(root);
-    REQUIRE(client.fire_disconnected());
-    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
-    CHECK(client.connect_urls.back() == "ws://192.168.1.112:7125/websocket");
-    CHECK(client.connect_urls.size() == 1);
+    CHECK(net.asked == std::vector<std::string>{"192.168.1.112:7125"});
     lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: editing the address drops a test still running",
+                 "[wizard][connection][port_fallback]") {
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+    // A worker that has not run yet when the user types.
+    std::function<void()> pending;
+    helix::set_connection_test_seams_for_test(
+        [](const std::string&, uint16_t) { return MoonrakerProbe(true); },
+        [&pending](size_t, const LanSweepLimits&, std::function<void()> body) {
+            pending = std::move(body);
+            return LanSweepWorkers{nullptr, 1};
+        });
+
+    lv_obj_t* root = create_step_and_test(step, test_screen());
+    click_test(root);
+    REQUIRE(pending);
+    lv_obj_t* ip_input = lv_obj_find_by_name(root, "ip_input");
+    REQUIRE(ip_input != nullptr);
+    lv_textarea_set_text(ip_input, "10.9.9.8");
+
+    pending();
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    helix::set_connection_test_seams_for_test(nullptr, nullptr);
+
+    // The answer was for the old address: no live connect, Next stays shut.
+    CHECK(client.connect_urls.empty());
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "connection_testing")) == 0);
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: the auto-probe finds Moonraker on 80 and connects there",
+                 "[wizard][connection][port_fallback]") {
+    SavedMoonrakerAddress saved;
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    helix::test::ScopedFakeConnectionTest net;
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+    lv_obj_t* root = create_step_and_test(step, test_screen());
+    net.answer("10.9.9.9:80");
+
+    step->arm_auto_probe_timer_for_test();
+    process_lvgl(150);
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    CHECK(net.asked == std::vector<std::string>{"10.9.9.9:7125", "10.9.9.9:80"});
+    REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:80/websocket"});
+
+    REQUIRE(client.fire_connected());
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "connection_port"))) ==
+          "80");
+    lv_obj_t* port_input = lv_obj_find_by_name(root, "port_input");
+    REQUIRE(port_input != nullptr);
+    CHECK(std::string(lv_textarea_get_text(port_input)) == "80");
 }

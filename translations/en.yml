@@ -921,9 +921,11 @@ translations:
   'Could not check {} - it stays in the queue': 'Could not check {} - it stays in the queue'
   "Every screen and setting explained": "Every screen and setting explained"
   "Getting Started": "Getting Started"
+  'Klipper: {}': 'Klipper: {}'
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Learn the basics: the setup wizard, moving around the screens, and touch gestures."
   Load all stopped: Load all stopped
   Load stopped: Load stopped
+  'Moonraker answered at {}.': 'Moonraker answered at {}.'
   No filament was inserted in time: No filament was inserted in time
   Print hours between filter changes. Off hides this meter.: Print hours between filter changes. Off hides this meter.
   Print hours between nozzle changes. Off hides this meter.: Print hours between nozzle changes. Off hides this meter.
