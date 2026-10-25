@@ -8692,6 +8692,22 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture, "checklist_input orders done 
 }
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "checklist_input of a new print lists none of the last print's phases",
+                 "[print][collector][checklist_input]") {
+    collector().start();
+    collector().enable_fallbacks();
+    send_gcode_response("G28");
+    send_gcode_response("QUAD_GANTRY_LEVEL");
+    send_gcode_response("BED_MESH_CALIBRATE");
+    REQUIRE(collector().checklist_input().done_in_order.size() == 2);
+    collector().stop();
+
+    collector().start();
+
+    CHECK(collector().checklist_input().done_in_order.empty());
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
                  "checklist_input actual seconds match time spent",
                  "[print][collector][checklist_input]") {
     helix::sim::SimulatedClock::ManualScope clock(helix::sim::SimSpeed::of(1.0));
