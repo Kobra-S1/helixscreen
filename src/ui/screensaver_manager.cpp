@@ -283,15 +283,7 @@ helix::ui::SaverBase* ScreensaverManager::find(ScreensaverType type) const {
 
 helix::ui::BoardFacts
 ScreensaverManager::board_facts(const helix::PlatformCapabilities& caps) const {
-    lv_display_t* disp = lv_display_get_default();
-    helix::ui::BoardFacts facts;
-    facts.display_backend = host_.display_backend.empty() ? "unknown" : host_.display_backend;
-    facts.cores = caps.cpu_cores;
-    facts.bogomips = caps.bogomips;
-    facts.width = disp ? lv_display_get_horizontal_resolution(disp) : 0;
-    facts.height = disp ? lv_display_get_vertical_resolution(disp) : 0;
-    facts.color_depth = LV_COLOR_DEPTH;
-    return facts;
+    return helix::ui::current_board_facts(caps, host_.display_backend);
 }
 
 ScreensaverManager::StartPlan
