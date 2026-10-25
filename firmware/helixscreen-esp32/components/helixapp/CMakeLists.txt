@@ -81,6 +81,7 @@ set(LOCAL_SRCS
     link_probe.cpp
     wifi_backend_esp.cpp
     wall_clock_esp.cpp
+    lan_sweep_esp.cpp
     provisioning_esp.cpp)
 
 idf_component_register(

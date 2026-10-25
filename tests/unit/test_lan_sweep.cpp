@@ -311,3 +311,26 @@ TEST_CASE_METHOD(LVGLTestFixture, "LAN sweep: no private network means no sweep"
     CHECK_FALSE(sweep.is_discovering());
     CHECK(probes == 0);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "LAN sweep: a worker rests after every probe", "[lan_sweep]") {
+    LanSweepLimits limits;
+    limits.max_concurrent = 1;
+    limits.pause_between_probes = std::chrono::milliseconds(40);
+    std::vector<std::chrono::steady_clock::time_point> asked;
+    std::mutex mu;
+    // A /30 holds one address besides ours, asked on 7125 and then 80.
+    LanSweepDiscovery sweep(
+        limits,
+        [] { return std::optional<LocalIpv4>(net(ip(192, 168, 1, 42), ip(255, 255, 255, 252))); },
+        [&](const std::string&, uint16_t) {
+            std::lock_guard<std::mutex> lock(mu);
+            asked.push_back(std::chrono::steady_clock::now());
+            return false;
+        });
+    sweep.start_discovery([](const std::vector<DiscoveredPrinter>&) {});
+    REQUIRE(pump_until([&] { return !sweep.is_discovering(); }));
+
+    std::lock_guard<std::mutex> lock(mu);
+    REQUIRE(asked.size() == 2);
+    CHECK(asked[1] - asked[0] >= std::chrono::milliseconds(40));
+}

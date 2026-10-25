@@ -16,10 +16,6 @@
 #include <string>
 #include <vector>
 
-namespace helix::http {
-class HttpExecutor;
-}
-
 /**
  * @file lan_sweep.h
  * @brief Finding Moonraker on the local network by asking every address
@@ -67,13 +63,40 @@ bool probe_moonraker_http(const std::string& host, uint16_t port,
                           std::chrono::milliseconds connect_timeout,
                           std::chrono::milliseconds total_timeout);
 
-/// How hard a sweep pushes the network.
+/// How hard a sweep pushes the network. lan_sweep_default_limits() gives each platform's.
 struct LanSweepLimits {
     /// Probes (and worker threads) in flight at once; small boards run near their thread limit.
     size_t max_concurrent = 12;
     std::chrono::milliseconds connect_timeout{400}; ///< Per probe
     std::chrono::milliseconds total_timeout{1500};  ///< Per probe
+    /// A worker's rest after each probe, so a weak radio and CPU stay with the UI.
+    std::chrono::milliseconds pause_between_probes{0};
+    /// Each worker's stack, where the platform sizes its threads.
+    size_t worker_stack_bytes = 16 * 1024;
 };
+
+// ----------------------------------------------------------------------------
+// Platform pieces: one definition per platform (src/network/lan_sweep_posix.cpp
+// on Linux and macOS, the firmware's helixapp/lan_sweep_esp.cpp on the ESP32).
+// ----------------------------------------------------------------------------
+
+/// Printer discovery on the real network: mDNS plus the LAN sweep, or the sweep alone
+/// where there is no mDNS.
+std::unique_ptr<IMdnsDiscovery> make_moonraker_discovery();
+
+/// The sweep's limits on this platform.
+LanSweepLimits lan_sweep_default_limits();
+
+/// Workers started for one sweep.
+struct LanSweepWorkers {
+    /// Holds the workers while the sweep runs; dropping it never waits for a running body.
+    std::shared_ptr<void> keepalive;
+    size_t started = 0; ///< Bodies that will run; fewer than asked when threads ran out
+};
+
+/// Run @p body once on each of @p count new workers.
+LanSweepWorkers start_lan_sweep_workers(size_t count, const LanSweepLimits& limits,
+                                        std::function<void()> body);
 
 /**
  * @brief An IMdnsDiscovery that sweeps the local /24 once per start
@@ -91,8 +114,10 @@ class LanSweepDiscovery : public IMdnsDiscovery {
     /// Where the sweep runs from; empty skips the sweep.
     using LocalNetFn = std::function<std::optional<LocalIpv4>()>;
 
+    /// The real network under this platform's limits.
+    LanSweepDiscovery();
     /// The real network: active_local_ipv4() and probe_moonraker_http() under @p limits.
-    explicit LanSweepDiscovery(LanSweepLimits limits = {});
+    explicit LanSweepDiscovery(LanSweepLimits limits);
     LanSweepDiscovery(LanSweepLimits limits, LocalNetFn local_net, ProbeFn probe);
     ~LanSweepDiscovery() override;
 
@@ -115,8 +140,8 @@ class LanSweepDiscovery : public IMdnsDiscovery {
     LanSweepLimits limits_;
     LocalNetFn local_net_;
     ProbeFn probe_;
-    std::shared_ptr<Sweep> sweep_; ///< The running sweep; main thread only
-    std::unique_ptr<http::HttpExecutor> pool_;
+    std::shared_ptr<Sweep> sweep_;  ///< The running sweep; main thread only
+    std::shared_ptr<void> workers_; ///< LanSweepWorkers::keepalive of the running sweep
     DiscoveryCallback on_update_;
     std::vector<DiscoveredPrinter> found_; ///< Main thread only
     bool discovering_ = false;             ///< Main thread only
@@ -149,8 +174,5 @@ class MoonrakerDiscovery : public IMdnsDiscovery {
     std::vector<DiscoveredPrinter> sweep_found_;
     DiscoveryCallback on_update_;
 };
-
-/// mDNS plus the LAN sweep on the real network.
-std::unique_ptr<IMdnsDiscovery> make_moonraker_discovery();
 
 } // namespace helix

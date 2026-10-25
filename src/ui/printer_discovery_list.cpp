@@ -6,6 +6,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <utility>
 
 namespace helix {
@@ -47,11 +48,19 @@ merge_discovered_printers(const std::vector<DiscoveredPrinter>& mdns,
 }
 
 std::string discovered_printer_label(const DiscoveredPrinter& printer) {
-    const std::string address = printer.ip_address + ":" + std::to_string(printer.port);
-    if (printer.name.empty() || printer.name == printer.ip_address) {
-        return address;
+    std::string label;
+    const bool named = !printer.name.empty() && printer.name != printer.ip_address;
+    if (named) {
+        label = printer.name + " (";
     }
-    return printer.name + " (" + address + ")";
+    label += printer.ip_address;
+    char port[8];
+    std::snprintf(port, sizeof(port), ":%u", static_cast<unsigned>(printer.port));
+    label += port;
+    if (named) {
+        label += ")";
+    }
+    return label;
 }
 
 std::string discovered_printer_options(const std::vector<DiscoveredPrinter>& printers,

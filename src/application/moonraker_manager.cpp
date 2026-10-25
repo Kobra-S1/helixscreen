@@ -124,10 +124,13 @@ bool MoonrakerManager::init(const RuntimeConfig& runtime_config, Config* config)
     if (!runtime_config.should_mock_mdns()) {
         helix::ui::set_printer_rediscovery_source(
             [] { return std::make_unique<helix::MdnsDiscovery>(); });
-        // The setup wizard and the host modal list printers from mDNS and the LAN sweep.
-        helix::set_printer_discovery_source(helix::make_moonraker_discovery);
     }
 #endif
+    // The setup wizard and the host modal list printers from mDNS and the LAN sweep. A
+    // mock printer has nothing on the network to find.
+    if (!runtime_config.should_mock_mdns()) {
+        helix::set_printer_discovery_source(helix::make_moonraker_discovery);
+    }
 
     // Register callbacks for notifications and state changes
     register_callbacks();

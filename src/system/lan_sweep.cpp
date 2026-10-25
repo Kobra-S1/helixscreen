@@ -3,7 +3,6 @@
 
 #include "lan_sweep.h"
 
-#include "http_executor.h"
 #include "printer_discovery_list.h"
 #include "utils/network_validation.h"
 
@@ -11,16 +10,17 @@
 
 #include <algorithm>
 #include <arpa/inet.h>
+#include <cctype>
 #include <cerrno>
+#include <cstdio>
 #include <cstring>
 #include <fcntl.h>
-#include <ifaddrs.h>
 #include <netinet/in.h>
-#include <poll.h>
+#include <sys/poll.h>
 #include <sys/socket.h>
+#include <thread>
 #include <unistd.h>
 
-#include "hv/json.hpp"
 
 namespace helix {
 
@@ -35,8 +35,11 @@ bool is_private_ipv4(uint32_t a) {
 }
 
 std::string dotted(uint32_t a) {
-    return std::to_string(a >> 24) + "." + std::to_string((a >> 16) & 0xff) + "." +
-           std::to_string((a >> 8) & 0xff) + "." + std::to_string(a & 0xff);
+    char buf[16];
+    std::snprintf(buf, sizeof(buf), "%u.%u.%u.%u", static_cast<unsigned>(a >> 24),
+                  static_cast<unsigned>((a >> 16) & 0xff), static_cast<unsigned>((a >> 8) & 0xff),
+                  static_cast<unsigned>(a & 0xff));
+    return buf;
 }
 
 } // namespace
@@ -58,49 +61,29 @@ std::vector<std::string> lan_sweep_hosts(const LocalIpv4& local) {
     return hosts;
 }
 
-std::optional<LocalIpv4> active_local_ipv4() {
-    // A connected UDP socket sends nothing, but makes the kernel pick the source address
-    // its route would use.
-    const int fd = ::socket(AF_INET, SOCK_DGRAM, 0);
-    if (fd < 0) {
-        return std::nullopt;
-    }
-    sockaddr_in probe{};
-    probe.sin_family = AF_INET;
-    probe.sin_port = htons(53);
-    probe.sin_addr.s_addr = htonl(0x08080808u);
-    sockaddr_in self{};
-    socklen_t len = sizeof(self);
-    const bool routed = ::connect(fd, reinterpret_cast<sockaddr*>(&probe), sizeof(probe)) == 0 &&
-                        ::getsockname(fd, reinterpret_cast<sockaddr*>(&self), &len) == 0;
-    ::close(fd);
-    if (!routed || self.sin_addr.s_addr == 0) {
-        return std::nullopt;
-    }
-
-    ifaddrs* list = nullptr;
-    if (::getifaddrs(&list) != 0) {
-        return std::nullopt;
-    }
-    std::optional<LocalIpv4> found;
-    for (ifaddrs* it = list; it; it = it->ifa_next) {
-        if (!it->ifa_addr || !it->ifa_netmask || it->ifa_addr->sa_family != AF_INET) {
-            continue;
-        }
-        const auto* addr = reinterpret_cast<const sockaddr_in*>(it->ifa_addr);
-        if (addr->sin_addr.s_addr == self.sin_addr.s_addr) {
-            const auto* mask = reinterpret_cast<const sockaddr_in*>(it->ifa_netmask);
-            found = LocalIpv4{ntohl(addr->sin_addr.s_addr), ntohl(mask->sin_addr.s_addr)};
-            break;
-        }
-    }
-    ::freeifaddrs(list);
-    return found;
-}
-
 // ============================================================================
 // The Moonraker check
 // ============================================================================
+
+namespace {
+
+/// Whether @p key appears in @p body as an object key: quoted and followed by a colon.
+bool has_json_key(const std::string& body, size_t from, const char* key) {
+    const std::string quoted = std::string("\"") + key + "\"";
+    for (size_t at = body.find(quoted, from); at != std::string::npos;
+         at = body.find(quoted, at + 1)) {
+        size_t i = at + quoted.size();
+        while (i < body.size() && std::isspace(static_cast<unsigned char>(body[i]))) {
+            ++i;
+        }
+        if (i < body.size() && body[i] == ':') {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
 
 bool is_moonraker_server_info_response(const std::string& http_response) {
     // "HTTP/1.1 200 OK"
@@ -116,17 +99,31 @@ bool is_moonraker_server_info_response(const std::string& http_response) {
     if (body_start == std::string::npos) {
         return false;
     }
-    const auto doc = nlohmann::json::parse(http_response.begin() + body_start + 4,
-                                           http_response.end(), nullptr, false);
-    if (doc.is_discarded() || !doc.is_object()) {
+    // A key scan keeps this small enough for the firmware image; the answer only needs
+    // `"result": {` carrying Moonraker's keys.
+    const size_t result = http_response.find("\"result\"", body_start);
+    if (result == std::string::npos) {
         return false;
     }
-    const auto result = doc.find("result");
-    if (result == doc.end() || !result->is_object()) {
+    size_t i = result + 8;
+    auto skip_space = [&]() {
+        while (i < http_response.size() &&
+               std::isspace(static_cast<unsigned char>(http_response[i]))) {
+            ++i;
+        }
+    };
+    skip_space();
+    if (i >= http_response.size() || http_response[i] != ':') {
         return false;
     }
-    return result->contains("moonraker_version") ||
-           (result->contains("klippy_state") && result->contains("components"));
+    ++i;
+    skip_space();
+    if (i >= http_response.size() || http_response[i] != '{') {
+        return false;
+    }
+    return has_json_key(http_response, i, "moonraker_version") ||
+           (has_json_key(http_response, i, "klippy_state") &&
+            has_json_key(http_response, i, "components"));
 }
 
 bool probe_moonraker_http(const std::string& host, uint16_t port,
@@ -228,6 +225,8 @@ struct LanSweepDiscovery::Sweep {
     ProbeFn probe;
 };
 
+LanSweepDiscovery::LanSweepDiscovery() : LanSweepDiscovery(lan_sweep_default_limits()) {}
+
 LanSweepDiscovery::LanSweepDiscovery(LanSweepLimits limits)
     : LanSweepDiscovery(
           limits, active_local_ipv4, [limits](const std::string& host, uint16_t port) {
@@ -263,14 +262,12 @@ void LanSweepDiscovery::start_discovery(DiscoveryCallback on_update) {
     discovering_ = true;
     spdlog::info("[LanSweep] Sweeping {} addresses ({} at a time)", sweep->hosts.size(), workers);
 
-    pool_ = std::make_unique<http::HttpExecutor>("lan-sweep", workers);
-    pool_->start();
     const auto tok = lifetime_.token();
     const std::vector<int> ports = moonraker_ports_to_try("", false);
-    for (size_t w = 0; w < workers; ++w) {
-        // Each worker takes the next address until none are left. Results and the
-        // finish reach `this` only through tok.defer, on the main thread.
-        pool_->submit([this, sweep, tok, ports]() {
+    const auto pause = limits_.pause_between_probes;
+    // Each worker takes the next address until none are left. Results and the
+    // finish reach `this` only through tok.defer, on the main thread.
+    auto body = [this, sweep, tok, ports, pause]() {
             while (!sweep->cancelled.load()) {
                 const size_t i = sweep->next.fetch_add(1);
                 if (i >= sweep->hosts.size()) {
@@ -281,7 +278,12 @@ void LanSweepDiscovery::start_discovery(DiscoveryCallback on_update) {
                     if (sweep->cancelled.load()) {
                         break;
                     }
-                    if (sweep->probe(host, static_cast<uint16_t>(port))) {
+                    const bool found = sweep->probe(host, static_cast<uint16_t>(port));
+                    if (pause.count() > 0) {
+                        // Leaves the radio and the CPU to the UI between probes.
+                        std::this_thread::sleep_for(pause);
+                    }
+                    if (found) {
                         tok.defer("LanSweep::found", [this, host, port]() {
                             on_found(host, static_cast<uint16_t>(port));
                         });
@@ -292,7 +294,16 @@ void LanSweepDiscovery::start_discovery(DiscoveryCallback on_update) {
             if (sweep->workers_left.fetch_sub(1) == 1) {
                 tok.defer("LanSweep::finished", [this]() { on_finished(); });
             }
-        });
+    };
+    LanSweepWorkers started = start_lan_sweep_workers(workers, limits_, body);
+    workers_ = std::move(started.keepalive);
+    if (started.started < workers) {
+        spdlog::warn("[LanSweep] Started {} of {} workers", started.started, workers);
+        // The workers that never started will not count themselves down.
+        const size_t missing = workers - started.started;
+        if (sweep->workers_left.fetch_sub(missing) == missing) {
+            tok.defer("LanSweep::finished", [this]() { on_finished(); });
+        }
     }
 }
 
@@ -324,12 +335,9 @@ void LanSweepDiscovery::stop_discovery() {
         sweep_->cancelled.store(true);
         sweep_.reset();
     }
-    if (pool_) {
-        // A probe in flight finishes on its own within its total timeout; it holds only
-        // the sweep's shared state, so the pool lets it go rather than hold the UI.
-        pool_->stop(std::chrono::milliseconds(20));
-        pool_.reset();
-    }
+    // A probe in flight finishes on its own within its total timeout. It holds only the
+    // sweep's shared state, so releasing the workers never waits for it.
+    workers_.reset();
     discovering_ = false;
     on_update_ = nullptr;
 }
@@ -399,11 +407,6 @@ void MoonrakerDiscovery::publish() {
     if (on_update_) {
         on_update_(get_discovered_printers());
     }
-}
-
-std::unique_ptr<IMdnsDiscovery> make_moonraker_discovery() {
-    return std::make_unique<MoonrakerDiscovery>(std::make_unique<MdnsDiscovery>(),
-                                                std::make_unique<LanSweepDiscovery>());
 }
 
 } // namespace helix

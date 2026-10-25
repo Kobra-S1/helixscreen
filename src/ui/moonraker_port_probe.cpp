@@ -83,16 +83,18 @@ int start_attempt(const std::shared_ptr<PortProbe>& probe) {
 
     client->set_connection_timeout(probe->timeout_ms);
     const std::string ws_url = "ws://" + address + "/websocket";
-    const int result = client->connect(
-        ws_url.c_str(),
-        [probe, attempt]() {
-            probe->tok.defer("MoonrakerPortProbe::connected",
-                             [probe, attempt]() { attempt_connected(probe, attempt); });
-        },
-        [probe, attempt]() {
-            probe->tok.defer("MoonrakerPortProbe::disconnected",
-                             [probe, attempt]() { attempt_failed(probe, attempt); });
+    // One deferred body for both outcomes keeps the firmware image to one instantiation.
+    auto report = [probe, attempt](bool connected) {
+        probe->tok.defer("MoonrakerPortProbe::result", [probe, attempt, connected]() {
+            if (connected) {
+                attempt_connected(probe, attempt);
+            } else {
+                attempt_failed(probe, attempt);
+            }
         });
+    };
+    const int result = client->connect(
+        ws_url.c_str(), [report]() { report(true); }, [report]() { report(false); });
     client->set_auto_reconnect(false);
     return result;
 }

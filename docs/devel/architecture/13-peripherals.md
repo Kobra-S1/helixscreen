@@ -80,7 +80,7 @@ flowchart LR
 | [`src/ui/ui_overlay_qr_scanner.cpp`](../../../src/ui/ui_overlay_qr_scanner.cpp) | The scan overlay: races all three scanner paths, converges on `on_spool_id_detected()` |
 | [`include/usb_manager.h`](../../../include/usb_manager.h) / [`src/api/usb_backend_linux.cpp`](../../../src/api/usb_backend_linux.cpp) | `UsbManager` and its Linux backend: removable-drive detection from the mount table |
 | [`include/mdns_discovery.h`](../../../include/mdns_discovery.h) / [`src/network/mdns_discovery.cpp`](../../../src/network/mdns_discovery.cpp) | `MdnsDiscovery` - LAN discovery of Moonraker servers (PIMPL + own thread) |
-| [`include/lan_sweep.h`](../../../include/lan_sweep.h) / [`src/network/lan_sweep.cpp`](../../../src/network/lan_sweep.cpp) | `LanSweepDiscovery` (asks every address of our /24 for `/server/info`) and `MoonrakerDiscovery` (it plus mDNS, merged) |
+| [`include/lan_sweep.h`](../../../include/lan_sweep.h) / [`src/system/lan_sweep.cpp`](../../../src/system/lan_sweep.cpp) | `LanSweepDiscovery` (asks every address of our /24 for `/server/info`) and `MoonrakerDiscovery` (it plus mDNS, merged); the platform pieces are [`src/network/lan_sweep_posix.cpp`](../../../src/network/lan_sweep_posix.cpp) and the firmware's `components/helixapp/lan_sweep_esp.cpp` |
 | [`include/printer_discovery_list.h`](../../../include/printer_discovery_list.h) / [`src/ui/printer_discovery_list.cpp`](../../../src/ui/printer_discovery_list.cpp) | The discovery source the wizard and host modal ask, the mDNS/sweep merge, and the dropdown rows |
 | [`include/remote_control_server.h`](../../../include/remote_control_server.h) / [`src/remote/remote_control_server.cpp`](../../../src/remote/remote_control_server.cpp) | JSON-RPC 2.0 server over Unix socket (or HTTP), auto-started in `--test` |
 | [`src/remote/unix_socket_transport.cpp`](../../../src/remote/unix_socket_transport.cpp) / [`http_transport.cpp`](../../../src/remote/http_transport.cpp) | The two `IRemoteTransport`s the server listens through |
@@ -107,7 +107,7 @@ The roster, verified against the tree - one facade per subsystem, and note how d
 | Camera QR scanning | `SnapshotQrScanner` (overlay-owned) | poll thread | always | none |
 | USB drives | `UsbManager` (owned by `SubjectInitializer`) | mount-table monitor thread | always; `--test` swaps in a mock drive | [`../USB_MANAGEMENT.md`](../USB_MANAGEMENT.md) |
 | mDNS discovery | `MdnsDiscovery` (PIMPL, `IMdnsDiscovery`) | query thread | always | none |
-| LAN sweep | `LanSweepDiscovery` (`IMdnsDiscovery`, screen-owned) | its own `HttpExecutor` of up to 12 workers, per sweep | desktop and Linux devices, outside `--test`; not on the ESP32 firmware | none |
+| LAN sweep | `LanSweepDiscovery` (`IMdnsDiscovery`, screen-owned) | per sweep: an `HttpExecutor` of 12 workers, or 3 PSRAM-stack pthreads on the ESP32 | outside `--test` | none |
 | Remote control | `RemoteControlServer` (`Application` member) | accept thread | `ENABLE_REMOTE_CONTROL=yes` builds; server runs in `--test`/`--remote` | [`../HELIXCTL.md`](../HELIXCTL.md) |
 
 ### Bluetooth: a runtime-loaded plugin on one bus thread
@@ -246,10 +246,13 @@ check is `probe_moonraker_http()`: one plain HTTP/1.0 `GET /server/info` on a no
 connect and 1.5s in all, counted only when `is_moonraker_server_info_response()` sees Moonraker's `result`
 fields, so a router's page on port 80 is not a printer. That is lighter than the connection test's
 `probe_moonraker_ports()`, which drives the app's single live WebSocket client and so tries one address at a
-time. Up to 12 probes run at once on a sweep-owned `HttpExecutor`; results reach the screen through
-`tok.defer`, and closing the screen invalidates the token, cancels what has not started and lets a running
-probe finish on its own. On the ESP32 firmware the desktop `HttpExecutor` never starts, so the sweep is not
-built there yet. HTTP
+time. Only the platform pieces differ, declared at the foot of `lan_sweep.h`: where our address comes from
+(`getifaddrs` or `esp_netif`), the limits (`lan_sweep_default_limits()`) and how workers start
+(`start_lan_sweep_workers()`). On Linux and macOS 12 probes run at once on a sweep-owned `HttpExecutor`. On the
+ESP32 firmware, where that pool never starts, three detached pthreads with 12KB PSRAM stacks run them, with a
+300ms connect, 1.2s per probe and a 50ms rest after each, so a /24 takes a minute or two and the radio stays
+with the UI. Results reach the screen through `tok.defer`; closing the screen invalidates the token, cancels
+what has not started and lets a running probe finish on its own. HTTP
 *workers* are not here: all HTTP-shaped work leaves through the `HttpExecutor::fast()`/`slow()` pools that
 chapters 03 and 04 own.
 
