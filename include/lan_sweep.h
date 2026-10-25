@@ -45,8 +45,9 @@ std::vector<std::string> lan_sweep_hosts(const LocalIpv4& local);
 std::optional<LocalIpv4> active_local_ipv4();
 
 /// True when @p http_response (status line, headers and body) is Moonraker's answer to
-/// GET /server/info: a 2xx whose JSON body carries a `result` object with Moonraker's
-/// own fields. A router's or web server's page on port 80 is not.
+/// GET /server/info: a 2xx whose JSON body's top-level `result` object carries Moonraker's
+/// own keys, or a 401/403 whose top-level `error` object carries `code` and `message`
+/// (Moonraker behind its login). A router's or web server's page on port 80 is not.
 bool is_moonraker_server_info_response(const std::string& http_response);
 
 /**

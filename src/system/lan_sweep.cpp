@@ -66,63 +66,103 @@ std::vector<std::string> lan_sweep_hosts(const LocalIpv4& local) {
 
 namespace {
 
-/// Whether @p key appears in @p body as an object key: quoted and followed by a colon.
-bool has_json_key(const std::string& body, size_t from, const char* key) {
-    const std::string quoted = std::string("\"") + key + "\"";
-    for (size_t at = body.find(quoted, from); at != std::string::npos;
-         at = body.find(quoted, at + 1)) {
-        size_t i = at + quoted.size();
-        while (i < body.size() && std::isspace(static_cast<unsigned char>(body[i]))) {
-            ++i;
-        }
-        if (i < body.size() && body[i] == ':') {
-            return true;
+size_t skip_json_space(const std::string& s, size_t i) {
+    while (i < s.size() && std::isspace(static_cast<unsigned char>(s[i]))) {
+        ++i;
+    }
+    return i;
+}
+
+/// Where the value of @p key starts in the JSON object whose '{' is at @p open, or npos.
+/// Only that object's own keys count: nothing nested deeper, and no string values.
+size_t json_member(const std::string& s, size_t open, const char* key) {
+    const size_t key_len = std::strlen(key);
+    bool expect_key = true;
+    int depth = 0;
+    for (size_t i = open + 1; i < s.size(); ++i) {
+        const char c = s[i];
+        if (c == '"') {
+            const size_t start = i + 1;
+            size_t end = start;
+            while (end < s.size() && s[end] != '"') {
+                end += (s[end] == '\\') ? 2 : 1;
+            }
+            if (end >= s.size()) {
+                return std::string::npos;
+            }
+            i = end;
+            // expect_key is only ever set at this object's own level.
+            if (expect_key) {
+                const size_t colon = skip_json_space(s, end + 1);
+                if (colon < s.size() && s[colon] == ':') {
+                    if (end - start == key_len && s.compare(start, key_len, key) == 0) {
+                        return skip_json_space(s, colon + 1);
+                    }
+                    expect_key = false;
+                    i = colon;
+                }
+            }
+        } else if (c == '{' || c == '[') {
+            ++depth;
+        } else if (c == '}' || c == ']') {
+            if (depth == 0) {
+                return std::string::npos;
+            }
+            --depth;
+        } else if (c == ',' && depth == 0) {
+            expect_key = true;
         }
     }
-    return false;
+    return std::string::npos;
+}
+
+/// The object value of @p key in the object at @p open: the index of its '{', or npos.
+size_t json_object_member(const std::string& s, size_t open, const char* key) {
+    const size_t v = json_member(s, open, key);
+    return (v < s.size() && s[v] == '{') ? v : std::string::npos;
 }
 
 } // namespace
 
 bool is_moonraker_server_info_response(const std::string& http_response) {
+    const std::string& r = http_response;
     // "HTTP/1.1 200 OK"
-    if (http_response.compare(0, 5, "HTTP/") != 0) {
+    if (r.compare(0, 5, "HTTP/") != 0) {
         return false;
     }
-    const size_t space = http_response.find(' ');
-    if (space == std::string::npos || space + 1 >= http_response.size() ||
-        http_response[space + 1] != '2') {
+    const size_t space = r.find(' ');
+    if (space == std::string::npos || space + 3 >= r.size()) {
         return false;
     }
-    const size_t body_start = http_response.find("\r\n\r\n");
+    const bool ok = r[space + 1] == '2';
+    // An auth-protected Moonraker answers 401 or 403 with its own error object; listing it
+    // lets the pick fill the address, and the connection deals with the login.
+    const bool refused = r.compare(space + 1, 3, "401") == 0 || r.compare(space + 1, 3, "403") == 0;
+    if (!ok && !refused) {
+        return false;
+    }
+    const size_t body_start = r.find("\r\n\r\n");
     if (body_start == std::string::npos) {
         return false;
     }
-    // A key scan keeps this small enough for the firmware image; the answer only needs
-    // `"result": {` carrying Moonraker's keys.
-    const size_t result = http_response.find("\"result\"", body_start);
+    const size_t top = skip_json_space(r, body_start + 4);
+    if (top >= r.size() || r[top] != '{') {
+        return false;
+    }
+    // A scan of the top-level and member keys, which is all this needs, rather than a
+    // full parse, keeps the check small enough for the firmware image.
+    if (refused) {
+        const size_t error = json_object_member(r, top, "error");
+        return error != std::string::npos && json_member(r, error, "code") != std::string::npos &&
+               json_member(r, error, "message") != std::string::npos;
+    }
+    const size_t result = json_object_member(r, top, "result");
     if (result == std::string::npos) {
         return false;
     }
-    size_t i = result + 8;
-    auto skip_space = [&]() {
-        while (i < http_response.size() &&
-               std::isspace(static_cast<unsigned char>(http_response[i]))) {
-            ++i;
-        }
-    };
-    skip_space();
-    if (i >= http_response.size() || http_response[i] != ':') {
-        return false;
-    }
-    ++i;
-    skip_space();
-    if (i >= http_response.size() || http_response[i] != '{') {
-        return false;
-    }
-    return has_json_key(http_response, i, "moonraker_version") ||
-           (has_json_key(http_response, i, "klippy_state") &&
-            has_json_key(http_response, i, "components"));
+    return json_member(r, result, "moonraker_version") != std::string::npos ||
+           (json_member(r, result, "klippy_state") != std::string::npos &&
+            json_member(r, result, "components") != std::string::npos);
 }
 
 bool probe_moonraker_http(const std::string& host, uint16_t port,

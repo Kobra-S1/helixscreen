@@ -112,6 +112,35 @@ TEST_CASE("LAN sweep: only Moonraker's /server/info answer counts", "[lan_sweep]
     CHECK_FALSE(is_moonraker_server_info_response("HTTP/1.1 200 OK\r\n\r\n"
                                                   R"({"result":"moonraker_version"})"));
     CHECK_FALSE(is_moonraker_server_info_response(""));
+
+    // Moonraker behind its login still counts; another server's 401 does not.
+    CHECK(is_moonraker_server_info_response(
+        "HTTP/1.1 401 Unauthorized\r\n\r\n"
+        R"({"error": {"code": 401, "message": "Unauthorized", "traceback": ""}})"));
+    CHECK(is_moonraker_server_info_response("HTTP/1.1 403 Forbidden\r\n\r\n"
+                                            R"({"error":{"code":403,"message":"Forbidden"}})"));
+    CHECK_FALSE(is_moonraker_server_info_response(
+        "HTTP/1.1 401 Unauthorized\r\n\r\n<html>Router login</html>"));
+    CHECK_FALSE(
+        is_moonraker_server_info_response("HTTP/1.1 404 Not Found\r\n\r\n"
+                                          R"({"error":{"code":404,"message":"Not Found"}})"));
+
+    // Only the result object's own keys count.
+    CHECK_FALSE(
+        is_moonraker_server_info_response("HTTP/1.1 200 OK\r\n\r\n"
+                                          R"({"result":{"inner":{"moonraker_version":"x"}}})"));
+    CHECK_FALSE(is_moonraker_server_info_response(
+        "HTTP/1.1 200 OK\r\n\r\n"
+        R"({"result":{"inner":{"a":1,"moonraker_version":"x"}}})"));
+    CHECK_FALSE(is_moonraker_server_info_response(
+        "HTTP/1.1 200 OK\r\n\r\n"
+        R"({"result":{"note":"moonraker_version","list":["klippy_state","components"]}})"));
+    CHECK_FALSE(
+        is_moonraker_server_info_response("HTTP/1.1 200 OK\r\n\r\n"
+                                          R"({"other":{"moonraker_version":"x"},"result":{}})"));
+    CHECK(is_moonraker_server_info_response(
+        "HTTP/1.1 200 OK\r\n\r\n"
+        R"({"result":{"note":"a \"quoted\" {brace}","moonraker_version":"v1"}})"));
     CHECK_FALSE(is_moonraker_server_info_response("HTTP/1.1 200 OK\r\n\r\n{\"result\":"));
 }
 
