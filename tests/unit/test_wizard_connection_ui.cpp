@@ -11,17 +11,22 @@
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
+#include "config.h"
 #include "lvgl/lvgl.h"
 #include "misc/lv_timer_private.h" // timer_cb — assert the cancel neutered it
 #include "moonraker_client.h"
+#include "moonraker_port_probe.h"
 #include "platform_info.h"
 #include "utils/network_validation.h"
+#include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
 
 #include <chrono>
 #include <memory>
+#include <string>
 #include <thread>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -568,12 +573,119 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
     REQUIRE(client.get_last_url() == "ws://10.9.9.9:7125/websocket");
 
+    // The untouched default also tries port 80 before giving up.
+    REQUIRE(client.fire_disconnected());
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    REQUIRE(client.get_last_url() == "ws://10.9.9.9:80/websocket");
     REQUIRE(client.fire_disconnected());
     helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
     lv_obj_t* status = lv_obj_find_by_name(root, "connection_status_text");
     REQUIRE(status != nullptr);
-    CHECK(std::string(lv_label_get_text(status)) ==
-          lv_tr(connect_failure_hint(kind, is_android_platform())));
+    const std::string text = lv_label_get_text(status);
+    CHECK(text == connect_failure_status(kind, {7125, 80}));
+    CHECK(text.find(lv_tr(connect_failure_hint(kind, is_android_platform()))) == 0);
+    CHECK(text.find("80") != std::string::npos);
     step->cleanup();
+}
+
+// ============================================================================
+// Moonraker behind a web server answers only on port 80
+// ============================================================================
+
+namespace {
+
+/// Saves the active printer's host and port and puts them back, since a passed test
+/// persists the address it reached.
+struct SavedMoonrakerAddress {
+    Config* cfg = Config::get_instance();
+    std::string host_key = cfg->df() + helix::wizard::MOONRAKER_HOST;
+    std::string port_key = cfg->df() + helix::wizard::MOONRAKER_PORT;
+    std::string host = cfg->get<std::string>(host_key, "");
+    int port = cfg->get<int>(port_key, 7125);
+    ~SavedMoonrakerAddress() {
+        cfg->set<std::string>(host_key, host);
+        cfg->set<int>(port_key, port);
+    }
+};
+
+/// The connection step is a process-wide singleton: put its port field back the way a
+/// fresh step shows it.
+struct RestoreDefaultPortField {
+    WizardConnectionStep* step;
+    ~RestoreDefaultPortField() {
+        step->cleanup();
+        step->set_port_typed_for_test(false);
+        lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_port"), "7125");
+    }
+};
+
+lv_obj_t* create_step_and_test(WizardConnectionStep* step, lv_obj_t* parent) {
+    step->init_subjects();
+    step->set_mdns_discovery(std::make_unique<MockMdnsDiscovery>());
+    lv_obj_t* root = step->create(parent);
+    REQUIRE(root != nullptr);
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "10.9.9.9");
+    return root;
+}
+
+void click_test(lv_obj_t* root) {
+    lv_obj_t* btn = lv_obj_find_by_name(root, "btn_test_connection");
+    REQUIRE(btn != nullptr);
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: nothing on the default port, Moonraker found on port 80",
+                 "[wizard][connection][port_fallback]") {
+    SavedMoonrakerAddress saved;
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+
+    lv_obj_t* root = create_step_and_test(step, test_screen());
+    click_test(root);
+    REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:7125/websocket"});
+
+    REQUIRE(client.fire_disconnected());
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    REQUIRE(client.get_last_url() == "ws://10.9.9.9:80/websocket");
+
+    REQUIRE(client.fire_connected());
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "connection_port"))) ==
+          "80");
+    lv_obj_t* port_input = lv_obj_find_by_name(root, "port_input");
+    REQUIRE(port_input != nullptr);
+    CHECK(std::string(lv_textarea_get_text(port_input)) == "80");
+    CHECK(saved.cfg->get<int>(saved.port_key, 0) == 80);
+    CHECK(saved.cfg->get<std::string>(saved.host_key, "") == "10.9.9.9");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: a typed port is the only port tried",
+                 "[wizard][connection][port_fallback]") {
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+
+    lv_obj_t* root = create_step_and_test(step, test_screen());
+    lv_obj_t* port_input = lv_obj_find_by_name(root, "port_input");
+    REQUIRE(port_input != nullptr);
+    lv_textarea_set_text(port_input, "7125");
+    click_test(root);
+
+    REQUIRE(client.fire_disconnected());
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    CHECK(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:7125/websocket"});
+    lv_obj_t* status = lv_obj_find_by_name(root, "connection_status_text");
+    REQUIRE(status != nullptr);
+    CHECK(std::string(lv_label_get_text(status)) ==
+          connect_failure_status(client.connect_failure, {7125}));
 }

@@ -219,4 +219,19 @@ const char* connect_failure_hint(ConnectFailureKind kind, bool is_android) {
     return TR_NOOP("Connection failed. Check IP/port and try again.");
 }
 
+std::vector<int> moonraker_ports_to_try(const std::string& port_text, bool user_typed) {
+    const std::string trimmed(helix::text_io::trim(port_text));
+    if (trimmed.empty()) {
+        return {kDefaultMoonrakerPort, kFallbackMoonrakerPort};
+    }
+    if (!is_valid_port(trimmed)) {
+        return {};
+    }
+    const int port = *helix::text_io::parse_leading<int>(trimmed);
+    if (port == kDefaultMoonrakerPort && !user_typed) {
+        return {kDefaultMoonrakerPort, kFallbackMoonrakerPort};
+    }
+    return {port};
+}
+
 } // namespace helix

@@ -3920,6 +3920,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" es="Toca el objetivo (punto %1$d de 3) — toque %2$d de %3$d"/>
   <translation tag="TouchCalibration" es="Calibración táctil"/>
   <translation tag="Trace" es="Traza"/>
+  <translation tag="Tried ports 7125 and 80." es="Se probaron los puertos 7125 y 80."/>
   <translation tag="Trigger" es="Disparador"/>
   <translation tag="Troubleshooting:" es="Solución de problemas:"/>
   <translation tag="Try Again" es="Reintentar"/>

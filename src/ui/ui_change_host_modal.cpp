@@ -17,6 +17,7 @@
 #include "lvgl/lvgl.h"
 #include "moonraker_events.h"
 #include "moonraker_manager.h"
+#include "moonraker_port_probe.h"
 #include "platform_info.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
@@ -121,6 +122,8 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
         // which relies on widget deletion timing (unsafe during exit animation).
         host_ip_observer_ = ObserverGuard(&host_ip_subject_, on_input_changed_cb, nullptr);
         host_port_observer_ = ObserverGuard(&host_port_subject_, on_input_changed_cb, nullptr);
+        // Adding an observer notifies it once; the field still holds the filled-in port.
+        port_typed_ = false;
     }
 
     return result;
@@ -232,30 +235,12 @@ void ChangeHostModal::handle_test_connection() {
     lv_subject_set_int(&testing_subject_, 1);
     set_status("icon_question_circle", "text_muted", "Testing connection...");
 
-    client->set_connection_timeout(5000);
-
-    std::string ws_url = "ws://" + std::string(ip) + ":" + port_clean + "/websocket";
-    std::string http_url = "http://" + std::string(ip) + ":" + port_clean;
-
-    // Set HTTP base URL BEFORE connect: MoonrakerClient's on_connected handlers
-    // (proc_stats initial fetch, performance source, etc.) fire REST calls as
-    // soon as the WS opens. Without this, every test connection logs a burst of
-    // "HTTP base URL not configured" errors until the subsequent Save triggers
-    // manager->connect() (which sets it again). See bundle TV95LJGN.
-    if (IMoonrakerAPI* api = get_moonraker_api()) {
-        api->set_http_base_url(http_url);
-    }
-
-    int result = client->connect(
-        ws_url.c_str(),
-        [this, token]() {
-            token.defer("ChangeHostModal::dispatch_test_success", [this]() { on_test_success(); });
-        },
-        [this, token]() {
-            token.defer("ChangeHostModal::dispatch_test_failure", [this]() { on_test_failure(); });
-        });
-
-    client->set_auto_reconnect(false);
+    std::vector<int> ports = moonraker_ports_to_try(port_clean, port_typed_);
+    tried_ports_ = ports;
+    // Both callbacks run on the main thread, gated by token.
+    int result = probe_moonraker_ports(
+        ip, std::move(ports), 5000, token, [this](int port) { on_test_success(port); },
+        [this](int /*port*/) { on_test_failure(); });
 
     if (result != 0) {
         spdlog::error("[ChangeHostModal] Failed to initiate test connection: {}", result);
@@ -264,12 +249,20 @@ void ChangeHostModal::handle_test_connection() {
     }
 }
 
-void ChangeHostModal::on_test_success() {
+void ChangeHostModal::on_test_success(int port) {
     // Already on main thread — caller dispatches via tok.defer (see handle_test).
-    spdlog::info("[ChangeHostModal] Test connection successful");
+    spdlog::info("[ChangeHostModal] Test connection successful on port {}", port);
 
     if (!is_visible())
         return;
+
+    // A fallback port is where Moonraker answered, so the field and Save carry it.
+    const std::string port_text = std::to_string(port);
+    if (sanitize_port(lv_subject_get_string(&host_port_subject_)) != port_text) {
+        port_set_by_app_ = true;
+        lv_subject_copy_string(&host_port_subject_, port_text.c_str());
+        port_set_by_app_ = false;
+    }
 
     set_status("icon_check_circle", "success", "Connection successful!");
     lv_subject_set_int(&testing_subject_, 0);
@@ -289,8 +282,7 @@ void ChangeHostModal::on_test_failure() {
     IMoonrakerClient* client = get_moonraker_client();
     const ConnectFailureKind kind =
         client ? client->last_connect_failure() : ConnectFailureKind::Unknown;
-    set_status("icon_close_circle", "danger",
-               lv_tr(connect_failure_hint(kind, helix::is_android_platform())));
+    set_status("icon_close_circle", "danger", connect_failure_status(kind, tried_ports_).c_str());
     lv_subject_set_int(&testing_subject_, 0);
 
     spdlog::debug("[ChangeHostModal] Test failed, keeping Save disabled");
@@ -430,7 +422,16 @@ void ChangeHostModal::set_status(const char* icon_name, const char* color_token,
 // Input Change Observer
 // ============================================================================
 
-void ChangeHostModal::on_input_changed_cb(lv_observer_t* /*observer*/, lv_subject_t* /*subject*/) {
+void ChangeHostModal::on_input_changed_cb(lv_observer_t* /*observer*/, lv_subject_t* subject) {
+    if (active_instance_) {
+        // The modal's own write of a probed port is not an edit.
+        if (active_instance_->port_set_by_app_) {
+            return;
+        }
+        if (subject == &active_instance_->host_port_subject_) {
+            active_instance_->port_typed_ = true;
+        }
+    }
     // A status line describes the address it was shown for, so an edit clears it.
     if (active_instance_) {
         active_instance_->set_status(nullptr, nullptr, "");

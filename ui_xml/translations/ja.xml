@@ -3920,6 +3920,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" ja="ターゲットをタッチ（ポイント %1$d / 3）— タッチ %2$d / %3$d"/>
   <translation tag="TouchCalibration" ja="タッチキャリブレーション"/>
   <translation tag="Trace" ja="トレース"/>
+  <translation tag="Tried ports 7125 and 80." ja="ポート7125と80を試しました。"/>
   <translation tag="Trigger" ja="トリガー"/>
   <translation tag="Troubleshooting:" ja="トラブルシューティング:"/>
   <translation tag="Try Again" ja="再試行"/>

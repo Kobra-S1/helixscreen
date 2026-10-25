@@ -24,6 +24,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "moonraker_manager.h"
+#include "moonraker_port_probe.h"
 #include "platform_info.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
@@ -431,13 +432,54 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     client_->connect_failure = kind;
     lv_obj_t* dialog = open_and_test("10.9.9.9");
 
+    // The untouched default also tries port 80 before giving up.
+    REQUIRE(client_->fire_disconnected());
+    UpdateQueue::instance().drain();
+    REQUIRE(client_->get_last_url() == "ws://10.9.9.9:80/websocket");
     REQUIRE(client_->fire_disconnected());
     UpdateQueue::instance().drain();
 
     lv_obj_t* status = lv_obj_find_by_name(dialog, "status_text");
     REQUIRE(status != nullptr);
     CHECK(std::string(lv_label_get_text(status)) ==
-          lv_tr(helix::connect_failure_hint(kind, helix::is_android_platform())));
+          helix::connect_failure_status(kind, {7125, 80}));
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: Moonraker found on port 80 is what Save stores",
+                 "[change_host][port_fallback]") {
+    lv_obj_t* dialog = open_and_test("10.9.9.9");
+
+    REQUIRE(client_->fire_disconnected());
+    UpdateQueue::instance().drain();
+    REQUIRE(client_->get_last_url() == "ws://10.9.9.9:80/websocket");
+    REQUIRE(client_->fire_connected());
+    UpdateQueue::instance().drain();
+
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_port"))) ==
+          "80");
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
+
+    click(dialog, "modal_save_btn");
+    Config* cfg = Config::get_instance();
+    CHECK(cfg->get<int>(cfg->df() + "moonraker_port", 0) == 80);
+    CHECK(cfg->get<std::string>(cfg->df() + "moonraker_host", "") == "10.9.9.9");
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture, "Change Host: a typed port is the only port tried",
+                 "[change_host][port_fallback]") {
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_port"), "7125");
+    click(dialog, "btn_test_connection");
+
+    REQUIRE(client_->fire_disconnected());
+    UpdateQueue::instance().drain();
+
+    CHECK(client_->connect_urls == std::vector<std::string>{kTestedUrl});
 }
 
 // The K-Touch hands Add to PrinterSwitchFlow::add_printer, which reports whether it switched.

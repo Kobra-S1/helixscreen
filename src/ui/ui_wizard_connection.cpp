@@ -21,6 +21,7 @@
 #include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "moonraker_port_probe.h"
 #include "platform_info.h"
 #include "printer_discovery.h"
 #include "runtime_config.h"
@@ -208,16 +209,13 @@ void WizardConnectionStep::handle_test_connection_clicked() {
     std::string port_clean = sanitize_port(lv_subject_get_string(&connection_port_));
 
     // Auto-fill default Moonraker port when empty
+    // The default port fills an empty field; the ports to try are decided from the field as
+    // the user left it, before the fill.
+    std::vector<int> ports = moonraker_ports_to_try(port_clean, port_typed_);
     if (port_clean.empty()) {
-        port_clean = "7125";
-        lv_subject_copy_string(&connection_port_, "7125");
-        if (screen_root_) {
-            lv_obj_t* port_input = helix::ui::find_required(screen_root_, "port_input", get_name());
-            if (port_input) {
-                lv_textarea_set_text(port_input, "7125");
-            }
-        }
-        spdlog::debug("[{}] Port empty, auto-filled default: 7125", get_name());
+        port_clean = std::to_string(kDefaultMoonrakerPort);
+        set_port_field(port_clean);
+        spdlog::debug("[{}] Port empty, auto-filled default: {}", get_name(), port_clean);
     }
 
     spdlog::debug("[{}] Test connection clicked: {}:{}", get_name(), ip, port_clean);
@@ -279,27 +277,15 @@ void WizardConnectionStep::handle_test_connection_clicked() {
 
     spdlog::debug("[{}] Starting connection test to {}:{}", get_name(), ip, port_clean);
 
-    // Set shorter timeout for wizard testing
-    client->set_connection_timeout(5000);
-
-    // Construct WebSocket URL
-    std::string ws_url = "ws://" + std::string(ip) + ":" + port_clean + "/websocket";
-
-    int result = client->connect(
-        ws_url.c_str(),
-        // On connected callback
-        [this, tok]() {
-            tok.defer("WizardConnectionStep::dispatch_connection_success",
-                      [this, tok]() { on_connection_success(tok); });
+    tried_ports_ = ports;
+    // Both callbacks run on the main thread, gated by tok.
+    int result = probe_moonraker_ports(
+        ip, std::move(ports), 5000, tok,
+        [this, tok](int port) {
+            adopt_probed_port(port);
+            on_connection_success(tok);
         },
-        // On disconnected callback
-        [this, tok]() {
-            tok.defer("WizardConnectionStep::dispatch_connection_failure",
-                      [this, tok]() { on_connection_failure(tok); });
-        });
-
-    // Disable automatic reconnection for wizard testing
-    client->set_auto_reconnect(false);
+        [this, tok](int /*port*/) { on_connection_failure(tok); });
 
     if (result != 0) {
         spdlog::error("[{}] Failed to initiate connection: {}", get_name(), result);
@@ -418,7 +404,7 @@ void WizardConnectionStep::on_connection_failure(const helix::LifetimeToken& /*t
         spdlog::error("[Wizard Connection] Connection failed (kind={})", static_cast<int>(kind));
 
         set_status("icon_close_circle", StatusVariant::Danger,
-                   lv_tr(connect_failure_hint(kind, helix::is_android_platform())));
+                   connect_failure_status(kind, tried_ports_).c_str());
         lv_subject_set_int(&connection_testing_, 0);
         connection_validated_ = false;
         lv_subject_set_int(&connection_test_passed, 0);
@@ -478,7 +464,13 @@ void WizardConnectionStep::attempt_auto_probe() {
         auto_probe_state_.store(AutoProbeState::FAILED);
         return;
     }
-    std::string probe_port = !port_clean.empty() ? port_clean : "7125";
+    std::vector<int> probe_ports = moonraker_ports_to_try(port_clean, port_typed_);
+    if (probe_ports.empty()) {
+        spdlog::debug("[{}] Auto-probe: invalid port '{}', skipping", get_name(), port_clean);
+        auto_probe_state_.store(AutoProbeState::FAILED);
+        return;
+    }
+    std::string probe_port = std::to_string(probe_ports.front());
 
     spdlog::debug("[{}] Starting auto-probe to {}:{}", get_name(), probe_ip, probe_port);
 
@@ -518,25 +510,18 @@ void WizardConnectionStep::attempt_auto_probe() {
     // Set testing state (reuses existing subject for button disable)
     lv_subject_set_int(&connection_testing_, 1);
 
-    // Set short timeout for auto-probe (3 seconds - faster than manual test)
-    client->set_connection_timeout(3000);
-
-    // Construct WebSocket URL
-    std::string ws_url = "ws://" + probe_ip + ":" + probe_port + "/websocket";
-
-    int result = client->connect(
-        ws_url.c_str(),
-        [this, tok]() {
-            tok.defer("WizardConnectionStep::dispatch_auto_probe_success",
-                      [this, tok]() { on_auto_probe_success(tok); });
+    // Short timeout per port: the probe runs unasked, so it should give up quickly. Both
+    // callbacks run on the main thread, gated by tok.
+    int result = probe_moonraker_ports(
+        probe_ip, std::move(probe_ports), 3000, tok,
+        [this, tok](int port) {
+            if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
+                std::lock_guard<std::mutex> lock(saved_values_mutex_);
+                saved_port_ = std::to_string(port);
+            }
+            on_auto_probe_success(tok);
         },
-        [this, tok]() {
-            tok.defer("WizardConnectionStep::dispatch_auto_probe_failure",
-                      [this, tok]() { on_auto_probe_failure(tok); });
-        });
-
-    // Disable auto-reconnect for probe
-    client->set_auto_reconnect(false);
+        [this, tok](int /*port*/) { on_auto_probe_failure(tok); });
 
     if (result != 0) {
         spdlog::debug("[{}] Auto-probe: Failed to initiate connection", get_name());
@@ -584,7 +569,7 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
 
     // Update subjects with the successful connection target
     lv_subject_copy_string(&connection_ip_, ip.c_str());
-    lv_subject_copy_string(&connection_port_, port.c_str());
+    set_port_field(port);
 
     // Hide help text on successful auto-probe
     if (screen_root_) {
@@ -708,6 +693,12 @@ void WizardConnectionStep::handle_ip_input_changed() {
 
 void WizardConnectionStep::handle_port_input_changed() {
     LVGL_SAFE_EVENT_CB_BEGIN("[Wizard Connection] handle_port_input_changed");
+
+    // The app's own writes (default fill, discovered printer, probed port) are not an edit.
+    if (port_set_by_app_) {
+        return;
+    }
+    port_typed_ = true;
 
     // If auto-probe is in progress, cancel it
     if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
@@ -981,24 +972,18 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
         // Update IP input
         lv_subject_copy_string(&self->connection_ip_, printer.ip_address.c_str());
 
-        // Update port input
-        char port_str[8];
-        snprintf(port_str, sizeof(port_str), "%u", printer.port);
-        lv_subject_copy_string(&self->connection_port_, port_str);
-
-        // Also update the text areas directly so user sees the change
+        // Also update the text area directly so user sees the change
         if (self->screen_root_) {
             lv_obj_t* ip_input =
                 helix::ui::find_required(self->screen_root_, "ip_input", "Wizard Connection");
             if (ip_input) {
                 lv_textarea_set_text(ip_input, printer.ip_address.c_str());
             }
-            lv_obj_t* port_input =
-                helix::ui::find_required(self->screen_root_, "port_input", "Wizard Connection");
-            if (port_input) {
-                lv_textarea_set_text(port_input, port_str);
-            }
         }
+
+        // A discovered port is the printer's own, not something the user typed.
+        self->port_typed_ = false;
+        self->set_port_field(std::to_string(printer.port));
 
         // Clear any previous validation (user still needs to test)
         self->connection_validated_ = false;
@@ -1010,6 +995,33 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
 
         spdlog::info("[Wizard Connection] Selected printer: {} at {}:{}", printer.name,
                      printer.ip_address, printer.port);
+    }
+}
+
+// ============================================================================
+// Port Field
+// ============================================================================
+
+void WizardConnectionStep::set_port_field(const std::string& port) {
+    port_set_by_app_ = true;
+    lv_subject_copy_string(&connection_port_, port.c_str());
+    if (screen_root_) {
+        lv_obj_t* port_input = helix::ui::find_required(screen_root_, "port_input", get_name());
+        if (port_input) {
+            lv_textarea_set_text(port_input, port.c_str());
+        }
+    }
+    port_set_by_app_ = false;
+}
+
+void WizardConnectionStep::adopt_probed_port(int port) {
+    const std::string port_text = std::to_string(port);
+    {
+        std::lock_guard<std::mutex> lock(saved_values_mutex_);
+        saved_port_ = port_text;
+    }
+    if (sanitize_port(lv_subject_get_string(&connection_port_)) != port_text) {
+        set_port_field(port_text);
     }
 }
 

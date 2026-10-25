@@ -60,6 +60,8 @@ To connect to a different address:
 3. Tap **Test Connection**. **Save** unlocks once the test succeeds.
 4. Tap **Save**. HelixScreen disconnects and reconnects at the new address.
 
+If you leave the port at the default 7125 and nothing answers there, the test also tries port 80, where Moonraker answers when it sits behind a web server (nginx, or printer firmware that serves it on the plain web address). If Moonraker answers on 80, the port field changes to 80 and that is what **Save** stores. A port you type yourself is the only one tried.
+
 Host names are looked up again every time HelixScreen reconnects, so if your router gives the printer a new IP address, HelixScreen finds it again without a restart.
 
 ---

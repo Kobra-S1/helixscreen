@@ -156,6 +156,13 @@ class ChangeHostModal : public Modal {
     /// Test Connection moved the live client to the typed host.
     bool client_borrowed_ = false;
 
+    /// The user edited the port field: a typed port is tried alone (moonraker_ports_to_try()).
+    bool port_typed_ = false;
+    /// Set while the modal writes the port field itself, so the write is not an edit.
+    bool port_set_by_app_ = false;
+    /// The ports the running test tries, for the failure message.
+    std::vector<int> tried_ports_;
+
     // === Completion callback ===
     CompletionCallback completion_callback_;
     AddCallback add_callback_;
@@ -175,7 +182,7 @@ class ChangeHostModal : public Modal {
     void set_status(const char* icon_name, const char* color_token, const char* text);
     /// Shows the reason and returns false when the host or port cannot be used.
     bool input_valid(const char* ip, const std::string& port_clean);
-    void on_test_success();
+    void on_test_success(int port);
     void on_test_failure();
     static void on_input_changed_cb(lv_observer_t* observer, lv_subject_t* subject);
 
