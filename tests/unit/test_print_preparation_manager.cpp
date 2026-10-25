@@ -4640,7 +4640,7 @@ TEST_CASE_METHOD(HelixTestFixture,
         const PrePrintOption& qgl = rows.options[0];
         REQUIRE(qgl.id == "qgl");
         REQUIRE(qgl.default_enabled);
-        REQUIRE(PrePrintOptionsRenderer::label_for(qgl) == "Quad Gantry Level");
+        REQUIRE(PrePrintOptionsRenderer::label_for(qgl) == "Quad gantry level");
         const auto* param = std::get_if<PrePrintStrategyMacroParam>(&qgl.strategy);
         REQUIRE(param);
         REQUIRE(param->param_name == "SKIP_QGL");

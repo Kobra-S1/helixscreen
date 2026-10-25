@@ -26,6 +26,7 @@
 #include "operation_registry.h"
 #include "preprint_skip_wrappers.h"
 #include "print_start_collector.h"
+#include "print_start_phase_label.h"
 #include "scope_exit.h"
 #include "storage_report_service.h"
 #include "system/telemetry_manager.h"
@@ -358,18 +359,11 @@ void PrintPreparationManager::recalculate_estimate(const FileMetadata* file_meta
 helix::PreprintPhaseOverrides PrintPreparationManager::preprint_phase_overrides() const {
     // A shown toggle the user turned off skips its phase; one left on runs it.
     // A phase with no toggle runs as the start macro does.
-    static const std::pair<const char*, helix::PrintStartPhase> kTogglePhases[] = {
-        {"bed_mesh", helix::PrintStartPhase::BED_MESH},
-        {"qgl", helix::PrintStartPhase::QGL},
-        {"z_tilt", helix::PrintStartPhase::Z_TILT},
-        {"nozzle_clean", helix::PrintStartPhase::CLEANING},
-        {"purge_line", helix::PrintStartPhase::PURGING},
-    };
     helix::PreprintPhaseOverrides overrides;
-    for (const auto& [id, phase] : kTogglePhases) {
-        const PrePrintOptionState state = get_option_state(id);
+    for (const helix::PhaseOption& option : helix::print_start_phase_options()) {
+        const PrePrintOptionState state = get_option_state(std::string(option.id));
         if (state != PrePrintOptionState::NOT_APPLICABLE) {
-            overrides[static_cast<int>(phase)] = state == PrePrintOptionState::ENABLED;
+            overrides[static_cast<int>(option.phase)] = state == PrePrintOptionState::ENABLED;
         }
     }
     return overrides;

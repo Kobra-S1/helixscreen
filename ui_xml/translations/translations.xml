@@ -2455,7 +2455,6 @@
   <translation tag="Nozzle Max (°C)" de="Düse Max (°C)" en="Nozzle Max (°C)" es="Boquilla máx. (°C)" fr="Buse max (°C)" it="Ugello max (°C)" ja="ノズル最高温度 (°C)" pt="Bocal Máx (°C)" ru="Макс. сопло (°C)" zh="喷嘴最高温度 (°C)"/>
   <translation tag="Nozzle Min (°C)" de="Düse Min (°C)" en="Nozzle Min (°C)" es="Boquilla mín. (°C)" fr="Buse min (°C)" it="Ugello min (°C)" ja="ノズル最低温度 (°C)" pt="Bocal Mín (°C)" ru="Мин. сопло (°C)" zh="喷嘴最低温度 (°C)"/>
   <translation tag="Nozzle Moves" de="Düse bewegt sich" en="Nozzle Moves" es="Boquilla se mueve" fr="La buse bouge" it="Ugello si muove" ja="ノズル移動" pt="Bocal se move" ru="Сопло движется" zh="喷嘴移动"/>
-  <translation tag="Nozzle Priming" de="Düsen-Priming" en="Nozzle Priming" es="Cebado de Boquilla" fr="Amorçage de la buse" it="Preparazione ugello" ja="ノズルプライミング" pt="Preparação do Bico" ru="Подготовка сопла" zh="喷嘴预挤"/>
   <translation tag="Nozzle Temp" de="Düsentemperatur" en="Nozzle Temp" es="Temp. Boquilla" fr="Temp. de la buse" it="Temp. ugello" ja="ノズル温度" pt="Temp. Bico" ru="Темп. сопла" zh="喷嘴温度"/>
   <translation tag="Nozzle Temperature" de="Düsentemperatur" en="Nozzle Temperature" es="Temperatura de Boquilla" fr="Température de la buse" it="Temperatura ugello" ja="ノズル温度" pt="Temperatura do Bico" ru="Температура сопла" zh="喷嘴温度"/>
   <translation tag="Nozzle Temperatures" de="Düsentemperaturen" en="Nozzle Temperatures" es="Temperaturas de boquilla" fr="Températures des buses" it="Temperature degli ugelli" ja="ノズル温度" pt="Temperaturas dos bicos" ru="Температуры сопел" zh="喷嘴温度"/>

@@ -866,6 +866,34 @@ TEST_CASE("HELIX:PHASE individual phases set correctly", "[print][collector][hel
     }
 }
 
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: each HELIX:PHASE signal shows its phase's banner",
+                 "[print][collector][helix_phase]") {
+    collector().start();
+    drain_async_updates();
+    drain_async_updates();
+
+    const std::pair<const char*, const char*> signals[] = {
+        {"HOMING", "Homing..."},
+        {"HEATING_BED", "Heating Bed..."},
+        {"SOAKING", "Heat Soaking..."},
+        {"HEATING_NOZZLE", "Heating Nozzle..."},
+        {"QGL", "Leveling Gantry..."},
+        {"Z_TILT", "Z Tilt Adjust..."},
+        {"BED_MESH", "Loading Bed Mesh..."},
+        {"CLEANING", "Cleaning Nozzle..."},
+        {"PURGING", "Purging..."},
+        {"COMPLETE", "Starting Print..."},
+    };
+    for (const auto& [name, banner] : signals) {
+        CAPTURE(name);
+        send_gcode_response(std::string("HELIX:PHASE:") + name);
+        drain_async_updates();
+        drain_async_updates();
+        CHECK(get_current_message() == banner);
+    }
+}
+
 // ============================================================================
 // Malformed HELIX:PHASE Signal Tests
 // ============================================================================
