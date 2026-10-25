@@ -46,7 +46,8 @@ std::optional<float> pressure_advance_from_subject(int value);
 std::string pressure_advance_text(int subject_value);
 
 /// Volumetric flow for a live extruder velocity given in centi-mm/s, the unit
-/// PrinterState publishes it in, through filament of the given diameter.
+/// PrinterState publishes it in, through filament of the given diameter. Never
+/// below 0: a retract reads as no flow.
 double volumetric_flow_mm3_s(int extruder_velocity_centimm_s, float filament_diameter_mm);
 
 struct SpeedFlowText {

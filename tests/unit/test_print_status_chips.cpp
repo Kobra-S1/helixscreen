@@ -140,8 +140,8 @@ TEST_CASE("a heater chip prints its reading as every heater display does", "[pri
     CHECK(heater(600, 0).shown);
 }
 
-TEST_CASE("the speed/flow budget is a three-digit speed over a two-digit flow",
+TEST_CASE("the speed/flow budget is a three-digit speed over a three-digit flow",
           "[print_status_chips]") {
-    CHECK(speed_flow_budget_chip().text == "999 mm/s\n99.9 mm\xC2\xB3/s");
-    CHECK(speed_flow_budget_chip().text == tune::live_rates_text(999, 99.9));
+    CHECK(speed_flow_budget_chip().text == "999 mm/s\n999.9 mm\xC2\xB3/s");
+    CHECK(speed_flow_budget_chip().text == tune::live_rates_text(999, 999.9));
 }

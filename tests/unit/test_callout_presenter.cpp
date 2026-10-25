@@ -134,3 +134,21 @@ TEST_CASE_METHOD(PresenterFixture, "CalloutPresenter place_image reports a chang
     REQUIRE(lv_obj_get_style_x(image, LV_PART_MAIN) == 10);
     REQUIRE(presenter.place_image(image, nullptr));
 }
+
+TEST_CASE_METHOD(PresenterFixture, "CalloutPresenter pins a tall chip at its compact height",
+                 "[callout_presenter]") {
+    CalloutPresenter::Parts parts;
+    parts.area = area;
+    parts.image = image;
+    auto bed = chip(CalloutKind::Bed, true);
+    bed.in_budget = false; // no budget: a tagged image pins
+    bed.h = 40;
+    bed.h_compact = 26;
+    parts.chips = {bed};
+    const ImageRegions r = k1c_regions();
+    CalloutPresenter presenter;
+    const CalloutLayout out = presenter.apply(parts, &r, 1601, 1204, config());
+    REQUIRE(out.mode == CalloutMode::Pinned);
+    REQUIRE(out.chips.size() == 1);
+    CHECK(out.chips[0].rect.h == 26);
+}

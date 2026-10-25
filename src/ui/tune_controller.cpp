@@ -82,8 +82,9 @@ std::string pressure_advance_text(int subject_value) {
 }
 
 double volumetric_flow_mm3_s(int extruder_velocity_centimm_s, float filament_diameter_mm) {
-    return (extruder_velocity_centimm_s / 100.0) *
-           filament::cross_section_mm2(filament_diameter_mm);
+    // A retract moves the extruder backwards; no filament is flowing then.
+    return std::max(0.0, (extruder_velocity_centimm_s / 100.0) *
+                             filament::cross_section_mm2(filament_diameter_mm));
 }
 
 SpeedFlowText status_speed_flow_text(bool physical_units, int speed_pct, int flow_pct,

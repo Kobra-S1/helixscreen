@@ -62,7 +62,7 @@ enum class FanRole { Part = 0, Hotend = 1, Aux = 2 };
                                           const std::string& speed_text);
 
 /// The speed/flow chip the layout measures: a three-digit toolhead speed over a
-/// two-digit flow.
+/// three-digit flow.
 [[nodiscard]] ChipContent speed_flow_budget_chip();
 
 /// The light chip: Active when on, expendable when off.

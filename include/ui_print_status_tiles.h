@@ -117,6 +117,10 @@ class PrintStatusTiles {
     [[nodiscard]] int layout_count() const {
         return layout_count_;
     }
+    /// What the last layout pass decided, chip rects included.
+    [[nodiscard]] const CalloutLayout& last_layout() const {
+        return last_layout_;
+    }
 
   private:
     static constexpr size_t kChipSubjectCount = 7;
@@ -196,6 +200,7 @@ class PrintStatusTiles {
 
     lv_timer_t* update_timer_ = nullptr;
     int layout_count_ = 0;
+    CalloutLayout last_layout_;
     bool subjects_ready_ = false;
 
     ObserverGuard led_version_observer_;

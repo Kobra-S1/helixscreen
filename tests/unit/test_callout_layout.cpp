@@ -1280,3 +1280,40 @@ TEST_CASE("every chip at once in a 480x272 tile: none overlaps or leaves the are
           "[printer_image][callout_layout]") {
     check_eight(eight_chips(198, 134, 22, 34, 2, 6, 109, 74, 86));
 }
+
+TEST_CASE("a tall chip in an untagged side column stacks at its own height",
+          "[printer_image][callout_layout]") {
+    auto in = base();
+    in.tagged = false;
+    in.area_w = 300; // image 186x140 centred: a 57px band right of it
+    CalloutChipIn tall{CalloutKind::SpeedFlow, 40, std::nullopt};
+    tall.h = 40;
+    in.active = {
+        {CalloutKind::Nozzle, 40, std::nullopt}, tall, {CalloutKind::Bed, 40, std::nullopt}};
+    const auto l = compute_callout_layout(in);
+    REQUIRE(l.mode == CalloutMode::Docked);
+    REQUIRE(l.chips.size() == 3);
+    for (const auto& c : l.chips)
+        CHECK(c.rect.x >= l.image.x + l.image.w); // the side column, not the bottom row
+    CHECK(l.chips[1].rect.h == 40);
+    CHECK(l.chips[2].rect.y >= l.chips[1].rect.y + 40 + in.gap);
+    check_apart_and_inside(l, in);
+}
+
+TEST_CASE("bands above and below are as deep as their tallest chip",
+          "[printer_image][callout_layout]") {
+    auto in = wide();
+    in.area_w = 240;
+    in.area_h = 480; // image 240x180 centred: 150px above and below
+    for (auto* v : {&in.budget, &in.active})
+        for (auto& c : *v)
+            if (c.kind == CalloutKind::Fan)
+                c.h = 148; // with gap and min_line, deeper than either band
+    const auto l = compute_callout_layout(in);
+    REQUIRE(l.mode != CalloutMode::ImageOnly);
+    for (const auto& c : l.chips) {
+        CAPTURE(int(c.kind));
+        CHECK_FALSE(overlaps(c.rect, l.image));
+    }
+    check_apart_and_inside(l, in);
+}

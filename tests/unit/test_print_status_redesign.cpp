@@ -584,7 +584,15 @@ TEST_CASE_METHOD(Landscape800, "the two-line speed/flow chip lays out at its own
     REQUIRE(speed != nullptr);
     REQUIRE(bed != nullptr);
     REQUIRE(subject_int("ps_chip_speed_flow_shown") == 1);
-    CHECK(lv_obj_get_height(speed) > lv_obj_get_height(bed));
+    REQUIRE(lv_obj_get_height(speed) > lv_obj_get_height(bed));
+    // The layout placed it at the height it renders, so the chips around it
+    // were spaced for that height.
+    const CalloutChipOut* placed = nullptr;
+    for (const auto& c : tiles().last_layout().chips)
+        if (c.kind == CalloutKind::SpeedFlow)
+            placed = &c;
+    REQUIRE(placed != nullptr);
+    CHECK(placed->rect.h == lv_obj_get_height(speed));
     check_chips_inside_and_apart(root_);
 }
 

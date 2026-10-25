@@ -606,6 +606,7 @@ void PrintStatusTiles::update_now() {
     const CalloutLayout out =
         presenter_.apply(parts, image.regions, image.natural_w, image.natural_h, cfg);
     ++layout_count_;
+    last_layout_ = out;
 
     const bool glows = image.regions && lined_or_pinned(out.mode);
     for (size_t i = 0; i < kPrintStatusChipCount; ++i) {
