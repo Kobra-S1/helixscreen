@@ -128,9 +128,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "swatch gallery spools", "[.][swatch_gallery
         mode.set(dark);
         lv_obj_t* page = lv_obj_create(test_screen());
         lv_obj_remove_style_all(page);
-        lv_obj_set_size(page, 8 * size, 2 * size);
+        lv_obj_set_size(page, 8 * size, 3 * size);
 
-        // Side view on the first row, face-on on the second.
+        // Side view on the first row, face-on on the second, then one
+        // filament from empty to full.
         for (const auto view : {helix::ui::SpoolView::Side, helix::ui::SpoolView::Front}) {
             const int32_t y = view == helix::ui::SpoolView::Side ? 0 : size;
             int col = 0;
@@ -140,6 +141,17 @@ TEST_CASE_METHOD(LVGLUITestFixture, "swatch gallery spools", "[.][swatch_gallery
                 helix::ui::spool_canvas_set_view(spool, view);
                 helix::ui::spool_canvas_set_filament(spool, f.rgb, f.multi,
                                                      helix::ui::swatch_finish_from_variant(f.name));
+                ++col;
+            }
+        }
+        int col = 0;
+        for (const auto view : {helix::ui::SpoolView::Side, helix::ui::SpoolView::Front}) {
+            for (const float fill : {0.0f, 0.02f, 0.3f, 1.0f}) {
+                lv_obj_t* spool = ui_spool_canvas_create(page, size);
+                lv_obj_set_pos(spool, col * size, 2 * size);
+                helix::ui::spool_canvas_set_view(spool, view);
+                ui_spool_canvas_set_color(spool, lv_color_hex(0x2080D0));
+                ui_spool_canvas_set_fill_level(spool, fill);
                 ++col;
             }
         }
