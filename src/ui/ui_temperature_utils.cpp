@@ -85,11 +85,12 @@ char* format_temperature(int temp, char* buffer, size_t buffer_size) {
     return buffer;
 }
 
-char* format_temperature_pair(int current, int target, char* buffer, size_t buffer_size) {
-    if (target == 0) {
-        snprintf(buffer, buffer_size, "%d / —°C", current);
+char* format_temperature_pair(int current, int target, char* buffer, size_t buffer_size,
+                              bool with_unit) {
+    if (target <= 0) {
+        snprintf(buffer, buffer_size, with_unit ? "%d / —°C" : "%d / —", current);
     } else {
-        snprintf(buffer, buffer_size, "%d / %d°C", current, target);
+        snprintf(buffer, buffer_size, with_unit ? "%d / %d°C" : "%d / %d", current, target);
     }
     return buffer;
 }

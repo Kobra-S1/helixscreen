@@ -220,15 +220,18 @@ char* format_temperature(int temp, char* buffer, size_t buffer_size);
 /**
  * @brief Format a current/target temperature pair
  *
- * Formats as "210 / 245°C" or "210 / —°C" when target is 0 (heater off).
+ * Formats as "210 / 245°C" or "210 / —°C" when no target is set (target <= 0).
  *
  * @param current Current temperature in degrees
- * @param target Target temperature in degrees (0 = heater off, shows "—")
+ * @param target Target temperature in degrees (<= 0 = heater off, shows "—")
  * @param buffer Output buffer
  * @param buffer_size Size of buffer (recommended: 24)
+ * @param with_unit false drops the "°C" ("210 / 245", "210 / —"), for a caller
+ *        that states the unit itself
  * @return Pointer to buffer for chaining convenience
  */
-char* format_temperature_pair(int current, int target, char* buffer, size_t buffer_size);
+char* format_temperature_pair(int current, int target, char* buffer, size_t buffer_size,
+                              bool with_unit = true);
 
 /**
  * @brief Format a target temperature or "— °C" when off

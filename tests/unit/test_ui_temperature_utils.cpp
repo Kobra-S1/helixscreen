@@ -443,6 +443,18 @@ TEST_CASE("Temperature Utils: format_temperature_pair - basic formatting", "[tem
         format_temperature_pair(25, 60, buf, sizeof(buf));
         REQUIRE(std::string(buf) == "25 / 60°C");
     }
+
+    SECTION("A negative target is no target") {
+        format_temperature_pair(25, -5, buf, sizeof(buf));
+        REQUIRE(std::string(buf) == "25 / —°C");
+    }
+
+    SECTION("Without the unit") {
+        format_temperature_pair(180, 210, buf, sizeof(buf), /*with_unit=*/false);
+        REQUIRE(std::string(buf) == "180 / 210");
+        format_temperature_pair(180, 0, buf, sizeof(buf), /*with_unit=*/false);
+        REQUIRE(std::string(buf) == "180 / —");
+    }
 }
 
 // ============================================================================

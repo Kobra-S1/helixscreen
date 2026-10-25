@@ -205,6 +205,9 @@ class TemperatureService {
     // single effective setpoint + control-mode word, then refresh display/status.
     void recompute_chamber_target();
     void update_display(helix::HeaterType type);
+    /// The heater's current/target text; init_subjects() and update_display()
+    /// both render through it.
+    static void format_display(const HeaterState& h, char* buf, size_t size);
     void update_status(helix::HeaterType type);
     void update_graphs(helix::HeaterType type, float temp_deg, int64_t now_ms);
 

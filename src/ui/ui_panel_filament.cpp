@@ -94,6 +94,7 @@ void reset_to_defaults() {
 using helix::ui::observe;
 using helix::ui::temperature::deci_to_degrees;
 using helix::ui::temperature::format_target_or_off;
+using helix::ui::temperature::format_temperature_pair;
 using helix::ui::temperature::get_heating_state_color;
 
 // The shared MacroParamModal and the tier-3 gcode fallbacks now live in
@@ -119,8 +120,8 @@ static void preset_hold(lv_event_t* e, int slot) {
 FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
     // Initialize buffer contents with default values
-    std::snprintf(temp_display_buf_, sizeof(temp_display_buf_), "%d / %d°C", nozzle_current_,
-                  nozzle_target_);
+    format_temperature_pair(nozzle_current_, nozzle_target_, temp_display_buf_,
+                            sizeof(temp_display_buf_));
     std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Select material to begin"));
     std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_),
                   lv_tr("Current: %d°C | Target: %d°C"), nozzle_current_, nozzle_target_);
@@ -761,8 +762,8 @@ void FilamentPanel::setup_orientation_rewire_observer() {
 // ============================================================================
 
 void FilamentPanel::update_temp_display() {
-    std::snprintf(temp_display_buf_, sizeof(temp_display_buf_), "%d / %d°C", nozzle_current_,
-                  nozzle_target_);
+    format_temperature_pair(nozzle_current_, nozzle_target_, temp_display_buf_,
+                            sizeof(temp_display_buf_));
     lv_subject_copy_string(&temp_display_subject_, temp_display_buf_);
 }
 
