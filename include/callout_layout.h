@@ -362,26 +362,47 @@ inline bool dock_free(const CalloutLayoutInput& in, const CalloutRect& img,
             });
         };
         const int h = chip_h_of(in, c);
-        // Along a strip the scan steps by the gap: a chip clears its neighbours
-        // by a full gap anyway, so a finer scan buys at most a gap of position
-        // for gap times the cost, and this runs on every layout attempt. Each
-        // strip keeps its exact edge position across.
-        const int step = std::max(1, in.gap);
+        // Along a strip, the first free spot either starts the strip or sits
+        // just past something it must clear: the image, or a placed chip by a
+        // gap. Trying only those positions finds what a pixel-by-pixel scan
+        // would, in the same order, at a few tries per obstacle.
+        const auto first_free = [&](bool along_y, int fixed, bool from_low) {
+            const int size = along_y ? h : c.w;
+            const int lo = in.gap;
+            const int hi = (along_y ? in.area_h : in.area_w) - in.gap - size;
+            std::vector<int> at{lo, hi};
+            const auto edges = [&](const CalloutRect& r, int margin) {
+                const int pos = along_y ? r.y : r.x;
+                const int ext = along_y ? r.h : r.w;
+                at.push_back(pos + ext + margin);
+                at.push_back(pos - margin - size);
+            };
+            edges(img, 0);
+            for (const auto& o : out)
+                edges(o.rect, in.gap);
+            std::sort(at.begin(), at.end());
+            if (!from_low)
+                std::reverse(at.begin(), at.end());
+            std::optional<CalloutRect> found;
+            for (const int v : at) {
+                if (v < lo || v > hi)
+                    continue;
+                const CalloutRect r =
+                    along_y ? CalloutRect{fixed, v, c.w, h} : CalloutRect{v, fixed, c.w, h};
+                if (free_at(r)) {
+                    found = r;
+                    break;
+                }
+            }
+            return found;
+        };
         std::optional<CalloutRect> spot;
-        for (const int x : {in.area_w - in.gap - c.w, in.gap}) {
-            for (int y = in.gap; !spot && y + h <= in.area_h - in.gap; y += step)
-                if (free_at({x, y, c.w, h}))
-                    spot = CalloutRect{x, y, c.w, h};
-            if (spot)
-                break;
-        }
-        for (const int y : {in.area_h - in.gap - h, in.gap}) {
-            if (spot)
-                break;
-            for (int x = in.area_w - in.gap - c.w; !spot && x >= in.gap; x -= step)
-                if (free_at({x, y, c.w, h}))
-                    spot = CalloutRect{x, y, c.w, h};
-        }
+        for (const int x : {in.area_w - in.gap - c.w, in.gap})
+            if (!spot)
+                spot = first_free(true, x, true);
+        for (const int y : {in.area_h - in.gap - h, in.gap})
+            if (!spot)
+                spot = first_free(false, y, false);
         if (spot) {
             out.push_back({c.kind, *spot});
         } else {

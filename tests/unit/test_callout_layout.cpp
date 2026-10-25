@@ -1354,23 +1354,29 @@ TEST_CASE("a tall chip in the toolhead group pushes the chips below it down",
     check_apart_and_inside(l, in);
 }
 
-TEST_CASE("loose chips dock on the gap grid", "[printer_image][callout_layout]") {
+TEST_CASE("a loose chip finds the only free spot, off the gap grid",
+          "[printer_image][callout_layout]") {
     auto in = base();
-    in.area_w = 200;
     in.area_h = 200;
-    const CalloutRect img{60, 0, 80, 200};
-    // An obstacle ending off the grid, so the first free pixel row is not a gap multiple.
-    std::vector<CalloutChipOut> out{{CalloutKind::Light, {200 - in.gap - 40, in.gap, 40, 5}}};
-    CalloutChipIn tall{CalloutKind::SpeedFlow, 40, std::nullopt};
-    tall.h = 2 * in.chip_h + 3;
-    const std::vector<CalloutChipIn> chips{{CalloutKind::AuxFan, 40, std::nullopt}, tall};
-    REQUIRE(callout_detail::dock_free(in, img, chips, out));
-    REQUIRE(out.size() == 3);
-    for (size_t i = 1; i < out.size(); ++i) {
-        INFO("chip " << i << " at " << out[i].rect.x << "," << out[i].rect.y);
-        CHECK(out[i].rect.y % in.gap == 0);
-        CHECK_FALSE(overlaps(out[i].rect, img));
-        for (size_t j = 0; j < i; ++j)
-            CHECK_FALSE(callout_detail::rects_near(out[i].rect, out[j].rect, in.gap - 1));
+    const CalloutChipIn chip{CalloutKind::AuxFan, 40, std::nullopt};
+    std::vector<CalloutChipOut> out;
+    CalloutRect img;
+    CalloutRect want;
+    SECTION("the bottom-left corner, at both strips' far ends") {
+        in.area_w = 203; // neither strip's span is a whole number of gaps
+        img = {0, 0, 203, 178};
+        out = {{CalloutKind::Light, {48, 150, 155, 50}}};
+        want = {in.gap, 200 - in.gap - in.chip_h, 40, in.chip_h};
     }
+    SECTION("a slot exactly as wide as the chip between two placed chips") {
+        in.area_w = 200;
+        img = {0, 0, 200, 170};
+        out = {{CalloutKind::Light, {0, 160, 49, 40}}, {CalloutKind::Bed, {97, 160, 103, 40}}};
+        want = {53, 200 - in.gap - in.chip_h, 40, in.chip_h};
+    }
+    REQUIRE(callout_detail::dock_free(in, img, {chip}, out));
+    const CalloutRect& got = out.back().rect;
+    INFO("docked at " << got.x << "," << got.y);
+    CHECK(got.x == want.x);
+    CHECK(got.y == want.y);
 }
