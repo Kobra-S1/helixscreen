@@ -869,6 +869,18 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 ### Changed
 
+- **The print status picture holds still** (#1879) - the chips around the printer picture no
+  longer rearrange it when a fan spins up, the speed is tuned or the light turns on. The
+  layout is decided once for preparing and once for printing; a reading that becomes unusual
+  mid-print (a spinning aux fan) slots into free space instead. The picture is also drawn
+  from a copy sized to fit, as on the home screen.
+- **One name per fan and per pre-print step** (#1879) - the hotend fan reads "HE" in fan
+  settings, as on its chip, and the fan stack's third row reads "Aux", the same fan the print
+  status chip calls Aux. The pre-print option toggles use the step names the progress
+  checklist shows, so the purge toggle reads "Purge".
+- **Chamber reading on the home picture without a heater** (#1879) - a printer with only a
+  chamber thermometer now gets the chamber chip on the home printer picture, as Print Status
+  already showed it.
 - **Stop buttons say "Stop"** - the red button that ends a running Input Shaper test, a heater
   (PID) calibration, a tool offset calibration, the setup wizard's Input Shaper step and a belt
   tension check now all read "Stop" with the same octagon icon, instead of "Abort", "Cancel" or
@@ -1067,6 +1079,12 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 ### Fixed
 
+- **Closing the printer type warning keeps your type** (#1881) - tapping X on the "printer
+  type mismatch" warning now counts as keeping the saved type, like Review > Keep current,
+  so it stops coming back on every restart.
+- **The QIDI Box shows its own logo** (#1514) - instead of the generic filament system chip.
+- **HelixPrint storage report loads again** (#1885) - the plugin's storage module failed to
+  load on Moonraker because it was loaded before the photo module it reads from.
 - **Storage warnings now translate** - when a storage cleanup folder was configured unsafely,
   the plugin overview showed the Moonraker plugin's raw English sentence. Those reasons are
   reason codes now, translated like every other plugin message (#1867).
