@@ -140,6 +140,45 @@ TEST_CASE("TemperatureController set_target routes to the resolved name", "[temp
     REQUIRE(f.client.last_send_method() == "printer.gcode.script");
 }
 
+// A Voron 2.4 whose heater_generic, chamber sensor and exhaust-fan M141 all say
+// "chamber" while its only temperature_fan is ptc_fan (prestonbrown/helixscreen#1886).
+// M141 there sets a fan Klipper does not have, so the chamber row's target must go
+// straight to the heater.
+TEST_CASE("TemperatureController sets a heater_generic chamber directly past a fan-only M141",
+          "[temp_controller][chamber][m141]") {
+    ControllerFixture f;
+    auto& settings = helix::SettingsManager::instance();
+    settings.set_chamber_heater_assignment("auto");
+    settings.set_chamber_sensor_assignment("auto");
+
+    auto& macros = helix::MacroParamCache::instance();
+    struct CacheReset {
+        helix::MacroParamCache& cache;
+        ~CacheReset() {
+            cache.clear();
+        }
+    } cache_reset{macros};
+    macros.populate_from_configfile(
+        {{"gcode_macro m141",
+          {{"gcode", "SET_TEMPERATURE_FAN_TARGET temperature_fan=chamber "
+                     "target={params.S|default(0)}"}}}},
+        {"M141"});
+    REQUIRE(macros.has_macro("m141"));
+
+    helix::PrinterDiscovery hardware;
+    hardware.parse_objects({"extruder", "heater_bed", "heater_generic chamber",
+                            "temperature_sensor chamber", "temperature_fan ptc_fan",
+                            "gcode_macro M141"});
+    f.state.set_hardware(hardware);
+    REQUIRE(f.controller.resolved_name(HeaterType::Chamber) == "heater_generic chamber");
+    f.state.set_klippy_state_sync(helix::KlippyState::READY);
+
+    f.controller.set_target(HeaterType::Chamber, 60.0, helix::SendOptions{.toast = false});
+
+    REQUIRE(f.client.last_send_method() == "printer.gcode.script");
+    CHECK(f.client.last_send_script() == "SET_HEATER_TEMPERATURE HEATER=chamber TARGET=60");
+}
+
 TEST_CASE("TemperatureController reports an error when the chamber heater is not found",
           "[temp_controller]") {
     // A Voron 2.4 with NO chamber heater configured: the chamber resolves to an empty
