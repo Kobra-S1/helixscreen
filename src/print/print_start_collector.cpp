@@ -6,6 +6,7 @@
 #include "ui_temperature_utils.h"
 #include "ui_update_queue.h"
 
+#include "action_prompt_manager.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
@@ -125,6 +126,16 @@ const helix::Regex PrintStartCollector::completion_pattern_(
 const helix::Regex PrintStartCollector::respond_completion_pattern_(
     R"(\bprint\b\W+\b(start|started|starting)\b|\b(start|started|starting)\b\W+\bprint\b)",
     helix::Regex::ICase);
+
+bool PrintStartCollector::is_respond_completion(const std::string& line) {
+    // A host prompt's lines are UI for a dialog, so a "Start print" button is
+    // the printer asking whether to start, not reporting that it did.
+    if (auto action = ActionPromptManager::parse_action_line(line);
+        action && action->command.rfind("prompt_", 0) == 0) {
+        return false;
+    }
+    return helix::regex_search(line, respond_completion_pattern_);
+}
 
 // One "<id>:<temp> /<target>" pair per heater with a gcode id, space separated.
 // The M105 reply carries an "ok " prefix and does not match.

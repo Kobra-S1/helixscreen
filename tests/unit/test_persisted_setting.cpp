@@ -195,6 +195,9 @@ const std::vector<Row>& rows() {
         {"settings_time_format", Mgr::Display, false, "/display/time_format", false, 0, 0, 1,
          "time_format", false, [](int v) { dm().set_time_format(static_cast<TimeFormat>(v)); },
          GET(dm().get_time_format), SUBJ(dm().subject_time_format)},
+        {"settings_glass_effects", Mgr::Display, false, "/display/glass_effects", true, 0, 0, 1,
+         "glass_effects", true, SETB(dm().set_glass_effects), GET(dm().get_glass_effects),
+         SUBJ(dm().subject_glass_effects)},
 
         // SystemSettingsManager
         {"update_channel", Mgr::System, false, "/update/channel", false, 0, 0, 2, "update_channel",

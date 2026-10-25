@@ -233,6 +233,9 @@ static constexpr settings::PersistedSetting kDisplaySettings[] = {
      "gcode_render_mode"},
     // 0=12H, 1=24H
     {"settings_time_format", "/display/time_format", Scope::Global, false, 0, 0, 1, "time_format"},
+    // The saved choice; glass shows only where the glass gate also passes.
+    {"settings_glass_effects", "/display/glass_effects", Scope::Global, true, 0, 0, 1,
+     "glass_effects"},
 };
 
 DisplaySettingsManager& DisplaySettingsManager::instance() {
@@ -342,6 +345,9 @@ void DisplaySettingsManager::init_subjects() {
             lv_xml_set_transition_scale(enabled ? 256 : 0);
         },
         get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
+
+    // Glass availability is ephemeral: 0 until the glass gate passes on this board this run.
+    UI_MANAGED_SUBJECT_INT(glass_available_subject_, 0, "glass_available", subjects_);
 
     // Presence is ephemeral: it is whatever the display backend opened this run.
     UI_MANAGED_SUBJECT_INT(hardware_keyboard_present_subject_, hardware_keyboard_present_ ? 1 : 0,
@@ -787,6 +793,21 @@ void DisplaySettingsManager::set_hardware_keyboard_present(bool present) {
 
 bool DisplaySettingsManager::soft_keyboard_suppressed() const {
     return subjects_initialized_ && hardware_keyboard_present_ && get_hide_keyboard_with_hardware();
+}
+
+void DisplaySettingsManager::set_glass_effects(bool enabled) {
+    settings_.set(Key::GlassEffects, enabled);
+}
+
+void DisplaySettingsManager::set_glass_available(bool available) {
+    if (subjects_initialized_) {
+        lv_subject_set_int(&glass_available_subject_, available ? 1 : 0);
+    }
+}
+
+bool DisplaySettingsManager::get_glass_available() const {
+    return subjects_initialized_ &&
+           lv_subject_get_int(const_cast<lv_subject_t*>(&glass_available_subject_)) != 0;
 }
 
 void DisplaySettingsManager::set_keep_navbar_visible(bool enabled) {

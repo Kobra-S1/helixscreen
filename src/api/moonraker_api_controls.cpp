@@ -62,9 +62,10 @@ void MoonrakerAPI::set_temperature(const std::string& heater, double temperature
     // Route a chamber set through M141 S{temp} when the printer defines that macro.
     // The safety-limit validation above still bounds the target — M141 is just an
     // alternate transport for the same already-validated temperature.
+    const auto& macros = helix::MacroParamCache::instance();
     const bool use_m141 = helix::ui::temperature::chamber_uses_m141(
-        heater, state_.temperature_state().chamber_heater_name(),
-        helix::MacroParamCache::instance().has_macro("m141"));
+        heater, state_.temperature_state().chamber_heater_name(), macros.has_macro("m141"),
+        macros.macro_sets_target("m141", heater));
 
     char gcode_buf[128];
     const char* gcode = helix::ui::temperature::build_heater_gcode(

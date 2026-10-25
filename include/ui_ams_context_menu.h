@@ -135,6 +135,15 @@ class AmsContextMenu : public ContextMenu {
      */
     void set_action_callback(ActionCallback callback);
 
+    // Pure: whether "Clear Spool" is offered for this slot, by the lane menus and
+    // by the slot editor.
+    //
+    // Deliberately independent of whether filament is physically present: a
+    // loaded spool's stale assignment is the one that does damage, since its
+    // metadata is printed with and an edit aims a Spoolman write at the previous
+    // spool. An empty lane's stale metadata is cosmetic.
+    static bool should_show_clear_spool(const SlotInfo& slot);
+
   protected:
     const char* xml_component_name() const override {
         return "ams_context_menu";
@@ -250,14 +259,6 @@ class AmsContextMenu : public ContextMenu {
 
     // === Static Callback Registration ===
     static void register_callbacks();
-    // Pure: whether the context menu should offer "Clear Spool" for this slot.
-    //
-    // Deliberately independent of whether filament is physically present. The
-    // affordance was previously gated on an EMPTY slot, so it disappeared as soon
-    // as a spool went in — exactly when a stale assignment does damage, since that
-    // is when the wrong metadata is printed with and when an edit aims a Spoolman
-    // write at the previous spool. An empty lane's stale metadata is cosmetic.
-    static bool should_show_clear_spool(const SlotInfo& slot);
 
     /// One slot's Load/Unload decision, in the terms the menu renders from.
     struct SlotOpDecision {

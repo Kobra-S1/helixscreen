@@ -684,6 +684,21 @@ HELIX_SCREENSAVER_LEVEL=1 HELIX_SCREENSAVER_NOW=pipes ./build/bin/helix-screen -
 
 Requires a build with screensavers (`HELIX_ENABLE_SCREENSAVER` non-zero).
 
+### `HELIX_GLASS`
+
+Forces the glass gate's verdict for this run. `1` makes the Glass Effects row show in Settings > Appearance and glass draw when it is switched on, even on a board that would fail (16 bpp, a limited tier, a software-rotated display) or whose probe failed; `0` hides the row and keeps the UI flat even where a probe passed. The stored probe record is neither read for the decision nor written. Read once, when the gate starts after boot.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` or `0` |
+| **Default** | Unset: the gate decides from the board and the probe stored at `/display/glass_probe` |
+| **Invalid** | Anything else is ignored with a warning |
+| **File** | `include/glass_gate.h#glass_env_force`, `src/ui/glass_gate.cpp` |
+
+```bash
+HELIX_GLASS=1 HELIX_HEADLESS=1 SDL_VIDEODRIVER=dummy ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_LOOP_MIN_SLEEP_MS`
 
 Shortest sleep the main loop takes between `lv_timer_handler()` calls. The loop sleeps for LVGL's "next timer due" hint, but never less than this, so with a 16 ms refresh period the default floor of 5 ms can make a frame up to 4 ms late. A lower floor paces frames more closely at the cost of more wakeups. While a screensaver holds its refresh period the floor is 1 ms, so its 16 ms frames land on time; everywhere else it is 5 ms. Setting this variable sets the floor in both places.

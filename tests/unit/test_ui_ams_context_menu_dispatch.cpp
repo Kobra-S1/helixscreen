@@ -121,6 +121,24 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: claims actions even with no b
     CHECK_FALSE(helix::ui::ams_dispatch_backend_action(MenuAction::EDIT, 0, nullptr));
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: clears the external spool with no backend",
+                 "[ui][ams][context_menu][dispatch][clear_spool]") {
+    helix::AmsState::instance().init_subjects(true);
+    helix::AmsState::instance().set_backend(nullptr);
+    helix::SlotInfo ext;
+    ext.slot_index = -2;
+    ext.global_index = -2;
+    ext.spoolman_id = 139;
+    ext.material = "ASA";
+    helix::AmsState::instance().set_external_spool_info(ext);
+    REQUIRE(helix::AmsState::instance().get_external_spool_info().has_value());
+
+    CHECK(helix::ui::ams_dispatch_backend_action(MenuAction::CLEAR_SPOOL, -2, nullptr));
+
+    const auto after = helix::AmsState::instance().get_external_spool_info();
+    CHECK((!after || (after->spoolman_id == 0 && after->material.empty())));
+}
+
 // The menu publishes "ams_slot_is_loaded" / "ams_slot_can_load" into the
 // process-wide XML subject registry, which resolves by name and holds a raw
 // pointer. Those subjects used to be instance members deinited in the

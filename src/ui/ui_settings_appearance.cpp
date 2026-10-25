@@ -73,6 +73,10 @@ void AppearanceSettingsOverlay::register_callbacks() {
          [](lv_event_t* e) {
              DisplaySettingsManager::instance().set_animations_enabled(event_checked(e));
          }},
+        {"on_glass_effects_changed",
+         [](lv_event_t* e) {
+             DisplaySettingsManager::instance().set_glass_effects(event_checked(e));
+         }},
         {"on_dark_mode_changed",
          [](lv_event_t* e) {
              bool enabled = event_checked(e);

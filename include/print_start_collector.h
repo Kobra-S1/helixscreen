@@ -648,9 +648,7 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     static bool is_completion_marker(const std::string& line);
 
     /** @brief Check if a G-code response is a RESPOND-based print start completion */
-    [[nodiscard]] static bool is_respond_completion(const std::string& line) {
-        return helix::regex_search(line, respond_completion_pattern_);
-    }
+    [[nodiscard]] static bool is_respond_completion(const std::string& line);
 
     // Dependencies
     helix::IMoonrakerClient& client_;
