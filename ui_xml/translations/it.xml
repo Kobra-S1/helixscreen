@@ -345,6 +345,7 @@
   <translation tag="Automatic cleanup" it="Pulizia automatica"/>
   <translation tag="Automatic storage cleanup" it="Pulizia automatica dell&apos;archiviazione"/>
   <translation tag="Aux" it="Aux"/>
+  <translation tag="Aux Fan" it="Ventola aux"/>
   <translation tag="Available" it="Disponibile"/>
   <translation tag="Available Networks" it="Reti disponibili"/>
   <translation tag="Available networks" it="Reti disponibili"/>
@@ -1207,6 +1208,7 @@
   <translation tag="Excluding &quot;{}&quot;..." it="Esclusione di &quot;{}&quot;..."/>
   <translation tag="Exclusion canceled" it="Esclusione annullata"/>
   <translation tag="Execute printer macros" it="Esegui macro stampante"/>
+  <translation tag="Exhaust" it="Scarico"/>
   <translation tag="Exhaust Fan" it="Ventola scarico"/>
   <translation tag="Exit Code" it="Codice di uscita"/>
   <translation tag="Expected boolean" it="Atteso un valore booleano"/>
@@ -2410,7 +2412,6 @@
   <translation tag="Nozzle Max (°C)" it="Ugello max (°C)"/>
   <translation tag="Nozzle Min (°C)" it="Ugello min (°C)"/>
   <translation tag="Nozzle Moves" it="Ugello si muove"/>
-  <translation tag="Nozzle Priming" it="Preparazione ugello"/>
   <translation tag="Nozzle Temp" it="Temp. ugello"/>
   <translation tag="Nozzle Temperature" it="Temperatura ugello"/>
   <translation tag="Nozzle Temperatures" it="Temperature degli ugelli"/>

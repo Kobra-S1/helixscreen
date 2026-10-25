@@ -380,6 +380,7 @@ translations:
   Automatic cleanup: 'Automatische Bereinigung'
   Automatic storage cleanup: 'Automatische Speicherbereinigung'
   Aux: Aux
+  Aux Fan: Aux-Lüfter
   Available: Verfügbar
   Available Networks: Verfügbare Netzwerke
   Available networks: Verfügbare Netzwerke
@@ -1337,6 +1338,7 @@ translations:
   Excluding "{}"...: '„{}“ wird ausgeschlossen...'
   Exclusion canceled: Ausschluss abgebrochen
   Execute printer macros: Drucker-Makros ausführen
+  Exhaust: Abluft
   Exhaust Fan: Abluftlüfter
   Exit Code: Exit-Code
   Expected boolean: 'Boolescher Wert erwartet'
@@ -2648,7 +2650,6 @@ translations:
   Nozzle Max (°C): Düse Max (°C)
   Nozzle Min (°C): Düse Min (°C)
   Nozzle Moves: Düse bewegt sich
-  Nozzle Priming: Düsen-Priming
   Nozzle Temp: Düsentemperatur
   Nozzle Temperature: Düsentemperatur
   Nozzle Temperatures: 'Düsentemperaturen'

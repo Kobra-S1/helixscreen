@@ -345,6 +345,7 @@
   <translation tag="Automatic cleanup" pt="Limpeza automática"/>
   <translation tag="Automatic storage cleanup" pt="Limpeza automática do armazenamento"/>
   <translation tag="Aux" pt="Aux"/>
+  <translation tag="Aux Fan" pt="Ventoinha Aux"/>
   <translation tag="Available" pt="Disponível"/>
   <translation tag="Available Networks" pt="Redes Disponíveis"/>
   <translation tag="Available networks" pt="Redes disponíveis"/>
@@ -1207,6 +1208,7 @@
   <translation tag="Excluding &quot;{}&quot;..." pt="Excluindo &quot;{}&quot;..."/>
   <translation tag="Exclusion canceled" pt="Exclusão cancelada"/>
   <translation tag="Execute printer macros" pt="Executar macros da impressora"/>
+  <translation tag="Exhaust" pt="Exaustão"/>
   <translation tag="Exhaust Fan" pt="Ventoinha de Exaustão"/>
   <translation tag="Exit Code" pt="Código de Saída"/>
   <translation tag="Expected boolean" pt="Esperava-se um valor booleano"/>
@@ -2410,7 +2412,6 @@
   <translation tag="Nozzle Max (°C)" pt="Bocal Máx (°C)"/>
   <translation tag="Nozzle Min (°C)" pt="Bocal Mín (°C)"/>
   <translation tag="Nozzle Moves" pt="Bocal se move"/>
-  <translation tag="Nozzle Priming" pt="Preparação do Bico"/>
   <translation tag="Nozzle Temp" pt="Temp. Bico"/>
   <translation tag="Nozzle Temperature" pt="Temperatura do Bico"/>
   <translation tag="Nozzle Temperatures" pt="Temperaturas dos bicos"/>

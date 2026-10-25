@@ -379,6 +379,26 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PrePrintOptionsRenderer: label_key wins ove
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
+                 "PrePrintOptionsRenderer: a phase toggle reads as its phase's step name",
+                 "[print_file_detail][pre_print_options][label]") {
+    const auto label = [](const std::string& id, bool adaptive = false) {
+        PrePrintOption opt;
+        opt.id = id;
+        opt.adaptive_active = adaptive;
+        return PrePrintOptionsRenderer::label_for(opt);
+    };
+    CHECK(label("qgl") == "Quad gantry level");
+    CHECK(label("z_tilt") == "Z tilt");
+    CHECK(label("nozzle_clean") == "Cleaning nozzle");
+    CHECK(label("purge_line") == "Purge");
+
+    // The bed mesh row names its variant, not the phase.
+    CHECK(label("bed_mesh") == "Auto Bed Mesh");
+    CHECK(label("bed_mesh", true) == "Adaptive Bed Mesh");
+    CHECK(label("timelapse") == "Record Timelapse");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
                  "PrePrintOptionsRenderer: clear() drops rows and resets subjects",
                  "[print_file_detail][pre_print_options]") {
     PrePrintOptionsRenderer renderer;

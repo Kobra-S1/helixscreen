@@ -350,6 +350,7 @@ translations:
   Automatic cleanup: '自动清理'
   Automatic storage cleanup: '存储自动清理'
   Aux: 辅助
+  Aux Fan: 辅助风扇
   Available: 可用
   Available Networks: 可用网络
   Available networks: 可用网络
@@ -1252,6 +1253,7 @@ translations:
   Excluding "{}"...: '正在排除"{}"...'
   Exclusion canceled: 排除已取消
   Execute printer macros: 执行打印机宏
+  Exhaust: 排气
   Exhaust Fan: 排气扇
   Exit Code: 退出代码
   Expected boolean: '需要布尔值'
@@ -2499,7 +2501,6 @@ translations:
   Nozzle Max (°C): 喷嘴最高温度 (°C)
   Nozzle Min (°C): 喷嘴最低温度 (°C)
   Nozzle Moves: 喷嘴移动
-  Nozzle Priming: 喷嘴预挤
   Nozzle Temp: 喷嘴温度
   Nozzle Temperature: 喷嘴温度
   Nozzle Temperatures: '喷嘴温度'

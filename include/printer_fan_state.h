@@ -30,6 +30,25 @@ enum class FanType {
     OUTPUT_PIN_FAN   ///< Creality-style output_pin fan (controllable via M106 P<index>)
 };
 
+/// A fan's role on the printer: what the wizard assigns, and the slot a
+/// fan display shows.
+enum class FanRole { Part, Hotend, Chamber, Exhaust, Aux };
+
+/// How much room a fan's name has.
+enum class FanLabelLength {
+    Chip, ///< a chip pill: "Part", "HE", "Aux"
+    Word, ///< a row label: "Part", "Hotend", "Aux"
+    Full, ///< the role's name: "Part Fan", "Hotend Fan", "Aux Fan"
+};
+
+/// Untranslated i18n key of a role's name at the given length: the one
+/// spelling of a fan role everywhere it is printed.
+[[nodiscard]] const char* fan_role_label(FanRole role, FanLabelLength length);
+
+/// Untranslated i18n key of a fan type's short name for a type pill. The part
+/// and heater types read as the roles they fill ("Part", "HE").
+[[nodiscard]] const char* fan_type_label(FanType type);
+
 /**
  * @brief Wizard-configured fan role assignments
  *

@@ -47,12 +47,12 @@ struct ChipContent {
 /// the picture.
 [[nodiscard]] std::string heater_budget_text(std::string_view badge);
 
-/// A fan chip. A part fan is Active while spinning; any fan at 0% is Dim and
-/// expendable; a hotend fan at its automatic speed is expendable.
-enum class FanRole { Part = 0, Hotend = 1, Aux = 2 };
-/// `labeled` prefixes the role ("Part", "HE", "Aux") when the chip has room.
-[[nodiscard]] ChipContent fan_chip(FanRole role, bool present, int pct, bool automatic,
-                                   bool labeled);
+/// A fan chip. `kind` picks the rules: a part fan (Fan) is Active while
+/// spinning; any fan at 0% is Dim and expendable; a HotendFan at its automatic
+/// speed is expendable. `labeled` prefixes `label` ("Part", "HE", "Aux") when
+/// the chip has room; an empty label adds no prefix.
+[[nodiscard]] ChipContent fan_chip(CalloutKind kind, std::string_view label, bool present, int pct,
+                                   bool automatic, bool labeled);
 
 /// The speed/flow chip: the live toolhead speed over the live volumetric flow,
 /// two lines of text. Warn whenever

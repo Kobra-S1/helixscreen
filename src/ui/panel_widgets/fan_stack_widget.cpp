@@ -308,9 +308,12 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         const char* short_word;     // one word; also the fallback when unresolved
     };
     const NameMapping name_map[] = {
-        {"fan_stack_part_row", "fan_stack_part_name", "P", &part_display_name_, "Part"},
-        {"fan_stack_hotend_row", "fan_stack_hotend_name", "H", &hotend_display_name_, "Hotend"},
-        {"fan_stack_aux_row", "fan_stack_aux_name", "C", &aux_display_name_, "Chamber"},
+        {"fan_stack_part_row", "fan_stack_part_name", "P", &part_display_name_,
+         fan_role_label(FanRole::Part, FanLabelLength::Word)},
+        {"fan_stack_hotend_row", "fan_stack_hotend_name", "H", &hotend_display_name_,
+         fan_role_label(FanRole::Hotend, FanLabelLength::Word)},
+        {"fan_stack_aux_row", "fan_stack_aux_name", "A", &aux_display_name_,
+         fan_role_label(FanRole::Aux, FanLabelLength::Word)},
     };
 
     auto name_text = [&](const NameMapping& m, NameForm f) -> const char* {
@@ -605,8 +608,10 @@ void FanStackWidget::bind_carousel_fans() {
     };
     std::vector<FanEntry> entries;
     if (fans.empty()) {
-        entries.push_back({lv_tr("Part"), "", 0, false});
-        entries.push_back({lv_tr("Hotend"), "", 0, false});
+        entries.push_back(
+            {lv_tr(fan_role_label(FanRole::Part, FanLabelLength::Word)), "", 0, false});
+        entries.push_back(
+            {lv_tr(fan_role_label(FanRole::Hotend, FanLabelLength::Word)), "", 0, false});
         spdlog::debug("[FanStackWidget] Carousel: no fans discovered, using placeholders");
     } else {
         for (const auto& fan : fans) {

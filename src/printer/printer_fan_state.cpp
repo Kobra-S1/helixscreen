@@ -17,6 +17,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "state/subject_macros.h"
 #include "text_io.h"
+#include "translation_loader.h"
 #include "unit_conversions.h"
 
 #include <spdlog/spdlog.h>
@@ -24,6 +25,49 @@
 #include <algorithm>
 
 namespace helix {
+
+const char* fan_role_label(FanRole role, FanLabelLength length) {
+    struct Spellings {
+        const char* chip;
+        const char* word;
+        const char* full;
+    };
+    static constexpr Spellings kRoles[] = {
+        {TR_NOOP("Part"), TR_NOOP("Part"), TR_NOOP("Part Fan")},
+        {TR_NOOP("HE"), TR_NOOP("Hotend"), TR_NOOP("Hotend Fan")},
+        {TR_NOOP("Chamber"), TR_NOOP("Chamber"), TR_NOOP("Chamber Fan")},
+        {TR_NOOP("Exhaust"), TR_NOOP("Exhaust"), TR_NOOP("Exhaust Fan")},
+        {TR_NOOP("Aux"), TR_NOOP("Aux"), TR_NOOP("Aux Fan")},
+    };
+    const Spellings& s = kRoles[static_cast<int>(role)];
+    switch (length) {
+    case FanLabelLength::Chip:
+        return s.chip;
+    case FanLabelLength::Word:
+        return s.word;
+    case FanLabelLength::Full:
+        return s.full;
+    }
+    return s.full;
+}
+
+const char* fan_type_label(FanType type) {
+    switch (type) {
+    case FanType::PART_COOLING:
+        return fan_role_label(FanRole::Part, FanLabelLength::Chip);
+    case FanType::HEATER_FAN:
+        return fan_role_label(FanRole::Hotend, FanLabelLength::Chip);
+    case FanType::CONTROLLER_FAN:
+        return TR_NOOP("Controller");
+    case FanType::TEMPERATURE_FAN:
+        return TR_NOOP("Temp");
+    case FanType::GENERIC_FAN:
+        return TR_NOOP("Generic");
+    case FanType::OUTPUT_PIN_FAN:
+        return TR_NOOP("Output Pin");
+    }
+    return TR_NOOP("Fan");
+}
 
 FanRoleConfig FanRoleConfig::from_config(Config* config,
                                          const std::vector<std::string>& discovered_fans) {
@@ -412,20 +456,16 @@ void PrinterFanState::init_fans(const std::vector<std::string>& fan_objects,
 
     // Build role-based display name overrides for configured fans.
     // Configured fans use their role name; unconfigured fans use auto-generated names.
-    if (!roles_.part_fan.empty() && roles_.part_fan != "fan") {
-        role_display_names_[roles_.part_fan] = "Part Fan";
-    }
-    if (!roles_.hotend_fan.empty()) {
-        role_display_names_[roles_.hotend_fan] = "Hotend Fan";
-    }
-    if (!roles_.chamber_fan.empty()) {
-        role_display_names_[roles_.chamber_fan] = "Chamber Fan";
-    }
-    if (!roles_.exhaust_fan.empty()) {
-        role_display_names_[roles_.exhaust_fan] = "Exhaust Fan";
-    }
-    if (!roles_.aux_fan.empty()) {
-        role_display_names_[roles_.aux_fan] = "Aux Fan";
+    const std::pair<const std::string&, FanRole> assigned[] = {
+        {roles_.part_fan, FanRole::Part},       {roles_.hotend_fan, FanRole::Hotend},
+        {roles_.chamber_fan, FanRole::Chamber}, {roles_.exhaust_fan, FanRole::Exhaust},
+        {roles_.aux_fan, FanRole::Aux},
+    };
+    for (const auto& [object, role] : assigned) {
+        // The bare [fan] keeps its own name, "Part Cooling Fan".
+        if (!object.empty() && !(role == FanRole::Part && object == "fan")) {
+            role_display_names_[object] = fan_role_label(role, FanLabelLength::Full);
+        }
     }
 
     spdlog::trace("[PrinterFanState] Fan role config: part='{}' hotend='{}' chamber='{}' "

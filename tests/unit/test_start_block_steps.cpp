@@ -82,6 +82,10 @@ TEST_CASE("start block: what a line runs decides its step", "[start_block]") {
         CHECK(kinds("BED_MESH_PROFILE LOAD=default\nBED_MESH_CLEAR\n").empty());
         CHECK(kinds("G29\n") == std::vector{Kind::BedMesh});
     }
+    SECTION("a chamber soak is no step: temperature detection owns SOAKING") {
+        CHECK(kinds("HEAT_SOAK\nG28\n") == std::vector{Kind::HomeAxes});
+        CHECK(kinds("SET_HEATER_TEMPERATURE HEATER=chamber TARGET=50\n").empty());
+    }
     SECTION("a keyword in a comment or a later token runs nothing") {
         CHECK(kinds("M109 S260 ; before CLEAN_NOZZLE\n").empty());
         CHECK(kinds("; G1 X10 E5\nG1 X5 F600 ; E5\n").empty());

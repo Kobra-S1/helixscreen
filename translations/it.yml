@@ -376,6 +376,7 @@ translations:
   Automatic cleanup: 'Pulizia automatica'
   Automatic storage cleanup: 'Pulizia automatica dell''archiviazione'
   Aux: Aux
+  Aux Fan: Ventola aux
   Available: Disponibile
   Available Networks: Reti disponibili
   Available networks: Reti disponibili
@@ -1329,6 +1330,7 @@ translations:
   Excluding "{}"...: 'Esclusione di "{}"...'
   Exclusion canceled: Esclusione annullata
   Execute printer macros: Esegui macro stampante
+  Exhaust: Scarico
   Exhaust Fan: Ventola scarico
   Exit Code: Codice di uscita
   Expected boolean: 'Atteso un valore booleano'
@@ -2640,7 +2642,6 @@ translations:
   Nozzle Max (°C): Ugello max (°C)
   Nozzle Min (°C): Ugello min (°C)
   Nozzle Moves: Ugello si muove
-  Nozzle Priming: Preparazione ugello
   Nozzle Temp: Temp. ugello
   Nozzle Temperature: Temperatura ugello
   Nozzle Temperatures: 'Temperature degli ugelli'

@@ -345,6 +345,7 @@
   <translation tag="Automatic cleanup" ja="自動クリーンアップ"/>
   <translation tag="Automatic storage cleanup" ja="ストレージの自動クリーンアップ"/>
   <translation tag="Aux" ja="補助"/>
+  <translation tag="Aux Fan" ja="補助ファン"/>
   <translation tag="Available" ja="利用可能"/>
   <translation tag="Available Networks" ja="利用可能なネットワーク"/>
   <translation tag="Available networks" ja="利用可能なネットワーク"/>
@@ -1207,6 +1208,7 @@
   <translation tag="Excluding &quot;{}&quot;..." ja="「{}」を除外中..."/>
   <translation tag="Exclusion canceled" ja="除外がキャンセルされました"/>
   <translation tag="Execute printer macros" ja="プリンターマクロを実行"/>
+  <translation tag="Exhaust" ja="排気"/>
   <translation tag="Exhaust Fan" ja="排気ファン"/>
   <translation tag="Exit Code" ja="終了コード"/>
   <translation tag="Expected boolean" ja="真偽値が必要です"/>
@@ -2410,7 +2412,6 @@
   <translation tag="Nozzle Max (°C)" ja="ノズル最高温度 (°C)"/>
   <translation tag="Nozzle Min (°C)" ja="ノズル最低温度 (°C)"/>
   <translation tag="Nozzle Moves" ja="ノズル移動"/>
-  <translation tag="Nozzle Priming" ja="ノズルプライミング"/>
   <translation tag="Nozzle Temp" ja="ノズル温度"/>
   <translation tag="Nozzle Temperature" ja="ノズル温度"/>
   <translation tag="Nozzle Temperatures" ja="ノズル温度"/>

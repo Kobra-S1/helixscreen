@@ -345,6 +345,7 @@
   <translation tag="Automatic cleanup" zh="自动清理"/>
   <translation tag="Automatic storage cleanup" zh="存储自动清理"/>
   <translation tag="Aux" zh="辅助"/>
+  <translation tag="Aux Fan" zh="辅助风扇"/>
   <translation tag="Available" zh="可用"/>
   <translation tag="Available Networks" zh="可用网络"/>
   <translation tag="Available networks" zh="可用网络"/>
@@ -1207,6 +1208,7 @@
   <translation tag="Excluding &quot;{}&quot;..." zh="正在排除&quot;{}&quot;..."/>
   <translation tag="Exclusion canceled" zh="排除已取消"/>
   <translation tag="Execute printer macros" zh="执行打印机宏"/>
+  <translation tag="Exhaust" zh="排气"/>
   <translation tag="Exhaust Fan" zh="排气扇"/>
   <translation tag="Exit Code" zh="退出代码"/>
   <translation tag="Expected boolean" zh="需要布尔值"/>
@@ -2410,7 +2412,6 @@
   <translation tag="Nozzle Max (°C)" zh="喷嘴最高温度 (°C)"/>
   <translation tag="Nozzle Min (°C)" zh="喷嘴最低温度 (°C)"/>
   <translation tag="Nozzle Moves" zh="喷嘴移动"/>
-  <translation tag="Nozzle Priming" zh="喷嘴预挤"/>
   <translation tag="Nozzle Temp" zh="喷嘴温度"/>
   <translation tag="Nozzle Temperature" zh="喷嘴温度"/>
   <translation tag="Nozzle Temperatures" zh="喷嘴温度"/>

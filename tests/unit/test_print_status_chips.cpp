@@ -58,26 +58,39 @@ TEST_CASE("heater_chip carries tool badge text", "[print_status_chips]") {
 }
 
 TEST_CASE("part fan spinning is Active and glows", "[print_status_chips]") {
-    auto c = fan_chip(FanRole::Part, true, 30, false, true);
+    auto c = fan_chip(CalloutKind::Fan, "Part", true, 30, false, true);
     CHECK(c.text == "Part 30%");
     CHECK(c.tone == ChipTone::Active);
     CHECK(c.glow);
-    CHECK(fan_chip(FanRole::Part, true, 30, false, false).text == "30%");
-    CHECK(fan_chip(FanRole::Hotend, true, 30, false, true).text == "HE 30%");
-    CHECK(fan_chip(FanRole::Aux, true, 30, false, true).text == "Aux 30%");
-    CHECK_FALSE(fan_chip(FanRole::Part, false, 30, false, true).shown);
+    CHECK(fan_chip(CalloutKind::Fan, "Part", true, 30, false, false).text == "30%");
+    CHECK(fan_chip(CalloutKind::HotendFan, "HE", true, 30, false, true).text == "HE 30%");
+    CHECK(fan_chip(CalloutKind::AuxFan, "Aux", true, 30, false, true).text == "Aux 30%");
+    CHECK_FALSE(fan_chip(CalloutKind::Fan, "Part", false, 30, false, true).shown);
+}
+
+TEST_CASE("only a part fan glows while spinning", "[print_status_chips]") {
+    for (CalloutKind kind : {CalloutKind::HotendFan, CalloutKind::AuxFan}) {
+        auto c = fan_chip(kind, "X", true, 30, false, true);
+        CHECK(c.tone == ChipTone::Normal);
+        CHECK_FALSE(c.glow);
+    }
+}
+
+TEST_CASE("a fan chip with an empty label has no prefix", "[print_status_chips]") {
+    CHECK(fan_chip(CalloutKind::Fan, "", true, 30, false, true).text == "30%");
 }
 
 TEST_CASE("fan at 0 is Dim and expendable", "[print_status_chips]") {
-    auto c = fan_chip(FanRole::Part, true, 0, false, false);
+    auto c = fan_chip(CalloutKind::Fan, "Part", true, 0, false, false);
     CHECK(c.tone == ChipTone::Dim);
     CHECK(c.expendable);
     CHECK_FALSE(c.glow);
 }
 
 TEST_CASE("hotend fan automatic is expendable", "[print_status_chips]") {
-    CHECK(fan_chip(FanRole::Hotend, true, 100, true, false).expendable);
-    CHECK_FALSE(fan_chip(FanRole::Hotend, true, 100, false, false).expendable);
+    CHECK(fan_chip(CalloutKind::HotendFan, "HE", true, 100, true, false).expendable);
+    CHECK_FALSE(fan_chip(CalloutKind::HotendFan, "HE", true, 100, false, false).expendable);
+    CHECK_FALSE(fan_chip(CalloutKind::Fan, "Part", true, 100, true, false).expendable);
 }
 
 TEST_CASE("speed 104 warns and is not expendable", "[print_status_chips]") {
@@ -126,7 +139,7 @@ TEST_CASE("a heater chip carries its status for the glyph", "[print_status_chips
     CHECK(heater(2200, 2200).status_state == static_cast<int>(HeaterStatusState::Ready));
     CHECK(heater(1000, 2200).status_state == static_cast<int>(HeaterStatusState::Heating));
     CHECK(heater(2600, 2200).status_state == static_cast<int>(HeaterStatusState::Cooling));
-    CHECK(fan_chip(FanRole::Part, true, 30, false, true).status_state == 0);
+    CHECK(fan_chip(CalloutKind::Fan, "Part", true, 30, false, true).status_state == 0);
 }
 
 TEST_CASE("a heater chip prints its reading as every heater display does", "[print_status_chips]") {

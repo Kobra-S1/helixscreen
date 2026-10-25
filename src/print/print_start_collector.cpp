@@ -16,6 +16,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "memory_monitor.h"
 #include "print_start_analyzer.h"
+#include "print_start_phase_label.h"
 #include "printer_detector.h"
 #include "text_io.h"
 #include "thermal_rate_model.h"
@@ -51,44 +52,11 @@ std::string trim_trailing_ellipsis(const std::string& s) {
     return s.substr(0, end);
 }
 
-/// Status text shown while a phase is current.
-///
-/// IDLE has no text of its own: the pre-print banner is hidden outside a print
-/// start, so nothing renders it.
 bool is_before_mesh(helix::PrintStartPhase phase) {
     return phase != helix::PrintStartPhase::BED_MESH && phase != helix::PrintStartPhase::PURGING &&
            phase != helix::PrintStartPhase::COMPLETE;
 }
 
-const char* phase_signal_message(helix::PrintStartPhase phase) {
-    switch (phase) {
-    case helix::PrintStartPhase::IDLE:
-        return "";
-    case helix::PrintStartPhase::INITIALIZING:
-        return lv_tr("Preparing Print...");
-    case helix::PrintStartPhase::HOMING:
-        return lv_tr("Homing...");
-    case helix::PrintStartPhase::HEATING_BED:
-        return lv_tr("Heating Bed...");
-    case helix::PrintStartPhase::SOAKING:
-        return lv_tr("Heat Soaking...");
-    case helix::PrintStartPhase::HEATING_NOZZLE:
-        return lv_tr("Heating Nozzle...");
-    case helix::PrintStartPhase::QGL:
-        return lv_tr("Leveling Gantry...");
-    case helix::PrintStartPhase::Z_TILT:
-        return lv_tr("Z Tilt Adjust...");
-    case helix::PrintStartPhase::BED_MESH:
-        return lv_tr("Loading Bed Mesh...");
-    case helix::PrintStartPhase::CLEANING:
-        return lv_tr("Cleaning Nozzle...");
-    case helix::PrintStartPhase::PURGING:
-        return lv_tr("Purging...");
-    case helix::PrintStartPhase::COMPLETE:
-        return lv_tr("Starting Print...");
-    }
-    return "";
-}
 } // namespace
 
 bool PrintStartCollector::heater_climbed(int temp, int target, HeaterHighWater& mark) {
@@ -695,8 +663,9 @@ void PrintStartCollector::check_purge_shape() {
                  "x={:.1f} y={:.1f} z={:.1f}",
                  static_cast<int>(evidence.action), evidence.filament_loaded,
                  evidence.stationary_flow, x, y, z);
-    PrintStartProfile::MatchResult match{PrintStartPhase::PURGING,
-                                         phase_signal_message(PrintStartPhase::PURGING), 0};
+    PrintStartProfile::MatchResult match{
+        PrintStartPhase::PURGING, helix::print_start_phase_signal_message(PrintStartPhase::PURGING),
+        0};
     apply_profile_match(match, /*marks_real_signal=*/false);
 }
 
@@ -1685,7 +1654,7 @@ void PrintStartCollector::apply_profile_match(const PrintStartProfile::MatchResu
 }
 
 void PrintStartCollector::apply_leveling_phase(helix::PrintStartPhase phase) {
-    PrintStartProfile::MatchResult match{phase, phase_signal_message(phase), 0};
+    PrintStartProfile::MatchResult match{phase, helix::print_start_phase_signal_message(phase), 0};
     apply_profile_match(match, /*marks_real_signal=*/false);
 }
 
@@ -1926,7 +1895,7 @@ bool PrintStartCollector::check_helix_phase_signal(const std::string& line) {
             std::lock_guard<std::mutex> lock(state_mutex_);
             print_start_detected_ = true;
         }
-        update_phase(*phase, phase_signal_message(*phase));
+        update_phase(*phase, helix::print_start_phase_signal_message(*phase));
         if (*phase == PrintStartPhase::COMPLETE) {
             spdlog::info("[PrintStartCollector] Print start complete via HELIX:PHASE signal");
         }
@@ -2453,7 +2422,9 @@ void PrintStartCollector::apply_start_block_step(const helix::StartBlockStep& st
         deferred_step_.reset();
     }
     const PrintStartPhase phase = helix::start_block_step_phase(step.kind);
-    const char* message = phase_signal_message(phase);
+    const char* message = helix::print_start_phase_signal_message(phase);
+    // These refine the phase's banner for one step kind (which homing, a mesh
+    // that probes); they are not the phase's own text.
     switch (step.kind) {
     case helix::StartBlockStepKind::HomeAxes:
         message = lv_tr("Homing axes...");
@@ -2781,38 +2752,10 @@ void PrintStartCollector::enter_phase_locked(PrintStartPhase phase) {
     current_phase_ = phase;
 }
 
-namespace {
-std::optional<PrintStartPhase> phase_of_operation(helix::OperationCategory c) {
-    using helix::OperationCategory;
-    switch (c) {
-    case OperationCategory::BED_MESH:
-        return PrintStartPhase::BED_MESH;
-    case OperationCategory::QGL:
-        return PrintStartPhase::QGL;
-    case OperationCategory::Z_TILT:
-        return PrintStartPhase::Z_TILT;
-    case OperationCategory::NOZZLE_CLEAN:
-        return PrintStartPhase::CLEANING;
-    case OperationCategory::PURGE_LINE:
-        return PrintStartPhase::PURGING;
-    case OperationCategory::HOMING:
-        return PrintStartPhase::HOMING;
-    case OperationCategory::CHAMBER_SOAK:
-        return PrintStartPhase::SOAKING;
-    case OperationCategory::BED_LEVEL:
-    case OperationCategory::SKEW_CORRECT:
-    case OperationCategory::START_PRINT:
-    case OperationCategory::UNKNOWN:
-        break;
-    }
-    return std::nullopt;
-}
-} // namespace
-
 void PrintStartCollector::set_macro_analysis(const helix::PrintStartAnalysis& analysis) {
     std::vector<PrintStartPhase> phases;
     for (const auto& op : analysis.operations) {
-        auto phase = phase_of_operation(op.category);
+        auto phase = helix::phase_of_category(op.category);
         if (phase && std::find(phases.begin(), phases.end(), *phase) == phases.end()) {
             phases.push_back(*phase);
         }

@@ -365,6 +365,7 @@ translations:
   Automatic cleanup: Automatic cleanup
   Automatic storage cleanup: Automatic storage cleanup
   Aux: Aux
+  Aux Fan: Aux Fan
   Available: Available
   Available Networks: Available Networks
   Available networks: Available networks
@@ -1291,6 +1292,7 @@ translations:
   Excluding "{}"...: Excluding "{}"...
   Exclusion canceled: Exclusion canceled
   Execute printer macros: Execute printer macros
+  Exhaust: Exhaust
   Exhaust Fan: Exhaust Fan
   Exit Code: Exit Code
   Expected boolean: Expected boolean
@@ -2578,7 +2580,6 @@ translations:
   Nozzle Max (°C): Nozzle Max (°C)
   Nozzle Min (°C): Nozzle Min (°C)
   Nozzle Moves: Nozzle Moves
-  Nozzle Priming: Nozzle Priming
   Nozzle Temp: Nozzle Temp
   Nozzle Temperature: Nozzle Temperature
   Nozzle Temperatures: Nozzle Temperatures

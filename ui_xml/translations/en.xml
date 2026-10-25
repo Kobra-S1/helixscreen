@@ -345,6 +345,7 @@
   <translation tag="Automatic cleanup" en="Automatic cleanup"/>
   <translation tag="Automatic storage cleanup" en="Automatic storage cleanup"/>
   <translation tag="Aux" en="Aux"/>
+  <translation tag="Aux Fan" en="Aux Fan"/>
   <translation tag="Available" en="Available"/>
   <translation tag="Available Networks" en="Available Networks"/>
   <translation tag="Available networks" en="Available networks"/>
@@ -1207,6 +1208,7 @@
   <translation tag="Excluding &quot;{}&quot;..." en="Excluding &quot;{}&quot;..."/>
   <translation tag="Exclusion canceled" en="Exclusion canceled"/>
   <translation tag="Execute printer macros" en="Execute printer macros"/>
+  <translation tag="Exhaust" en="Exhaust"/>
   <translation tag="Exhaust Fan" en="Exhaust Fan"/>
   <translation tag="Exit Code" en="Exit Code"/>
   <translation tag="Expected boolean" en="Expected boolean"/>
@@ -2410,7 +2412,6 @@
   <translation tag="Nozzle Max (°C)" en="Nozzle Max (°C)"/>
   <translation tag="Nozzle Min (°C)" en="Nozzle Min (°C)"/>
   <translation tag="Nozzle Moves" en="Nozzle Moves"/>
-  <translation tag="Nozzle Priming" en="Nozzle Priming"/>
   <translation tag="Nozzle Temp" en="Nozzle Temp"/>
   <translation tag="Nozzle Temperature" en="Nozzle Temperature"/>
   <translation tag="Nozzle Temperatures" en="Nozzle Temperatures"/>

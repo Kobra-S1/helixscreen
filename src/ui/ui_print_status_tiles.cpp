@@ -84,6 +84,14 @@ bool lined_or_pinned(CalloutMode m) {
     return m == CalloutMode::BothSides || m == CalloutMode::OneSide || m == CalloutMode::Pinned;
 }
 
+/// A fan chip names the role its slot fills, whichever fan fills it.
+const char* fan_chip_label(PrintStatusChip c) {
+    const FanRole role = c == PrintStatusChip::PartFan     ? FanRole::Part
+                         : c == PrintStatusChip::HotendFan ? FanRole::Hotend
+                                                           : FanRole::Aux;
+    return lv_tr(fan_role_label(role, FanLabelLength::Chip));
+}
+
 std::string step_time(const PreprintStepRow& row) {
     if (row.seconds < 0) {
         return {};
@@ -328,9 +336,6 @@ ChipContent PrintStatusTiles::fan(PrintStatusChip chip, bool labeled) {
     const std::string& name = chip == PrintStatusChip::PartFan     ? part_fan_
                               : chip == PrintStatusChip::HotendFan ? hotend_fan_
                                                                    : aux_fan_;
-    const FanRole role = chip == PrintStatusChip::PartFan     ? FanRole::Part
-                         : chip == PrintStatusChip::HotendFan ? FanRole::Hotend
-                                                              : FanRole::Aux;
     if (name.empty()) {
         return {};
     }
@@ -342,8 +347,8 @@ ChipContent PrintStatusTiles::fan(PrintStatusChip chip, bool labeled) {
             break;
         }
     }
-    return fan_chip(role, true, subject_int_or_zero(fans.get_fan_speed_subject(name)), automatic,
-                    labeled);
+    return fan_chip(kChips[index_of(chip)].kind, fan_chip_label(chip), true,
+                    subject_int_or_zero(fans.get_fan_speed_subject(name)), automatic, labeled);
 }
 
 std::array<ChipContent, kPrintStatusChipCount> PrintStatusTiles::decide_chips(bool show_power,
@@ -468,11 +473,10 @@ void PrintStatusTiles::update_now() {
         case PrintStatusChip::Chamber:
             return heater_budget_text({});
         case PrintStatusChip::PartFan:
-            return fan_chip(FanRole::Part, true, 100, false, labeled).text;
         case PrintStatusChip::HotendFan:
-            return fan_chip(FanRole::Hotend, true, 100, false, labeled).text;
         case PrintStatusChip::AuxFan:
-            return fan_chip(FanRole::Aux, true, 100, false, labeled).text;
+            return fan_chip(kChips[index_of(c)].kind, fan_chip_label(c), true, 100, false, labeled)
+                .text;
         case PrintStatusChip::Light:
             return {};
         case PrintStatusChip::SpeedFlow:
