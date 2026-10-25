@@ -17,7 +17,6 @@
 #include "print_start_phase.h"
 #include "print_status_chips.h"
 #include "print_status_layout_fitter.h"
-#include "print_status_tile_layout.h"
 #include "printer_image_manager.h"
 #include "printer_state.h"
 #include "theme_manager.h"
