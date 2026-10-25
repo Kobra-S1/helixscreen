@@ -683,7 +683,6 @@ src/ui/ui_settings_safety.cpp
 src/ui/ui_settings_security.cpp
 src/ui/ui_settings_sensors.cpp
 src/ui/ui_settings_sound.cpp
-src/ui/ui_settings_telemetry_data.cpp
 src/ui/ui_settings_touch.cpp
 src/ui/ui_settings_system.cpp
 src/ui/ui_settings_storage.cpp
