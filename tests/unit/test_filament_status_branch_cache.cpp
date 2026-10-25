@@ -3,7 +3,8 @@
 
 /**
  * @file test_filament_status_branch_cache.cpp
- * @brief update_status() may skip re-rendering an arm, but never a CHANGED arm.
+ * @brief update_status() may skip re-rendering an arm, but never a CHANGED arm;
+ *        and the nozzle current/target text renders an unset target as "—".
  *
  * update_status() runs off the chamber-temperature observer, so it fires several
  * times a second for as long as the app is up — panel on screen or not. Two of
@@ -128,4 +129,31 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FilamentPanel: returning to a cached arm st
     h.set_nozzle(210.0, 0.0);
     TA::update_status(*h.panel);
     CHECK(h.status_text() == ready);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "FilamentPanel: an unset nozzle target reads as a dash",
+                 "[filament][panel][temp_format]") {
+    auto text = []() {
+        lv_subject_t* s = lv_xml_get_subject(nullptr, "filament_temp_display");
+        REQUIRE(s != nullptr);
+        return std::string(lv_subject_get_string(s));
+    };
+
+    {
+        // The constructor's text, read before setup() wires the temperature
+        // observers that would overwrite it.
+        ToolState::instance().init_subjects(true);
+        AmsState::instance().init_subjects(true);
+        FilamentPanel panel(state(), api());
+        panel.init_subjects();
+        CHECK(text().find("/ 0") == std::string::npos);
+        CHECK(text().find("—") != std::string::npos);
+    }
+
+    StatusHarness h(*this);
+    h.set_nozzle(210.0, 0.0);
+    CHECK(text() == "210 / —°C");
+
+    h.set_nozzle(40.0, 215.0);
+    CHECK(text() == "40 / 215°C");
 }
