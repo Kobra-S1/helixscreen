@@ -170,6 +170,7 @@ steady state.
 |------|-------|-----------------|
 | `ui` pthread | 40KB internal | LVGL, every panel, every subject, `UpdateQueue` drain, `MoonrakerManager::process_notifications()`/`process_timeouts()` |
 | `present` | 4KB internal, prio 10 | The only writer of the scan-out framebuffer |
+| `touch` | 3KB PSRAM, prio 6 | Reads the GT911 every 10ms and queues touch edges for LVGL; the only I2C user after boot |
 | `app_net` pthread | 24KB internal, exits | WiFi bring-up, the provisioning portal, a bounded 20s wait for association |
 | `websocket_task` | 10KB internal | Frame reassembly, JSON-RPC dispatch, discovery steps, every client callback |
 | `ws_transport` pthread | 6KB PSRAM | Every websocket stop, destroy, init and start, in order |
@@ -245,10 +246,13 @@ bandwidth. So tearing is solved in software (`main/lvgl_glue.c`, its header comm
   of one cycle and half of the next.
 
 Scrolling uses the retained shadow: `include/scroll_blit.h` moves pixels already in the shadow and renders only the
-strip that scrolled in. Touch is the GT911 through `esp_lcd_touch`, polled by LVGL; a failed probe leaves the panel
-display-only with a startup toast instead of aborting. The render loop sleeps 5-50ms between `lv_timer_handler()`
-calls and logs `slow ui cycle` and `slow refresh cycle` above 100ms, because a long cycle starves the polled touch
-indev and drops taps.
+strip that scrolled in. Touch is the GT911 through `esp_lcd_touch`. The controller keeps only its latest frame and a
+UI cycle can run for hundreds of milliseconds, so a `touch` task reads it every 10ms and queues each press, move and
+release (`firmware/helixscreen-esp32/main/touch_edge_queue.h`); LVGL's indev read takes them one at a time with
+`continue_reading` set, so fast typing reaches the keyboard whole however slow the frame. A second finger landing
+before the first lifts is queued as a release and a press. A failed probe leaves the panel display-only with a
+startup toast instead of aborting. The render loop sleeps 5-50ms between `lv_timer_handler()` calls and logs
+`slow ui cycle` and `slow refresh cycle` above 100ms, because taps wait out a long cycle.
 
 The sdkconfig choices that keep rendering alive are measured and commented in place: 80MHz octal PSRAM (at 40MHz
 the bounce refill misses continuously), 64-byte data cache lines, a 32KB instruction cache, QIO flash, and
@@ -347,7 +351,7 @@ connected clears the streak
 (`firmware/helixscreen-esp32/components/helixapp/app_boot.cpp#"void app_boot_tick(void) {"`).
 
 The serial console is the diagnostic surface (`main/serial_snapshot.h`): `snap` streams the shadow framebuffer as
-deflated, CRC-checked lines that `scripts/esp32_serial_snapshot.py` turns into a PNG, `tap X Y` injects a touch,
+deflated, CRC-checked lines that `scripts/esp32_serial_snapshot.py` turns into a PNG, `tap X Y` injects a touch (`down X Y` / `up` for overlapping fingers),
 and `notes` prints the notification history. Logs carry the tripwires: `[scanout] underruns` (bounce refills that
 missed), `[present] late blit` (a frame shown torn), `slow ui cycle`, `rx stall`, the `[heap:*]` milestones and the
 `[stack:steady-60s]` watermarks for the two IDF tasks that run app code. `CONFIG_HELIX_LOG_STRIP_DEBUG` compiles

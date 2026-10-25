@@ -36,6 +36,18 @@ TEST_CASE("Console command: tap X Y", "[esp32][console]") {
     CHECK(spaced.b == 32767);
 }
 
+TEST_CASE("Console command: down X Y and up", "[esp32][console]") {
+    const console_cmd down = console_parse_line("down 518 271");
+    CHECK(down.kind == CONSOLE_CMD_DOWN);
+    CHECK(down.a == 518);
+    CHECK(down.b == 271);
+    CHECK(console_parse_line("up").kind == CONSOLE_CMD_UP);
+    CHECK(console_parse_line("up ").kind == CONSOLE_CMD_NONE);
+    CHECK(console_parse_line("down 1").kind == CONSOLE_CMD_NONE);
+    CHECK(console_parse_line("down 1 2 3").kind == CONSOLE_CMD_NONE);
+    CHECK(console_parse_line("down 1 32768").kind == CONSOLE_CMD_NONE);
+}
+
 TEST_CASE("Console command: snapline N", "[esp32][console]") {
     const console_cmd cmd = console_parse_line("snapline 1234");
     CHECK(cmd.kind == CONSOLE_CMD_SNAPLINE);

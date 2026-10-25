@@ -57,6 +57,12 @@ static void reader_task(void* arg) {
             case CONSOLE_CMD_TAP:
                 touch_input_inject_tap(cmd.a, cmd.b);
                 break;
+            case CONSOLE_CMD_DOWN:
+                touch_input_inject_down(cmd.a, cmd.b);
+                break;
+            case CONSOLE_CMD_UP:
+                touch_input_inject_up();
+                break;
             case CONSOLE_CMD_NONE:
                 break;
             }
@@ -186,6 +192,7 @@ void serial_snapshot_poll(void) {
                img_cache ? (unsigned)lv_cache_get_size(img_cache, NULL) : 0u,
                img_cache ? (unsigned)lv_cache_get_max_size(img_cache, NULL) : 0u);
         print_task_stacks();
+        printf("TOUCH: dropped_taps=%u\n", touch_input_dropped_taps());
     }
     if (atomic_exchange(&s_notes_requested, false)) {
         app_boot_print_notifications();
