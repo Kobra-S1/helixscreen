@@ -480,6 +480,10 @@ TEST_CASE_METHOD(Landscape800, "strip buttons are square beside the progress", "
     CHECK(lv_obj_get_width(progress) * 100 >= lv_obj_get_content_width(strip) * 40);
     CHECK(lv_obj_get_height(strip) ==
           helix::ui::PrintStatusLayoutFitter::strip_row_height(progress));
+    // The fitter's estimate before layout reads the bar's height from the same token.
+    lv_obj_t* bar = lv_obj_find_by_name(root_, "print_progress");
+    REQUIRE(bar != nullptr);
+    CHECK(lv_obj_get_height(bar) == theme_manager_get_spacing("progress_bar_height"));
 }
 
 TEST_CASE_METHOD(Portrait320, "a narrow strip stacks progress over a full row of buttons",
@@ -728,4 +732,57 @@ TEST_CASE_METHOD(Landscape800, "a chip the phase sheds is never placed without r
     CHECK(subject_int("ps_chip_aux_fan_shown") == 0);
     check_chips_inside_and_apart(root_);
     clear_all_eight_chips(*this);
+}
+
+TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's subjects",
+                 "[print_status]") {
+    const char* keys[] = {"nozzle",     "bed",     "chamber", "part_fan",
+                          "hotend_fan", "aux_fan", "light",   "speed_flow"};
+    const char* colors[] = {"danger", "danger", "danger",  "info",
+                            "info",   "info",   "warning", "warning"};
+    const auto subj = [](const std::string& name) {
+        lv_subject_t* s = lv_xml_get_subject(nullptr, name.c_str());
+        REQUIRE(s != nullptr);
+        return s;
+    };
+    const auto obj = [this](const std::string& name) {
+        lv_obj_t* o = lv_obj_find_by_name(root_, name.c_str());
+        REQUIRE(o != nullptr);
+        return o;
+    };
+    const auto hidden = [](lv_obj_t* o) { return lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN); };
+    set_int(subj("ps_callout_mode"), static_cast<int>(CalloutMode::BothSides));
+    for (const char* k : keys) {
+        set_int(subj(std::string("ps_glow_") + k), 0);
+        set_int(subj(std::string("ps_line_") + k), 0);
+        set_int(subj(std::string("ps_chip_") + k + "_shown"), 1);
+        set_int(subj(std::string("ps_chip_") + k + "_tone"), static_cast<int>(ChipTone::Normal));
+    }
+    for (size_t i = 0; i < std::size(keys); ++i) {
+        const std::string k = keys[i];
+        INFO(k);
+        lv_obj_t* glow = obj("ps_glow_" + k);
+        lv_obj_t* line = obj("ps_line_" + k);
+        CHECK(lv_color_eq(lv_obj_get_style_bg_color(glow, LV_PART_MAIN),
+                          theme_manager_get_color(colors[i])));
+        set_int(subj("ps_glow_" + k), 1);
+        set_int(subj("ps_line_" + k), 1);
+        for (const char* other : keys) {
+            INFO("other " << other);
+            CHECK(hidden(obj(std::string("ps_glow_") + other)) == (k != other));
+            CHECK(hidden(obj(std::string("ps_line_") + other)) == (k != other));
+        }
+        const int soft = lv_obj_get_style_bg_opa(glow, LV_PART_MAIN);
+        set_int(subj("ps_chip_" + k + "_tone"), static_cast<int>(ChipTone::Active));
+        CHECK(lv_obj_get_style_bg_opa(glow, LV_PART_MAIN) > soft);
+        set_int(subj("ps_chip_" + k + "_shown"), 0);
+        CHECK(hidden(line));
+        set_int(subj("ps_chip_" + k + "_shown"), 1);
+        set_int(subj("ps_callout_mode"), static_cast<int>(CalloutMode::Docked));
+        CHECK(hidden(line));
+        set_int(subj("ps_callout_mode"), static_cast<int>(CalloutMode::BothSides));
+        set_int(subj("ps_chip_" + k + "_tone"), static_cast<int>(ChipTone::Normal));
+        set_int(subj("ps_glow_" + k), 0);
+        set_int(subj("ps_line_" + k), 0);
+    }
 }

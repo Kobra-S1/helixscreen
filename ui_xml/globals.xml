@@ -651,6 +651,10 @@
     <px name="ps_strip_button_xlarge" value="120"/>
     <px name="ps_strip_button_xxlarge" value="144"/>
 
+    <!-- components/progress_bar.xml's height, read by the print status layout
+         fitter to estimate the strip before it is laid out. -->
+    <px name="progress_bar_height" value="12"/>
+
     <!-- Other component dimensions -->
     <!-- header_height is responsive: _small/_medium/_large registered as header_height based on screen height -->
     <px name="header_height_micro" value="28"/>
