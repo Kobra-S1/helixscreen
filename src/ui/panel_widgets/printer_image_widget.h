@@ -6,9 +6,9 @@
 #include "ui_heater_icon_binder.h"
 #include "ui_observer_guard.h"
 
-#include "async_lifetime_guard.h"
 #include "callout_layout.h"
 #include "callout_presenter.h"
+#include "exact_size_image.h"
 #include "panel_widget.h"
 
 #include <array>
@@ -58,12 +58,6 @@ class PrinterImageWidget : public PanelWidget {
     /// Long-press on the light chip: opens the LEDs overlay on the chamber light.
     static void printer_callout_light_hold_cb(lv_event_t* e);
 
-  private:
-    /// Points `img` at the pre-scaled copy for its current size, if one is on disk.
-    /// Returns false when the widget has no resolved size yet, or nothing is cached
-    /// at that size, leaving the caller to fall back to the tier image.
-    bool try_set_exact_size_source(lv_obj_t* img);
-
   protected:
     void on_hooked_root_deleted() override;
 
@@ -79,9 +73,6 @@ class PrinterImageWidget : public PanelWidget {
     // (mid-rebuild grid) walked the freed descriptor off the heap end (#983/#1025).
     lv_timer_t* refresh_timer_ = nullptr;
     std::string current_source_path_; // Resolved source image (LVGL path)
-    /// What lv_image_set_src was last given, so a repeat resolve to the same file
-    /// does not invalidate the widget for an identical image.
-    std::string current_displayed_path_;
     /// Natural size of the source, read once per path: every relayout needs it
     /// (an untagged image's aspect, a user tag's size guard), and a decoder
     /// info call opens the file.
@@ -89,14 +80,13 @@ class PrinterImageWidget : public PanelWidget {
     int natural_w_ = 0;
     int natural_h_ = 0;
 
-    /// Guards the cache-generation continuation, which runs from a worker thread
-    /// and touches this widget's LVGL tree.
-    helix::AsyncLifetimeGuard lifetime_;
-
-    /// One cache generation at a time. Every navigation back to the panel schedules
-    /// another cache check, and without this a second job would redo work already
-    /// running for the same source and size.
-    bool cache_job_inflight_ = false;
+    /// The 1:1 cached copy of the picture for its laid-out size.
+    helix::ui::ExactSizeImage exact_image_{
+        "PrinterImageWidget",
+        [this]() -> lv_obj_t* {
+            return widget_obj_ ? lv_obj_find_by_name(widget_obj_, "printer_image") : nullptr;
+        },
+        [](lv_obj_t* img, const std::string& path) { lv_image_set_src(img, path.c_str()); }};
 
     /// Re-resolves the image when the printer type settles mid-session:
     /// auto-detection finishes after the home panel is built on a fresh

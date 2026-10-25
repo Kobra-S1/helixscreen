@@ -13,6 +13,7 @@
 #include "../test_helpers/scoped_geometry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
+#include "prerendered_images.h"
 #include "print_start_phase.h"
 #include "print_status_chips.h"
 #include "print_status_layout_fitter.h"
@@ -23,6 +24,7 @@
 #include "tool_state.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <utility>
@@ -785,4 +787,26 @@ TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's
         set_int(subj("ps_glow_" + k), 0);
         set_int(subj("ps_line_" + k), 0);
     }
+}
+
+TEST_CASE_METHOD(Landscape800, "the printer tile shows the exact-size copy of its picture",
+                 "[print_status]") {
+    tiles().use_displayed_image();
+    settle();
+    const std::string source = helix::PrinterImageManager::instance().get_displayed_image_path(
+        lv_display_get_horizontal_resolution(lv_display_get_default()));
+    REQUIRE_FALSE(source.empty());
+    lv_obj_update_layout(root_);
+    lv_obj_t* img = lv_obj_find_by_name(root_, "ps_printer_image");
+    REQUIRE(img != nullptr);
+    const std::string cache_path =
+        helix::get_cached_printer_image_path(source, lv_obj_get_width(img), lv_obj_get_height(img));
+    const std::string cache_src = "A:" + cache_path;
+    // A miss shows the scaled source and hands the copy to a worker; a hit shows it now.
+    INFO("source " << source);
+    REQUIRE(wait_until([&]() { return subject_str("ps_printer_image_src") == cache_src; }));
+    CHECK(std::filesystem::exists(cache_path));
+    // A reading tick keeps the copy.
+    settle();
+    CHECK(subject_str("ps_printer_image_src") == cache_src);
 }

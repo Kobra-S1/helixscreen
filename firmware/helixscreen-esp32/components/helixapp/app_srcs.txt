@@ -449,6 +449,7 @@ src/ui/panel_widgets/maintenance_model.cpp
 src/ui/panel_widgets/maintenance_widget.cpp
 src/ui/panel_widgets/print_stats_widget.cpp
 src/ui/panel_widgets/print_status_widget.cpp
+src/ui/panel_widgets/exact_size_image.cpp
 src/ui/panel_widgets/printer_image_widget.cpp
 src/ui/panel_widgets/shutdown_widget.cpp
 src/ui/panel_widgets/speed_flow_widget.cpp

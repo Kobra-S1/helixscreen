@@ -98,7 +98,17 @@ const char* print_status_chip_key(PrintStatusChip chip) {
 }
 
 PrintStatusTiles::PrintStatusTiles(PrinterState& printer_state, Host host)
-    : printer_state_(printer_state), host_(std::move(host)) {
+    : printer_state_(printer_state), host_(std::move(host)),
+      exact_image_(
+          "PrintStatusTiles",
+          [this]() -> lv_obj_t* {
+              lv_obj_t* root = host_.root ? host_.root() : nullptr;
+              return root ? lv_obj_find_by_name(root, "ps_printer_image") : nullptr;
+          },
+          // The XML binds the picture's src, so the chosen copy goes through it.
+          [this](lv_obj_t*, const std::string& path) {
+              set_string(&image_src_, image_src_buf_, sizeof(image_src_buf_), path);
+          }) {
     checklist_source_ = []() -> std::optional<PreprintChecklistInput> {
         auto* mgr = get_moonraker_manager();
         auto collector = mgr ? mgr->print_start_collector() : nullptr;
@@ -270,6 +280,8 @@ void PrintStatusTiles::request_update() {
 
 void PrintStatusTiles::on_tree_destroyed() {
     cancel_update_timer();
+    exact_image_.cancel();
+    exact_image_.forget_displayed();
     last_mode_ = CalloutMode::ImageOnly;
 }
 
@@ -447,10 +459,11 @@ void PrintStatusTiles::update_now() {
     }
 
     const CalloutChipMetrics m = measure_callout_chip(probe);
-    const Image image = image_source_ ? image_source_() : Image{};
-    if (!image.path.empty()) {
-        set_string(&image_src_, image_src_buf_, sizeof(image_src_buf_), image.path);
+    // A rewrite under the same path needs the picture shown and checked again.
+    if (image_stale_) {
+        exact_image_.forget_displayed();
     }
+    const Image image = image_source_ ? image_source_() : Image{};
 
     // What each chip shows decides the mode, at representative readings so a
     // digit coming or going never moves the picture: a heater heating or
@@ -605,6 +618,8 @@ void PrintStatusTiles::update_now() {
         presenter_.apply(parts, image.regions, image.natural_w, image.natural_h, cfg);
     ++layout_count_;
     last_layout_ = out;
+    // After the layout sized the picture, so the copy is cut for its rect.
+    exact_image_.apply(image.path);
 
     const bool glows = image.regions && lined_or_pinned(out.mode);
     for (size_t i = 0; i < kPrintStatusChipCount; ++i) {

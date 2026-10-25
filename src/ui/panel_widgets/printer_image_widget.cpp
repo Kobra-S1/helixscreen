@@ -320,8 +320,7 @@ void PrinterImageWidget::detach() {
     // Expire the cache-generation continuation before the tree it targets goes
     // away. The worker keeps running to completion and still writes its entry, so
     // the next attach finds a cache hit.
-    lifetime_.invalidate();
-    cache_job_inflight_ = false;
+    exact_image_.cancel();
 
     uninstall_delete_hook();
 
@@ -348,8 +347,7 @@ void PrinterImageWidget::on_hooked_root_deleted() {
     // widget_obj_ before any widget call, the icon binders' animators drop
     // their icons as the children die, and LVGL deletes each icon's fan spin
     // with the icon, so nothing here reaches the freed tree.
-    lifetime_.invalidate();
-    cache_job_inflight_ = false;
+    exact_image_.cancel();
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 }
@@ -413,19 +411,14 @@ void PrinterImageWidget::refresh_printer_image() {
     schedule_callout_layout();
 
     if (current_source_path_ != source_path)
-        current_displayed_path_.clear();
+        exact_image_.forget_displayed();
     current_source_path_ = source_path;
 
-    // Set source with CONTAIN alignment — displays immediately (with runtime scaling)
-    lv_obj_t* img = lv_obj_find_by_name(widget_obj_, "printer_image");
-    if (img && !try_set_exact_size_source(img)) {
+    if (!exact_image_.show_cached(source_path)) {
         // No exact-size copy for this size yet. The tier image costs a decode plus a
         // CONTAIN scale on every paint and is replaced as soon as one is generated,
         // so this path is the first display at a given size, not the steady state.
-        lv_image_set_src(img, source_path.c_str());
-        lv_image_set_inner_align(img, LV_IMAGE_ALIGN_CONTAIN);
-        current_displayed_path_ = source_path;
-        spdlog::debug("[PrinterImageWidget] Source image: '{}'", source_path);
+        exact_image_.show_scaled(source_path);
     }
 
     // Schedule cache check after layout resolves
@@ -491,157 +484,10 @@ void PrinterImageWidget::schedule_cache_check() {
     lv_timer_set_repeat_count(cache_timer_, 1);
 }
 
-namespace {
-
-/// The size the image takes at the next layout pass. A callout move declares a
-/// pixel rect whose coords only follow once layout runs, and this is read from
-/// timers that may fire before it, so the declared size wins over the coords;
-/// the XML's 100% resolves against the container's content box.
-void declared_image_size(lv_obj_t* img, int32_t& w, int32_t& h) {
-    lv_obj_t* parent = lv_obj_get_parent(img);
-    const auto resolve = [](int32_t v, int32_t full) -> int32_t {
-        if (LV_COORD_IS_PCT(v))
-            return full * LV_COORD_GET_PCT(v) / 100;
-        // LV_SIZE_CONTENT and the other special values carry no pixel size.
-        return LV_COORD_IS_SPEC(v) ? 0 : v;
-    };
-    w = resolve(lv_obj_get_style_width(img, LV_PART_MAIN), lv_obj_get_content_width(parent));
-    h = resolve(lv_obj_get_style_height(img, LV_PART_MAIN), lv_obj_get_content_height(parent));
-}
-
-/// Shows an exact-size copy 1:1. LVGL keeps the scale CONTAIN computed when the
-/// align leaves CONTAIN (lv_image_set_scale refuses while CONTAIN is still set),
-/// so the scale is reset after the align changes, and before the src so no
-/// CONTAIN pass runs on the new copy.
-void show_exact_copy(lv_obj_t* img, const std::string& lvgl_path) {
-    lv_image_set_inner_align(img, LV_IMAGE_ALIGN_CENTER);
-    lv_image_set_scale(img, LV_SCALE_NONE);
-    lv_image_set_src(img, lvgl_path.c_str());
-}
-
-} // namespace
-
-bool PrinterImageWidget::try_set_exact_size_source(lv_obj_t* img) {
-    if (!img || current_source_path_.empty())
-        return false;
-
-    int32_t w = 0, h = 0;
-    declared_image_size(img, w, h);
-    if (w <= 0 || h <= 0)
-        return false;
-
-    const std::string cache_path = helix::get_cached_printer_image_path(current_source_path_, w, h);
-
-    // Any stat failure reads as "not found": the ESP32 VFS reports missing
-    // paths as ENODATA, which must not surface as an error.
-    if (!helix::fs::exists(cache_path))
-        return false;
-
-    const std::string lvgl_path = "A:" + cache_path;
-    if (lvgl_path == current_displayed_path_)
-        return true; // already showing it; re-setting would invalidate for nothing
-
-    show_exact_copy(img, lvgl_path);
-    current_displayed_path_ = lvgl_path;
-    spdlog::debug("[PrinterImageWidget] Exact-size image: {} ({}x{})", cache_path, w, h);
-    return true;
-}
-
 void PrinterImageWidget::check_or_generate_cache() {
     if (!widget_obj_ || current_source_path_.empty())
         return;
-
-    lv_obj_t* img = lv_obj_find_by_name(widget_obj_, "printer_image");
-    if (!img)
-        return;
-
-    if (try_set_exact_size_source(img))
-        return;
-
-    int32_t w = 0, h = 0;
-    declared_image_size(img, w, h);
-    if (w <= 0 || h <= 0) {
-        spdlog::debug("[PrinterImageWidget] Not laid out yet ({}x{}), skipping cache", w, h);
-        return;
-    }
-
-    const std::string cache_path = helix::get_cached_printer_image_path(current_source_path_, w, h);
-
-    // Cache miss — generate off the UI thread. Decoding and resizing an image is
-    // half a second per entry on a two-core MIPS board, and every navigation back
-    // to this panel reaches here.
-    //
-    // Nothing blanks while the job runs: the widget keeps the CONTAIN-scaled source
-    // refresh_printer_image() set, which is the same state a generation failure
-    // leaves behind.
-    if (cache_job_inflight_) {
-        spdlog::debug("[PrinterImageWidget] Cache generation already running, skipping {}x{}", w,
-                      h);
-        return;
-    }
-
-    const std::string source = current_source_path_;
-    spdlog::debug("[PrinterImageWidget] Cache miss, generating {}x{} from '{}'", w, h, source);
-
-    // Idempotent; covers unit tests and any call site reached before Application
-    // starts the pools.
-    helix::http::HttpExecutor::fast().start();
-    if (!helix::http::HttpExecutor::fast().running()) {
-        // No worker pool on this build (the ESP32 firmware): keep the scaled
-        // source, the same state a generation failure leaves.
-        spdlog::debug("[PrinterImageWidget] No background worker, using scaled source");
-        return;
-    }
-
-    cache_job_inflight_ = true;
-    auto tok = lifetime_.token();
-    const int gen_w = static_cast<int>(w);
-    const int gen_h = static_cast<int>(h);
-
-    helix::http::HttpExecutor::fast().submit([this, tok, source, cache_path, gen_w, gen_h]() {
-        // Worker thread: no `this` access and no lv_* call. The generation reads
-        // and writes files and returns a plain bool.
-        const bool generated =
-            helix::generate_cached_printer_image(source, gen_w, gen_h, cache_path);
-
-        tok.defer("PrinterImageWidget::cache_generated", [this, source, cache_path, gen_w, gen_h,
-                                                          generated]() {
-            cache_job_inflight_ = false;
-
-            if (!widget_obj_ || current_source_path_ != source) {
-                // The widget resolved elsewhere while the worker ran. The
-                // entry stays on disk for whenever this source comes back.
-                spdlog::debug("[PrinterImageWidget] Cache for '{}' is no longer the "
-                              "displayed source, discarding result",
-                              source);
-                return;
-            }
-            if (!generated) {
-                spdlog::warn("[PrinterImageWidget] Cache generation failed, using scaled source");
-                return;
-            }
-
-            // Re-find the child: a rebuild between launch and completion
-            // replaces the tree under a recycled widget instance.
-            lv_obj_t* cached_img = lv_obj_find_by_name(widget_obj_, "printer_image");
-            if (!cached_img) {
-                return;
-            }
-            // The image was resized while the worker ran (a callout layout
-            // moved it); this copy is cut for the old rect.
-            int32_t now_w = 0, now_h = 0;
-            declared_image_size(cached_img, now_w, now_h);
-            if (now_w != gen_w || now_h != gen_h) {
-                schedule_cache_check();
-                return;
-            }
-            std::string lvgl_path = "A:" + cache_path;
-            show_exact_copy(cached_img, lvgl_path);
-            this->current_displayed_path_ = lvgl_path;
-            spdlog::debug("[PrinterImageWidget] Cached and loaded: {} ({}x{})", cache_path, gen_w,
-                          gen_h);
-        });
-    });
+    exact_image_.generate_if_missing(current_source_path_);
 }
 
 void PrinterImageWidget::handle_printer_manager_clicked() {

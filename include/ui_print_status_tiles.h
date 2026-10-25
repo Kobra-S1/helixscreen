@@ -26,6 +26,7 @@
 #include "preprint_checklist.h"
 #include "print_status_chips.h"
 #include "printer_image_regions.h"
+#include "src/ui/panel_widgets/exact_size_image.h"
 #include "subject_managed_panel.h"
 
 #include <array>
@@ -163,6 +164,8 @@ class PrintStatusTiles {
     Host host_;
     AsyncLifetimeGuard lifetime_;
     CalloutPresenter presenter_;
+    /// The printer picture's 1:1 cached copy for the size the layout gave it.
+    ExactSizeImage exact_image_;
 
     std::array<ChipSubjects, kPrintStatusChipCount> chips_{};
     std::array<std::string, kChipSubjectCount * kPrintStatusChipCount> chip_names_{};
