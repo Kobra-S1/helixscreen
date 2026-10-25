@@ -989,12 +989,23 @@ TEST_CASE("PrinterTemperatureState chamber subjects match chamber_effective_setp
 TEST_CASE("chamber_uses_m141 gates only the chamber heater + M141 present", "[temperature][m141]") {
     using helix::ui::temperature::chamber_uses_m141;
     const std::string chamber = "heater_generic chamber_heater";
-    REQUIRE(chamber_uses_m141(chamber, chamber, /*m141_available=*/true));
-    REQUIRE_FALSE(chamber_uses_m141(chamber, chamber, /*m141_available=*/false));
-    REQUIRE_FALSE(chamber_uses_m141("extruder", chamber, true));
-    REQUIRE_FALSE(chamber_uses_m141("heater_bed", chamber, true));
-    REQUIRE_FALSE(chamber_uses_m141("", chamber, true));
-    REQUIRE_FALSE(chamber_uses_m141(chamber, "", true));
+    const std::optional<bool> unknown;
+    REQUIRE(chamber_uses_m141(chamber, chamber, /*m141_available=*/true, unknown));
+    REQUIRE_FALSE(chamber_uses_m141(chamber, chamber, /*m141_available=*/false, unknown));
+    REQUIRE_FALSE(chamber_uses_m141("extruder", chamber, true, unknown));
+    REQUIRE_FALSE(chamber_uses_m141("heater_bed", chamber, true, unknown));
+    REQUIRE_FALSE(chamber_uses_m141("", chamber, true, unknown));
+    REQUIRE_FALSE(chamber_uses_m141(chamber, "", true, unknown));
+}
+
+// An M141 whose body is readable and never sets the chamber heater is some other
+// macro by that name (a Voron exhaust-fan M141), so the heater is set directly.
+TEST_CASE("chamber_uses_m141 skips an M141 that never sets the chamber heater",
+          "[temperature][m141]") {
+    using helix::ui::temperature::chamber_uses_m141;
+    const std::string chamber = "heater_generic chamber";
+    CHECK(chamber_uses_m141(chamber, chamber, true, std::optional<bool>(true)));
+    CHECK_FALSE(chamber_uses_m141(chamber, chamber, true, std::optional<bool>(false)));
 }
 
 TEST_CASE("build_heater_gcode emits M141 when use_m141 is set", "[temperature][m141]") {
@@ -1058,7 +1069,9 @@ TEST_CASE("MoonrakerAPI routes chamber sends through M141 when defined", "[api][
         }
     } cache_reset_guard{macro_cache, settings};
 
-    nlohmann::json config = {{"gcode_macro m141", {{"gcode", "M141 S{params.S|default(0)}"}}}};
+    nlohmann::json config = {
+        {"gcode_macro m141",
+         {{"gcode", "SET_HEATER_TEMPERATURE HEATER=chamber_heater TARGET={params.S|default(0)}"}}}};
     macro_cache.populate_from_configfile(config, {"M141"});
     REQUIRE(macro_cache.has_macro("m141"));
 
@@ -1067,6 +1080,28 @@ TEST_CASE("MoonrakerAPI routes chamber sends through M141 when defined", "[api][
         REQUIRE(client.last_send_method() == "printer.gcode.script");
         REQUIRE(client.last_send_script().find("M141 S60") != std::string::npos);
         REQUIRE(client.last_send_script().find("SET_HEATER_TEMPERATURE") == std::string::npos);
+    }
+
+    SECTION("an M141 that only drives a fan leaves the heater to SET_HEATER_TEMPERATURE") {
+        // A Voron macro set's exhaust-fan M141, naming a fan the printer renamed.
+        macro_cache.populate_from_configfile(
+            {{"gcode_macro m141",
+              {{"gcode", "SET_TEMPERATURE_FAN_TARGET temperature_fan=chamber "
+                         "target={params.S|default(0)}"}}}},
+            {"M141"});
+        REQUIRE(macro_cache.has_macro("m141"));
+        api.set_temperature("heater_generic chamber_heater", 60.0, nullptr, nullptr);
+        REQUIRE(client.last_send_method() == "printer.gcode.script");
+        CHECK(client.last_send_script().find(
+                  "SET_HEATER_TEMPERATURE HEATER=chamber_heater TARGET=60") != std::string::npos);
+        CHECK(client.last_send_script().find("M141") == std::string::npos);
+    }
+
+    SECTION("an M141 whose body Klipper does not expose still routes through M141") {
+        macro_cache.populate_from_configfile(nlohmann::json::object(), {"M141"});
+        REQUIRE(macro_cache.has_macro("m141"));
+        api.set_temperature("heater_generic chamber_heater", 60.0, nullptr, nullptr);
+        CHECK(client.last_send_script().find("M141 S60") != std::string::npos);
     }
 
     SECTION("nozzle still uses SET_HEATER_TEMPERATURE on the same printer") {

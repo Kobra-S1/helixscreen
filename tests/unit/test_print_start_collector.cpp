@@ -129,6 +129,18 @@ TEST_CASE("PrintStart: RESPOND completion detection", "[core][print][respond]") 
         // Unrelated with both words far apart in different context
         REQUIRE(!is_respond_completion("start heating the print bed"));
     }
+
+    SECTION("A host prompt asking to start the print is not a print that started") {
+        // Z-Mod's material picker footer, emitted before any print exists
+        REQUIRE(!is_respond_completion(
+            "// action:prompt_footer_button Start print|PRINT_ZCOLOR LEVELING=0 "
+            "FILENAME=\"Button_PETG_6m32s.gcode\" ALLOWED_TOOL_COUNT=1"));
+        REQUIRE(!is_respond_completion("// action:prompt_button Start print|START_PRINT"));
+        REQUIRE(!is_respond_completion("// action:prompt_text Print starting soon"));
+        REQUIRE(!is_respond_completion("  // action:prompt_begin Start print?"));
+        // An action line that is not a prompt still carries a message
+        REQUIRE(is_respond_completion("// action:notification Print started"));
+    }
 }
 
 TEST_CASE("PrintStart: RESPOND and PRINT_START patterns are independent",

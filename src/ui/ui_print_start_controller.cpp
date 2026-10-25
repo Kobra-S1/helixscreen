@@ -1230,6 +1230,15 @@ void PrintStartController::restore_filament_mapping() {
         finish_restore();
         return;
     }
+    // Only a table-writing route can take a record back. Without one every
+    // entry is refused before it is sent, and the record would retry for good.
+    if (backend->get_remap_strategy() != AmsBackend::RemapStrategy::Native) {
+        spdlog::info("[PrintStartController] Backend {} has no mapping table to restore into — "
+                     "dropping the restore",
+                     saved.backend_index);
+        finish_restore();
+        return;
+    }
 
     // Get current mapping to compare
     auto current_mapping = backend->get_tool_mapping();

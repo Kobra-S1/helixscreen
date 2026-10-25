@@ -465,6 +465,7 @@ void AmsBackendAfc::set_discovered_lanes(const std::vector<std::string>& lane_na
 }
 
 void AmsBackendAfc::set_discovery(const helix::PrinterDiscovery& discovery) {
+    firmware_maps_tools_per_print_.store(discovery.has_zmod_afclite(), std::memory_order_relaxed);
     set_discovered_lanes(discovery.afc_lane_names(), discovery.afc_hub_names());
     set_discovered_sensors(discovery.filament_sensor_names());
 }
@@ -6072,7 +6073,8 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info,
             // Tool mapping (lane → tool number) via SET_MAP.
             // Mirrors set_tool_mapping() but is reachable from the slot edit modal,
             // which routes all changes through apply_user_edit().
-            if (info.mapped_tool != old_mapped_tool && info.mapped_tool >= 0) {
+            if (info.mapped_tool != old_mapped_tool && info.mapped_tool >= 0 &&
+                !firmware_maps_tools_per_print_.load(std::memory_order_relaxed)) {
                 execute_gcode(fmt::format("SET_MAP LANE={} MAP=T{}", lane_name, info.mapped_tool));
             }
         }
@@ -6185,6 +6187,9 @@ int AmsBackendAfc::lane_carrying_tool_locked(int tool_number) const {
 }
 
 AmsError AmsBackendAfc::can_set_tool_mapping_locked(int tool_number, int slot_index) const {
+    if (firmware_maps_tools_per_print_.load(std::memory_order_relaxed)) {
+        return AmsErrorHelper::not_supported("The firmware maps tools per print");
+    }
     if (!tool_registered_locked(tool_number)) {
         return AmsErrorHelper::tool_out_of_range(tool_number);
     }
