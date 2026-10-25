@@ -34,4 +34,29 @@ const char* print_start_phase_step_label(PrintStartPhase phase) {
     return "";
 }
 
+std::optional<PrintStartPhase> phase_of_category(OperationCategory category) {
+    switch (category) {
+    case OperationCategory::BED_MESH:
+        return PrintStartPhase::BED_MESH;
+    case OperationCategory::QGL:
+        return PrintStartPhase::QGL;
+    case OperationCategory::Z_TILT:
+        return PrintStartPhase::Z_TILT;
+    case OperationCategory::NOZZLE_CLEAN:
+        return PrintStartPhase::CLEANING;
+    case OperationCategory::PURGE_LINE:
+        return PrintStartPhase::PURGING;
+    case OperationCategory::HOMING:
+        return PrintStartPhase::HOMING;
+    case OperationCategory::CHAMBER_SOAK:
+        return PrintStartPhase::SOAKING;
+    case OperationCategory::BED_LEVEL:
+    case OperationCategory::SKEW_CORRECT:
+    case OperationCategory::START_PRINT:
+    case OperationCategory::UNKNOWN:
+        break;
+    }
+    return std::nullopt;
+}
+
 } // namespace helix

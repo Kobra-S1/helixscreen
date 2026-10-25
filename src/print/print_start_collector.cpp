@@ -16,6 +16,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "memory_monitor.h"
 #include "print_start_analyzer.h"
+#include "print_start_phase_label.h"
 #include "printer_detector.h"
 #include "text_io.h"
 #include "thermal_rate_model.h"
@@ -2781,38 +2782,10 @@ void PrintStartCollector::enter_phase_locked(PrintStartPhase phase) {
     current_phase_ = phase;
 }
 
-namespace {
-std::optional<PrintStartPhase> phase_of_operation(helix::OperationCategory c) {
-    using helix::OperationCategory;
-    switch (c) {
-    case OperationCategory::BED_MESH:
-        return PrintStartPhase::BED_MESH;
-    case OperationCategory::QGL:
-        return PrintStartPhase::QGL;
-    case OperationCategory::Z_TILT:
-        return PrintStartPhase::Z_TILT;
-    case OperationCategory::NOZZLE_CLEAN:
-        return PrintStartPhase::CLEANING;
-    case OperationCategory::PURGE_LINE:
-        return PrintStartPhase::PURGING;
-    case OperationCategory::HOMING:
-        return PrintStartPhase::HOMING;
-    case OperationCategory::CHAMBER_SOAK:
-        return PrintStartPhase::SOAKING;
-    case OperationCategory::BED_LEVEL:
-    case OperationCategory::SKEW_CORRECT:
-    case OperationCategory::START_PRINT:
-    case OperationCategory::UNKNOWN:
-        break;
-    }
-    return std::nullopt;
-}
-} // namespace
-
 void PrintStartCollector::set_macro_analysis(const helix::PrintStartAnalysis& analysis) {
     std::vector<PrintStartPhase> phases;
     for (const auto& op : analysis.operations) {
-        auto phase = phase_of_operation(op.category);
+        auto phase = helix::phase_of_category(op.category);
         if (phase && std::find(phases.begin(), phases.end(), *phase) == phases.end()) {
             phases.push_back(*phase);
         }

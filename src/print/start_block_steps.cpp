@@ -3,6 +3,7 @@
 
 #include "gcode_ops_detector.h"
 #include "operation_patterns.h"
+#include "print_start_phase_label.h"
 #include "text_io.h"
 
 #include <algorithm>
@@ -47,29 +48,39 @@ bool command_is(const std::string& word, OperationCategory category) {
 }
 
 /// A bed-mesh line that probes. Klipper's other BED_MESH_* commands load, clear
-/// or offset a stored mesh.
+/// or offset a stored mesh: that runs no work on its line, so it is not a step.
+/// The category's phase is shared; this filter is the step scan's own.
 bool calibrates_mesh(const std::string& word) {
     return word == "BED_MESH_CALIBRATE" || word.rfind("BED_MESH_", 0) != 0;
 }
 
 std::optional<StartBlockStepKind> step_kind(const gcode::DetectedOperation& op) {
+    const std::optional<PrintStartPhase> phase = phase_of_category(op.type);
+    if (!phase) {
+        return std::nullopt;
+    }
     const std::string word = text_io::to_upper(GCodeOpsDetector::command_word(op.raw_line));
     if (!command_is(word, op.type)) {
         return std::nullopt;
     }
-    switch (op.type) {
-    case OperationCategory::HOMING:
+    switch (*phase) {
+    case PrintStartPhase::HOMING:
         return word == "G28" ? homing_kind(op.raw_line) : StartBlockStepKind::HomeAxes;
-    case OperationCategory::QGL:
+    case PrintStartPhase::QGL:
         return StartBlockStepKind::LevelGantry;
-    case OperationCategory::Z_TILT:
+    case PrintStartPhase::Z_TILT:
         return StartBlockStepKind::TiltZ;
-    case OperationCategory::BED_MESH:
+    case PrintStartPhase::BED_MESH:
         return calibrates_mesh(word) ? std::optional(StartBlockStepKind::BedMesh) : std::nullopt;
-    case OperationCategory::NOZZLE_CLEAN:
+    case PrintStartPhase::CLEANING:
         return StartBlockStepKind::CleanNozzle;
-    case OperationCategory::PURGE_LINE:
+    case PrintStartPhase::PURGING:
         return StartBlockStepKind::Purge;
+    case PrintStartPhase::SOAKING:
+        // A chamber-soak category line can be SET_HEATER_TEMPERATURE, which
+        // returns at once, so the position cannot follow its work; and the
+        // collector's temperature detection owns SOAKING. Not a step: with a
+        // start block, the soak row appears once that detection enters it.
     default:
         return std::nullopt;
     }
