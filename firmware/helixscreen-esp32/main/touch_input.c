@@ -7,12 +7,14 @@
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_touch_gt911.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/idf_additions.h"
 #include "freertos/task.h"
 #include "ktouch.h"
 #include "lvgl.h"
 #include "touch_edge_queue.h"
+#include "touch_read_health.h"
 
 static const char* TAG = "touch";
 static esp_lcd_touch_handle_t s_touch;
@@ -29,9 +31,11 @@ static bool s_available;
 // It outranks the UI task, or it could not run during a long render, and
 // costs one short I2C read per period. Its stack is in PSRAM: it never touches
 // flash, and the I2C interrupt is not IRAM-safe, so nothing writes that stack
-// while the cache is off.
+// while the cache is off. Polling alone peaks near 1.9KB of it; the rest is
+// room for the log line a failing read prints (vfprintf), and costs no
+// internal RAM.
 #define TOUCH_SAMPLE_PERIOD_MS 10
-#define TOUCH_SAMPLER_STACK_BYTES 3072
+#define TOUCH_SAMPLER_STACK_BYTES 4096
 #define TOUCH_SAMPLER_PRIO 6
 #if CONFIG_I2C_ISR_IRAM_SAFE
 #error "an IRAM-safe I2C interrupt can write the touch sampler's PSRAM stack with the cache off"
@@ -77,9 +81,20 @@ static void sampler_task(void* arg) {
     uint8_t last_track = 0;
     uint16_t last_x = 0;
     uint16_t last_y = 0;
+    touch_read_health health;
+    touch_read_health_init(&health);
+    uint32_t period_ms = TOUCH_SAMPLE_PERIOD_MS;
     for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(TOUCH_SAMPLE_PERIOD_MS));
-        if (esp_lcd_touch_read_data(s_touch) != ESP_OK) {
+        vTaskDelay(pdMS_TO_TICKS(period_ms));
+        const esp_err_t err = esp_lcd_touch_read_data(s_touch);
+        const touch_read_verdict verdict = touch_read_health_record(
+            &health, err == ESP_OK, esp_timer_get_time() / 1000, TOUCH_SAMPLE_PERIOD_MS);
+        period_ms = verdict.next_period_ms;
+        if (verdict.log) {
+            ESP_LOGW(TAG, "touch controller read failed %u time(s) since the last report: %s",
+                     (unsigned)verdict.failures, esp_err_to_name(err));
+        }
+        if (err != ESP_OK) {
             continue;
         }
         esp_lcd_touch_point_data_t point = {0};
@@ -159,9 +174,16 @@ bool touch_input_init(void) {
     // Registration and the sampler start only after a successful probe: the
     // sampler dereferences s_touch unconditionally.
     touch_edge_queue_init(&s_queue);
+    // The driver logs every failed read itself; the sampler reports them
+    // rate-limited instead (touch_read_health.h).
+    esp_log_level_set("GT911", ESP_LOG_NONE);
     if (xTaskCreateWithCaps(sampler_task, "touch", TOUCH_SAMPLER_STACK_BYTES, NULL,
                             TOUCH_SAMPLER_PRIO, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
         ESP_LOGE(TAG, "no memory for the touch sampler - continuing without touch");
+        esp_lcd_touch_del(s_touch);
+        s_touch = NULL;
+        esp_lcd_panel_io_del(io);
+        i2c_del_master_bus(bus);
         return false;
     }
     lv_indev_t* indev = lv_indev_create();
