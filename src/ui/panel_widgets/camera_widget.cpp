@@ -618,8 +618,8 @@ void CameraWidget::close_fullscreen() {
 StandaloneCameraViewer* StandaloneCameraViewer::s_open_ = nullptr;
 
 StandaloneCameraViewer::StandaloneCameraViewer() {
-    // Another view taking this camera over. Nothing restarts the stream here:
-    // the viewer shows its last state until it is closed.
+    // Another view taking this camera over. Stopping clears the image, so the
+    // viewer stays blank until it is closed; nothing restarts the stream here.
     view_.on_preempted([this]() { view_.stop({image_}); });
 }
 
