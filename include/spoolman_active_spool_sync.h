@@ -25,10 +25,10 @@ class IMoonrakerClient;
  */
 namespace spoolman_sync {
 
-/// Subscribe to notify_active_spool_set and sync once from Moonraker's current
-/// active spool. Idempotent: every discovery calls it, and a repeat replaces the
-/// earlier subscription. @p spoolman must outlive the subscription, so detach
-/// before the API goes.
+/// Subscribe to notify_active_spool_set and notify_spoolman_status_changed, and sync once from
+/// Moonraker's current active spool. Idempotent: every discovery calls it, and a repeat replaces
+/// the earlier subscription. @p spoolman must outlive the subscription, so detach before the API
+/// goes.
 void attach(IMoonrakerClient& client, ISpoolmanAPI& spoolman);
 
 /// Drop the subscription attach() made. Safe when never attached.
@@ -41,6 +41,11 @@ void sync_from_status(ISpoolmanAPI& spoolman, bool connected, int active_spool_i
 
 /// The notify_active_spool_set handler. @p msg is the full JSON-RPC message.
 void on_active_spool_set(ISpoolmanAPI& spoolman, const nlohmann::json& msg);
+
+/// The notify_spoolman_status_changed handler: sets Spoolman availability, and on a
+/// connect reruns the startup sync. @p msg is the full JSON-RPC message; one without
+/// a boolean `spoolman_connected` is ignored. Callable from any thread.
+void on_spoolman_status_changed(ISpoolmanAPI& spoolman, const nlohmann::json& msg);
 
 /// Adopt @p spool for the active toolchanger tool when that tool has no spool
 /// recorded. Main thread only.
