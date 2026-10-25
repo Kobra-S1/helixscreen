@@ -272,8 +272,10 @@ LanSweepDiscovery::LanSweepDiscovery(LanSweepLimits limits)
               return probe_moonraker_http(host, port, limits.connect_timeout, limits.total_timeout);
           }) {}
 
-LanSweepDiscovery::LanSweepDiscovery(LanSweepLimits limits, LocalNetFn local_net, ProbeFn probe)
-    : limits_(limits), local_net_(std::move(local_net)), probe_(std::move(probe)) {}
+LanSweepDiscovery::LanSweepDiscovery(LanSweepLimits limits, LocalNetFn local_net, ProbeFn probe,
+                                     StartWorkersFn start_workers)
+    : limits_(limits), local_net_(std::move(local_net)), probe_(std::move(probe)),
+      start_workers_(std::move(start_workers)) {}
 
 LanSweepDiscovery::~LanSweepDiscovery() {
     stop_discovery();
@@ -334,7 +336,7 @@ void LanSweepDiscovery::start_discovery(DiscoveryCallback on_update) {
             tok.defer("LanSweep::finished", [this]() { on_finished(); });
         }
     };
-    LanSweepWorkers started = start_lan_sweep_workers(workers, limits_, body);
+    LanSweepWorkers started = start_workers_(workers, limits_, body);
     workers_ = std::move(started.keepalive);
     if (started.started < workers) {
         spdlog::warn("[LanSweep] Started {} of {} workers", started.started, workers);

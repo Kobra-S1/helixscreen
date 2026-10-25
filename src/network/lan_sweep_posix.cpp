@@ -6,10 +6,13 @@
 #include "http_executor.h"
 #include "lan_sweep.h"
 
+#include <spdlog/spdlog.h>
+
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <system_error>
 #include <unistd.h>
 
 namespace helix {
@@ -40,7 +43,15 @@ struct SweepPool {
 LanSweepWorkers start_lan_sweep_workers(size_t count, const LanSweepLimits& /*limits*/,
                                         std::function<void()> body) {
     auto pool = std::make_shared<SweepPool>(count);
-    pool->pool.start();
+    try {
+        pool->pool.start();
+    } catch (const std::system_error& e) {
+        // Out of threads. A pool that started only some workers would still run every
+        // body in turn, but which ones started is not known, so none are counted and the
+        // sweep ends at once rather than wait on bodies that may never run.
+        spdlog::warn("[LanSweep] Could not start the sweep's workers: {}", e.what());
+        return LanSweepWorkers{nullptr, 0};
+    }
     for (size_t i = 0; i < count; ++i) {
         pool->pool.submit(body);
     }

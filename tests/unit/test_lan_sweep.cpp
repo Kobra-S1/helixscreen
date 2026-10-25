@@ -366,3 +366,25 @@ TEST_CASE_METHOD(LVGLTestFixture, "LAN sweep: a worker rests after every probe",
         CHECK(asked[i] - asked[i - 1] >= std::chrono::milliseconds(40));
     }
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "LAN sweep: workers that never start do not hold it open",
+                 "[lan_sweep]") {
+    const size_t runs = GENERATE(size_t{0}, size_t{1});
+    LanSweepLimits limits;
+    limits.max_concurrent = 3;
+    // Starts `runs` of the bodies asked for, on this thread, and reports only those.
+    auto start_some = [runs](size_t, const LanSweepLimits&, std::function<void()> body) {
+        for (size_t i = 0; i < runs; ++i) {
+            body();
+        }
+        return LanSweepWorkers{nullptr, runs};
+    };
+    LanSweepDiscovery sweep(
+        limits, on_192_168_1(), [](const std::string&, uint16_t) { return false; }, start_some);
+    int updates = 0;
+    sweep.start_discovery([&](const std::vector<DiscoveredPrinter>&) { ++updates; });
+    drain();
+
+    CHECK_FALSE(sweep.is_discovering());
+    CHECK(updates == 1);
+}

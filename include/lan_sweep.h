@@ -115,12 +115,16 @@ class LanSweepDiscovery : public IMdnsDiscovery {
     using ProbeFn = std::function<bool(const std::string& host, uint16_t port)>;
     /// Where the sweep runs from; empty skips the sweep.
     using LocalNetFn = std::function<std::optional<LocalIpv4>()>;
+    /// How workers start; start_lan_sweep_workers() unless a test stands in.
+    using StartWorkersFn =
+        std::function<LanSweepWorkers(size_t, const LanSweepLimits&, std::function<void()>)>;
 
     /// The real network under this platform's limits.
     LanSweepDiscovery();
     /// The real network: active_local_ipv4() and probe_moonraker_http() under @p limits.
     explicit LanSweepDiscovery(LanSweepLimits limits);
-    LanSweepDiscovery(LanSweepLimits limits, LocalNetFn local_net, ProbeFn probe);
+    LanSweepDiscovery(LanSweepLimits limits, LocalNetFn local_net, ProbeFn probe,
+                      StartWorkersFn start_workers = start_lan_sweep_workers);
     ~LanSweepDiscovery() override;
 
     LanSweepDiscovery(const LanSweepDiscovery&) = delete;
@@ -142,6 +146,7 @@ class LanSweepDiscovery : public IMdnsDiscovery {
     LanSweepLimits limits_;
     LocalNetFn local_net_;
     ProbeFn probe_;
+    StartWorkersFn start_workers_;
     std::shared_ptr<Sweep> sweep_;  ///< The running sweep; main thread only
     std::shared_ptr<void> workers_; ///< LanSweepWorkers::keepalive of the running sweep
     DiscoveryCallback on_update_;
