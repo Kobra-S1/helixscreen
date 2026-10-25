@@ -396,6 +396,12 @@ other printers it does not appear. See
 for the switch and [Recovering After a Power Loss](printing.md#resuming-with-the-helixprint-plugin)
 for the step-by-step resume.
 
+A resume normally loads the printer's default bed mesh profile. With a recent plugin,
+**Settings > Printing > Resume reloads the saved bed mesh** adds one include line to
+printer.cfg so a resume reloads the mesh the print actually started with. HelixScreen asks
+before changing printer.cfg, keeps a backup beside it, and offers the firmware restart that
+applies it; tap the row again to take the line out. Uninstalling the plugin removes it too.
+
 ---
 
 ## The Plugin Overview

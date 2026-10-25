@@ -68,7 +68,7 @@ The K-Touch has no setup wizard. On first boot it creates its own WiFi hotspot a
 
 If the panel can't join, the page shows why (a wrong password, for example) and you can try again. The hotspot closes on its own after 10 minutes; restart the panel to bring it back.
 
-Prefer to do it on the panel itself? Tap **Use Settings Instead**, then join your network in **Settings > Connection > Network Settings** and enter your printer's address in **Settings > Connection > Host**. That's also where you change either one later.
+Prefer to do it on the panel itself? Tap **Use Settings Instead**, then join your network in **Settings > Connection > Network Settings** and enter your printer's address in **Settings > Connection > Host**. That screen lists the Moonraker printers the panel finds on your local network, so you can usually pick yours instead of typing it. That's also where you change either one later.
 
 ## Updating
 

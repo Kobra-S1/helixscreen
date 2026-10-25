@@ -4,7 +4,7 @@
 
 - **MACHINE**: Machine Limits, Motion, Retraction Settings and Enclosure
 - **FILAMENT**: Multi-Filament System Management, Material Temperatures, Allow cold load/unload, Cool nozzle after filament ops, Edit filament on insert and Confirm tool changes
-- **EXTRAS**: Timelapse, Power-loss recovery, Apply start options to prints from other apps, and Macro Buttons
+- **EXTRAS**: Timelapse, Power-loss recovery, Resume reloads the saved bed mesh, Apply start options to prints from other apps, and Macro Buttons
 
 Looking for how the printer is *drawn* (toolhead picture, G-code preview, Z button labels, bed mesh view)? That's in [Appearance](appearance.md#printer-visuals).
 
