@@ -15,6 +15,7 @@
 
 #include "ui_modal.h"
 #include "ui_panel_notification_history.h"
+#include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -395,6 +396,7 @@ TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: closing the toast keeps th
     warn();
     REQUIRE(toast_.has_value());
     REQUIRE(dismissed_for().empty());
+    REQUIRE(helix::ui::last_shown_toast_has_closed_cb());
 
     // Drive the dispatch the X button routes through, with the warning's own
     // generation, parsed from the review action the same warning recorded.
@@ -409,6 +411,48 @@ TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: closing the toast keeps th
     CHECK(dismissed_for() == SAVED);
     CHECK(writes_.writes() > 0);
     CHECK(helix::ui::last_action_toast_dismissed());
+}
+
+// The real X on the real toast, not the handler by name: everything from
+// warn_type_mismatch's show_with_action call to the persisted flag.
+TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: the toast's own X settles it",
+                 "[type-mismatch][hardware_setup]") {
+    auto& tm = ToastManager::instance();
+    tm.init();
+    warn();
+    REQUIRE(toast_.has_value());
+    REQUIRE(helix::ui::last_shown_toast_has_closed_cb());
+
+    lv_obj_t* btn = lv_obj_find_by_name(lv_layer_top(), "toast_close_btn");
+    REQUIRE(btn != nullptr);
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+    drain();
+
+    CHECK(dismissed_for() == SAVED);
+    CHECK_FALSE(tm.is_visible());
+
+    tm.deinit_subjects();
+    drain();
+}
+
+// The prompter unregisters its close handler; a toast outliving it closes to
+// nothing, not into a destroyed owner.
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: a close after the prompter is gone settles nothing",
+                 "[type-mismatch][hardware_setup]") {
+    warn();
+    REQUIRE(history_.has_value());
+    prompter_.reset();
+    drain();
+
+    const size_t colon = history_->action.find(':');
+    REQUIRE(colon != std::string::npos);
+    const std::string closed = "type_mismatch_closed" + history_->action.substr(colon);
+    NotificationHistoryPanel panel(get_printer_state(), nullptr);
+    NotificationHistoryPanelTestAccess::dispatch_action(panel, closed.c_str());
+    drain();
+
+    CHECK(dismissed_for().empty());
 }
 
 // Only the warning's own close settles anything; a dispatch from a stale one

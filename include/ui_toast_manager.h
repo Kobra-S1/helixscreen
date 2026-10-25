@@ -117,6 +117,7 @@ class ToastManager {
         uint32_t duration_ms = 0;
         toast_action_callback_t action_cb = nullptr;
         void* action_user_data = nullptr;
+        toast_action_callback_t user_closed_cb = nullptr;
     };
 
     /** Install the one observer every Event goes to; an empty function removes

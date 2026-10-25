@@ -378,7 +378,7 @@ void ToastManager::show_with_action(ToastSeverity severity, const char* message,
     }
     if (observer_) {
         observer_(Event{Event::Kind::Show, severity, message ? message : "", "", duration_ms,
-                        callback, user_data});
+                        callback, user_data, user_closed_callback});
     }
 
     struct ToastActionParams {
@@ -665,7 +665,11 @@ void ToastManager::finalize_remove(lv_obj_t* widget) {
     void* closed_data = it->action_user_data;
     active_.erase(it);
     if (user_closed && closed_cb) {
-        closed_cb(closed_data);
+        // Same rule as the action button: run outside this frame, which with
+        // animations off is the X's input dispatch and otherwise the anim
+        // completion.
+        helix::ui::queue_update("ToastManager::user_closed_cb",
+                                [closed_cb, closed_data]() { closed_cb(closed_data); });
     }
     update_notification_bell();
 }

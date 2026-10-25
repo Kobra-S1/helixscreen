@@ -95,11 +95,38 @@ TEST_CASE_METHOD(UserCloseFixture, "Toast user close: the X path runs the closed
     ToastManagerTestAccess::inject(tm, widget);
     ToastManagerTestAccess::user_close(tm, widget);
     ToastManagerTestAccess::user_close(tm, widget); // already exiting: no second fire
+    drain(); // the closed callback runs deferred, like the action button's
 
     CHECK(g_closed_count == 1);
     CHECK(g_closed_data == data_42());
 
     lv_obj_delete(host);
+    drain();
+}
+
+// The whole wiring, not the pieces: a toast shown through show_with_action
+// with a closed callback, closed through the XML close button like a user
+// does, runs the callback once.
+TEST_CASE_METHOD(UserCloseFixture, "Toast user close: show_with_action wires the X end to end",
+                 "[toast][user-close]") {
+    auto& tm = ToastManager::instance();
+    ToastManagerTestAccess::clear(tm);
+    tm.init();
+    tm.show_with_action(ToastSeverity::WARNING, "seam check", "OK", noop_action_cb, data_42(), 0,
+                        counting_closed_cb);
+    drain();
+    REQUIRE(tm.is_visible());
+
+    lv_obj_t* btn = lv_obj_find_by_name(lv_layer_top(), "toast_close_btn");
+    REQUIRE(btn != nullptr);
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+    drain();
+
+    CHECK(g_closed_count == 1);
+    CHECK(g_closed_data == data_42());
+    CHECK_FALSE(tm.is_visible());
+
+    tm.deinit_subjects();
     drain();
 }
 
