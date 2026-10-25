@@ -65,6 +65,8 @@ bool ExactSizeImage::show_cached(const std::string& source) {
     if (!helix::fs::exists(cache_path))
         return false;
 
+    if (source == applied_source_ && w == applied_w_ && h == applied_h_)
+        applied_exact_ = true;
     const std::string lvgl_path = "A:" + cache_path;
     if (lvgl_path == displayed_path_)
         return true; // already showing it; re-setting would invalidate for nothing
@@ -133,11 +135,14 @@ void ExactSizeImage::generate_if_missing(const std::string& source) {
                                                       generated]() {
             inflight_ = false;
             if (source_ != source) {
-                // The owner moved to another image while the worker ran. The
-                // entry stays on disk for whenever this source comes back.
+                // The owner moved to another image while the worker ran, and its
+                // own request was refused while this one ran. The entry stays on
+                // disk for whenever this source comes back.
                 spdlog::debug("[{}] Cache for '{}' is no longer the displayed source, "
                               "discarding result",
                               log_tag_, source);
+                if (!source_.empty())
+                    generate_if_missing(source_);
                 return;
             }
             if (!generated) {

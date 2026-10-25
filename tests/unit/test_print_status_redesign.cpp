@@ -864,3 +864,47 @@ TEST_CASE_METHOD(Landscape800, "the printer tile shows the exact-size copy of it
     settle();
     CHECK(subject_str("ps_printer_image_src") == cache_src);
 }
+
+TEST_CASE_METHOD(Landscape800,
+                 "a new picture during a cache generation still gets its exact-size copy",
+                 "[print_status]") {
+    auto& images = helix::PrinterImageManager::instance();
+    const int32_t screen_w = lv_display_get_horizontal_resolution(lv_display_get_default());
+    const std::string first = images.get_displayed_image_path(screen_w);
+    images.set_active_image("shipped:qidi-q2");
+    const std::string second = images.get_displayed_image_path(screen_w);
+    images.set_active_image("");
+    REQUIRE_FALSE(first.empty());
+    REQUIRE(second != first);
+    // Both lay out alike, so the two copies are cut for one rect. No picture
+    // until the caches are cleared, so nothing generates early.
+    std::string source;
+    tiles().set_image_source([&source]() {
+        PrintStatusTiles::Image img;
+        img.path = source;
+        img.natural_w = 400;
+        img.natural_h = 400;
+        img.regions = &tagged_regions();
+        return img;
+    });
+    settle();
+    lv_obj_update_layout(root_);
+    lv_obj_t* img = lv_obj_find_by_name(root_, "ps_printer_image");
+    REQUIRE(img != nullptr);
+    const int32_t w = lv_obj_get_width(img), h = lv_obj_get_height(img);
+    std::error_code ec;
+    for (const std::string& p : {first, second})
+        std::filesystem::remove(helix::get_cached_printer_image_path(p, w, h), ec);
+
+    // The first picture's generation is still in flight (its result lands only
+    // when the queue drains) when the second picture arrives.
+    source = first;
+    tiles().update_now();
+    source = second;
+    tiles().update_now();
+    REQUIRE(subject_str("ps_printer_image_src") == second);
+    const std::string want = "A:" + helix::get_cached_printer_image_path(second, w, h);
+    CHECK(wait_until([&]() { return subject_str("ps_printer_image_src") == want; }));
+    for (const std::string& p : {first, second})
+        std::filesystem::remove(helix::get_cached_printer_image_path(p, w, h), ec);
+}
