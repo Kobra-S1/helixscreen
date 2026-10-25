@@ -158,14 +158,14 @@ class MoonrakerConnectionTest {
         return running_;
     }
 
+    struct Run;
+
   private:
+    static void run_on_worker(const std::shared_ptr<Run>& run);
     void finish(const Result& result);
 
-    LanSweepLimits limits_;
-    MoonrakerProbeFn probe_;
-    StartWorkersFn start_workers_;
+    std::shared_ptr<Run> run_; ///< The test in flight
     std::shared_ptr<void> worker_;
-    std::shared_ptr<std::atomic<bool>> cancelled_;
     DoneFn on_done_;
     bool running_ = false;
     AsyncLifetimeGuard lifetime_;
@@ -216,9 +216,10 @@ class LanSweepDiscovery : public IMdnsDiscovery {
     bool is_discovering() const override;
     std::vector<DiscoveredPrinter> get_discovered_printers() const override;
 
-  private:
     struct Sweep;
 
+  private:
+    static void run_on_worker(const std::shared_ptr<Sweep>& sweep);
     void on_found(const std::string& host, uint16_t port);
     void on_finished();
 

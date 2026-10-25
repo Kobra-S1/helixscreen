@@ -286,13 +286,48 @@ MoonrakerProbe probe_moonraker_http(const std::string& host, uint16_t port,
 // LanSweepDiscovery
 // ============================================================================
 
+/// One sweep's state, shared with its workers; they reach the owner only through tok.
 struct LanSweepDiscovery::Sweep {
+    explicit Sweep(LifetimeToken token) : tok(std::move(token)) {}
+
+    LifetimeToken tok;
+    LanSweepDiscovery* owner = nullptr;
     std::vector<std::string> hosts;
+    std::vector<int> ports;
+    std::chrono::milliseconds pause{0};
     std::atomic<size_t> next{0};
     std::atomic<bool> cancelled{false};
     std::atomic<size_t> workers_left{0};
     ProbeFn probe;
 };
+
+void LanSweepDiscovery::run_on_worker(const std::shared_ptr<Sweep>& sweep) {
+    while (!sweep->cancelled.load()) {
+        const size_t i = sweep->next.fetch_add(1);
+        if (i >= sweep->hosts.size()) {
+            break;
+        }
+        for (int port : sweep->ports) {
+            if (sweep->cancelled.load()) {
+                break;
+            }
+            const bool found = sweep->probe(sweep->hosts[i], static_cast<uint16_t>(port)).moonraker;
+            if (sweep->pause.count() > 0) {
+                // Leaves the radio and the CPU to the UI between probes.
+                std::this_thread::sleep_for(sweep->pause);
+            }
+            if (found) {
+                sweep->tok.defer("LanSweep::found", [sweep, i, port]() {
+                    sweep->owner->on_found(sweep->hosts[i], static_cast<uint16_t>(port));
+                });
+                break;
+            }
+        }
+    }
+    if (sweep->workers_left.fetch_sub(1) == 1) {
+        sweep->tok.defer("LanSweep::finished", [sweep]() { sweep->owner->on_finished(); });
+    }
+}
 
 LanSweepDiscovery::LanSweepDiscovery() : LanSweepDiscovery(lan_sweep_default_limits()) {}
 
@@ -323,8 +358,11 @@ void LanSweepDiscovery::start_discovery(DiscoveryCallback on_update) {
         return;
     }
 
-    auto sweep = std::make_shared<Sweep>();
+    auto sweep = std::make_shared<Sweep>(lifetime_.token());
+    sweep->owner = this;
     sweep->hosts = std::move(hosts);
+    sweep->ports = moonraker_ports_to_try("", PortOrigin::FilledIn);
+    sweep->pause = limits_.pause_between_probes;
     sweep->probe = probe_;
     const size_t workers =
         std::max<size_t>(1, std::min(limits_.max_concurrent, sweep->hosts.size()));
@@ -333,47 +371,15 @@ void LanSweepDiscovery::start_discovery(DiscoveryCallback on_update) {
     discovering_ = true;
     spdlog::info("[LanSweep] Sweeping {} addresses ({} at a time)", sweep->hosts.size(), workers);
 
-    const auto tok = lifetime_.token();
-    const std::vector<int> ports = moonraker_ports_to_try("", PortOrigin::FilledIn);
-    const auto pause = limits_.pause_between_probes;
-    // Each worker takes the next address until none are left. Results and the
-    // finish reach `this` only through tok.defer, on the main thread.
-    auto body = [this, sweep, tok, ports, pause]() {
-        while (!sweep->cancelled.load()) {
-            const size_t i = sweep->next.fetch_add(1);
-            if (i >= sweep->hosts.size()) {
-                break;
-            }
-            const std::string& host = sweep->hosts[i];
-            for (int port : ports) {
-                if (sweep->cancelled.load()) {
-                    break;
-                }
-                const bool found = sweep->probe(host, static_cast<uint16_t>(port)).moonraker;
-                if (pause.count() > 0) {
-                    // Leaves the radio and the CPU to the UI between probes.
-                    std::this_thread::sleep_for(pause);
-                }
-                if (found) {
-                    tok.defer("LanSweep::found", [this, host, port]() {
-                        on_found(host, static_cast<uint16_t>(port));
-                    });
-                    break;
-                }
-            }
-        }
-        if (sweep->workers_left.fetch_sub(1) == 1) {
-            tok.defer("LanSweep::finished", [this]() { on_finished(); });
-        }
-    };
-    LanSweepWorkers started = start_workers_(workers, limits_, body);
+    // Each worker takes the next address until none are left.
+    LanSweepWorkers started = start_workers_(workers, limits_, [sweep]() { run_on_worker(sweep); });
     workers_ = std::move(started.keepalive);
     if (started.started < workers) {
         spdlog::warn("[LanSweep] Started {} of {} workers", started.started, workers);
         // The workers that never started will not count themselves down.
         const size_t missing = workers - started.started;
         if (sweep->workers_left.fetch_sub(missing) == missing) {
-            tok.defer("LanSweep::finished", [this]() { on_finished(); });
+            sweep->tok.defer("LanSweep::finished", [sweep]() { sweep->owner->on_finished(); });
         }
     }
 }
@@ -511,13 +517,44 @@ void set_connection_test_seams_for_test(MoonrakerProbeFn probe, StartWorkersFn s
     connection_test_seams() = {std::move(probe), std::move(start_workers)};
 }
 
-MoonrakerConnectionTest::MoonrakerConnectionTest() : limits_(connection_test_limits()) {
-    const LanSweepLimits limits = limits_;
-    probe_ = [limits](const std::string& host, uint16_t port) {
-        return probe_moonraker_http(host, port, limits.connect_timeout, limits.total_timeout);
-    };
-    start_workers_ = start_lan_sweep_workers;
+/// One test's state, shared with its worker; the worker reaches the test only through tok.
+struct MoonrakerConnectionTest::Run {
+    explicit Run(LifetimeToken token) : tok(std::move(token)) {}
+
+    LifetimeToken tok;
+    MoonrakerConnectionTest* owner = nullptr;
+    std::string host;
+    std::vector<int> ports;
+    MoonrakerProbeFn probe; ///< A test's stand-in; empty for the real network
+    LanSweepLimits limits;
+    std::atomic<bool> cancelled{false};
+    Result result; ///< Written by the worker, read on the main thread after the defer
+};
+
+void MoonrakerConnectionTest::run_on_worker(const std::shared_ptr<Run>& run) {
+    Result& result = run->result;
+    for (int port : run->ports) {
+        if (run->cancelled.load()) {
+            return;
+        }
+        result.tried.push_back(port);
+        const auto p = static_cast<uint16_t>(port);
+        const MoonrakerProbe answer =
+            run->probe ? run->probe(run->host, p)
+                       : probe_moonraker_http(run->host, p, run->limits.connect_timeout,
+                                              run->limits.total_timeout);
+        if (answer.moonraker) {
+            result.reached = true;
+            result.port = port;
+            result.klippy_state = answer.klippy_state;
+            break;
+        }
+        result.failure = answer.failure;
+    }
+    run->tok.defer("MoonrakerConnectionTest::done", [run]() { run->owner->finish(run->result); });
 }
+
+MoonrakerConnectionTest::MoonrakerConnectionTest() = default;
 
 MoonrakerConnectionTest::~MoonrakerConnectionTest() {
     cancel();
@@ -528,47 +565,31 @@ void MoonrakerConnectionTest::start(const std::string& host, std::vector<int> po
     cancel();
     on_done_ = std::move(on_done);
     running_ = true;
-    auto cancelled = std::make_shared<std::atomic<bool>>(false);
-    cancelled_ = cancelled;
-    const auto tok = lifetime_.token();
     // Stand-ins are read per start, so a screen built before a test installs them uses them.
     const ConnectionTestSeams& seams = connection_test_seams();
-    auto probe = seams.probe ? seams.probe : probe_;
-    const StartWorkersFn& start_workers =
-        seams.start_workers ? seams.start_workers : start_workers_;
-    // Runs on the worker; reaches `this` only through tok.defer, on the main thread.
-    auto body = [this, tok, probe, cancelled, host, ports]() {
-        Result result;
-        for (int port : ports) {
-            if (cancelled->load()) {
-                return;
-            }
-            result.tried.push_back(port);
-            const MoonrakerProbe answer = probe(host, static_cast<uint16_t>(port));
-            if (answer.moonraker) {
-                result.reached = true;
-                result.port = port;
-                result.klippy_state = answer.klippy_state;
-                break;
-            }
-            result.failure = answer.failure;
-        }
-        tok.defer("MoonrakerConnectionTest::done", [this, result]() { finish(result); });
-    };
-    LanSweepWorkers worker = start_workers(1, limits_, body);
+    auto run = std::make_shared<Run>(lifetime_.token());
+    run->owner = this;
+    run->host = host;
+    run->ports = std::move(ports);
+    run->probe = seams.probe;
+    run->limits = connection_test_limits();
+    run_ = run;
+    auto body = [run]() { run_on_worker(run); };
+    LanSweepWorkers worker = seams.start_workers ? seams.start_workers(1, run->limits, body)
+                                                 : start_lan_sweep_workers(1, run->limits, body);
     worker_ = std::move(worker.keepalive);
     if (worker.started == 0) {
-        Result none;
-        none.tried = ports;
-        tok.defer("MoonrakerConnectionTest::no_worker", [this, none]() { finish(none); });
+        run->result.tried = run->ports;
+        run->tok.defer("MoonrakerConnectionTest::no_worker",
+                       [run]() { run->owner->finish(run->result); });
     }
 }
 
 void MoonrakerConnectionTest::cancel() {
     lifetime_.invalidate();
-    if (cancelled_) {
-        cancelled_->store(true);
-        cancelled_.reset();
+    if (run_) {
+        run_->cancelled.store(true);
+        run_.reset();
     }
     worker_.reset();
     running_ = false;
@@ -577,7 +598,7 @@ void MoonrakerConnectionTest::cancel() {
 
 void MoonrakerConnectionTest::finish(const Result& result) {
     running_ = false;
-    cancelled_.reset();
+    run_.reset();
     worker_.reset();
     // The callback may start the next test, which replaces on_done_.
     DoneFn done = std::move(on_done_);
