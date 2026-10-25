@@ -1,13 +1,17 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_settings_appearance.h"
+
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
 #include "board_fingerprint.h"
 #include "config.h"
 #include "display_settings_manager.h"
 #include "glass_gate.h"
 #include "glass_painter.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "platform_capabilities.h"
 #include "theme_manager.h"
 
@@ -314,4 +318,47 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass gate: the depth is what the display ren
     CHECK(depth_565 == 16);
     CHECK(depth_8888 == 32);
     CHECK(helix::ui::glass_gate_facts_now().multi_stop_gradients == !LV_USE_DRAW_NANOVG);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "glass: a widget made under the app theme while glass is on is attached",
+                 "[glass][theme]") {
+    lv_obj_t* before = lv_obj_create(test_screen());
+    REQUIRE_FALSE(helix::ui::glass_attached(before));
+
+    helix::ui::glass_set_effective(true);
+    lv_obj_t* made_on = lv_obj_create(test_screen());
+    lv_obj_t* button_on = lv_button_create(test_screen());
+    const bool obj_attached = helix::ui::glass_attached(made_on);
+    const bool button_attached = helix::ui::glass_attached(button_on);
+    helix::ui::glass_set_effective(false);
+
+    CHECK(obj_attached);
+    CHECK(button_attached);
+    lv_obj_t* made_off = lv_obj_create(test_screen());
+    CHECK_FALSE(helix::ui::glass_attached(made_off));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "glass: the Glass Effects row's switch saves the setting",
+                 "[glass][display_settings]") {
+    auto& dsm = helix::DisplaySettingsManager::instance();
+    dsm.init_subjects();
+    dsm.set_glass_effects(false);
+    helix::settings::get_appearance_settings_overlay().register_callbacks();
+    lv_event_cb_t cb = lv_xml_get_event_cb(nullptr, "on_glass_effects_changed");
+    REQUIRE(cb != nullptr);
+
+    lv_obj_t* toggle = lv_switch_create(test_screen());
+    lv_obj_add_event_cb(toggle, cb, LV_EVENT_VALUE_CHANGED, nullptr);
+
+    lv_obj_add_state(toggle, LV_STATE_CHECKED);
+    lv_obj_send_event(toggle, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(dsm.get_glass_effects());
+    CHECK(lv_subject_get_int(dsm.subject_glass_effects()) == 1);
+    CHECK(helix::Config::get_instance()->get<bool>("/display/glass_effects", false));
+
+    lv_obj_remove_state(toggle, LV_STATE_CHECKED);
+    lv_obj_send_event(toggle, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK_FALSE(dsm.get_glass_effects());
+    CHECK_FALSE(helix::Config::get_instance()->get<bool>("/display/glass_effects", true));
 }
