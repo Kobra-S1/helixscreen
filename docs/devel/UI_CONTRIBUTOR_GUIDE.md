@@ -388,6 +388,12 @@ Define `_light` and `_dark` variants. The system auto-discovers them by suffix:
 
 HelixScreen provides semantic widgets that already have the right colors, fonts, spacing, and responsive behavior baked in. **Use these instead of raw LVGL widgets** whenever possible -- it saves you from manually specifying styles and keeps things consistent.
 
+They also pick up **Glass Effects** (Settings > Appearance) for free: cards and dialogs get a
+corner light, solid buttons a raised finish. A container that paints its own background with a
+raw `style_bg_color` does not, and a widget whose color identifies something should opt out.
+Both are one `glass_mark()` call; see `THEME_SYSTEM.md` § "Glass appearance". To check a
+screen, run with `HELIX_GLASS=1` (forces the hardware check to pass) and turn the setting on.
+
 ### Typography
 
 | Widget | Font Token | Text Style | Use Case |

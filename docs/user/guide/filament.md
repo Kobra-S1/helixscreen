@@ -42,6 +42,8 @@ Manual filament control:
 
 The Filament panel has dedicated **Load**, **Unload**, and **Purge** buttons. These run Klipper macros — HelixScreen auto-detects common names like `LOAD_FILAMENT`, `UNLOAD_FILAMENT`, and `PURGE` from your printer config.
 
+If a load, unload or tool change needs the printer homed and it isn't, HelixScreen homes it first and then carries on, without asking. Make sure the bed is clear before you start one on a printer that has been sitting idle with its motors off. When HelixScreen can see that your multi-material system homes on its own (AFC's `auto_home` setting in `AFC.cfg`), it leaves the homing to it.
+
 On a printer with more than one tool, the picker beside the lane bars chooses which tool these buttons act on. Its label uses your printer's own word for a tool (**Toolhead** on the Snapmaker U1), and the closed picker shows just the tool's number, or the name you gave it; open it to see the full list. When the nozzle is too cold to move filament and HelixScreen doesn't know what is loaded, a warning takes the place of the **Operations** heading until the nozzle is hot enough.
 
 ### Customizing which macro runs

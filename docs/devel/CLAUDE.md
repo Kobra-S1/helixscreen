@@ -39,7 +39,7 @@ All developer documentation lives here. When working on features, look up the re
 | `DEVELOPER_QUICK_REFERENCE.md` | Quick code patterns: modals, CSV parser, layout, migration |
 | `MODAL_SYSTEM.md` | ui_dialog, modal_button_row, Modal subclass pattern |
 | `COLOR_SWATCHES.md` | Every colour swatch: the one painter (`ui_swatch.h`), shape/edge/selection rules, multi-colour split, finishes from the filament name, `color_swatch` / `color_dot` / `swatch_paint`, the preset `color_swatch_grid` (both palettes) and `custom_color_swatch`, the 7 mm grid tiers, the hand-rolled-swatch gate |
-| `THEME_SYSTEM.md` | Theme internals: ThemeManager style architecture, StyleRole roles, adding themed widgets |
+| `THEME_SYSTEM.md` | Theme internals: ThemeManager style architecture, StyleRole roles, adding themed widgets, Glass appearance (families, `glass_mark`, the hardware gate) |
 | `THEME_CONTRIBUTOR_GUIDE.md` | For people **creating themes** — JSON schema, palette design, testing. No C++ needed. |
 | `LAYOUT_SYSTEM.md` | Layout system internals: LayoutManager C++ API, auto-detection logic, and the home widget grid (`GridLayout` sizing, `assets/config/default_layout.json` anchors, candidate slots and live defaults, widget span/`min_colspan` authoring) |
 | `HOME_EDIT_MODE.md` | Home-grid edit mode: the session over a page, the selection, grab and click rules, the event shield and the events that end a gesture (release, press lost, indev reset), the carousel swipe policy, cross-page drag and the next-page slot, page creation and pruning. Read before touching `GridEditMode` or HomePanel's edit handlers |
