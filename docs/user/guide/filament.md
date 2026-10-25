@@ -4,7 +4,7 @@
 
 ## External Spool Configuration
 
-If you're not using an AMS or multi-material system, you can tell HelixScreen what filament is loaded by configuring an **external spool**. Tap the spool icon on the Filament panel to set the material, color, and brand. If Spoolman is configured, you can also link to a specific Spoolman spool. A spool whose filament carries a tuned pressure advance applies it when it becomes active; see [Pressure advance per filament](filament-tracking.md#pressure-advance-per-filament).
+If you're not using an AMS or multi-material system, you can tell HelixScreen what filament is loaded by configuring an **external spool**. Tap the spool icon on the Filament panel to set the material, color, and brand. If Spoolman is configured, you can also link to a specific Spoolman spool. To take the spool off again, open it and tap **Clear Spool** below the form. A spool whose filament carries a tuned pressure advance applies it when it becomes active; see [Pressure advance per filament](filament-tracking.md#pressure-advance-per-filament).
 
 Once configured, the external spool information is used throughout the UI:
 
@@ -183,7 +183,7 @@ On small portrait screens there is room for the steps only as a row of dots, so 
 
 **Loading or unloading several heads at once.** On a printer with a toolhead per slot (Snapmaker U1, MedusaHC), the picker lets you tick several heads. The prompt text the printer shows is English - every screen attached to the printer sees the same words. If a ticked head turns out not to take the operation, it is skipped with a warning naming the head and the reason, and the rest continue. A head whose own sensor reports it empty is not tickable for Unload at all: there is nothing in it for an unload to act on.
 
-**MedusaHC.** One extruder drive serves every tool, so **Load** mounts the tool, heats it and asks you to insert the filament into that tool - the extruder grabs it, so tap **Continue** once it is in. The printer then draws it in slowly, purges and puts back whichever tool was on the carriage before (or parks, if none was). The purge is 50mm past the nozzle unless you change **Purge Length** (0-200mm) under **Purge & Wipe** in Device Operations, reached from the AMS panel's **Settings** button. **Unload** mounts, heats, retracts until the filament is fully out, and restores the carriage the same way. The prompt's words are English even on a translated screen, because every client attached to the printer shows them. **Cancel** on the prompt or in the sidebar, closing the prompt without answering, or leaving it waiting for three minutes all turn the heater off and restore the carriage, with a message saying so.
+**MedusaHC.** One extruder drive serves every tool, so **Load** mounts the tool, heats it and asks you to insert the filament into that tool - the extruder grabs it, so tap **Continue** once it is in. The printer then draws it in slowly, purges and puts back whichever tool was on the carriage before (or parks, if none was). The purge is 50mm past the nozzle unless you change **Purge Length** (0-200mm) under **Purge & Wipe** in Device Operations, reached from the AMS panel's **Settings** button. **Unload** mounts, heats, retracts until the filament is fully out, and restores the carriage the same way. Because Unload mounts the tool first and nothing senses filament in a hot end, every tool offers it, docked or mounted; it is withdrawn while the dock sensors disagree. The prompt's words are English even on a translated screen, because every client attached to the printer shows them. **Cancel** on the prompt or in the sidebar, closing the prompt without answering, or leaving it waiting for three minutes all turn the heater off and restore the carriage, with a message saying so.
 
 Ticking several tools loads or unloads them in one run. A load asks once up front - insert a strand into every ticked tool as far as it goes - then works tool by tool, heating each next tool to its temperature while the current one runs, and puts the carriage back at the end. Stopping part way (canceling, a timeout, a failure) turns every heater off, restores the carriage, and names the tools that did finish. Neither works while a print is running or paused.
 
@@ -285,6 +285,8 @@ Tap a slot and choose **Edit Spool** to open the spool editor. This tells HelixS
 **The color view** has the full set of preset colors and a custom color picker (a hue and shade picker, a hex field and **Select**). Tap a preset to use it, or mix a color and tap **Select**; either takes you back to the editor. On larger screens the presets and the picker show side by side. On small screens (480x320, 480x272 and portrait 320x480) they take turns: tap the rainbow swatch at the start of the presets to switch to the picker, and **Presets** to switch back. Back returns to the editor without changing the color.
 
 **From tag.** On systems that read the spool's RFID or NFC tag, a small **from tag** pill sits beside each value that came from the tag: on the summary line, the material, brand, product, color and the temperatures. Change a value and its pill goes away. **Reset to tag**, below the form, puts back every value the tag states.
+
+**Clear Spool**, also below the form, takes the spool off the slot and closes the editor. It clears the slot exactly as **Clear Spool** in the slot menu does (see [Slot Context Menu](#slot-context-menu)), appears whenever the slot has a material or a linked Spoolman spool, and needs no Spoolman connection: the Spoolman spool itself is left alone.
 
 **Spoolman** (when Spoolman is configured):
 
@@ -483,7 +485,7 @@ When multiple backends are detected:
 | **AD5X IFS** | FlashForge Adventurer 5X Intelligent Filament Switching (requires ZMOD firmware v1.7.0 or newer) |
 | **SnapSwap** | Snapmaker U1 4-toolhead changer (parallel, one independent toolhead per slot) |
 
-Each system displays its own logo in the AMS panel header. Happy Hare and AFC show their firmware logos; specific hardware variants (ERCF, Box Turtle, ViViD, etc.) show hardware-specific logos when detected.
+Each system displays its own logo in the AMS panel header. Happy Hare and AFC show their firmware logos; specific hardware variants (ERCF, Box Turtle, ViViD, the QIDI Box, etc.) show hardware-specific logos when detected.
 
 With a single backend there is no selector — the panel just shows that system.
 
@@ -628,6 +630,11 @@ guessing. That state is deliberately not shown as "no tool" — starting a tool 
 an unknown position risks driving the carriage into a dock. Clear it by running a tool
 change or your printer's error-recovery macro from the console.
 
+When a tool change fails, the error dialog quotes the controller's own message, for example
+"sensors did not confirm T1". A failure that HelixScreen isn't showing as an error (the docks
+agree again, or it happened before the screen connected) appears once as a **Tool change
+failed:** message instead, until the next tool change or filament operation.
+
 ### The filament feeder
 
 Because only the hot end travels, the filament is held by a servo gripper on the frame
@@ -680,8 +687,8 @@ One consequence worth knowing: nothing on a tool changer can detect that you phy
 swapped a spool, so HelixScreen keeps showing what you last told it until you change it.
 Edit the slot when you switch filament.
 
-> **Note:** Like other tool changers, MedusaHC has no Unload, Bypass, Endless Spool or
-> dryer controls — each tool is its own path, and those apply to shared-path AMS hardware.
+> **Note:** Like other tool changers, MedusaHC has no Bypass, Endless Spool or dryer
+> controls: each tool is its own path, and those apply to shared-path AMS hardware.
 
 ---
 
