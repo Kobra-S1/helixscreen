@@ -497,3 +497,36 @@ TEST_CASE_METHOD(XMLTestFixture,
     process_async_timers();
     cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
 }
+
+// A chamber with only a sensor still has a reading worth showing, so the home
+// callout follows HasChamber (sensor or heater), as the print status tile does.
+TEST_CASE_METHOD(XMLTestFixture, "PrinterImageWidget shows a sensor-only chamber's callout",
+                 "[panel_widget][printer_image]") {
+    helix::init_widget_registrations();
+    helix::PanelWidgetManager::instance().init_widget_subjects();
+    get_printer_state().init_subjects(false);
+    auto& caps = get_printer_state().capabilities_state();
+    caps.set_has_chamber_heater(false);
+    caps.set_has_chamber_sensor(true);
+    // Hot enough to show with no target.
+    lv_subject_set_int(get_printer_state().temperature_state().get_chamber_temp_subject(), 600);
+
+    lv_obj_t* widget_obj = lv_obj_create(test_screen());
+    lv_obj_t* img = lv_image_create(widget_obj);
+    lv_obj_set_name(img, "printer_image");
+    helix::PrinterImageWidget w;
+    w.attach(widget_obj, test_screen());
+    helix::ui::UpdateQueue::instance().drain();
+
+    lv_subject_t* shown = lv_xml_get_subject(nullptr, "callout_chamber_shown");
+    REQUIRE(shown != nullptr);
+    CHECK(lv_subject_get_int(shown) != 0);
+
+    caps.set_has_chamber_sensor(false);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(lv_subject_get_int(shown) == 0);
+
+    w.detach();
+    process_async_timers();
+    lv_subject_set_int(get_printer_state().temperature_state().get_chamber_temp_subject(), 0);
+}
