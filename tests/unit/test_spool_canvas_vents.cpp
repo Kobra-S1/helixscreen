@@ -70,6 +70,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool_canvas: an empty spool's slots show t
     CHECK(brightness(slot) + 60 < brightness(flange));
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "spool_canvas: an empty spool shows its core between the flanges",
+                 "[spool_canvas]") {
+    // An 80 px spool's back flange is centred at x = 26; the core spans
+    // y = 32..48 there, and the front flange's left edge is at x = 39. A
+    // nearly empty spool of the same colour renders first, so a cached render
+    // of it must not stand in for the empty one.
+    lv_obj_t* low = ui_spool_canvas_create(test_screen(), kSpool);
+    REQUIRE(low != nullptr);
+    ui_spool_canvas_set_color(low, lv_color_hex(0xD02020));
+    ui_spool_canvas_set_fill_level(low, 0.02f);
+    REQUIRE(reddish(px(low, 32, 40)));
+
+    lv_obj_t* canvas = ui_spool_canvas_create(test_screen(), kSpool);
+    REQUIRE(canvas != nullptr);
+    ui_spool_canvas_set_fill_level(canvas, 0.0f);
+    ui_spool_canvas_set_color(canvas, lv_color_hex(0xD02020));
+
+    const lv_color32_t core = px(canvas, 32, 40);
+    const lv_color32_t back_flange = px(canvas, 32, 26);
+    CHECK(grey(core));
+    CHECK(brightness(core) > brightness(back_flange) + 30);
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "spool_canvas: a small spool keeps a solid flange",
                  "[spool_canvas][spool_vents]") {
     // 28 px: the front flange is centred at x = 18, y = 14; the top slot would

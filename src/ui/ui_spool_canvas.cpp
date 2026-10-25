@@ -120,6 +120,10 @@ static inline float fast_sqrt_01(float x) {
 // working set small while scrolling a list of many spools.
 static constexpr size_t kCacheMaxEntries = 128;
 static constexpr int kFillBuckets = 10;
+// At or below this the spool is drawn empty: no filament, its bare core.
+// Bucket 0 holds only empty spools, since they render differently from the
+// lowest filled ones.
+static constexpr float kEmptyFill = 0.01f;
 
 struct SpoolCacheKey {
     uint32_t color_rgb; // 0x00RRGGBB
@@ -159,7 +163,9 @@ static SpoolCacheIndex s_cache_index;
 
 static uint8_t compute_fill_bucket(float fill) {
     float clamped = fill < 0.0f ? 0.0f : (fill > 1.0f ? 1.0f : fill);
-    return static_cast<uint8_t>(clamped * static_cast<float>(kFillBuckets) + 0.5f);
+    if (clamped <= kEmptyFill)
+        return 0;
+    return static_cast<uint8_t>(std::max(1.0f, clamped * static_cast<float>(kFillBuckets) + 0.5f));
 }
 
 static uint32_t color_to_rgb24(lv_color_t c) {
@@ -720,7 +726,7 @@ static void render_front_pixels(SpoolCanvasData* data) {
     const float hub_r = face_size * kHubRadius;
     const float fill = LV_CLAMP(0.0f, data->fill_level, 1.0f);
     const float max_filament_r = flange_r * kFrontMaxFilament;
-    const float filament_r = fill > 0.01f ? hub_r + (max_filament_r - hub_r) * fill : 0.0f;
+    const float filament_r = fill > kEmptyFill ? hub_r + (max_filament_r - hub_r) * fill : 0.0f;
 
     const lv_color_t front_color = theme_manager_get_color("spool_body");
     const lv_color_t back_color = theme_manager_get_color("spool_body_shade");
@@ -882,7 +888,7 @@ static void render_spool_pixels(SpoolCanvasData* data) {
     // Back ellipse + rectangle body + front ellipse
     // Gradient: lighter at top (lit), darker at bottom (shadow)
     // ========================================
-    if (fill > 0.01f) {
+    if (fill > kEmptyFill) {
         lv_color_t fil_light = shading.top(filament_color);
         lv_color_t fil_dark = shading.bottom(filament_color);
 
@@ -931,6 +937,14 @@ static void render_spool_pixels(SpoolCanvasData* data) {
         lv_color_t front_dark = ams_draw::darken_color(filament_color, 35);
         draw_gradient_ellipse(&layer, right_x, cy, filament_rx, filament_ry, front_light,
                               front_dark);
+    } else {
+        // Empty: the bare core tube joins the flanges. It is the flange's
+        // plastic, and the filament would wind from its surface outward.
+        const lv_color_t core_light = ams_draw::lighten_color(front_color, kFlangeLift);
+        const lv_color_t core_dark = ams_draw::darken_color(front_color, kFlangeDrop);
+        draw_gradient_ellipse(&layer, left_x, cy, hub_rx, hub_ry, core_light, core_dark);
+        draw_gradient_rect(&layer, left_x, cy - hub_ry, right_x, cy + hub_ry, core_light,
+                           core_dark);
     }
 
     // ========================================
