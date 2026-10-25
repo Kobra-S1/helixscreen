@@ -3,6 +3,8 @@
 
 #include "ui_ams_edit_overlay.h"
 
+#include "ui_ams_context_menu.h"
+#include "ui_ams_detail.h"
 #include "ui_ams_lane_settings.h"
 #include "ui_button.h"
 #include "ui_callback_helpers.h"
@@ -501,6 +503,7 @@ void AmsEditOverlay::init_subjects() {
                                subjects_);
         UI_MANAGED_SUBJECT_INT(add_spoolman_visible_subject_, 0, "ams_edit_add_spoolman_visible",
                                subjects_);
+        UI_MANAGED_SUBJECT_INT(clear_visible_subject_, 0, "ams_edit_clear_visible", subjects_);
         UI_MANAGED_SUBJECT_INT(more_open_subject_, 0, "ams_edit_more_open", subjects_);
 
         // Spoolman spool number for the header badge ("#19").
@@ -1329,6 +1332,10 @@ void AmsEditOverlay::update_ui() {
     lv_subject_set_int(&add_spoolman_visible_subject_,
                        (has_spoolman && working_info_.spoolman_id == 0) ? 1 : 0);
 
+    // Clear acts on what the slot holds now, not on the edits staged over it.
+    lv_subject_set_int(&clear_visible_subject_,
+                       AmsContextMenu::should_show_clear_spool(original_info_) ? 1 : 0);
+
     // Title: the slot's own name in the backend's lane noun ("Gate 3").
     if (slot_index_ == -2) {
         snprintf(title_buf_, sizeof(title_buf_), "%s", lv_tr("External Filament"));
@@ -1932,6 +1939,18 @@ void AmsEditOverlay::close_editor(bool saved) {
 // Event Handlers
 // ============================================================================
 
+void AmsEditOverlay::handle_clear_spool() {
+    if (save_in_flight_) {
+        return;
+    }
+    // The lane menus' Clear, so a slot clears the same way from either place. It
+    // needs no Spoolman: the slot's record is ours, and the Spoolman spool itself
+    // is left alone. The clear is the commit, so the caller is told nothing saved.
+    spdlog::info("[AmsEditOverlay] Clear spool for slot {}", slot_index_);
+    ams_dispatch_backend_action(AmsContextMenu::MenuAction::CLEAR_SPOOL, slot_index_, nullptr);
+    close_editor(false);
+}
+
 void AmsEditOverlay::handle_back() {
     int view = lv_subject_get_int(&view_mode_subject_);
     if (save_in_flight_) {
@@ -2520,6 +2539,8 @@ void AmsEditOverlay::register_callbacks() {
         {"ams_edit_custom_color_cb", [](lv_event_t*) { get_ams_edit_overlay().open_color_view(); }},
         {"ams_edit_reset_tag_cb",
          [](lv_event_t*) { get_ams_edit_overlay().handle_reset_to_tag(); }},
+        {"ams_edit_clear_spool_cb",
+         [](lv_event_t*) { get_ams_edit_overlay().handle_clear_spool(); }},
         {"ams_edit_color_swatch_cb",
          [](lv_event_t* e) {
              get_ams_edit_overlay().handle_color_swatch(lv_event_get_target_obj(e));

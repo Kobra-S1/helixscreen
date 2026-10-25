@@ -1022,6 +1022,7 @@ translations:
   Density: 密度
   Deny: '拒绝'
   Deploy: 部署
+  Depth and lighting on buttons and panels: 为按钮和面板添加立体感和光照
   Describe the issue (optional): 描述问题（可选）
   Detailed: 详细
   Details: '详情'
@@ -1590,6 +1591,7 @@ translations:
   Gear sync: 齿轮同步
   Generic: 通用
   Get help and share feedback: 获取帮助和反馈
+  Glass Effects: 玻璃效果
   Global: 全局
   Global Z offset: 全局Z偏移
   Good: 良好

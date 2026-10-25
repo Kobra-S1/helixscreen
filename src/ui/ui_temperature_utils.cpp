@@ -296,9 +296,10 @@ const char* build_heater_gcode(const std::string& heater_full_name, int target_d
 }
 
 bool chamber_uses_m141(const std::string& heater_full_name, const std::string& chamber_heater_name,
-                       bool m141_available) {
+                       bool m141_available, std::optional<bool> m141_sets_heater) {
     return m141_available && !heater_full_name.empty() && !chamber_heater_name.empty() &&
-           heater_full_name == chamber_heater_name;
+           heater_full_name == chamber_heater_name &&
+           m141_sets_heater != std::optional<bool>(false);
 }
 
 ChamberSetpoint chamber_effective_setpoint(int heater_target_deci, int fan_target_deci,

@@ -11,6 +11,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -557,10 +558,16 @@ const char* build_heater_gcode(const std::string& heater_full_name, int target_d
  *
  * True when a chamber temperature command should route through the standard
  * M141 macro instead of a raw SET_HEATER_TEMPERATURE: the target heater is the
- * discovered chamber heater AND the printer defines an M141 macro.
+ * discovered chamber heater, the printer defines an M141 macro, and that macro is
+ * not known to leave the heater alone. Some macro sets use M141 for an exhaust fan
+ * alone, and routing a heater set through one of those never heats.
+ *
+ * @param m141_sets_heater MacroParamCache::macro_sets_target() for M141 and the
+ *                         chamber heater: nullopt when its body cannot be read
+ *                         (firmware that hides macro bodies), which keeps M141
  */
 bool chamber_uses_m141(const std::string& heater_full_name, const std::string& chamber_heater_name,
-                       bool m141_available);
+                       bool m141_available, std::optional<bool> m141_sets_heater);
 
 /**
  * @brief Effective chamber setpoint and control mode from the two M141 targets.

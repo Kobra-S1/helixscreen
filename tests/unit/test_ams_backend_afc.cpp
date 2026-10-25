@@ -11,6 +11,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_accounting_cases.h"
 #include "ams_backend_afc.h"
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
@@ -26,6 +27,7 @@
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "preflight_validator.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "test_helpers/afc_test_access.h"
@@ -3194,6 +3196,50 @@ TEST_CASE("AFC set_tool_mapping refuses a lane past the discovered range",
 
     CHECK(helper.set_tool_mapping(0, 4).result == AmsResult::INVALID_SLOT);
     CHECK(helper.set_tool_mapping(0, -2).result == AmsResult::INVALID_SLOT);
+}
+
+namespace {
+// An AFC printer as discovery reports it, optionally behind Z-Mod's afclite shim.
+void discover_afc(AmsBackendAfcTestHelper& helper, bool afclite) {
+    nlohmann::json objects = nlohmann::json::array({"AFC", "AFC_unit IFS", "extruder"});
+    if (afclite) {
+        objects.push_back("zmod_afclite");
+    }
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    helper.set_discovery(hw);
+}
+} // namespace
+
+TEST_CASE("AFC over a firmware that maps tools per print offers no remap and sends no SET_MAP",
+          "[ams][afc][tool_mapping]") {
+    AmsBackendAfcTestHelper helper;
+    discover_afc(helper, /*afclite=*/true);
+    helper.initialize_test_lanes_with_slots(4);
+    helper.set_running(true);
+
+    CHECK(helper.get_remap_strategy() == AmsBackend::RemapStrategy::None);
+    CHECK_FALSE(helix::printer::can_remap(helper));
+    CHECK_FALSE(helix::printer::can_write_mapping_table(helper));
+
+    CHECK(helper.set_tool_mapping(0, 1).result == AmsResult::NOT_SUPPORTED);
+
+    SlotInfo info;
+    info.mapped_tool = 2;
+    helix::test::apply_edit(helper, 0, info);
+
+    CHECK_FALSE(helper.has_gcode_starting_with("SET_MAP "));
+}
+
+TEST_CASE("AFC with its own SET_MAP keeps the native remap", "[ams][afc][tool_mapping]") {
+    AmsBackendAfcTestHelper helper;
+    discover_afc(helper, /*afclite=*/false);
+    helper.initialize_test_lanes_with_slots(4);
+    helper.set_running(true);
+
+    CHECK(helper.get_remap_strategy() == AmsBackend::RemapStrategy::Native);
+    CHECK(helper.set_tool_mapping(0, 1).success());
+    CHECK(helper.has_gcode("SET_MAP LANE=lane2 MAP=T0"));
 }
 
 TEST_CASE("AFC recover_lane_position validates slot index", "[ams][afc][recovery][phase4]") {

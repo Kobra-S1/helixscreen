@@ -1024,6 +1024,7 @@ translations:
   Density: 密度
   Deny: '拒否'
   Deploy: 展開
+  Depth and lighting on buttons and panels: ボタンとパネルに奥行きと光を加えます
   Describe the issue (optional): 問題の詳細（任意）
   Detailed: 詳細
   Details: '詳細'
@@ -1594,6 +1595,7 @@ translations:
   Gear sync: ギア同期
   Generic: 汎用
   Get help and share feedback: ヘルプとフィードバック
+  Glass Effects: ガラス効果
   Global: グローバル
   Global Z offset: グローバルZオフセット
   Good: 良好

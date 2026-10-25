@@ -5,16 +5,8 @@
 #include "config.h"
 
 #include <algorithm>
-#include <cmath>
 
 namespace helix::ui {
-
-std::string board_fingerprint(const BoardFacts& facts) {
-    const long bogomips = std::lround(facts.bogomips / 100.0f) * 100;
-    return facts.display_backend + "/" + std::to_string(facts.cores) + "c/" +
-           std::to_string(bogomips) + "bm/" + std::to_string(facts.width) + "x" +
-           std::to_string(facts.height) + "/" + std::to_string(facts.color_depth) + "bpp";
-}
 
 std::string level_store_path(const char* saver_name) {
     return std::string("/display/screensaver_levels/") + saver_name;

@@ -985,6 +985,7 @@
   <translation tag="Density" zh="密度"/>
   <translation tag="Deny" zh="拒绝"/>
   <translation tag="Deploy" zh="部署"/>
+  <translation tag="Depth and lighting on buttons and panels" zh="为按钮和面板添加立体感和光照"/>
   <translation tag="Describe the issue (optional)" zh="描述问题（可选）"/>
   <translation tag="Detailed" zh="详细"/>
   <translation tag="Details" zh="详情"/>
@@ -1536,6 +1537,7 @@
   <translation tag="Generic" zh="通用"/>
   <translation tag="Get help and share feedback" zh="获取帮助和反馈"/>
   <translation tag="Getting Started" zh="入门"/>
+  <translation tag="Glass Effects" zh="玻璃效果"/>
   <translation tag="Global" zh="全局"/>
   <translation tag="Global Z offset" zh="全局Z偏移"/>
   <translation tag="Good" zh="良好"/>
