@@ -65,7 +65,6 @@ ChangeHostModal::ChangeHostModal() {
 }
 
 ChangeHostModal::~ChangeHostModal() {
-    stop_discovery();
     deinit_subjects();
     spdlog::trace("[ChangeHostModal] Destroyed");
 }

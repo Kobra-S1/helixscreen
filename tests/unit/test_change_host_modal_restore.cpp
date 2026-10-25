@@ -609,3 +609,16 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
 
     CHECK(net_.asked == std::vector<std::string>{"192.168.1.112:7125"});
 }
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: with no discovery source the discovered-printers row stays hidden",
+                 "[change_host][lan_sweep]") {
+    helix::set_printer_discovery_source(nullptr);
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    lv_obj_t* section = lv_obj_find_by_name(dialog, "discovery_section");
+    REQUIRE(section != nullptr);
+    CHECK(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+}

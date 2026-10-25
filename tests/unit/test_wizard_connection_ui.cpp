@@ -816,3 +816,30 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "connection_testing")) == 0);
     lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: the auto-probe finds Moonraker on 80 and connects there",
+                 "[wizard][connection][port_fallback]") {
+    SavedMoonrakerAddress saved;
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    helix::test::ScopedFakeConnectionTest net;
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+    lv_obj_t* root = create_step_and_test(step, test_screen());
+    net.answer("10.9.9.9:80");
+
+    step->arm_auto_probe_timer_for_test();
+    process_lvgl(150);
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    CHECK(net.asked == std::vector<std::string>{"10.9.9.9:7125", "10.9.9.9:80"});
+    REQUIRE(client.connect_urls == std::vector<std::string>{"ws://10.9.9.9:80/websocket"});
+
+    REQUIRE(client.fire_connected());
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "connection_port"))) ==
+          "80");
+    lv_obj_t* port_input = lv_obj_find_by_name(root, "port_input");
+    REQUIRE(port_input != nullptr);
+    CHECK(std::string(lv_textarea_get_text(port_input)) == "80");
+}
