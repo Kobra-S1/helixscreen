@@ -77,9 +77,6 @@ class AmsEditOverlayViewTestAccess {
     int clear_visible() {
         return lv_subject_get_int(&overlay_.clear_visible_subject_);
     }
-    void call_handle_clear_spool() {
-        overlay_.handle_clear_spool();
-    }
     void toggle_more() {
         overlay_.handle_more_toggle();
     }
@@ -4277,7 +4274,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clear takes a linked external spool off wit
     REQUIRE(access.view() == AmsEditOverlay::kViewEditor);
     CHECK(access.clear_visible() == 1);
 
-    access.call_handle_clear_spool();
+    access.click("btn_clear_spool");
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
@@ -4303,4 +4300,5 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clear is not offered for a slot with nothin
     UpdateQueue::instance().drain();
     process_lvgl(10);
     CHECK(access.clear_visible() == 0);
+    close_editor_overlay();
 }
