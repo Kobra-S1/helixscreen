@@ -331,7 +331,8 @@ TEST_CASE("wpa reports an unreadable control directory as permission denied", "[
 namespace {
 /// A wlan rfkill switch at <base>/sys/class/rfkill/rfkill0 whose `soft` file
 /// reads `soft` and cannot be written, like the root-owned 0644 sysfs file a
-/// non-root service user sees. Removed, permissions first, on destruction.
+/// non-root service user sees. The fixture's sysfs guard removes it; this only
+/// restores write permission first.
 struct ReadOnlyRfkill {
     std::string dir;
     ReadOnlyRfkill(const std::string& base, const char* soft) {
@@ -349,8 +350,6 @@ struct ReadOnlyRfkill {
     }
     ~ReadOnlyRfkill() {
         ::chmod((dir + "/soft").c_str(), 0644);
-        std::error_code ec;
-        std::filesystem::remove_all(std::filesystem::path(dir).parent_path().parent_path(), ec);
     }
 };
 } // namespace
