@@ -191,7 +191,7 @@
         <activity_chip name="ps_chip_speed_flow"
                        text_subject="ps_chip_speed_flow_text" shown_subject="ps_chip_speed_flow_shown"
                        compact_subject="ps_callout_mode" tone_subject="ps_chip_speed_flow_tone"
-                       progress_subject="ps_chip_speed_flow_progress">
+                       progress_subject="ps_chip_speed_flow_progress" max_lines="2">
           <bind_flag_if cond="ps_chip_speed_flow_shown eq 0" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_print_status_tune"/>
           <!-- The pill lays out row_reverse: the speed icon reads before the chip's text. -->

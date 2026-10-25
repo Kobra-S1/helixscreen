@@ -54,13 +54,15 @@ enum class FanRole { Part = 0, Hotend = 1, Aux = 2 };
 [[nodiscard]] ChipContent fan_chip(FanRole role, bool present, int pct, bool automatic,
                                    bool labeled);
 
-/// The speed/flow chip: the live toolhead speed as its text. Warn whenever
+/// The speed/flow chip: the live toolhead speed over the live volumetric flow,
+/// two lines of text. Warn whenever
 /// either factor is not 100%, never expendable then; the factors themselves
 /// are Tune's to show.
 [[nodiscard]] ChipContent speed_flow_chip(int speed_pct, int flow_pct,
                                           const std::string& speed_text);
 
-/// The speed/flow chip the layout measures: a three-digit toolhead speed.
+/// The speed/flow chip the layout measures: a three-digit toolhead speed over a
+/// three-digit flow.
 [[nodiscard]] ChipContent speed_flow_budget_chip();
 
 /// The light chip: Active when on, expendable when off.

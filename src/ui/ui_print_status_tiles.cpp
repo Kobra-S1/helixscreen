@@ -359,9 +359,9 @@ std::array<ChipContent, kPrintStatusChipCount> PrintStatusTiles::decide_chips(bo
         light_chip(subject_int_or_zero(
                        helix::led::LedController::instance().get_led_controllable_subject()) != 0,
                    helix::home_light_buttons_lit());
-    out[index_of(PrintStatusChip::SpeedFlow)] = speed_flow_chip(
-        host_.speed_pct ? host_.speed_pct() : 100, host_.flow_pct ? host_.flow_pct() : 100,
-        host_.speed_text ? host_.speed_text() : helix::tune::live_speed_text(0));
+    out[index_of(PrintStatusChip::SpeedFlow)] =
+        speed_flow_chip(host_.speed_pct ? host_.speed_pct() : 100,
+                        host_.flow_pct ? host_.flow_pct() : 100, host_.speed_text());
     return out;
 }
 
@@ -513,6 +513,8 @@ void PrintStatusTiles::update_now() {
         status_glyph = std::max(status_glyph, m.icon_px(g));
     }
     std::array<int, kPrintStatusChipCount> icons{}, budget_w{}, budget_bare_w{};
+    // The worst case of a chip budgeted from its ChipContent; its lines set the chip's height.
+    std::array<std::string, kPrintStatusChipCount> budget_text;
     int column_w = 0;
     const auto width_of = [&](size_t i, const ChipContent& c) {
         return m.chip_w(icons[i], c.text);
@@ -523,7 +525,9 @@ void PrintStatusTiles::update_now() {
         if (!in_budget(chip)) {
             budget_w[i] = 0;
         } else if (chip == PrintStatusChip::SpeedFlow) {
-            budget_w[i] = width_of(i, speed_flow_budget_chip());
+            const ChipContent b = speed_flow_budget_chip();
+            budget_w[i] = width_of(i, b);
+            budget_text[i] = b.text;
         } else {
             budget_w[i] = m.chip_w(icons[i], worst(chip, true));
         }
@@ -569,6 +573,11 @@ void PrintStatusTiles::update_now() {
         // Pinned chips sit on their parts and carry no labels.
         const ChipContent& b = bare[i];
         part.w_compact = part.active ? compact_callout_chip_w(probe, b.text, icons[i]) : 0;
+        if (const int lines = text_line_count(budget_text[i]); lines > 1) {
+            part.h = m.chip_h_for(budget_text[i]);
+            part.h_compact = compact_callout_chip_h(
+                probe, contents[index_of(PrintStatusChip::Light)].shown, lines);
+        }
         parts.chips.push_back(part);
     }
     const std::string fan_pct =
@@ -597,6 +606,7 @@ void PrintStatusTiles::update_now() {
     const CalloutLayout out =
         presenter_.apply(parts, image.regions, image.natural_w, image.natural_h, cfg);
     ++layout_count_;
+    last_layout_ = out;
 
     const bool glows = image.regions && lined_or_pinned(out.mode);
     for (size_t i = 0; i < kPrintStatusChipCount; ++i) {

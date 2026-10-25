@@ -40,10 +40,10 @@ class PrintProgressText {
     void clear_layer();
     /// Filament used so far, empty when none.
     void refresh_filament_used();
-    /// The live toolhead speed.
+    /// The live toolhead speed and volumetric flow.
     void refresh_speed_flow();
 
-    /// The live toolhead speed as last refreshed: "187 mm/s".
+    /// The live rates as last refreshed, speed over flow: "187 mm/s\n12.0 mm³/s".
     [[nodiscard]] const char* speed_text() const {
         return speed_buf_;
     }
@@ -68,7 +68,7 @@ class PrintProgressText {
     char elapsed_buf_[32] = "0h 00m";
     char remaining_buf_[32] = "0h 00m";
     char eta_buf_[32] = "";
-    char speed_buf_[32] = "0 mm/s";
+    char speed_buf_[48] = "0 mm/s\n0.0 mm\xC2\xB3/s";
 };
 
 } // namespace helix::ui

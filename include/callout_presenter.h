@@ -37,6 +37,10 @@ class CalloutPresenter {
         int w_budget_unlabeled = 0;
         int w_full_unlabeled = 0;
         int icons = 0; ///< pixels its icons take in the chip row; bounds the label
+        /// Heights of a chip taller than one text line, full-size and compact,
+        /// measured like the widths; 0 is Config's chip_h / compact_chip_h.
+        int h = 0;
+        int h_compact = 0;
     };
 
     struct Parts {

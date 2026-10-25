@@ -73,6 +73,7 @@ class PrintStatusTiles {
         std::function<bool()> printing;
         std::function<int()> speed_pct;
         std::function<int()> flow_pct;
+        /// The speed/flow chip's text; required, the chip has no other source.
         std::function<std::string()> speed_text;
     };
 
@@ -116,6 +117,10 @@ class PrintStatusTiles {
 
     [[nodiscard]] int layout_count() const {
         return layout_count_;
+    }
+    /// What the last layout pass decided, chip rects included.
+    [[nodiscard]] const CalloutLayout& last_layout() const {
+        return last_layout_;
     }
 
   private:
@@ -196,6 +201,7 @@ class PrintStatusTiles {
 
     lv_timer_t* update_timer_ = nullptr;
     int layout_count_ = 0;
+    CalloutLayout last_layout_;
     bool subjects_ready_ = false;
 
     ObserverGuard led_version_observer_;

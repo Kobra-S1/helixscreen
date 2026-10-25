@@ -57,10 +57,14 @@ void PrintProgressText::refresh_filament_used() {
 }
 
 void PrintProgressText::refresh_speed_flow() {
-    std::snprintf(speed_buf_, sizeof(speed_buf_), "%s",
-                  helix::tune::live_speed_text(
-                      lv_subject_get_int(printer_state_.motion_state().get_live_velocity_subject()))
-                      .c_str());
+    auto& motion = printer_state_.motion_state();
+    const double flow = helix::tune::volumetric_flow_mm3_s(
+        lv_subject_get_int(motion.get_live_extruder_velocity_subject()),
+        printer_state_.get_discovery().filament_diameter_mm());
+    std::snprintf(
+        speed_buf_, sizeof(speed_buf_), "%s",
+        helix::tune::live_rates_text(lv_subject_get_int(motion.get_live_velocity_subject()), flow)
+            .c_str());
 }
 
 void PrintProgressText::show_elapsed(int seconds) {

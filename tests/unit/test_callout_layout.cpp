@@ -1109,3 +1109,247 @@ TEST_CASE("a lined tile keeps its labels and drops an idle chip instead",
     CHECK(pinned.mode == CalloutMode::Pinned);
     CHECK(pinned.unlabeled);
 }
+
+// ---------------------------------------------------------------------------
+// A chip taller than one text line (the two-line speed/flow chip)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+// wide() with one column beside the full-size image, plus a pointless chip
+// `h` tall riding in that column.
+CalloutLayoutInput one_side_with_tall_chip(int h) {
+    auto in = wide();
+    in.area_w = 186 + 70 + in.gap + in.min_line;
+    CalloutChipIn tall{CalloutKind::SpeedFlow, 60, std::nullopt};
+    tall.h = h;
+    in.budget.push_back(tall);
+    in.active = in.budget;
+    return in;
+}
+
+} // namespace
+
+TEST_CASE("a tall chip stacks in its column at its own height and clear of the others",
+          "[printer_image][callout_layout]") {
+    // Four 18px chips and a 40px one with 4px gaps: 128 of the 132px the column has.
+    const auto in = one_side_with_tall_chip(40);
+    const auto l = compute_callout_layout(in);
+    REQUIRE(l.mode == CalloutMode::OneSide);
+    const auto* tall = find(l, CalloutKind::SpeedFlow);
+    REQUIRE(tall);
+    CHECK(tall->rect.h == 40);
+    CHECK(tall->rect.y + tall->rect.h <= in.area_h - in.gap);
+    for (const auto& c : l.chips)
+        if (&c != tall)
+            CHECK(c.rect.h == in.chip_h);
+    check_apart_and_inside(l, in);
+}
+
+TEST_CASE("the column's stack-fit counts a tall chip's real height",
+          "[printer_image][callout_layout]") {
+    // One text line tall the chip fits the column; 50px tall the five need 138 of 132.
+    CHECK(compute_callout_layout(one_side_with_tall_chip(0)).mode == CalloutMode::OneSide);
+    const auto in = one_side_with_tall_chip(50);
+    const auto l = compute_callout_layout(in);
+    CHECK(l.mode == CalloutMode::Pinned);
+    check_apart_and_inside(l, in);
+}
+
+TEST_CASE("a leader meets a tall chip at its centre", "[printer_image][callout_layout]") {
+    auto in = wide();
+    in.area_w = 186 + 70 + in.gap + in.min_line;
+    for (auto* v : {&in.budget, &in.active})
+        for (auto& c : *v)
+            if (c.kind == CalloutKind::Bed)
+                c.h = 40;
+    const auto l = compute_callout_layout(in);
+    REQUIRE(l.mode == CalloutMode::OneSide);
+    const auto* bed = find(l, CalloutKind::Bed);
+    REQUIRE(bed);
+    REQUIRE(bed->has_line);
+    CHECK(bed->rect.h == 40);
+    CHECK(bed->line_y1 == bed->rect.y + 20);
+    CHECK(bed->line_ym == bed->line_y1);
+    check_apart_and_inside(l, in);
+}
+
+TEST_CASE("a tall docked chip sits inside the area on the row's bottom edge",
+          "[printer_image][callout_layout]") {
+    auto in = base();
+    in.tagged = false;
+    in.area_w = 300;
+    in.active = {{CalloutKind::Nozzle, 60, std::nullopt}, {CalloutKind::Bed, 60, std::nullopt}};
+    CalloutChipIn tall{CalloutKind::SpeedFlow, 60, std::nullopt};
+    tall.h = 40;
+    in.active.push_back(tall);
+    const auto l = compute_callout_layout(in);
+    REQUIRE(l.mode == CalloutMode::Docked);
+    const auto* t = find(l, CalloutKind::SpeedFlow);
+    const auto* n = find(l, CalloutKind::Nozzle);
+    REQUIRE(t);
+    REQUIRE(n);
+    CHECK(t->rect.h == 40);
+    CHECK(t->rect.y + t->rect.h == n->rect.y + n->rect.h);
+    check_apart_and_inside(l, in);
+}
+
+TEST_CASE("a tall chip docks in the free space beside bands above and below",
+          "[printer_image][callout_layout]") {
+    auto in = wide();
+    in.area_w = 240;
+    in.area_h = 480; // image 240x180 centred: 150px above and below
+    CalloutChipIn tall{CalloutKind::SpeedFlow, 60, std::nullopt};
+    tall.h = 40;
+    in.budget.push_back(tall);
+    in.active = in.budget;
+    const auto l = compute_callout_layout(in);
+    REQUIRE((l.mode == CalloutMode::BothSides || l.mode == CalloutMode::OneSide));
+    const auto* t = find(l, CalloutKind::SpeedFlow);
+    REQUIRE(t);
+    CHECK(t->rect.h == 40);
+    CHECK_FALSE(overlaps(t->rect, l.image));
+    check_apart_and_inside(l, in);
+}
+
+TEST_CASE("a tall pinned chip is centred on its point at its own height",
+          "[printer_image][callout_layout]") {
+    auto in = base();
+    CalloutChipIn tall{CalloutKind::Bed, 40, NormPoint{0.5f, 0.5f}};
+    tall.h = 30;
+    in.active = {tall};
+    const auto l = compute_callout_layout(in);
+    REQUIRE(l.mode == CalloutMode::Pinned);
+    REQUIRE(l.chips.size() == 1);
+    const auto& r = l.chips[0].rect;
+    CHECK(r.h == 30);
+    CHECK(r.y + r.h / 2 == l.image.y + l.image.h / 2);
+    check_apart_and_inside(l, in);
+}
+
+namespace {
+
+// Every chip the print status tile can show at once, on a U1-shaped picture,
+// at widths and heights measured from the live chip style at that screen size.
+// `two_line_h` is the speed/flow chip's height.
+CalloutLayoutInput eight_chips(int area_w, int area_h, int chip_h, int two_line_h, int gap,
+                               int min_line, int heater_w, int fan_w, int speed_w) {
+    CalloutLayoutInput in;
+    in.area_w = area_w;
+    in.area_h = area_h;
+    in.image_w = 158;
+    in.image_h = 215;
+    in.tagged = true;
+    in.chip_h = chip_h;
+    in.gap = gap;
+    in.min_line = min_line;
+    CalloutChipIn speed{CalloutKind::SpeedFlow, speed_w, std::nullopt, true};
+    speed.h = two_line_h;
+    in.budget = {{CalloutKind::Nozzle, heater_w, NormPoint{0.5f, 0.35f}},
+                 {CalloutKind::Bed, heater_w, NormPoint{0.5f, 0.7f}},
+                 {CalloutKind::Chamber, heater_w, NormPoint{0.5f, 0.2f}},
+                 {CalloutKind::Fan, fan_w, NormPoint{0.55f, 0.4f}},
+                 {CalloutKind::HotendFan, fan_w, NormPoint{0.5f, 0.35f}, true},
+                 {CalloutKind::AuxFan, fan_w, std::nullopt, true},
+                 {CalloutKind::Light, chip_h, NormPoint{0.2f, 0.1f}},
+                 speed};
+    in.active = in.budget;
+    return in;
+}
+
+void check_eight(const CalloutLayoutInput& in) {
+    const auto l = compute_callout_layout(in);
+    CHECK(l.mode != CalloutMode::ImageOnly);
+    CHECK_FALSE(l.dropped.empty()); // eight do not all fit: expendable chips give way
+    for (const CalloutKind k : l.dropped)
+        CHECK((k == CalloutKind::HotendFan || k == CalloutKind::AuxFan ||
+               k == CalloutKind::SpeedFlow));
+    if (const auto* speed = find(l, CalloutKind::SpeedFlow))
+        CHECK(speed->rect.h == in.budget.back().h);
+    check_apart_and_inside(l, in);
+}
+
+} // namespace
+
+TEST_CASE("every chip at once in an 800x480 tile: none overlaps or leaves the area",
+          "[printer_image][callout_layout]") {
+    check_eight(eight_chips(325, 265, 30, 52, 5, 10, 152, 109, 127));
+}
+
+TEST_CASE("every chip at once in a 480x272 tile: none overlaps or leaves the area",
+          "[printer_image][callout_layout]") {
+    check_eight(eight_chips(198, 134, 22, 34, 2, 6, 109, 74, 86));
+}
+
+TEST_CASE("a tall chip in an untagged side column stacks at its own height",
+          "[printer_image][callout_layout]") {
+    auto in = base();
+    in.tagged = false;
+    in.area_w = 300; // image 186x140 centred: a 57px band right of it
+    CalloutChipIn tall{CalloutKind::SpeedFlow, 40, std::nullopt};
+    tall.h = 40;
+    in.active = {
+        {CalloutKind::Nozzle, 40, std::nullopt}, tall, {CalloutKind::Bed, 40, std::nullopt}};
+    const auto l = compute_callout_layout(in);
+    REQUIRE(l.mode == CalloutMode::Docked);
+    REQUIRE(l.chips.size() == 3);
+    for (const auto& c : l.chips)
+        CHECK(c.rect.x >= l.image.x + l.image.w); // the side column, not the bottom row
+    CHECK(l.chips[1].rect.h == 40);
+    CHECK(l.chips[2].rect.y >= l.chips[1].rect.y + 40 + in.gap);
+    check_apart_and_inside(l, in);
+}
+
+TEST_CASE("bands above and below are as deep as their tallest chip",
+          "[printer_image][callout_layout]") {
+    auto in = wide();
+    in.area_w = 240;
+    in.area_h = 480; // image 240x180 centred: 150px above and below
+    for (auto* v : {&in.budget, &in.active})
+        for (auto& c : *v)
+            if (c.kind == CalloutKind::Fan)
+                c.h = 148; // with gap and min_line, deeper than either band
+    const auto l = compute_callout_layout(in);
+    REQUIRE(l.mode != CalloutMode::ImageOnly);
+    for (const auto& c : l.chips) {
+        CAPTURE(int(c.kind));
+        CHECK_FALSE(overlaps(c.rect, l.image));
+    }
+    check_apart_and_inside(l, in);
+}
+
+TEST_CASE("a tall chip in a band below the image ends on the far edge at its own height",
+          "[printer_image][callout_layout]") {
+    auto in = wide();
+    in.area_w = 240;
+    in.area_h = 480; // image 240x180 centred: 150px above and below
+    for (auto* v : {&in.budget, &in.active})
+        for (auto& c : *v)
+            if (c.kind == CalloutKind::Bed)
+                c.h = 40; // its point is below the image's middle: the bottom band
+    const auto l = compute_callout_layout(in);
+    REQUIRE((l.mode == CalloutMode::BothSides || l.mode == CalloutMode::OneSide));
+    const auto* bed = find(l, CalloutKind::Bed);
+    REQUIRE(bed);
+    REQUIRE(bed->has_line);
+    CHECK(bed->rect.h == 40);
+    CHECK(bed->rect.y + bed->rect.h == in.area_h - in.gap);
+    CHECK(bed->line_y1 == bed->rect.y); // the leader enters its near (top) edge
+    check_apart_and_inside(l, in);
+}
+
+TEST_CASE("a tall chip in the toolhead group pushes the chips below it down",
+          "[printer_image][callout_layout]") {
+    auto in = wide();
+    in.area_w = 186 + 70 + in.gap + in.min_line; // one column beside the full-size image
+    // The fan and a 60px nozzle stack as one block, 82px with the gap; with the
+    // chamber and bed, 126 of the 132px the column has.
+    for (auto* v : {&in.budget, &in.active})
+        for (auto& c : *v)
+            if (c.kind == CalloutKind::Nozzle)
+                c.h = 60;
+    const auto l = compute_callout_layout(in);
+    REQUIRE(l.mode == CalloutMode::OneSide);
+    REQUIRE(find(l, CalloutKind::Nozzle)->rect.h == 60);
+    check_apart_and_inside(l, in);
+}

@@ -52,6 +52,8 @@ struct CalloutChipIn {
     /// Its width with its label ("Part") left off, which is the first width a
     /// layout gives up; 0 when it has no label to lose.
     int w_unlabeled = 0;
+    /// Measured height of a chip taller than one text line; 0 is the layout's chip_h.
+    int h = 0;
 };
 
 struct CalloutChipOut {
@@ -75,7 +77,7 @@ struct CalloutLayoutInput {
     int image_w = 0;          ///< natural image size; only the aspect is used
     int image_h = 0;
     bool tagged = false; ///< the image has a regions entry
-    int chip_h = 0;      ///< every chip is one text line tall
+    int chip_h = 0;      ///< a one-line chip's height; a taller chip carries its own h
     int gap = 0;         ///< between stacked chips, and from the area edge
     int min_line = 0;    ///< shortest leader run worth drawing
     /// Pinned chips draw a leader only when they land farther than this from their
@@ -186,6 +188,10 @@ inline int px(float n, int origin, int extent) {
     return origin + int(n * float(extent));
 }
 
+inline int chip_h_of(const CalloutLayoutInput& in, const CalloutChipIn& c) {
+    return c.h > 0 ? c.h : in.chip_h;
+}
+
 inline CalloutRect clamp_into(CalloutRect r, int area_w, int area_h) {
     r.w = std::min(r.w, area_w);
     r.h = std::min(r.h, area_h);
@@ -206,24 +212,32 @@ inline void place_docked(const CalloutLayoutInput& in, const CalloutRect& img,
         widest = std::max(widest, c.w);
     const int band_x = img.x + img.w;
     const int band_w = in.area_w - band_x;
-    const int stack_h = int(chips.size()) * in.chip_h + int(chips.size() - 1) * in.gap;
+    int stack_h = int(chips.size() - 1) * in.gap;
+    for (const auto& c : chips)
+        stack_h += chip_h_of(in, c);
     if (band_w >= widest + 2 * in.gap && stack_h <= in.area_h - 2 * in.gap) {
         int y = (in.area_h - stack_h) / 2;
         for (const auto& c : chips) {
-            out.push_back({c.kind, {band_x + in.gap, y, c.w, in.chip_h}});
-            y += in.chip_h + in.gap;
+            const int h = chip_h_of(in, c);
+            out.push_back({c.kind, {band_x + in.gap, y, c.w, h}});
+            y += h + in.gap;
         }
         return;
     }
+    // Each row's chips share its bottom edge; the next row starts above its tallest chip.
     int x = in.area_w - in.gap;
-    int y = in.area_h - in.gap - in.chip_h;
+    int row_bottom = in.area_h - in.gap;
+    int row_h = 0;
     for (const auto& c : chips) {
         if (x - c.w < in.gap && x != in.area_w - in.gap) {
             x = in.area_w - in.gap;
-            y -= in.chip_h + in.gap;
+            row_bottom -= row_h + in.gap;
+            row_h = 0;
         }
+        const int h = chip_h_of(in, c);
+        row_h = std::max(row_h, h);
         x -= c.w;
-        out.push_back({c.kind, clamp_into({x, y, c.w, in.chip_h}, in.area_w, in.area_h)});
+        out.push_back({c.kind, clamp_into({x, row_bottom - h, c.w, h}, in.area_w, in.area_h)});
         x -= in.gap;
     }
 }
@@ -347,20 +361,21 @@ inline bool dock_free(const CalloutLayoutInput& in, const CalloutRect& img,
                 return rects_near(r, o.rect, in.gap);
             });
         };
+        const int h = chip_h_of(in, c);
         std::optional<CalloutRect> spot;
         for (const int x : {in.area_w - in.gap - c.w, in.gap}) {
-            for (int y = in.gap; !spot && y + in.chip_h <= in.area_h - in.gap; ++y)
-                if (free_at({x, y, c.w, in.chip_h}))
-                    spot = CalloutRect{x, y, c.w, in.chip_h};
+            for (int y = in.gap; !spot && y + h <= in.area_h - in.gap; ++y)
+                if (free_at({x, y, c.w, h}))
+                    spot = CalloutRect{x, y, c.w, h};
             if (spot)
                 break;
         }
-        for (const int y : {in.area_h - in.gap - in.chip_h, in.gap}) {
+        for (const int y : {in.area_h - in.gap - h, in.gap}) {
             if (spot)
                 break;
             for (int x = in.area_w - in.gap - c.w; !spot && x >= in.gap; --x)
-                if (free_at({x, y, c.w, in.chip_h}))
-                    spot = CalloutRect{x, y, c.w, in.chip_h};
+                if (free_at({x, y, c.w, h}))
+                    spot = CalloutRect{x, y, c.w, h};
         }
         if (spot) {
             out.push_back({c.kind, *spot});
@@ -423,7 +438,7 @@ inline bool stack(const CalloutLayoutInput& in, const CalloutRect& img, bool hor
     for (const auto& c : chips) {
         const int a =
             horizontal_band ? px(c.anchor->y, img.y, img.h) : px(c.anchor->x, img.x, img.w);
-        const int s = horizontal_band ? in.chip_h : c.w;
+        const int s = horizontal_band ? chip_h_of(in, c) : c.w;
         start.push_back(a - s / 2);
         size.push_back(s);
     }
@@ -437,17 +452,18 @@ inline bool stack(const CalloutLayoutInput& in, const CalloutRect& img, bool hor
     for (size_t i = 0; i < chips.size(); ++i) {
         const auto& c = chips[i];
         const int ax = px(c.anchor->x, img.x, img.w), ay = px(c.anchor->y, img.y, img.h);
+        const int h = chip_h_of(in, c);
         CalloutChipOut o;
         if (horizontal_band) {
             const int x = left_or_top ? band_pos : band_pos - c.w;
-            o = chip_at(c, x, start[i], in.chip_h, ax, ay);
+            o = chip_at(c, x, start[i], h, ax, ay);
             o.line_x1 = left_or_top ? x + c.w : x;
-            o.line_y1 = start[i] + in.chip_h / 2;
+            o.line_y1 = start[i] + h / 2;
         } else {
-            const int y = left_or_top ? band_pos : band_pos - in.chip_h;
-            o = chip_at(c, start[i], y, in.chip_h, ax, ay);
+            const int y = left_or_top ? band_pos : band_pos - h;
+            o = chip_at(c, start[i], y, h, ax, ay);
             o.line_x1 = start[i] + c.w / 2;
-            o.line_y1 = left_or_top ? y + in.chip_h : y;
+            o.line_y1 = left_or_top ? y + h : y;
         }
         const CalloutPoint e =
             leader_elbow({ax, ay}, {o.line_x1, o.line_y1}, in.min_line, horizontal_band);
@@ -469,10 +485,12 @@ inline constexpr int kMaxImageShrinkPctBothSides = 20;
 /// budget chips needs across it, for the image at `img`.
 inline std::pair<bool, int> line_column(const CalloutLayoutInput& in, const CalloutRect& img) {
     const bool horiz = (in.area_w - img.w) >= (in.area_h - img.h);
-    int widest = 0;
-    for (const auto& c : in.budget)
+    int widest = 0, tallest = in.chip_h;
+    for (const auto& c : in.budget) {
         widest = std::max(widest, c.w);
-    return {horiz, (horiz ? widest : in.chip_h) + in.gap + in.min_line};
+        tallest = std::max(tallest, chip_h_of(in, c));
+    }
+    return {horiz, (horiz ? widest : tallest) + in.gap + in.min_line};
 }
 
 /// The chips of the toolhead: one block in the nozzle's band.
@@ -539,7 +557,7 @@ inline std::vector<BandUnit> band_units(const CalloutLayoutInput& in, const Call
         } else {
             BandUnit u;
             u.chips = {c};
-            u.h = in.chip_h;
+            u.h = chip_h_of(in, c);
             if (c.anchor)
                 u.y = py(c);
             units.push_back(u);
@@ -550,7 +568,9 @@ inline std::vector<BandUnit> band_units(const CalloutLayoutInput& in, const Call
             return py(a) != py(b) ? py(a) < py(b) : rank(a.kind) < rank(b.kind);
         });
         BandUnit u;
-        u.h = int(group.size()) * in.chip_h + int(group.size() - 1) * in.gap;
+        u.h = int(group.size() - 1) * in.gap;
+        for (const auto& c : group)
+            u.h += chip_h_of(in, c);
         if (group.front().anchor)
             u.y = py(group.front());
         u.chips = std::move(group);
@@ -640,22 +660,23 @@ inline bool place_band(const CalloutLayoutInput& in, const CalloutRect& img, boo
         int y = tops[k];
         for (const auto& c : units[k].chips) {
             const int x = right ? in.area_w - in.gap - c.w : in.gap;
+            const int h = chip_h_of(in, c);
             CalloutChipOut o;
             if (c.anchor) {
                 const int ax = px(c.anchor->x, img.x, img.w), ay = px(c.anchor->y, img.y, img.h);
-                o = chip_at(c, x, y, in.chip_h, ax, ay);
+                o = chip_at(c, x, y, h, ax, ay);
                 o.line_x1 = right ? x : x + c.w;
-                o.line_y1 = y + in.chip_h / 2;
+                o.line_y1 = y + h / 2;
                 const CalloutPoint e =
                     leader_elbow({ax, ay}, {o.line_x1, o.line_y1}, in.min_line, true);
                 o.line_xm = e.x;
                 o.line_ym = e.y;
             } else {
                 o.kind = c.kind;
-                o.rect = {x, y, c.w, in.chip_h};
+                o.rect = {x, y, c.w, h};
             }
             out.push_back(o);
-            y += in.chip_h + in.gap;
+            y += h + in.gap;
         }
     }
     return true;
@@ -883,9 +904,9 @@ inline bool try_line_modes(const CalloutLayoutInput& in, CalloutLayout& out,
             for (const auto& c : pinned) {
                 const int cx = px(c.anchor->x, out.image.x, out.image.w);
                 const int cy = px(c.anchor->y, out.image.y, out.image.h);
+                const int h = chip_h_of(in, c);
                 out.chips.push_back(
-                    {c.kind, clamp_into({cx - c.w / 2, cy - in.chip_h / 2, c.w, in.chip_h},
-                                        in.area_w, in.area_h)});
+                    {c.kind, clamp_into({cx - c.w / 2, cy - h / 2, c.w, h}, in.area_w, in.area_h)});
             }
             // The docked row is the bottom edge: the side bands belong to the image here.
             place_docked(in, CalloutRect{0, 0, in.area_w, 0}, docked, out.chips);

@@ -192,7 +192,7 @@ Choosing between a modal and an overlay is a design question with a fixed answer
 | Part fan, hotend fan | `part_fan`, `nozzle` | Part fan Active while spinning. Fans at 0% are Dim, and a hotend fan at its automatic speed is Dim; both expendable. |
 | Aux fan | none | Dim and expendable at 0%. |
 | Light | `light` | Active when on, expendable when off; tap toggles. |
-| Speed + flow | none | One chip with the live toolhead speed (`tune::live_speed_text()`, `187mm/s`); Warn whenever either factor is not 100%, never expendable then. The factors are Tune's to show. Opens Tune. |
+| Speed + flow | none | One two-line chip, the live toolhead speed over the live volumetric flow (`tune::live_rates_text()`, `187 mm/s` over `12.0 mm³/s`), budgeted at its widest line and measured at its own height (`CalloutChipIn::h`); Warn whenever either factor is not 100%, never expendable then. The factors are Tune's to show. Opens Tune. |
 
 Fan chips lead with a role label (Part, HE, Aux) when there is room. Every chip is a tap target into the detail it summarizes. **More** holds Camera, Timelapse and Light, each under its existing visibility rule, and hides when all are hidden.
 
@@ -210,7 +210,7 @@ Leaders are dotted and have three points: the part's point, an elbow, and the ch
 
 Three rules keep the picture still and the chips readable:
 
-- **The mode follows a stable budget, not the readings.** Fit is tested against every chip the printer can ever show, each measured at a representative reading (`heater_budget_text()`: a three-digit value, heating or holding; fans at 100%; speed and flow at 100%), so a digit or a chip coming and going never moves the layout. Only the active chips get positions.
+- **The mode follows a stable budget, not the readings.** Fit is tested against every chip the printer can ever show, each measured at a representative reading (`heater_budget_text()`: a three-digit value, heating or holding; fans at 100%; the speed/flow chip at `999 mm/s` over `999.9 mm³/s`), so a digit or a chip coming and going never moves the layout. Only the active chips get positions. A chip taller than one text line carries its own height (`CalloutChipIn::h`, 0 for one line), and every placement uses it.
 - **The picture may shrink** to keep leader lines before giving up to `Pinned`: just enough for one side, up to 40% (`kMaxImageShrinkPctOneSide`), then for both, up to 20% (`kMaxImageShrinkPctBothSides`).
 - **When chips do not fit**, a chip gives way in this order: fan labels first (the same chips, narrower), then expendable chips one at a time (hotend fan first, then the light and aux fan, then part fan and speed/flow if expendable), then `Pinned`. A chip off target, tuned or heating is never expendable. `CalloutLayout::dropped` names what was left off and `unlabeled` says labels were shed.
 

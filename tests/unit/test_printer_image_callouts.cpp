@@ -314,6 +314,28 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
+                 "callouts: a two-line chip is as wide as its widest line and two lines tall",
+                 "[printer_image][callouts]") {
+    lv_obj_t* chip = lv_obj_create(test_screen());
+    lv_obj_set_style_pad_ver(chip, 3, 0);
+    lv_obj_set_style_pad_hor(chip, 5, 0);
+    lv_obj_set_style_border_width(chip, 1, 0);
+    const auto m = helix::ui::measure_callout_chip(chip);
+    const std::string top = "999 mm/s", bottom = "99.9 mm\xC2\xB3/s";
+    const std::string both = top + "\n" + bottom;
+    CHECK(m.chip_w(16, both) == std::max(m.chip_w(16, top), m.chip_w(16, bottom)));
+    CHECK(m.chip_h_for(top) == m.chip_h);
+    CHECK(m.chip_h_for(both) == std::max(2 * m.text_line_h, m.icon_line_h) + 2 * 3 + 2);
+    CHECK(m.chip_h_for(both) > m.chip_h);
+
+    const int xs_line = lv_font_get_line_height(theme_manager_get_font("font_xs"));
+    CHECK(helix::ui::compact_callout_chip_h(chip, false, 2) == 2 * xs_line + 2 * 3 + 2);
+    CHECK(helix::ui::compact_callout_chip_w(chip, both, 0) ==
+          std::max(helix::ui::compact_callout_chip_w(chip, top, 0),
+                   helix::ui::compact_callout_chip_w(chip, bottom, 0)));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
                  "callouts: the light chip shows lit or dark with the chamber light, not another "
                  "strip",
                  "[printer_image][callouts]") {

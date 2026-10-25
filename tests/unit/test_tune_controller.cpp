@@ -6,6 +6,8 @@
 #include "../../include/tune_controller.h"
 #include "../lvgl_test_fixture.h"
 
+#include <cmath>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
@@ -109,6 +111,32 @@ TEST_CASE("Every live speed readout shares one format", "[tune_controller][tune_
     CHECK(helix::tune::live_speed_text(187) == "187 mm/s");
     CHECK(helix::tune::status_speed_flow_text(true, 100, 100, 187, 0, 1.75).speed ==
           helix::tune::live_speed_text(187));
+}
+
+TEST_CASE("Every live flow readout shares one format", "[tune_controller][tune_units]") {
+    CHECK(helix::tune::live_flow_text(12.026) == "12.0 mm\xC2\xB3/s");
+    CHECK(helix::tune::live_flow_text(0.0) == "0.0 mm\xC2\xB3/s");
+    CHECK(helix::tune::live_flow_text(31.97) == "32.0 mm\xC2\xB3/s");
+    CHECK(helix::tune::status_speed_flow_text(true, 100, 100, 187, 500, 1.75).flow ==
+          helix::tune::live_flow_text(helix::tune::volumetric_flow_mm3_s(500, 1.75)));
+}
+
+TEST_CASE("A retract reads as no flow and never a negative one", "[tune_controller][tune_units]") {
+    // 40 mm/s backwards through 1.75 mm filament, and a tiny reverse sample.
+    CHECK(helix::tune::volumetric_flow_mm3_s(-4000, 1.75) == 0.0);
+    CHECK_FALSE(std::signbit(helix::tune::volumetric_flow_mm3_s(-4000, 1.75)));
+    CHECK_FALSE(std::signbit(helix::tune::volumetric_flow_mm3_s(-1, 1.75)));
+    CHECK(helix::tune::live_flow_text(helix::tune::volumetric_flow_mm3_s(-1, 2.85)) ==
+          "0.0 mm\xC2\xB3/s");
+    CHECK(helix::tune::status_speed_flow_text(true, 100, 100, 120, -4000, 2.85).flow ==
+          "0.0 mm\xC2\xB3/s");
+}
+
+TEST_CASE("The live rates read speed over flow", "[tune_controller][tune_units]") {
+    CHECK(helix::tune::live_rates_text(60, 12.026) == "60 mm/s\n12.0 mm\xC2\xB3/s");
+    CHECK(helix::tune::live_rates_text(0, 0.0) == "0 mm/s\n0.0 mm\xC2\xB3/s");
+    CHECK(helix::tune::live_rates_text(187, 31.9) ==
+          helix::tune::live_speed_text(187) + "\n" + helix::tune::live_flow_text(31.9));
 }
 
 TEST_CASE_METHOD(TuneFixture, "set_pressure_advance sends a clamped SET_PRESSURE_ADVANCE",

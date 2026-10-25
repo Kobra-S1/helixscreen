@@ -2290,10 +2290,12 @@ void PrintStatusWidget::DetailedFormatter::update_speed_flow_text() {
                  lv_subject_get_int(ps.motion_state().get_live_velocity_subject()))
                  .c_str());
     lv_subject_copy_string(&speed_text_subject_, speed_text_buf_);
-    snprintf(flow_text_buf_, sizeof(flow_text_buf_), "· %.1fmm\xC2\xB3/s",
-             helix::tune::volumetric_flow_mm3_s(
-                 lv_subject_get_int(ps.motion_state().get_live_extruder_velocity_subject()),
-                 ps.get_discovery().filament_diameter_mm()));
+    snprintf(flow_text_buf_, sizeof(flow_text_buf_), "· %s",
+             helix::tune::live_flow_text(
+                 helix::tune::volumetric_flow_mm3_s(
+                     lv_subject_get_int(ps.motion_state().get_live_extruder_velocity_subject()),
+                     ps.get_discovery().filament_diameter_mm()))
+                 .c_str());
     lv_subject_copy_string(&flow_text_subject_, flow_text_buf_);
     // A rate gaining a digit can push the flow out of its row.
     if (strlen(speed_text_buf_) + strlen(flow_text_buf_) != speed_flow_len_) {

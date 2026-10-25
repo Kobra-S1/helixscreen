@@ -538,7 +538,7 @@ class PrintStatusWidget : public PanelWidget {
         char remaining_text_buf_[24]; // "99h 59m"
         char filament_text_buf_[32];  // "1234.5m"
         char speed_text_buf_[16];     // "1234mm/s"
-        char flow_text_buf_[24];      // "· 123.4mm³/s"
+        char flow_text_buf_[24];      // "· 123.4 mm³/s"
         size_t speed_flow_len_ = 0;
         char nozzle_text_buf_[32];       // "265 / 270°C" — kept for tool_override test
         char nozzle_badge_text_buf_[16]; // the nozzle icon's 1-based tool number
