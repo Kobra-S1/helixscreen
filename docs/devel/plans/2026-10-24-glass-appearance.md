@@ -65,7 +65,7 @@ Values (percent = share of white/black mixed into `base`; frac = position):
 | Raised | dark | white 45% @0, white 22% @23, white 6% @102, black 22% @255 |
 | Raised | light | white 50% @0, white 22% @23, white 6% @102, black 18% @255 |
 | Raised pressed | both | black 25% @0, black 5% @255 |
-| Surface (radial from top-left) | dark | white 14% @0, base @140, black 15% @255 |
+| Surface (radial from top-left) | dark | white 24% @0, base @160, black 15% @255 |
 | Surface | light | base @0, black 3% @140, black 9% @255 |
 | Recessed (vertical) | dark | black 30% @0, base @255 |
 | Recessed | light | black 12% @0, base @255 |

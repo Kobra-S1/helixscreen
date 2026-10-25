@@ -58,10 +58,10 @@ TEST_CASE("glass_stops: raised light, surface and recessed match the spec table"
 
     const GlassStops surface_dark = glass_stops(GlassFamily::Surface, base, true, false);
     REQUIRE(surface_dark.count == 3);
-    CHECK(same(surface_dark.color[0], toward_white(base, 14)));
+    CHECK(same(surface_dark.color[0], toward_white(base, 24)));
     CHECK(same(surface_dark.color[1], base));
     CHECK(same(surface_dark.color[2], toward_black(base, 15)));
-    CHECK(surface_dark.frac[1] == 140);
+    CHECK(surface_dark.frac[1] == 160);
 
     const GlassStops surface_light = glass_stops(GlassFamily::Surface, base, false, false);
     REQUIRE(surface_light.count == 3);

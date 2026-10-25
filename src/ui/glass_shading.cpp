@@ -33,7 +33,7 @@ constexpr StopSpec kRaisedLight[] = {{Toward::White, 50, 0},
                                      {Toward::Black, 18, 255}};
 constexpr StopSpec kRaisedPressed[] = {{Toward::Black, 25, 0}, {Toward::Black, 5, 255}};
 constexpr StopSpec kSurfaceDark[] = {
-    {Toward::White, 14, 0}, {Toward::Base, 0, 140}, {Toward::Black, 15, 255}};
+    {Toward::White, 24, 0}, {Toward::Base, 0, 160}, {Toward::Black, 15, 255}};
 constexpr StopSpec kSurfaceLight[] = {
     {Toward::Base, 0, 0}, {Toward::Black, 3, 140}, {Toward::Black, 9, 255}};
 constexpr StopSpec kRecessedDark[] = {{Toward::Black, 30, 0}, {Toward::Base, 0, 255}};
