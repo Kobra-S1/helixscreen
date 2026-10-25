@@ -282,6 +282,15 @@ int PrintStatusTiles::heat_start(PrintStatusChip chip, int current, int target) 
     return h.start;
 }
 
+std::string PrintStatusTiles::tool_badge() const {
+    auto& tools = ToolState::instance();
+    if (subject_int_or_zero(tools.get_show_tool_badge_subject()) == 0) {
+        return {};
+    }
+    const char* t = lv_subject_get_string(tools.get_tool_badge_text_subject());
+    return t ? t : "";
+}
+
 ChipContent PrintStatusTiles::heater(PrintStatusChip chip, bool show_power) {
     auto& temps = printer_state_.temperature_state();
     bool present = true;
@@ -293,12 +302,7 @@ ChipContent PrintStatusTiles::heater(PrintStatusChip chip, bool show_power) {
     case PrintStatusChip::Nozzle: {
         current = subject_int_or_zero(temps.get_active_extruder_temp_subject());
         target = subject_int_or_zero(temps.get_active_extruder_target_subject());
-        auto& tools = ToolState::instance();
-        if (subject_int_or_zero(tools.get_show_tool_badge_subject()) != 0) {
-            if (const char* t = lv_subject_get_string(tools.get_tool_badge_text_subject())) {
-                badge = t;
-            }
-        }
+        badge = tool_badge();
         break;
     }
     case PrintStatusChip::Bed:
@@ -451,15 +455,7 @@ void PrintStatusTiles::update_now() {
     // What each chip shows decides the mode, at representative readings so a
     // digit coming or going never moves the picture: a heater heating or
     // holding, a fan at full speed, labeled and not, speed and flow at 100%.
-    std::string badge;
-    {
-        auto& tools = ToolState::instance();
-        if (subject_int_or_zero(tools.get_show_tool_badge_subject()) != 0) {
-            if (const char* t = lv_subject_get_string(tools.get_tool_badge_text_subject())) {
-                badge = t;
-            }
-        }
-    }
+    const std::string badge = tool_badge();
     const auto worst = [&](PrintStatusChip c, bool labeled) -> std::string {
         switch (c) {
         case PrintStatusChip::Nozzle:
@@ -588,7 +584,7 @@ void PrintStatusTiles::update_now() {
                               : printer_state_.fan_state().get_fan_speed_subject(part_fan_))) +
         "%";
     const std::string toolhead_text =
-        contents[index_of(PrintStatusChip::Nozzle)].text + "  " + fan_pct;
+        toolhead_chip_text(contents[index_of(PrintStatusChip::Nozzle)].text, fan_pct);
     if (lv_obj_t* th_obj = lv_obj_find_by_name(area, "ps_chip_toolhead")) {
         CalloutPresenter::Chip th;
         th.kind = CalloutKind::Toolhead;

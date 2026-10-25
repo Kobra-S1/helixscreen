@@ -166,3 +166,9 @@ TEST_CASE("phase budget expendable table", "[print_status_chips]") {
         CHECK(phase_budget_expendable(r.kind, false) == r.preparing);
     }
 }
+
+TEST_CASE("the toolhead chip joins the nozzle reading and the fan two spaces apart",
+          "[print_status_chips]") {
+    CHECK(ui::toolhead_chip_text("220°", "45%") == "220°  45%");
+    CHECK(ui::toolhead_chip_text("T1 184 / 220°", "0%") == "T1 184 / 220°  0%");
+}

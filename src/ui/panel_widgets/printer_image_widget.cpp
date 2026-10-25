@@ -911,7 +911,8 @@ void PrinterImageWidget::update_callouts() {
     if (lv_subject_get_int(&s_callout_light_on) != light_on)
         lv_subject_set_int(&s_callout_light_on, light_on);
     set_text(CalloutKind::Toolhead, &s_callout_toolhead_text,
-             callout_full_text_[static_cast<size_t>(CalloutKind::Nozzle)] + "  " + fan_buf);
+             ui::toolhead_chip_text(callout_full_text_[static_cast<size_t>(CalloutKind::Nozzle)],
+                                    fan_buf));
 
     const bool animate = DisplaySettingsManager::instance().get_animations_enabled();
     set_glow_pulse(bed_heating && animate);

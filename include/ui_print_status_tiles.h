@@ -152,6 +152,8 @@ class PrintStatusTiles {
     /// `labeled`: fan chips name their role ("Part 30%").
     std::array<ChipContent, kPrintStatusChipCount> decide_chips(bool show_power, bool labeled);
     void publish(PrintStatusChip chip, const ChipContent& c, bool shown, bool glow, bool line);
+    /// The active tool's badge ("T1") on a multi-tool printer, empty otherwise.
+    std::string tool_badge() const;
     ChipContent heater(PrintStatusChip chip, bool show_power);
     int heat_start(PrintStatusChip chip, int current, int target);
     ChipContent fan(PrintStatusChip chip, bool labeled);
