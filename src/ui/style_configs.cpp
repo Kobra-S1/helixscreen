@@ -25,6 +25,33 @@ void configure_pressed_for_tier(lv_style_t* s, PlatformTier tier, const ThemePal
     lv_style_set_transform_pivot_y(s, LV_PCT(50));
 }
 
+namespace {
+
+/// Glass shadow and rim width for one family of shared styles. The rim's color is drawn by the
+/// glass painter from each widget's own fill, so only its width lives here.
+struct GlassShadow {
+    int width;
+    int offset_y;
+    lv_opa_t dark_opa;
+};
+
+constexpr GlassShadow kGlassButtonShadow{12, 5, 102};
+constexpr GlassShadow kGlassSurfaceShadow{10, 4, 90};
+constexpr GlassShadow kGlassPressedShadow{6, 2, 102};
+/// Light mode's glass shadow: a cool navy, softer than black.
+constexpr uint32_t kGlassLightShadowColor = 0x1E2846;
+constexpr lv_opa_t kGlassLightShadowOpa = 56;
+
+void apply_glass(lv_style_t* s, const ThemePalette& p, const GlassShadow& g) {
+    lv_style_set_shadow_width(s, g.width);
+    lv_style_set_shadow_offset_y(s, g.offset_y);
+    lv_style_set_shadow_color(s, p.dark ? lv_color_black() : lv_color_hex(kGlassLightShadowColor));
+    lv_style_set_shadow_opa(s, p.dark ? g.dark_opa : kGlassLightShadowOpa);
+    lv_style_set_border_width(s, p.border_width > 0 ? p.border_width : 1);
+}
+
+} // namespace
+
 void configure_card_pressed(lv_style_t* s, const ThemePalette& p) {
     configure_pressed_for_tier(s, PlatformCapabilities::detect().tier, &p);
 }
@@ -60,6 +87,9 @@ void configure_card(lv_style_t* s, const ThemePalette& p) {
     apply_border(s, p, p.card_bg);
     lv_style_set_radius(s, p.border_radius);
     apply_shadow(s, p);
+    if (p.glass) {
+        helix::apply_glass(s, p, helix::kGlassSurfaceShadow);
+    }
 }
 
 void configure_dialog(lv_style_t* s, const ThemePalette& p) {
@@ -68,6 +98,9 @@ void configure_dialog(lv_style_t* s, const ThemePalette& p) {
     apply_border(s, p, p.elevated_bg);
     lv_style_set_radius(s, p.border_radius);
     apply_shadow(s, p);
+    if (p.glass) {
+        helix::apply_glass(s, p, helix::kGlassSurfaceShadow);
+    }
 }
 
 void configure_obj_base(lv_style_t* s, const ThemePalette& p) {
@@ -97,8 +130,12 @@ void configure_disabled(lv_style_t* s, const ThemePalette& p) {
 }
 
 void configure_pressed(lv_style_t* s, const ThemePalette& p) {
-    (void)p;
     helix::configure_pressed_for_tier(s, helix::PlatformCapabilities::detect().tier);
+    if (p.glass) {
+        // A pressed glass button sits closer to the surface: a tighter shadow.
+        lv_style_set_shadow_width(s, helix::kGlassPressedShadow.width);
+        lv_style_set_shadow_offset_y(s, helix::kGlassPressedShadow.offset_y);
+    }
 }
 
 void configure_focused(lv_style_t* s, const ThemePalette& p) {
@@ -162,6 +199,9 @@ void configure_button(lv_style_t* s, const ThemePalette& p) {
     apply_border(s, p, p.elevated_bg);
     lv_style_set_radius(s, p.button_radius);
     apply_shadow(s, p);
+    if (p.glass) {
+        helix::apply_glass(s, p, helix::kGlassButtonShadow);
+    }
     // Pivot must be in base style so it doesn't animate during pressed→released transition
     lv_style_set_transform_pivot_x(s, LV_PCT(50));
     lv_style_set_transform_pivot_y(s, LV_PCT(50));

@@ -184,6 +184,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass attach is idempotent and keeps a flag i
 TEST_CASE_METHOD(LVGLTestFixture, "glass shades a locally colored card and spares a marked one",
                  "[glass]") {
     ThemeManager::instance().init();
+    ThemeManager::instance().set_dark_mode(true);
     lv_obj_t* swatch = make_card(test_screen());
     lv_obj_set_style_bg_color(swatch, lv_color_hex(0xD94848), LV_PART_MAIN);
     lv_obj_t* marked = make_card(test_screen());
@@ -203,8 +204,115 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass shades a locally colored card and spare
     const size_t at = 12 * stride + 12 * 4;
     const lv_color_t corner =
         lv_color_make(swatch_glass[at + 2], swatch_glass[at + 1], swatch_glass[at]);
-    CAPTURE(corner.red, corner.green, corner.blue);
+    CAPTURE(int(corner.red), int(corner.green), int(corner.blue));
     CHECK(corner.red > 0xD9);
     CHECK(corner.red > corner.green + 0x40);
     CHECK(corner.green == corner.blue);
+}
+
+// ============================================================================
+// Theme styles in glass mode
+// ============================================================================
+
+namespace {
+
+/// Returns the theme to flat, dark mode on scope exit.
+struct GlassThemeRestore {
+    ~GlassThemeRestore() {
+        ThemeManager::instance().set_glass(false);
+        ThemeManager::instance().set_dark_mode(true);
+    }
+};
+
+int32_t style_num(StyleRole r, lv_style_prop_t prop) {
+    lv_style_value_t v{};
+    if (lv_style_get_prop(role(r), prop, &v) != LV_STYLE_RES_FOUND) {
+        return -1;
+    }
+    return v.num;
+}
+
+lv_color_t style_color(StyleRole r, lv_style_prop_t prop) {
+    lv_style_value_t v{};
+    lv_style_get_prop(role(r), prop, &v);
+    return v.color;
+}
+
+/// Every property glass may touch, on every role it touches.
+std::vector<int64_t> glass_touched_props() {
+    std::vector<int64_t> out;
+    for (StyleRole r :
+         {StyleRole::Button, StyleRole::Card, StyleRole::Dialog, StyleRole::Pressed}) {
+        for (lv_style_prop_t prop :
+             {LV_STYLE_SHADOW_WIDTH, LV_STYLE_SHADOW_OFFSET_Y, LV_STYLE_SHADOW_OPA,
+              LV_STYLE_BORDER_WIDTH, LV_STYLE_BORDER_OPA, LV_STYLE_RADIUS}) {
+            out.push_back(style_num(r, prop));
+        }
+        for (lv_style_prop_t prop :
+             {LV_STYLE_SHADOW_COLOR, LV_STYLE_BORDER_COLOR, LV_STYLE_BG_COLOR}) {
+            out.push_back(static_cast<int64_t>(lv_color_to_u32(style_color(r, prop))));
+        }
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "set_glass gives the shared styles glass shadows",
+                 "[glass][theme]") {
+    auto& tm = ThemeManager::instance();
+    tm.init();
+    GlassThemeRestore restore;
+    tm.set_glass(false);
+    tm.set_dark_mode(true);
+
+    tm.set_glass(true);
+    CHECK(tm.is_glass());
+    CHECK(tm.current_palette().glass);
+    CHECK(style_num(StyleRole::Button, LV_STYLE_SHADOW_WIDTH) == 12);
+    CHECK(style_num(StyleRole::Button, LV_STYLE_SHADOW_OFFSET_Y) == 5);
+    CHECK(style_num(StyleRole::Button, LV_STYLE_SHADOW_OPA) == 102);
+    CHECK(style_num(StyleRole::Card, LV_STYLE_SHADOW_WIDTH) == 10);
+    CHECK(style_num(StyleRole::Dialog, LV_STYLE_SHADOW_OFFSET_Y) == 4);
+    CHECK(style_num(StyleRole::Card, LV_STYLE_BORDER_WIDTH) >= 1);
+    CHECK(style_num(StyleRole::Pressed, LV_STYLE_SHADOW_WIDTH) == 6);
+    CHECK(lv_color_to_u32(style_color(StyleRole::Card, LV_STYLE_SHADOW_COLOR)) ==
+          lv_color_to_u32(lv_color_black()));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "set_glass(false) restores exactly the flat styles",
+                 "[glass][theme]") {
+    auto& tm = ThemeManager::instance();
+    tm.init();
+    GlassThemeRestore restore;
+    tm.set_glass(false);
+    tm.set_dark_mode(true);
+    const std::vector<int64_t> flat = glass_touched_props();
+
+    tm.set_glass(true);
+    REQUIRE(glass_touched_props() != flat);
+    tm.set_glass(false);
+    CHECK_FALSE(tm.is_glass());
+    CHECK(glass_touched_props() == flat);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "glass survives a dark/light switch and takes the light shadow",
+                 "[glass][theme]") {
+    auto& tm = ThemeManager::instance();
+    tm.init();
+    GlassThemeRestore restore;
+    tm.set_dark_mode(true);
+    tm.set_glass(true);
+
+    tm.set_dark_mode(false);
+    CHECK(tm.is_glass());
+    CHECK(tm.current_palette().glass);
+    CHECK_FALSE(tm.current_palette().dark);
+    CHECK(lv_color_to_u32(style_color(StyleRole::Card, LV_STYLE_SHADOW_COLOR)) ==
+          lv_color_to_u32(lv_color_hex(0x1E2846)));
+    CHECK(style_num(StyleRole::Card, LV_STYLE_SHADOW_OPA) == 56);
+
+    tm.set_palettes(tm.light_palette(), tm.dark_palette());
+    CHECK(tm.is_glass());
+    CHECK(style_num(StyleRole::Button, LV_STYLE_SHADOW_WIDTH) == 12);
 }

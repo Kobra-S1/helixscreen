@@ -98,6 +98,11 @@ struct ThemePalette {
     int shadow_width = 0;
     int shadow_opa = 0;
     int shadow_offset_y = 2;
+    /// Glass appearance: the shared styles carry glass shadows and rims. Set by ThemeManager
+    /// from set_glass(), never by a theme file.
+    bool glass = false;
+    /// Whether this palette is applied in dark mode. Set by ThemeManager; only glass reads it.
+    bool dark = true;
 };
 
 namespace helix {
@@ -240,6 +245,14 @@ class ThemeManager {
         set_dark_mode(!dark_mode_);
     }
 
+    /// Turn the glass appearance's style half on or off and re-apply the current palette.
+    /// Survives set_dark_mode(), set_palettes() and previews.
+    void set_glass(bool on);
+
+    bool is_glass() const {
+        return glass_;
+    }
+
     /// Set both light and dark palettes (for theme loading)
     void set_palettes(const ThemePalette& light, const ThemePalette& dark);
 
@@ -282,6 +295,7 @@ class ThemeManager {
     bool initialized_ = false;
     bool dark_mode_ = true;
     bool previewing_ = false;
+    bool glass_ = false;
 
     void register_style_configs();
     void apply_palette(const ThemePalette& palette);
