@@ -695,6 +695,12 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 **Display, sound and touch**
 
+- **Glass Effects** - an appearance option under Settings > Appearance that gives buttons a
+  lit, glassy finish and every card and panel a soft light from its top-left corner. It is
+  drawn from your theme's own colors, so it works with every theme in dark and light mode,
+  and it leaves filament color swatches, camera views and previews untouched. It only
+  appears on hardware fast enough to draw it: HelixScreen measures this once on your screen
+  and hides the option on slower boards and 16-bit panels, which keep the flat look.
 - **Bouncing Printer screensaver** (#1680) - the screensaver everyone already knows. Your
   printer drifts across a black screen and reflects off the edges, picking up a new tint on
   every wall. Land a true corner and it celebrates. The sprite is whatever printer this
