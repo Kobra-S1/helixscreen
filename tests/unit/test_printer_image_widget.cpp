@@ -205,8 +205,8 @@ TEST_CASE_METHOD(XMLTestFixture, "PrinterImageWidget generates its image cache o
 
 // A widget's image can still be LV_SIZE_CONTENT when the cache check fires.
 // The raw special coordinate is large and positive, so it must read as "no size
-// yet": a cache job sized off it can never complete, stays in flight,
-// set, and blocks the generation for the real size that follows.
+// yet": a cache job sized off it can never complete, so it stays in flight
+// and blocks the generation for the real size that follows.
 TEST_CASE_METHOD(XMLTestFixture,
                  "PrinterImageWidget skips the cache while its image is content-sized",
                  "[panel_widget][printer_image][cache]") {
