@@ -612,6 +612,12 @@ bool failure_still_current(const std::string& printer_id) {
            !(client && client->get_connection_state() == ConnectionState::CONNECTED);
 }
 
+/// Offers @p moved, the printer found at a new address, in place of the plain prompt.
+/// Returns false when there is nothing to offer.
+bool offer_moved_address(const std::string& title, const std::string& message,
+                         const std::optional<DiscoveredPrinter>& moved,
+                         const helix::ui::ConfirmOptions& opts);
+
 void present_connection_failed(const std::string& title, const std::string& message,
                                const std::optional<DiscoveredPrinter>& moved) {
     // Reconnect first: a wedged transport (reported on Android, where the
@@ -665,28 +671,7 @@ void present_connection_failed(const std::string& title, const std::string& mess
     };
     opts.cancel_text = lv_tr("Change Address");
 
-    // Offered, never adopted silently: a hostname is not unique, and a lookalike printer
-    // answering while this one is off would otherwise take its jobs.
-    if (moved) {
-        const std::string address = fmt::format("{}:{}", moved->ip_address, moved->port);
-        const std::string body =
-            message + "\n\n" + fill_placeholders(lv_tr("Found {} at {}."), {moved->name, address});
-        auto use_new = [host = moved->ip_address, port = static_cast<int>(moved->port),
-                        printer_id = Config::get_instance()->get_active_printer_id()] {
-            // The prompt can outlive a printer switch; the address belongs to this one only.
-            if (!failure_still_current(printer_id)) {
-                spdlog::info("[ChangeHost] Not applying {}:{}: the printer changed or "
-                             "reconnected while the prompt was open",
-                             host, port);
-                return;
-            }
-            store_active_printer_address(host, port);
-            // Past the prompt's exit animation, like the host modal's Save.
-            helix::ui::queue_update("ChangeHost::use_rediscovered",
-                                    [] { retarget_printer_connection(); });
-        };
-        helix::ui::modal_confirm(title.c_str(), body.c_str(), ModalSeverity::Error,
-                                 lv_tr("Use New Address"), use_new, opts);
+    if (offer_moved_address(title, message, moved, opts)) {
         return;
     }
 
@@ -765,6 +750,48 @@ void route_connection_failed(const std::string& title, const std::string& messag
     present_connection_failed(title, message, moved);
 }
 
+// ----------------------------------------------------------------------------
+// Rediscovery: an mDNS browse for the printer at a new address. The firmware has no
+// mDNS (its MdnsDiscovery is inert) and no inet_pton, so there it is compiled out and
+// the prompt always shows the address it has.
+// ----------------------------------------------------------------------------
+
+} // namespace
+
+#if !defined(HELIX_PLATFORM_ESP32)
+
+namespace {
+
+bool offer_moved_address(const std::string& title, const std::string& message,
+                         const std::optional<DiscoveredPrinter>& moved,
+                         const helix::ui::ConfirmOptions& opts) {
+    // Offered, never adopted silently: a hostname is not unique, and a lookalike printer
+    // answering while this one is off would otherwise take its jobs.
+    if (!moved) {
+        return false;
+    }
+    const std::string address = fmt::format("{}:{}", moved->ip_address, moved->port);
+    const std::string body =
+        message + "\n\n" + fill_placeholders(lv_tr("Found {} at {}."), {moved->name, address});
+    auto use_new = [host = moved->ip_address, port = static_cast<int>(moved->port),
+                    printer_id = Config::get_instance()->get_active_printer_id()] {
+        // The prompt can outlive a printer switch; the address belongs to this one only.
+        if (!failure_still_current(printer_id)) {
+            spdlog::info("[ChangeHost] Not applying {}:{}: the printer changed or "
+                         "reconnected while the prompt was open",
+                         host, port);
+            return;
+        }
+        store_active_printer_address(host, port);
+        // Past the prompt's exit animation, like the host modal's Save.
+        helix::ui::queue_update("ChangeHost::use_rediscovered",
+                                [] { retarget_printer_connection(); });
+    };
+    helix::ui::modal_confirm(title.c_str(), body.c_str(), ModalSeverity::Error,
+                             lv_tr("Use New Address"), use_new, opts);
+    return true;
+}
+
 std::string normalized_hostname(std::string name) {
     std::transform(name.begin(), name.end(), name.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -822,22 +849,21 @@ void finish_rediscovery() {
 }
 
 /// Browses once before the prompt shows, so it can offer the printer's new address.
-void begin_connection_failed(const std::string& title, const std::string& message) {
+/// Returns false when there is nothing to browse and the prompt should show now.
+bool start_rediscovery(const std::string& title, const std::string& message) {
     Rediscovery& r = rediscovery();
     Config* cfg = Config::get_instance();
     const std::string host = cfg->get<std::string>(cfg->df() + "moonraker_host", "");
     if (!r.source || host.empty() || helix::is_moonraker_on_same_host(host)) {
-        route_connection_failed(title, message, std::nullopt);
-        return;
+        return false;
     }
     if (r.mdns) {
         spdlog::debug("[ChangeHost] A browse is already in flight for this failure");
-        return;
+        return true;
     }
     r.mdns = r.source();
     if (!r.mdns) {
-        route_connection_failed(title, message, std::nullopt);
-        return;
+        return false;
     }
     r.title = title;
     r.message = message;
@@ -848,6 +874,7 @@ void begin_connection_failed(const std::string& title, const std::string& messag
     lv_timer_t* t =
         lv_timer_create([](lv_timer_t*) { finish_rediscovery(); }, kRediscoveryWindowMs, nullptr);
     lv_timer_set_repeat_count(t, 1);
+    return true;
 }
 
 } // namespace
@@ -855,14 +882,6 @@ void begin_connection_failed(const std::string& title, const std::string& messag
 std::optional<DiscoveredPrinter> find_moved_printer(const std::vector<DiscoveredPrinter>& found,
                                                     const std::string& saved_host, int saved_port,
                                                     const std::vector<std::string>& identities) {
-#if defined(HELIX_PLATFORM_ESP32)
-    // The firmware never browses for a moved printer, and its libc has no inet_pton.
-    (void)found;
-    (void)saved_host;
-    (void)saved_port;
-    (void)identities;
-    return std::nullopt;
-#else
     // A saved name re-resolves to wherever the printer went; swapping it for the literal IP
     // mDNS reports would trade an address that heals for one that cannot.
     in_addr v4{};
@@ -893,12 +912,47 @@ std::optional<DiscoveredPrinter> find_moved_printer(const std::vector<Discovered
         return std::nullopt;
     }
     return *moved;
-#endif
 }
 
 void set_printer_rediscovery_source(std::function<std::unique_ptr<IMdnsDiscovery>()> source) {
     rediscovery().source = std::move(source);
 }
+
+#else // HELIX_PLATFORM_ESP32
+
+namespace {
+
+bool offer_moved_address(const std::string&, const std::string&,
+                         const std::optional<DiscoveredPrinter>&,
+                         const helix::ui::ConfirmOptions&) {
+    return false;
+}
+
+bool start_rediscovery(const std::string&, const std::string&) {
+    return false;
+}
+
+} // namespace
+
+std::optional<DiscoveredPrinter> find_moved_printer(const std::vector<DiscoveredPrinter>&,
+                                                    const std::string&, int,
+                                                    const std::vector<std::string>&) {
+    return std::nullopt;
+}
+
+void set_printer_rediscovery_source(std::function<std::unique_ptr<IMdnsDiscovery>()>) {}
+
+#endif // HELIX_PLATFORM_ESP32
+
+namespace {
+
+void begin_connection_failed(const std::string& title, const std::string& message) {
+    if (!start_rediscovery(title, message)) {
+        route_connection_failed(title, message, std::nullopt);
+    }
+}
+
+} // namespace
 
 void drop_held_connection_failed() {
     DeferredFailure& d = deferred_failure();
