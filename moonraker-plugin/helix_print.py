@@ -163,9 +163,10 @@ helix_journal = _load_sibling("helix_journal")
 helix_config = _load_sibling("helix_config")
 helix_edits = _load_sibling("helix_edits")
 helix_print_hooks = _load_sibling("helix_print_hooks")
+# Dependencies first: helix_storage imports helix_photos by name.
+helix_photos = _load_sibling("helix_photos")
 helix_storage = _load_sibling("helix_storage")
 helix_filament = _load_sibling("helix_filament")
-helix_photos = _load_sibling("helix_photos")
 # Dependencies first: each vendor module imports helix_vendor_push by name.
 helix_vendor_push = _load_sibling("helix_vendor_push")
 helix_vendor_ad5x = _load_sibling("helix_vendor_ad5x")

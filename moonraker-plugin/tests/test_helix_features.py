@@ -6,7 +6,9 @@ own-switch rules, and the helix-initiated job marker.
 Run with: pytest tests/test_helix_features.py -v
 """
 
+import json
 import logging
+import subprocess
 import time
 from pathlib import Path
 
@@ -827,3 +829,26 @@ async def test_analysis_starts_only_after_recovery_knows_its_job(
     await helix_print_component.component_init()
     assert "HelixAnalysis.start" in order
     assert order.index("load_job") < order.index("HelixAnalysis.start")
+
+
+def test_moonraker_import_shape_loads_every_sibling():
+    """Moonraker path-loads the component with the plugin dir NOT on sys.path,
+    so a sibling's `from X import ...` only resolves when helix_print.py loads
+    X first (prestonbrown/helixscreen#1885: helix_storage imports helix_photos).
+    These tests put the plugin dir on sys.path, which is why the bug never
+    showed here: this case runs the import in a bare subprocess instead,
+    isolated (-I) so a PYTHONPATH naming the plugin dir cannot hide it."""
+    code = (
+        "import importlib.util, json, sys\n"
+        "spec = importlib.util.spec_from_file_location('helix_print', sys.argv[1])\n"
+        "module = importlib.util.module_from_spec(spec)\n"
+        "sys.modules['helix_print'] = module\n"
+        "spec.loader.exec_module(module)\n"
+        "print(json.dumps(sorted(module.SIBLING_LOAD_ERRORS)))\n"
+    )
+    plugin = Path(__file__).resolve().parent.parent / "helix_print.py"
+    out = subprocess.run(
+        [sys.executable, "-I", "-c", code, str(plugin)],
+        capture_output=True, text=True, cwd="/", check=True,
+    )
+    assert json.loads(out.stdout) == []
