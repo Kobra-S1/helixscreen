@@ -15,6 +15,7 @@
 #include "ui_update_queue.h"
 
 #include "../fake_moonraker_client.h"
+#include "../mocks/mock_mdns_discovery.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/moonraker_manager_test_access.h"
@@ -26,6 +27,7 @@
 #include "moonraker_manager.h"
 #include "moonraker_port_probe.h"
 #include "platform_info.h"
+#include "printer_discovery_list.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
@@ -538,4 +540,61 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     helix::ConfigTestAccess::data(*cfg) = saved_data;
     helix::ConfigTestAccess::active_printer_id(*cfg) = saved_active;
     helix::ConfigTestAccess::read_only_mode(*cfg) = saved_read_only;
+}
+
+namespace {
+
+/// Records the stop the modal owes its discovery when it closes.
+class StopRecordingDiscovery : public MockMdnsDiscovery {
+  public:
+    explicit StopRecordingDiscovery(bool& stopped) : stopped_(stopped) {}
+    void stop_discovery() override {
+        stopped_ = true;
+        MockMdnsDiscovery::stop_discovery();
+    }
+
+  private:
+    bool& stopped_;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Add printer: a printer the sweep found fills host and port",
+                 "[change_host][lan_sweep]") {
+    bool stopped = false;
+    auto mock = std::make_unique<StopRecordingDiscovery>(stopped);
+    MockMdnsDiscovery* found = mock.get();
+    found->add_fake_printer("", "", "192.168.1.52", 80);
+    helix::set_printer_discovery_source(
+        [&mock]() -> std::unique_ptr<helix::IMdnsDiscovery> { return std::move(mock); });
+
+    helix::ui::show_add_printer_modal([](const std::string&, int) { return false; });
+    UpdateQueue::instance().drain();
+    helix::set_printer_discovery_source(nullptr);
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    REQUIRE(found->is_discovering());
+
+    lv_obj_t* section = lv_obj_find_by_name(dialog, "discovery_section");
+    REQUIRE(section != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* dropdown = lv_obj_find_by_name(dialog, "printer_dropdown");
+    REQUIRE(dropdown != nullptr);
+    REQUIRE(lv_dropdown_get_option_count(dropdown) == 2);
+
+    lv_dropdown_set_selected(dropdown, 1);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_ip"))) ==
+          "192.168.1.52");
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_port"))) ==
+          "80");
+
+    click(dialog, "btn_test_connection");
+    CHECK(client_->connect_urls.back() == "ws://192.168.1.52:80/websocket");
+
+    // Closing the modal stops discovery.
+    REQUIRE_FALSE(stopped);
+    click(dialog, "modal_cancel_btn");
+    CHECK(stopped);
 }

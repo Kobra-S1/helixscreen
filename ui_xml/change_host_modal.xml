@@ -21,6 +21,15 @@
       <text_heading name="title_add_printer" width="100%" text="Add Printer" style_text_align="center">
         <bind_flag_if_eq subject="change_host_adding" flag="hidden" ref_value="0"/>
       </text_heading>
+      <!-- Printers found on the network (mDNS and the LAN sweep); shown while discovery runs -->
+      <lv_obj name="discovery_section"
+              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column">
+        <bind_flag_if_eq subject="change_host_discovery_active" flag="hidden" ref_value="0"/>
+        <text_body width="100%" text="Discovered Printers"/>
+        <lv_dropdown name="printer_dropdown" width="100%">
+          <event_cb trigger="value_changed" callback="on_change_host_printer_picked"/>
+        </lv_dropdown>
+      </lv_obj>
       <!-- Input row: Host (75%) + Port (25%) -->
       <lv_obj width="100%"
               height="content" scrollable="false" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="row">

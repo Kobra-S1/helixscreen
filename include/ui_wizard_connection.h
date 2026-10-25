@@ -324,12 +324,17 @@ class WizardConnectionStep : public helix::wizard::Step {
     static void auto_probe_timer_cb(lv_timer_t* timer);
     static void discovery_watchdog_timer_cb(lv_timer_t* timer);
 
+    /// Gates discovery callbacks. Separate from lifetime_, which every connection attempt
+    /// invalidates while discovery keeps running.
+    helix::AsyncLifetimeGuard discovery_lifetime_;
+
     // mDNS discovery (injectable for testing)
     std::unique_ptr<helix::IMdnsDiscovery> mdns_discovery_;
     std::vector<helix::DiscoveredPrinter> discovered_printers_;
 
     // Subjects for mDNS UI
-    lv_subject_t mdns_status_{}; ///< "Scanning..." / "Found N printer(s)"
+    lv_subject_t mdns_status_{};      ///< "Scanning..." / "Found N printer(s)"
+    lv_subject_t discovery_active_{}; ///< 1 while printer discovery runs (shows the section)
     char mdns_status_buffer_[64];
 
     // mDNS callbacks

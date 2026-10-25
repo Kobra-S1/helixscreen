@@ -24,6 +24,7 @@
 #include "moonraker_port_probe.h"
 #include "platform_info.h"
 #include "printer_discovery.h"
+#include "printer_discovery_list.h"
 #include "runtime_config.h"
 #include "static_panel_registry.h"
 #include "theme_manager.h"
@@ -160,6 +161,7 @@ void WizardConnectionStep::init_subjects() {
     // mDNS discovery subjects
     UI_SUBJECT_INIT_AND_REGISTER_STRING(mdns_status_, mdns_status_buffer_, lv_tr("Scanning..."),
                                         "mdns_status");
+    UI_SUBJECT_INIT_AND_REGISTER_INT(discovery_active_, 0, "connection_discovery_active");
 
     // Set connection_test_passed to 0 (disabled) for this step
     lv_subject_set_int(&connection_test_passed, 0);
@@ -826,19 +828,21 @@ lv_obj_t* WizardConnectionStep::create(lv_obj_t* parent) {
         lv_timer_set_repeat_count(auto_probe_timer_, 1); // One-shot timer
     }
 
-    // Discovery is a thread plus multicast traffic, so it only runs when the
-    // layout shows its results (#1217).
-    lv_obj_t* discovery_section =
-        helix::ui::find_required(screen_root_, "discovery_section", get_name());
-    if (!discovery_section || lv_obj_has_flag(discovery_section, LV_OBJ_FLAG_HIDDEN)) {
-        spdlog::debug("[{}] Discovery section hidden, not starting mDNS discovery", get_name());
+    // Printer discovery (mDNS plus the LAN sweep) runs while this step is shown, when the
+    // app has a discovery source; the section shows only then.
+    if (!mdns_discovery_) {
+        mdns_discovery_ = make_printer_discovery();
+    }
+    lv_subject_set_int(&discovery_active_, mdns_discovery_ ? 1 : 0);
+    if (!mdns_discovery_) {
+        spdlog::debug("[{}] No printer discovery source, not discovering", get_name());
     } else {
-        // Lazy-create mDNS discovery if none was injected
-        if (!mdns_discovery_) {
-            mdns_discovery_ = std::make_unique<MdnsDiscovery>();
-        }
-        spdlog::debug("[{}] Starting mDNS discovery", get_name());
-        auto mdns_tok = lifetime_.token();
+        spdlog::debug("[{}] Starting printer discovery", get_name());
+        discovered_printers_.clear();
+        on_printers_discovered({});
+        // Discovery calls back on the main thread; cleanup() stops it before the step
+        // goes away.
+        auto mdns_tok = discovery_lifetime_.token();
         mdns_discovery_->start_discovery(
             [this, mdns_tok](const std::vector<DiscoveredPrinter>& printers) {
                 if (mdns_tok.expired())
@@ -866,7 +870,8 @@ void WizardConnectionStep::cleanup() {
     // (connection test, auto-probe, discovery, mDNS) will be silently skipped
     lifetime_.invalidate();
 
-    // Stop mDNS discovery
+    // Stop printer discovery
+    discovery_lifetime_.invalidate();
     if (mdns_discovery_) {
         spdlog::debug("[{}] Stopping mDNS discovery", get_name());
         mdns_discovery_->stop_discovery();
@@ -922,9 +927,12 @@ void WizardConnectionStep::on_printers_discovered(const std::vector<DiscoveredPr
 
     discovered_printers_ = printers;
 
+    const bool searching = mdns_discovery_ && mdns_discovery_->is_discovering();
+
     // Update status text
     if (printers.empty()) {
-        lv_subject_copy_string(&mdns_status_, lv_tr("No printers found"));
+        lv_subject_copy_string(&mdns_status_,
+                               searching ? lv_tr("Scanning...") : lv_tr("No printers found"));
     } else {
         char buf[64];
         snprintf(buf, sizeof(buf),
@@ -934,17 +942,7 @@ void WizardConnectionStep::on_printers_discovered(const std::vector<DiscoveredPr
     }
 
     // Update dropdown options (newline-separated for LVGL dropdown)
-    std::string options;
-    if (printers.empty()) {
-        options = lv_tr("No printers found");
-    } else {
-        for (const auto& p : printers) {
-            if (!options.empty()) {
-                options += "\n";
-            }
-            options += p.name + " (" + p.ip_address + ")";
-        }
-    }
+    const std::string options = discovered_printer_options(printers, searching);
 
     // Set dropdown options directly (bind_options doesn't work for dropdowns)
     if (screen_root_) {
@@ -964,10 +962,11 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
     }
 
     lv_obj_t* dropdown = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    uint32_t selected = lv_dropdown_get_selected(dropdown);
+    const DiscoveredPrinter* picked =
+        discovered_printer_at(self->discovered_printers_, lv_dropdown_get_selected(dropdown));
 
-    if (selected < self->discovered_printers_.size()) {
-        const auto& printer = self->discovered_printers_[selected];
+    if (picked) {
+        const DiscoveredPrinter printer = *picked;
 
         // Update IP input
         lv_subject_copy_string(&self->connection_ip_, printer.ip_address.c_str());
@@ -993,8 +992,7 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
         self->set_status(nullptr, StatusVariant::None,
                          lv_tr("Connection must be tested successfully to continue"));
 
-        spdlog::info("[Wizard Connection] Selected printer: {} at {}:{}", printer.name,
-                     printer.ip_address, printer.port);
+        spdlog::info("[Wizard Connection] Selected printer: {}", discovered_printer_label(printer));
     }
 }
 

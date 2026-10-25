@@ -41,7 +41,7 @@ Opens **Manage Printers**, the list of every printer this screen knows about.
 ![Manage Printers](../../../images/user/settings-printers.png)
 
 - **Switch printers**: tap a printer in the list. HelixScreen disconnects from the current printer, connects to the new one, confirms with a message and takes you to the Home screen.
-- **Add a printer**: tap **+ Add Printer**. The setup wizard runs for the new printer, skipping the Wi-Fi and language steps you already did. You can cancel at any time and go back to your current printer.
+- **Add a printer**: tap **+ Add Printer**. The setup wizard runs for the new printer, skipping the Wi-Fi and language steps you already did. Its connection step lists the printers it finds on your local network, including ones that serve Moonraker only on port 80; pick one to fill in its address and port. You can cancel at any time and go back to your current printer.
 - **Delete a printer**: tap the trash icon next to a printer you aren't using and confirm. You can't delete the last printer.
 - **Show Printer Switcher**: adds a printer icon to the navigation bar, so you can switch printers from any screen.
 
@@ -55,7 +55,7 @@ Shows the Moonraker address HelixScreen is connected to, such as `192.168.1.50:7
 
 To connect to a different address:
 
-1. Tap **Host**.
+1. Tap **Host**. While the screen is open, HelixScreen looks for Moonraker on your local network, including printers that serve it only on port 80, and lists what it finds under **Discovered Printers**. Pick one to fill in its address and port, or type them yourself.
 2. Enter the printer's IP address or host name, and the port (usually 7125).
 3. Tap **Test Connection**. **Save** unlocks once the test succeeds.
 4. Tap **Save**. HelixScreen disconnects and reconnects at the new address.

@@ -17,6 +17,7 @@
 #include "moonraker_client.h"
 #include "moonraker_port_probe.h"
 #include "platform_info.h"
+#include "printer_discovery_list.h"
 #include "utils/network_validation.h"
 #include "wizard_config_paths.h"
 
@@ -527,25 +528,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "Connection step: destructor cancels the auto-
 // mDNS discovery behind a hidden section (#1217)
 // ============================================================================
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Connection step: a hidden discovery section starts no mDNS discovery",
-                 "[wizard][connection][mdns]") {
-    WizardConnectionStep* step = get_wizard_connection_step();
-    step->init_subjects();
-    auto mock = std::make_unique<MockMdnsDiscovery>();
-    MockMdnsDiscovery* mdns = mock.get();
-    step->set_mdns_discovery(std::move(mock));
-
-    lv_obj_t* root = step->create(test_screen());
-    REQUIRE(root != nullptr);
-    lv_obj_t* section = lv_obj_find_by_name(root, "discovery_section");
-    REQUIRE(section != nullptr);
-    REQUIRE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
-
-    CHECK_FALSE(mdns->is_discovering());
-    step->cleanup();
-}
-
 // ============================================================================
 // Failed connection test names what to check
 // ============================================================================
@@ -688,4 +670,71 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Connection step: a typed port is the only p
     REQUIRE(status != nullptr);
     CHECK(std::string(lv_label_get_text(status)) ==
           connect_failure_status(client.connect_failure, {7125}));
+}
+
+// ============================================================================
+// Printer discovery (mDNS and the LAN sweep)
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: with no discovery source the section stays hidden",
+                 "[wizard][connection][mdns][lan_sweep]") {
+    helix::set_printer_discovery_source(nullptr);
+    WizardConnectionStep* step = get_wizard_connection_step();
+    step->init_subjects();
+    step->set_mdns_discovery(nullptr);
+
+    lv_obj_t* root = step->create(test_screen());
+    REQUIRE(root != nullptr);
+    lv_obj_t* section = lv_obj_find_by_name(root, "discovery_section");
+    REQUIRE(section != nullptr);
+    CHECK(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    step->cleanup();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: discovery runs on open and a pick fills host and port",
+                 "[wizard][connection][mdns][lan_sweep]") {
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+    step->init_subjects();
+    step->register_callbacks();
+    auto mock = std::make_unique<MockMdnsDiscovery>();
+    MockMdnsDiscovery* mdns = mock.get();
+    // The source the app sets at startup; the step asks it when it opens.
+    helix::set_printer_discovery_source(
+        [&mock]() -> std::unique_ptr<IMdnsDiscovery> { return std::move(mock); });
+    step->set_mdns_discovery(nullptr);
+
+    lv_obj_t* root = step->create(test_screen());
+    helix::set_printer_discovery_source(nullptr);
+    REQUIRE(root != nullptr);
+    lv_obj_t* section = lv_obj_find_by_name(root, "discovery_section");
+    REQUIRE(section != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(mdns->is_discovering());
+
+    // A connection test retires its own callbacks, not discovery's.
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    click_test(root);
+    REQUIRE_FALSE(client.connect_urls.empty());
+
+    mdns->add_fake_printer("", "", "192.168.1.52", 80);
+    mdns->simulate_discovery();
+    lv_obj_t* dropdown = lv_obj_find_by_name(root, "printer_dropdown");
+    REQUIRE(dropdown != nullptr);
+    REQUIRE(lv_dropdown_get_option_count(dropdown) == 2);
+
+    lv_dropdown_set_selected(dropdown, 1);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "connection_ip"))) ==
+          "192.168.1.52");
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "connection_port"))) ==
+          "80");
+    lv_obj_t* port_input = lv_obj_find_by_name(root, "port_input");
+    REQUIRE(port_input != nullptr);
+    CHECK(std::string(lv_textarea_get_text(port_input)) == "80");
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
 }

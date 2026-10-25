@@ -19,6 +19,7 @@
 #include "moonraker_manager.h"
 #include "moonraker_port_probe.h"
 #include "platform_info.h"
+#include "printer_discovery_list.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "text_io.h"
@@ -65,6 +66,7 @@ ChangeHostModal::ChangeHostModal() {
 }
 
 ChangeHostModal::~ChangeHostModal() {
+    stop_discovery();
     deinit_subjects();
     spdlog::trace("[ChangeHostModal] Destroyed");
 }
@@ -124,6 +126,8 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
         host_port_observer_ = ObserverGuard(&host_port_subject_, on_input_changed_cb, nullptr);
         // Adding an observer notifies it once; the field still holds the filled-in port.
         port_typed_ = false;
+
+        start_discovery();
     }
 
     return result;
@@ -141,6 +145,7 @@ void ChangeHostModal::on_hide() {
     // Base class already called lifetime_.invalidate()
 
     active_instance_ = nullptr;
+    stop_discovery();
 
     // A test left the client on the typed host. Every way out but Save puts it back on the
     // saved one; deferred past the exit animation like Save's reconnect.
@@ -173,6 +178,7 @@ void ChangeHostModal::init_subjects() {
     lv_subject_init_int(&validated_subject_, 0);
     lv_subject_init_int(&adding_subject_, 0);
     lv_subject_init_int(&save_locked_subject_, 1);
+    lv_subject_init_int(&discovery_active_subject_, 0);
 
     // Register subjects for XML binding
     subjects_.publish("change_host_ip", &host_ip_subject_);
@@ -181,6 +187,7 @@ void ChangeHostModal::init_subjects() {
     subjects_.publish("change_host_validated", &validated_subject_);
     subjects_.publish("change_host_adding", &adding_subject_);
     subjects_.publish("change_host_save_locked", &save_locked_subject_);
+    subjects_.publish("change_host_discovery_active", &discovery_active_subject_);
 
     subjects_initialized_ = true;
     spdlog::trace("[ChangeHostModal] Subjects initialized");
@@ -458,6 +465,7 @@ void ChangeHostModal::register_callbacks() {
     lv_xml_register_event_cb(nullptr, "on_change_host_test", on_test_connection_cb);
     lv_xml_register_event_cb(nullptr, "on_change_host_save", on_save_cb);
     lv_xml_register_event_cb(nullptr, "on_change_host_cancel", on_cancel_cb);
+    lv_xml_register_event_cb(nullptr, "on_change_host_printer_picked", on_printer_picked_cb);
 
     callbacks_registered_ = true;
     spdlog::trace("[ChangeHostModal] Callbacks registered");
@@ -479,6 +487,75 @@ void ChangeHostModal::on_cancel_cb(lv_event_t* /*e*/) {
     if (active_instance_) {
         active_instance_->handle_cancel();
     }
+}
+
+void ChangeHostModal::on_printer_picked_cb(lv_event_t* e) {
+    if (active_instance_) {
+        auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_target(e));
+        active_instance_->handle_printer_picked(lv_dropdown_get_selected(dropdown));
+    }
+}
+
+// ============================================================================
+// Printer Discovery
+// ============================================================================
+
+void ChangeHostModal::start_discovery() {
+    stop_discovery();
+    discovery_ = helix::make_printer_discovery();
+    lv_subject_set_int(&discovery_active_subject_, discovery_ ? 1 : 0);
+    if (!discovery_) {
+        return;
+    }
+    show_discovered({});
+    // Discovery calls back on the main thread; stop_discovery() runs before this modal
+    // hides or goes away.
+    auto tok = discovery_lifetime_.token();
+    discovery_->start_discovery([this, tok](const std::vector<helix::DiscoveredPrinter>& found) {
+        if (tok.expired()) {
+            return;
+        }
+        show_discovered(found);
+    });
+}
+
+void ChangeHostModal::stop_discovery() {
+    discovery_lifetime_.invalidate();
+    if (discovery_) {
+        discovery_->stop_discovery();
+        discovery_.reset();
+    }
+    discovered_.clear();
+}
+
+void ChangeHostModal::show_discovered(const std::vector<helix::DiscoveredPrinter>& printers) {
+    discovered_ = printers;
+    if (!dialog()) {
+        return;
+    }
+    lv_obj_t* dropdown = helix::ui::find_required(dialog(), "printer_dropdown", get_name());
+    if (dropdown) {
+        const bool searching = discovery_ && discovery_->is_discovering();
+        lv_dropdown_set_options(dropdown,
+                                helix::discovered_printer_options(printers, searching).c_str());
+    }
+}
+
+void ChangeHostModal::handle_printer_picked(uint32_t selected) {
+    const helix::DiscoveredPrinter* picked = helix::discovered_printer_at(discovered_, selected);
+    if (!picked) {
+        return;
+    }
+    spdlog::info("[ChangeHostModal] Picked discovered printer {}:{}", picked->ip_address,
+                 picked->port);
+    const std::string host = picked->ip_address;
+    const std::string port = std::to_string(picked->port);
+    lv_subject_copy_string(&host_ip_subject_, host.c_str());
+    // The discovered port is where Moonraker answered, not something the user typed.
+    port_set_by_app_ = true;
+    lv_subject_copy_string(&host_port_subject_, port.c_str());
+    port_set_by_app_ = false;
+    port_typed_ = false;
 }
 
 // ============================================================================

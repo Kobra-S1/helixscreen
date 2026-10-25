@@ -676,6 +676,7 @@
   <translation tag="Choose Filament" fr="Choisir le filament"/>
   <translation tag="Choose Layer" fr="Choisir la couche"/>
   <translation tag="Choose Model" fr="Choisir le modèle"/>
+  <translation tag="Choose a discovered printer" fr="Choisir une imprimante trouvée"/>
   <translation tag="Choose an existing filament, or tap + New to create one." fr="Choisissez un filament existant, ou appuyez sur + Nouveau pour en créer un."/>
   <translation tag="Choose display language" fr="Choisir la langue d&apos;affichage"/>
   <translation tag="Choose head" fr="Choisir une tête"/>
