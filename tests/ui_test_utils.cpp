@@ -557,6 +557,7 @@ void* g_last_toast_action_data = nullptr;
 // last_action_toast_dismissed(). A fire leaves these alone.
 toast_action_callback_t g_shown_toast_action = nullptr;
 void* g_shown_toast_action_data = nullptr;
+toast_action_callback_t g_shown_toast_closed_cb = nullptr;
 toast_action_callback_t g_dismissed_toast_action = nullptr;
 void* g_dismissed_toast_action_data = nullptr;
 
@@ -607,6 +608,7 @@ void route_toast(const ToastManager::Event& e) {
         g_shown_toast_action = e.action_cb;
         g_shown_toast_action_data = e.action_user_data;
     }
+    g_shown_toast_closed_cb = e.user_closed_cb;
     if (g_test_toast_hook) {
         // One string per toast: the detail line follows the message.
         g_test_toast_hook(e.severity, e.detail.empty() ? e.message : e.message + " - " + e.detail,
@@ -644,6 +646,10 @@ void set_test_notification_success_hook(MessageHook hook) {
 void set_test_notification_action_hook(
     std::function<void(ToastSeverity, const std::string&, const std::string&)> hook) {
     g_test_action_hook = std::move(hook);
+}
+
+bool last_shown_toast_has_closed_cb() {
+    return g_shown_toast_closed_cb != nullptr;
 }
 
 void set_test_notification_event_hook(std::function<void(const NotificationEvent&)> hook) {

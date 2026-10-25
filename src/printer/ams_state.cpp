@@ -170,6 +170,11 @@ LogoArt AmsState::get_logo(const std::string& type_name) {
         {"quattro box", {asset_component_uri("assets/images/ams/quattro_box_64.png"), false}},
         {"quattro_box", {asset_component_uri("assets/images/ams/quattro_box_64.png"), false}},
         {"quattrobox", {asset_component_uri("assets/images/ams/quattro_box_64.png"), false}},
+
+        // QIDI Box - has its own logo (prestonbrown/helixscreen#1514)
+        {"qidi box", {asset_component_uri("assets/images/ams/qidi_box_64.png"), false}},
+        {"qidi_box", {asset_component_uri("assets/images/ams/qidi_box_64.png"), false}},
+        {"qidibox", {asset_component_uri("assets/images/ams/qidi_box_64.png"), false}},
         {"btt vivid", {asset_component_uri("assets/images/ams/btt_vivid_64.png"), false}},
         {"btt_vivid", {asset_component_uri("assets/images/ams/btt_vivid_64.png"), false}},
         {"bttvivid", {asset_component_uri("assets/images/ams/btt_vivid_64.png"), false}},

@@ -15,6 +15,7 @@
 
 #include "ui_modal.h"
 #include "ui_panel_notification_history.h"
+#include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -385,6 +386,93 @@ TEST_CASE_METHOD(TypeMismatchFixture,
         tap_history_entry();
     }
     CHECK(Modal::get_top() != nullptr);
+}
+
+// Closing the toast is an answer too: the X means "keep my type, stop asking",
+// and must persist across boots the way a Keep-current answer does
+// (prestonbrown/helixscreen#1881).
+TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: closing the toast keeps the saved type",
+                 "[type-mismatch][hardware_setup]") {
+    warn();
+    REQUIRE(toast_.has_value());
+    REQUIRE(dismissed_for().empty());
+    REQUIRE(helix::ui::last_shown_toast_has_closed_cb());
+
+    // Drive the dispatch the X button routes through, with the warning's own
+    // generation, parsed from the review action the same warning recorded.
+    REQUIRE(history_.has_value());
+    const size_t colon = history_->action.find(':');
+    REQUIRE(colon != std::string::npos);
+    const std::string closed = "type_mismatch_closed" + history_->action.substr(colon);
+    NotificationHistoryPanel panel(get_printer_state(), nullptr);
+    NotificationHistoryPanelTestAccess::dispatch_action(panel, closed.c_str());
+    drain();
+
+    CHECK(dismissed_for() == SAVED);
+    CHECK(writes_.writes() > 0);
+    CHECK(helix::ui::last_action_toast_dismissed());
+}
+
+// The real X on the real toast, not the handler by name: everything from
+// warn_type_mismatch's show_with_action call to the persisted flag.
+TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: the toast's own X settles it",
+                 "[type-mismatch][hardware_setup]") {
+    auto& tm = ToastManager::instance();
+    tm.init();
+    warn();
+    REQUIRE(toast_.has_value());
+    REQUIRE(helix::ui::last_shown_toast_has_closed_cb());
+
+    lv_obj_t* btn = lv_obj_find_by_name(lv_layer_top(), "toast_close_btn");
+    REQUIRE(btn != nullptr);
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+    drain();
+
+    CHECK(dismissed_for() == SAVED);
+    CHECK_FALSE(tm.is_visible());
+
+    tm.deinit_subjects();
+    drain();
+}
+
+// The prompter unregisters its close handler; a toast outliving it closes to
+// nothing, not into a destroyed owner.
+TEST_CASE_METHOD(TypeMismatchFixture,
+                 "Type mismatch: a close after the prompter is gone settles nothing",
+                 "[type-mismatch][hardware_setup]") {
+    warn();
+    REQUIRE(history_.has_value());
+    prompter_.reset();
+    drain();
+
+    const size_t colon = history_->action.find(':');
+    REQUIRE(colon != std::string::npos);
+    const std::string closed = "type_mismatch_closed" + history_->action.substr(colon);
+    // The handler went with the prompter; nothing dispatches into a dead owner.
+    CHECK_FALSE(helix::ui::notification_action_handler(closed));
+    NotificationHistoryPanel panel(get_printer_state(), nullptr);
+    NotificationHistoryPanelTestAccess::dispatch_action(panel, closed.c_str());
+    drain();
+
+    CHECK(dismissed_for().empty());
+}
+
+// Only the warning's own close settles anything; a dispatch from a stale one
+// leaves the flag unwritten.
+TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: a stale close settles nothing",
+                 "[type-mismatch][hardware_setup]") {
+    warn();
+    REQUIRE(history_.has_value());
+    const size_t colon = history_->action.find(':');
+    REQUIRE(colon != std::string::npos);
+    const std::string stale =
+        fmt::format("type_mismatch_closed:{}", std::stoi(history_->action.substr(colon + 1)) + 1);
+    NotificationHistoryPanel panel(get_printer_state(), nullptr);
+    NotificationHistoryPanelTestAccess::dispatch_action(panel, stale.c_str());
+    drain();
+
+    // The dispatch plumbing itself writes (go_back); the settle must not have.
+    CHECK(dismissed_for().empty());
 }
 
 TEST_CASE_METHOD(TypeMismatchFixture,
