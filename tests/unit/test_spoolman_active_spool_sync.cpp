@@ -225,6 +225,29 @@ TEST_CASE_METHOD(SyncFixture,
     CHECK(external_spool_id() == 0);
 }
 
+TEST_CASE_METHOD(SyncFixture, "clearing the active spool keeps an unlinked bypass entry",
+                 "[spoolman_sync]") {
+    // Unlinking the bypass spool commits a manual entry and clears the server's
+    // active spool; that clear comes straight back as this notification.
+    SlotInfo manual;
+    manual.spoolman_id = 0;
+    manual.brand = "Generic";
+    manual.material = "ASA";
+    manual.color_rgb = 0x1A1A1A;
+    AmsState::instance().set_external_spool_info(manual);
+    REQUIRE(AmsState::instance().active_spool_describes_bypass());
+    REQUIRE(AmsState::instance().get_external_spool_info().has_value());
+
+    notify_active_spool(0);
+    pump();
+
+    const auto kept = AmsState::instance().get_external_spool_info();
+    REQUIRE(kept.has_value());
+    CHECK(kept->material == "ASA");
+    CHECK(kept->brand == "Generic");
+    CHECK(kept->color_rgb == 0x1A1A1A);
+}
+
 TEST_CASE_METHOD(SyncFixture, "a toolchanger tool with no spool adopts the active one",
                  "[spoolman_sync][toolchanger]") {
     auto& tools = helix::ToolState::instance();

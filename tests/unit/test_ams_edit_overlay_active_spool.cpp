@@ -581,6 +581,35 @@ TEST_CASE("SlotInfo::clear_spoolman_link clears the whole Spoolman identity",
     CHECK(slot.product_name == "PLA+ 2.0");
 }
 
+TEST_CASE("SlotInfo::unlink_as_different_filament forgets the old spool's weights",
+          "[ams][edit_overlay][spoolman]") {
+    SlotInfo before;
+    before.spoolman_id = 139;
+    before.brand = "Likesilk";
+    before.material = "ASA";
+    before.remaining_weight_g = 0.0f;
+    before.total_weight_g = 1000.0f;
+
+    SlotInfo edited = before;
+    edited.brand = "Generic";
+
+    SECTION("weights the user left alone become unknown") {
+        edited.unlink_as_different_filament(before);
+        CHECK(edited.spoolman_id == 0);
+        CHECK(edited.brand == "Generic");
+        CHECK(edited.material == "ASA");
+        CHECK(edited.remaining_weight_g < 0.0f);
+        CHECK(edited.total_weight_g < 0.0f);
+    }
+
+    SECTION("a weight typed in the same edit stands") {
+        edited.remaining_weight_g = 750.0f;
+        edited.unlink_as_different_filament(before);
+        CHECK(edited.remaining_weight_g == Catch::Approx(750.0f));
+        CHECK(edited.total_weight_g < 0.0f);
+    }
+}
+
 TEST_CASE("AmsEditOverlay::needs_identity_confirmation applies to ALL Spoolman backends (§6)",
           "[ams_edit_overlay][spoolman][identity_confirm]") {
     SlotInfo original;

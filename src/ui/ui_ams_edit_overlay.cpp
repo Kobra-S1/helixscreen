@@ -2501,7 +2501,7 @@ void AmsEditOverlay::prompt_identity_change_then_save() {
     opts.on_cancel = [] {
         // Keep the slot's edited values lane-local; nothing reaches Spoolman.
         auto& editor = get_ams_edit_overlay();
-        editor.working_info_.clear_spoolman_link();
+        editor.working_info_.unlink_as_different_filament(editor.original_info_);
         editor.close_editor(true);
     };
     opts.on_dismiss = true_abort;
