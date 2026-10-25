@@ -289,11 +289,14 @@ class ScreensaverManager {
     helix::ui::CpuClockFn cpu_clock_;
     helix::ui::IdleBaseline baseline_;
     helix::ui::SaverGateSession session_;
+    helix::ui::SaverComfortStreak comfort_;
     bool gate_enabled_ = false;
     std::optional<double> budget_override_;
     int cores_ = 0;
     size_t gated_level_ = 0;
     size_t requested_level_ = 0;
+    /// The highest rung a raise may reach this run: a rung that stepped down stays closed.
+    size_t level_ceiling_ = 0;
     uint64_t last_sample_ns_ = 0;
     bool sampled_ = false;
     std::string version_;

@@ -303,11 +303,11 @@ PreprintEstimate PreprintPredictor::estimate(const PreprintHeating& heating,
                 continue;
             durations.erase(it);
             if (history) {
-                wall_clock_delta -=
-                    static_cast<float>(weighted_entry_mean([p = phase](const PreprintEntry& e) {
+                wall_clock_delta -= static_cast<float>(
+                    weighted_entry_mean([p = phase](const PreprintEntry& e) {
                         const auto d = e.phase_durations.find(p);
                         return d != e.phase_durations.end() ? static_cast<double>(d->second) : 0.0;
-                    }));
+                    }).value_or(0.0));
             }
         } else if (it == durations.end() && (!history || every_entry_skipped(phase))) {
             if (generic.empty())
@@ -332,13 +332,57 @@ PreprintEstimate PreprintPredictor::estimate(const PreprintHeating& heating,
         durations_sum += dur;
     }
 
-    // The recorded wall clock is the honest total whenever history exists: it
-    // holds heating and any macro time the phase matcher never mapped. The
-    // durations sum swings both ways - short when phases go undetected, long
-    // when the thermal model overshoots - so it supplies only the shape.
-    result.total_seconds =
-        history ? std::max(0.0f, static_cast<float>(predicted_total()) + wall_clock_delta)
-                : durations_sum;
+    if (!history) {
+        result.total_seconds = durations_sum;
+        return result;
+    }
+
+    // The heating this start owes, priced from where the heaters are now: the
+    // recorded wall clock speaks for starts like the ones it measured, and a
+    // start colder or aimed hotter than any of them pays heating no history
+    // can know. Read from the durations map so the unknown-nozzle placeholder
+    // is honoured exactly as the shape honours it.
+    float heating_now = 0.0f;
+    if (const auto it = durations.find(nozzle_phase); it != durations.end()) {
+        heating_now += it->second;
+    }
+    if (const auto it = durations.find(bed_phase); it != durations.end()) {
+        heating_now += it->second;
+    }
+
+    // Entries that recorded their priced heating separate the constant part of
+    // a start (homing, mesh, soak, purge) from the heating that start owed, so
+    // this start pays its own heating plus the learned remainder. A start that
+    // cannot price its heating yet (a silent macro sets its targets later)
+    // pays the heating those entries learned instead, never less than the
+    // placeholder. Legacy entries cannot be split; they keep the recorded wall
+    // clock as the honest total, floored by this start's own heating.
+    float total = static_cast<float>(predicted_total()) + wall_clock_delta;
+    const std::optional<double> residual =
+        weighted_entry_mean([](const PreprintEntry& e) -> std::optional<double> {
+            if (!e.heating_seconds) {
+                return std::nullopt;
+            }
+            return std::max(0.0, static_cast<double>(e.total_seconds) -
+                                     static_cast<double>(*e.heating_seconds));
+        });
+    if (residual) {
+        float heating_owed = heating_now;
+        if (!heating.priced_seconds()) {
+            const std::optional<double> learned =
+                weighted_entry_mean([](const PreprintEntry& e) -> std::optional<double> {
+                    if (!e.heating_seconds) {
+                        return std::nullopt;
+                    }
+                    return static_cast<double>(*e.heating_seconds);
+                });
+            heating_owed = std::max(heating_owed, static_cast<float>(learned.value_or(0.0)));
+        }
+        total = heating_owed + static_cast<float>(*residual) + wall_clock_delta;
+    } else {
+        total = std::max(total, heating_now);
+    }
+    result.total_seconds = std::max(0.0f, total);
     return result;
 }
 
@@ -359,8 +403,9 @@ int PreprintPredictor::predicted_total() const {
     // PrintStartPhase. Summing predicted_phases() would silently lose that
     // unmapped time (on AD5M-style printers the phase map captures <40% of
     // real elapsed time).
-    return static_cast<int>(std::round(weighted_entry_mean(
-        [](const PreprintEntry& e) { return static_cast<double>(e.total_seconds); })));
+    return static_cast<int>(std::round(weighted_entry_mean([](const PreprintEntry& e) {
+                                           return static_cast<double>(e.total_seconds);
+                                       }).value_or(0.0)));
 }
 
 bool PreprintPredictor::every_entry_skipped(int phase) const {
@@ -370,14 +415,23 @@ bool PreprintPredictor::every_entry_skipped(int phase) const {
            });
 }
 
-double PreprintPredictor::weighted_entry_mean(
-    const std::function<double(const PreprintEntry&)>& value) const {
+std::optional<double> PreprintPredictor::weighted_entry_mean(
+    const std::function<std::optional<double>(const PreprintEntry&)>& value) const {
     const auto weights = compute_weights();
     double weighted_sum = 0.0;
+    double weight_sum = 0.0;
     for (size_t i = 0; i < entries_.size(); ++i) {
-        weighted_sum += weights[i] * value(entries_[i]);
+        const std::optional<double> v = value(entries_[i]);
+        if (!v) {
+            continue;
+        }
+        weighted_sum += weights[i] * *v;
+        weight_sum += weights[i];
     }
-    return weighted_sum;
+    if (weight_sum <= 0.0) {
+        return std::nullopt;
+    }
+    return weighted_sum / weight_sum;
 }
 
 std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
@@ -434,6 +488,9 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
                 entry.phase_durations[static_cast<int>(*phase)] = val.get<int>();
             }
         }
+        if (ej.contains("heating") && ej["heating"].is_number()) {
+            entry.heating_seconds = ej["heating"].get<int>();
+        }
         if (ej.contains("skipped") && ej["skipped"].is_array()) {
             std::set<int> skipped;
             for (const auto& name : ej["skipped"]) {
@@ -487,6 +544,10 @@ json PreprintPredictor::entries_to_json(const std::vector<PreprintEntry>& entrie
         // something; a reader treats its absence as PrinterEdge.
         if (e.window != PreprintWindow::Unknown) {
             entry_json["window"] = static_cast<int>(e.window);
+        }
+        // Omitted when unknown, so an absent field and a zero differ.
+        if (e.heating_seconds) {
+            entry_json["heating"] = *e.heating_seconds;
         }
         // Omitted when unknown, so an absent field and an empty list differ.
         if (e.skipped_phases) {

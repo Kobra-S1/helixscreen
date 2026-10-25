@@ -53,6 +53,9 @@ struct PreprintEntry {
     /// Phases this start was told to skip (option toggles turned off);
     /// nullopt when nothing said, which reads as unknown, never as "none".
     std::optional<std::set<int>> skipped_phases;
+    /// Nozzle+bed heating this start was priced for, in seconds; nullopt when
+    /// the start bypassed pricing (legacy entries, a start we did not arm).
+    std::optional<int> heating_seconds;
 };
 
 /**
@@ -67,6 +70,15 @@ struct PreprintHeating {
     /// False while the nozzle's target is unknown (a bed-first macro issues
     /// its M109 late), so the estimate holds a placeholder for that climb.
     bool nozzle_target_known = false;
+
+    /// Nozzle+bed seconds this start owes, or nullopt while its heating cannot
+    /// be priced: 0 means targets known and already reached.
+    [[nodiscard]] std::optional<float> priced_seconds() const {
+        if (!nozzle_target_known) {
+            return std::nullopt;
+        }
+        return nozzle_seconds + bed_seconds;
+    }
 };
 
 /**
@@ -206,9 +218,12 @@ class PreprintPredictor {
      * applied. Total: with history, the recorded wall clock (which already
      * holds heating and every phase the start ran, matched or not) less each
      * skipped phase's share of it, plus the generic duration of a run phase
-     * every entry recorded as skipped; any other run phase adds nothing.
-     * Without history, the sum of the durations, a run phase the defaults
-     * lack added at its generic duration.
+     * every entry recorded as skipped; any other run phase adds nothing. An
+     * entry that recorded its priced heating replaces that wall clock with its
+     * constant remainder plus the heating priced for this start, and a history
+     * with none recorded is floored by this start's own heating. Without
+     * history, the sum of the durations, a run phase the defaults lack added
+     * at its generic duration.
      */
     [[nodiscard]] PreprintEstimate estimate(const PreprintHeating& heating,
                                             const PreprintPhaseOverrides& overrides = {}) const;
@@ -262,9 +277,10 @@ class PreprintPredictor {
     /// Every entry records @p phase as skipped (false when any entry is silent)
     [[nodiscard]] bool every_entry_skipped(int phase) const;
 
-    /// @p value per entry, averaged over every entry with compute_weights()
-    [[nodiscard]] double
-    weighted_entry_mean(const std::function<double(const PreprintEntry&)>& value) const;
+    /// @p value per entry, averaged with compute_weights() over the entries it
+    /// returns a value for (nullopt skips one); nullopt when it skips them all
+    [[nodiscard]] std::optional<double> weighted_entry_mean(
+        const std::function<std::optional<double>(const PreprintEntry&)>& value) const;
 
     std::vector<PreprintEntry> entries_;
 };
