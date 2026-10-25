@@ -1,0 +1,73 @@
+<style>
+  .scr { background:#F0F0F4; border-radius:8px; padding:14px; display:grid; grid-template-columns:1.3fr 1fr; gap:12px; }
+  .card { --c:#FFFFFF; border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:10px; min-height:96px; }
+  .t { color:#2A2A2E; font:600 14px system-ui; } .m { color:#4A4A52; font:13px system-ui; } .big { color:#2A2A2E; font:600 26px system-ui; }
+  .bar { height:8px; border-radius:4px; background:#E0E0E6; overflow:hidden; } .bar i { display:block; height:100%; width:62%; background:#1B3A5C; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .span2 { grid-column: span 2; }
+  .b { --c:#1B3A5C; color:#fff; font:600 14px/1 system-ui,sans-serif; padding:0 16px; height:40px;
+       display:inline-flex; align-items:center; justify-content:center; min-width:80px; border-radius:10px; }
+  .p{--c:#1B3A5C} .n{--c:#D8D8E0; color:#2A2A2E} .d{--c:#C43030} .w{--c:#C87A12}
+
+  /* 0: the dark-mode math pasted onto the light palette, unchanged */
+  .l0 .b { border:1px solid color-mix(in srgb,var(--c),white 40%); box-shadow:0 5px 12px rgba(0,0,0,.4);
+    background:linear-gradient(to bottom, color-mix(in srgb,var(--c),white 45%) 0%, color-mix(in srgb,var(--c),white 22%) 9%,
+      color-mix(in srgb,var(--c),white 6%) 40%, color-mix(in srgb,var(--c),black 22%) 100%); }
+  .l0 .card { background:radial-gradient(ellipse 120% 90% at 0% 0%, color-mix(in srgb,var(--c),white 14%) 0%, var(--c) 55%, color-mix(in srgb,var(--c),black 15%) 100%);
+    border:1px solid color-mix(in srgb,var(--c),white 12%); box-shadow:0 4px 10px rgba(0,0,0,.35); }
+
+  /* 1: Daylight - card base pulled slightly off-white so the glow has room to brighten; dark rims; soft cool shadows */
+  .l1 .b { border:1px solid color-mix(in srgb,var(--c),black 35%); box-shadow:0 4px 10px rgba(30,40,70,.22), 0 1px 2px rgba(30,40,70,.25);
+    background:linear-gradient(to bottom, color-mix(in srgb,var(--c),white 50%) 0%, color-mix(in srgb,var(--c),white 22%) 9%,
+      color-mix(in srgb,var(--c),white 6%) 40%, color-mix(in srgb,var(--c),black 18%) 100%); }
+  .l1 .card { --base:#F2F2F6;
+    background:radial-gradient(ellipse 120% 90% at 0% 0%, #FFFFFF 0%, var(--base) 55%, color-mix(in srgb,var(--base),black 6%) 100%);
+    border:1px solid #D2D2DA; box-shadow:0 6px 16px rgba(30,40,70,.12), 0 1px 3px rgba(30,40,70,.10); }
+
+  /* 2: Porcelain - cards stay white, the lamp becomes a faint warm tint in the corner; long soft shadow does the depth */
+  .l2 .b { border:1px solid color-mix(in srgb,var(--c),black 30%); box-shadow:0 6px 14px rgba(30,40,70,.25);
+    background:linear-gradient(to bottom, color-mix(in srgb,var(--c),white 55%) 0%, color-mix(in srgb,var(--c),white 25%) 10%,
+      color-mix(in srgb,var(--c),white 8%) 42%, color-mix(in srgb,var(--c),black 15%) 100%); }
+  .l2 .card { background:radial-gradient(ellipse 120% 90% at 0% 0%, #FFF8EC 0%, #FFFFFF 50%, #F4F4F8 100%);
+    border:1px solid #E2E2E8; box-shadow:0 10px 24px rgba(30,40,70,.12); }
+
+  /* 3: Frost - cards are translucent-looking pale tint with a bright white rim, buttons get a white top rim over a dark edge */
+  .l3 .b { border:1px solid color-mix(in srgb,var(--c),black 40%); box-shadow:0 3px 8px rgba(30,40,70,.25);
+    background:linear-gradient(to bottom, color-mix(in srgb,var(--c),white 62%) 0%, color-mix(in srgb,var(--c),white 30%) 7%,
+      color-mix(in srgb,var(--c),white 4%) 45%, color-mix(in srgb,var(--c),black 20%) 100%); }
+  .l3 .card { background:radial-gradient(ellipse 120% 90% at 0% 0%, #FFFFFF 0%, #EEF1F7 55%, #E2E6EF 100%);
+    border:1px solid #FFFFFF; box-shadow:0 0 0 1px #CBD0DC, 0 6px 14px rgba(30,40,70,.14); }
+</style>
+
+<h2>Glass in light mode</h2>
+<p class="subtitle">The default theme's light palette. Same layout as the dark corner-light mockup.</p>
+
+<div class="options">
+  <div class="option" data-choice="naive" onclick="toggleSelect(this)"><div class="letter">0</div><div class="content"><h3>Dark-mode math, unchanged</h3><p>Why light mode needs its own tuning: white cards can't glow any whiter, and the light rim vanishes.</p>
+  <div class="scr l0">
+    <div class="card"><div class="t">Benchy.gcode</div><div class="bar"><i></i></div><div class="m">62% · 24 min left</div><div class="row"><span class="b w">Pause</span><span class="b d">Cancel</span></div></div>
+    <div class="card"><div class="m">Nozzle</div><div class="big">215°</div><div class="m">Bed 60°</div></div>
+    <div class="card span2"><div class="row"><span class="b p">Print</span><span class="b n">Home All</span><span class="b n">Move</span><span class="b n">Filament</span></div></div>
+  </div></div></div>
+
+  <div class="option" data-choice="daylight" onclick="toggleSelect(this)"><div class="letter">1</div><div class="content"><h3>Daylight</h3><p>Cards sit a touch off-white so the corner light has room to brighten to pure white. Dark rims on buttons, soft cool shadows.</p>
+  <div class="scr l1">
+    <div class="card"><div class="t">Benchy.gcode</div><div class="bar"><i></i></div><div class="m">62% · 24 min left</div><div class="row"><span class="b w">Pause</span><span class="b d">Cancel</span></div></div>
+    <div class="card"><div class="m">Nozzle</div><div class="big">215°</div><div class="m">Bed 60°</div></div>
+    <div class="card span2"><div class="row"><span class="b p">Print</span><span class="b n">Home All</span><span class="b n">Move</span><span class="b n">Filament</span></div></div>
+  </div></div></div>
+
+  <div class="option" data-choice="porcelain" onclick="toggleSelect(this)"><div class="letter">2</div><div class="content"><h3>Porcelain</h3><p>Cards stay white. The lamp shows as a faint warm tint in the corner, and a long soft shadow carries the depth.</p>
+  <div class="scr l2">
+    <div class="card"><div class="t">Benchy.gcode</div><div class="bar"><i></i></div><div class="m">62% · 24 min left</div><div class="row"><span class="b w">Pause</span><span class="b d">Cancel</span></div></div>
+    <div class="card"><div class="m">Nozzle</div><div class="big">215°</div><div class="m">Bed 60°</div></div>
+    <div class="card span2"><div class="row"><span class="b p">Print</span><span class="b n">Home All</span><span class="b n">Move</span><span class="b n">Filament</span></div></div>
+  </div></div></div>
+
+  <div class="option" data-choice="frost" onclick="toggleSelect(this)"><div class="letter">3</div><div class="content"><h3>Frost</h3><p>Cards take a pale cool tint with a bright white rim inside a thin grey edge, like frosted glass in daylight. Strongest button shine.</p>
+  <div class="scr l3">
+    <div class="card"><div class="t">Benchy.gcode</div><div class="bar"><i></i></div><div class="m">62% · 24 min left</div><div class="row"><span class="b w">Pause</span><span class="b d">Cancel</span></div></div>
+    <div class="card"><div class="m">Nozzle</div><div class="big">215°</div><div class="m">Bed 60°</div></div>
+    <div class="card span2"><div class="row"><span class="b p">Print</span><span class="b n">Home All</span><span class="b n">Move</span><span class="b n">Filament</span></div></div>
+  </div></div></div>
+</div>

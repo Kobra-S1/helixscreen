@@ -1,0 +1,54 @@
+<style>
+  .scr { border-radius:8px; padding:18px; display:flex; flex-direction:column; gap:12px; background:#202023; }
+  .busy { background:
+      radial-gradient(circle at 20% 30%, #e8a83a 0 60px, transparent 61px),
+      radial-gradient(circle at 70% 70%, #3a7cc8 0 80px, transparent 81px),
+      repeating-linear-gradient(45deg,#2a2a30 0 14px,#34343c 14px 28px); }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .b { --c:#3A7CC8; color:#fff; font:600 15px/1 system-ui,sans-serif; padding:0 22px; height:46px;
+       display:inline-flex; align-items:center; justify-content:center; min-width:96px; border-radius:10px;
+       border:1px solid color-mix(in srgb,var(--c),white 40%); box-shadow:0 6px 14px rgba(0,0,0,.4); }
+  .p{--c:#3A7CC8} .n{--c:#6a6a74} .d{--c:#D94848} .s{--c:#5CB85C} .w{--c:#E8A83A}
+  .busy .b { opacity:.9; }
+
+  /* H1: lite's bright top rim, then C's light-to-dark body */
+  .h1 .b { background:linear-gradient(to bottom,
+      color-mix(in srgb,var(--c),white 45%) 0%,
+      color-mix(in srgb,var(--c),white 22%) 9%,
+      color-mix(in srgb,var(--c),white 6%) 40%,
+      color-mix(in srgb,var(--c),black 22%) 100%); }
+  .h1 .b.pr { background:linear-gradient(to bottom, color-mix(in srgb,var(--c),black 25%) 0%, color-mix(in srgb,var(--c),black 5%) 100%); box-shadow:0 2px 4px rgba(0,0,0,.4); }
+
+  /* H2: rim + soft gloss step + dark bottom */
+  .h2 .b { background:linear-gradient(to bottom,
+      color-mix(in srgb,var(--c),white 45%) 0%,
+      color-mix(in srgb,var(--c),white 22%) 9%,
+      color-mix(in srgb,var(--c),white 12%) 46%,
+      color-mix(in srgb,var(--c),black 4%) 53%,
+      color-mix(in srgb,var(--c),black 20%) 100%); }
+  .h2 .b.pr { background:linear-gradient(to bottom, color-mix(in srgb,var(--c),black 25%) 0%, color-mix(in srgb,var(--c),black 5%) 100%); box-shadow:0 2px 4px rgba(0,0,0,.4); }
+
+  /* H3: rim + dark middle-bottom, then light catching the bottom edge (glass, not plastic) */
+  .h3 .b { background:linear-gradient(to bottom,
+      color-mix(in srgb,var(--c),white 45%) 0%,
+      color-mix(in srgb,var(--c),white 18%) 9%,
+      color-mix(in srgb,var(--c),black 2%) 45%,
+      color-mix(in srgb,var(--c),black 20%) 88%,
+      color-mix(in srgb,var(--c),white 4%) 100%); }
+  .h3 .b.pr { background:linear-gradient(to bottom, color-mix(in srgb,var(--c),black 25%) 0%, color-mix(in srgb,var(--c),black 5%) 100%); box-shadow:0 2px 4px rgba(0,0,0,.4); }
+</style>
+
+<h2>Glass rim + light-to-dark body</h2>
+<p class="subtitle">Liquid Glass lite's bright top edge and light rim, with the B/C shading underneath. 10px corners for now. Last button is pressed.</p>
+
+<div class="options">
+  <div class="option" data-choice="h1" onclick="toggleSelect(this)"><div class="letter">1</div><div class="content"><h3>Rim + smooth fade</h3><p>Bright top edge, then a long fade to dark. Closest to C.</p>
+    <div class="split h1"><div class="scr"><div class="row"><span class="b p">Print</span><span class="b n">Home All</span><span class="b s">Load</span><span class="b d">Cancel</span><span class="b p pr">Pressed</span></div></div>
+    <div class="scr busy"><div class="row"><span class="b p">Print</span><span class="b w">Pause</span><span class="b d">Cancel</span></div></div></div></div></div>
+  <div class="option" data-choice="h2" onclick="toggleSelect(this)"><div class="letter">2</div><div class="content"><h3>Rim + soft gloss step</h3><p>Adds B's mid-height light line, softened. The most "glass".</p>
+    <div class="split h2"><div class="scr"><div class="row"><span class="b p">Print</span><span class="b n">Home All</span><span class="b s">Load</span><span class="b d">Cancel</span><span class="b p pr">Pressed</span></div></div>
+    <div class="scr busy"><div class="row"><span class="b p">Print</span><span class="b w">Pause</span><span class="b d">Cancel</span></div></div></div></div></div>
+  <div class="option" data-choice="h3" onclick="toggleSelect(this)"><div class="letter">3</div><div class="content"><h3>Rim + fade + bottom catch</h3><p>Fades dark, then a thin lift at the very bottom, like light passing through glass.</p>
+    <div class="split h3"><div class="scr"><div class="row"><span class="b p">Print</span><span class="b n">Home All</span><span class="b s">Load</span><span class="b d">Cancel</span><span class="b p pr">Pressed</span></div></div>
+    <div class="scr busy"><div class="row"><span class="b p">Print</span><span class="b w">Pause</span><span class="b d">Cancel</span></div></div></div></div></div>
+</div>
