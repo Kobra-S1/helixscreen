@@ -258,6 +258,7 @@ translations:
   Alert: アラート
   Alerts: アラート
   Alerts and messages waiting for you: 待機中のアラートとメッセージ
+  Alerts and printer events: アラートとプリンターイベント
   All: すべて
   All Devices: すべてのデバイス
   All Healthy: 'すべて正常'
@@ -2496,6 +2497,7 @@ translations:
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: '何も変更されていません。温度と材料は保持されるので、再試行はワンタップです。'
   Nothing was saved and the heaters are off.: 何も保存されず、ヒーターはオフです。
   Notification: 通知
+  Notification History: 通知履歴
   Notifications: 通知
   Notify when print finishes: 印刷完了時に通知
   Now printing: '印刷中'

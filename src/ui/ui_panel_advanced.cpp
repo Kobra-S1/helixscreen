@@ -25,9 +25,12 @@
 #include "i_moonraker_client.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
+#include "panel_widget_config.h"
+#include "panel_widget_manager.h"
 #include "panel_widgets/shutdown_widget.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
+#include "static_subject_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
@@ -62,6 +65,10 @@ AdvancedPanel::AdvancedPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     spdlog::trace("[{}] Constructor", get_name());
 }
 
+AdvancedPanel::~AdvancedPanel() {
+    deinit_subjects();
+}
+
 // ============================================================================
 // PANELBASE IMPLEMENTATION
 // ============================================================================
@@ -93,6 +100,16 @@ void AdvancedPanel::init_subjects() {
     // Note: Input shaping uses on_input_shaper_row_clicked registered by InputShaperPanel
     // Note: Restart row doesn't exist - restart buttons have their own callbacks in
     // ui_emergency_stop.cpp
+
+    UI_MANAGED_SUBJECT_INT(show_notification_history_subject_, 0,
+                           "advanced_show_notification_history", subjects_);
+    // Runs from StaticSubjectRegistry::deinit_all(), after StaticPanelRegistry
+    // may already have destroyed the panel.
+    StaticSubjectRegistry::instance().register_deinit("AdvancedPanel", []() {
+        if (g_advanced_panel) {
+            g_advanced_panel->deinit_subjects();
+        }
+    });
 
     subjects_initialized_ = true;
     spdlog::trace("[{}] Event callbacks registered", get_name());
@@ -132,9 +149,22 @@ void AdvancedPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     spdlog::debug("[{}] Setup complete", get_name());
 }
 
+void AdvancedPanel::deinit_subjects() {
+    deinit_subjects_base(subjects_);
+}
+
 void AdvancedPanel::on_activate() {
     spdlog::debug("[{}] Activated", get_name());
     // Note: Plugin detection now happens automatically in discovery flow (application.cpp)
+    refresh_notification_history_row();
+}
+
+void AdvancedPanel::refresh_notification_history_row() {
+    // The home layout is only edited on the home screen, so reading it on
+    // activation is always current while this panel is up.
+    const bool bell_on_home =
+        PanelWidgetManager::instance().get_widget_config("home").is_placed("notifications");
+    lv_subject_set_int(&show_notification_history_subject_, bell_on_home ? 0 : 1);
 }
 
 // ============================================================================

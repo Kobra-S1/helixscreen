@@ -257,6 +257,7 @@ translations:
   Alert: 警报
   Alerts: 警报
   Alerts and messages waiting for you: 待查看的提醒和消息
+  Alerts and printer events: 警报和打印机事件
   All: 全部
   All Devices: 所有设备
   All Healthy: '一切正常'
@@ -2489,6 +2490,7 @@ translations:
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: '没有更改任何内容。温度和材料保持不变，重试只需轻点一下。'
   Nothing was saved and the heaters are off.: 未保存任何内容，加热器已关闭。
   Notification: 通知
+  Notification History: 通知历史
   Notifications: 通知
   Notify when print finishes: 打印完成时通知
   Now printing: '正在打印'

@@ -256,6 +256,7 @@
   <translation tag="Alert" zh="警报"/>
   <translation tag="Alerts" zh="警报"/>
   <translation tag="Alerts and messages waiting for you" zh="待查看的提醒和消息"/>
+  <translation tag="Alerts and printer events" zh="警报和打印机事件"/>
   <translation tag="All" zh="全部"/>
   <translation tag="All Devices" zh="所有设备"/>
   <translation tag="All Healthy" zh="一切正常"/>
@@ -2400,6 +2401,7 @@
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." zh="没有更改任何内容。温度和材料保持不变，重试只需轻点一下。"/>
   <translation tag="Nothing was saved and the heaters are off." zh="未保存任何内容，加热器已关闭。"/>
   <translation tag="Notification" zh="通知"/>
+  <translation tag="Notification History" zh="通知历史"/>
   <translation tag="Notifications" zh="通知"/>
   <translation tag="Notify when print finishes" zh="打印完成时通知"/>
   <translation tag="Now printing" zh="正在打印"/>

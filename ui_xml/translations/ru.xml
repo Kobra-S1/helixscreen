@@ -289,6 +289,7 @@
   <translation tag="Alert" ru="Оповещение"/>
   <translation tag="Alerts" ru="Оповещения"/>
   <translation tag="Alerts and messages waiting for you" ru="Уведомления и сообщения для вас"/>
+  <translation tag="Alerts and printer events" ru="Оповещения и события принтера"/>
   <translation tag="All" ru="Все"/>
   <translation tag="All Devices" ru="Все устройства"/>
   <translation tag="All Healthy" ru="Всё в порядке"/>
@@ -2445,6 +2446,7 @@
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." ru="Ничего не изменилось. Температура и материал сохранены, повторить можно одним нажатием."/>
   <translation tag="Nothing was saved and the heaters are off." ru="Ничего не сохранено, нагреватели выключены."/>
   <translation tag="Notification" ru="Уведомление"/>
+  <translation tag="Notification History" ru="История уведомлений"/>
   <translation tag="Notifications" ru="Уведомления"/>
   <translation tag="Notify when print finishes" ru="Уведомить о завершении печати"/>
   <translation tag="Now printing" ru="Сейчас печатается"/>

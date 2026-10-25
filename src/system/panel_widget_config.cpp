@@ -762,11 +762,12 @@ bool PanelWidgetConfig::is_enabled(const std::string& id) const {
 }
 
 bool PanelWidgetConfig::is_placed(const std::string& id) const {
+    // Every page, not the first match: a default-enabled widget placed on a
+    // secondary page is also re-appended, unplaced, to the main page on load.
     for (const auto& page : pages_) {
-        auto it = std::find_if(page.widgets.begin(), page.widgets.end(),
-                               [&id](const PanelWidgetEntry& e) { return e.id == id; });
-        if (it != page.widgets.end()) {
-            return it->is_placed();
+        if (std::any_of(page.widgets.begin(), page.widgets.end(),
+                        [&id](const PanelWidgetEntry& e) { return e.id == id && e.is_placed(); })) {
+            return true;
         }
     }
     return false;

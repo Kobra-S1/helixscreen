@@ -256,6 +256,7 @@
   <translation tag="Alert" de="Alarm"/>
   <translation tag="Alerts" de="Alarme"/>
   <translation tag="Alerts and messages waiting for you" de="Wartende Alarme und Meldungen"/>
+  <translation tag="Alerts and printer events" de="Alarme und Druckerereignisse"/>
   <translation tag="All" de="Alle"/>
   <translation tag="All Devices" de="Alle Geräte"/>
   <translation tag="All Healthy" de="Alles in Ordnung"/>
@@ -2400,6 +2401,7 @@
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." de="Es wurde nichts geändert. Temperatur und Material bleiben erhalten, ein erneuter Versuch ist ein Tipp."/>
   <translation tag="Nothing was saved and the heaters are off." de="Es wurde nichts gespeichert und die Heizungen sind aus."/>
   <translation tag="Notification" de="Benachrichtigung"/>
+  <translation tag="Notification History" de="Benachrichtigungsverlauf"/>
   <translation tag="Notifications" de="Benachrichtigungen"/>
   <translation tag="Notify when print finishes" de="Benachrichtigen wenn Druck beendet"/>
   <translation tag="Now printing" de="Wird gedruckt"/>

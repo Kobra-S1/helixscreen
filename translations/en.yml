@@ -264,6 +264,7 @@ translations:
   Alert: Alert
   Alerts: Alerts
   Alerts and messages waiting for you: Alerts and messages waiting for you
+  Alerts and printer events: Alerts and printer events
   All: All
   All Devices: All Devices
   All Healthy: All Healthy
@@ -2568,6 +2569,7 @@ translations:
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: Nothing was changed. Temperature and material are kept, so a retry is one tap.
   Nothing was saved and the heaters are off.: Nothing was saved and the heaters are off.
   Notification: Notification
+  Notification History: Notification History
   Notifications: Notifications
   Notify when print finishes: Notify when print finishes
   Now printing: Now printing

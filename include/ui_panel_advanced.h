@@ -58,7 +58,7 @@ class AdvancedPanel : public PanelBase {
      */
     AdvancedPanel(helix::PrinterState& printer_state, helix::IMoonrakerAPI* api);
 
-    ~AdvancedPanel() override = default;
+    ~AdvancedPanel() override;
 
     //
     // === PanelBase Implementation ===
@@ -100,6 +100,9 @@ class AdvancedPanel : public PanelBase {
      * Updates subjects based on current PrinterCapabilities.
      */
     void on_activate() override;
+
+    /// Release this panel's XML subjects; safe to call more than once.
+    void deinit_subjects();
 
     /// Offer to install the HelixPrint plugin (the install modal). Also the
     /// Install action of a plugin_feature_toggle_row.
@@ -234,6 +237,16 @@ class AdvancedPanel : public PanelBase {
     // owed to the machine and must survive the user leaving this panel.
 
     ShutdownModal shutdown_modal_;
+
+    //
+    // === Notification History Row ===
+    //
+
+    /// 1 while no notifications widget holds a cell on the home screen, which
+    /// leaves this row as the only way into notification history.
+    lv_subject_t show_notification_history_subject_{};
+    SubjectManager subjects_;
+    void refresh_notification_history_row();
 
     //
     // === Cached Overlay Panels ===

@@ -64,6 +64,14 @@
                             label="Print History" icon="clock" description="View print statistics and job history">
           <event_cb trigger="clicked" callback="on_history_row_clicked"/>
         </setting_action_row>
+        <!-- Notification History: the way in when no bell widget is on the home screen -->
+        <lv_obj name="container_notification_history" width="100%" style_pad_all="0" scrollable="false">
+          <bind_flag_if_eq subject="advanced_show_notification_history" flag="hidden" ref_value="0"/>
+          <setting_action_row name="row_notification_history"
+                              label="Notification History" icon="notifications" description="Alerts and printer events">
+            <event_cb trigger="clicked" callback="status_notification_history_clicked"/>
+          </setting_action_row>
+        </lv_obj>
         <!-- Spoolman (hidden if not connected) -->
         <lv_obj name="container_spoolman" width="100%" style_pad_all="0" scrollable="false">
           <bind_flag_if_eq subject="printer_has_spoolman" flag="hidden" ref_value="0"/>
