@@ -387,6 +387,48 @@ TEST_CASE_METHOD(TypeMismatchFixture,
     CHECK(Modal::get_top() != nullptr);
 }
 
+// Closing the toast is an answer too: the X means "keep my type, stop asking",
+// and must persist across boots the way a Keep-current answer does
+// (prestonbrown/helixscreen#1881).
+TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: closing the toast keeps the saved type",
+                 "[type-mismatch][hardware_setup]") {
+    warn();
+    REQUIRE(toast_.has_value());
+    REQUIRE(dismissed_for().empty());
+
+    // Drive the dispatch the X button routes through, with the warning's own
+    // generation, parsed from the review action the same warning recorded.
+    REQUIRE(history_.has_value());
+    const size_t colon = history_->action.find(':');
+    REQUIRE(colon != std::string::npos);
+    const std::string closed = "type_mismatch_closed" + history_->action.substr(colon);
+    NotificationHistoryPanel panel(get_printer_state(), nullptr);
+    NotificationHistoryPanelTestAccess::dispatch_action(panel, closed.c_str());
+    drain();
+
+    CHECK(dismissed_for() == SAVED);
+    CHECK(writes_.writes() > 0);
+    CHECK(helix::ui::last_action_toast_dismissed());
+}
+
+// Only the warning's own close settles anything; a dispatch from a stale one
+// leaves the flag unwritten.
+TEST_CASE_METHOD(TypeMismatchFixture, "Type mismatch: a stale close settles nothing",
+                 "[type-mismatch][hardware_setup]") {
+    warn();
+    REQUIRE(history_.has_value());
+    const size_t colon = history_->action.find(':');
+    REQUIRE(colon != std::string::npos);
+    const std::string stale =
+        fmt::format("type_mismatch_closed:{}", std::stoi(history_->action.substr(colon + 1)) + 1);
+    NotificationHistoryPanel panel(get_printer_state(), nullptr);
+    NotificationHistoryPanelTestAccess::dispatch_action(panel, stale.c_str());
+    drain();
+
+    // The dispatch plumbing itself writes (go_back); the settle must not have.
+    CHECK(dismissed_for().empty());
+}
+
 TEST_CASE_METHOD(TypeMismatchFixture,
                  "Type mismatch: a second Review does not stack a second modal",
                  "[type-mismatch][hardware_setup]") {

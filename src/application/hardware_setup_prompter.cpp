@@ -34,6 +34,7 @@
 
 #include <charconv>
 #include <cstdint>
+#include <optional>
 
 using namespace helix;
 
@@ -47,6 +48,28 @@ void review_toast_clicked(void* user_data) {
     if (auto review = helix::ui::notification_action_handler(action)) {
         review();
     }
+}
+
+/// The warning toast's X button. Closing it is a decision — keep the saved
+/// type — so it dispatches through the same action registry as the review
+/// button and inherits its lifetime and staleness guarantees.
+void mismatch_toast_closed(void* user_data) {
+    const auto generation = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(user_data));
+    const std::string action = fmt::format("{}:{}", kMismatchToastClosedAction, generation);
+    if (auto settle = helix::ui::notification_action_handler(action)) {
+        settle();
+    }
+}
+
+/// Both toast actions carry "<key>:<generation>"; a bad parse has nothing to
+/// dispatch on.
+std::optional<uint32_t> parse_action_generation(const std::string& arg) {
+    uint32_t gen = 0;
+    const auto parsed = std::from_chars(arg.data(), arg.data() + arg.size(), gen);
+    if (parsed.ec != std::errc{} || parsed.ptr != arg.data() + arg.size()) {
+        return std::nullopt;
+    }
+    return gen;
 }
 
 void* toast_generation(uint32_t generation) {
@@ -140,10 +163,11 @@ HardwarePrompt choose_prompt(const HardwarePromptGates& g,
 
 HardwareSetupPrompter::~HardwareSetupPrompter() {
     cancel_launch_timer();
-    // The handler holds `this`; a toast or history row outliving the prompter then
+    // The handlers hold `this`; a toast or history row outliving the prompter then
     // finds nothing to call.
     if (review_handler_registered_) {
         helix::ui::set_notification_action_handler(kReviewPrinterTypeAction, nullptr);
+        helix::ui::set_notification_action_handler(kMismatchToastClosedAction, nullptr);
     }
 }
 
@@ -468,13 +492,21 @@ void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review) {
     // generation, which the handler checks.
     helix::ui::set_notification_action_handler(
         kReviewPrinterTypeAction, [this](const std::string& arg) {
-            uint32_t gen = 0;
-            const auto parsed = std::from_chars(arg.data(), arg.data() + arg.size(), gen);
-            if (parsed.ec != std::errc{} || parsed.ptr != arg.data() + arg.size()) {
+            const auto gen = parse_action_generation(arg);
+            if (!gen) {
                 spdlog::info("[HardwareSetup] Type mismatch review skipped: bad action '{}'", arg);
                 return;
             }
-            show_type_mismatch_review(gen);
+            show_type_mismatch_review(*gen);
+        });
+    helix::ui::set_notification_action_handler(
+        kMismatchToastClosedAction, [this](const std::string& arg) {
+            const auto gen = parse_action_generation(arg);
+            if (!gen) {
+                spdlog::info("[HardwareSetup] Type mismatch settle skipped: bad action '{}'", arg);
+                return;
+            }
+            settle_type_mismatch_on_close(*gen);
         });
     review_handler_registered_ = true;
 
@@ -482,10 +514,29 @@ void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review) {
     ui_notification_warning_with_action(lv_tr("Printer type mismatch"), message.c_str(),
                                         action.c_str());
     // Sticky: a wrong type applies wrong pre-print options to every print, so the
-    // warning stays until it is answered or closed.
-    ToastManager::instance().show_with_action(ToastSeverity::WARNING, message.c_str(),
-                                              lv_tr("Review"), review_toast_clicked,
-                                              toast_generation(generation), 0);
+    // warning stays until it is answered or closed; either way settles it.
+    ToastManager::instance().show_with_action(
+        ToastSeverity::WARNING, message.c_str(), lv_tr("Review"), review_toast_clicked,
+        toast_generation(generation), 0, mismatch_toast_closed);
+}
+
+void HardwareSetupPrompter::settle_type_mismatch_on_close(uint32_t generation) {
+    if (!pending_review_ || generation != review_generation_) {
+        spdlog::info("[HardwareSetup] Type mismatch settle skipped: warning {} is not the "
+                     "pending one ({}{})",
+                     generation, review_generation_, pending_review_ ? "" : ", none pending");
+        return;
+    }
+    auto* cfg = Config::get_instance();
+    const std::string saved = PrinterDetector::canonical_type_name(
+        cfg->get<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, ""));
+    const std::string flag = PrinterDetector::canonical_type_name(
+        cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, ""));
+    if (flag == saved) {
+        return;
+    }
+    spdlog::info("[HardwareSetup] Type mismatch toast closed; keeping saved type '{}'", saved);
+    settle_type_mismatch_warning();
 }
 
 void HardwareSetupPrompter::show_type_mismatch_review(uint32_t generation) {

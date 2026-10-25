@@ -340,7 +340,7 @@ void ToastManager::show(ToastSeverity severity, const char* message, uint32_t du
     helix::ui::queue_update<ToastParams>(std::move(params), [](ToastParams* p) {
         ToastManager::instance().create_toast_internal(p->severity, p->message.c_str(), nullptr,
                                                        p->duration_ms, false, nullptr, nullptr,
-                                                       nullptr);
+                                                       nullptr, nullptr);
     });
 }
 
@@ -363,13 +363,14 @@ void ToastManager::show_with_detail(ToastSeverity severity, const char* message,
     helix::ui::queue_update<ToastDetailParams>(std::move(params), [](ToastDetailParams* p) {
         ToastManager::instance().create_toast_internal(p->severity, p->message.c_str(),
                                                        p->detail.c_str(), p->duration_ms, false,
-                                                       nullptr, nullptr, nullptr);
+                                                       nullptr, nullptr, nullptr, nullptr);
     });
 }
 
 void ToastManager::show_with_action(ToastSeverity severity, const char* message,
                                     const char* action_text, toast_action_callback_t callback,
-                                    void* user_data, uint32_t duration_ms) {
+                                    void* user_data, uint32_t duration_ms,
+                                    toast_action_callback_t user_closed_callback) {
     if (!action_text || !callback) {
         spdlog::warn("[ToastManager] Toast action requires action_text and callback");
         show(severity, message, duration_ms);
@@ -387,15 +388,17 @@ void ToastManager::show_with_action(ToastSeverity severity, const char* message,
         toast_action_callback_t action_cb;
         void* user_data;
         uint32_t duration_ms;
+        toast_action_callback_t user_closed_cb;
     };
 
-    auto params = std::make_unique<ToastActionParams>(ToastActionParams{
-        severity, message ? message : "", action_text, callback, user_data, duration_ms});
+    auto params = std::make_unique<ToastActionParams>(
+        ToastActionParams{severity, message ? message : "", action_text, callback, user_data,
+                          duration_ms, user_closed_callback});
 
     helix::ui::queue_update<ToastActionParams>(std::move(params), [](ToastActionParams* p) {
-        ToastManager::instance().create_toast_internal(p->severity, p->message.c_str(), nullptr,
-                                                       p->duration_ms, true, p->action_cb,
-                                                       p->user_data, p->action_text.c_str());
+        ToastManager::instance().create_toast_internal(
+            p->severity, p->message.c_str(), nullptr, p->duration_ms, true, p->action_cb,
+            p->user_data, p->action_text.c_str(), p->user_closed_cb);
     });
 }
 
@@ -458,7 +461,8 @@ bool ToastManager::defer_until_initialized(ToastSeverity severity, const char* t
 void ToastManager::create_toast_internal(ToastSeverity severity, const char* message,
                                          const char* detail, uint32_t duration_ms, bool with_action,
                                          toast_action_callback_t action_cb, void* action_user_data,
-                                         const char* action_text) {
+                                         const char* action_text,
+                                         toast_action_callback_t user_closed_cb) {
     if (!message) {
         spdlog::warn("[ToastManager] Attempted to show toast with null message");
         return;
@@ -530,6 +534,7 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
     auto it = std::prev(active_.end());
     it->widget = widget;
     it->action_cb = with_action ? action_cb : nullptr;
+    it->user_closed_cb = (with_action && user_closed_cb) ? user_closed_cb : nullptr;
     it->action_user_data = with_action ? action_user_data : nullptr;
     it->severity = severity;
     it->message = message;
@@ -653,7 +658,15 @@ void ToastManager::finalize_remove(lv_obj_t* widget) {
         // widget deletion in queued callbacks" (#776/#190/#80).
         helix::ui::safe_delete_deferred_raw(it->widget);
     }
+    // Snapshot before erase: the callback may reach back into this manager
+    // (its own hide() is the no-op it looks like by now).
+    const bool user_closed = it->closed_by_user;
+    toast_action_callback_t closed_cb = it->user_closed_cb;
+    void* closed_data = it->action_user_data;
     active_.erase(it);
+    if (user_closed && closed_cb) {
+        closed_cb(closed_data);
+    }
     update_notification_bell();
 }
 
@@ -679,10 +692,14 @@ void ToastManager::close_btn_clicked(lv_event_t* e) {
     // event_cb is registered via XML; target is the close button. Walk up to
     // toast_root (the lv_xml_create return) and look up by widget pointer.
     auto& mgr = ToastManager::instance();
-    auto it = mgr.find_owning_toast(lv_event_get_target_obj(e));
-    if (it != mgr.active_.end()) {
-        mgr.begin_exit(it);
-    }
+    mgr.user_close_toast(mgr.find_owning_toast(lv_event_get_target_obj(e)));
+}
+
+void ToastManager::user_close_toast(ToastList::iterator it) {
+    if (it == active_.end() || it->is_exiting)
+        return;
+    it->closed_by_user = true;
+    begin_exit(it);
 }
 
 void ToastManager::action_btn_clicked(lv_event_t* e) {

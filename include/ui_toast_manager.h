@@ -76,10 +76,16 @@ class ToastManager {
      *
      * @p duration_ms of 0 means the toast never auto-dismisses, as for
      * show_with_detail(): it stays until its button or close button is tapped.
+     *
+     * @p user_closed_callback runs when the user closes this toast with its X
+     * button, with @p user_data — a decision to decline the action, unlike
+     * hide(), the dismiss timer or stack eviction, which say nothing. Runs on
+     * the main thread once the widget is removed.
      */
     void show_with_action(ToastSeverity severity, const char* message, const char* action_text,
                           toast_action_callback_t action_callback, void* user_data,
-                          uint32_t duration_ms = 5000);
+                          uint32_t duration_ms = 5000,
+                          toast_action_callback_t user_closed_callback = nullptr);
 
     /** Dismiss all currently visible toasts (animated). */
     void hide();
@@ -140,6 +146,8 @@ class ToastManager {
         lv_timer_t* dismiss_timer = nullptr;
         toast_action_callback_t action_cb = nullptr;
         void* action_user_data = nullptr;
+        toast_action_callback_t user_closed_cb = nullptr;
+        bool closed_by_user = false;
         bool is_exiting = false;
         ToastSeverity severity = ToastSeverity::INFO;
         std::string message; // for dedupe of rapid identical toasts
@@ -149,7 +157,9 @@ class ToastManager {
     void create_toast_internal(ToastSeverity severity, const char* message, const char* detail,
                                uint32_t duration_ms, bool with_action,
                                toast_action_callback_t action_cb, void* action_user_data,
-                               const char* action_text);
+                               const char* action_text, toast_action_callback_t user_closed_cb);
+    /** The X button's removal: a user decision, unlike hide() or a timer. */
+    void user_close_toast(ToastList::iterator it);
     void ensure_stack_container();
     ToastList::iterator find_by_widget(lv_obj_t* widget);
     /** If a non-exiting toast with identical severity+message is visible,
