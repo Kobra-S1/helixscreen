@@ -96,6 +96,14 @@ Both **Save** and **Save As New** apply the theme right away. If you try to leav
 
 ---
 
+## Glass Effects
+
+Gives buttons and panels depth and lighting: buttons look like glass you press, and cards catch light from their top-left corner. It works with every theme and keeps your theme's colors. **Off** by default.
+
+The row only appears on screens fast enough to draw it. The first time HelixScreen starts on a new screen, or after an update, it checks that quietly in the background, so the row can take a few seconds to appear. On slower hardware, 16-bit displays and screens whose picture HelixScreen has to rotate itself, it never appears and the screen stays flat.
+
+---
+
 ## Animations
 
 Turns motion effects on or off, such as screens sliding in and confetti when a print finishes. It starts on wherever the hardware handles it well, and off on slower hardware and on screens whose picture HelixScreen has to rotate itself. Turn it off if the screen feels slow, for example on a Raspberry Pi 3.

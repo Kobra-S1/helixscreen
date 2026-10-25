@@ -1026,6 +1026,7 @@
   <translation tag="Density" de="Dichte" en="Density" es="Densidad" fr="Densité" it="Densità" ja="密度" pt="Densidade" ru="Плотность" zh="密度"/>
   <translation tag="Deny" de="Ablehnen" en="Deny" es="Denegar" fr="Refuser" it="Rifiuta" ja="拒否" pt="Negar" ru="Отклонить" zh="拒绝"/>
   <translation tag="Deploy" de="Ausfahren" en="Deploy" es="Desplegar" fr="Déployer" it="Rileva" ja="展開" pt="Implantar" ru="Развернуть" zh="部署"/>
+  <translation tag="Depth and lighting on buttons and panels" de="Tiefe und Licht auf Schaltflächen und Feldern" en="Depth and lighting on buttons and panels" es="Profundidad e iluminación en botones y paneles" fr="Profondeur et lumière sur les boutons et les panneaux" it="Profondità e luce su pulsanti e pannelli" ja="ボタンとパネルに奥行きと光を加えます" pt="Profundidade e iluminação em botões e painéis" ru="Объём и освещение кнопок и панелей" zh="为按钮和面板添加立体感和光照"/>
   <translation tag="Describe the issue (optional)" de="Problem beschreiben (optional)" en="Describe the issue (optional)" es="Describa el problema (opcional)" fr="Décrivez le problème (optionnel)" it="Descrivi il problema (facoltativo)" ja="問題の詳細（任意）" pt="Descreva o problema (opcional)" ru="Опишите проблему (необязательно)" zh="描述问题（可选）"/>
   <translation tag="Detailed" de="Detailliert" en="Detailed" es="Detallado" fr="Détaillé" it="Dettagliato" ja="詳細" pt="Detalhado" ru="Подробно" zh="详细"/>
   <translation tag="Details" de="Details" en="Details" es="Detalles" fr="Détails" it="Dettagli" ja="詳細" pt="Detalhes" ru="Подробности" zh="详情"/>
@@ -1580,6 +1581,7 @@
   <translation tag="Generic" de="Generisch" en="Generic" es="Genérico" fr="Générique" it="Generico" ja="汎用" pt="Genérico" ru="Общий" zh="通用"/>
   <translation tag="Get help and share feedback" de="Hilfe erhalten und Feedback teilen" en="Get help and share feedback" es="Obtén ayuda y comparte comentarios" fr="Obtenir de l&apos;aide et partager vos retours" it="Ottieni aiuto e condividi feedback" ja="ヘルプとフィードバック" pt="Obter ajuda e enviar feedback" ru="Получить помощь и поделиться отзывом" zh="获取帮助和反馈"/>
   <translation tag="Getting Started" de="Erste Schritte" en="Getting Started" es="Primeros pasos" fr="Premiers pas" it="Primi passi" ja="はじめに" pt="Primeiros passos" ru="Начало работы" zh="入门"/>
+  <translation tag="Glass Effects" de="Glaseffekte" en="Glass Effects" es="Efectos de Cristal" fr="Effets de verre" it="Effetti vetro" ja="ガラス効果" pt="Efeitos de Vidro" ru="Эффекты стекла" zh="玻璃效果"/>
   <translation tag="Global" de="Global" en="Global" es="Global" fr="Global" it="Globale" ja="グローバル" pt="Global" ru="Общий" zh="全局"/>
   <translation tag="Global Z offset" de="Globaler Z-Versatz" en="Global Z offset" es="Desfase Z global" fr="Décalage Z global" it="Offset Z globale" ja="グローバルZオフセット" pt="Deslocamento Z global" ru="Общее смещение Z" zh="全局Z偏移"/>
   <translation tag="Good" de="Gut" en="Good" es="Bueno" fr="Bon" it="Buono" ja="良好" pt="Bom" ru="Хорошо" zh="良好"/>

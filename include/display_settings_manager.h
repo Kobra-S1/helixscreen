@@ -236,6 +236,19 @@ class DisplaySettingsManager {
     /** @brief Set keep-navbar-visible preference (updates subject + persists + JNI push) */
     void set_keep_navbar_visible(bool enabled);
 
+    /** @brief The saved Glass Effects choice; glass shows only where the gate also passes */
+    bool get_glass_effects() const {
+        return settings_.get_bool(Key::GlassEffects);
+    }
+
+    /** @brief Set the Glass Effects choice (updates subject + persists) */
+    void set_glass_effects(bool enabled);
+
+    /** @brief Record the glass gate's verdict for this run. Main thread; the gate only */
+    void set_glass_available(bool available);
+
+    bool get_glass_available() const;
+
     /**
      * @brief Get the UI scale setting as a percentage.
      *
@@ -512,6 +525,16 @@ class DisplaySettingsManager {
         return settings_.subject(Key::SpeedFlowPhysicalUnits);
     }
 
+    /** @brief The saved Glass Effects choice (integer: 0=flat, 1=glass) */
+    lv_subject_t* subject_glass_effects() {
+        return settings_.subject(Key::GlassEffects);
+    }
+
+    /** @brief Whether the glass gate passed on this board (integer: 0/1, set only by the gate) */
+    lv_subject_t* subject_glass_available() {
+        return &glass_available_subject_;
+    }
+
     /** @brief Keep navbar visible subject (integer: 0=immersive, 1=always show) */
     lv_subject_t* subject_keep_navbar_visible() {
         return settings_.subject(Key::KeepNavbarVisible);
@@ -600,6 +623,7 @@ class DisplaySettingsManager {
         BedMeshRenderMode,
         GcodeRenderMode,
         TimeFormat,
+        GlassEffects,
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
@@ -617,6 +641,7 @@ class DisplaySettingsManager {
     lv_subject_t is_android_subject_{};
     lv_subject_t rotation_available_subject_{};
     lv_subject_t timezone_subject_{};
+    lv_subject_t glass_available_subject_{};
 
     lv_subject_t screensaver_type_subject_{};
     lv_subject_t has_screensaver_subject_{};

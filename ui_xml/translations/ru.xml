@@ -1026,6 +1026,7 @@
   <translation tag="Density" ru="Плотность"/>
   <translation tag="Deny" ru="Отклонить"/>
   <translation tag="Deploy" ru="Развернуть"/>
+  <translation tag="Depth and lighting on buttons and panels" ru="Объём и освещение кнопок и панелей"/>
   <translation tag="Describe the issue (optional)" ru="Опишите проблему (необязательно)"/>
   <translation tag="Detailed" ru="Подробно"/>
   <translation tag="Details" ru="Подробности"/>
@@ -1580,6 +1581,7 @@
   <translation tag="Generic" ru="Общий"/>
   <translation tag="Get help and share feedback" ru="Получить помощь и поделиться отзывом"/>
   <translation tag="Getting Started" ru="Начало работы"/>
+  <translation tag="Glass Effects" ru="Эффекты стекла"/>
   <translation tag="Global" ru="Общий"/>
   <translation tag="Global Z offset" ru="Общее смещение Z"/>
   <translation tag="Good" ru="Хорошо"/>

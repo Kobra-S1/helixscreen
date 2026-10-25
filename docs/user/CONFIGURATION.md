@@ -385,6 +385,7 @@ Located in the `display` section:
     "bed_mesh_show_zero_plane": true,
     "page_scroll_buttons": false,
     "speed_flow_physical_units": false,
+    "glass_effects": false,
     "ui_scale_percent": 0,
     "printer_image": ""
   }
@@ -397,6 +398,11 @@ Located in the `display` section:
 **Type:** boolean
 **Default:** `true`
 **Description:** Enable UI animations and transitions. Disable for better performance on slow devices.
+
+### `glass_effects`
+**Type:** boolean
+**Default:** `false`
+**Description:** Draws buttons and panels with glass depth and lighting (**Settings > Appearance > Glass Effects**). It only takes effect on a screen that passed HelixScreen's speed check; elsewhere the value is kept but the screen stays flat.
 
 ### `time_format`
 **Type:** integer

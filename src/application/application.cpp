@@ -174,6 +174,7 @@
 #include "board_identity.h"
 #include "data_root_resolver.h"
 #include "display_settings_manager.h"
+#include "glass_gate.h"
 #include "helix_sparkline.h"
 #include "setting_group.h"
 #include "temperature_service.h"
@@ -2086,6 +2087,9 @@ int Application::main_loop() {
     loop_config.benchmark_mode = helix::config::EnvironmentConfig::get_benchmark_mode();
     loop_config.benchmark_report_interval_ms = 5000;
     m_loop_handler.init(loop_config, start_time);
+
+    // The glass gate: decided now from stored facts, or probed once after boot settles.
+    helix::ui::glass_gate_start();
 
     // Show one-time post-migration notice before entering the main loop.
     // Splash handoff timing risk on target hardware (AD5M, Pi 3B) is theoretical —

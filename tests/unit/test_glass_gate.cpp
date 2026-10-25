@@ -5,8 +5,11 @@
 #include "../test_helpers/scoped_env.h"
 #include "board_fingerprint.h"
 #include "config.h"
+#include "display_settings_manager.h"
 #include "glass_gate.h"
+#include "glass_painter.h"
 #include "platform_capabilities.h"
+#include "theme_manager.h"
 
 #include <string>
 
@@ -168,4 +171,125 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass probe draws offscreen and reports a tim
     CHECK(ms > 0.0);
     CHECK(lv_obj_get_child_count(lv_layer_sys()) == children_before);
     CHECK(helix::ui::measure_glass_frame_ms(0, 240) == 0.0);
+}
+
+// ============================================================================
+// The running gate
+// ============================================================================
+
+namespace {
+
+class GlassGateFixture : public LVGLTestFixture {
+  public:
+    GlassGateFixture() {
+        helix::DisplaySettingsManager::instance().init_subjects();
+        helix::DisplaySettingsManager::instance().set_glass_effects(false);
+    }
+    ~GlassGateFixture() override {
+        helix::ui::glass_gate_stop();
+        helix::DisplaySettingsManager::instance().set_glass_effects(false);
+        helix::DisplaySettingsManager::instance().set_glass_available(false);
+        helix::Config::get_instance()->get_json("/display").erase("glass_probe");
+    }
+
+    static helix::ui::GlassMeasureFn measure_returning(double ms, int* calls) {
+        return [ms, calls](int32_t, int32_t) {
+            ++*calls;
+            return ms;
+        };
+    }
+};
+
+int glass_available() {
+    return lv_subject_get_int(helix::DisplaySettingsManager::instance().subject_glass_available());
+}
+
+} // namespace
+
+TEST_CASE_METHOD(GlassGateFixture, "glass: a saved choice on a board that fails stays flat",
+                 "[glass]") {
+    helix::DisplaySettingsManager::instance().set_glass_effects(true);
+    GlassGateFacts f = capable();
+    f.color_depth = 16;
+    int calls = 0;
+    helix::ui::glass_gate_start(f, measure_returning(1.0, &calls));
+    CHECK(glass_available() == 0);
+    CHECK_FALSE(helix::ui::glass_effective());
+    CHECK_FALSE(ThemeManager::instance().is_glass());
+    CHECK(helix::DisplaySettingsManager::instance().get_glass_effects());
+    process_lvgl(static_cast<int>(helix::ui::kGlassProbeDelayMs) + 500);
+    CHECK(calls == 0);
+}
+
+TEST_CASE_METHOD(GlassGateFixture,
+                 "glass: available and on attaches every layer, off detaches and goes flat",
+                 "[glass]") {
+    lv_obj_t* top_card = lv_obj_create(lv_layer_top());
+    lv_obj_add_style(top_card, ThemeManager::instance().get_style(StyleRole::Card), LV_PART_MAIN);
+    lv_obj_t* screen_child = lv_obj_create(test_screen());
+
+    GlassGateFacts f = capable();
+    f.stored = record(true);
+    int calls = 0;
+    helix::ui::glass_gate_start(f, measure_returning(1.0, &calls));
+    REQUIRE(glass_available() == 1);
+    CHECK_FALSE(helix::ui::glass_effective());
+
+    helix::DisplaySettingsManager::instance().set_glass_effects(true);
+    CHECK(helix::ui::glass_effective());
+    CHECK(ThemeManager::instance().is_glass());
+    CHECK(lv_obj_has_flag(top_card, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
+    CHECK(helix::ui::glass_attached(top_card));
+    CHECK(helix::ui::glass_attached(screen_child));
+
+    lv_obj_t* created_later = lv_obj_create(test_screen());
+    helix::ui::glass_on_object_created(created_later);
+    CHECK(helix::ui::glass_attached(created_later));
+
+    helix::DisplaySettingsManager::instance().set_glass_effects(false);
+    CHECK_FALSE(helix::ui::glass_effective());
+    CHECK_FALSE(ThemeManager::instance().is_glass());
+    CHECK_FALSE(lv_obj_has_flag(top_card, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
+    CHECK_FALSE(helix::ui::glass_attached(screen_child));
+
+    lv_obj_t* created_flat = lv_obj_create(test_screen());
+    helix::ui::glass_on_object_created(created_flat);
+    CHECK_FALSE(helix::ui::glass_attached(created_flat));
+    CHECK(calls == 0);
+    lv_obj_delete(top_card);
+}
+
+TEST_CASE_METHOD(GlassGateFixture, "glass: HELIX_GLASS=0 hides it over a stored pass", "[glass]") {
+    helix::DisplaySettingsManager::instance().set_glass_effects(true);
+    GlassGateFacts f = capable();
+    f.stored = record(true);
+    f.env_force = false;
+    int calls = 0;
+    helix::ui::glass_gate_start(f, measure_returning(1.0, &calls));
+    CHECK(glass_available() == 0);
+    CHECK_FALSE(helix::ui::glass_effective());
+}
+
+TEST_CASE_METHOD(GlassGateFixture, "glass: an unmeasured board is probed later and the result kept",
+                 "[glass]") {
+    const double ms = GENERATE(2.0, 40.0);
+    CAPTURE(ms);
+    const bool pass = ms <= helix::ui::kGlassFrameBudgetMs;
+    int calls = 0;
+    helix::ui::glass_gate_start(capable(), measure_returning(ms, &calls));
+    CHECK(glass_available() == 0);
+    CHECK(calls == 0);
+
+    process_lvgl(static_cast<int>(helix::ui::kGlassProbeDelayMs) + 500);
+    CHECK(calls == 1);
+    CHECK(glass_available() == (pass ? 1 : 0));
+    const auto stored = helix::ui::load_glass_probe(*helix::Config::get_instance());
+    REQUIRE(stored.has_value());
+    CHECK(stored->passed == pass);
+    CHECK(stored->frame_ms == ms);
+    CHECK(stored->version == kVersion);
+    CHECK(stored->board == kBoard);
+
+    process_lvgl(static_cast<int>(helix::ui::kGlassProbeDelayMs) * 2);
+    CHECK(calls == 1);
 }

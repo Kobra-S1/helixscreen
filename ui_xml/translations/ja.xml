@@ -984,6 +984,7 @@
   <translation tag="Density" ja="密度"/>
   <translation tag="Deny" ja="拒否"/>
   <translation tag="Deploy" ja="展開"/>
+  <translation tag="Depth and lighting on buttons and panels" ja="ボタンとパネルに奥行きと光を加えます"/>
   <translation tag="Describe the issue (optional)" ja="問題の詳細（任意）"/>
   <translation tag="Detailed" ja="詳細"/>
   <translation tag="Details" ja="詳細"/>
@@ -1535,6 +1536,7 @@
   <translation tag="Generic" ja="汎用"/>
   <translation tag="Get help and share feedback" ja="ヘルプとフィードバック"/>
   <translation tag="Getting Started" ja="はじめに"/>
+  <translation tag="Glass Effects" ja="ガラス効果"/>
   <translation tag="Global" ja="グローバル"/>
   <translation tag="Global Z offset" ja="グローバルZオフセット"/>
   <translation tag="Good" ja="良好"/>

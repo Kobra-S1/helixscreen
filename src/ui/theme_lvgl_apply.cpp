@@ -10,6 +10,9 @@
 #include "ui_fonts.h"
 
 #include "border_radius_sizes.h"
+#if !defined(HELIX_PLATFORM_ESP32)
+#include "glass_gate.h"
+#endif
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/themes/lv_theme_private.h"
@@ -380,6 +383,11 @@ static void helix_theme_apply(lv_theme_t* theme, lv_obj_t* obj) {
         lv_obj_add_style(obj, &slider_disabled_style, LV_PART_INDICATOR | LV_STATE_DISABLED);
         lv_obj_add_style(obj, &slider_disabled_style, LV_PART_KNOB | LV_STATE_DISABLED);
     }
+#endif
+
+#if !defined(HELIX_PLATFORM_ESP32)
+    // The firmware draws 16 bpp, where the glass gate always fails, so it does not build glass.
+    helix::ui::glass_on_object_created(obj);
 #endif
 }
 

@@ -3,7 +3,10 @@
 
 #pragma once
 
+#include "lvgl/lvgl.h"
+
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 
@@ -77,5 +80,38 @@ constexpr double kGlassFrameBudgetMs = 6.0;
 /// full-size Surface fill and twelve Raised buttons), five times, and returns the median ms.
 /// Nothing reaches the display. Main thread.
 double measure_glass_frame_ms(int32_t width, int32_t height);
+
+// ============================================================================
+// The running gate: availability, the effective state, live switching
+// ============================================================================
+
+using GlassMeasureFn = std::function<double(int32_t width, int32_t height)>;
+
+/// How long after boot the probe waits, so it never competes with startup work.
+constexpr uint32_t kGlassProbeDelayMs = 10000;
+
+/// The facts for this run: the build's depth, this board's tier, display rotation, HELIX_GLASS,
+/// the stored record, and this version and board fingerprint. Main thread.
+GlassGateFacts glass_gate_facts_now();
+
+/// Decides the gate once, after boot: Pass or Fail sets `glass_available` at once; NeedsProbe
+/// measures kGlassProbeDelayMs later, stores the record and then sets it. From then on glass is
+/// effective while `glass_available` and `settings_glass_effects` are both 1. Main thread.
+void glass_gate_start();
+
+/// glass_gate_start() with the facts and the measurement supplied.
+void glass_gate_start(const GlassGateFacts& facts, GlassMeasureFn measure);
+
+/// Undoes glass_gate_start(): stops observing, cancels a pending probe, and goes flat.
+void glass_gate_stop();
+
+/// On: the theme styles take glass and every widget on every screen and layer is attached.
+/// Off: the reverse. Main thread.
+void glass_set_effective(bool on);
+
+bool glass_effective();
+
+/// The theme apply hook: attaches a widget being created while glass is effective.
+void glass_on_object_created(lv_obj_t* obj);
 
 } // namespace helix::ui
