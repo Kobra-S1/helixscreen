@@ -398,12 +398,13 @@
              logistics fields, which are Spoolman-owned, so the toggle exists
              only on a linked slot. The Add-to-Spoolman link is the untracked
              slot's way in, so it sits beside the toggle rather than inside it.
-             Reset to tag restores every field the spool's tag states. Each
+             Reset to tag restores every field the spool's tag states. Clear
+             Spool takes the spool off the slot, Spoolman or not. Each
              reaches a 44px hit through ext_click_area, so the bar stays short. -->
         <lv_obj name="more_bar"
                 width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
                 style_pad_gap="#space_sm" scrollable="false">
-          <bind_flag_if cond="ams_edit_is_managed eq 0 and ams_edit_add_spoolman_visible eq 0 and ams_edit_reset_tag_visible eq 0"
+          <bind_flag_if cond="ams_edit_is_managed eq 0 and ams_edit_add_spoolman_visible eq 0 and ams_edit_reset_tag_visible eq 0 and ams_edit_clear_visible eq 0"
                         flag="hidden"/>
           <lv_obj name="more_row"
                   height="content" flex_grow="1" flex_flow="row" style_flex_cross_place="center" hidden="true"
@@ -439,6 +440,17 @@
             <event_cb trigger="clicked" callback="ams_edit_reset_tag_cb"/>
             <icon src="undo" size="xs" variant="primary" clickable="false" event_bubble="true"/>
             <text_small text="Reset to tag" style_text_color="#primary" clickable="false" event_bubble="true"/>
+          </lv_obj>
+          <lv_obj name="btn_clear_spool"
+                  width="content" height="content" style_pad_hor="#space_xs" style_pad_ver="#space_xxs" flex_flow="row"
+                  style_flex_cross_place="center" style_pad_gap="#space_xxs" style_radius="#border_radius"
+                  style_bg_opa="0" style_border_width="0" clickable="true" scrollable="false" hidden="true"
+                  ext_click_area="#ams_edit_bar_hit">
+            <bind_flag_if_eq subject="ams_edit_clear_visible" flag="hidden" ref_value="0"/>
+            <style name="styles.press_wash" selector="pressed"/>
+            <event_cb trigger="clicked" callback="ams_edit_clear_spool_cb"/>
+            <icon src="close" size="xs" variant="primary" clickable="false" event_bubble="true"/>
+            <text_small text="Clear Spool" style_text_color="#primary" clickable="false" event_bubble="true"/>
           </lv_obj>
         </lv_obj>
         <lv_obj name="more_section"

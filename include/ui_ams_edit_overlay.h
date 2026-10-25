@@ -369,6 +369,7 @@ class AmsEditOverlay : public OverlayBase {
     lv_subject_t weight_hint_subject_{};
     lv_subject_t reset_tag_visible_subject_{};
     lv_subject_t add_spoolman_visible_subject_{};
+    lv_subject_t clear_visible_subject_{}; ///< 1 = the slot holds a spool to clear
     lv_subject_t more_open_subject_{};
     lv_subject_t spoolman_id_subject_{};        ///< "#19" for the header badge
     lv_subject_t lane_visible_subject_{};       ///< 1 = the slot is a backend lane
@@ -478,6 +479,7 @@ class AmsEditOverlay : public OverlayBase {
     void handle_more_toggle();
     void handle_add_to_spoolman(); ///< Quiet link: create + label
     void handle_reset_to_tag();    ///< Reset every tag-stated field to the tag
+    void handle_clear_spool();     ///< Take the spool off the slot and close
 
     // Pure decision for whether handle_save() should create a NEW Spoolman
     // spool from the working slot: only via the explicit "Add to Spoolman"

@@ -74,6 +74,9 @@ class AmsEditOverlayViewTestAccess {
     int is_managed() {
         return lv_subject_get_int(&overlay_.is_managed_subject_);
     }
+    int clear_visible() {
+        return lv_subject_get_int(&overlay_.clear_visible_subject_);
+    }
     void toggle_more() {
         overlay_.handle_more_toggle();
     }
@@ -2666,13 +2669,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "an untracked slot on a Spoolman printer sho
     CHECK(access.shown("more_row"));
     close_editor_overlay();
 
-    // No Spoolman: neither.
+    // No Spoolman: neither, and the bar is left holding only Clear Spool.
     set_spoolman_available(false);
     REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
     CHECK_FALSE(access.shown("add_to_spoolman_link"));
-    CHECK_FALSE(access.shown("more_bar"));
+    CHECK_FALSE(access.shown("more_row"));
+    CHECK(access.shown("btn_clear_spool"));
     close_editor_overlay();
 }
 
@@ -4233,4 +4237,68 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "the lane rows sit in view when t
         }
         theme_manager_refresh_layout_constants(disp);
     }
+}
+
+// A spool that ran out has to come off the slot even while Spoolman is down,
+// and a printer with no filament system has no lane menu to do it from.
+TEST_CASE_METHOD(LVGLUITestFixture, "Clear takes a linked external spool off with Spoolman offline",
+                 "[ams_edit_overlay][spool_edit][clear_spool]") {
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    REQUIRE(spoolman_subj != nullptr);
+    lv_subject_set_int(spoolman_subj, 0);
+    get_printer_state().capabilities_state().set_spoolman_available(false);
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().set_backend(nullptr);
+    UpdateQueue::instance().drain();
+
+    SlotInfo linked = tracked_slot();
+    linked.slot_index = -2;
+    linked.global_index = -2;
+    AmsState::instance().set_external_spool_info(linked);
+    REQUIRE(AmsState::instance().get_external_spool_info().has_value());
+
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    bool fired = false;
+    AmsEditOverlay::EditResult captured;
+    REQUIRE(overlay.show_for_slot(test_screen(), -2, linked, nullptr,
+                                  [&](const AmsEditOverlay::EditResult& r) {
+                                      fired = true;
+                                      captured = r;
+                                  }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_enter_editor();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.view() == AmsEditOverlay::kViewEditor);
+    CHECK(access.clear_visible() == 1);
+
+    access.click("btn_clear_spool");
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    // The clear is the commit; the caller must not commit the editor's copy over it.
+    REQUIRE(fired);
+    CHECK_FALSE(captured.saved);
+    const auto ext = AmsState::instance().get_external_spool_info();
+    CHECK((!ext || (ext->spoolman_id == 0 && ext->material.empty())));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Clear is not offered for a slot with nothing on it",
+                 "[ams_edit_overlay][spool_edit][clear_spool]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    SlotInfo empty;
+    empty.slot_index = -2;
+    empty.global_index = -2;
+    REQUIRE(overlay.show_for_slot(test_screen(), -2, empty, nullptr,
+                                  [](const AmsEditOverlay::EditResult&) {}));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_enter_editor();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(access.clear_visible() == 0);
+    close_editor_overlay();
 }
