@@ -345,6 +345,7 @@
   <translation tag="Automatic cleanup" fr="Nettoyage automatique"/>
   <translation tag="Automatic storage cleanup" fr="Nettoyage automatique du stockage"/>
   <translation tag="Aux" fr="Aux"/>
+  <translation tag="Aux Fan" fr="Ventilateur aux"/>
   <translation tag="Available" fr="Disponible"/>
   <translation tag="Available Networks" fr="Réseaux disponibles"/>
   <translation tag="Available networks" fr="Réseaux disponibles"/>
@@ -1207,6 +1208,7 @@
   <translation tag="Excluding &quot;{}&quot;..." fr="Exclusion de « {} »..."/>
   <translation tag="Exclusion canceled" fr="Exclusion annulée"/>
   <translation tag="Execute printer macros" fr="Exécuter les macros de l&apos;imprimante"/>
+  <translation tag="Exhaust" fr="Extraction"/>
   <translation tag="Exhaust Fan" fr="Ventilateur d&apos;extraction"/>
   <translation tag="Exit Code" fr="Code de sortie"/>
   <translation tag="Expected boolean" fr="Valeur booléenne attendue"/>

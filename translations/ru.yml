@@ -418,6 +418,7 @@ translations:
   Automatic cleanup: 'Автоматическая очистка'
   Automatic storage cleanup: 'Автоматическая очистка хранилища'
   Aux: Доп
+  Aux Fan: Доп. вентилятор
   Available: Доступен
   Available Networks: Доступные сети
   Available networks: Доступные сети
@@ -1373,6 +1374,7 @@ translations:
   Excluding "{}"...: 'Исключение «{}»...'
   Exclusion canceled: Исключение отменено
   Execute printer macros: Выполнить макросы принтера
+  Exhaust: Вытяжка
   Exhaust Fan: Вытяжной вентилятор
   Exit Code: Код выхода
   Expected boolean: 'Ожидалось логическое значение'

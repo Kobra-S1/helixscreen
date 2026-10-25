@@ -10,7 +10,7 @@
  *   - Speed labels `fan_stack_{part,hotend,aux}_speed`: text font
  *     `font_small` when bigger, `font_xs` otherwise.
  *   - Name labels `fan_stack_{part,hotend,aux}_name`: same font switch as
- *     the speed labels, **and** text — `lv_tr("P"/"H"/"C")` (single letter)
+ *     the speed labels, **and** text — `lv_tr("P"/"H"/"A")` (single letter)
  *     when compact, the resolved fan display name (or a hardcoded English
  *     fallback when no fan of that role was discovered) when bigger. The
  *     text assertion is the stronger one: a font can leak in from a stray
@@ -102,7 +102,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
     // so it is a valid target for the "bigger" text assertion.
     const char* part_bigger_text = lv_tr("Part");
     const char* hotend_bigger_text = lv_tr("Hotend");
-    const char* aux_bigger_text = lv_tr("Chamber");
+    const char* aux_bigger_text = lv_tr("Aux");
 
     // --- Neither flag: large span, sub-threshold pixels on both axes. ---
     // A span-reading implementation would go "bigger" here; pixels must win.
@@ -122,7 +122,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
     CHECK(lv_obj_get_style_text_font(part_name, LV_PART_MAIN) == theme_manager_get_font("font_xs"));
     CHECK(std::string(lv_label_get_text(part_name)) == lv_tr("P"));
     CHECK(std::string(lv_label_get_text(hotend_name)) == lv_tr("H"));
-    CHECK(std::string(lv_label_get_text(aux_name)) == lv_tr("C"));
+    CHECK(std::string(lv_label_get_text(aux_name)) == lv_tr("A"));
 
     CHECK(lv_obj_get_style_text_font(part_icon, LV_PART_MAIN) == &mdi_icons_16);
     CHECK(lv_obj_get_style_text_font(hotend_icon, LV_PART_MAIN) == &mdi_icons_16);
@@ -164,7 +164,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
     // --- Height alone, at a real Large-tier 1x1 extent (107x141, from the
     // measured tier table): a plain 1x1 widget must stay compact here.
     // Before this fix, height_px(141) >= h_tall() alone flipped this to
-    // "bigger" and squeezed "Hotend"/"Chamber" into a 107px-wide row.
+    // "bigger" and squeezed "Hotend"/"Aux" into a 107px-wide row.
     // Contradicting span: 1x1 (old rowspan/colspan predicate -> compact, so
     // this also proves pixels don't silently regress to spans).
     h.resize(1, 1, 107, 141);
@@ -179,7 +179,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack labels/names follow pixels, not s
     CHECK(lv_obj_get_style_text_font(part_name, LV_PART_MAIN) == theme_manager_get_font("font_xs"));
     CHECK(std::string(lv_label_get_text(part_name)) == lv_tr("P"));
     CHECK(std::string(lv_label_get_text(hotend_name)) == lv_tr("H"));
-    CHECK(std::string(lv_label_get_text(aux_name)) == lv_tr("C"));
+    CHECK(std::string(lv_label_get_text(aux_name)) == lv_tr("A"));
 
     CHECK(lv_obj_get_style_text_font(part_icon, LV_PART_MAIN) == &mdi_icons_16);
     CHECK(lv_obj_get_style_text_font(hotend_icon, LV_PART_MAIN) == &mdi_icons_16);

@@ -375,6 +375,7 @@ translations:
   Automatic cleanup: 'Limpeza automática'
   Automatic storage cleanup: 'Limpeza automática do armazenamento'
   Aux: Aux
+  Aux Fan: Ventoinha Aux
   Available: Disponível
   Available Networks: Redes Disponíveis
   Available networks: Redes disponíveis
@@ -1331,6 +1332,7 @@ translations:
   Excluding "{}"...: 'Excluindo "{}"...'
   Exclusion canceled: Exclusão cancelada
   Execute printer macros: Executar macros da impressora
+  Exhaust: Exaustão
   Exhaust Fan: Ventoinha de Exaustão
   Exit Code: Código de Saída
   Expected boolean: 'Esperava-se um valor booleano'

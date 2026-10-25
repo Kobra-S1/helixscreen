@@ -381,6 +381,7 @@
   <translation tag="Automatic cleanup" ru="Автоматическая очистка"/>
   <translation tag="Automatic storage cleanup" ru="Автоматическая очистка хранилища"/>
   <translation tag="Aux" ru="Доп"/>
+  <translation tag="Aux Fan" ru="Доп. вентилятор"/>
   <translation tag="Available" ru="Доступен"/>
   <translation tag="Available Networks" ru="Доступные сети"/>
   <translation tag="Available networks" ru="Доступные сети"/>
@@ -1249,6 +1250,7 @@
   <translation tag="Excluding &quot;{}&quot;..." ru="Исключение «{}»..."/>
   <translation tag="Exclusion canceled" ru="Исключение отменено"/>
   <translation tag="Execute printer macros" ru="Выполнить макросы принтера"/>
+  <translation tag="Exhaust" ru="Вытяжка"/>
   <translation tag="Exhaust Fan" ru="Вытяжной вентилятор"/>
   <translation tag="Exit Code" ru="Код выхода"/>
   <translation tag="Expected boolean" ru="Ожидалось логическое значение"/>

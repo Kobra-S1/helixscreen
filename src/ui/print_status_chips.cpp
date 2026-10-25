@@ -64,34 +64,25 @@ ChipContent heater_chip(bool present, int current_deci, int target_deci,
     return c;
 }
 
-ChipContent fan_chip(FanRole role, bool present, int pct, bool automatic, bool labeled) {
+ChipContent fan_chip(CalloutKind kind, std::string_view label, bool present, int pct,
+                     bool automatic, bool labeled) {
     ChipContent c;
     if (!present)
         return c;
     c.shown = true;
     std::string text;
-    if (labeled) {
-        switch (role) {
-        case FanRole::Part:
-            text = std::string(lv_tr("Part")) + " ";
-            break;
-        case FanRole::Hotend:
-            text = std::string(lv_tr("HE")) + " ";
-            break;
-        case FanRole::Aux:
-            text = std::string(lv_tr("Aux")) + " ";
-            break;
-        }
+    if (labeled && !label.empty()) {
+        text = std::string(label) + " ";
     }
     c.text = text + std::to_string(pct) + "%";
     if (pct <= 0) {
         c.tone = ChipTone::Dim;
         c.expendable = true;
-    } else if (role == FanRole::Part) {
+    } else if (kind == CalloutKind::Fan) {
         c.tone = ChipTone::Active;
         c.glow = true;
     }
-    if (role == FanRole::Hotend && automatic)
+    if (kind == CalloutKind::HotendFan && automatic)
         c.expendable = true;
     return c;
 }

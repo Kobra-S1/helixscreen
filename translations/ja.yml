@@ -351,6 +351,7 @@ translations:
   Automatic cleanup: '自動クリーンアップ'
   Automatic storage cleanup: 'ストレージの自動クリーンアップ'
   Aux: 補助
+  Aux Fan: 補助ファン
   Available: 利用可能
   Available Networks: 利用可能なネットワーク
   Available networks: 利用可能なネットワーク
@@ -1256,6 +1257,7 @@ translations:
   Excluding "{}"...: '「{}」を除外中...'
   Exclusion canceled: 除外がキャンセルされました
   Execute printer macros: プリンターマクロを実行
+  Exhaust: 排気
   Exhaust Fan: 排気ファン
   Exit Code: 終了コード
   Expected boolean: '真偽値が必要です'
