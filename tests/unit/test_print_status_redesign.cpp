@@ -22,7 +22,9 @@
 #include "theme_manager.h"
 #include "tool_state.h"
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -603,4 +605,60 @@ TEST_CASE_METHOD(Landscape800, "every chip at once at 800x480: none clips or ove
     CHECK(subject_int("ps_callout_mode") != static_cast<int>(CalloutMode::ImageOnly));
     check_chips_inside_and_apart(root_);
     clear_all_eight_chips(*this);
+}
+
+namespace {
+
+/// A checklist whose step count the test sets, so each re-read of it shows
+/// in ps_step_count.
+std::function<std::optional<PreprintChecklistInput>()> steps_source(const size_t& steps) {
+    return [&steps]() -> std::optional<PreprintChecklistInput> {
+        static const std::vector<PrintStartPhase> kOrder{
+            PrintStartPhase::HOMING, PrintStartPhase::BED_MESH, PrintStartPhase::PURGING};
+        PreprintChecklistInput in;
+        in.current = PrintStartPhase::HOMING;
+        in.expected_order.assign(kOrder.begin(), kOrder.begin() + steps);
+        return in;
+    };
+}
+
+} // namespace
+
+TEST_CASE_METHOD(Landscape800, "pre-print progress re-reads the checklist", "[print_status]") {
+    size_t steps = 1;
+    tiles().set_checklist_source(steps_source(steps));
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::HOMING));
+    UpdateQueue::instance().drain();
+    REQUIRE(subject_int("ps_step_count") == 1);
+
+    steps = 2;
+    set_int(state().print_state().get_print_start_progress_subject(), 40);
+    UpdateQueue::instance().drain();
+
+    CHECK(subject_int("ps_step_count") == 2);
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::IDLE));
+    UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(Landscape800, "the pre-print elapsed tick re-reads the checklist",
+                 "[print_status]") {
+    size_t steps = 1;
+    tiles().set_checklist_source(steps_source(steps));
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::HOMING));
+    UpdateQueue::instance().drain();
+    process_lvgl(900); // the preparing view shows after its debounce
+    REQUIRE(subject_int("preparing_visible") == 1);
+    REQUIRE(subject_int("ps_step_count") == 1);
+
+    steps = 2;
+    set_int(state().print_state().get_preprint_elapsed_subject(), 15);
+    UpdateQueue::instance().drain();
+
+    CHECK(subject_int("ps_step_count") == 2);
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::IDLE));
+    UpdateQueue::instance().drain();
 }

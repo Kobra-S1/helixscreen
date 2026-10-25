@@ -2319,7 +2319,6 @@ void PrintStatusPanel::on_print_state_changed(PrintJobState job_state) {
         update_all_displays();
         update_button_states();
         show_gcode_viewer(result.should_show_viewer);
-        tiles_.request_update();
         spdlog::debug("[{}] Print state changed: {} -> {}", get_name(),
                       print_job_state_to_string(job_state), static_cast<int>(result.new_state));
     }
