@@ -6,6 +6,9 @@
 #include "ams_types.h"
 #include "color_utils.h"
 #include "filament_variants.h"
+#if !defined(HELIX_PLATFORM_ESP32)
+#include "glass_painter.h"
+#endif
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
@@ -472,6 +475,10 @@ ObjectPaint& ensure_paint(lv_obj_t* obj) {
     lv_obj_add_event_cb(obj, on_paint_deleted, LV_EVENT_DELETE, nullptr);
     // The painter draws the fill; the style's own background would cover it.
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, LV_PART_MAIN);
+#if !defined(HELIX_PLATFORM_ESP32)
+    // A swatch's color identifies a spool: glass must never shade it.
+    helix::ui::glass_mark(obj, helix::ui::GlassFamily::None);
+#endif
     if (lv_subject_t* theme = theme_manager_get_changed_subject()) {
         lv_subject_add_observer_obj(theme, theme_changed_cb, obj, nullptr);
     }

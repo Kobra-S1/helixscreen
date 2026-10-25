@@ -93,7 +93,49 @@ GlassFamily main_family_from_styles(const lv_obj_t* obj) {
         has_role(obj, StyleRole::Dialog, LV_PART_MAIN)) {
         return GlassFamily::Surface;
     }
+    if (has_role(obj, StyleRole::InputBg, LV_PART_MAIN)) {
+        return GlassFamily::Recessed;
+    }
     return GlassFamily::None;
+}
+
+/// Controls whose parts are glass by what they are: a track is recessed, what you drag or
+/// press on it is raised. nullopt for a class with no such rule.
+std::optional<GlassFamily> family_from_class(const lv_obj_t* obj, lv_part_t part) {
+    if (lv_obj_check_type(obj, &lv_switch_class) || lv_obj_check_type(obj, &lv_slider_class) ||
+        lv_obj_check_type(obj, &lv_arc_class) || lv_obj_check_type(obj, &lv_bar_class)) {
+        switch (part) {
+        case LV_PART_MAIN:
+            return GlassFamily::Recessed;
+        case LV_PART_INDICATOR:
+        case LV_PART_KNOB:
+            return GlassFamily::Raised;
+        default:
+            return GlassFamily::None;
+        }
+    }
+    if (lv_obj_check_type(obj, &lv_checkbox_class)) {
+        return part == LV_PART_INDICATOR ? GlassFamily::Raised : GlassFamily::None;
+    }
+    if (lv_obj_has_class(obj, &lv_buttonmatrix_class)) {
+        return part == LV_PART_ITEMS ? GlassFamily::Raised : GlassFamily::None;
+    }
+    if (lv_obj_check_type(obj, &lv_dropdownlist_class)) {
+        return part == LV_PART_MAIN ? GlassFamily::Surface : GlassFamily::None;
+    }
+    return std::nullopt;
+}
+
+/// Whether the part being drawn is held down: the widget's pressed state, or for a button
+/// matrix the pressed button itself.
+bool part_pressed(lv_obj_t* obj, lv_part_t part, uint32_t id1) {
+    if (!lv_obj_has_state(obj, LV_STATE_PRESSED)) {
+        return false;
+    }
+    if (part == LV_PART_ITEMS && lv_obj_has_class(obj, &lv_buttonmatrix_class)) {
+        return lv_buttonmatrix_get_selected_button(obj) == id1;
+    }
+    return true;
 }
 
 /// Event user data: whether glass_attach() set the draw-task flag itself.
@@ -119,11 +161,14 @@ void on_draw_task(lv_event_t* e) {
     switch (lv_draw_task_get_type(task)) {
     case LV_DRAW_TASK_TYPE_FILL:
         glass_rewrite_fill(lv_draw_task_get_fill_dsc(task), family, dark,
-                           lv_obj_has_state(obj, LV_STATE_PRESSED));
+                           part_pressed(obj, part, base->id1));
         break;
     case LV_DRAW_TASK_TYPE_BORDER:
-        glass_rewrite_border(lv_draw_task_get_border_dsc(task), family,
-                             lv_obj_get_style_bg_color(obj, part), dark);
+        // A rim is lit from the fill beneath it; an outlined part with no fill keeps its border.
+        if (lv_obj_get_style_bg_opa(obj, part) == LV_OPA_COVER) {
+            glass_rewrite_border(lv_draw_task_get_border_dsc(task), family,
+                                 lv_obj_get_style_bg_color(obj, part), dark);
+        }
         break;
     default:
         break;
@@ -152,10 +197,13 @@ GlassFamily glass_family_of(const lv_obj_t* obj, lv_part_t part) {
     if (marked == GlassFamily::None) {
         return GlassFamily::None;
     }
-    if (part == LV_PART_MAIN) {
-        return marked ? *marked : main_family_from_styles(obj);
+    if (part == LV_PART_MAIN && marked) {
+        return *marked;
     }
-    return GlassFamily::None;
+    if (const std::optional<GlassFamily> by_class = family_from_class(obj, part)) {
+        return *by_class;
+    }
+    return part == LV_PART_MAIN ? main_family_from_styles(obj) : GlassFamily::None;
 }
 
 void glass_mark(lv_obj_t* obj, GlassFamily family) {

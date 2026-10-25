@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_swatch.h"
+
 #include "../lvgl_test_fixture.h"
 #include "glass_painter.h"
 #include "glass_shading.h"
@@ -32,6 +34,11 @@ std::vector<uint8_t> snapshot(lv_obj_t* obj) {
     std::vector<uint8_t> px(snap->data, snap->data + snap->header.stride * snap->header.h);
     lv_draw_buf_destroy(snap);
     return px;
+}
+
+/// A named comparison, so a failure prints a bool rather than every pixel.
+bool same_pixels(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b) {
+    return a == b;
 }
 
 lv_obj_t* make_card(lv_obj_t* parent) {
@@ -156,12 +163,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::ui::glass_attach(card);
     REQUIRE(helix::ui::glass_attached(card));
     const std::vector<uint8_t> glass = snapshot(card);
-    CHECK(glass != flat);
+    CHECK_FALSE(same_pixels(glass, flat));
 
     helix::ui::glass_detach(card);
     CHECK_FALSE(helix::ui::glass_attached(card));
     CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
-    CHECK(snapshot(card) == flat);
+    CHECK(same_pixels(snapshot(card), flat));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "glass attach is idempotent and keeps a flag it did not set",
@@ -196,8 +203,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass shades a locally colored card and spare
     helix::ui::glass_attach(swatch);
     helix::ui::glass_attach(marked);
     const std::vector<uint8_t> swatch_glass = snapshot(swatch);
-    CHECK(swatch_glass != swatch_flat);
-    CHECK(snapshot(marked) == marked_flat);
+    CHECK_FALSE(same_pixels(swatch_glass, swatch_flat));
+    CHECK(same_pixels(snapshot(marked), marked_flat));
 
     // Near the glow's corner the fill is the local color lightened, not the theme's card color.
     const size_t stride = swatch_glass.size() / 120;
@@ -315,4 +322,80 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass survives a dark/light switch and takes 
     tm.set_palettes(tm.light_palette(), tm.dark_palette());
     CHECK(tm.is_glass());
     CHECK(style_num(StyleRole::Button, LV_STYLE_SHADOW_WIDTH) == 12);
+}
+
+// ============================================================================
+// The rest of the chrome
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "glass: controls are recessed tracks with raised handles",
+                 "[glass]") {
+    for (lv_obj_t* control : {lv_switch_create(test_screen()), lv_slider_create(test_screen()),
+                              lv_arc_create(test_screen()), lv_bar_create(test_screen())}) {
+        CAPTURE(static_cast<const void*>(lv_obj_get_class(control)));
+        CHECK(glass_family_of(control, LV_PART_MAIN) == GlassFamily::Recessed);
+        CHECK(glass_family_of(control, LV_PART_INDICATOR) == GlassFamily::Raised);
+        CHECK(glass_family_of(control, LV_PART_KNOB) == GlassFamily::Raised);
+        CHECK(glass_family_of(control, LV_PART_SCROLLBAR) == GlassFamily::None);
+    }
+
+    lv_obj_t* checkbox = lv_checkbox_create(test_screen());
+    CHECK(glass_family_of(checkbox, LV_PART_INDICATOR) == GlassFamily::Raised);
+    CHECK(glass_family_of(checkbox, LV_PART_MAIN) == GlassFamily::None);
+
+    lv_obj_t* keyboard = lv_keyboard_create(test_screen());
+    CHECK(glass_family_of(keyboard, LV_PART_ITEMS) == GlassFamily::Raised);
+    CHECK(glass_family_of(keyboard, LV_PART_MAIN) == GlassFamily::None);
+    lv_obj_t* matrix = lv_buttonmatrix_create(test_screen());
+    CHECK(glass_family_of(matrix, LV_PART_ITEMS) == GlassFamily::Raised);
+
+    lv_obj_t* field = lv_textarea_create(test_screen());
+    lv_obj_add_style(field, role(StyleRole::InputBg), LV_PART_MAIN);
+    CHECK(glass_family_of(field, LV_PART_MAIN) == GlassFamily::Recessed);
+
+    lv_obj_t* dropdown = lv_dropdown_create(test_screen());
+    lv_dropdown_open(dropdown);
+    lv_obj_t* list = lv_dropdown_get_list(dropdown);
+    REQUIRE(list != nullptr);
+    CHECK(glass_family_of(list, LV_PART_MAIN) == GlassFamily::Surface);
+    lv_dropdown_close(dropdown);
+
+    SECTION("an exempt marker covers every part") {
+        lv_obj_t* slider = lv_slider_create(test_screen());
+        glass_mark(slider, GlassFamily::None);
+        CHECK(glass_family_of(slider, LV_PART_MAIN) == GlassFamily::None);
+        CHECK(glass_family_of(slider, LV_PART_KNOB) == GlassFamily::None);
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "glass: content and swatches stay flat", "[glass]") {
+    lv_obj_t* image = lv_image_create(test_screen());
+    lv_obj_t* canvas = lv_canvas_create(test_screen());
+    lv_obj_t* chart = lv_chart_create(test_screen());
+    lv_obj_t* label = lv_label_create(test_screen());
+    for (lv_obj_t* content : {image, canvas, chart, label}) {
+        CAPTURE(static_cast<const void*>(lv_obj_get_class(content)));
+        for (lv_part_t part : {LV_PART_MAIN, LV_PART_ITEMS, LV_PART_INDICATOR}) {
+            CHECK(glass_family_of(content, part) == GlassFamily::None);
+        }
+    }
+
+    // A swatch painted on a raised button still reads as its filament color.
+    lv_obj_t* swatch = lv_button_create(test_screen());
+    lv_obj_add_style(swatch, role(StyleRole::Button), LV_PART_MAIN);
+    REQUIRE(glass_family_of(swatch, LV_PART_MAIN) == GlassFamily::Raised);
+    helix::ui::apply_swatch_color(swatch, 0xD94848, "");
+    CHECK(glass_family_of(swatch, LV_PART_MAIN) == GlassFamily::None);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "glass: an outlined part keeps its own border", "[glass]") {
+    ThemeManager::instance().init();
+    ThemeManager::instance().set_dark_mode(true);
+    lv_obj_t* outlined = make_card(test_screen());
+    lv_obj_set_style_bg_opa(outlined, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(outlined, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_color(outlined, lv_color_hex(0x00FF00), LV_PART_MAIN);
+    const std::vector<uint8_t> flat = snapshot(outlined);
+    helix::ui::glass_attach(outlined);
+    CHECK(same_pixels(snapshot(outlined), flat));
 }

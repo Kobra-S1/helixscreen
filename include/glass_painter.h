@@ -17,8 +17,9 @@
 
 namespace helix::ui {
 
-/// The glass family of `obj`'s `part`: a glass_mark() marker first, then the shared theme
-/// style the part carries, otherwise None.
+/// The glass family of `obj`'s `part`: a glass_mark() marker first, then what the widget's
+/// class makes of the part (a slider's track is Recessed, its knob Raised), then the shared
+/// theme style the part carries, otherwise None.
 GlassFamily glass_family_of(const lv_obj_t* obj, lv_part_t part);
 
 /// Gives `obj` an explicit family, overriding what its styles say. None exempts the whole
