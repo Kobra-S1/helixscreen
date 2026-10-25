@@ -124,16 +124,45 @@ class CameraWidget : public PanelWidget {
 };
 
 /**
- * @brief Open the camera fullscreen overlay independently of any CameraWidget.
+ * @brief The camera fullscreen overlay with no owning CameraWidget.
  *
- * Creates a standalone CameraStream + camera_fullscreen overlay and pushes it
- * onto NavigationManager. Used by entry points outside the home panel (e.g.
- * Settings → Devices → Camera). No-ops if no webcam is configured
- * or if a fullscreen view is already open.
- *
- * @param parent_screen Active screen the overlay is attached to.
- * @return true when a fullscreen view opened, its own or an attached widget's.
+ * Opened from entry points outside the home panel (Settings -> Devices ->
+ * Camera, Print Status -> More -> Camera). Its stream is a CameraView's, so it
+ * starts, preempts other views of the same camera, and tears down exactly as
+ * the widget and the Print Status card do. One fullscreen view at a time.
  */
+class StandaloneCameraViewer {
+  public:
+    /// Open the viewer on the active screen, or hand off to an attached
+    /// CameraWidget's fullscreen when one exists. No-ops when no webcam is
+    /// configured or a fullscreen view is already open.
+    /// @return true when a fullscreen view opened, its own or a widget's.
+    static bool open(lv_obj_t* parent_screen);
+
+    StandaloneCameraViewer(const StandaloneCameraViewer&) = delete;
+    StandaloneCameraViewer& operator=(const StandaloneCameraViewer&) = delete;
+
+  private:
+    StandaloneCameraViewer();
+    ~StandaloneCameraViewer() = default;
+
+    /// Stop the stream, delete the overlay and free the open viewer.
+    static void close();
+    /// A screen teardown frees the overlay without running the
+    /// NavigationManager close callback (#1430).
+    static void on_overlay_deleted(lv_event_t* e);
+
+    lv_obj_t* overlay_ = nullptr;
+    lv_obj_t* image_ = nullptr;
+    lv_obj_t* spinner_ = nullptr; // "Connecting..." indicator, hidden on first frame
+    CameraView view_;
+
+    static StandaloneCameraViewer* s_open_;
+
+    friend class CameraWidgetTestAccess;
+};
+
+/// StandaloneCameraViewer::open(), for callers that only forward-declare it.
 bool open_standalone_camera_fullscreen(lv_obj_t* parent_screen);
 
 } // namespace helix
