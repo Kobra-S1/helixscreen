@@ -43,7 +43,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/touch-calibration.md` | Touch screen calibration, forcing recalibration, config reference |
 | `guide/settings.md` | Settings hub: the three groups (Screen, Printer, HelixScreen) and their thirteen pages |
 | `guide/settings/display.md` | Screen rotation, UI scale, brightness, screen dim, display sleep, screensaver, sleep while printing |
-| `guide/settings/appearance.md` | Dark mode, themes and the theme editor, animations, widget labels, printer visuals (toolhead style, G-code preview, Z movement, bed mesh render) |
+| `guide/settings/appearance.md` | Dark mode, themes and the theme editor, Glass Effects, animations, widget labels, printer visuals (toolhead style, G-code preview, Z movement, bed mesh render) |
 | `guide/settings/touch-input.md` | Touch calibration, debug viz, scroll engage distance, long press, home screen editing, scroll guard, scroll buttons, Android keyboard and navigation bar |
 | `guide/settings/sound.md` | Sounds, volume, UI sounds, sound themes, output device, custom themes, supported hardware, troubleshooting |
 | `guide/settings/printing.md` | Machine limits, motion, retraction, enclosure, multi-filament systems, material temperatures, cold load/unload, post-filament cooldown, tool-change confirmation, timelapse, macro buttons |

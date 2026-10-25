@@ -308,6 +308,17 @@ Gate: `scripts/check_responsive_token_scope.py` (prestonbrown/helixscreen#1211).
 <px name="space_md_neg_large" value="-12"/>
 ```
 
+### With Glass Effects on, my panel stays flat, or my color chip gets shaded.
+
+Glass picks a widget's look from the shared theme style it carries: a `ui_card` or dialog is
+lit as a surface, a solid `ui_button` is raised. A container that paints its own background
+(`style_bg_color="#card_bg"` on a plain `lv_obj`) carries neither, so it stays flat. The
+opposite case is a widget whose color *means* something, such as a filament or LED color:
+glass would shade it like any button. Mark both from the owning C++ with
+`helix::ui::glass_mark(obj, GlassFamily::Surface)` or `glass_mark(obj, GlassFamily::None)`.
+Swatches drawn through `ui_swatch.h` are already exempt. To check a screen, run with
+`HELIX_GLASS=1` (forces the hardware check to pass) and turn the setting on. `THEME_SYSTEM.md` § "Glass appearance" has the rules.
+
 ---
 
 ## Translations
