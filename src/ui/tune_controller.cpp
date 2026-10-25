@@ -93,8 +93,10 @@ SpeedFlowText status_speed_flow_text(bool physical_units, int speed_pct, int flo
     char flow[32];
     if (physical_units) {
         std::snprintf(speed, sizeof(speed), "%s", live_speed_text(live_velocity_mm_s).c_str());
-        std::snprintf(flow, sizeof(flow), "%.1f mm\xC2\xB3/s",
-                      volumetric_flow_mm3_s(extruder_velocity_centimm_s, filament_diameter_mm));
+        std::snprintf(
+            flow, sizeof(flow), "%s",
+            live_flow_text(volumetric_flow_mm3_s(extruder_velocity_centimm_s, filament_diameter_mm))
+                .c_str());
     } else {
         helix::format::format_percent(speed_pct, speed, sizeof(speed));
         helix::format::format_percent(flow_pct, flow, sizeof(flow));
@@ -106,6 +108,16 @@ std::string live_speed_text(int live_velocity_mm_s) {
     char buf[24];
     std::snprintf(buf, sizeof(buf), "%d mm/s", live_velocity_mm_s);
     return buf;
+}
+
+std::string live_flow_text(double flow_mm3_s) {
+    char buf[24];
+    std::snprintf(buf, sizeof(buf), "%.1f mm\xC2\xB3/s", flow_mm3_s);
+    return buf;
+}
+
+std::string live_rates_text(int live_velocity_mm_s, double flow_mm3_s) {
+    return live_speed_text(live_velocity_mm_s) + "\n" + live_flow_text(flow_mm3_s);
 }
 
 } // namespace helix::tune

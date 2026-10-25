@@ -118,7 +118,7 @@ ChipContent speed_flow_chip(int speed_pct, int flow_pct, const std::string& spee
 }
 
 ChipContent speed_flow_budget_chip() {
-    return speed_flow_chip(100, 100, tune::live_speed_text(999));
+    return speed_flow_chip(100, 100, tune::live_rates_text(999, 99.9));
 }
 
 ChipContent light_chip(bool controllable, bool on) {

@@ -24,6 +24,8 @@
 
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -268,8 +270,8 @@ TEST_CASE_METHOD(Landscape800, "speed 104 sets speed_flow tone Warn", "[print_st
     settle();
     CHECK(subject_int("ps_chip_speed_flow_tone") == static_cast<int>(ChipTone::Warn));
     CHECK(subject_int("ps_chip_speed_flow_shown") == 1);
-    // The factor is Tune's to show; the chip keeps the live speed.
-    CHECK(subject_str("ps_chip_speed_flow_text") == "0 mm/s");
+    // The factor is Tune's to show; the chip keeps the live rates.
+    CHECK(subject_str("ps_chip_speed_flow_text") == "0 mm/s\n0.0 mm\xC2\xB3/s");
 }
 
 namespace {
@@ -503,4 +505,94 @@ TEST_CASE_METHOD(Landscape800, "a tuned speed turns the speed/flow chip amber", 
     set_int(state().motion_state().get_speed_factor_subject(), 100);
     settle();
     CHECK_FALSE(lv_color_eq(lv_obj_get_style_border_color(chip, LV_PART_MAIN), warn));
+}
+
+namespace {
+
+/// Every chip the tile can show at once: three heaters, three fans, the light
+/// and the two-line speed/flow chip.
+void all_eight_chips(TileFixture& fx) {
+    auto& temps = fx.state().temperature_state();
+    set_int(fx.state().capabilities_state().subject(Capability::HasChamber), 1);
+    set_int(temps.get_active_extruder_temp_subject(), 2200);
+    set_int(temps.get_active_extruder_target_subject(), 2200);
+    set_int(temps.get_bed_temp_subject(), 600);
+    set_int(temps.get_bed_target_subject(), 600);
+    set_int(temps.get_chamber_temp_subject(), 450);
+    set_int(temps.get_chamber_effective_target_subject(), 450);
+    set_int(lv_xml_get_subject(nullptr, "led_controllable"), 1);
+    auto& fans = PrinterStateTestAccess::get_fan_state(fx.state());
+    fans.init_fans({"fan", "heater_fan hotend_fan", "fan_generic aux"});
+    fans.update_fan_speed("fan", 0.5);
+    fans.update_fan_speed("heater_fan hotend_fan", 1.0);
+    fans.update_fan_speed("fan_generic aux", 0.0);
+    fx.settle();
+    fx.settle(); // a mode change reschedules once
+}
+
+void clear_all_eight_chips(TileFixture& fx) {
+    auto& temps = fx.state().temperature_state();
+    set_int(fx.state().capabilities_state().subject(Capability::HasChamber), 0);
+    set_int(temps.get_active_extruder_target_subject(), 0);
+    set_int(temps.get_bed_target_subject(), 0);
+    set_int(temps.get_chamber_effective_target_subject(), 0);
+    set_int(lv_xml_get_subject(nullptr, "led_controllable"), 0);
+    PrinterStateTestAccess::get_fan_state(fx.state()).init_fans({});
+}
+
+/// No chip on screen runs past the printer area's content box or onto another.
+void check_chips_inside_and_apart(lv_obj_t* root) {
+    lv_obj_update_layout(root);
+    lv_obj_t* area = lv_obj_find_by_name(root, "ps_printer_area");
+    REQUIRE(area != nullptr);
+    lv_area_t box;
+    lv_obj_get_content_coords(area, &box);
+    std::vector<std::pair<std::string, lv_area_t>> shown;
+    for (const char* name : {"ps_chip_nozzle", "ps_chip_bed", "ps_chip_chamber", "ps_chip_part_fan",
+                             "ps_chip_hotend_fan", "ps_chip_aux_fan", "ps_chip_light",
+                             "ps_chip_speed_flow", "ps_chip_toolhead"}) {
+        lv_obj_t* chip = lv_obj_find_by_name(root, name);
+        if (!chip || lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN))
+            continue;
+        lv_area_t a;
+        lv_obj_get_coords(chip, &a);
+        INFO(name << " at " << a.x1 << "," << a.y1 << " to " << a.x2 << "," << a.y2 << " in "
+                  << box.x1 << "," << box.y1 << " to " << box.x2 << "," << box.y2);
+        CHECK(a.x1 >= box.x1);
+        CHECK(a.y1 >= box.y1);
+        CHECK(a.x2 <= box.x2);
+        CHECK(a.y2 <= box.y2);
+        shown.emplace_back(name, a);
+    }
+    for (size_t i = 0; i < shown.size(); ++i)
+        for (size_t j = i + 1; j < shown.size(); ++j) {
+            const auto& a = shown[i].second;
+            const auto& b = shown[j].second;
+            INFO(shown[i].first << " vs " << shown[j].first);
+            CHECK_FALSE((a.x1 <= b.x2 && b.x1 <= a.x2 && a.y1 <= b.y2 && b.y1 <= a.y2));
+        }
+}
+
+} // namespace
+
+TEST_CASE_METHOD(Landscape800, "the two-line speed/flow chip lays out at its own height",
+                 "[print_status]") {
+    settle();
+    lv_obj_update_layout(root_);
+    lv_obj_t* speed = lv_obj_find_by_name(root_, "ps_chip_speed_flow");
+    lv_obj_t* bed = lv_obj_find_by_name(root_, "ps_chip_bed");
+    REQUIRE(speed != nullptr);
+    REQUIRE(bed != nullptr);
+    REQUIRE(subject_int("ps_chip_speed_flow_shown") == 1);
+    CHECK(lv_obj_get_height(speed) > lv_obj_get_height(bed));
+    check_chips_inside_and_apart(root_);
+}
+
+TEST_CASE_METHOD(Landscape800, "every chip at once at 800x480: none clips or overlaps",
+                 "[print_status]") {
+    all_eight_chips(*this);
+    REQUIRE(subject_int("ps_chip_chamber_shown") == 1);
+    CHECK(subject_int("ps_callout_mode") != static_cast<int>(CalloutMode::ImageOnly));
+    check_chips_inside_and_apart(root_);
+    clear_all_eight_chips(*this);
 }

@@ -65,4 +65,10 @@ SpeedFlowText status_speed_flow_text(bool physical_units, int speed_pct, int flo
 /// The measured toolhead speed, the one format every readout shows: "187 mm/s".
 std::string live_speed_text(int live_velocity_mm_s);
 
+/// A volumetric flow, the one format every readout shows: "12.0 mm³/s".
+std::string live_flow_text(double flow_mm3_s);
+
+/// Both live rates, speed over flow: "187 mm/s\n12.0 mm³/s".
+std::string live_rates_text(int live_velocity_mm_s, double flow_mm3_s);
+
 } // namespace helix::tune

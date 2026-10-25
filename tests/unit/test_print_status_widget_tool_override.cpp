@@ -527,7 +527,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[print_status][formatter]") {
     FormatterTexts texts;
     FormatterTexts::set("print_status_filament_text", "1.20km");
-    FormatterTexts::set("print_status_flow_text", "· 12.0mm\xC2\xB3/s");
+    FormatterTexts::set("print_status_flow_text", "· 12.0 mm\xC2\xB3/s");
     REQUIRE(lv_xml_register_component_from_file(
                 "A:ui_xml/components/print_status_detailed_active.xml") == LV_RESULT_OK);
     lv_obj_t* host = lv_obj_create(test_screen());

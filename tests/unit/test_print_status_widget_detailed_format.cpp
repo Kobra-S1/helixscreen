@@ -647,7 +647,7 @@ TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter speed/flow text shows live
     REQUIRE(std::string(lv_subject_get_string(
                 lv_xml_get_subject(nullptr, "print_status_speed_text"))) == "187 mm/s");
     REQUIRE(std::string(lv_subject_get_string(
-                lv_xml_get_subject(nullptr, "print_status_flow_text"))) == "· 12.0mm\xC2\xB3/s");
+                lv_xml_get_subject(nullptr, "print_status_flow_text"))) == "· 12.0 mm\xC2\xB3/s");
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter seeds the live rates on construction",
@@ -667,5 +667,5 @@ TEST_CASE_METHOD(HelixTestFixture, "DetailedFormatter seeds the live rates on co
     REQUIRE(std::string(lv_subject_get_string(
                 lv_xml_get_subject(nullptr, "print_status_speed_text"))) == "187 mm/s");
     REQUIRE(std::string(lv_subject_get_string(
-                lv_xml_get_subject(nullptr, "print_status_flow_text"))) == "· 12.0mm\xC2\xB3/s");
+                lv_xml_get_subject(nullptr, "print_status_flow_text"))) == "· 12.0 mm\xC2\xB3/s");
 }
