@@ -140,6 +140,10 @@ class HardwareSetupPrompter {
     /// A user-closed mismatch toast settles the warning: keep the saved type
     /// and stop asking, exactly like the review modal's "Keep current".
     void settle_type_mismatch_on_close(uint32_t generation);
+    /// Whether warning @p generation is still the live, unanswered one for the
+    /// saved type. A spent warning is dropped here; @p what names the caller in
+    /// the log line that says why nothing happened.
+    bool pending_review_current(uint32_t generation, const char* what);
     /// Run @p launch once the confirming modal's exit animation is over. One launch is
     /// pending at a time; the destructor cancels it.
     void launch_after_modal_exit(void (HardwareSetupPrompter::*launch)());
