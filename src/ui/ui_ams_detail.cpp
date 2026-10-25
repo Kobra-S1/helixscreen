@@ -1193,6 +1193,16 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
         return false; // caller's own switch owns it
     }
 
+    // This function is public and takes a raw slot index, so the bypass sentinel
+    // reaches it. The external spool is not one of the backend's lanes: it carries
+    // no number to name, apply_user_edit() refuses the index, and a printer with no
+    // filament system has one too, so it clears through its own store first.
+    if (action == MenuAction::CLEAR_SPOOL && slot == kExternalSpoolSlot) {
+        AmsState::instance().commit_external_spool_edit(SlotInfo{});
+        NOTIFY_INFO(lv_tr("External spool cleared"));
+        return true;
+    }
+
     AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend) {
         NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
@@ -1255,16 +1265,6 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
     }
 
     case MenuAction::CLEAR_SPOOL: {
-        // This function is public and takes a raw slot index, so the bypass
-        // sentinel reaches it. The external spool is not one of the backend's
-        // lanes: it carries no number to name, and apply_user_edit() refuses the
-        // index, so it clears through its own store instead.
-        if (slot == kExternalSpoolSlot) {
-            AmsState::instance().commit_external_spool_edit(SlotInfo{});
-            NOTIFY_INFO(lv_tr("External spool cleared"));
-            break;
-        }
-
         // The menu greys its Clear button for this case, but this function is
         // public and its callers can hold a menu built before the print
         // started, so the guard here is the authority: the lane a job is
