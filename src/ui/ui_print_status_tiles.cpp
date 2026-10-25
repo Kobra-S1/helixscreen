@@ -106,7 +106,17 @@ const char* print_status_chip_key(PrintStatusChip chip) {
 }
 
 PrintStatusTiles::PrintStatusTiles(PrinterState& printer_state, Host host)
-    : printer_state_(printer_state), host_(std::move(host)) {
+    : printer_state_(printer_state), host_(std::move(host)),
+      exact_image_(
+          "PrintStatusTiles",
+          [this]() -> lv_obj_t* {
+              lv_obj_t* root = host_.root ? host_.root() : nullptr;
+              return root ? lv_obj_find_by_name(root, "ps_printer_image") : nullptr;
+          },
+          // The XML binds the picture's src, so the chosen copy goes through it.
+          [this](lv_obj_t*, const std::string& path) {
+              set_string(&image_src_, image_src_buf_, sizeof(image_src_buf_), path);
+          }) {
     checklist_source_ = []() -> std::optional<PreprintChecklistInput> {
         auto* mgr = get_moonraker_manager();
         auto collector = mgr ? mgr->print_start_collector() : nullptr;
@@ -278,6 +288,8 @@ void PrintStatusTiles::request_update() {
 
 void PrintStatusTiles::on_tree_destroyed() {
     cancel_update_timer();
+    exact_image_.cancel();
+    exact_image_.forget_displayed();
     last_mode_ = CalloutMode::ImageOnly;
 }
 
@@ -288,6 +300,15 @@ int PrintStatusTiles::heat_start(PrintStatusChip chip, int current, int target) 
         h.start = current;
     }
     return h.start;
+}
+
+std::string PrintStatusTiles::tool_badge() const {
+    auto& tools = ToolState::instance();
+    if (subject_int_or_zero(tools.get_show_tool_badge_subject()) == 0) {
+        return {};
+    }
+    const char* t = lv_subject_get_string(tools.get_tool_badge_text_subject());
+    return t ? t : "";
 }
 
 ChipContent PrintStatusTiles::heater(PrintStatusChip chip, bool show_power) {
@@ -301,12 +322,7 @@ ChipContent PrintStatusTiles::heater(PrintStatusChip chip, bool show_power) {
     case PrintStatusChip::Nozzle: {
         current = subject_int_or_zero(temps.get_active_extruder_temp_subject());
         target = subject_int_or_zero(temps.get_active_extruder_target_subject());
-        auto& tools = ToolState::instance();
-        if (subject_int_or_zero(tools.get_show_tool_badge_subject()) != 0) {
-            if (const char* t = lv_subject_get_string(tools.get_tool_badge_text_subject())) {
-                badge = t;
-            }
-        }
+        badge = tool_badge();
         break;
     }
     case PrintStatusChip::Bed:
@@ -448,23 +464,16 @@ void PrintStatusTiles::update_now() {
     }
 
     const CalloutChipMetrics m = measure_callout_chip(probe);
-    const Image image = image_source_ ? image_source_() : Image{};
-    if (!image.path.empty()) {
-        set_string(&image_src_, image_src_buf_, sizeof(image_src_buf_), image.path);
+    // A rewrite under the same path needs the picture shown and checked again.
+    if (image_stale_) {
+        exact_image_.forget_displayed();
     }
+    const Image image = image_source_ ? image_source_() : Image{};
 
     // What each chip shows decides the mode, at representative readings so a
     // digit coming or going never moves the picture: a heater heating or
     // holding, a fan at full speed, labeled and not, speed and flow at 100%.
-    std::string badge;
-    {
-        auto& tools = ToolState::instance();
-        if (subject_int_or_zero(tools.get_show_tool_badge_subject()) != 0) {
-            if (const char* t = lv_subject_get_string(tools.get_tool_badge_text_subject())) {
-                badge = t;
-            }
-        }
-    }
+    const std::string badge = tool_badge();
     const auto worst = [&](PrintStatusChip c, bool labeled) -> std::string {
         switch (c) {
         case PrintStatusChip::Nozzle:
@@ -552,6 +561,7 @@ void PrintStatusTiles::update_now() {
         }
     }
 
+    const bool printing = host_.printing && host_.printing();
     CalloutPresenter::Parts parts;
     parts.area = area;
     parts.image = lv_obj_find_by_name(area, "ps_printer_image");
@@ -565,6 +575,7 @@ void PrintStatusTiles::update_now() {
         part.in_budget = in_budget(chip);
         part.active = contents[i].shown;
         part.expendable = contents[i].expendable;
+        part.budget_expendable = phase_budget_expendable(part.kind, printing);
         part.glowing = contents[i].glow;
         // Everything beside the chip's own label, which bounds the label's width.
         part.icons = icons[i];
@@ -590,7 +601,7 @@ void PrintStatusTiles::update_now() {
                               : printer_state_.fan_state().get_fan_speed_subject(part_fan_))) +
         "%";
     const std::string toolhead_text =
-        contents[index_of(PrintStatusChip::Nozzle)].text + "  " + fan_pct;
+        toolhead_chip_text(contents[index_of(PrintStatusChip::Nozzle)].text, fan_pct);
     if (lv_obj_t* th_obj = lv_obj_find_by_name(area, "ps_chip_toolhead")) {
         CalloutPresenter::Chip th;
         th.kind = CalloutKind::Toolhead;
@@ -611,6 +622,8 @@ void PrintStatusTiles::update_now() {
         presenter_.apply(parts, image.regions, image.natural_w, image.natural_h, cfg);
     ++layout_count_;
     last_layout_ = out;
+    // After the layout sized the picture, so the copy is cut for its rect.
+    exact_image_.apply(image.path);
 
     const bool glows = image.regions && lined_or_pinned(out.mode);
     for (size_t i = 0; i < kPrintStatusChipCount; ++i) {

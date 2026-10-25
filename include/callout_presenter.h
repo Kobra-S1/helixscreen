@@ -25,8 +25,12 @@ class CalloutPresenter {
         lv_obj_t* glow = nullptr; ///< its region glow, or nullptr
         bool in_budget = false;   ///< this printer can ever show it: decides the mode
         bool active = false;      ///< showing now
-        bool expendable = false;  ///< ChipContent::expendable
-        bool glowing = false;     ///< ChipContent::glow
+        bool expendable = false; ///< ChipContent::expendable: the live reading is an expected value
+        /// May the layout shed this chip's room in this phase. Decides the MODE, so it
+        /// must not follow live state; the tile sets it from phase_budget_expendable().
+        /// A surface whose budget is static anyway (home) leaves both flags false.
+        bool budget_expendable = false;
+        bool glowing = false; ///< ChipContent::glow
         /// Widths the caller measured in the fonts the chip renders, including padding and
         /// comfort margin: the worst case it can show (decides the mode), what it shows now,
         /// and its compact form for pinned mode.

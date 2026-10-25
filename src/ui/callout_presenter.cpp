@@ -71,13 +71,16 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
     const auto anchor = [&](CalloutKind k) -> std::optional<NormPoint> {
         return regions ? region_anchor(*regions, k) : std::nullopt;
     };
+    // The mode pass sheds by the phase's rule in both lists: the engine erases
+    // a shed kind from budget and active alike, so an active chip never lands
+    // without budgeted room.
     for (const Chip& c : parts.chips) {
         if (c.in_budget)
-            in.budget.push_back(
-                {c.kind, c.w_budget, anchor(c.kind), c.expendable, c.w_budget_unlabeled, c.h});
+            in.budget.push_back({c.kind, c.w_budget, anchor(c.kind), c.budget_expendable,
+                                 c.w_budget_unlabeled, c.h});
         if (c.active)
             in.active.push_back(
-                {c.kind, c.w_full, anchor(c.kind), c.expendable, c.w_full_unlabeled, c.h});
+                {c.kind, c.w_full, anchor(c.kind), c.budget_expendable, c.w_full_unlabeled, c.h});
     }
     out = compute_callout_layout(in);
     if (spdlog::should_log(spdlog::level::trace)) {
@@ -108,6 +111,25 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
         const bool unlabeled = out.unlabeled;
         out = compute_callout_layout(in);
         out.unlabeled = unlabeled;
+    } else {
+        // The mode stays fixed for the phase: a shed chip whose reading turns
+        // unusual docks into the room the line mode left free instead of
+        // relayouting the picture. With no free room it stays off: dock_free's
+        // fallback row would land on the band's chips.
+        for (auto it = out.dropped.begin(); it != out.dropped.end();) {
+            const Chip* part = part_for(parts, *it);
+            std::vector<CalloutChipOut> placed = out.chips;
+            if (!part || !part->active || part->expendable ||
+                !callout_detail::dock_free(in, out.image,
+                                           {{part->kind, part->w_full, std::nullopt, false,
+                                             part->w_full_unlabeled, part->h}},
+                                           placed)) {
+                ++it;
+                continue;
+            }
+            out.chips = std::move(placed);
+            it = out.dropped.erase(it);
+        }
     }
     spdlog::trace("[CalloutPresenter] placed {} chips, chip_h {}", out.chips.size(), in.chip_h);
 

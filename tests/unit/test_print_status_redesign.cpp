@@ -13,6 +13,7 @@
 #include "../test_helpers/scoped_geometry.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
+#include "prerendered_images.h"
 #include "print_start_phase.h"
 #include "print_status_chips.h"
 #include "print_status_layout_fitter.h"
@@ -22,6 +23,8 @@
 #include "theme_manager.h"
 #include "tool_state.h"
 
+#include <algorithm>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -481,6 +484,10 @@ TEST_CASE_METHOD(Landscape800, "strip buttons are square beside the progress", "
     CHECK(lv_obj_get_width(progress) * 100 >= lv_obj_get_content_width(strip) * 40);
     CHECK(lv_obj_get_height(strip) ==
           helix::ui::PrintStatusLayoutFitter::strip_row_height(progress));
+    // The fitter's estimate before layout reads the bar's height from the same token.
+    lv_obj_t* bar = lv_obj_find_by_name(root_, "print_progress");
+    REQUIRE(bar != nullptr);
+    CHECK(lv_obj_get_height(bar) == theme_manager_get_spacing("progress_bar_height"));
 }
 
 TEST_CASE_METHOD(Portrait320, "a narrow strip stacks progress over a full row of buttons",
@@ -622,6 +629,40 @@ std::function<std::optional<PreprintChecklistInput>()> steps_source(const size_t
     };
 }
 
+/// The printer picture's rect, which moves whenever the callout mode does.
+CalloutRect image_rect(lv_obj_t* root) {
+    lv_obj_update_layout(root);
+    lv_obj_t* img = lv_obj_find_by_name(root, "ps_printer_image");
+    REQUIRE(img != nullptr);
+    return {lv_obj_get_x(img), lv_obj_get_y(img), lv_obj_get_width(img), lv_obj_get_height(img)};
+}
+
+bool same_rect(const CalloutRect& a, const CalloutRect& b) {
+    return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
+}
+
+/// Sizes the printer area directly. Measured with the stock chips: at 200x280
+/// a stopped part fan or an untuned speed fits BothSides while a spinning fan
+/// or a tune needs Pinned, so a budget that followed live flags would flip the
+/// mode there; at 320x208 the line mode sheds the aux fan's room.
+void size_printer_area(lv_obj_t* root, int w, int h) {
+    lv_obj_t* area = lv_obj_find_by_name(root, "ps_printer_area");
+    REQUIRE(area != nullptr);
+    lv_obj_set_size(area, w, h);
+}
+
+/// Three fans, all stopped. The part fan has run once, so it keeps the part
+/// slot when the aux fan spins.
+void three_fans_stopped(TileFixture& fx) {
+    auto& fans = PrinterStateTestAccess::get_fan_state(fx.state());
+    fans.init_fans({"fan", "heater_fan hotend_fan", "fan_generic aux"});
+    fans.update_fan_speed("fan", 0.5);
+    fans.update_fan_speed("fan", 0.0);
+    fans.update_fan_speed("fan_generic aux", 0.0);
+    fx.settle();
+    fx.settle(); // a mode change reschedules once
+}
+
 } // namespace
 
 TEST_CASE_METHOD(Landscape800, "pre-print progress re-reads the checklist", "[print_status]") {
@@ -661,4 +702,165 @@ TEST_CASE_METHOD(Landscape800, "the pre-print elapsed tick re-reads the checklis
     set_int(state().print_state().get_print_start_phase_subject(),
             static_cast<int>(PrintStartPhase::IDLE));
     UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(Landscape800, "a fan spinning up mid-print does not change the mode",
+                 "[print_status]") {
+    size_printer_area(root_, 200, 280);
+    three_fans_stopped(*this);
+    const int mode = subject_int("ps_callout_mode");
+    const CalloutRect before = image_rect(root_);
+    REQUIRE(mode != static_cast<int>(CalloutMode::ImageOnly));
+
+    PrinterStateTestAccess::get_fan_state(state()).update_fan_speed("fan", 0.6);
+    settle();
+    settle();
+    CHECK(subject_int("ps_chip_part_fan_tone") == static_cast<int>(ChipTone::Active));
+    CHECK(subject_int("ps_callout_mode") == mode);
+    CHECK(same_rect(image_rect(root_), before));
+    PrinterStateTestAccess::get_fan_state(state()).init_fans({});
+}
+
+TEST_CASE_METHOD(Landscape800, "a tuned speed does not change the mode", "[print_status]") {
+    size_printer_area(root_, 200, 280);
+    three_fans_stopped(*this);
+    set_int(state().motion_state().get_speed_factor_subject(), 100);
+    settle();
+    settle();
+    const int mode = subject_int("ps_callout_mode");
+    const CalloutRect before = image_rect(root_);
+    REQUIRE(mode != static_cast<int>(CalloutMode::ImageOnly));
+
+    set_int(state().motion_state().get_speed_factor_subject(), 104);
+    settle();
+    settle();
+    CHECK(subject_int("ps_chip_speed_flow_tone") == static_cast<int>(ChipTone::Warn));
+    CHECK(subject_int("ps_callout_mode") == mode);
+    CHECK(same_rect(image_rect(root_), before));
+    set_int(state().motion_state().get_speed_factor_subject(), 100);
+    PrinterStateTestAccess::get_fan_state(state()).init_fans({});
+}
+
+TEST_CASE_METHOD(Landscape800, "a phase-dropped chip that turns unusual docks", "[print_status]") {
+    size_printer_area(root_, 320, 208);
+    three_fans_stopped(*this);
+    const int mode = subject_int("ps_callout_mode");
+    const CalloutRect before = image_rect(root_);
+    REQUIRE((mode == static_cast<int>(CalloutMode::OneSide) ||
+             mode == static_cast<int>(CalloutMode::BothSides)));
+    const auto aux_dropped = [this] {
+        const auto& d = tiles().last_layout().dropped;
+        return std::find(d.begin(), d.end(), CalloutKind::AuxFan) != d.end();
+    };
+    REQUIRE(subject_int("ps_chip_aux_fan_shown") == 0);
+    REQUIRE(aux_dropped());
+
+    PrinterStateTestAccess::get_fan_state(state()).update_fan_speed("fan_generic aux", 0.6);
+    settle();
+    settle();
+    CHECK(subject_int("ps_chip_aux_fan_shown") == 1);
+    CHECK_FALSE(aux_dropped());
+    CHECK(subject_int("ps_callout_mode") == mode);
+    CHECK(same_rect(image_rect(root_), before));
+    check_chips_inside_and_apart(root_);
+    PrinterStateTestAccess::get_fan_state(state()).init_fans({});
+}
+
+TEST_CASE_METHOD(Landscape800, "a chip the phase sheds is never placed without room",
+                 "[print_status]") {
+    all_eight_chips(*this);
+    // Measured: at this size the line mode sheds the hotend fan, the light and
+    // speed/flow, and leaves no free room for the spinning aux fan.
+    size_printer_area(root_, 300, 160);
+    PrinterStateTestAccess::get_fan_state(state()).update_fan_speed("fan_generic aux", 0.6);
+    settle();
+    settle();
+    const CalloutLayout& out = tiles().last_layout();
+    REQUIRE(out.mode == CalloutMode::OneSide);
+    REQUIRE_FALSE(out.dropped.empty());
+    // Every chip on screen got its rect from this layout.
+    size_t shown = 0;
+    for (size_t i = 0; i < ui::kPrintStatusChipCount; ++i) {
+        const std::string key = ui::print_status_chip_key(static_cast<ui::PrintStatusChip>(i));
+        shown += subject_int(("ps_chip_" + key + "_shown").c_str()) == 1 ? 1 : 0;
+    }
+    CHECK(out.chips.size() == shown);
+    CHECK(subject_int("ps_chip_aux_fan_shown") == 0);
+    check_chips_inside_and_apart(root_);
+    clear_all_eight_chips(*this);
+}
+
+TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's subjects",
+                 "[print_status]") {
+    const char* keys[] = {"nozzle",     "bed",     "chamber", "part_fan",
+                          "hotend_fan", "aux_fan", "light",   "speed_flow"};
+    const char* colors[] = {"danger", "danger", "danger",  "info",
+                            "info",   "info",   "warning", "warning"};
+    const auto subj = [](const std::string& name) {
+        lv_subject_t* s = lv_xml_get_subject(nullptr, name.c_str());
+        REQUIRE(s != nullptr);
+        return s;
+    };
+    const auto obj = [this](const std::string& name) {
+        lv_obj_t* o = lv_obj_find_by_name(root_, name.c_str());
+        REQUIRE(o != nullptr);
+        return o;
+    };
+    const auto hidden = [](lv_obj_t* o) { return lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN); };
+    set_int(subj("ps_callout_mode"), static_cast<int>(CalloutMode::BothSides));
+    for (const char* k : keys) {
+        set_int(subj(std::string("ps_glow_") + k), 0);
+        set_int(subj(std::string("ps_line_") + k), 0);
+        set_int(subj(std::string("ps_chip_") + k + "_shown"), 1);
+        set_int(subj(std::string("ps_chip_") + k + "_tone"), static_cast<int>(ChipTone::Normal));
+    }
+    for (size_t i = 0; i < std::size(keys); ++i) {
+        const std::string k = keys[i];
+        INFO(k);
+        lv_obj_t* glow = obj("ps_glow_" + k);
+        lv_obj_t* line = obj("ps_line_" + k);
+        CHECK(lv_color_eq(lv_obj_get_style_bg_color(glow, LV_PART_MAIN),
+                          theme_manager_get_color(colors[i])));
+        set_int(subj("ps_glow_" + k), 1);
+        set_int(subj("ps_line_" + k), 1);
+        for (const char* other : keys) {
+            INFO("other " << other);
+            CHECK(hidden(obj(std::string("ps_glow_") + other)) == (k != other));
+            CHECK(hidden(obj(std::string("ps_line_") + other)) == (k != other));
+        }
+        const int soft = lv_obj_get_style_bg_opa(glow, LV_PART_MAIN);
+        set_int(subj("ps_chip_" + k + "_tone"), static_cast<int>(ChipTone::Active));
+        CHECK(lv_obj_get_style_bg_opa(glow, LV_PART_MAIN) > soft);
+        set_int(subj("ps_chip_" + k + "_shown"), 0);
+        CHECK(hidden(line));
+        set_int(subj("ps_chip_" + k + "_shown"), 1);
+        set_int(subj("ps_callout_mode"), static_cast<int>(CalloutMode::Docked));
+        CHECK(hidden(line));
+        set_int(subj("ps_callout_mode"), static_cast<int>(CalloutMode::BothSides));
+        set_int(subj("ps_chip_" + k + "_tone"), static_cast<int>(ChipTone::Normal));
+        set_int(subj("ps_glow_" + k), 0);
+        set_int(subj("ps_line_" + k), 0);
+    }
+}
+
+TEST_CASE_METHOD(Landscape800, "the printer tile shows the exact-size copy of its picture",
+                 "[print_status]") {
+    tiles().use_displayed_image();
+    settle();
+    const std::string source = helix::PrinterImageManager::instance().get_displayed_image_path(
+        lv_display_get_horizontal_resolution(lv_display_get_default()));
+    REQUIRE_FALSE(source.empty());
+    lv_obj_update_layout(root_);
+    lv_obj_t* img = lv_obj_find_by_name(root_, "ps_printer_image");
+    REQUIRE(img != nullptr);
+    const std::string cache_path =
+        helix::get_cached_printer_image_path(source, lv_obj_get_width(img), lv_obj_get_height(img));
+    const std::string cache_src = "A:" + cache_path;
+    // A miss shows the scaled source and hands the copy to a worker; a hit shows it now.
+    INFO("source " << source);
+    REQUIRE(wait_until([&]() { return subject_str("ps_printer_image_src") == cache_src; }));
+    CHECK(std::filesystem::exists(cache_path));
+    // A reading tick keeps the copy.
+    settle();
+    CHECK(subject_str("ps_printer_image_src") == cache_src);
 }

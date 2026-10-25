@@ -14,9 +14,6 @@ namespace helix::ui {
 
 namespace {
 
-/// components/progress_bar.xml's height.
-constexpr int32_t kProgressBarHeight = 12;
-
 /// The strip's progress block (components/print_status_strip.xml) before it
 /// is laid out, within a few pixels: the percent line in font_body_bold, the
 /// bar, the filament line and, with `up_next`, the up-next line, #space_xs
@@ -26,7 +23,8 @@ int32_t estimated_text_height(bool up_next) {
     const int32_t small = lv_font_get_line_height(theme_manager_get_font("font_small"));
     const int32_t rows = up_next ? 4 : 3;
     const int32_t gap = theme_manager_get_spacing("space_xs");
-    return heading + kProgressBarHeight + (rows - 2) * small + (rows - 1) * gap;
+    return heading + theme_manager_get_spacing("progress_bar_height") + (rows - 2) * small +
+           (rows - 1) * gap;
 }
 
 /// The up-next line shows with jobs queued, except in a micro strip beside

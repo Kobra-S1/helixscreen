@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <string>
+#include <string_view>
 
 namespace helix::ui {
 
@@ -71,6 +72,16 @@ inline std::string compact_callout_text(std::string s) {
     static constexpr char kDegree[] = "°";
     for (size_t p; (p = s.find("°C")) != std::string::npos;)
         s.erase(p + sizeof(kDegree) - 1, 1);
+    return s;
+}
+
+/// The merged toolhead chip's text: the nozzle reading and the part-fan
+/// percentage, two spaces apart.
+[[nodiscard]] inline std::string toolhead_chip_text(std::string_view nozzle_text,
+                                                    std::string_view fan_pct) {
+    std::string s(nozzle_text);
+    s += "  ";
+    s += fan_pct;
     return s;
 }
 

@@ -679,6 +679,7 @@ const TokenEntry k_token_table[] = {
     {"px", "ps_strip_button_large", "112"},
     {"px", "ps_strip_button_xlarge", "120"},
     {"px", "ps_strip_button_xxlarge", "144"},
+    {"px", "progress_bar_height", "12"},
     {"px", "header_height_micro", "28"},
     {"px", "header_height_tiny", "33"},
     {"px", "header_height_small", "48"},
