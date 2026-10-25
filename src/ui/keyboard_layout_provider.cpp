@@ -7,6 +7,9 @@
 
 #include "lvgl.h"
 
+#include <array>
+#include <cstring>
+
 /**
  * @file keyboard_layout_provider.cpp
  * @brief Keyboard layout data provider for on-screen keyboard
@@ -442,6 +445,38 @@ const lv_buttonmatrix_ctrl_t* keyboard_layout_get_ctrl_map(keyboard_layout_mode_
     default:
         return kb_ctrl_alpha_lc; // Fallback to lowercase
     }
+}
+
+// NAMESPACE_OK: one of the global keyboard_layout_* functions
+void keyboard_layout_apply(lv_obj_t* keyboard, keyboard_layout_mode_t mode, bool caps_lock_active) {
+    const char* const* map = keyboard_layout_get_map(mode, caps_lock_active);
+    const lv_buttonmatrix_ctrl_t* ctrl_map = keyboard_layout_get_ctrl_map(mode);
+    lv_buttonmatrix_set_map(keyboard, map);
+    if (lv_keyboard_get_popovers(keyboard)) {
+        lv_buttonmatrix_set_ctrl_map(keyboard, ctrl_map);
+        return;
+    }
+    // The buttonmatrix copies the control map, so a local array is enough.
+    std::array<lv_buttonmatrix_ctrl_t, 64> stripped{};
+    size_t count = 0;
+    for (size_t i = 0; map[i][0] != '\0'; ++i) {
+        if (std::strcmp(map[i], "\n") != 0) {
+            ++count;
+        }
+    }
+    if (count > stripped.size()) {
+        lv_buttonmatrix_set_ctrl_map(keyboard, ctrl_map);
+        return;
+    }
+    for (size_t i = 0; i < count; ++i) {
+        lv_buttonmatrix_ctrl_t ctrl = ctrl_map[i];
+        if (ctrl & LV_BUTTONMATRIX_CTRL_POPOVER) {
+            ctrl = static_cast<lv_buttonmatrix_ctrl_t>((ctrl & ~LV_BUTTONMATRIX_CTRL_POPOVER) |
+                                                       LV_BUTTONMATRIX_CTRL_CLICK_TRIG);
+        }
+        stripped[i] = ctrl;
+    }
+    lv_buttonmatrix_set_ctrl_map(keyboard, stripped.data());
 }
 
 const char* keyboard_layout_get_spacebar_text() {

@@ -137,7 +137,8 @@ diagnostics); the boot heap gates print as `heap before pthread` and `internal h
 | WiFi never associates, `wifi:malloc buffer fail` | Same: internal DRAM at boot |
 | Greyed navbar, `transport could not start` or `transport start refused` | The WebSocket task found no 8KB internal block; check what allocated internal RAM since boot |
 | A one-frame glitch on some action | `[scanout] underruns` and `[present] late blit` in the same 10s window; a PSRAM heap walk or a flash write in that path |
-| Taps ignored during load | `slow ui cycle` / `slow refresh cycle`: the UI thread was busy and the polled touch read was skipped |
+| Taps land late during load | `slow ui cycle` / `slow refresh cycle`: the UI thread was busy and the taps waited in the touch queue |
+| Taps lost | `stack` on the console prints `TOUCH: dropped_taps=N`: whole taps dropped because LVGL fell a full touch queue behind |
 | Panic | Symbolize with `xtensa-esp32s3-elf-addr2line -pfiaC -e <elf>` against the exact ELF flashed; the crash log's `ELF file SHA256` names it |
 | Heap corruption | `scripts/esp32_build_debug_heap.sh` builds with heap poisoning in its own directory and archives the matching ELF |
 | Reconnect behaviour | `scripts/esp32_ws_chaos_proxy.py` sits between the panel and Moonraker and drops the connection on demand |

@@ -400,11 +400,7 @@ void KeyboardManager::apply_keyboard_mode() {
         break;
     }
 
-    const char* const* map = keyboard_layout_get_map(layout_mode, caps_lock_);
-    const lv_buttonmatrix_ctrl_t* ctrl_map = keyboard_layout_get_ctrl_map(layout_mode);
-
-    lv_buttonmatrix_set_map(keyboard_, map);
-    lv_buttonmatrix_set_ctrl_map(keyboard_, ctrl_map);
+    keyboard_layout_apply(keyboard_, layout_mode, caps_lock_);
 
     spdlog::debug("[KeyboardManager] Switched to {}", mode_name);
     lv_obj_invalidate(keyboard_);

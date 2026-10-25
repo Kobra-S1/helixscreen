@@ -44,6 +44,17 @@ const char* const* keyboard_layout_get_map(keyboard_layout_mode_t mode, bool cap
 const lv_buttonmatrix_ctrl_t* keyboard_layout_get_ctrl_map(keyboard_layout_mode_t mode);
 
 /**
+ * @brief Install a layout's button map and control map on a keyboard
+ *
+ * Keys flagged LV_BUTTONMATRIX_CTRL_POPOVER draw LVGL's preview bubble above
+ * the pressed key. With the keyboard's popovers off, those keys get
+ * LV_BUTTONMATRIX_CTRL_CLICK_TRIG instead: they still type on release, so the
+ * long-press alternates keep working, but no bubble is drawn.
+ */
+// NAMESPACE_OK: one of the global keyboard_layout_* functions
+void keyboard_layout_apply(lv_obj_t* keyboard, keyboard_layout_mode_t mode, bool caps_lock_active);
+
+/**
  * @brief Get spacebar text constant
  * @return Two-space string used for spacebar rendering
  */
