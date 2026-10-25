@@ -34,7 +34,6 @@
 
 #include <charconv>
 #include <cstdint>
-#include <optional>
 
 using namespace helix;
 
@@ -63,27 +62,9 @@ void mismatch_toast_closed(void* user_data) {
 
 /// Both toast actions carry "<key>:<generation>"; a bad parse has nothing to
 /// dispatch on.
-std::optional<uint32_t> parse_action_generation(const std::string& arg) {
-    uint32_t gen = 0;
+bool parse_action_generation(const std::string& arg, uint32_t& gen) {
     const auto parsed = std::from_chars(arg.data(), arg.data() + arg.size(), gen);
-    if (parsed.ec != std::errc{} || parsed.ptr != arg.data() + arg.size()) {
-        return std::nullopt;
-    }
-    return gen;
-}
-
-/// PRINTER_TYPE and TYPE_MISMATCH_SHOWN_FOR hold display names, which a
-/// database rename orphans; every reader resolves through the alias list.
-std::string canonical_saved_type() {
-    auto* cfg = Config::get_instance();
-    return PrinterDetector::canonical_type_name(
-        cfg->get<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, ""));
-}
-
-std::string canonical_shown_for() {
-    auto* cfg = Config::get_instance();
-    return PrinterDetector::canonical_type_name(
-        cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, ""));
+    return parsed.ec == std::errc{} && parsed.ptr == arg.data() + arg.size();
 }
 
 void* toast_generation(uint32_t generation) {
@@ -469,7 +450,8 @@ void HardwareSetupPrompter::maybe_warn_type_mismatch(const helix::PrinterDiscove
 
     // Canonicalised too: a dismissal recorded under the pre-rename name still
     // answers for the same printer.
-    const std::string flag = canonical_shown_for();
+    const std::string flag = PrinterDetector::canonical_type_name(
+        cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, ""));
 
     auto detected = PrinterDetector::auto_detect(hardware);
     const auto decision = PrinterDetector::classify_type_mismatch(saved, detected, flag);
@@ -505,21 +487,21 @@ void HardwareSetupPrompter::warn_type_mismatch(TypeMismatchReview review) {
     // generation, which the handler checks.
     helix::ui::set_notification_action_handler(
         kReviewPrinterTypeAction, [this](const std::string& arg) {
-            const auto gen = parse_action_generation(arg);
-            if (!gen) {
+            uint32_t gen = 0;
+            if (!parse_action_generation(arg, gen)) {
                 spdlog::info("[HardwareSetup] Type mismatch review skipped: bad action '{}'", arg);
                 return;
             }
-            show_type_mismatch_review(*gen);
+            show_type_mismatch_review(gen);
         });
     helix::ui::set_notification_action_handler(
         kMismatchToastClosedAction, [this](const std::string& arg) {
-            const auto gen = parse_action_generation(arg);
-            if (!gen) {
+            uint32_t gen = 0;
+            if (!parse_action_generation(arg, gen)) {
                 spdlog::info("[HardwareSetup] Type mismatch settle skipped: bad action '{}'", arg);
                 return;
             }
-            settle_type_mismatch_on_close(*gen);
+            settle_type_mismatch_on_close(gen);
         });
     review_handler_registered_ = true;
 
@@ -542,8 +524,11 @@ void HardwareSetupPrompter::settle_type_mismatch_on_close(uint32_t generation) {
     }
     // The review's staleness rule: a warning about a type the user has since
     // replaced settles nothing and stays disarmed for the new type.
-    const std::string saved = canonical_saved_type();
-    const std::string flag = canonical_shown_for();
+    auto* cfg = Config::get_instance();
+    const std::string saved = PrinterDetector::canonical_type_name(
+        cfg->get<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, ""));
+    const std::string flag = PrinterDetector::canonical_type_name(
+        cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, ""));
     if (saved != pending_review_->saved || flag == saved) {
         spdlog::info("[HardwareSetup] Type mismatch settle skipped: warned for '{}', saved "
                      "type is now '{}', dismissed-for '{}'",
@@ -562,8 +547,11 @@ void HardwareSetupPrompter::show_type_mismatch_review(uint32_t generation) {
                      generation, review_generation_, pending_review_ ? "" : ", none pending");
         return;
     }
-    const std::string saved = canonical_saved_type();
-    const std::string flag = canonical_shown_for();
+    auto* cfg = Config::get_instance();
+    const std::string saved = PrinterDetector::canonical_type_name(
+        cfg->get<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, ""));
+    const std::string flag = PrinterDetector::canonical_type_name(
+        cfg->get<std::string>(cfg->df() + helix::wizard::TYPE_MISMATCH_SHOWN_FOR, ""));
     if (saved != pending_review_->saved || flag == saved) {
         spdlog::info("[HardwareSetup] Type mismatch review skipped: warned for '{}', saved type "
                      "is now '{}', dismissed-for '{}'",

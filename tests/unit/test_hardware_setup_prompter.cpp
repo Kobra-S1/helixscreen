@@ -448,6 +448,8 @@ TEST_CASE_METHOD(TypeMismatchFixture,
     const size_t colon = history_->action.find(':');
     REQUIRE(colon != std::string::npos);
     const std::string closed = "type_mismatch_closed" + history_->action.substr(colon);
+    // The handler went with the prompter; nothing dispatches into a dead owner.
+    CHECK_FALSE(helix::ui::notification_action_handler(closed));
     NotificationHistoryPanel panel(get_printer_state(), nullptr);
     NotificationHistoryPanelTestAccess::dispatch_action(panel, closed.c_str());
     drain();
