@@ -908,3 +908,38 @@ TEST_CASE_METHOD(Landscape800,
     for (const std::string& p : {first, second})
         std::filesystem::remove(helix::get_cached_printer_image_path(p, w, h), ec);
 }
+
+TEST_CASE_METHOD(Landscape800, "a cache generation landing after deinit leaves the tile alone",
+                 "[print_status]") {
+    const std::string source = helix::PrinterImageManager::instance().get_displayed_image_path(
+        lv_display_get_horizontal_resolution(lv_display_get_default()));
+    REQUIRE_FALSE(source.empty());
+    std::string shown;
+    tiles().set_image_source([&shown]() {
+        PrintStatusTiles::Image img;
+        img.path = shown;
+        img.natural_w = 400;
+        img.natural_h = 400;
+        img.regions = &tagged_regions();
+        return img;
+    });
+    settle();
+    lv_obj_update_layout(root_);
+    lv_obj_t* img = lv_obj_find_by_name(root_, "ps_printer_image");
+    REQUIRE(img != nullptr);
+    const std::string cache_path =
+        helix::get_cached_printer_image_path(source, lv_obj_get_width(img), lv_obj_get_height(img));
+    std::error_code ec;
+    std::filesystem::remove(cache_path, ec);
+
+    shown = source;
+    tiles().update_now(); // a miss: the generation starts
+    REQUIRE(subject_str("ps_printer_image_src") == source);
+    tiles().deinit();
+    // The worker still writes its entry; its result must not reach the subject.
+    REQUIRE(wait_until([&]() { return std::filesystem::exists(cache_path); }));
+    process_lvgl(50);
+    UpdateQueue::instance().drain();
+    CHECK(subject_str("ps_printer_image_src") == source);
+    std::filesystem::remove(cache_path, ec);
+}

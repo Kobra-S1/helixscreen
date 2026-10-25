@@ -241,6 +241,8 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
 
 void PrintStatusTiles::deinit() {
     cancel_update_timer();
+    // A generation landing after this would write a subject being torn down.
+    exact_image_.cancel();
     led_version_observer_.reset();
     led_controllable_observer_.reset();
     tool_badge_observer_.reset();
