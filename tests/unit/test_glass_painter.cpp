@@ -482,6 +482,8 @@ TEST_CASE("glass_rewrite_fill shades an opaque fill its widget fades as a whole"
 
 TEST_CASE_METHOD(LVGLTestFixture, "glass: a ghost or outline button given its own fill is raised",
                  "[glass]") {
+    // The flat variants are flat through their configured bg_opa, which init() writes.
+    ThemeManager::instance().init();
     for (StyleRole flat : {StyleRole::ButtonGhost, StyleRole::ButtonOutline}) {
         CAPTURE(static_cast<int>(flat));
         lv_obj_t* b = lv_button_create(test_screen());
