@@ -213,7 +213,7 @@ void WizardConnectionStep::handle_test_connection_clicked() {
     // Auto-fill default Moonraker port when empty
     // The default port fills an empty field; the ports to try are decided from the field as
     // the user left it, before the fill.
-    std::vector<int> ports = moonraker_ports_to_try(port_clean, port_typed_);
+    std::vector<int> ports = moonraker_ports_to_try(port_clean, port_origin_);
     if (port_clean.empty()) {
         port_clean = std::to_string(kDefaultMoonrakerPort);
         set_port_field(port_clean);
@@ -466,7 +466,7 @@ void WizardConnectionStep::attempt_auto_probe() {
         auto_probe_state_.store(AutoProbeState::FAILED);
         return;
     }
-    std::vector<int> probe_ports = moonraker_ports_to_try(port_clean, port_typed_);
+    std::vector<int> probe_ports = moonraker_ports_to_try(port_clean, port_origin_);
     if (probe_ports.empty()) {
         spdlog::debug("[{}] Auto-probe: invalid port '{}', skipping", get_name(), port_clean);
         auto_probe_state_.store(AutoProbeState::FAILED);
@@ -700,7 +700,7 @@ void WizardConnectionStep::handle_port_input_changed() {
     if (port_set_by_app_) {
         return;
     }
-    port_typed_ = true;
+    port_origin_ = PortOrigin::Typed;
 
     // If auto-probe is in progress, cancel it
     if (auto_probe_state_.load() == AutoProbeState::IN_PROGRESS) {
@@ -870,6 +870,9 @@ void WizardConnectionStep::cleanup() {
     // (connection test, auto-probe, discovery, mDNS) will be silently skipped
     lifetime_.invalidate();
 
+    // The next visit starts from a port the app filled in.
+    port_origin_ = PortOrigin::FilledIn;
+
     // Stop printer discovery
     discovery_lifetime_.invalidate();
     if (mdns_discovery_) {
@@ -980,8 +983,8 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
             }
         }
 
-        // A discovered port is the printer's own, not something the user typed.
-        self->port_typed_ = false;
+        // A discovered port is where that printer answered: tried alone.
+        self->port_origin_ = PortOrigin::Discovered;
         self->set_port_field(std::to_string(printer.port));
 
         // Clear any previous validation (user still needs to test)

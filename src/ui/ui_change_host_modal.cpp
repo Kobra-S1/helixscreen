@@ -125,7 +125,7 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
         host_ip_observer_ = ObserverGuard(&host_ip_subject_, on_input_changed_cb, nullptr);
         host_port_observer_ = ObserverGuard(&host_port_subject_, on_input_changed_cb, nullptr);
         // Adding an observer notifies it once; the field still holds the filled-in port.
-        port_typed_ = false;
+        port_origin_ = helix::PortOrigin::FilledIn;
 
         start_discovery();
     }
@@ -242,7 +242,7 @@ void ChangeHostModal::handle_test_connection() {
     lv_subject_set_int(&testing_subject_, 1);
     set_status("icon_question_circle", "text_muted", "Testing connection...");
 
-    std::vector<int> ports = moonraker_ports_to_try(port_clean, port_typed_);
+    std::vector<int> ports = moonraker_ports_to_try(port_clean, port_origin_);
     tried_ports_ = ports;
     // Both callbacks run on the main thread, gated by token.
     int result = probe_moonraker_ports(
@@ -436,7 +436,7 @@ void ChangeHostModal::on_input_changed_cb(lv_observer_t* /*observer*/, lv_subjec
             return;
         }
         if (subject == &active_instance_->host_port_subject_) {
-            active_instance_->port_typed_ = true;
+            active_instance_->port_origin_ = helix::PortOrigin::Typed;
         }
     }
     // A status line describes the address it was shown for, so an edit clears it.
@@ -555,7 +555,7 @@ void ChangeHostModal::handle_printer_picked(uint32_t selected) {
     port_set_by_app_ = true;
     lv_subject_copy_string(&host_port_subject_, port.c_str());
     port_set_by_app_ = false;
-    port_typed_ = false;
+    port_origin_ = helix::PortOrigin::Discovered;
 }
 
 // ============================================================================

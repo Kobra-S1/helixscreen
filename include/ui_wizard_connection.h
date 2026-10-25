@@ -6,6 +6,7 @@
 #include "async_lifetime_guard.h"
 #include "lvgl/lvgl.h"
 #include "mdns_discovery.h"
+#include "utils/network_validation.h"
 #include "wizard_step.h"
 
 #include <atomic>
@@ -215,9 +216,9 @@ class WizardConnectionStep : public helix::wizard::Step {
     std::string saved_ip_;   // Protected by saved_values_mutex_
     std::string saved_port_; // Protected by saved_values_mutex_
 
-    // Port field provenance (main thread only). A port the user typed is tried alone; one
-    // the app filled in may fall back (moonraker_ports_to_try()).
-    bool port_typed_ = false;
+    // Where the port field's value came from (main thread only); moonraker_ports_to_try()
+    // decides from it. Reset to FilledIn by cleanup().
+    helix::PortOrigin port_origin_ = helix::PortOrigin::FilledIn;
     /// Set while the app writes the port field, so the write is not taken for typing.
     bool port_set_by_app_ = false;
     /// The ports the running test tries, for the failure message.
@@ -289,12 +290,6 @@ class WizardConnectionStep : public helix::wizard::Step {
     /// Test-only: arm the one-shot auto-probe timer without building the screen,
     /// so the teardown paths that must cancel it can be exercised directly.
     void arm_auto_probe_timer_for_test();
-
-    /// Test-only: mark the port field typed or app-filled. The step is a process-wide
-    /// singleton, so a test that types into the field puts it back.
-    void set_port_typed_for_test(bool typed) {
-        port_typed_ = typed;
-    }
 
     /// Test-only: the armed auto-probe timer, or nullptr when none is armed.
     lv_timer_t* auto_probe_timer_for_test() const {

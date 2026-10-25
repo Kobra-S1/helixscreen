@@ -85,17 +85,25 @@ constexpr int kDefaultMoonrakerPort = 7125;
 /// Where Moonraker answers when a web server such as nginx fronts it.
 constexpr int kFallbackMoonrakerPort = 80;
 
+/// Where the port field's value came from.
+enum class PortOrigin {
+    FilledIn,   ///< The app put it there: the default, or the printer's saved port
+    Typed,      ///< The user edited the field
+    Discovered, ///< Picked from the printers mDNS or the LAN sweep found
+};
+
 /**
  * @brief The ports a connection test tries for the port field's text, in order
  *
- * The default port the app filled in is a guess, so it falls back to port 80 when nothing
- * answers on 7125. A port the user typed, or a saved or discovered one, is tried alone.
+ * Only the untouched 7125 default is a guess, so only it falls back to port 80 when nothing
+ * answers on 7125; a saved 7125 cannot be told from the default and counts as one. Any
+ * other filled-in port (a saved one), a typed port and a discovered port are tried alone.
  * An empty field means the default.
  *
- * @param port_text  The port field's text (digits; surrounding whitespace ignored)
- * @param user_typed The user edited the port field
+ * @param port_text The port field's text (digits; surrounding whitespace ignored)
+ * @param origin    Where that text came from
  * @return The ports to try in order; empty when port_text is not a valid port
  */
-std::vector<int> moonraker_ports_to_try(const std::string& port_text, bool user_typed);
+std::vector<int> moonraker_ports_to_try(const std::string& port_text, PortOrigin origin);
 
 } // namespace helix

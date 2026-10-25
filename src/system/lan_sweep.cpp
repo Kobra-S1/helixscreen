@@ -21,7 +21,6 @@
 #include <thread>
 #include <unistd.h>
 
-
 namespace helix {
 
 // ============================================================================
@@ -263,37 +262,37 @@ void LanSweepDiscovery::start_discovery(DiscoveryCallback on_update) {
     spdlog::info("[LanSweep] Sweeping {} addresses ({} at a time)", sweep->hosts.size(), workers);
 
     const auto tok = lifetime_.token();
-    const std::vector<int> ports = moonraker_ports_to_try("", false);
+    const std::vector<int> ports = moonraker_ports_to_try("", PortOrigin::FilledIn);
     const auto pause = limits_.pause_between_probes;
     // Each worker takes the next address until none are left. Results and the
     // finish reach `this` only through tok.defer, on the main thread.
     auto body = [this, sweep, tok, ports, pause]() {
-            while (!sweep->cancelled.load()) {
-                const size_t i = sweep->next.fetch_add(1);
-                if (i >= sweep->hosts.size()) {
+        while (!sweep->cancelled.load()) {
+            const size_t i = sweep->next.fetch_add(1);
+            if (i >= sweep->hosts.size()) {
+                break;
+            }
+            const std::string& host = sweep->hosts[i];
+            for (int port : ports) {
+                if (sweep->cancelled.load()) {
                     break;
                 }
-                const std::string& host = sweep->hosts[i];
-                for (int port : ports) {
-                    if (sweep->cancelled.load()) {
-                        break;
-                    }
-                    const bool found = sweep->probe(host, static_cast<uint16_t>(port));
-                    if (pause.count() > 0) {
-                        // Leaves the radio and the CPU to the UI between probes.
-                        std::this_thread::sleep_for(pause);
-                    }
-                    if (found) {
-                        tok.defer("LanSweep::found", [this, host, port]() {
-                            on_found(host, static_cast<uint16_t>(port));
-                        });
-                        break;
-                    }
+                const bool found = sweep->probe(host, static_cast<uint16_t>(port));
+                if (pause.count() > 0) {
+                    // Leaves the radio and the CPU to the UI between probes.
+                    std::this_thread::sleep_for(pause);
+                }
+                if (found) {
+                    tok.defer("LanSweep::found", [this, host, port]() {
+                        on_found(host, static_cast<uint16_t>(port));
+                    });
+                    break;
                 }
             }
-            if (sweep->workers_left.fetch_sub(1) == 1) {
-                tok.defer("LanSweep::finished", [this]() { on_finished(); });
-            }
+        }
+        if (sweep->workers_left.fetch_sub(1) == 1) {
+            tok.defer("LanSweep::finished", [this]() { on_finished(); });
+        }
     };
     LanSweepWorkers started = start_lan_sweep_workers(workers, limits_, body);
     workers_ = std::move(started.keepalive);

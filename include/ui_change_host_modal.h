@@ -7,6 +7,7 @@
 #include "ui_observer_guard.h"
 
 #include "mdns_discovery.h"
+#include "utils/network_validation.h"
 
 #include <cstdint>
 #include <functional>
@@ -158,8 +159,8 @@ class ChangeHostModal : public Modal {
     /// Test Connection moved the live client to the typed host.
     bool client_borrowed_ = false;
 
-    /// The user edited the port field: a typed port is tried alone (moonraker_ports_to_try()).
-    bool port_typed_ = false;
+    /// Where the port field's value came from; moonraker_ports_to_try() decides from it.
+    helix::PortOrigin port_origin_ = helix::PortOrigin::FilledIn;
     /// Set while the modal writes the port field itself, so the write is not an edit.
     bool port_set_by_app_ = false;
     /// The ports the running test tries, for the failure message.

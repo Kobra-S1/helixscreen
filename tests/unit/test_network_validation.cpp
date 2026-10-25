@@ -103,6 +103,7 @@ using helix::classify_connect_failure;
 using helix::connect_failure_hint;
 using helix::ConnectFailureKind;
 using helix::moonraker_ports_to_try;
+using helix::PortOrigin;
 
 TEST_CASE("Connect failure: socket errors classify by what the user should check",
           "[validation][network][connect_failure]") {
@@ -150,31 +151,39 @@ TEST_CASE("Connect failure: each kind gets its own hint, mobile data on Android 
 TEST_CASE("Moonraker ports: the untouched default falls back to port 80",
           "[validation][network][port_fallback]") {
     using V = std::vector<int>;
-    CHECK(moonraker_ports_to_try("7125", false) == V{7125, 80});
-    CHECK(moonraker_ports_to_try(" 7125 ", false) == V{7125, 80});
+    CHECK(moonraker_ports_to_try("7125", PortOrigin::FilledIn) == V{7125, 80});
+    CHECK(moonraker_ports_to_try(" 7125 ", PortOrigin::FilledIn) == V{7125, 80});
     // An empty field is auto-filled with the default, typed or not.
-    CHECK(moonraker_ports_to_try("", false) == V{7125, 80});
-    CHECK(moonraker_ports_to_try("", true) == V{7125, 80});
+    CHECK(moonraker_ports_to_try("", PortOrigin::FilledIn) == V{7125, 80});
+    CHECK(moonraker_ports_to_try("", PortOrigin::Typed) == V{7125, 80});
 }
 
 TEST_CASE("Moonraker ports: a typed port is tried alone", "[validation][network][port_fallback]") {
     using V = std::vector<int>;
-    CHECK(moonraker_ports_to_try("7125", true) == V{7125});
-    CHECK(moonraker_ports_to_try("80", true) == V{80});
-    CHECK(moonraker_ports_to_try("7126", true) == V{7126});
+    CHECK(moonraker_ports_to_try("7125", PortOrigin::Typed) == V{7125});
+    CHECK(moonraker_ports_to_try("80", PortOrigin::Typed) == V{80});
+    CHECK(moonraker_ports_to_try("7126", PortOrigin::Typed) == V{7126});
 }
 
-TEST_CASE("Moonraker ports: a filled-in port other than the default is tried alone",
+TEST_CASE("Moonraker ports: a saved port other than the default is tried alone",
           "[validation][network][port_fallback]") {
     using V = std::vector<int>;
-    // A saved or discovered port is a known address, not a guess.
-    CHECK(moonraker_ports_to_try("80", false) == V{80});
-    CHECK(moonraker_ports_to_try("7126", false) == V{7126});
+    // A saved port other than 7125 is a known address, not a guess.
+    CHECK(moonraker_ports_to_try("80", PortOrigin::FilledIn) == V{80});
+    CHECK(moonraker_ports_to_try("7126", PortOrigin::FilledIn) == V{7126});
 }
 
 TEST_CASE("Moonraker ports: an invalid port tries nothing",
           "[validation][network][port_fallback]") {
-    CHECK(moonraker_ports_to_try("0", false).empty());
-    CHECK(moonraker_ports_to_try("70000", true).empty());
-    CHECK(moonraker_ports_to_try("abc", false).empty());
+    CHECK(moonraker_ports_to_try("0", PortOrigin::FilledIn).empty());
+    CHECK(moonraker_ports_to_try("70000", PortOrigin::Typed).empty());
+    CHECK(moonraker_ports_to_try("abc", PortOrigin::FilledIn).empty());
+}
+
+TEST_CASE("Moonraker ports: a discovered port is tried alone, 7125 included",
+          "[validation][network][port_fallback]") {
+    using V = std::vector<int>;
+    CHECK(moonraker_ports_to_try("7125", PortOrigin::Discovered) == V{7125});
+    CHECK(moonraker_ports_to_try("80", PortOrigin::Discovered) == V{80});
+    CHECK(moonraker_ports_to_try("", PortOrigin::Discovered) == V{7125, 80});
 }

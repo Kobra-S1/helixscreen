@@ -597,7 +597,6 @@ struct RestoreDefaultPortField {
     WizardConnectionStep* step;
     ~RestoreDefaultPortField() {
         step->cleanup();
-        step->set_port_typed_for_test(false);
         lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_port"), "7125");
     }
 };
@@ -736,5 +735,57 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* port_input = lv_obj_find_by_name(root, "port_input");
     REQUIRE(port_input != nullptr);
     CHECK(std::string(lv_textarea_get_text(port_input)) == "80");
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: leaving the step forgets that the port was typed",
+                 "[wizard][connection][port_fallback]") {
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+
+    lv_obj_t* root = create_step_and_test(step, test_screen());
+    lv_obj_t* port_input = lv_obj_find_by_name(root, "port_input");
+    REQUIRE(port_input != nullptr);
+    lv_textarea_set_text(port_input, "7125");
+
+    // Away and back: the field still says 7125, now as the app's own default.
+    step->cleanup();
+    root = create_step_and_test(step, test_screen());
+    click_test(root);
+    REQUIRE(client.fire_disconnected());
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+    CHECK(client.get_last_url() == "ws://10.9.9.9:80/websocket");
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Connection step: a discovered printer on 7125 is tried on 7125 alone",
+                 "[wizard][connection][port_fallback][lan_sweep]") {
+    helix::test::FakeMoonrakerClient client;
+    ScopedMoonrakerClient installed(&client);
+    WizardConnectionStep* step = get_wizard_connection_step();
+    RestoreDefaultPortField restore{step};
+    step->init_subjects();
+    step->register_callbacks();
+    auto mock = std::make_unique<MockMdnsDiscovery>();
+    MockMdnsDiscovery* mdns = mock.get();
+    step->set_mdns_discovery(std::move(mock));
+    lv_obj_t* root = step->create(test_screen());
+    REQUIRE(root != nullptr);
+    mdns->add_fake_printer("voron", "voron.local", "192.168.1.112", 7125);
+    mdns->simulate_discovery();
+
+    lv_obj_t* dropdown = lv_obj_find_by_name(root, "printer_dropdown");
+    REQUIRE(dropdown != nullptr);
+    lv_dropdown_set_selected(dropdown, 1);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    click_test(root);
+    REQUIRE(client.fire_disconnected());
+    helix::ui::UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
+
+    CHECK(client.connect_urls.back() == "ws://192.168.1.112:7125/websocket");
+    CHECK(client.connect_urls.size() == 1);
     lv_subject_copy_string(lv_xml_get_subject(nullptr, "connection_ip"), "127.0.0.1");
 }

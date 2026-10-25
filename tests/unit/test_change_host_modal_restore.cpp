@@ -33,6 +33,7 @@
 #include "printer_switch_flow.h"
 #include "utils/network_validation.h"
 
+#include <algorithm>
 #include <lvgl.h>
 #include <memory>
 #include <string>
@@ -597,4 +598,49 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     REQUIRE_FALSE(stopped);
     click(dialog, "modal_cancel_btn");
     CHECK(stopped);
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: a saved port other than 7125 is tried alone",
+                 "[change_host][port_fallback]") {
+    Config* cfg = Config::get_instance();
+    cfg->set<int>(cfg->df() + "moonraker_port", 80);
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    REQUIRE(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_port"))) ==
+            "80");
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    click(dialog, "btn_test_connection");
+
+    REQUIRE(client_->fire_disconnected());
+    UpdateQueue::instance().drain();
+    CHECK(client_->connect_urls == std::vector<std::string>{"ws://10.9.9.9:80/websocket"});
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Add printer: a discovered printer on 7125 is tried on 7125 alone",
+                 "[change_host][port_fallback][lan_sweep]") {
+    auto mock = std::make_unique<MockMdnsDiscovery>();
+    mock->add_fake_printer("voron", "voron.local", "192.168.1.112", 7125);
+    helix::set_printer_discovery_source(
+        [&mock]() -> std::unique_ptr<helix::IMdnsDiscovery> { return std::move(mock); });
+    helix::ui::show_add_printer_modal([](const std::string&, int) { return false; });
+    UpdateQueue::instance().drain();
+    helix::set_printer_discovery_source(nullptr);
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+
+    lv_obj_t* dropdown = lv_obj_find_by_name(dialog, "printer_dropdown");
+    REQUIRE(dropdown != nullptr);
+    lv_dropdown_set_selected(dropdown, 1);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    click(dialog, "btn_test_connection");
+
+    REQUIRE(client_->fire_disconnected());
+    UpdateQueue::instance().drain();
+    CHECK(client_->connect_urls.back() == "ws://192.168.1.112:7125/websocket");
+    CHECK(std::count(client_->connect_urls.begin(), client_->connect_urls.end(),
+                     std::string("ws://192.168.1.112:80/websocket")) == 0);
 }
