@@ -109,6 +109,16 @@ struct PrimaryFans {
     }
 };
 
+/// Which primary slots this printer's fans can ever fill, whichever fan holds
+/// each now. classify_primary_fans() can move a fan between slots mid-print
+/// (a commandable fan that runs takes the part slot from an idle [fan]); this
+/// answer does not move with it.
+struct PrimaryFanSlots {
+    bool part = false;
+    bool hotend = false;
+    bool aux = false;
+};
+
 /**
  * @brief Manages fan-related subjects for printer state
  *
@@ -235,6 +245,8 @@ class PrinterFanState {
     /// Pick first fan of each primary role from the discovered list.
     /// Returns empty strings for roles with no detected fan.
     PrimaryFans classify_primary_fans() const;
+    /// The slots classify_primary_fans() can fill on this fan set.
+    PrimaryFanSlots possible_primary_fan_slots() const;
 
     /// Classify a fan object by name. @p configured_part_fan, when set, is the
     /// object the user assigned the part cooling role.

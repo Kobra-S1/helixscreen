@@ -499,6 +499,7 @@ void PrintStatusTiles::update_now() {
         return c == PrintStatusChip::PartFan || c == PrintStatusChip::HotendFan ||
                c == PrintStatusChip::AuxFan;
     };
+    const PrimaryFanSlots fan_slots = printer_state_.fan_state().possible_primary_fan_slots();
     const auto in_budget = [&](PrintStatusChip c) {
         switch (c) {
         case PrintStatusChip::Nozzle:
@@ -509,12 +510,14 @@ void PrintStatusTiles::update_now() {
             auto& caps = printer_state_.capabilities_state();
             return subject_int_or_zero(caps.subject(Capability::HasChamber)) != 0;
         }
+        // What the printer's fans can fill, not which fan fills a slot now: a
+        // fan moving between slots must not change the mode.
         case PrintStatusChip::PartFan:
-            return !part_fan_.empty();
+            return fan_slots.part;
         case PrintStatusChip::HotendFan:
-            return !hotend_fan_.empty();
+            return fan_slots.hotend;
         case PrintStatusChip::AuxFan:
-            return !aux_fan_.empty();
+            return fan_slots.aux;
         case PrintStatusChip::Light:
             return contents[index_of(c)].shown;
         }

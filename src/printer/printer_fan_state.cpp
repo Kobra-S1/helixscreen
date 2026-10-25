@@ -278,6 +278,23 @@ PrimaryFans PrinterFanState::classify_primary_fans() const {
     return out;
 }
 
+PrimaryFanSlots PrinterFanState::possible_primary_fan_slots() const {
+    PrimaryFanSlots out;
+    bool part_cooling = false;
+    int commandable = 0, aux = 0;
+    for (const auto& fan : fans_) {
+        part_cooling |= fan.type == FanType::PART_COOLING;
+        out.hotend |= fan.type == FanType::HEATER_FAN;
+        commandable += fan.type == FanType::GENERIC_FAN || fan.type == FanType::OUTPUT_PIN_FAN;
+        aux += is_aux_fan(fan.type);
+    }
+    // resolve_part_fan() takes the configured part fan or a commandable one.
+    out.part = part_cooling || commandable > 0;
+    // Without a part cooling fan, a commandable fan always holds the part slot.
+    out.aux = aux - (!part_cooling && commandable > 0 ? 1 : 0) > 0;
+    return out;
+}
+
 std::string PrinterFanState::resolve_part_fan(const std::string& configured) const {
     // The bare [fan] is Klipper's canonical part cooling object, but some printers
     // leave it a stale 0% stub and drive a manually-commandable named fan instead

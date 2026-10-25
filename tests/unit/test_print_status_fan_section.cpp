@@ -300,3 +300,54 @@ TEST_CASE_METHOD(
     REQUIRE(picked.hotend == "heater_fan hotend_fan");
     REQUIRE(picked.aux == "fan_generic nevermore");
 }
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "possible_primary_fan_slots answers for the fan set, not today's assignment",
+                 "[fan_state]") {
+    PrinterFanState state;
+    const auto fan = [](const char* name, FanType type) {
+        const bool commandable = type == FanType::PART_COOLING || type == FanType::GENERIC_FAN ||
+                                 type == FanType::OUTPUT_PIN_FAN;
+        return FanInfo{name, name, type, 0, commandable, std::nullopt};
+    };
+    const auto slots = [&](std::vector<FanInfo> fans) {
+        PrinterFanStateTestAccess::set_fans(state, std::move(fans));
+        return state.possible_primary_fan_slots();
+    };
+    SECTION("a part fan, a hotend fan and a generic fan fill all three") {
+        const auto s =
+            slots({fan("fan", FanType::PART_COOLING), fan("heater_fan he", FanType::HEATER_FAN),
+                   fan("fan_generic aux", FanType::GENERIC_FAN)});
+        CHECK(s.part);
+        CHECK(s.hotend);
+        CHECK(s.aux);
+    }
+    SECTION("the only commandable fan always holds the part slot") {
+        const auto s = slots({fan("fan_generic aux", FanType::GENERIC_FAN)});
+        CHECK(s.part);
+        CHECK_FALSE(s.hotend);
+        CHECK_FALSE(s.aux);
+    }
+    SECTION("a second aux-type fan beside it can fill aux") {
+        const auto s = slots({fan("fan_generic aux", FanType::GENERIC_FAN),
+                              fan("controller_fan mcu", FanType::CONTROLLER_FAN)});
+        CHECK(s.part);
+        CHECK(s.aux);
+    }
+    SECTION("a hotend fan alone fills only its slot") {
+        const auto s = slots({fan("heater_fan he", FanType::HEATER_FAN)});
+        CHECK_FALSE(s.part);
+        CHECK(s.hotend);
+        CHECK_FALSE(s.aux);
+    }
+    SECTION("a promoted generic fan leaves the aux slot empty, which stays possible") {
+        auto fans = std::vector<FanInfo>{fan("fan", FanType::PART_COOLING),
+                                         fan("fan_generic aux", FanType::GENERIC_FAN)};
+        fans[1].speed_percent = 60;
+        PrinterFanStateTestAccess::set_fans(state, fans);
+        REQUIRE(state.classify_primary_fans().part == "fan_generic aux");
+        CHECK(state.classify_primary_fans().aux.empty());
+        CHECK(state.possible_primary_fan_slots().aux);
+    }
+    PrinterFanStateTestAccess::set_fans(state, {});
+}
