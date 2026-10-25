@@ -195,8 +195,16 @@ Views do not drive a `CameraStream` directly. `CameraView` ([`include/camera_vie
 thread; `stop()` clears the owner's images and waits for the render thread, then joins the stream on
 `HttpExecutor::fast()` (a wedged join would freeze the UI) and honours the detach contract there. A `start()` over a
 worker that gave up runs the same teardown first. Most streamers serve one client, so a view starting a camera tells
-every other view of it to stop through its `on_preempted()` handler; each owner restarts on its next activation. The home `CameraWidget` and the Print Status preview card both sit on it; each keeps its own
+every other view of it to stop through its `on_preempted()` handler; each owner restarts on its next activation. The home `CameraWidget`, the Print Status preview card and the standalone fullscreen viewer all sit on it; each keeps its own
 target image and fps policy.
+
+The standalone viewer (`StandaloneCameraViewer`, [`src/ui/panel_widgets/camera_widget.cpp#StandaloneCameraViewer/open`](../../../src/ui/panel_widgets/camera_widget.cpp))
+is the fullscreen camera opened from outside the home panel: Settings -> Devices -> Camera and Print Status ->
+More -> Camera. With a `CameraWidget` attached it opens that widget's fullscreen instead, which shows the stream
+the widget already owns. Otherwise it creates the `camera_fullscreen` overlay and starts its own `CameraView` with
+the camera's own flips, which takes the camera from the card or widget showing it; closing the overlay, or a screen
+teardown deleting it, stops that view the same way the others stop. One fullscreen view is open at a time across
+both paths.
 
 The widget also throttles: `set_max_fps(0)` when an overlay covers it, `2` in edit mode, the configured cap
 otherwise (`src/ui/panel_widgets/camera_widget.cpp#update_stream_fps`). Flip, rotation, target size, and fps cap are all

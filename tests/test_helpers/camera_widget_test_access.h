@@ -96,6 +96,16 @@ class CameraWidgetTestAccess {
     static lv_obj_t* fullscreen_spinner(const CameraWidget& w) {
         return w.fullscreen_spinner_;
     }
+
+    /// The open standalone viewer's CameraView, or nullptr when none is open.
+    static CameraView* standalone_view() {
+        auto* viewer = StandaloneCameraViewer::s_open_;
+        return viewer ? &viewer->view_ : nullptr;
+    }
+    static lv_obj_t* standalone_overlay() {
+        auto* viewer = StandaloneCameraViewer::s_open_;
+        return viewer ? viewer->overlay_ : nullptr;
+    }
 };
 
 } // namespace helix
