@@ -426,8 +426,19 @@ which returns a `CalloutMode`, the image rect, and each chip's rect and leader l
 - **The budget decides the mode; the active chips get positions.** `CalloutLayoutInput`
   carries both: `budget` is every chip this printer can ever show at its widest text,
   `active` is what shows now. Fitting against the budget is what keeps the image still
-  as chips come and go. A capability (`printer_has_led`, `printer_has_chamber_heater`)
-  changes the budget, so its observer relayouts even when no chip text changes.
+  as chips come and go. A capability (`printer_has_led`, `Capability::HasChamber`: a
+  chamber sensor or heater) changes the budget, so its observer relayouts even when no
+  chip text changes.
+- **Two expendable flags: one fixed per phase, one live.** `CalloutPresenter::Chip`
+  carries `budget_expendable` (may this chip's room be shed in this phase; the print
+  status tile sets it from `phase_budget_expendable()` in `include/print_status_chips.h`)
+  and `expendable` (the live reading is an expected value). The pass that picks the mode
+  reads `budget_expendable` for both `budget` and `active`, because the engine sheds both
+  vectors by one rule, and a chip placed without budgeted room overlaps; so the mode
+  cannot change inside a phase. The pinned second pass, whose mode is already fixed,
+  reads the live flag. Last, a chip the phase shed whose live reading turns unusual (a
+  spinning aux fan) is docked by `dock_free()` into room the line mode left free, and
+  stays hidden when there is none: no reading is worth an overlap.
 - **Chips are measured with the composer they render.** `apply_callout_layout()` measures
   in the chips' own fonts, takes padding and border from the live chip's style, and
   `around_text()` is the single expression for everything in a chip except its text. It
@@ -450,10 +461,13 @@ which returns a `CalloutMode`, the image rect, and each chip's rect and leader l
   `schedule_callout_layout()`; the one-shot timer measures and places. Nothing forces a
   layout pass during a grid rebuild (#983, #1025). Unchanged coordinates are not
   rewritten, since every style write invalidates and temperatures relayout every tick.
-- **One side and the exact-size image cache.** A moved image declares a pixel rect whose
+- **One side and the exact-size image cache.** `helix::ui::ExactSizeImage`
+  (`src/ui/panel_widgets/exact_size_image.h`) owns it for both surfaces that draw the
+  printer picture, the home widget and the print status tile: no redraw scales the
+  full-resolution decode. A moved image declares a pixel rect whose
   coords only follow at the next layout pass, and the cache check runs from timers that
   can fire first, so the cache reads the DECLARED size
-  (`src/ui/panel_widgets/printer_image_widget.cpp#declared_image_size`), never the coords.
+  (`src/ui/panel_widgets/exact_size_image.cpp#declared_image_size`), never the coords.
   A generated copy whose size no longer matches the declared rect is dropped and the check
   rescheduled. An exact copy is shown 1:1: `show_exact_copy()` sets the inner align to
   CENTER, then `LV_SCALE_NONE`, then the source, because LVGL keeps the scale CONTAIN
