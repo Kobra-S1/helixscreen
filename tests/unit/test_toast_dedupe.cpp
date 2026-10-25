@@ -6,6 +6,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/toast_manager_test_access.h"
 #include "lvgl/src/core/lv_obj_draw_private.h"
 #include "lvgl/src/misc/lv_area_private.h"
 #include "pending_startup_warnings.h"
@@ -14,52 +15,6 @@
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
-
-// Friend accessor (L065): reach ToastManager privates without test-only
-// methods on the production class.
-class ToastManagerTestAccess {
-  public:
-    static void inject(ToastManager& tm, ToastSeverity sev, const char* msg, bool exiting) {
-        ToastManager::ToastInstance inst;
-        inst.severity = sev;
-        inst.message = msg;
-        inst.is_exiting = exiting;
-        tm.active_.push_back(std::move(inst));
-    }
-    static void inject_widget(ToastManager& tm, lv_obj_t* widget, ToastSeverity sev,
-                              const char* msg) {
-        ToastManager::ToastInstance inst;
-        inst.widget = widget;
-        inst.severity = sev;
-        inst.message = msg;
-        tm.active_.push_back(std::move(inst));
-    }
-    static void inject_action(ToastManager& tm, ToastSeverity sev, const char* msg,
-                              toast_action_callback_t cb, void* user_data) {
-        ToastManager::ToastInstance inst;
-        inst.severity = sev;
-        inst.message = msg;
-        inst.action_cb = cb;
-        inst.action_user_data = user_data;
-        tm.active_.push_back(std::move(inst));
-    }
-    static bool refresh_action_duplicate(ToastManager& tm, ToastSeverity sev, const char* msg,
-                                         toast_action_callback_t cb, void* user_data) {
-        return tm.refresh_duplicate(sev, msg, cb, user_data);
-    }
-    static ToastManager::ToastList::iterator find_owning_toast(ToastManager& tm, lv_obj_t* node) {
-        return tm.find_owning_toast(node);
-    }
-    static ToastManager::ToastList::iterator list_end(ToastManager& tm) {
-        return tm.active_.end();
-    }
-    static bool refresh_duplicate(ToastManager& tm, ToastSeverity sev, const char* msg) {
-        return tm.refresh_duplicate(sev, msg);
-    }
-    static void clear(ToastManager& tm) {
-        tm.active_.clear();
-    }
-};
 
 TEST_CASE("Toast dedupe: identical active toast is refreshed, not duplicated", "[toast][dedupe]") {
     auto& tm = ToastManager::instance();

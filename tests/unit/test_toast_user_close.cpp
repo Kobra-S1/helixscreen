@@ -10,6 +10,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/toast_manager_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "display_settings_manager.h"
 
@@ -40,30 +41,6 @@ void drain() {
 
 } // namespace
 
-/// Friend accessor (L065), at global scope where the production class's
-/// friend declaration names it: stage one list entry the widget paths resolve.
-class ToastManagerTestAccess {
-  public:
-    static void inject(ToastManager& tm, lv_obj_t* widget) {
-        // detach_from_input() requires this child by name; without it the
-        // strict-mode UI contract aborts before the path under test runs.
-        lv_obj_t* action_btn = lv_obj_create(widget);
-        lv_obj_set_name(action_btn, "toast_action_btn");
-        tm.active_.push_back(ToastManager::ToastInstance{});
-        auto it = std::prev(tm.active_.end());
-        it->widget = widget;
-        it->action_cb = noop_action_cb;
-        it->action_user_data = data_42();
-        it->user_closed_cb = counting_closed_cb;
-    }
-    static void user_close(ToastManager& tm, lv_obj_t* widget) {
-        tm.user_close_toast(tm.find_by_widget(widget));
-    }
-    static void clear(ToastManager& tm) {
-        tm.active_.clear();
-    }
-};
-
 namespace {
 
 struct UserCloseFixture : LVGLUITestFixture {
@@ -92,7 +69,8 @@ TEST_CASE_METHOD(UserCloseFixture, "Toast user close: the X path runs the closed
     lv_obj_t* host = lv_obj_create(test_screen());
     lv_obj_t* widget = lv_obj_create(host);
 
-    ToastManagerTestAccess::inject(tm, widget);
+    ToastManagerTestAccess::inject_closeable(tm, widget, noop_action_cb, data_42(),
+                                             counting_closed_cb);
     ToastManagerTestAccess::user_close(tm, widget);
     ToastManagerTestAccess::user_close(tm, widget); // already exiting: no second fire
     drain(); // the closed callback runs deferred, like the action button's
@@ -137,7 +115,8 @@ TEST_CASE_METHOD(UserCloseFixture, "Toast user close: hide() does not run the cl
     lv_obj_t* host = lv_obj_create(test_screen());
     lv_obj_t* widget = lv_obj_create(host);
 
-    ToastManagerTestAccess::inject(tm, widget);
+    ToastManagerTestAccess::inject_closeable(tm, widget, noop_action_cb, data_42(),
+                                             counting_closed_cb);
     tm.hide(noop_action_cb, data_42());
     drain();
 
