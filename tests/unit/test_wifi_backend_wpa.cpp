@@ -305,6 +305,14 @@ TEST_CASE("wpa reports an unreadable control directory as permission denied", "[
     if (::geteuid() == 0) {
         SKIP("root reads a mode-0000 directory, so the denial cannot be staged");
     }
+    // The backend always also searches the standard system directories, so a
+    // host running a real supplicant would answer with its socket instead.
+    for (const char* system_dir :
+         {"/run/wpa_supplicant", "/var/run/wpa_supplicant", "/etc/wifi/wpa_supplicant/sockets"}) {
+        if (std::filesystem::exists(system_dir)) {
+            SKIP("host has a real wpa_supplicant control directory: " << system_dir);
+        }
+    }
     WpaFakeFixture fx;
     const std::string locked = fx.dir + "/locked";
     REQUIRE(std::filesystem::create_directory(locked));
