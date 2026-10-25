@@ -16,15 +16,23 @@ namespace {
 
 /// Fork and exec /bin/sleep @p seconds. With @p ignore_term the child ignores
 /// SIGTERM, a disposition that survives exec.
+///
+/// SIGTERM stays blocked across the fork: a child that has not reached exec
+/// yet still carries Catch2's fatal-signal handler, which would report the
+/// test's own SIGTERM as a crash and outlive the grace period.
 pid_t spawn_sleep(const char* seconds, bool ignore_term = false) {
+    sigset_t term, saved;
+    sigemptyset(&term);
+    sigaddset(&term, SIGTERM);
+    ::sigprocmask(SIG_BLOCK, &term, &saved);
     const pid_t pid = ::fork();
     if (pid == 0) {
-        if (ignore_term) {
-            ::signal(SIGTERM, SIG_IGN);
-        }
+        ::signal(SIGTERM, ignore_term ? SIG_IGN : SIG_DFL);
+        ::sigprocmask(SIG_SETMASK, &saved, nullptr);
         ::execl("/bin/sleep", "sleep", seconds, static_cast<char*>(nullptr));
         _exit(127);
     }
+    ::sigprocmask(SIG_SETMASK, &saved, nullptr);
     return pid;
 }
 
