@@ -108,10 +108,13 @@ bool MoonrakerManager::init(const RuntimeConfig& runtime_config, Config* config)
 
     // HELIX_MOCK_PRINTER is authoritative over any persisted printer type:
     // PrinterDetector::auto_detect_and_save() short-circuits when a type is
-    // already saved, so settle it here, before detection runs.
+    // already saved, so settle it here, before detection runs. The firmware
+    // never sets the variable, and leaving the call out drops the persona table.
+#if !defined(ESP_PLATFORM)
     if (config && helix::apply_mock_printer_identity(*config, std::getenv("HELIX_MOCK_PRINTER"))) {
         config->save();
     }
+#endif
 
     // Configure timeouts from config file
     if (config) {
