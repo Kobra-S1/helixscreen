@@ -4382,7 +4382,7 @@ translations:
   TouchCalibration: Калибровка касания
   Trace: Трассировка
   Trigger: Триггер
-  'Tried ports 7125 and 80.': "Проверены порты 7125 и 80."
+  'Tried ports {} and {}.': "Проверены порты {} и {}."
   'Troubleshooting:': 'Устранение неполадок:'
   Try adjusting your search or filters: Попробуйте изменить поиск или фильтры
   Try Again: 'Повторить'

@@ -123,7 +123,8 @@ void WizardConnectionStep::init_subjects() {
             std::string stored_ip =
                 config->get<std::string>(config->df() + helix::wizard::MOONRAKER_HOST, default_ip);
             default_ip = resolve_moonraker_host_default(stored_ip, helix::is_android_platform());
-            int port_num = config->get<int>(config->df() + helix::wizard::MOONRAKER_PORT, 7125);
+            int port_num = config->get<int>(config->df() + helix::wizard::MOONRAKER_PORT,
+                                            helix::kDefaultMoonrakerPort);
             default_port = std::to_string(port_num);
 
             spdlog::debug("[{}] Loaded from config: {}:{}", get_name(), default_ip, default_port);

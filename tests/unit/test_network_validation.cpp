@@ -1,5 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "moonraker_port_probe.h"
 #include "utils/network_validation.h"
 
 #include "../catch_amalgamated.hpp"
@@ -186,4 +187,15 @@ TEST_CASE("Moonraker ports: a discovered port is tried alone, 7125 included",
     CHECK(moonraker_ports_to_try("7125", PortOrigin::Discovered) == V{7125});
     CHECK(moonraker_ports_to_try("80", PortOrigin::Discovered) == V{80});
     CHECK(moonraker_ports_to_try("", PortOrigin::Discovered) == V{7125, 80});
+}
+
+TEST_CASE("Connect failure: the status names the ports a test tried",
+          "[validation][network][connect_failure][port_fallback]") {
+    const std::string hint = connect_failure_hint(ConnectFailureKind::Refused, false);
+    CHECK(helix::connect_failure_status(ConnectFailureKind::Refused, {7125}).find("Tried") ==
+          std::string::npos);
+    CHECK(helix::connect_failure_status(ConnectFailureKind::Refused, {7125, 80}) ==
+          hint + " Tried ports 7125 and 80.");
+    CHECK(helix::connect_failure_status(ConnectFailureKind::Refused, {7125, 8080, 80}) ==
+          hint + " Tried ports 7125, 8080 and 80.");
 }

@@ -4095,7 +4095,7 @@ translations:
   TouchCalibration: 触摸校准
   Trace: 跟踪
   Trigger: 触发器
-  'Tried ports 7125 and 80.': "已尝试端口 7125 和 80。"
+  'Tried ports {} and {}.': "已尝试端口 {} 和 {}。"
   'Troubleshooting:': 故障排除：
   Try adjusting your search or filters: 尝试调整搜索或筛选条件
   Try Again: '重试'

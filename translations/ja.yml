@@ -4104,7 +4104,7 @@ translations:
   TouchCalibration: タッチキャリブレーション
   Trace: トレース
   Trigger: トリガー
-  'Tried ports 7125 and 80.': "ポート7125と80を試しました。"
+  'Tried ports {} and {}.': "ポート{}と{}を試しました。"
   'Troubleshooting:': 'トラブルシューティング:'
   Try adjusting your search or filters: 検索やフィルターを調整してみてください
   Try Again: '再試行'

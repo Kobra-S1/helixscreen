@@ -4342,7 +4342,7 @@ translations:
   TouchCalibration: Calibrazione touch
   Trace: Traccia
   Trigger: Attivazione
-  'Tried ports 7125 and 80.': "Provate le porte 7125 e 80."
+  'Tried ports {} and {}.': "Provate le porte {} e {}."
   'Troubleshooting:': 'Risoluzione problemi:'
   Try adjusting your search or filters: Prova a modificare la ricerca o i filtri
   Try Again: 'Riprova'

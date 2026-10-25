@@ -3921,7 +3921,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" zh="触摸目标（第 %1$d 个点，共 3 个）— 触摸 %2$d / %3$d"/>
   <translation tag="TouchCalibration" zh="触摸校准"/>
   <translation tag="Trace" zh="跟踪"/>
-  <translation tag="Tried ports 7125 and 80." zh="已尝试端口 7125 和 80。"/>
+  <translation tag="Tried ports {} and {}." zh="已尝试端口 {} 和 {}。"/>
   <translation tag="Trigger" zh="触发器"/>
   <translation tag="Troubleshooting:" zh="故障排除："/>
   <translation tag="Try Again" zh="重试"/>

@@ -92,7 +92,9 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
     Config* config = Config::get_instance();
     std::string host =
         adding ? std::string{} : config->get<std::string>(config->df() + "moonraker_host", "");
-    int port = adding ? 7125 : config->get<int>(config->df() + "moonraker_port", 7125);
+    int port =
+        adding ? helix::kDefaultMoonrakerPort
+               : config->get<int>(config->df() + "moonraker_port", helix::kDefaultMoonrakerPort);
 
     lv_subject_copy_string(&host_ip_subject_, host.c_str());
     lv_subject_copy_string(&host_port_subject_, std::to_string(port).c_str());
@@ -173,7 +175,7 @@ void ChangeHostModal::init_subjects() {
 
     lv_subject_init_string(&host_ip_subject_, host_ip_buf_, nullptr, sizeof(host_ip_buf_), "");
     lv_subject_init_string(&host_port_subject_, host_port_buf_, nullptr, sizeof(host_port_buf_),
-                           "7125");
+                           std::to_string(kDefaultMoonrakerPort).c_str());
     lv_subject_init_int(&testing_subject_, 0);
     lv_subject_init_int(&validated_subject_, 0);
     lv_subject_init_int(&adding_subject_, 0);
@@ -832,7 +834,7 @@ void finish_rediscovery() {
 
     Config* cfg = Config::get_instance();
     const std::string host = cfg->get<std::string>(cfg->df() + "moonraker_host", "");
-    const int port = cfg->get<int>(cfg->df() + "moonraker_port", 7125);
+    const int port = cfg->get<int>(cfg->df() + "moonraker_port", helix::kDefaultMoonrakerPort);
     const auto moved =
         find_moved_printer(found, host, port,
                            {cfg->get<std::string>(cfg->df() + wizard::kHostname, ""),

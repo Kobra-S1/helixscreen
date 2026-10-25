@@ -20,6 +20,7 @@
 #include "static_panel_registry.h"
 #include "system_settings_manager.h"
 #include "ui/ui_widget_helpers.h"
+#include "utils/network_validation.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -129,7 +130,8 @@ void WizardSummaryStep::init_subjects() {
     // Moonraker connection (host:port)
     std::string moonraker_host =
         config->get<std::string>(config->df() + helix::wizard::MOONRAKER_HOST, "Not configured");
-    int moonraker_port = config->get<int>(config->df() + helix::wizard::MOONRAKER_PORT, 7125);
+    int moonraker_port = config->get<int>(config->df() + helix::wizard::MOONRAKER_PORT,
+                                          helix::kDefaultMoonrakerPort);
     spdlog::debug("[{}] Moonraker host from config: '{}', port: {}", get_name(), moonraker_host,
                   moonraker_port);
     std::string moonraker_connection;

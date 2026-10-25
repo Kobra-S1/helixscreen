@@ -4342,7 +4342,7 @@ translations:
   TouchCalibration: Calibración táctil
   Trace: Traza
   Trigger: Disparador
-  'Tried ports 7125 and 80.': "Se probaron los puertos 7125 y 80."
+  'Tried ports {} and {}.': "Se probaron los puertos {} y {}."
   'Troubleshooting:': 'Solución de problemas:'
   Try adjusting your search or filters: Intente ajustar su búsqueda o filtros
   Try Again: 'Reintentar'

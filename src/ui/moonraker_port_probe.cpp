@@ -7,6 +7,7 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "moonraker_events.h"
 #include "platform_info.h"
 #include "utils/network_validation.h"
 
@@ -119,8 +120,14 @@ int probe_moonraker_ports(const std::string& host, std::vector<int> ports, uint3
 std::string connect_failure_status(ConnectFailureKind kind, const std::vector<int>& ports_tried) {
     std::string text = lv_tr(connect_failure_hint(kind, is_android_platform()));
     if (ports_tried.size() > 1) {
+        // "7125, 8080" and "80": every port but the last, then the last.
+        std::string leading;
+        for (size_t i = 0; i + 1 < ports_tried.size(); ++i) {
+            leading += (i ? ", " : "") + std::to_string(ports_tried[i]);
+        }
         text += " ";
-        text += lv_tr("Tried ports 7125 and 80.");
+        text += fill_placeholders(lv_tr("Tried ports {} and {}."),
+                                  {leading, std::to_string(ports_tried.back())});
     }
     return text;
 }

@@ -4242,7 +4242,7 @@ translations:
   TouchCalibration: TouchCalibration
   Trace: Trace
   Trigger: Trigger
-  'Tried ports 7125 and 80.': 'Tried ports 7125 and 80.'
+  'Tried ports {} and {}.': 'Tried ports {} and {}.'
   'Troubleshooting:': 'Troubleshooting:'
   Try adjusting your search or filters: Try adjusting your search or filters
   Try Again: Try Again

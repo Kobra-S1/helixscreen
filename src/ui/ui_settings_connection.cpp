@@ -11,6 +11,7 @@
 
 #include "config.h"
 #include "remote_screen_settings_manager.h"
+#include "utils/network_validation.h"
 
 #include <spdlog/spdlog.h>
 
@@ -26,7 +27,8 @@ std::string ConnectionSettingsOverlay::printer_host_display() {
     if (host.empty()) {
         return "\xe2\x80\x94";
     }
-    const int port = config->get<int>(config->df() + "moonraker_port", 7125);
+    const int port =
+        config->get<int>(config->df() + "moonraker_port", helix::kDefaultMoonrakerPort);
     return host + ":" + std::to_string(port);
 }
 
