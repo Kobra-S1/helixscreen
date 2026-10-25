@@ -6,6 +6,7 @@
 #include "../lvgl_test_fixture.h"
 #include "glass_painter.h"
 #include "glass_shading.h"
+#include "lvgl/src/themes/lv_theme_private.h" // lv_theme_t fields: a test theme by value
 #include "theme_manager.h"
 
 #include <cstring>
@@ -103,7 +104,7 @@ TEST_CASE("glass_rewrite_fill uses the fill's own color", "[glass]") {
     lv_draw_fill_dsc_init(&dsc);
     dsc.opa = LV_OPA_COVER;
     dsc.color = lv_color_hex(0xFF00FF);
-    helix::ui::glass_rewrite_fill(&dsc, GlassFamily::Raised, true, false);
+    helix::ui::glass_rewrite_fill(&dsc, LV_OPA_COVER, GlassFamily::Raised, true, false);
     const helix::ui::GlassStops want =
         helix::ui::glass_stops(GlassFamily::Raised, lv_color_hex(0xFF00FF), true, false);
     CHECK(static_cast<int>(dsc.grad.dir) == LV_GRAD_DIR_VER);
@@ -115,7 +116,7 @@ TEST_CASE("glass_rewrite_fill uses the fill's own color", "[glass]") {
     lv_draw_fill_dsc_init(&pressed);
     pressed.opa = LV_OPA_COVER;
     pressed.color = lv_color_hex(0xFF00FF);
-    helix::ui::glass_rewrite_fill(&pressed, GlassFamily::Raised, true, true);
+    helix::ui::glass_rewrite_fill(&pressed, LV_OPA_COVER, GlassFamily::Raised, true, true);
     CHECK(pressed.grad.stops_count == 2);
 }
 
@@ -125,7 +126,7 @@ TEST_CASE("glass_rewrite_fill leaves translucent fills and existing gradients al
     translucent.opa = 128;
     translucent.color = lv_color_hex(0x3A7CC8);
     lv_draw_fill_dsc_t before = translucent;
-    helix::ui::glass_rewrite_fill(&translucent, GlassFamily::Raised, true, false);
+    helix::ui::glass_rewrite_fill(&translucent, 128, GlassFamily::Raised, true, false);
     CHECK(std::memcmp(&before, &translucent, sizeof(before)) == 0);
 
     lv_draw_fill_dsc_t graded;
@@ -136,7 +137,7 @@ TEST_CASE("glass_rewrite_fill leaves translucent fills and existing gradients al
     lv_grad_init_stops(&graded.grad, two, nullptr, nullptr, 2);
     lv_grad_horizontal_init(&graded.grad);
     before = graded;
-    helix::ui::glass_rewrite_fill(&graded, GlassFamily::Surface, true, false);
+    helix::ui::glass_rewrite_fill(&graded, LV_OPA_COVER, GlassFamily::Surface, true, false);
     CHECK(std::memcmp(&before, &graded, sizeof(before)) == 0);
 }
 
@@ -177,8 +178,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass attach is idempotent and keeps a flag i
     lv_obj_add_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
     const uint32_t events = lv_obj_get_event_count(obj);
     helix::ui::glass_attach(obj);
+    const uint32_t attached_events = lv_obj_get_event_count(obj);
+    REQUIRE(attached_events > events);
     helix::ui::glass_attach(obj);
-    CHECK(lv_obj_get_event_count(obj) == events + 1);
+    CHECK(lv_obj_get_event_count(obj) == attached_events);
     helix::ui::glass_detach(obj);
     CHECK(lv_obj_get_event_count(obj) == events);
     CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
@@ -398,4 +401,118 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass: an outlined part keeps its own border"
     const std::vector<uint8_t> flat = snapshot(outlined);
     helix::ui::glass_attach(outlined);
     CHECK(same_pixels(snapshot(outlined), flat));
+}
+
+// ============================================================================
+// Widgets created while glass is on
+// ============================================================================
+
+namespace {
+
+/// A display theme whose apply callback attaches glass, as helix_theme_apply does: it runs
+/// inside lv_obj_class_init_obj, before the class constructor.
+struct GlassAttachingTheme {
+    lv_theme_t theme{};
+    lv_theme_t* previous = nullptr;
+    lv_display_t* disp = nullptr;
+
+    GlassAttachingTheme() {
+        disp = lv_display_get_default();
+        previous = lv_display_get_theme(disp);
+        if (previous != nullptr) {
+            theme = *previous;
+        }
+        lv_theme_set_parent(&theme, nullptr);
+        lv_theme_set_apply_cb(&theme,
+                              [](lv_theme_t*, lv_obj_t* obj) { helix::ui::glass_attach(obj); });
+        lv_display_set_theme(disp, &theme);
+    }
+    ~GlassAttachingTheme() {
+        lv_display_set_theme(disp, previous);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "glass: a widget attached as it is created still gets glass",
+                 "[glass]") {
+    ThemeManager::instance().init();
+    ThemeManager::instance().set_dark_mode(true);
+    lv_obj_t* flat_card = make_card(test_screen());
+    const std::vector<uint8_t> flat = snapshot(flat_card);
+
+    lv_obj_t* card = nullptr;
+    {
+        GlassAttachingTheme attaching;
+        card = make_card(test_screen());
+    }
+    REQUIRE(helix::ui::glass_attached(card));
+    CHECK_FALSE(same_pixels(snapshot(card), flat));
+
+    helix::ui::glass_detach(card);
+    CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
+    CHECK(same_pixels(snapshot(card), flat));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "glass detach keeps the flag another draw-task handler needs",
+                 "[glass]") {
+    lv_obj_t* obj = lv_obj_create(test_screen());
+    helix::ui::glass_attach(obj);
+    lv_obj_add_event_cb(obj, [](lv_event_t*) {}, LV_EVENT_DRAW_TASK_ADDED, nullptr);
+    helix::ui::glass_detach(obj);
+    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS));
+}
+
+TEST_CASE("glass_rewrite_fill shades an opaque fill its widget fades as a whole", "[glass]") {
+    // A disabled button draws its opaque fill at half opacity: the fade comes from the
+    // widget, not from a translucent fill.
+    lv_draw_fill_dsc_t faded;
+    lv_draw_fill_dsc_init(&faded);
+    faded.opa = LV_OPA_50;
+    faded.color = lv_color_hex(0x3A7CC8);
+    helix::ui::glass_rewrite_fill(&faded, LV_OPA_COVER, GlassFamily::Raised, true, false);
+    CHECK(static_cast<int>(faded.grad.dir) == LV_GRAD_DIR_VER);
+    CHECK(faded.opa == LV_OPA_50);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "glass: a ghost or outline button given its own fill is raised",
+                 "[glass]") {
+    for (StyleRole flat : {StyleRole::ButtonGhost, StyleRole::ButtonOutline}) {
+        CAPTURE(static_cast<int>(flat));
+        lv_obj_t* b = lv_button_create(test_screen());
+        lv_obj_add_style(b, role(StyleRole::Button), LV_PART_MAIN);
+        lv_obj_add_style(b, role(flat), LV_PART_MAIN);
+        REQUIRE(glass_family_of(b, LV_PART_MAIN) == GlassFamily::None);
+        lv_obj_set_style_bg_opa(b, LV_OPA_COVER, LV_PART_MAIN);
+        CHECK(glass_family_of(b, LV_PART_MAIN) == GlassFamily::Raised);
+    }
+
+    // A transparent button's opaque fill is a pre-blend standing in for translucency.
+    lv_obj_t* transparent = lv_button_create(test_screen());
+    lv_obj_add_style(transparent, role(StyleRole::Button), LV_PART_MAIN);
+    lv_obj_add_style(transparent, role(StyleRole::ButtonTransparent), LV_PART_MAIN);
+    CHECK(glass_family_of(transparent, LV_PART_MAIN) == GlassFamily::None);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "glass: a faded widget is shaded, a translucent fill is not",
+                 "[glass]") {
+    ThemeManager::instance().init();
+    ThemeManager::instance().set_dark_mode(true);
+    // The fade is the widget's, as a disabled button's is: a half-opaque wrapper around an
+    // opaque card, snapshotted from the wrapper so the card draws inside it.
+    lv_obj_t* wrapper = lv_obj_create(test_screen());
+    lv_obj_remove_style_all(wrapper);
+    lv_obj_set_size(wrapper, 200, 120);
+    lv_obj_set_style_opa(wrapper, LV_OPA_50, LV_PART_MAIN);
+    lv_obj_t* faded = make_card(wrapper);
+    lv_obj_set_style_border_width(faded, 0, LV_PART_MAIN); // the fill alone shows the glass
+    lv_obj_t* translucent = make_card(test_screen());
+    lv_obj_set_style_bg_opa(translucent, LV_OPA_50, LV_PART_MAIN);
+
+    const std::vector<uint8_t> faded_flat = snapshot(wrapper);
+    const std::vector<uint8_t> translucent_flat = snapshot(translucent);
+    helix::ui::glass_attach(faded);
+    helix::ui::glass_attach(translucent);
+    CHECK_FALSE(same_pixels(snapshot(wrapper), faded_flat));
+    CHECK(same_pixels(snapshot(translucent), translucent_flat));
 }

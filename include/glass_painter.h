@@ -36,9 +36,12 @@ void glass_detach(lv_obj_t* obj);
 /// Whether glass_attach() is in effect on `obj`.
 bool glass_attached(const lv_obj_t* obj);
 
-/// Turns an opaque flat fill into the family's gradient over the fill's own color. Translucent
-/// fills and fills that already carry a gradient are left alone.
-void glass_rewrite_fill(lv_draw_fill_dsc_t* dsc, GlassFamily f, bool dark, bool pressed);
+/// Turns a flat fill into the family's gradient over the fill's own color. `fill_opa` is the
+/// part's own bg_opa: a translucent fill is left alone, while an opaque fill drawn faded because
+/// its whole widget is (a disabled button) is shaded and keeps the fade. A fill that already
+/// carries a gradient is left alone.
+void glass_rewrite_fill(lv_draw_fill_dsc_t* dsc, lv_opa_t fill_opa, GlassFamily f, bool dark,
+                        bool pressed);
 
 /// Recolors a border as the family's rim over `base`, the part's bg color.
 void glass_rewrite_border(lv_draw_border_dsc_t* dsc, GlassFamily f, lv_color_t base, bool dark);

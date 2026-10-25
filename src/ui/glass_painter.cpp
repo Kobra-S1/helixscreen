@@ -5,6 +5,7 @@
 
 #include "lvgl/src/core/lv_obj_private.h"       // obj->styles: LVGL has no style iterator
 #include "lvgl/src/core/lv_obj_style_private.h" // lv_obj_style_t fields
+#include "lvgl/src/misc/lv_event_private.h"     // lv_event_dsc_t::filter: LVGL has no getter
 #include "theme_manager.h"
 
 #include <cstdint>
@@ -76,11 +77,15 @@ std::optional<GlassFamily> marked_family(const lv_obj_t* obj) {
 }
 
 GlassFamily main_family_from_styles(const lv_obj_t* obj) {
-    for (StyleRole role :
-         {StyleRole::ButtonGhost, StyleRole::ButtonTransparent, StyleRole::ButtonOutline}) {
-        if (has_role(obj, role, LV_PART_MAIN)) {
-            return GlassFamily::None;
-        }
+    if (has_role(obj, StyleRole::ButtonTransparent, LV_PART_MAIN)) {
+        return GlassFamily::None;
+    }
+    // Ghost and outline are flat because they have no fill. One given a fill of its own (a
+    // ghost with a local bg) is a solid button, and falls through to the raised roles below.
+    if ((has_role(obj, StyleRole::ButtonGhost, LV_PART_MAIN) ||
+         has_role(obj, StyleRole::ButtonOutline, LV_PART_MAIN)) &&
+        lv_obj_get_style_bg_opa(obj, LV_PART_MAIN) < LV_OPA_MAX) {
+        return GlassFamily::None;
     }
     for (StyleRole role : {StyleRole::Button, StyleRole::ButtonPrimary, StyleRole::ButtonSecondary,
                            StyleRole::ButtonTertiary, StyleRole::ButtonDanger,
@@ -160,12 +165,12 @@ void on_draw_task(lv_event_t* e) {
     const bool dark = ThemeManager::instance().is_dark_mode();
     switch (lv_draw_task_get_type(task)) {
     case LV_DRAW_TASK_TYPE_FILL:
-        glass_rewrite_fill(lv_draw_task_get_fill_dsc(task), family, dark,
-                           part_pressed(obj, part, base->id1));
+        glass_rewrite_fill(lv_draw_task_get_fill_dsc(task), lv_obj_get_style_bg_opa(obj, part),
+                           family, dark, part_pressed(obj, part, base->id1));
         break;
     case LV_DRAW_TASK_TYPE_BORDER:
         // A rim is lit from the fill beneath it; an outlined part with no fill keeps its border.
-        if (lv_obj_get_style_bg_opa(obj, part) == LV_OPA_COVER) {
+        if (lv_obj_get_style_bg_opa(obj, part) >= LV_OPA_MAX) {
             glass_rewrite_border(lv_draw_task_get_border_dsc(task), family,
                                  lv_obj_get_style_bg_color(obj, part), dark);
         }
@@ -173,6 +178,32 @@ void on_draw_task(lv_event_t* e) {
     default:
         break;
     }
+}
+
+/// Puts the draw-task flag back before the widget's tasks are queued. A widget attached from
+/// the theme apply callback is attached before its class constructor runs, and the
+/// constructor resets every flag.
+void on_draw_begin(lv_event_t* e) {
+    lv_obj_t* obj = lv_event_get_target_obj(e);
+    if (obj != nullptr && !lv_obj_has_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS)) {
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+    }
+}
+
+/// Whether a draw-task handler other than glass's is registered on `obj`.
+bool has_other_draw_task_handler(lv_obj_t* obj) {
+    const uint32_t n = lv_obj_get_event_count(obj);
+    for (uint32_t i = 0; i < n; ++i) {
+        lv_event_dsc_t* dsc = lv_obj_get_event_dsc(obj, i);
+        if (dsc == nullptr || dsc->cb == on_draw_task) {
+            continue;
+        }
+        const uint32_t code = dsc->filter & ~static_cast<uint32_t>(LV_EVENT_PREPROCESS);
+        if (code == LV_EVENT_DRAW_TASK_ADDED || code == LV_EVENT_ALL) {
+            return true;
+        }
+    }
+    return false;
 }
 
 lv_event_dsc_t* find_glass_event(const lv_obj_t* obj) {
@@ -229,6 +260,8 @@ void glass_attach(lv_obj_t* obj) {
     }
     lv_obj_add_event_cb(obj, on_draw_task, LV_EVENT_DRAW_TASK_ADDED, // DECLARATIVE_OK: draw hook
                         reinterpret_cast<void*>(had_flag ? kFlagWasThere : kFlagWasOurs));
+    lv_obj_add_event_cb(obj, on_draw_begin, LV_EVENT_DRAW_MAIN_BEGIN, // DECLARATIVE_OK: draw hook
+                        nullptr);
     lv_obj_invalidate(obj);
 }
 
@@ -242,7 +275,8 @@ void glass_detach(lv_obj_t* obj) {
     }
     const auto how = reinterpret_cast<uintptr_t>(lv_event_dsc_get_user_data(dsc));
     lv_obj_remove_event_cb(obj, on_draw_task);
-    if (how == kFlagWasOurs) {
+    lv_obj_remove_event_cb(obj, on_draw_begin);
+    if (how == kFlagWasOurs && !has_other_draw_task_handler(obj)) {
         lv_obj_remove_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
     }
     lv_obj_invalidate(obj);
@@ -252,8 +286,9 @@ bool glass_attached(const lv_obj_t* obj) {
     return obj != nullptr && find_glass_event(obj) != nullptr;
 }
 
-void glass_rewrite_fill(lv_draw_fill_dsc_t* dsc, GlassFamily f, bool dark, bool pressed) {
-    if (dsc == nullptr || dsc->opa != LV_OPA_COVER || dsc->grad.dir != LV_GRAD_DIR_NONE) {
+void glass_rewrite_fill(lv_draw_fill_dsc_t* dsc, lv_opa_t fill_opa, GlassFamily f, bool dark,
+                        bool pressed) {
+    if (dsc == nullptr || fill_opa < LV_OPA_MAX || dsc->grad.dir != LV_GRAD_DIR_NONE) {
         return;
     }
     glass_gradient(&dsc->grad, f, dsc->color, dark, pressed);
