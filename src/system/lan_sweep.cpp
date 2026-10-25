@@ -52,10 +52,10 @@ std::vector<std::string> lan_sweep_hosts(const LocalIpv4& local) {
     const uint32_t network = local.address & mask;
     const uint32_t broadcast = network | ~mask;
     std::vector<std::string> hosts;
+    // Our own address stays in: on a printer that runs HelixScreen, its Moonraker is a
+    // printer to list like any other.
     for (uint32_t a = network + 1; a < broadcast; ++a) {
-        if (a != local.address) {
-            hosts.push_back(dotted(a));
-        }
+        hosts.push_back(dotted(a));
     }
     return hosts;
 }

@@ -37,7 +37,8 @@ struct LocalIpv4 {
 ///
 /// Only a private network (10/8, 172.16/12, 192.168/16) is swept, and never more than the
 /// /24 holding our address: a wider netmask is narrowed to it, a narrower one is kept. The
-/// network and broadcast addresses and our own address are left out.
+/// network and broadcast addresses are left out; our own address is asked like any other,
+/// so a Moonraker on this machine is listed too.
 std::vector<std::string> lan_sweep_hosts(const LocalIpv4& local);
 
 /// The interface address the kernel routes outbound traffic from, with its netmask.

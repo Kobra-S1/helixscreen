@@ -56,26 +56,27 @@ template <typename F> bool pump_until(F done) {
 // Which addresses a sweep asks
 // ============================================================================
 
-TEST_CASE("LAN sweep: a /24 is every host address but ours", "[lan_sweep]") {
+TEST_CASE("LAN sweep: a /24 is every host address, ours included", "[lan_sweep]") {
     const auto hosts = lan_sweep_hosts(net(ip(192, 168, 1, 42), ip(255, 255, 255, 0)));
-    REQUIRE(hosts.size() == 253);
+    REQUIRE(hosts.size() == 254);
     CHECK(hosts.front() == "192.168.1.1");
     CHECK(hosts.back() == "192.168.1.254");
-    CHECK(std::find(hosts.begin(), hosts.end(), "192.168.1.42") == hosts.end());
+    // A printer running HelixScreen lists its own Moonraker.
+    CHECK(std::find(hosts.begin(), hosts.end(), "192.168.1.42") != hosts.end());
     CHECK(std::find(hosts.begin(), hosts.end(), "192.168.1.52") != hosts.end());
 }
 
 TEST_CASE("LAN sweep: a wider network is narrowed to our /24", "[lan_sweep]") {
     const auto hosts = lan_sweep_hosts(net(ip(10, 4, 7, 9), ip(255, 0, 0, 0)));
-    REQUIRE(hosts.size() == 253);
+    REQUIRE(hosts.size() == 254);
     CHECK(hosts.front() == "10.4.7.1");
     CHECK(hosts.back() == "10.4.7.254");
-    CHECK(lan_sweep_hosts(net(ip(172, 16, 5, 9), ip(255, 255, 0, 0))).size() == 253);
+    CHECK(lan_sweep_hosts(net(ip(172, 16, 5, 9), ip(255, 255, 0, 0))).size() == 254);
 }
 
 TEST_CASE("LAN sweep: a narrower network is kept", "[lan_sweep]") {
     const auto hosts = lan_sweep_hosts(net(ip(192, 168, 1, 42), ip(255, 255, 255, 128)));
-    REQUIRE(hosts.size() == 125);
+    REQUIRE(hosts.size() == 126);
     CHECK(hosts.front() == "192.168.1.1");
     CHECK(hosts.back() == "192.168.1.126");
 }
@@ -283,8 +284,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // Each address is asked 7125 first and 80 only when 7125 is silent.
     CHECK(probe.was_asked("192.168.1.52", 7125));
     CHECK_FALSE(probe.was_asked("192.168.1.112", 80));
-    CHECK_FALSE(probe.was_asked("192.168.1.42", 7125));
-    CHECK(probe.started.load() == 253 * 2 - 1);
+    CHECK(probe.was_asked("192.168.1.42", 7125));
+    CHECK(probe.started.load() == 254 * 2 - 1);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "LAN sweep: stopping drops results in flight and asks no more",
@@ -347,7 +348,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "LAN sweep: a worker rests after every probe",
     limits.pause_between_probes = std::chrono::milliseconds(40);
     std::vector<std::chrono::steady_clock::time_point> asked;
     std::mutex mu;
-    // A /30 holds one address besides ours, asked on 7125 and then 80.
+    // A /30 holds two host addresses, ours among them, each asked on 7125 and then 80.
     LanSweepDiscovery sweep(
         limits,
         [] { return std::optional<LocalIpv4>(net(ip(192, 168, 1, 42), ip(255, 255, 255, 252))); },
@@ -360,6 +361,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "LAN sweep: a worker rests after every probe",
     REQUIRE(pump_until([&] { return !sweep.is_discovering(); }));
 
     std::lock_guard<std::mutex> lock(mu);
-    REQUIRE(asked.size() == 2);
-    CHECK(asked[1] - asked[0] >= std::chrono::milliseconds(40));
+    REQUIRE(asked.size() == 4);
+    for (size_t i = 1; i < asked.size(); ++i) {
+        CHECK(asked[i] - asked[i - 1] >= std::chrono::milliseconds(40));
+    }
 }

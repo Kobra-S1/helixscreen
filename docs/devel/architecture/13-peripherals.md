@@ -239,7 +239,7 @@ connection step and the Change Host / Add Printer modal list printers from **`Mo
 `merge_discovered_printers()` (one row per ip:port, mDNS's name kept). Both screens get it from
 `make_printer_discovery()`, whose factory `MoonrakerManager` installs beside the rediscovery one (`set_printer_discovery_source`);
 unset (tests, `--test`, the firmware) the dropdown stays hidden. The sweep (`LanSweepDiscovery`) takes this
-machine's routed IPv4 address and netmask (`active_local_ipv4()`), asks every other address of that /24 (a
+machine's routed IPv4 address and netmask (`active_local_ipv4()`), asks every address of that /24, its own included (a
 private network only, a wider mask narrowed to the /24; `lan_sweep_hosts()`) on the ports
 `moonraker_ports_to_try()` gives an untouched default, 7125 then 80, and stops at the first that answers. Its
 check is `probe_moonraker_http()`: one plain HTTP/1.0 `GET /server/info` on a non-blocking socket, 400ms to
