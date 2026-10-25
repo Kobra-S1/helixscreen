@@ -238,7 +238,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
 
     // Width tiers, decided from physical pixels rather than grid span so the
     // same authored layout reads correctly on every panel:
-    //   compact: xs fonts, single-letter labels (P, H, C)
+    //   compact: xs fonts, single-letter labels (P, H, A)
     //   bigger:  sm fonts, resolved display names from PrinterFanState
     //
     // The name is a width question and only a width question: it shares a line
@@ -426,7 +426,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         }
 
         // Level the name column the same way: per-row names differ in
-        // advance width ("P" vs "H" vs "C", "Hotend" vs "Part Cooling Fan"),
+        // advance width ("P" vs "H" vs "A", "Hotend" vs "Part Cooling Fan"),
         // which would leave the speed column's right edge ragged by a pixel
         // or two even with the boxes reserved above. A shared name-box width
         // pins both column edges for every row.
