@@ -805,7 +805,7 @@ absent from `src/` and `include/`, and is recorded here so the reasoning is not 
 | Feature | Supported | Editable |
 |---------|-----------|----------|
 | Endless Spool | `Available`, always `On` | `PerSlot` via `SET_RUNOUT` (see [Endless Spool](FILAMENT_MANAGEMENT.md#endless-spool-shared-model)) |
-| Tool Mapping | Yes | Yes (via `SET_MAP`) |
+| Tool Mapping | Yes | Yes (via `SET_MAP`); none behind Z-Mod's `zmod_afclite` shim, whose `SET_MAP` raises by design because Z-Mod maps tools per print in its own material prompt |
 | Bypass Mode | Yes | Hardware sensor (auto-detect on Box Turtle) |
 | Spoolman | Yes | -- |
 | Auto-Heat on Load | Yes | AFC uses `default_material_temps` from config |

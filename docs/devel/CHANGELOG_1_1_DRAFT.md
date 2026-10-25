@@ -428,6 +428,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   automatic unload, so Unload shows a notice telling you to cut and pull the filament at the
   head, and sends nothing; to mount a head without feeding it, use Select slot in the slot
   menu. A fault from Z-Mod opens a dialog in the firmware's own words.
+- **AD5X on Z-Mod's AFC layer: no tool remap error at print start** - Z-Mod maps tools in its
+  own "Select print materials" prompt and refuses the screen's remap, so the screen no longer
+  offers one there or sends it. That prompt's Start print button is also no longer read as the
+  print having started.
 - **Creator 5 on Z-Mod: a spool bound from outside shows up without a reboot** (#1833) - when
   another tool sets a head's spool (an NFC tag reader through `CHANGE_ZCOLOR`, or
   zmod_afclite's `SET_SPOOL_ID`), the screen reads the record it wrote and shows the new
