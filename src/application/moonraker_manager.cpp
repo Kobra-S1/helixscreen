@@ -30,11 +30,13 @@
 #include "host_identity.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
+#include "lan_sweep.h"
 #include "mock_persona.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "moonraker_event_routing.h"
 #include "power_device_state.h"
+#include "printer_discovery_list.h"
 #include "sensor_state.h"
 #include "unit_conversions.h"
 #ifdef HELIX_ENABLE_MOCKS
@@ -106,10 +108,13 @@ bool MoonrakerManager::init(const RuntimeConfig& runtime_config, Config* config)
 
     // HELIX_MOCK_PRINTER is authoritative over any persisted printer type:
     // PrinterDetector::auto_detect_and_save() short-circuits when a type is
-    // already saved, so settle it here, before detection runs.
+    // already saved, so settle it here, before detection runs. The firmware
+    // never sets the variable, and leaving the call out drops the persona table.
+#if !defined(ESP_PLATFORM)
     if (config && helix::apply_mock_printer_identity(*config, std::getenv("HELIX_MOCK_PRINTER"))) {
         config->save();
     }
+#endif
 
     // Configure timeouts from config file
     if (config) {
@@ -124,6 +129,11 @@ bool MoonrakerManager::init(const RuntimeConfig& runtime_config, Config* config)
             [] { return std::make_unique<helix::MdnsDiscovery>(); });
     }
 #endif
+    // The setup wizard and the host modal list printers from mDNS and the LAN sweep. A
+    // mock printer has nothing on the network to find.
+    if (!runtime_config.should_mock_mdns()) {
+        helix::set_printer_discovery_source(helix::make_moonraker_discovery);
+    }
 
     // Register callbacks for notifications and state changes
     register_callbacks();

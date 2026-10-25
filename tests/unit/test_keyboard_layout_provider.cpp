@@ -3,6 +3,7 @@
 
 #include "ui_fonts.h"
 
+#include "../lvgl_test_fixture.h"
 #include "keyboard_layout_provider.h"
 
 #include <cstring>
@@ -750,4 +751,51 @@ TEST_CASE("Keyboard Layout: All printable ASCII available", "[ui][layout][comple
         }
         REQUIRE(all_found);
     }
+}
+
+// ============================================================================
+// Installing a layout (prestonbrown/helixscreen#1884)
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "Keyboard Layout: popovers off strips every preview bubble",
+                 "[ui][layout][keyboard_popover]") {
+    lv_obj_t* kb = lv_keyboard_create(lv_screen_active());
+    lv_keyboard_set_popovers(kb, false);
+
+    for (keyboard_layout_mode_t mode :
+         {KEYBOARD_LAYOUT_ALPHA_LC, KEYBOARD_LAYOUT_ALPHA_UC, KEYBOARD_LAYOUT_NUMBERS_SYMBOLS,
+          KEYBOARD_LAYOUT_ALT_SYMBOLS}) {
+        keyboard_layout_apply(kb, mode, false);
+        const char* const* map = keyboard_layout_get_map(mode, false);
+        const lv_buttonmatrix_ctrl_t* ctrl = keyboard_layout_get_ctrl_map(mode);
+        const size_t buttons = count_buttons(map);
+        size_t popover_keys = 0;
+        for (uint32_t i = 0; i < buttons; ++i) {
+            INFO("mode " << mode << " button " << i);
+            CHECK_FALSE(lv_buttonmatrix_has_button_ctrl(kb, i, LV_BUTTONMATRIX_CTRL_POPOVER));
+            if (ctrl[i] & LV_BUTTONMATRIX_CTRL_POPOVER) {
+                ++popover_keys;
+                // Still types on release, so a long press can offer alternates first.
+                CHECK(lv_buttonmatrix_has_button_ctrl(kb, i, LV_BUTTONMATRIX_CTRL_CLICK_TRIG));
+            }
+        }
+        REQUIRE(popover_keys > 0);
+    }
+    lv_obj_delete(kb);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Keyboard Layout: popovers on keeps the layout's bubbles",
+                 "[ui][layout][keyboard_popover]") {
+    lv_obj_t* kb = lv_keyboard_create(lv_screen_active());
+    lv_keyboard_set_popovers(kb, true);
+    keyboard_layout_apply(kb, KEYBOARD_LAYOUT_ALPHA_LC, false);
+
+    const lv_buttonmatrix_ctrl_t* ctrl = keyboard_layout_get_ctrl_map(KEYBOARD_LAYOUT_ALPHA_LC);
+    const size_t buttons = count_buttons(keyboard_layout_get_map(KEYBOARD_LAYOUT_ALPHA_LC, false));
+    for (uint32_t i = 0; i < buttons; ++i) {
+        INFO("button " << i);
+        CHECK(lv_buttonmatrix_has_button_ctrl(kb, i, LV_BUTTONMATRIX_CTRL_POPOVER) ==
+              ((ctrl[i] & LV_BUTTONMATRIX_CTRL_POPOVER) != 0));
+    }
+    lv_obj_delete(kb);
 }

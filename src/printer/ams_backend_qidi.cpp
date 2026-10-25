@@ -39,11 +39,6 @@
 // save_variables onto AmsSystemInfo; write-path (load/unload/change_tool)
 // is still not implemented pending field-test access (issue #954 brought
 // the protocol reference; hardware validation still gated on Sib6019).
-//
-// TODO(qidi-box): drop a `qidi_box_64.png` (and matching .svg / `_512.png`
-// if other backends carry them) into assets/images/ams/ to match the logo
-// convention used by afc_64.png, box_turtle_64.png, happy_hare_64.png, etc.
-// The QIDI wordmark / box silhouette is fine — no in-app scaling required.
 
 namespace helix {
 

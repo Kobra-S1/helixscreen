@@ -299,6 +299,8 @@ curl http://localhost:7125/printer/info
 ```
 Should return JSON with printer info.
 
+**Moonraker behind a web server:** some printers serve Moonraker only on port 80, through the same web address a slicer uses, and leave 7125 closed. With the port left at its default 7125, **Test Connection** tries port 80 too and switches to it when Moonraker answers there; the failure message says when both were tried. If you typed 7125 yourself, enter `80` instead. `curl http://PRINTER_IP/server/info` answering while `curl http://PRINTER_IP:7125/server/info` does not confirms this case.
+
 **Check firewall:**
 ```bash
 sudo ufw status

@@ -615,73 +615,50 @@ void CameraWidget::close_fullscreen() {
     helix::nav::go_back();
 }
 
-namespace {
+StandaloneCameraViewer* StandaloneCameraViewer::s_open_ = nullptr;
 
-// Standalone fullscreen camera viewer — used when there's no owning
-// CameraWidget (e.g. Settings → Devices → Camera). Owns its own
-// CameraStream and is destroyed by the NavigationManager close callback.
-struct StandaloneFullscreen {
-    lv_obj_t* overlay = nullptr;
-    lv_obj_t* image = nullptr;
-    lv_obj_t* spinner = nullptr; // "Connecting…" indicator, hidden on first frame
-    std::unique_ptr<CameraStream> stream;
-    AsyncLifetimeGuard lifetime;
-};
+StandaloneCameraViewer::StandaloneCameraViewer() {
+    // Another view taking this camera over. Stopping clears the image, so the
+    // viewer stays blank until it is closed; nothing restarts the stream here.
+    view_.on_preempted([this]() { view_.stop({image_}); });
+}
 
-static StandaloneFullscreen* s_standalone = nullptr;
-
-/// Tear down the standalone viewer: stream, image source, overlay and state.
-void close_standalone() {
-    if (!s_standalone)
+void StandaloneCameraViewer::close() {
+    StandaloneCameraViewer* viewer = std::exchange(s_open_, nullptr);
+    if (!viewer) {
         return;
-
-    // Invalidate lifetime BEFORE clearing image src — queued frame deferrals
-    // become no-ops and won't reference freed draw buffers.
-    s_standalone->lifetime.invalidate();
-
-    // Clear image src and wait for any in-flight render before stop() frees
-    // the draw buffers the render thread may still be blending from (#749).
-    if (lv_is_initialized()) {
-        if (s_standalone->image) {
-            lv_image_set_src(s_standalone->image, nullptr);
-        }
-        lv_draw_wait_for_finish();
     }
 
-    // CameraStream::stop() joins the stream thread with a 5s timeout;
-    // running it inline on the main thread freezes UI input.
-    CameraView::reap_off_main_thread(std::move(s_standalone->stream));
+    // Clears the image and waits out the render thread before the frame
+    // buffers go, and joins the stream off the main thread.
+    viewer->view_.stop({viewer->image_});
 
-    // Taken out first: deleting it fires on_standalone_overlay_deleted(), which
-    // must see this close already under way.
-    lv_obj_t* overlay = std::exchange(s_standalone->overlay, nullptr);
+    // Taken out first: deleting it fires on_overlay_deleted(), which must see
+    // this close already under way.
+    lv_obj_t* overlay = std::exchange(viewer->overlay_, nullptr);
     helix::ui::safe_delete_obj(overlay);
 
-    delete s_standalone;
-    s_standalone = nullptr;
+    delete viewer;
     spdlog::debug("[CameraWidget] Standalone fullscreen closed");
 }
 
-/// A screen teardown frees the overlay without running the NavigationManager
-/// close callback, which would leave the stream writing frames into a freed
-/// image and every later open refused as already open (#1430).
-void on_standalone_overlay_deleted(lv_event_t* e) {
-    if (!s_standalone || s_standalone->overlay != lv_event_get_target(e)) {
+void StandaloneCameraViewer::on_overlay_deleted(lv_event_t* e) {
+    if (!s_open_ || s_open_->overlay_ != lv_event_get_target(e)) {
         return;
     }
-    s_standalone->overlay = nullptr;
-    close_standalone();
+    s_open_->overlay_ = nullptr;
+    s_open_->image_ = nullptr;
+    s_open_->spinner_ = nullptr;
+    close();
 }
 
-} // namespace
-
-bool open_standalone_camera_fullscreen(lv_obj_t* parent_screen) {
+bool StandaloneCameraViewer::open(lv_obj_t* parent_screen) {
     if (!parent_screen) {
         return false;
     }
 
     // Single fullscreen at a time across all entry points
-    if (s_fullscreen_owner || s_standalone) {
+    if (s_fullscreen_owner || s_open_) {
         spdlog::debug(
             "[CameraWidget] Standalone fullscreen open requested, but one is already open");
         return false;
@@ -692,39 +669,13 @@ bool open_standalone_camera_fullscreen(lv_obj_t* parent_screen) {
         return false;
     }
 
-    // Prefer an existing attached CameraWidget — it already owns a running
-    // stream. Opening a second concurrent connection to the same MJPEG
-    // endpoint causes one (or both) clients to receive incomplete frames on
-    // many printer-side streamers (mjpg-streamer accepts a single client).
+    // Prefer an existing attached CameraWidget: its fullscreen shows the
+    // stream it already owns.
     if (!s_attached_widgets.empty()) {
         spdlog::debug("[CameraWidget] Delegating standalone fullscreen to attached widget");
         s_attached_widgets.front()->open_fullscreen();
         return s_fullscreen_owner != nullptr;
     }
-
-    auto state = std::make_unique<StandaloneFullscreen>();
-    state->stream = std::make_unique<CameraStream>();
-
-    std::string stream_url, snapshot_url;
-    if (!state->stream->configure_from_printer(stream_url, snapshot_url)) {
-        spdlog::warn("[CameraWidget] Standalone fullscreen: no webcam URLs available");
-        return false;
-    }
-
-    // Apply Moonraker flips (no per-user transform persisted for the standalone view)
-    auto& ps = get_printer_state();
-    state->stream->set_flip(ps.capabilities_state().get_webcam_flip_horizontal(),
-                            ps.capabilities_state().get_webcam_flip_vertical());
-
-    if (auto* disp = lv_display_get_default()) {
-        state->stream->set_target_size(lv_display_get_horizontal_resolution(disp),
-                                       lv_display_get_vertical_resolution(disp));
-    }
-
-    int target_fps = ps.capabilities_state().get_webcam_target_fps();
-    if (target_fps <= 0)
-        target_fps = 15;
-    state->stream->set_max_fps(target_fps);
 
     lv_obj_t* screen = lv_display_get_screen_active(nullptr);
     if (!screen) {
@@ -737,43 +688,44 @@ bool open_standalone_camera_fullscreen(lv_obj_t* parent_screen) {
         return false;
     }
 
-    state->overlay = overlay;
-    state->image = helix::ui::find_required(overlay, "fullscreen_camera_image", "CameraWidget");
-    state->spinner = helix::ui::find_required(overlay, "fullscreen_spinner", "CameraWidget");
-    if (state->image) {
-        lv_image_set_inner_align(state->image, LV_IMAGE_ALIGN_COVER);
+    auto* viewer = new StandaloneCameraViewer();
+    viewer->overlay_ = overlay;
+    viewer->image_ = helix::ui::find_required(overlay, "fullscreen_camera_image", "CameraWidget");
+    viewer->spinner_ = helix::ui::find_required(overlay, "fullscreen_spinner", "CameraWidget");
+    if (viewer->image_) {
+        lv_image_set_inner_align(viewer->image_, LV_IMAGE_ALIGN_COVER);
     }
 
-    s_standalone = state.release();
-
-    auto token = s_standalone->lifetime.token();
-    s_standalone->stream->start(
-        stream_url, snapshot_url,
-        [token](lv_draw_buf_t* frame) {
-            token.defer("StandaloneCameraFullscreen::frame", [frame]() {
-                if (!s_standalone || !s_standalone->image)
-                    return;
-                lv_image_set_src(s_standalone->image, frame);
-                // First frame: hide the "Connecting…" spinner
-                if (s_standalone->spinner &&
-                    !lv_obj_has_flag(s_standalone->spinner, LV_OBJ_FLAG_HIDDEN)) {
-                    lv_obj_add_flag(s_standalone->spinner, LV_OBJ_FLAG_HIDDEN);
-                }
-            });
+    // No per-user transform is persisted for this view: the camera's own flips.
+    const bool started = viewer->view_.start(
+        "", nlohmann::json::object(), {viewer->image_},
+        [viewer](lv_draw_buf_t* frame) {
+            if (!viewer->image_) {
+                return;
+            }
+            lv_image_set_src(viewer->image_, frame);
+            // First frame: hide the "Connecting..." spinner
+            if (viewer->spinner_ && !lv_obj_has_flag(viewer->spinner_, LV_OBJ_FLAG_HIDDEN)) {
+                lv_obj_add_flag(viewer->spinner_, LV_OBJ_FLAG_HIDDEN);
+            }
         },
-        [token](const char* msg) {
-            std::string status(msg);
-            token.defer("StandaloneCameraFullscreen::status", [status]() {
-                spdlog::debug("[CameraWidget] Standalone stream status: {}", status);
-            });
+        [](const std::string& status) {
+            spdlog::debug("[CameraWidget] Standalone stream status: {}", status);
         });
+    if (!started) {
+        spdlog::warn("[CameraWidget] Standalone fullscreen: no webcam URLs available");
+        delete viewer;
+        helix::ui::safe_delete_obj(overlay);
+        return false;
+    }
+    s_open_ = viewer;
 
     helix::nav::register_overlay(overlay, nullptr);
-    lv_obj_add_event_cb(overlay, on_standalone_overlay_deleted, LV_EVENT_DELETE, nullptr);
+    lv_obj_add_event_cb(overlay, on_overlay_deleted, LV_EVENT_DELETE, nullptr);
     // The close is queued; a stale one must not shut a viewer opened since.
     helix::nav::on_close(overlay, [overlay]() {
-        if (s_standalone && s_standalone->overlay == overlay) {
-            close_standalone();
+        if (s_open_ && s_open_->overlay_ == overlay) {
+            close();
         }
     });
 
@@ -783,9 +735,13 @@ bool open_standalone_camera_fullscreen(lv_obj_t* parent_screen) {
     // transient width offset to one side.
     helix::nav::set_overlay_width_unmanaged(overlay);
     helix::nav::push_overlay(overlay);
-    spdlog::info("[CameraWidget] Standalone fullscreen opened (stream={}, snapshot={})", stream_url,
-                 snapshot_url);
+    spdlog::info("[CameraWidget] Standalone fullscreen opened (stream={}, snapshot={})",
+                 viewer->view_.feed().stream_url, viewer->view_.feed().snapshot_url);
     return true;
+}
+
+bool open_standalone_camera_fullscreen(lv_obj_t* parent_screen) {
+    return StandaloneCameraViewer::open(parent_screen);
 }
 
 void CameraWidget::destroy_fullscreen() {

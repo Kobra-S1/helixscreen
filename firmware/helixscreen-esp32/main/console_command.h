@@ -17,6 +17,8 @@ typedef enum {
     CONSOLE_CMD_STACK,
     CONSOLE_CMD_SNAPLINE, // a = line number
     CONSOLE_CMD_TAP,      // a = x, b = y, panel coordinates
+    CONSOLE_CMD_DOWN,     // a = x, b = y: a new finger lands, the previous one (if any) lifts
+    CONSOLE_CMD_UP,       // every finger lifts
 } console_cmd_kind;
 
 typedef struct {
@@ -63,6 +65,8 @@ static inline console_cmd console_parse_line(const char* line) {
         cmd.kind = CONSOLE_CMD_NOTES;
     } else if (strcmp(line, "stack") == 0) {
         cmd.kind = CONSOLE_CMD_STACK;
+    } else if (strcmp(line, "up") == 0) {
+        cmd.kind = CONSOLE_CMD_UP;
     } else if (strncmp(line, "snapline", 8) == 0) {
         const char* p = line + 8;
         if (console_parse_number(&p, CONSOLE_SNAPLINE_MAX, &cmd.a) && *p == '\0') {
@@ -73,6 +77,12 @@ static inline console_cmd console_parse_line(const char* line) {
         if (console_parse_number(&p, CONSOLE_TAP_COORD_MAX, &cmd.a) &&
             console_parse_number(&p, CONSOLE_TAP_COORD_MAX, &cmd.b) && *p == '\0') {
             cmd.kind = CONSOLE_CMD_TAP;
+        }
+    } else if (strncmp(line, "down", 4) == 0) {
+        const char* p = line + 4;
+        if (console_parse_number(&p, CONSOLE_TAP_COORD_MAX, &cmd.a) &&
+            console_parse_number(&p, CONSOLE_TAP_COORD_MAX, &cmd.b) && *p == '\0') {
+            cmd.kind = CONSOLE_CMD_DOWN;
         }
     }
     return cmd;

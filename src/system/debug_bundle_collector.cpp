@@ -33,6 +33,7 @@
 #include "system/update_checker.h"
 #include "text_io.h"
 #include "touch_calibration_wrapper.h"
+#include "utils/network_validation.h"
 #include "wifi_link_monitor.h"
 
 #include <spdlog/spdlog.h>
@@ -1129,7 +1130,7 @@ json DebugBundleCollector::collect_moonraker_local_probe() {
     // collect_update_info()). get_moonraker_url() is the same accessor
     // collect_moonraker_info() already uses from this thread.
     std::string host;
-    uint16_t port = 7125;
+    uint16_t port = helix::kDefaultMoonrakerPort;
     const std::string base_url = get_moonraker_url();
     if (!helix::diag::split_host_port(base_url, host, port)) {
         probe["probed"] = false;
@@ -2052,7 +2053,7 @@ std::string DebugBundleCollector::fetch_log_tail(const std::string& base_url,
 std::string DebugBundleCollector::collect_local_log_tail(const std::string& log_name, int num_lines,
                                                          int condense_max_repeats) {
     std::string host;
-    uint16_t port = 7125;
+    uint16_t port = helix::kDefaultMoonrakerPort;
     if (!helix::diag::split_host_port(get_moonraker_url(), host, port))
         return {};
     // A remote printer's logs are not on our disk, and reading a same-named file

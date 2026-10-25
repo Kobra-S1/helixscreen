@@ -80,6 +80,8 @@ flowchart LR
 | [`src/ui/ui_overlay_qr_scanner.cpp`](../../../src/ui/ui_overlay_qr_scanner.cpp) | The scan overlay: races all three scanner paths, converges on `on_spool_id_detected()` |
 | [`include/usb_manager.h`](../../../include/usb_manager.h) / [`src/api/usb_backend_linux.cpp`](../../../src/api/usb_backend_linux.cpp) | `UsbManager` and its Linux backend: removable-drive detection from the mount table |
 | [`include/mdns_discovery.h`](../../../include/mdns_discovery.h) / [`src/network/mdns_discovery.cpp`](../../../src/network/mdns_discovery.cpp) | `MdnsDiscovery` - LAN discovery of Moonraker servers (PIMPL + own thread) |
+| [`include/lan_sweep.h`](../../../include/lan_sweep.h) / [`src/system/lan_sweep.cpp`](../../../src/system/lan_sweep.cpp) | `LanSweepDiscovery` (asks every address of our /24 for `/server/info`) and `MoonrakerDiscovery` (it plus mDNS, merged); the platform pieces are [`src/network/lan_sweep_posix.cpp`](../../../src/network/lan_sweep_posix.cpp) and the firmware's `components/helixapp/lan_sweep_esp.cpp` |
+| [`include/printer_discovery_list.h`](../../../include/printer_discovery_list.h) / [`src/ui/printer_discovery_list.cpp`](../../../src/ui/printer_discovery_list.cpp) | The discovery source the wizard and host modal ask, the mDNS/sweep merge, and the dropdown rows |
 | [`include/remote_control_server.h`](../../../include/remote_control_server.h) / [`src/remote/remote_control_server.cpp`](../../../src/remote/remote_control_server.cpp) | JSON-RPC 2.0 server over Unix socket (or HTTP), auto-started in `--test` |
 | [`src/remote/unix_socket_transport.cpp`](../../../src/remote/unix_socket_transport.cpp) / [`http_transport.cpp`](../../../src/remote/http_transport.cpp) | The two `IRemoteTransport`s the server listens through |
 | [`src/remote/widget_resolution.cpp`](../../../src/remote/widget_resolution.cpp) | Widget-by-name lookup and value-control classification (`is_value_control`) |
@@ -105,6 +107,7 @@ The roster, verified against the tree - one facade per subsystem, and note how d
 | Camera QR scanning | `SnapshotQrScanner` (overlay-owned) | poll thread | always | none |
 | USB drives | `UsbManager` (owned by `SubjectInitializer`) | mount-table monitor thread | always; `--test` swaps in a mock drive | [`../USB_MANAGEMENT.md`](../USB_MANAGEMENT.md) |
 | mDNS discovery | `MdnsDiscovery` (PIMPL, `IMdnsDiscovery`) | query thread | always | none |
+| LAN sweep | `LanSweepDiscovery` (`IMdnsDiscovery`, screen-owned) | per sweep: an `HttpExecutor` of 12 workers, or 3 PSRAM-stack pthreads on the ESP32 | outside `--test` | none |
 | Remote control | `RemoteControlServer` (`Application` member) | accept thread | `ENABLE_REMOTE_CONTROL=yes` builds; server runs in `--test`/`--remote` | [`../HELIXCTL.md`](../HELIXCTL.md) |
 
 ### Bluetooth: a runtime-loaded plugin on one bus thread
@@ -195,8 +198,16 @@ Views do not drive a `CameraStream` directly. `CameraView` ([`include/camera_vie
 thread; `stop()` clears the owner's images and waits for the render thread, then joins the stream on
 `HttpExecutor::fast()` (a wedged join would freeze the UI) and honours the detach contract there. A `start()` over a
 worker that gave up runs the same teardown first. Most streamers serve one client, so a view starting a camera tells
-every other view of it to stop through its `on_preempted()` handler; each owner restarts on its next activation. The home `CameraWidget` and the Print Status preview card both sit on it; each keeps its own
+every other view of it to stop through its `on_preempted()` handler; each owner restarts on its next activation. The home `CameraWidget`, the Print Status preview card and the standalone fullscreen viewer all sit on it; each keeps its own
 target image and fps policy.
+
+The standalone viewer (`StandaloneCameraViewer`, [`src/ui/panel_widgets/camera_widget.cpp#StandaloneCameraViewer/open`](../../../src/ui/panel_widgets/camera_widget.cpp))
+is the fullscreen camera opened from outside the home panel: Settings -> Devices -> Camera and Print Status ->
+More -> Camera. With a `CameraWidget` attached it opens that widget's fullscreen instead, which shows the stream
+the widget already owns. Otherwise it creates the `camera_fullscreen` overlay and starts its own `CameraView` with
+the camera's own flips, which takes the camera from the card or widget showing it; closing the overlay, or a screen
+teardown deleting it, stops that view the same way the others stop. One fullscreen view is open at a time across
+both paths.
 
 The widget also throttles: `set_max_fps(0)` when an overlay covers it, `2` in edit mode, the configured cap
 otherwise (`src/ui/panel_widgets/camera_widget.cpp#update_stream_fps`). Flip, rotation, target size, and fps cap are all
@@ -228,7 +239,31 @@ hold the `IMdnsDiscovery` interface (`include/mdns_discovery.h#IMdnsDiscovery`),
 wizard ([`src/ui/ui_wizard_connection.cpp`](../../../src/ui/ui_wizard_connection.cpp)), the label-printer settings screen (network Brother printers), and
 the connection-failed prompt, which browses for the printer at a new address through a factory
 `MoonrakerManager` installs (`src/application/moonraker_manager.cpp#"set_printer_rediscovery_source("`; not installed for a mock printer or on the ESP32 firmware). A
-socket failure on a network-less box is expected and handled gracefully - discovery just returns nothing. HTTP
+socket failure on a network-less box is expected and handled gracefully - discovery just returns nothing.
+
+Moonraker answers mDNS only with `[zeroconf]` enabled, which most installs leave off, so the setup wizard's
+connection step and the Change Host / Add Printer modal list printers from **`MoonrakerDiscovery`**
+(`include/lan_sweep.h#MoonrakerDiscovery`): mDNS and a **LAN sweep** side by side, merged into one dropdown by
+`merge_discovered_printers()` (one row per ip:port, mDNS's name kept). Both screens get it from
+`make_printer_discovery()`, whose factory `MoonrakerManager` installs beside the rediscovery one (`set_printer_discovery_source`);
+unset (tests, `--test`, the firmware) the dropdown stays hidden. The sweep (`LanSweepDiscovery`) takes this
+machine's routed IPv4 address and netmask (`active_local_ipv4()`), asks every address of that /24, its own included (a
+private network only, a wider mask narrowed to the /24; `lan_sweep_hosts()`) on the ports
+`moonraker_ports_to_try()` gives an untouched default, 7125 then 80, and stops at the first that answers. Its
+check is `probe_moonraker_http()`: one plain HTTP/1.0 `GET /server/info` on a non-blocking socket, 400ms to
+connect and 1.5s in all, counted only when `is_moonraker_server_info_response()` sees Moonraker's `result`
+fields (or Moonraker's own 401/403 error object), so a router's page on port 80 is not a printer. The same
+check is **Test Connection** on both screens: `MoonrakerConnectionTest` (`include/lan_sweep.h`) asks it on one
+worker over `moonraker_ports_to_try()`'s ports (an untouched 7125 default, then 80) and reports the port that
+answered and Klipper's state. It never touches the app's live client, so the screen behind the Change Host
+modal keeps its printer; only Save moves the client. The wizard step then connects the client to the one address
+that answered, because its later steps need that printer's hardware discovery. Only the platform pieces differ, declared at the foot of `lan_sweep.h`: where our address comes from
+(`getifaddrs` or `esp_netif`), the limits (`lan_sweep_default_limits()`) and how workers start
+(`start_lan_sweep_workers()`). On Linux and macOS 12 probes run at once on a sweep-owned `HttpExecutor`. On the
+ESP32 firmware, where that pool never starts, three detached pthreads with 12KB PSRAM stacks run them, with a
+300ms connect, 1.2s per probe and a 50ms rest after each, so a /24 takes a minute or two and the radio stays
+with the UI. Results reach the screen through `tok.defer`; closing the screen invalidates the token, cancels
+what has not started and lets a running probe finish on its own. HTTP
 *workers* are not here: all HTTP-shaped work leaves through the `HttpExecutor::fast()`/`slow()` pools that
 chapters 03 and 04 own.
 

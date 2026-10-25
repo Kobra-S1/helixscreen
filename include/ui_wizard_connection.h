@@ -4,8 +4,10 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "lan_sweep.h"
 #include "lvgl/lvgl.h"
 #include "mdns_discovery.h"
+#include "utils/network_validation.h"
 #include "wizard_step.h"
 
 #include <atomic>
@@ -215,6 +217,22 @@ class WizardConnectionStep : public helix::wizard::Step {
     std::string saved_ip_;   // Protected by saved_values_mutex_
     std::string saved_port_; // Protected by saved_values_mutex_
 
+    // Where the port field's value came from (main thread only); moonraker_ports_to_try()
+    // decides from it. Reset to FilledIn by cleanup().
+    helix::PortOrigin port_origin_ = helix::PortOrigin::FilledIn;
+    /// Set while the app writes the port field, so the write is not taken for typing.
+    bool port_set_by_app_ = false;
+    /// The ports the last test tried, for the failure message.
+    std::vector<int> tried_ports_;
+    /// Test Connection's HTTP check, and the auto-probe's.
+    helix::MoonrakerConnectionTest connection_test_;
+
+    /// Write @p port to the port subject and field without marking it typed.
+    void set_port_field(const std::string& port);
+
+    /// A probe found Moonraker on @p port: record it and show it in the port field.
+    void adopt_probed_port(int port);
+
     // Event handler implementations
     void handle_test_connection_clicked();
     void handle_ip_input_changed();
@@ -223,6 +241,11 @@ class WizardConnectionStep : public helix::wizard::Step {
     // Async callback handlers (called from WebSocket callbacks, marshal via tok.defer)
     void on_connection_success(const helix::LifetimeToken& tok);
     void on_connection_failure(const helix::LifetimeToken& tok);
+    /// Shows a failed test for @p kind with the ports tried, and keeps Next shut.
+    void show_connection_failure(helix::ConnectFailureKind kind);
+    /// Connects the live client to saved_ip_:saved_port_, the address a test confirmed,
+    /// for the hardware discovery the next steps need.
+    void connect_confirmed(const helix::LifetimeToken& tok, bool auto_probe, uint32_t timeout_ms);
 
     // Helper to set status icon and text imperatively with appropriate colors
     enum class StatusVariant { None, Success, Warning, Danger };
@@ -304,12 +327,17 @@ class WizardConnectionStep : public helix::wizard::Step {
     static void auto_probe_timer_cb(lv_timer_t* timer);
     static void discovery_watchdog_timer_cb(lv_timer_t* timer);
 
+    /// Gates discovery callbacks. Separate from lifetime_, which every connection attempt
+    /// invalidates while discovery keeps running.
+    helix::AsyncLifetimeGuard discovery_lifetime_;
+
     // mDNS discovery (injectable for testing)
     std::unique_ptr<helix::IMdnsDiscovery> mdns_discovery_;
     std::vector<helix::DiscoveredPrinter> discovered_printers_;
 
     // Subjects for mDNS UI
-    lv_subject_t mdns_status_{}; ///< "Scanning..." / "Found N printer(s)"
+    lv_subject_t mdns_status_{};      ///< "Scanning..." / "Found N printer(s)"
+    lv_subject_t discovery_active_{}; ///< 1 while printer discovery runs (shows the section)
     char mdns_status_buffer_[64];
 
     // mDNS callbacks

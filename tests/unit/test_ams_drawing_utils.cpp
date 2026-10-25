@@ -450,6 +450,25 @@ TEST_CASE("AmsState::get_unit_logo: the unit's own name first, then the system's
     CHECK(std::string(helix::AmsState::get_unit_logo(unit, info).path) == unit_logo);
 }
 
+// The QIDI Box set (prestonbrown/helixscreen#1514): three spellings resolve to
+// the one logo, and the system's logo stands in for its units.
+TEST_CASE("AmsState::get_logo_path: the QIDI Box set under every spelling", "[ams_draw][logo]") {
+    const char* path = helix::AmsState::get_logo_path("QIDI Box");
+    REQUIRE(path != nullptr);
+    CHECK(std::string(path).find("qidi_box_64.png") != std::string::npos);
+
+    for (const char* spelling : {"qidi_box", "qidibox", "QIDI BOX"}) {
+        CAPTURE(spelling);
+        CHECK(std::string(helix::AmsState::get_logo_path(spelling)) == std::string(path));
+    }
+
+    AmsUnit unit;
+    AmsSystemInfo info;
+    unit.name = "NonExistent";
+    info.type_name = "QIDI Box";
+    CHECK(std::string(helix::AmsState::get_unit_logo(unit, info).path) == std::string(path));
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "create_lane_badge: shows 1-based number", "[ui][ams][badge]") {
     lv_obj_t* host = lv_obj_create(test_screen());
     lv_obj_t* badge = ams_draw::create_lane_badge(host, 3, 16);

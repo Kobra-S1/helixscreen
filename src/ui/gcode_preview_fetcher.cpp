@@ -12,6 +12,7 @@
 #include "i_moonraker_api.h"
 #include "memory_utils.h"
 #include "text_io.h"
+#include "utils/network_validation.h"
 
 #include <spdlog/spdlog.h>
 
@@ -86,9 +87,9 @@ void GcodePreviewFetcher::fetch(const std::string& filename, ReadyCb on_ready,
 
 std::string GcodePreviewFetcher::cache_file_name(const char* prefix, const std::string& file_key) {
     auto* cfg = Config::get_instance();
-    const std::string printer = cfg->get<std::string>(cfg->df() + "moonraker_host", "localhost") +
-                                ":" +
-                                std::to_string(cfg->get<int>(cfg->df() + "moonraker_port", 7125));
+    const std::string printer =
+        cfg->get<std::string>(cfg->df() + "moonraker_host", "localhost") + ":" +
+        std::to_string(cfg->get<int>(cfg->df() + "moonraker_port", helix::kDefaultMoonrakerPort));
     return std::string(prefix) +
            std::to_string(std::hash<std::string>{}(printer + '\n' + file_key)) + ".gcode";
 }

@@ -19,6 +19,7 @@ class PrinterDiscovery;
 
 /// Notification-history action id that reopens the printer type mismatch review.
 inline constexpr const char* kReviewPrinterTypeAction = "review_printer_type";
+inline constexpr const char* kMismatchToastClosedAction = "type_mismatch_closed";
 
 /// Which hardware prompt a discovery pass launches. At most one per pass: the gates
 /// below make the three reasons mutually exclusive.
@@ -81,8 +82,8 @@ class HardwareSetupPrompter {
         bool deferred_prompt_shown = false;
         /// The saved-vs-detected type mismatch warning (toast + history entry) is raised
         /// at most once per session. The persisted TYPE_MISMATCH_SHOWN_FOR flag, written
-        /// only by an answer in the review modal, covers cross-boot. Not re-armed on
-        /// reconnect, only on a new printer.
+        /// by an answer in the review modal or by closing the toast (both mean "keep my
+        /// type"), covers cross-boot. Not re-armed on reconnect, only on a new printer.
         bool type_mismatch_shown = false;
     };
     Guards guards;
@@ -136,6 +137,9 @@ class HardwareSetupPrompter {
     void open_type_mismatch_review();
     void launch_type_reidentify_wizard();
     void settle_type_mismatch_warning();
+    /// A user-closed mismatch toast settles the warning: keep the saved type
+    /// and stop asking, exactly like the review modal's "Keep current".
+    void settle_type_mismatch_on_close(uint32_t generation);
     /// Run @p launch once the confirming modal's exit animation is over. One launch is
     /// pending at a time; the destructor cancels it.
     void launch_after_modal_exit(void (HardwareSetupPrompter::*launch)());

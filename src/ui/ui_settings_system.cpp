@@ -9,7 +9,9 @@
 #include "ui_panel_common.h"
 #include "ui_settings_security.h"
 #include "ui_settings_storage.h"
+#if !defined(HELIX_PLATFORM_ESP32)
 #include "ui_settings_telemetry_data.h"
+#endif
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
@@ -37,10 +39,13 @@ void SystemSettingsOverlay::register_callbacks() {
          [](lv_event_t*) {
              get_security_settings_overlay().show(get_system_settings_overlay().parent_screen_);
          }},
+#if !defined(HELIX_PLATFORM_ESP32)
+        // The firmware has no telemetry queue to show, and its row is hidden.
         {"on_telemetry_view_data",
          [](lv_event_t*) {
              get_telemetry_data_overlay().show(get_system_settings_overlay().parent_screen_);
          }},
+#endif
         {"on_telemetry_changed",
          [](lv_event_t* e) {
              bool on = helix::ui::event_checked(e);

@@ -170,8 +170,7 @@ Not implemented: `recover()` / `reset()` / `cancel()` (return `not_supported`), 
 1. Hardware validation of the write path — the load/unload/eject/remap gcode is field-verified only through logs (#1030); no Box in the local test fleet.
 2. `recover()` / `reset()` / `cancel()` — still `not_supported`; blocked on knowing the stock recovery flow.
 3. Bypass — unknown whether the Box has one; needs hardware inspection.
-4. Add `assets/images/ams/qidi_box_64.png` (TODO comment exists at the top of the implementation).
-5. Path visualization — segments return `NONE` today.
+4. Path visualization — segments return `NONE` today.
 
 ---
 

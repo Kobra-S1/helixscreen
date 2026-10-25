@@ -731,6 +731,7 @@ translations:
   Checking webcam: Verificando webcam
   Checking...: Verificando...
   Checking…: Verificando…
+  Choose a discovered printer: "Escolha uma impressora encontrada"
   Choose 12-hour or 24-hour time display: Escolha exibição de hora em 12 ou 24 horas
   Choose Filament: Escolher Filamento
   Choose Layer: 'Escolher camada'
@@ -947,9 +948,11 @@ translations:
   'Could not check {} - it stays in the queue': 'Não foi possível verificar {} – permanece na fila'
   "Every screen and setting explained": "Cada tela e configuração explicada"
   "Getting Started": "Primeiros passos"
+  'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "O básico: o assistente de configuração, a navegação entre telas e os gestos de toque."
   Load all stopped: Carregamento de todos interrompido
   Load stopped: Carregamento interrompido
+  'Moonraker answered at {}.': "O Moonraker respondeu em {}."
   No filament was inserted in time: 'Nenhum filamento foi inserido a tempo'
   Print hours between filter changes. Off hides this meter.: 'Horas de impressão entre trocas de filtro. Desligado oculta este contador.'
   Print hours between nozzle changes. Off hides this meter.: 'Horas de impressão entre trocas de bico. Desligado oculta este contador.'
@@ -4347,6 +4350,7 @@ translations:
   TouchCalibration: Calibração do Toque
   Trace: Rastreamento
   Trigger: Gatilho
+  'Tried ports {} and {}.': "Tentadas as portas {} e {}."
   'Troubleshooting:': 'Solução de Problemas:'
   Try adjusting your search or filters: Tente ajustar sua busca ou filtros
   Try Again: 'Tentar novamente'

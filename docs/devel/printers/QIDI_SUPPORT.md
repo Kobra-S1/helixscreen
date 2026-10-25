@@ -237,7 +237,6 @@ HelixScreen has a **read-only state mirror** and a **gated write-path** for the 
 
 **Known gaps:**
 
-- No `qidi_box_64.png` logo asset yet — `AmsState::get_system_logo_path()` returns nullptr for `"qidi box"`, UI falls back to a generic AMS chip ([#1514](https://github.com/prestonbrown/helixscreen/issues/1514)).
 - Load, unload and eject are measured on a real Q2 (#1041). The Max 4's `MULTI_COLOR_BOX_UNLOAD` eject is not yet confirmed on hardware ([#1067](https://github.com/prestonbrown/helixscreen/issues/1067)).
 
 Full context and references to the `qidi-community/Plus4-Wiki` open-source reimplementation live in [`FILAMENT_BACKEND_QIDI_BOX.md` → QIDI Box](../FILAMENT_BACKEND_QIDI_BOX.md#qidi-box-qidi-plus4--q2--max4).

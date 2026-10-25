@@ -300,6 +300,7 @@ src/sensors/load_cell_manager.cpp
 src/sensors/probe_sensor_manager.cpp
 src/sensors/temperature_sensor_manager.cpp
 src/sensors/width_sensor_manager.cpp
+src/system/lan_sweep.cpp
 src/system/afc_message_dedup.cpp
 src/system/alsa_device_enum.cpp
 src/system/async_lifetime_guard.cpp
@@ -398,6 +399,7 @@ src/ui/layout_port.cpp
 src/ui/light_button_config.cpp
 src/ui/i18n_plural.cpp
 src/ui/locale_formats.cpp
+src/ui/printer_discovery_list.cpp
 src/ui/modals/buffer_status_modal.cpp
 src/ui/modals/camera_config_modal.cpp
 src/ui/modals/clog_detection_config_modal.cpp
@@ -681,7 +683,6 @@ src/ui/ui_settings_safety.cpp
 src/ui/ui_settings_security.cpp
 src/ui/ui_settings_sensors.cpp
 src/ui/ui_settings_sound.cpp
-src/ui/ui_settings_telemetry_data.cpp
 src/ui/ui_settings_touch.cpp
 src/ui/ui_settings_system.cpp
 src/ui/ui_settings_storage.cpp

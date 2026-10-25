@@ -120,14 +120,6 @@ TEST_CASE_METHOD(RetargetFixture, "Retarget: connects to the active printer as a
     CHECK(shown_name() == "Beta");
 }
 
-TEST_CASE_METHOD(RetargetFixture, "Reconnect: the same printer keeps its AMS backends",
-                 "[multi-printer][retarget]") {
-    CHECK(helix::reconnect_active_printer());
-
-    CHECK(client_->get_last_url() == "ws://10.0.0.2:7126/websocket");
-    CHECK(helix::AmsState::instance().backend_count() == 1);
-}
-
 TEST_CASE_METHOD(RetargetFixture, "Retarget: a transport that cannot start reports failure",
                  "[multi-printer][retarget]") {
     client_->connect_result = -1;

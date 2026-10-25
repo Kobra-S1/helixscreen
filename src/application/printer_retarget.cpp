@@ -14,6 +14,7 @@
 #include "print_history_manager.h"
 #include "printer_state.h"
 #include "sound_manager.h"
+#include "utils/network_validation.h"
 
 #include <spdlog/spdlog.h>
 
@@ -42,7 +43,8 @@ IMoonrakerClient* disconnect_for_retarget() {
 std::string active_printer_host_port(const std::string& default_host) {
     Config* config = Config::get_instance();
     return config->get<std::string>(config->df() + "moonraker_host", default_host) + ":" +
-           std::to_string(config->get<int>(config->df() + "moonraker_port", 7125));
+           std::to_string(
+               config->get<int>(config->df() + "moonraker_port", helix::kDefaultMoonrakerPort));
 }
 
 /// The new printer's first status replaces the live values; an unreachable one never sends
@@ -97,13 +99,6 @@ bool connect_active_printer() {
         return false;
     }
     return connect_printer(*manager, active_printer_ws_url(), active_printer_http_url());
-}
-
-bool reconnect_active_printer() {
-    if (!disconnect_for_retarget()) {
-        return false;
-    }
-    return connect_active_printer();
 }
 
 bool retarget_printer_connection() {

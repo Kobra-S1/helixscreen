@@ -676,6 +676,7 @@
   <translation tag="Choose Filament" fr="Choisir le filament"/>
   <translation tag="Choose Layer" fr="Choisir la couche"/>
   <translation tag="Choose Model" fr="Choisir le modèle"/>
+  <translation tag="Choose a discovered printer" fr="Choisir une imprimante trouvée"/>
   <translation tag="Choose an existing filament, or tap + New to create one." fr="Choisissez un filament existant, ou appuyez sur + Nouveau pour en créer un."/>
   <translation tag="Choose display language" fr="Choisir la langue d&apos;affichage"/>
   <translation tag="Choose head" fr="Choisir une tête"/>
@@ -1871,6 +1872,7 @@
   <translation tag="Klipper will restart to apply changes." fr="Klipper redémarrera pour appliquer les modifications."/>
   <translation tag="Klipper will restart to apply new settings." fr="Klipper va redémarrer pour appliquer les nouveaux paramètres."/>
   <translation tag="Klipper: " fr="Klipper : "/>
+  <translation tag="Klipper: {}" fr="Klipper : {}"/>
   <translation tag="Klippy Errors" fr="Erreurs Klippy"/>
   <translation tag="Klippy Shutdowns" fr="Arrêts Klippy"/>
   <translation tag="LED Controls" fr="Commandes LED"/>
@@ -2148,6 +2150,7 @@
   <translation tag="Monitoring" fr="Surveillance"/>
   <translation tag="Month" fr="Mois"/>
   <translation tag="Moonraker" fr="Moonraker"/>
+  <translation tag="Moonraker answered at {}." fr="Moonraker a répondu à {}."/>
   <translation tag="Moonraker has no G-code folder." fr="Moonraker n&apos;a pas de dossier G-code."/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." fr="Moonraker est connecté à Spoolman, qui suit vos bobines et le filament restant. Parcourez-les sur l&apos;écran Spoolman."/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." fr="Moonraker ne répond pas à {}. Il tourne sur cette imprimante : vérifiez que les services Klipper et Moonraker ont démarré."/>
@@ -3922,6 +3925,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" fr="Touchez la cible (point %1$d sur 3) — appui %2$d sur %3$d"/>
   <translation tag="TouchCalibration" fr="Calibration tactile"/>
   <translation tag="Trace" fr="Trace"/>
+  <translation tag="Tried ports {} and {}." fr="Ports {} et {} essayés."/>
   <translation tag="Trigger" fr="Déclencheur"/>
   <translation tag="Troubleshooting:" fr="Dépannage :"/>
   <translation tag="Try Again" fr="Réessayer"/>

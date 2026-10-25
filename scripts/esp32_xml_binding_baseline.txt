@@ -159,6 +159,8 @@ callback:on_spoolman_search_changed
 callback:on_spoolman_search_clear
 callback:on_spoolman_spool_row_clicked
 callback:on_start_is_calibration
+callback:on_telemetry_clear_queue
+callback:on_telemetry_view_data
 callback:on_timelapse_autorender_changed
 callback:on_timelapse_enabled_changed
 callback:on_timelapse_framerate_changed
@@ -303,6 +305,7 @@ subject:cam_rot_90_active
 subject:cam_source_count
 subject:camera_status_text
 subject:connection_discovering
+subject:connection_discovery_active
 subject:connection_ip
 subject:connection_port
 subject:connection_status_icon
@@ -358,7 +361,6 @@ subject:is_y_num_chips
 subject:is_y_num_shapers
 subject:is_y_recommended_row
 subject:is_y_verdict_text
-subject:label_printer_configured
 subject:mdns_status
 subject:mpc_ambient_transfer
 subject:mpc_block_heat_capacity
@@ -401,7 +403,6 @@ subject:pa_tune_kind
 subject:pa_tune_layer_text
 subject:pa_tune_manual
 subject:pa_tune_mode_text
-subject:pa_tune_multi_tool
 subject:pa_tune_result_k
 subject:pa_tune_result_note
 subject:pa_tune_spoolman_text
@@ -409,7 +410,6 @@ subject:pa_tune_stage
 subject:pa_tune_start_k
 subject:pa_tune_step_idx
 subject:pa_tune_summary
-subject:pa_tune_tool_count
 subject:pid_cal_eta
 subject:pid_cal_not_idle
 subject:pid_cal_progress
@@ -463,6 +463,9 @@ subject:summary_part_fan_visible
 subject:summary_printer_name
 subject:summary_printer_type
 subject:summary_wifi_ssid
+subject:telemetry_data_count
+subject:telemetry_data_detail
+subject:telemetry_data_status
 subject:telemetry_info_text
 subject:test_printing
 subject:timelapse_capture_info

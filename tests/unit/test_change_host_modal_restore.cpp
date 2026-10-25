@@ -3,11 +3,10 @@
 
 /**
  * @file test_change_host_modal_restore.cpp
- * @brief Leaving the Change Host modal without saving keeps the saved printer connected.
+ * @brief The Change Host / Add Printer modal: Test, Save and the live client.
  *
- * Test Connection borrows the live client: it disconnects from the saved host and connects
- * to the one being typed. Closing the modal any way other than Save must put the client
- * back on the saved host, or the app stays attached to a printer its config does not name.
+ * Test Connection asks /server/info over HTTP and never touches the live client, so the
+ * screen behind the modal keeps its printer; only Save moves the client.
  */
 
 #include "ui_change_host_modal.h"
@@ -15,21 +14,26 @@
 #include "ui_update_queue.h"
 
 #include "../fake_moonraker_client.h"
+#include "../mocks/mock_mdns_discovery.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/fake_connection_test.h"
 #include "../test_helpers/moonraker_manager_test_access.h"
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "lan_sweep.h"
 #include "moonraker_manager.h"
 #include "platform_info.h"
+#include "printer_discovery_list.h"
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
 #include "utils/network_validation.h"
 
+#include <algorithm>
 #include <lvgl.h>
 #include <memory>
 #include <string>
@@ -42,7 +46,6 @@ using helix::ui::UpdateQueue;
 namespace {
 
 constexpr const char* kSavedHost = "192.168.1.50";
-constexpr const char* kSavedUrl = "ws://192.168.1.50:7125/websocket";
 constexpr const char* kTestedUrl = "ws://10.9.9.9:7125/websocket";
 
 class ChangeHostRestoreFixture : public XMLTestFixture {
@@ -80,7 +83,8 @@ class ChangeHostRestoreFixture : public XMLTestFixture {
         set_moonraker_manager(nullptr);
     }
 
-    /// Opens the modal, types `host` and presses Test Connection.
+    /// Opens the modal, types `host` and presses Test Connection; the fake network has
+    /// answered once this returns.
     lv_obj_t* open_and_test(const char* host) {
         helix::ui::show_change_host_modal();
         UpdateQueue::instance().drain();
@@ -92,7 +96,8 @@ class ChangeHostRestoreFixture : public XMLTestFixture {
         lv_subject_copy_string(ip, host);
 
         click(dialog, "btn_test_connection");
-        REQUIRE(client_->get_last_url() == kTestedUrl);
+        REQUIRE_FALSE(net_.asked.empty());
+        REQUIRE(net_.asked.front() == std::string(host) + ":7125");
         return dialog;
     }
 
@@ -108,6 +113,7 @@ class ChangeHostRestoreFixture : public XMLTestFixture {
     }
 
     helix::test::FakeMoonrakerClient* client_ = nullptr;
+    helix::test::ScopedFakeConnectionTest net_;
 
   private:
     MoonrakerManager manager_;
@@ -119,18 +125,20 @@ class ChangeHostRestoreFixture : public XMLTestFixture {
 } // namespace
 
 TEST_CASE_METHOD(ChangeHostRestoreFixture,
-                 "Change Host: Cancel after a test reconnects the saved host",
+                 "Change Host: a test and Cancel never move the live client",
                  "[change_host][connection]") {
+    net_.answer("10.9.9.9:7125");
     lv_obj_t* dialog = open_and_test("10.9.9.9");
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
 
     click(dialog, "modal_cancel_btn");
 
     CHECK(Modal::get_top() == nullptr);
-    CHECK(client_->get_last_url() == kSavedUrl);
+    CHECK(client_->connect_urls.empty());
 }
 
 TEST_CASE_METHOD(ChangeHostRestoreFixture,
-                 "Change Host: dismissing after a test reconnects the saved host",
+                 "Change Host: dismissing after a test leaves the live client alone",
                  "[change_host][connection]") {
     lv_obj_t* dialog = open_and_test("10.9.9.9");
 
@@ -138,7 +146,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     Modal::hide(dialog);
     UpdateQueue::instance().drain();
 
-    CHECK(client_->get_last_url() == kSavedUrl);
+    CHECK(client_->connect_urls.empty());
 }
 
 TEST_CASE_METHOD(ChangeHostRestoreFixture,
@@ -156,12 +164,9 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
 
 TEST_CASE_METHOD(ChangeHostRestoreFixture, "Change Host: Save keeps the tested host",
                  "[change_host][connection]") {
+    net_.answer("10.9.9.9:7125");
     lv_obj_t* dialog = open_and_test("10.9.9.9");
-
-    // The fake never calls back, so mark the test passed the way on_test_success does.
-    lv_subject_t* validated = lv_xml_get_subject(nullptr, "change_host_validated");
-    REQUIRE(validated != nullptr);
-    lv_subject_set_int(validated, 1);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
     click(dialog, "modal_save_btn");
     UpdateQueue::instance().drain();
 
@@ -197,45 +202,21 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     CHECK_FALSE(lv_obj_has_flag(add_title, LV_OBJ_FLAG_HIDDEN));
     CHECK(lv_obj_has_flag(change_title, LV_OBJ_FLAG_HIDDEN));
 
+    net_.answer("10.9.9.9:7125");
     lv_subject_copy_string(ip, "10.9.9.9");
     click(dialog, "btn_test_connection");
-    REQUIRE(client_->get_last_url() == kTestedUrl);
-    lv_subject_set_int(lv_xml_get_subject(nullptr, "change_host_validated"), 1);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
     click(dialog, "modal_save_btn");
     UpdateQueue::instance().drain();
 
     CHECK(added_host == "10.9.9.9");
     CHECK(added_port == 7125);
-    // A caller that did not switch gets the client back on the saved printer, so a declined
-    // or failed switch leaves it where config and UI say it is.
-    CHECK(url_when_added == kTestedUrl);
-    CHECK(client_->get_last_url() == kSavedUrl);
+    // The test never moved the client, so a declined switch leaves it where config and UI
+    // say it is, with nothing to hand back.
+    CHECK(url_when_added.empty());
+    CHECK(client_->connect_urls.empty());
     Config* cfg = Config::get_instance();
     CHECK(cfg->get<std::string>(cfg->df() + "moonraker_host") == kSavedHost);
-}
-
-// A switch retargets the client itself, so handing it back first would cycle the
-// transport twice (prestonbrown/helixscreen#1751).
-TEST_CASE_METHOD(ChangeHostRestoreFixture,
-                 "Add printer: an add that switches skips the hand-back to the saved printer",
-                 "[change_host][connection][multi-printer]") {
-    bool added = false;
-    helix::ui::show_add_printer_modal([&](const std::string&, int) {
-        added = true;
-        return true; // switched: the switch retargeted the client
-    });
-    UpdateQueue::instance().drain();
-    lv_obj_t* dialog = Modal::get_top();
-    REQUIRE(dialog != nullptr);
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
-    click(dialog, "btn_test_connection");
-    REQUIRE(client_->get_last_url() == kTestedUrl);
-    lv_subject_set_int(lv_xml_get_subject(nullptr, "change_host_validated"), 1);
-    click(dialog, "modal_save_btn");
-    UpdateQueue::instance().drain();
-
-    REQUIRE(added);
-    CHECK(client_->get_last_url() == kTestedUrl);
 }
 
 TEST_CASE_METHOD(ChangeHostRestoreFixture, "Change Host after Add shows the saved host again",
@@ -296,7 +277,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
 
     click(dialog, "modal_cancel_btn");
 
-    CHECK(client_->get_last_url() == kSavedUrl);
+    CHECK(client_->connect_urls.empty());
     CHECK(helix::AmsState::instance().backend_count() == 1);
 }
 
@@ -428,16 +409,52 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     const auto kind =
         GENERATE(helix::ConnectFailureKind::Timeout, helix::ConnectFailureKind::Refused,
                  helix::ConnectFailureKind::Unknown);
-    client_->connect_failure = kind;
+    net_.failure = kind;
     lv_obj_t* dialog = open_and_test("10.9.9.9");
 
-    REQUIRE(client_->fire_disconnected());
-    UpdateQueue::instance().drain();
+    // The untouched default also tries port 80 before giving up.
+    CHECK(net_.asked == std::vector<std::string>{"10.9.9.9:7125", "10.9.9.9:80"});
 
     lv_obj_t* status = lv_obj_find_by_name(dialog, "status_text");
     REQUIRE(status != nullptr);
     CHECK(std::string(lv_label_get_text(status)) ==
-          lv_tr(helix::connect_failure_hint(kind, helix::is_android_platform())));
+          helix::connect_failure_status(kind, {7125, 80}));
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: Moonraker found on port 80 is what Save stores",
+                 "[change_host][port_fallback]") {
+    net_.answer("10.9.9.9:80", "ready");
+    lv_obj_t* dialog = open_and_test("10.9.9.9");
+
+    CHECK(net_.asked == std::vector<std::string>{"10.9.9.9:7125", "10.9.9.9:80"});
+    CHECK(client_->connect_urls.empty());
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_port"))) ==
+          "80");
+    lv_obj_t* status = lv_obj_find_by_name(dialog, "status_text");
+    REQUIRE(status != nullptr);
+    const std::string shown = lv_label_get_text(status);
+    CHECK(shown.find("10.9.9.9:80") != std::string::npos);
+    CHECK(shown.find("ready") != std::string::npos);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
+
+    click(dialog, "modal_save_btn");
+    Config* cfg = Config::get_instance();
+    CHECK(cfg->get<int>(cfg->df() + "moonraker_port", 0) == 80);
+    CHECK(cfg->get<std::string>(cfg->df() + "moonraker_host", "") == "10.9.9.9");
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture, "Change Host: a typed port is the only port tried",
+                 "[change_host][port_fallback]") {
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_port"), "7125");
+    click(dialog, "btn_test_connection");
+
+    CHECK(net_.asked == std::vector<std::string>{"10.9.9.9:7125"});
 }
 
 // The K-Touch hands Add to PrinterSwitchFlow::add_printer, which reports whether it switched.
@@ -472,10 +489,10 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     UpdateQueue::instance().drain();
     lv_obj_t* dialog = Modal::get_top();
     REQUIRE(dialog != nullptr);
+    net_.answer("10.9.9.9:7125");
     lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
     click(dialog, "btn_test_connection");
-    REQUIRE(client_->get_last_url() == kTestedUrl);
-    lv_subject_set_int(lv_xml_get_subject(nullptr, "change_host_validated"), 1);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
 
     lv_obj_t* save = lv_obj_find_by_name(dialog, "modal_save_btn");
     REQUIRE(save != nullptr);
@@ -489,11 +506,119 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
 
     CHECK(answers == std::vector<bool>{true});
     CHECK(events == std::vector<std::string>{"teardown", "rebuild", "home"});
-    // The switch retargets the client itself; a hand-back to the saved printer would
-    // cycle the transport through a printer the config no longer names.
-    CHECK(client_->get_last_url() == kTestedUrl);
+    // The test never moved the client, and the modal hands nothing back after a switch.
+    CHECK(client_->connect_urls.empty());
 
     helix::ConfigTestAccess::data(*cfg) = saved_data;
     helix::ConfigTestAccess::active_printer_id(*cfg) = saved_active;
     helix::ConfigTestAccess::read_only_mode(*cfg) = saved_read_only;
+}
+
+namespace {
+
+/// Records the stop the modal owes its discovery when it closes.
+class StopRecordingDiscovery : public MockMdnsDiscovery {
+  public:
+    explicit StopRecordingDiscovery(bool& stopped) : stopped_(stopped) {}
+    void stop_discovery() override {
+        stopped_ = true;
+        MockMdnsDiscovery::stop_discovery();
+    }
+
+  private:
+    bool& stopped_;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Add printer: a printer the sweep found fills host and port",
+                 "[change_host][lan_sweep]") {
+    bool stopped = false;
+    auto mock = std::make_unique<StopRecordingDiscovery>(stopped);
+    MockMdnsDiscovery* found = mock.get();
+    found->add_fake_printer("", "", "192.168.1.52", 80);
+    helix::set_printer_discovery_source(
+        [&mock]() -> std::unique_ptr<helix::IMdnsDiscovery> { return std::move(mock); });
+
+    helix::ui::show_add_printer_modal([](const std::string&, int) { return false; });
+    UpdateQueue::instance().drain();
+    helix::set_printer_discovery_source(nullptr);
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    REQUIRE(found->is_discovering());
+
+    lv_obj_t* section = lv_obj_find_by_name(dialog, "discovery_section");
+    REQUIRE(section != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* dropdown = lv_obj_find_by_name(dialog, "printer_dropdown");
+    REQUIRE(dropdown != nullptr);
+    REQUIRE(lv_dropdown_get_option_count(dropdown) == 2);
+
+    lv_dropdown_set_selected(dropdown, 1);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_ip"))) ==
+          "192.168.1.52");
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_port"))) ==
+          "80");
+
+    click(dialog, "btn_test_connection");
+    CHECK(net_.asked == std::vector<std::string>{"192.168.1.52:80"});
+
+    // Closing the modal stops discovery.
+    REQUIRE_FALSE(stopped);
+    click(dialog, "modal_cancel_btn");
+    CHECK(stopped);
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: a saved port other than 7125 is tried alone",
+                 "[change_host][port_fallback]") {
+    Config* cfg = Config::get_instance();
+    cfg->set<int>(cfg->df() + "moonraker_port", 80);
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    REQUIRE(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_port"))) ==
+            "80");
+    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    click(dialog, "btn_test_connection");
+
+    CHECK(net_.asked == std::vector<std::string>{"10.9.9.9:80"});
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Add printer: a discovered printer on 7125 is tried on 7125 alone",
+                 "[change_host][port_fallback][lan_sweep]") {
+    auto mock = std::make_unique<MockMdnsDiscovery>();
+    mock->add_fake_printer("voron", "voron.local", "192.168.1.112", 7125);
+    helix::set_printer_discovery_source(
+        [&mock]() -> std::unique_ptr<helix::IMdnsDiscovery> { return std::move(mock); });
+    helix::ui::show_add_printer_modal([](const std::string&, int) { return false; });
+    UpdateQueue::instance().drain();
+    helix::set_printer_discovery_source(nullptr);
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+
+    lv_obj_t* dropdown = lv_obj_find_by_name(dialog, "printer_dropdown");
+    REQUIRE(dropdown != nullptr);
+    lv_dropdown_set_selected(dropdown, 1);
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    click(dialog, "btn_test_connection");
+
+    CHECK(net_.asked == std::vector<std::string>{"192.168.1.112:7125"});
+}
+
+TEST_CASE_METHOD(ChangeHostRestoreFixture,
+                 "Change Host: with no discovery source the discovered-printers row stays hidden",
+                 "[change_host][lan_sweep]") {
+    helix::set_printer_discovery_source(nullptr);
+    helix::ui::show_change_host_modal();
+    UpdateQueue::instance().drain();
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    lv_obj_t* section = lv_obj_find_by_name(dialog, "discovery_section");
+    REQUIRE(section != nullptr);
+    CHECK(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
 }

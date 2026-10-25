@@ -148,7 +148,8 @@ Later WiFi changes happen in **Settings > Connection > Network Settings** (see [
 Enter your Moonraker connection details:
 
 - **Hostname or IP**: Your printer's address (e.g., `voron.local` or `192.168.1.100`)
-- **Port**: Defaults to `7125` (auto-filled when you tap **Test Connection** if left empty)
+- **Discovered Printers**: while this step is open, HelixScreen looks for Moonraker on your local network (every address of your /24, on ports `7125` and `80`, plus any printer that advertises itself) and lists what it finds. Picking one fills in the host and port. A printer on another network segment will not appear; type its address instead.
+- **Port**: Defaults to `7125` (auto-filled when you tap **Test Connection** if left empty). If nothing answers on the default port, the test also tries port `80`, where Moonraker answers behind a web server, and switches the field to `80` when that works. A port you type yourself is the only one tried.
 - **API Key**: Only needed if Moonraker requires authentication
 
 If Moonraker is running locally — or your screen is attached directly to the printer — HelixScreen connects automatically, and you usually won't need to change anything here. Otherwise, enter the host and tap **Test Connection** to verify before continuing. If the port field is empty, it auto-fills with the default port `7125`.

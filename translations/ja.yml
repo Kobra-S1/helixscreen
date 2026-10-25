@@ -683,6 +683,7 @@ translations:
   Checking webcam: ウェブカメラを確認中
   Checking...: 確認中...
   Checking…: 確認中…
+  Choose a discovered printer: "見つかったプリンターを選択"
   Choose 12-hour or 24-hour time display: 12時間表示または24時間表示を選択
   Choose Filament: フィラメントを選択
   Choose Layer: 'レイヤーを選択'
@@ -880,9 +881,11 @@ translations:
   'Could not check {} - it stays in the queue': '{} を確認できませんでした – キューに残ります'
   "Every screen and setting explained": "すべての画面と設定の説明"
   "Getting Started": "はじめに"
+  'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "基本：セットアップウィザード、画面の移動、タッチ操作。"
   Load all stopped: 'すべてのロードを停止しました'
   Load stopped: 'ロードを停止しました'
+  'Moonraker answered at {}.': "{} でMoonrakerが応答しました。"
   No filament was inserted in time: '時間内にフィラメントが挿入されませんでした'
   Print hours between filter changes. Off hides this meter.: 'フィルター交換までの印刷時間。オフにするとこのメーターを非表示にします。'
   Print hours between nozzle changes. Off hides this meter.: 'ノズル交換までの印刷時間。オフにするとこのメーターを非表示にします。'
@@ -4105,6 +4108,7 @@ translations:
   TouchCalibration: タッチキャリブレーション
   Trace: トレース
   Trigger: トリガー
+  'Tried ports {} and {}.': "ポート{}と{}を試しました。"
   'Troubleshooting:': 'トラブルシューティング:'
   Try adjusting your search or filters: 検索やフィルターを調整してみてください
   Try Again: '再試行'

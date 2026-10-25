@@ -201,6 +201,7 @@ bool fire_last_toast_action();
  * Cleared, like the last action, by set_test_toast_hook().
  */
 bool last_action_toast_dismissed();
+bool last_shown_toast_has_closed_cb();
 
 /**
  * @brief Clear every hook above and the recorded action toasts.

@@ -54,6 +54,7 @@
 #include "system/tls_trust.h"
 #include "system_power.h"
 #include "text_io.h"
+#include "utils/network_validation.h"
 
 #include <cctype>
 #ifdef __ANDROID__
@@ -3143,7 +3144,7 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
     // A remote screen, or a second instance on another channel, would otherwise
     // impose its channel there, and two of them would restart Moonraker in turn.
     std::string host;
-    uint16_t port = 7125;
+    uint16_t port = helix::kDefaultMoonrakerPort;
     if (!helix::diag::split_host_port(api->get_http_base_url(), host, port) ||
         !helix::is_moonraker_on_same_host(host)) {
         spdlog::debug("[UpdateChecker] Moonraker is not on this host; leaving its update "

@@ -676,6 +676,7 @@
   <translation tag="Choose Filament" zh="选择耗材"/>
   <translation tag="Choose Layer" zh="选择层"/>
   <translation tag="Choose Model" zh="选择型号"/>
+  <translation tag="Choose a discovered printer" zh="选择发现的打印机"/>
   <translation tag="Choose an existing filament, or tap + New to create one." zh="选择已有耗材，或点击 + 新建来创建。"/>
   <translation tag="Choose display language" zh="选择显示语言"/>
   <translation tag="Choose head" zh="选择打印头"/>
@@ -1871,6 +1872,7 @@
   <translation tag="Klipper will restart to apply changes." zh="Klipper 将重启以应用更改。"/>
   <translation tag="Klipper will restart to apply new settings." zh="Klipper 将重启以应用新设置。"/>
   <translation tag="Klipper: " zh="Klipper: "/>
+  <translation tag="Klipper: {}" zh="Klipper: {}"/>
   <translation tag="Klippy Errors" zh="Klippy 错误"/>
   <translation tag="Klippy Shutdowns" zh="Klippy 关闭次数"/>
   <translation tag="LED Controls" zh="LED 控制"/>
@@ -2148,6 +2150,7 @@
   <translation tag="Monitoring" zh="监控中"/>
   <translation tag="Month" zh="月"/>
   <translation tag="Moonraker" zh="Moonraker"/>
+  <translation tag="Moonraker answered at {}." zh="Moonraker 在 {} 响应。"/>
   <translation tag="Moonraker has no G-code folder." zh="Moonraker 没有 G-code 文件夹。"/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." zh="Moonraker 已连接 Spoolman,它会记录你的料盘和剩余耗材量。在 Spoolman 界面浏览。"/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." zh="Moonraker 在 {} 无响应。它运行在这台打印机上，请检查 Klipper 和 Moonraker 服务是否已启动。"/>
@@ -3922,6 +3925,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" zh="触摸目标（第 %1$d 个点，共 3 个）— 触摸 %2$d / %3$d"/>
   <translation tag="TouchCalibration" zh="触摸校准"/>
   <translation tag="Trace" zh="跟踪"/>
+  <translation tag="Tried ports {} and {}." zh="已尝试端口 {} 和 {}。"/>
   <translation tag="Trigger" zh="触发器"/>
   <translation tag="Troubleshooting:" zh="故障排除："/>
   <translation tag="Try Again" zh="重试"/>

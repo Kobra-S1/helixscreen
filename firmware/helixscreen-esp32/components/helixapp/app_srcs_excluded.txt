@@ -24,7 +24,7 @@ src/bluetooth/  # all 9 src/ files beneath
 src/config/  # all 1 src/ files beneath
 src/input/  # all 1 src/ files beneath
 src/lvgl-demo/  # all 1 src/ files beneath
-src/network/  # all 1 src/ files beneath
+src/network/  # all 2 src/ files beneath
 src/remote/  # all 8 src/ files beneath
 src/tools/  # all 1 src/ files beneath
 
@@ -337,6 +337,7 @@ src/ui/ui_screensaver.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_screws_tilt_share_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_settings_barcode_scanner.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_settings_label_printer.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_settings_telemetry_data.cpp  # the firmware has no telemetry queue to show; the row is hidden there
 src/ui/ui_shaper_sweep_chart.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_spoolman_context_menu.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast
 src/ui/ui_spoolman_edit_modal.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget; until then the UI entry points fail with an error toast

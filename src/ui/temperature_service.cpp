@@ -266,15 +266,15 @@ void TemperatureService::update_display(HeaterType type) {
     }
 
     auto& h = heaters_[idx(type)];
-    int current_deg = deci_to_degrees_f(h.current);
-    int target_deg = deci_to_degrees_f(h.target);
+    char text[sizeof(h.display_buf)];
+    format_display(h, text, sizeof(text));
+    lv_subject_copy_string(&h.display_subject, text);
+}
 
-    if (target_deg > 0) {
-        snprintf(h.display_buf.data(), h.display_buf.size(), "%d / %d", current_deg, target_deg);
-    } else {
-        snprintf(h.display_buf.data(), h.display_buf.size(), "%d / —", current_deg);
-    }
-    lv_subject_copy_string(&h.display_subject, h.display_buf.data());
+void TemperatureService::format_display(const HeaterState& h, char* buf, size_t size) {
+    helix::ui::temperature::format_temperature_pair(static_cast<int>(deci_to_degrees_f(h.current)),
+                                                    static_cast<int>(deci_to_degrees_f(h.target)),
+                                                    buf, size, /*with_unit=*/false);
 }
 
 void TemperatureService::update_status(HeaterType type) {
@@ -356,14 +356,13 @@ void TemperatureService::init_subjects() {
     for (int i = 0; i < helix::kHeaterTypeCount; ++i) {
         auto& h = heaters_[i];
 
-        // Format initial display string
-        int current_deg = deci_to_degrees_f(h.current);
-        int target_deg = deci_to_degrees_f(h.target);
-        snprintf(h.display_buf.data(), h.display_buf.size(), "%d / %d°C", current_deg, target_deg);
+        // The macro copies the initial value INTO display_buf, so it is
+        // formatted elsewhere: a copy of a buffer onto itself is undefined.
+        char initial[sizeof(h.display_buf)];
+        format_display(h, initial, sizeof(initial));
 
-        // Initialize subjects
         UI_MANAGED_SUBJECT_STRING_N(h.display_subject, h.display_buf.data(), h.display_buf.size(),
-                                    h.display_buf.data(), display_names[i], subjects_);
+                                    initial, display_names[i], subjects_);
         UI_MANAGED_SUBJECT_STRING_N(h.status_subject, h.status_buf.data(), h.status_buf.size(), "",
                                     status_names[i], subjects_);
         UI_MANAGED_SUBJECT_INT(h.status_state_subject, 0, status_state_names[i], subjects_);

@@ -68,26 +68,14 @@
                               callback="on_print_status_objects" hidden_when="exclude_objects_available eq 0"/>
 
       <!-- Camera toggle: swaps the preview for the live camera and back -->
-      <lv_obj name="btn_camera_toggle"
-              width="#icon_button_size_lg" height="#icon_button_size_lg" style_bg_color="#card_bg" style_bg_opa="180"
-              style_radius="#icon_button_radius_lg" clickable="true" style_pad_all="0" scrollable="false" hidden="true">
-        <style name="styles.press_wash" selector="pressed"/>
-        <bind_flag_if_eq subject="print_status_camera_available" flag="hidden" ref_value="0"/>
-        <lv_label text="#icon_webcam" style_text_font="mdi_icons_24" style_text_color="#text_muted" align="center"/>
-        <event_cb trigger="clicked" callback="on_print_status_camera_toggle"/>
-      </lv_obj>
+      <preview_icon_button name="btn_camera_toggle"
+                           icon="#icon_webcam" callback="on_print_status_camera_toggle"
+                           hidden_when="print_status_camera_available eq 0"/>
 
       <!-- View mode toggle: switches between progress (ghost layers) and complete view -->
-      <lv_obj name="btn_view_toggle"
-              width="#icon_button_size_lg" height="#icon_button_size_lg" style_bg_color="#card_bg" style_bg_opa="180"
-              style_radius="#icon_button_radius_lg" clickable="true" style_pad_all="0" scrollable="false">
-        <style name="styles.press_wash" selector="pressed"/>
-        <bind_flag_if cond="gcode_viewer_mode eq 0 or print_status_camera_showing ne 0" flag="hidden"/>
-        <lv_label name="btn_view_toggle_icon"
-                  bind_text="view_toggle_icon" style_text_font="mdi_icons_24" style_text_color="#text_muted"
-                  align="center"/>
-        <event_cb trigger="clicked" callback="on_view_toggle"/>
-      </lv_obj>
+      <preview_icon_button name="btn_view_toggle"
+                           icon_subject="view_toggle_icon" icon_name="btn_view_toggle_icon" callback="on_view_toggle"
+                           hidden_when="gcode_viewer_mode eq 0 or print_status_camera_showing ne 0"/>
     </lv_obj>
 
     <!-- PRINT COMPLETE OVERLAY: Shown when print finishes successfully -->

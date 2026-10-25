@@ -676,6 +676,7 @@
   <translation tag="Choose Filament" ja="フィラメントを選択"/>
   <translation tag="Choose Layer" ja="レイヤーを選択"/>
   <translation tag="Choose Model" ja="モデルを選択"/>
+  <translation tag="Choose a discovered printer" ja="見つかったプリンターを選択"/>
   <translation tag="Choose an existing filament, or tap + New to create one." ja="既存のフィラメントを選択するか、+ 新規をタップして作成してください。"/>
   <translation tag="Choose display language" ja="表示言語を選択"/>
   <translation tag="Choose head" ja="ヘッドを選択"/>
@@ -1871,6 +1872,7 @@
   <translation tag="Klipper will restart to apply changes." ja="変更を適用するために Klipper が再起動します。"/>
   <translation tag="Klipper will restart to apply new settings." ja="新しい設定を適用するためKlipperが再起動します。"/>
   <translation tag="Klipper: " ja="Klipper: "/>
+  <translation tag="Klipper: {}" ja="Klipper: {}"/>
   <translation tag="Klippy Errors" ja="Klippy エラー"/>
   <translation tag="Klippy Shutdowns" ja="Klippy シャットダウン"/>
   <translation tag="LED Controls" ja="LEDコントロール"/>
@@ -2148,6 +2150,7 @@
   <translation tag="Monitoring" ja="モニタリング"/>
   <translation tag="Month" ja="月"/>
   <translation tag="Moonraker" ja="Moonraker"/>
+  <translation tag="Moonraker answered at {}." ja="{} でMoonrakerが応答しました。"/>
   <translation tag="Moonraker has no G-code folder." ja="MoonrakerにG-codeフォルダーがありません。"/>
   <translation tag="Moonraker is connected to Spoolman, which tracks your spools and how much filament is left. Browse them on the Spoolman screen." ja="MoonrakerはSpoolmanに接続されており、スプールとフィラメントの残量を管理します。Spoolman画面で一覧を確認できます。"/>
   <translation tag="Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started." ja="{} の Moonraker が応答しません。Moonraker はこのプリンター上で動作しているため、Klipper と Moonraker のサービスが起動しているか確認してください。"/>
@@ -3922,6 +3925,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" ja="ターゲットをタッチ（ポイント %1$d / 3）— タッチ %2$d / %3$d"/>
   <translation tag="TouchCalibration" ja="タッチキャリブレーション"/>
   <translation tag="Trace" ja="トレース"/>
+  <translation tag="Tried ports {} and {}." ja="ポート{}と{}を試しました。"/>
   <translation tag="Trigger" ja="トリガー"/>
   <translation tag="Troubleshooting:" ja="トラブルシューティング:"/>
   <translation tag="Try Again" ja="再試行"/>
