@@ -179,7 +179,8 @@ struct WpaSocketDirGuard {
 
 /// Hermetic /sys/class/net for the same tests: creates
 /// <base>/sys/class/net/wlan0/wireless (wlan0 to match the fake control
-/// socket's name) and pins HELIX_WPA_NET_SYSFS to the net dir, so the
+/// socket's name), pins HELIX_WPA_NET_SYSFS to the net dir and
+/// HELIX_WPA_SYS_ROOT to <base>/sys (no rfkill switch unless a case adds one), so the
 /// backend's hardware probe finds a radio on machines without one (CI
 /// runners). The dtor unpins and removes only the subtree it created.
 struct WpaNetSysfsGuard {
@@ -188,8 +189,10 @@ struct WpaNetSysfsGuard {
         std::error_code ec;
         std::filesystem::create_directories(net_dir_ + "/wlan0/wireless", ec);
         ::setenv("HELIX_WPA_NET_SYSFS", net_dir_.c_str(), 1);
+        ::setenv("HELIX_WPA_SYS_ROOT", (base_dir + "/sys").c_str(), 1);
     }
     ~WpaNetSysfsGuard() {
+        ::unsetenv("HELIX_WPA_SYS_ROOT");
         ::unsetenv("HELIX_WPA_NET_SYSFS");
         std::error_code ec;
         std::filesystem::remove_all(net_dir_, ec);

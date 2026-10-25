@@ -328,6 +328,71 @@ TEST_CASE("wpa reports an unreadable control directory as permission denied", "[
     CHECK(result.result == WiFiResult::PERMISSION_DENIED);
 }
 
+namespace {
+/// A wlan rfkill switch at <base>/sys/class/rfkill/rfkill0 whose `soft` file
+/// reads `soft` and cannot be written, like the root-owned 0644 sysfs file a
+/// non-root service user sees. Removed, permissions first, on destruction.
+struct ReadOnlyRfkill {
+    std::string dir;
+    ReadOnlyRfkill(const std::string& base, const char* soft) {
+        dir = base + "/sys/class/rfkill/rfkill0";
+        REQUIRE(std::filesystem::create_directories(dir));
+        std::FILE* t = std::fopen((dir + "/type").c_str(), "w");
+        REQUIRE(t != nullptr);
+        std::fputs("wlan\n", t);
+        std::fclose(t);
+        std::FILE* f = std::fopen((dir + "/soft").c_str(), "w");
+        REQUIRE(f != nullptr);
+        std::fputs(soft, f);
+        std::fclose(f);
+        REQUIRE(::chmod((dir + "/soft").c_str(), 0444) == 0);
+    }
+    ~ReadOnlyRfkill() {
+        ::chmod((dir + "/soft").c_str(), 0644);
+        std::error_code ec;
+        std::filesystem::remove_all(std::filesystem::path(dir).parent_path().parent_path(), ec);
+    }
+};
+} // namespace
+
+// Radio off on an unwritable switch is association-only, so radio on must be
+// too: refusing it leaves the toggle stuck off for good.
+TEST_CASE("wpa radio on succeeds over an unwritable rfkill switch that is not blocked",
+          "[network][wpa][radio]") {
+    if (::geteuid() == 0) {
+        SKIP("root writes a mode-0444 file, so the unwritable switch cannot be staged");
+    }
+    WpaFakeFixture fx;
+    ReadOnlyRfkill rfkill(fx.dir, "0\n");
+
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+
+    REQUIRE(backend.set_radio_enabled(false).success());
+    REQUIRE_FALSE(backend.is_radio_enabled());
+
+    WiFiError on = backend.set_radio_enabled(true);
+    CHECK(on.success());
+    CHECK(backend.is_radio_enabled());
+    backend.stop();
+}
+
+TEST_CASE("wpa radio on still refuses a switch that stays soft-blocked", "[network][wpa][radio]") {
+    if (::geteuid() == 0) {
+        SKIP("root writes a mode-0444 file, so the unwritable switch cannot be staged");
+    }
+    WpaFakeFixture fx;
+    ReadOnlyRfkill rfkill(fx.dir, "1\n");
+
+    WifiBackendWpaSupplicant backend(kWatchdogMs);
+    REQUIRE(backend.start().success());
+
+    WiFiError on = backend.set_radio_enabled(true);
+    CHECK(on.result == WiFiResult::RF_KILL_BLOCKED);
+    CHECK_FALSE(backend.is_radio_enabled());
+    backend.stop();
+}
+
 TEST_CASE("wpa hidden join sends scan_ssid 1; a visible join omits it", "[network][wpa][hidden]") {
     WpaFakeFixture fx;
 

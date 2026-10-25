@@ -105,6 +105,7 @@ std::string validate_wpa_string(const std::string& input, const std::string& fie
 #include <filesystem>
 #include <fstream>
 #include <future>
+#include <optional>
 #include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -250,6 +251,23 @@ ScanTrigger classify_scan_reply(const std::string& reply) {
 static std::string wpa_proc_root() {
     const char* root = std::getenv("HELIX_WPA_PROC_ROOT");
     return (root != nullptr && root[0] != '\0') ? std::string(root) : "/proc";
+}
+
+/// The sysfs tree interface resolution reads (rfkill switches).
+/// HELIX_WPA_SYS_ROOT is the test seam, like HELIX_WPA_PROC_ROOT.
+static std::string wpa_sys_root() {
+    const char* root = std::getenv("HELIX_WPA_SYS_ROOT");
+    return (root != nullptr && root[0] != '\0') ? std::string(root) : "/sys";
+}
+
+/// Read an rfkill node's `soft` attribute: true when soft-blocked, nullopt
+/// when it cannot be read.
+static std::optional<bool> read_rfkill_soft_blocked(const std::string& rfkill_node) {
+    std::ifstream soft_stream(rfkill_node + "/soft");
+    int soft_blocked = 0;
+    if (!(soft_stream >> soft_blocked))
+        return std::nullopt;
+    return soft_blocked == 1;
 }
 
 /// Inspect running processes for a `wpa_supplicant` daemon and return the
@@ -1073,6 +1091,7 @@ static std::string describe_conf_access(const std::string& path) {
 
 void WifiBackendWpaSupplicant::resolve_and_store_interface() {
     helix::wifi::Roots roots;
+    roots.sys = wpa_sys_root();
     roots.proc = wpa_proc_root();
     roots.ctrl = resolve_wpa_ctrl_directory();
 
@@ -1126,11 +1145,7 @@ void WifiBackendWpaSupplicant::resolve_and_store_interface() {
     {
         bool hw_radio_enabled = true;
         if (resolved && !resolved->rfkill_node.empty()) {
-            std::ifstream soft_stream(resolved->rfkill_node + "/soft");
-            int soft_blocked = 0;
-            if (soft_stream >> soft_blocked) {
-                hw_radio_enabled = (soft_blocked != 1);
-            }
+            hw_radio_enabled = !read_rfkill_soft_blocked(resolved->rfkill_node).value_or(false);
         }
         radio_enabled_ = hw_radio_enabled;
         spdlog::debug("[WifiBackend] radio_enabled_ seeded from hardware: {}", hw_radio_enabled);
@@ -1828,15 +1843,16 @@ WiFiError WifiBackendWpaSupplicant::set_radio_enabled(bool on) {
 
     if (on) {
         // Unblock first: ENABLE_NETWORK on a soft-blocked radio associates with
-        // nothing and the user sees a toggle that flips back. When a real
-        // rfkill node exists but the unblock write fails, do NOT report
-        // success — that would let the UI claim "on" over a radio that still
-        // can't associate, exactly the bug this backend exists to fix. When
-        // there is no rfkill node at all, this is an intentional quiet
-        // degrade (association-only on/off) — leave that path alone.
+        // nothing and the user sees a toggle that flips back. A node that
+        // still reads blocked after a failed unblock write must NOT report
+        // success, or the UI claims "on" over a radio that cannot associate.
+        // A node this user cannot write but that is not blocked (a root-owned
+        // sysfs file) is the same association-only on/off as no node at all,
+        // which is also all the off path could do on it.
         const auto iface = resolved_interface();
         const bool has_rfkill_node = iface && !iface->rfkill_node.empty();
-        if (has_rfkill_node && !set_rfkill_soft_block(false)) {
+        if (has_rfkill_node && !set_rfkill_soft_block(false) &&
+            read_rfkill_soft_blocked(iface->rfkill_node).value_or(false)) {
             LOG_WARN_INTERNAL("Failed to clear rfkill soft-block on {}", iface->rfkill_node);
             return WiFiError(WiFiResult::RF_KILL_BLOCKED,
                              "Failed to clear rfkill soft-block on " + iface->rfkill_node,
