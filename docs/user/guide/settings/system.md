@@ -72,7 +72,7 @@ Sends anonymous usage data that helps improve HelixScreen. **Off** until you tur
 
 ### View Telemetry Data
 
-> Only shown while Share Usage Data is on.
+> Only shown while Share Usage Data is on. Not shown on the ESP32 firmware (the BigTreeTech K-Touch), which keeps no queue of data to show.
 
 Shows exactly what would be sent, before it's sent.
 

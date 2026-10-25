@@ -19,16 +19,18 @@ The Fan Control overlay is also reached from the fan widget on the Home dashboar
 
 ## Fan Types
 
-HelixScreen identifies each fan by its Klipper configuration and shows a short type label:
+HelixScreen identifies each fan by its Klipper configuration and shows a short type label beside it in **Settings > Devices > Fans**:
 
 | Type | Klipper config | Controllable? |
 |------|----------------|---------------|
 | **Part** | Part cooling fan (`[fan]`) | Yes |
 | **Generic** | `[fan_generic]` | Yes |
 | **Output Pin** | Creality-style `[output_pin]` fan | Yes |
-| **Heater** | `[heater_fan]` (hotend cooling) | No — automatic |
+| **HE** | `[heater_fan]` (hotend cooling) | No — automatic |
 | **Controller** | `[controller_fan]` (electronics cooling) | No — automatic |
 | **Temp** | `[temperature_fan]` (thermostatic) | No — automatic |
+
+**HE** (hotend) is the same short name the hotend fan's chip uses on the print screen.
 
 **Controllable fans** are ones you can set a speed on directly. **Automatic fans** are managed by Klipper based on temperature or printer activity, so HelixScreen shows their current speed but doesn't let you change it.
 

@@ -92,10 +92,13 @@ Before starting, you can enable or disable the steps below. Each option is a til
 
 | Option | What It Does |
 |--------|--------------|
-| Auto Bed Mesh | Run bed mesh calibration before print |
+| Auto Bed Mesh | Run bed mesh calibration before print (reads **Adaptive Bed Mesh** when adaptive meshing is available on your printer) |
 | Quad gantry level | Run QGL calibration (for gantry printers) |
-| Z-tilt adjust | Run Z-tilt calibration |
-| Clean Nozzle | Execute your cleaning macro |
+| Z tilt | Run Z-tilt calibration |
+| Cleaning nozzle | Execute your cleaning macro |
+| Purge | Draw the purge line that primes the nozzle |
+
+The gantry, tilt, nozzle cleaning and purge toggles use the same names as the steps in the checklist the print screen shows while the printer gets ready.
 
 These options modify the G-code on-the-fly — if you disable "Auto Bed Mesh" but your G-code contains `BED_MESH_CALIBRATE`, HelixScreen comments it out so it doesn't run.
 
@@ -117,7 +120,7 @@ This applies to every print started from the screen, including a queued job star
 2. Review and set pre-print options
 3. Tap **Start Print**
 
-On larger screens, a line above the Print button (for example "~6 min prep time") estimates how long the printer will take to get ready before the first layer. It counts heating from the current temperatures up to the file's first-layer temperatures, plus homing and the other pre-print steps. After your first print it is based on how long your own printer actually took to get ready, and it keeps separate timings for a cold bed and an already-warm one.
+On larger screens, a line above the Print button (for example "~6 min prep time") estimates how long the printer will take to get ready before the first layer. It counts heating from the current temperatures up to the file's first-layer temperatures, plus homing and the other pre-print steps. After your first print it learns how long your own printer takes for everything except heating, and keeps separate timings for a cold bed and an already-warm one. Heating is worked out fresh for each print from the temperatures that print needs, so a hot material such as ASA gets a longer estimate than a quick PLA print, even right after one.
 
 Changing a pre-print option updates the estimate straight away:
 
@@ -139,6 +142,8 @@ When you open a file, HelixScreen compares it with your printer's own limits and
 | Uses a tool the printer doesn't have | For example T2 on a two-extruder printer with no filament system | Blocked; a warning with **Start Anyway** when only tool macros, not extruders, give the printer's tool count |
 | Sliced for a different nozzle size | The slicer assumed a 0.6 mm nozzle and the printer is set up for 0.4 mm | Warning, with **Start Anyway** |
 | Sliced for a different printer | The slicer profile names another printer model (not your own preset name) | Shown in the card only; Start Print is not interrupted |
+
+On a Creality K1, K1C or K1 Max with the CFS upgrade, the CFS takes 5 mm of the bed's Y travel, so the check allows 5 mm less in Y while the CFS is connected.
 
 A blocked file shows **File Does Not Fit This Printer**, naming each problem; re-slice it with a profile made for this printer. A nozzle mismatch alone shows **Sliced for a Different Setup**.
 
@@ -209,6 +214,8 @@ The Print Status panel shows:
 **Files button.** While a print runs, a folder icon in the print screen's header opens the file list, so you can line up the next job without leaving the print view. A second print can never start while one runs; when your printer has a job queue, the button becomes **Add to Queue** instead (see [Queueing a Print](#queueing-a-print)).
 
 **Camera button.** If HelixScreen runs on a separate screen or device from the printer (see [Camera](camera.md)) and the printer has a webcam, the header also gains a **Camera** button that opens the full-screen webcam view. On the printer's own screen it stays hidden - you can already see the print.
+
+**Why a print paused or stopped.** When a print pauses, the preview card shows **Print Paused** with the reason under it, when the printer gave one: Klipper's own message for the pause, or the last error the printer reported just before it (for example a filament system that failed to load). A filament runout reads **Filament Runout**, with the slot when HelixScreen knows it. The reason clears when you resume. A canceled or failed print shows its reason the same way under **Print Canceled** or **Print Failed**, in the completion dialog or the "Print canceled" message, so a print canceled after a failed command (a gantry level that never converged, say) says which command failed. Canceling a paused print keeps the pause's reason.
 
 **Pause ticks on the progress bar.** Scheduled stops in the file - filament changes (`M600`), `PAUSE`/`M601` commands, and slicer pause-at-layer markers - each draw a small tick on the progress bar where they fall, on both the print screen and the home print card. On a file sliced with `M73` progress markers, the ticks sit at the slicer's own percentages.
 

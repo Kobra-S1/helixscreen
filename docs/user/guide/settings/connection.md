@@ -57,7 +57,7 @@ To connect to a different address:
 
 1. Tap **Host**. While the screen is open, HelixScreen looks for Moonraker on your local network, including printers that serve it only on port 80, and lists what it finds under **Discovered Printers**. Pick one to fill in its address and port, or type them yourself.
 2. Enter the printer's IP address or host name, and the port (usually 7125).
-3. Tap **Test Connection**. **Save** unlocks once the test succeeds.
+3. Tap **Test Connection**. A successful test says where Moonraker answered and what state Klipper is in, for example *Moonraker answered at 192.168.1.50:7125. Klipper: ready*. Testing does not disconnect the printer you are on; only **Save** switches. **Save** unlocks once the test succeeds.
 4. Tap **Save**. HelixScreen disconnects and reconnects at the new address.
 
 If you leave the port at the default 7125 and nothing answers there, the test also tries port 80, where Moonraker answers when it sits behind a web server (nginx, or printer firmware that serves it on the plain web address). If Moonraker answers on 80, the port field changes to 80 and that is what **Save** stores. A port you type yourself is the only one tried.

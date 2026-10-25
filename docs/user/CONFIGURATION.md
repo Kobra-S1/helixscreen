@@ -503,7 +503,7 @@ The K2 build default applies only when the backlight is a sysfs device (`/sys/cl
 ### `screensaver_levels`
 **Type:** object
 **Default:** absent
-**Description:** Written by HelixScreen; do not edit it. Each screensaver measures how much processor time it uses while it plays. If it would slow the printer, it lowers its frame rate or detail, and if even its lowest setting is too much another screensaver plays in its place, or a plain black screen when none fits. The result is kept here for each screensaver, with the HelixScreen version and a description of the screen hardware, and is measured again after an update or on different hardware. Delete this entry to have every screensaver measured again.
+**Description:** Written by HelixScreen; do not edit it. Each screensaver measures how much processor time it uses while it plays. If it would slow the printer, it lowers its frame rate or detail, and steps back up once it has run comfortably for a while. If even its lowest setting is too much another screensaver plays in its place, or a plain black screen when none fits. The result is kept here for each screensaver, with the HelixScreen version and a description of the screen hardware, and is measured again after an update or on different hardware. Delete this entry to have every screensaver measured again.
 
 ### `drm_device`
 **Type:** string
