@@ -91,16 +91,18 @@ static void sampler_task(void* arg) {
             &health, err == ESP_OK, esp_timer_get_time() / 1000, TOUCH_SAMPLE_PERIOD_MS);
         period_ms = verdict.next_period_ms;
         if (verdict.log) {
-            ESP_LOGW(TAG, "touch controller read failed %u time(s) since the last report: %s",
-                     (unsigned)verdict.failures, esp_err_to_name(err));
+            ESP_LOGW(TAG, "read failed x%u: %s", (unsigned)verdict.failures, esp_err_to_name(err));
         }
         if (err != ESP_OK) {
             continue;
         }
-        esp_lcd_touch_point_data_t point = {0};
-        uint8_t count = 0;
-        esp_lcd_touch_get_data(s_touch, &point, &count, 1);
-        const bool pressed = count > 0;
+        // The first point straight from the handle's data, under its lock:
+        // esp_lcd_touch_get_data would copy every point and pull in its
+        // argument checks for nothing.
+        portENTER_CRITICAL(&s_touch->data.lock);
+        const bool pressed = s_touch->data.points > 0;
+        const esp_lcd_touch_point_data_t point = s_touch->data.coords[0];
+        portEXIT_CRITICAL(&s_touch->data.lock);
         // Only changes are queued, so a console-injected finger stays down
         // until the controller itself reports something new.
         if (pressed == was_pressed && (!pressed || (point.track_id == last_track &&
@@ -179,7 +181,7 @@ bool touch_input_init(void) {
     esp_log_level_set("GT911", ESP_LOG_NONE);
     if (xTaskCreateWithCaps(sampler_task, "touch", TOUCH_SAMPLER_STACK_BYTES, NULL,
                             TOUCH_SAMPLER_PRIO, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
-        ESP_LOGE(TAG, "no memory for the touch sampler - continuing without touch");
+        ESP_LOGE(TAG, "no sampler task: no touch");
         esp_lcd_touch_del(s_touch);
         s_touch = NULL;
         esp_lcd_panel_io_del(io);
