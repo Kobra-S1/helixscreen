@@ -46,11 +46,12 @@ class WifiBackendNetworkManager : public WifiBackend {
     WifiBackendNetworkManager();
     ~WifiBackendNetworkManager();
 
-    /// NetworkManager holds nothing while it is down: an init failure here
-    /// means the daemon is masked, stopped or otherwise unreachable, leaving
-    /// the radio, the supplicant and DHCP free for wpa_supplicant to drive.
+    /// NetworkManager holds nothing while it is down, leaving the radio, the
+    /// supplicant and DHCP free for wpa_supplicant to drive. A polkit denial is
+    /// the opposite case: the daemon answered, so it still owns wlan0 and its
+    /// D-Bus-only supplicant, and a second client would fight it for the radio.
     bool supports_wpa_supplicant_fallback() const override {
-        return true;
+        return !daemon_refused_access_.load();
     }
 
     // ========================================================================
@@ -85,6 +86,7 @@ class WifiBackendNetworkManager : public WifiBackend {
     // ========================================================================
 
     std::atomic<bool> running_{false};
+    std::atomic<bool> daemon_refused_access_{false}; ///< Last start() hit a polkit denial
     std::mutex start_mutex_;     // Serializes start() against concurrent start_async()
     std::string wifi_interface_; ///< Detected WiFi interface (e.g., "wlan0")
 

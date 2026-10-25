@@ -64,6 +64,7 @@ WiFiError WifiBackendNetworkManager::start() {
 
     // Check that NM is running and nmcli is available
     WiFiError prereq = check_system_prerequisites();
+    daemon_refused_access_.store(prereq.result == WiFiResult::PERMISSION_DENIED);
     if (!prereq.success()) {
         if (is_silent()) {
             spdlog::debug("[WifiBackend] NM pre-flight failed (silent mode): {}",

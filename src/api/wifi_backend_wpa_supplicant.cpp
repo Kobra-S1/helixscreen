@@ -668,6 +668,7 @@ WiFiError WifiBackendWpaSupplicant::check_system_prerequisites() {
     std::vector<std::string> socket_paths = wpa_socket_dirs();
     bool socket_found = false;
     std::string accessible_socket;
+    std::string unreadable_dir;
 
     for (const auto& base_path : socket_paths) {
         if (fs::exists(base_path) && fs::is_directory(base_path)) {
@@ -701,11 +702,19 @@ WiFiError WifiBackendWpaSupplicant::check_system_prerequisites() {
                 }
             }
             if (ec && !socket_found) {
-                spdlog::debug("[WifiBackend] Permission denied iterating {}", base_path);
+                spdlog::debug("[WifiBackend] Cannot list {}: {}", base_path, ec.message());
+                if (ec == std::errc::permission_denied && unreadable_dir.empty())
+                    unreadable_dir = base_path;
             }
             if (!accessible_socket.empty())
                 break;
         }
+    }
+
+    if (!socket_found && !unreadable_dir.empty()) {
+        return WiFiErrorHelper::permission_denied("Cannot list wpa_supplicant control directory " +
+                                                  unreadable_dir +
+                                                  " - check user permissions (netdev group)");
     }
 
     if (!socket_found) {
