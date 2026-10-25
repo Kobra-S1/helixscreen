@@ -836,7 +836,8 @@ def test_moonraker_import_shape_loads_every_sibling():
     so a sibling's `from X import ...` only resolves when helix_print.py loads
     X first (prestonbrown/helixscreen#1885: helix_storage imports helix_photos).
     These tests put the plugin dir on sys.path, which is why the bug never
-    showed here: this case runs the import in a bare subprocess instead."""
+    showed here: this case runs the import in a bare subprocess instead,
+    isolated (-I) so a PYTHONPATH naming the plugin dir cannot hide it."""
     code = (
         "import importlib.util, json, sys\n"
         "spec = importlib.util.spec_from_file_location('helix_print', sys.argv[1])\n"
@@ -847,7 +848,7 @@ def test_moonraker_import_shape_loads_every_sibling():
     )
     plugin = Path(__file__).resolve().parent.parent / "helix_print.py"
     out = subprocess.run(
-        [sys.executable, "-c", code, str(plugin)],
+        [sys.executable, "-I", "-c", code, str(plugin)],
         capture_output=True, text=True, cwd="/", check=True,
     )
     assert json.loads(out.stdout) == []
