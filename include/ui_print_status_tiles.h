@@ -73,6 +73,7 @@ class PrintStatusTiles {
         std::function<bool()> printing;
         std::function<int()> speed_pct;
         std::function<int()> flow_pct;
+        /// The speed/flow chip's text; required, the chip has no other source.
         std::function<std::string()> speed_text;
     };
 

@@ -1317,3 +1317,39 @@ TEST_CASE("bands above and below are as deep as their tallest chip",
     }
     check_apart_and_inside(l, in);
 }
+
+TEST_CASE("a tall chip in a band below the image ends on the far edge at its own height",
+          "[printer_image][callout_layout]") {
+    auto in = wide();
+    in.area_w = 240;
+    in.area_h = 480; // image 240x180 centred: 150px above and below
+    for (auto* v : {&in.budget, &in.active})
+        for (auto& c : *v)
+            if (c.kind == CalloutKind::Bed)
+                c.h = 40; // its point is below the image's middle: the bottom band
+    const auto l = compute_callout_layout(in);
+    REQUIRE((l.mode == CalloutMode::BothSides || l.mode == CalloutMode::OneSide));
+    const auto* bed = find(l, CalloutKind::Bed);
+    REQUIRE(bed);
+    REQUIRE(bed->has_line);
+    CHECK(bed->rect.h == 40);
+    CHECK(bed->rect.y + bed->rect.h == in.area_h - in.gap);
+    CHECK(bed->line_y1 == bed->rect.y); // the leader enters its near (top) edge
+    check_apart_and_inside(l, in);
+}
+
+TEST_CASE("a tall chip in the toolhead group pushes the chips below it down",
+          "[printer_image][callout_layout]") {
+    auto in = wide();
+    in.area_w = 186 + 70 + in.gap + in.min_line; // one column beside the full-size image
+    // The fan and a 60px nozzle stack as one block, 82px with the gap; with the
+    // chamber and bed, 126 of the 132px the column has.
+    for (auto* v : {&in.budget, &in.active})
+        for (auto& c : *v)
+            if (c.kind == CalloutKind::Nozzle)
+                c.h = 60;
+    const auto l = compute_callout_layout(in);
+    REQUIRE(l.mode == CalloutMode::OneSide);
+    REQUIRE(find(l, CalloutKind::Nozzle)->rect.h == 60);
+    check_apart_and_inside(l, in);
+}

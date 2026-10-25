@@ -359,9 +359,9 @@ std::array<ChipContent, kPrintStatusChipCount> PrintStatusTiles::decide_chips(bo
         light_chip(subject_int_or_zero(
                        helix::led::LedController::instance().get_led_controllable_subject()) != 0,
                    helix::home_light_buttons_lit());
-    out[index_of(PrintStatusChip::SpeedFlow)] = speed_flow_chip(
-        host_.speed_pct ? host_.speed_pct() : 100, host_.flow_pct ? host_.flow_pct() : 100,
-        host_.speed_text ? host_.speed_text() : helix::tune::live_rates_text(0, 0.0));
+    out[index_of(PrintStatusChip::SpeedFlow)] =
+        speed_flow_chip(host_.speed_pct ? host_.speed_pct() : 100,
+                        host_.flow_pct ? host_.flow_pct() : 100, host_.speed_text());
     return out;
 }
 
