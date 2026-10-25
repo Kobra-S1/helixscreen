@@ -145,3 +145,24 @@ TEST_CASE("the speed/flow budget is a three-digit speed over a three-digit flow"
     CHECK(speed_flow_budget_chip().text == "999 mm/s\n999.9 mm\xC2\xB3/s");
     CHECK(speed_flow_budget_chip().text == tune::live_rates_text(999, 999.9));
 }
+
+TEST_CASE("phase budget expendable table", "[print_status_chips]") {
+    struct Row {
+        CalloutKind kind;
+        bool printing;
+        bool preparing;
+    };
+    const Row rows[] = {
+        {CalloutKind::Nozzle, false, false},   {CalloutKind::Bed, false, false},
+        {CalloutKind::Chamber, false, false},  {CalloutKind::Fan, false, true},
+        {CalloutKind::HotendFan, true, true},  {CalloutKind::AuxFan, true, true},
+        {CalloutKind::Light, true, true},      {CalloutKind::SpeedFlow, true, true},
+        {CalloutKind::Toolhead, false, false},
+    };
+    STATIC_REQUIRE(std::size(rows) == kCalloutKindCount);
+    for (const Row& r : rows) {
+        CAPTURE(static_cast<int>(r.kind));
+        CHECK(phase_budget_expendable(r.kind, true) == r.printing);
+        CHECK(phase_budget_expendable(r.kind, false) == r.preparing);
+    }
+}

@@ -68,6 +68,15 @@ enum class FanRole { Part = 0, Hotend = 1, Aux = 2 };
 /// The light chip: Active when on, expendable when off.
 [[nodiscard]] ChipContent light_chip(bool controllable, bool on);
 
+/// Whether the layout may shed this chip's room in this phase. This is the
+/// budget's expendable: constant per phase, so the callout mode cannot change
+/// mid-print. The chip showing now keeps its live ChipContent::expendable.
+/// Printing: the part fan is expected to run, so its room is never shed; the
+/// hotend fan (automatic, redundant with the nozzle chip), the aux fan, the
+/// light and speed/flow stay sheddable. Preparing: fans are normally off, so
+/// every fan chip stays sheddable. Heaters and the toolhead never are.
+[[nodiscard]] bool phase_budget_expendable(CalloutKind kind, bool printing);
+
 /// Whether a heater chip carries its duty ("220° · 5%"). Only the line modes
 /// set chips beside the picture with a column of their own, and the duty goes
 /// on only while the chip, measured with it, still fits that column:

@@ -548,6 +548,7 @@ void PrintStatusTiles::update_now() {
         }
     }
 
+    const bool printing = host_.printing && host_.printing();
     CalloutPresenter::Parts parts;
     parts.area = area;
     parts.image = lv_obj_find_by_name(area, "ps_printer_image");
@@ -561,6 +562,7 @@ void PrintStatusTiles::update_now() {
         part.in_budget = in_budget(chip);
         part.active = contents[i].shown;
         part.expendable = contents[i].expendable;
+        part.budget_expendable = phase_budget_expendable(part.kind, printing);
         part.glowing = contents[i].glow;
         // Everything beside the chip's own label, which bounds the label's width.
         part.icons = icons[i];

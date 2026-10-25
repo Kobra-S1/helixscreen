@@ -22,6 +22,7 @@
 #include "theme_manager.h"
 #include "tool_state.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -601,6 +602,130 @@ TEST_CASE_METHOD(Landscape800, "every chip at once at 800x480: none clips or ove
     all_eight_chips(*this);
     REQUIRE(subject_int("ps_chip_chamber_shown") == 1);
     CHECK(subject_int("ps_callout_mode") != static_cast<int>(CalloutMode::ImageOnly));
+    check_chips_inside_and_apart(root_);
+    clear_all_eight_chips(*this);
+}
+
+namespace {
+
+/// The printer picture's rect, which moves whenever the callout mode does.
+CalloutRect image_rect(lv_obj_t* root) {
+    lv_obj_update_layout(root);
+    lv_obj_t* img = lv_obj_find_by_name(root, "ps_printer_image");
+    REQUIRE(img != nullptr);
+    return {lv_obj_get_x(img), lv_obj_get_y(img), lv_obj_get_width(img), lv_obj_get_height(img)};
+}
+
+bool same_rect(const CalloutRect& a, const CalloutRect& b) {
+    return a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
+}
+
+/// Sizes the printer area directly. Measured with the stock chips: at 200x280
+/// a stopped part fan or an untuned speed fits BothSides while a spinning fan
+/// or a tune needs Pinned, so a budget that followed live flags would flip the
+/// mode there; at 320x208 the line mode sheds the aux fan's room.
+void size_printer_area(lv_obj_t* root, int w, int h) {
+    lv_obj_t* area = lv_obj_find_by_name(root, "ps_printer_area");
+    REQUIRE(area != nullptr);
+    lv_obj_set_size(area, w, h);
+}
+
+/// Three fans, all stopped. The part fan has run once, so it keeps the part
+/// slot when the aux fan spins.
+void three_fans_stopped(TileFixture& fx) {
+    auto& fans = PrinterStateTestAccess::get_fan_state(fx.state());
+    fans.init_fans({"fan", "heater_fan hotend_fan", "fan_generic aux"});
+    fans.update_fan_speed("fan", 0.5);
+    fans.update_fan_speed("fan", 0.0);
+    fans.update_fan_speed("fan_generic aux", 0.0);
+    fx.settle();
+    fx.settle(); // a mode change reschedules once
+}
+
+} // namespace
+
+TEST_CASE_METHOD(Landscape800, "a fan spinning up mid-print does not change the mode",
+                 "[print_status]") {
+    size_printer_area(root_, 200, 280);
+    three_fans_stopped(*this);
+    const int mode = subject_int("ps_callout_mode");
+    const CalloutRect before = image_rect(root_);
+    REQUIRE(mode != static_cast<int>(CalloutMode::ImageOnly));
+
+    PrinterStateTestAccess::get_fan_state(state()).update_fan_speed("fan", 0.6);
+    settle();
+    settle();
+    CHECK(subject_int("ps_chip_part_fan_tone") == static_cast<int>(ChipTone::Active));
+    CHECK(subject_int("ps_callout_mode") == mode);
+    CHECK(same_rect(image_rect(root_), before));
+    PrinterStateTestAccess::get_fan_state(state()).init_fans({});
+}
+
+TEST_CASE_METHOD(Landscape800, "a tuned speed does not change the mode", "[print_status]") {
+    size_printer_area(root_, 200, 280);
+    three_fans_stopped(*this);
+    set_int(state().motion_state().get_speed_factor_subject(), 100);
+    settle();
+    settle();
+    const int mode = subject_int("ps_callout_mode");
+    const CalloutRect before = image_rect(root_);
+    REQUIRE(mode != static_cast<int>(CalloutMode::ImageOnly));
+
+    set_int(state().motion_state().get_speed_factor_subject(), 104);
+    settle();
+    settle();
+    CHECK(subject_int("ps_chip_speed_flow_tone") == static_cast<int>(ChipTone::Warn));
+    CHECK(subject_int("ps_callout_mode") == mode);
+    CHECK(same_rect(image_rect(root_), before));
+    set_int(state().motion_state().get_speed_factor_subject(), 100);
+    PrinterStateTestAccess::get_fan_state(state()).init_fans({});
+}
+
+TEST_CASE_METHOD(Landscape800, "a phase-dropped chip that turns unusual docks", "[print_status]") {
+    size_printer_area(root_, 320, 208);
+    three_fans_stopped(*this);
+    const int mode = subject_int("ps_callout_mode");
+    const CalloutRect before = image_rect(root_);
+    REQUIRE((mode == static_cast<int>(CalloutMode::OneSide) ||
+             mode == static_cast<int>(CalloutMode::BothSides)));
+    const auto aux_dropped = [this] {
+        const auto& d = tiles().last_layout().dropped;
+        return std::find(d.begin(), d.end(), CalloutKind::AuxFan) != d.end();
+    };
+    REQUIRE(subject_int("ps_chip_aux_fan_shown") == 0);
+    REQUIRE(aux_dropped());
+
+    PrinterStateTestAccess::get_fan_state(state()).update_fan_speed("fan_generic aux", 0.6);
+    settle();
+    settle();
+    CHECK(subject_int("ps_chip_aux_fan_shown") == 1);
+    CHECK_FALSE(aux_dropped());
+    CHECK(subject_int("ps_callout_mode") == mode);
+    CHECK(same_rect(image_rect(root_), before));
+    check_chips_inside_and_apart(root_);
+    PrinterStateTestAccess::get_fan_state(state()).init_fans({});
+}
+
+TEST_CASE_METHOD(Landscape800, "a chip the phase sheds is never placed without room",
+                 "[print_status]") {
+    all_eight_chips(*this);
+    // Measured: at this size the line mode sheds the hotend fan, the light and
+    // speed/flow, and leaves no free room for the spinning aux fan.
+    size_printer_area(root_, 300, 160);
+    PrinterStateTestAccess::get_fan_state(state()).update_fan_speed("fan_generic aux", 0.6);
+    settle();
+    settle();
+    const CalloutLayout& out = tiles().last_layout();
+    REQUIRE(out.mode == CalloutMode::OneSide);
+    REQUIRE_FALSE(out.dropped.empty());
+    // Every chip on screen got its rect from this layout.
+    size_t shown = 0;
+    for (size_t i = 0; i < ui::kPrintStatusChipCount; ++i) {
+        const std::string key = ui::print_status_chip_key(static_cast<ui::PrintStatusChip>(i));
+        shown += subject_int(("ps_chip_" + key + "_shown").c_str()) == 1 ? 1 : 0;
+    }
+    CHECK(out.chips.size() == shown);
+    CHECK(subject_int("ps_chip_aux_fan_shown") == 0);
     check_chips_inside_and_apart(root_);
     clear_all_eight_chips(*this);
 }
