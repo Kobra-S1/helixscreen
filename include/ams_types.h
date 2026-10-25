@@ -1320,6 +1320,25 @@ struct SlotInfo {
     }
 
     /**
+     * @brief Unlink after the user re-described the slot as a different filament.
+     *
+     * The weights tracked for the linked spool describe the filament the user
+     * just said is not loaded, so each one they did not edit relative to
+     * @p before goes to unknown. An unknown weight declares nothing, so a lane's
+     * own meter reading still shows through.
+     */
+    void unlink_as_different_filament(const SlotInfo& before) {
+        clear_spoolman_link();
+        constexpr float kEditedEpsilonG = 0.1f;
+        if (std::abs(remaining_weight_g - before.remaining_weight_g) <= kEditedEpsilonG) {
+            remaining_weight_g = -1.0f;
+        }
+        if (std::abs(total_weight_g - before.total_weight_g) <= kEditedEpsilonG) {
+            total_weight_g = -1.0f;
+        }
+    }
+
+    /**
      * @brief Fill-bar level for the slot UI, or nullopt to leave the bar as-is.
      *
      * EMPTY lanes render empty (0.0) — even when a Spoolman link and material
