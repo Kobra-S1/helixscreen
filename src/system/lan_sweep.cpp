@@ -21,6 +21,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/poll.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
@@ -126,6 +127,23 @@ size_t json_object_member(const std::string& s, size_t open, const char* key) {
     return (v < s.size() && s[v] == '{') ? v : std::string::npos;
 }
 
+/// Waits up to @p timeout_ms for @p fd to become readable (or writable), true when it is.
+/// The firmware has select() linked already and poll() only as a wrapper around it; the
+/// desktop keeps poll(), which has no FD_SETSIZE ceiling.
+bool wait_fd(int fd, bool for_write, int timeout_ms) {
+#if defined(ESP_PLATFORM)
+    fd_set set;
+    FD_ZERO(&set);
+    FD_SET(fd, &set);
+    timeval tv{timeout_ms / 1000, (timeout_ms % 1000) * 1000};
+    return ::select(fd + 1, for_write ? nullptr : &set, for_write ? &set : nullptr, nullptr, &tv) ==
+           1;
+#else
+    pollfd pfd{fd, static_cast<short>(for_write ? POLLOUT : POLLIN), 0};
+    return ::poll(&pfd, 1, timeout_ms) == 1;
+#endif
+}
+
 } // namespace
 
 MoonrakerProbe read_server_info_response(const std::string& http_response) {
@@ -229,9 +247,8 @@ MoonrakerProbe probe_moonraker_http(const std::string& host, uint16_t port,
             failed.failure = classify_connect_failure(errno, 0);
             return failed;
         }
-        pollfd pfd{fd, POLLOUT, 0};
         const int wait = std::min(static_cast<int>(connect_timeout.count()), remaining_ms());
-        if (::poll(&pfd, 1, wait) != 1) {
+        if (!wait_fd(fd, true, wait)) {
             failed.failure = ConnectFailureKind::Timeout;
             return failed;
         }
@@ -254,8 +271,7 @@ MoonrakerProbe probe_moonraker_http(const std::string& host, uint16_t port,
             continue;
         }
         if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            pollfd pfd{fd, POLLOUT, 0};
-            if (::poll(&pfd, 1, remaining_ms()) != 1) {
+            if (!wait_fd(fd, true, remaining_ms())) {
                 return failed;
             }
             continue;
@@ -268,9 +284,8 @@ MoonrakerProbe probe_moonraker_http(const std::string& host, uint16_t port,
     std::string response;
     char buf[2048];
     while (response.size() < kMaxResponse) {
-        pollfd pfd{fd, POLLIN, 0};
         const int left = remaining_ms();
-        if (left == 0 || ::poll(&pfd, 1, left) != 1) {
+        if (left == 0 || !wait_fd(fd, false, left)) {
             break;
         }
         const ssize_t n = ::recv(fd, buf, sizeof(buf), 0);
