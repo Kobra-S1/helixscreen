@@ -77,6 +77,12 @@ TEST_CASE("glass gate: hard fails need no probe", "[glass]") {
         f.stored = record(true);
         CHECK(decide_glass_gate(f) == GlassGateVerdict::Fail);
     }
+    SECTION("a draw backend that renders two gradient stops") {
+        GlassGateFacts f = capable();
+        f.multi_stop_gradients = false;
+        f.stored = record(true);
+        CHECK(decide_glass_gate(f) == GlassGateVerdict::Fail);
+    }
     SECTION("software-rotated display") {
         GlassGateFacts f = capable();
         f.software_rotated = true;
@@ -292,4 +298,20 @@ TEST_CASE_METHOD(GlassGateFixture, "glass: an unmeasured board is probed later a
 
     process_lvgl(static_cast<int>(helix::ui::kGlassProbeDelayMs) * 2);
     CHECK(calls == 1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "glass gate: the depth is what the display renders at",
+                 "[glass]") {
+    lv_display_t* disp = lv_display_get_default();
+    REQUIRE(disp != nullptr);
+    const lv_color_format_t before = lv_display_get_color_format(disp);
+    // A 32 bpp build on a 16 bpp framebuffer: the fbdev driver sets the display to RGB565.
+    lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
+    const int depth_565 = helix::ui::glass_gate_facts_now().color_depth;
+    lv_display_set_color_format(disp, LV_COLOR_FORMAT_XRGB8888);
+    const int depth_8888 = helix::ui::glass_gate_facts_now().color_depth;
+    lv_display_set_color_format(disp, before);
+    CHECK(depth_565 == 16);
+    CHECK(depth_8888 == 32);
+    CHECK(helix::ui::glass_gate_facts_now().multi_stop_gradients == !LV_USE_DRAW_NANOVG);
 }

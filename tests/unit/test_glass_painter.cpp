@@ -318,8 +318,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass survives a dark/light switch and takes 
     CHECK(tm.is_glass());
     CHECK(tm.current_palette().glass);
     CHECK_FALSE(tm.current_palette().dark);
-    CHECK(lv_color_to_u32(style_color(StyleRole::Card, LV_STYLE_SHADOW_COLOR)) ==
-          lv_color_to_u32(lv_color_hex(0x1E2846)));
+    // Light mode's shadow is the palette's text color darkened: a tinted shade, not black.
+    const lv_color_t text = tm.current_palette().text;
+    const lv_color_t shadow = style_color(StyleRole::Card, LV_STYLE_SHADOW_COLOR);
+    CHECK(lv_color_to_u32(shadow) ==
+          lv_color_to_u32(lv_color_mix(lv_color_black(), text, 30 * 255 / 100)));
+    CHECK(lv_color_luminance(shadow) < lv_color_luminance(text));
+    CHECK(lv_color_to_u32(shadow) != lv_color_to_u32(lv_color_black()));
     CHECK(style_num(StyleRole::Card, LV_STYLE_SHADOW_OPA) == 56);
 
     tm.set_palettes(tm.light_palette(), tm.dark_palette());
@@ -515,4 +520,67 @@ TEST_CASE_METHOD(LVGLTestFixture, "glass: a faded widget is shaded, a translucen
     helix::ui::glass_attach(translucent);
     CHECK_FALSE(same_pixels(snapshot(wrapper), faded_flat));
     CHECK(same_pixels(snapshot(translucent), translucent_flat));
+}
+
+// ============================================================================
+// Outlines
+// ============================================================================
+
+namespace {
+
+lv_color_t pixel_at(const std::vector<uint8_t>& px, int32_t height, int32_t x, int32_t y) {
+    const size_t stride = px.size() / static_cast<size_t>(height);
+    const size_t at = static_cast<size_t>(y) * stride + static_cast<size_t>(x) * 4;
+    return lv_color_make(px[at + 2], px[at + 1], px[at]);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "glass: a focused button keeps its focus-colored outline",
+                 "[glass]") {
+    ThemeManager::instance().init();
+    ThemeManager::instance().set_dark_mode(true);
+    const lv_color_t focus = lv_color_hex(0x00FF00);
+    const lv_color_t border = lv_color_hex(0x202020);
+    // With border_like_outline the border has the outline's color and width, so only where the
+    // task is drawn tells them apart.
+    const bool border_like_outline = GENERATE(false, true);
+    CAPTURE(border_like_outline);
+
+    lv_obj_t* frame = lv_obj_create(test_screen());
+    lv_obj_remove_style_all(frame);
+    lv_obj_set_size(frame, 200, 100);
+    lv_obj_t* button = lv_button_create(frame);
+    lv_obj_remove_style_all(button);
+    lv_obj_add_style(button, role(StyleRole::Button), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(button, lv_color_hex(0x3A7CC8), LV_PART_MAIN);
+    lv_obj_set_style_radius(button, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(button, 3, LV_PART_MAIN);
+    lv_obj_set_style_border_color(button, border_like_outline ? focus : border, LV_PART_MAIN);
+    lv_obj_set_style_border_opa(button, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_outline_width(button, 3, LV_PART_MAIN);
+    lv_obj_set_style_outline_pad(button, 0, LV_PART_MAIN);
+    lv_obj_set_style_outline_color(button, focus, LV_PART_MAIN);
+    lv_obj_set_style_outline_opa(button, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_shadow_opa(button, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_size(button, 120, 40);
+    lv_obj_center(button);
+    lv_obj_update_layout(frame);
+    REQUIRE(glass_family_of(button, LV_PART_MAIN) == GlassFamily::Raised);
+
+    helix::ui::glass_attach(button);
+    const std::vector<uint8_t> px = snapshot(frame);
+    lv_area_t c;
+    lv_obj_get_coords(button, &c);
+    lv_area_t f;
+    lv_obj_get_coords(frame, &f);
+    const int32_t mid_y = (c.y1 + c.y2) / 2 - f.y1;
+    // In the 3px band just outside the button: the outline, still exactly the focus color.
+    const lv_color_t ring = pixel_at(px, 100, c.x1 - f.x1 - 2, mid_y);
+    CAPTURE(int(ring.red), int(ring.green), int(ring.blue));
+    CHECK(same(ring, focus));
+    // In the 3px band just inside: the border, drawn as the glass rim.
+    const lv_color_t rim = pixel_at(px, 100, c.x1 - f.x1 + 1, mid_y);
+    CAPTURE(int(rim.red), int(rim.green), int(rim.blue));
+    CHECK(same(rim, helix::ui::glass_rim_color(GlassFamily::Raised, lv_color_hex(0x3A7CC8), true)));
 }

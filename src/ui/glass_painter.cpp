@@ -143,6 +143,36 @@ bool part_pressed(lv_obj_t* obj, lv_part_t part, uint32_t id1) {
     return true;
 }
 
+/// Whether a BORDER task is the part's outline. lv_draw_rect() queues the outline as a second
+/// BORDER task for the same object and part, with the outline's color and width, over the
+/// part's area grown by outline width + pad.
+bool is_outline_task(lv_draw_task_t* task, lv_obj_t* obj, lv_part_t part,
+                     const lv_draw_border_dsc_t& dsc) {
+    const int32_t outline_w = lv_obj_get_style_outline_width(obj, part);
+    if (outline_w <= 0 || lv_obj_get_style_outline_opa(obj, part) <= LV_OPA_MIN) {
+        return false;
+    }
+    if (dsc.width != outline_w ||
+        !lv_color_eq(dsc.color, lv_obj_get_style_outline_color(obj, part))) {
+        return false;
+    }
+    const int32_t border_w = lv_obj_get_style_border_width(obj, part);
+    const bool could_be_border =
+        border_w == outline_w && lv_color_eq(dsc.color, lv_obj_get_style_border_color(obj, part));
+    if (!could_be_border) {
+        return true;
+    }
+    // Border and outline look alike: the outline is the one drawn outside the part's area.
+    if (part != LV_PART_MAIN) {
+        return false;
+    }
+    lv_area_t area;
+    lv_draw_task_get_area(task, &area);
+    lv_area_t coords;
+    lv_obj_get_coords(obj, &coords);
+    return area.x1 < coords.x1 || area.y1 < coords.y1 || area.x2 > coords.x2 || area.y2 > coords.y2;
+}
+
 /// Event user data: whether glass_attach() set the draw-task flag itself.
 constexpr uintptr_t kFlagWasOurs = 1;
 constexpr uintptr_t kFlagWasThere = 2;
@@ -169,8 +199,10 @@ void on_draw_task(lv_event_t* e) {
                            family, dark, part_pressed(obj, part, base->id1));
         break;
     case LV_DRAW_TASK_TYPE_BORDER:
-        // A rim is lit from the fill beneath it; an outlined part with no fill keeps its border.
-        if (lv_obj_get_style_bg_opa(obj, part) >= LV_OPA_MAX) {
+        // A rim is lit from the fill beneath it; an outlined part with no fill keeps its border,
+        // and an outline (a focus ring) is never a rim.
+        if (lv_obj_get_style_bg_opa(obj, part) >= LV_OPA_MAX &&
+            !is_outline_task(task, obj, part, *lv_draw_task_get_border_dsc(task))) {
             glass_rewrite_border(lv_draw_task_get_border_dsc(task), family,
                                  lv_obj_get_style_bg_color(obj, part), dark);
         }

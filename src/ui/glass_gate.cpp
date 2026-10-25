@@ -33,7 +33,8 @@ GlassGateVerdict decide_glass_gate(const GlassGateFacts& f) {
     if (f.env_force) {
         return *f.env_force ? GlassGateVerdict::Pass : GlassGateVerdict::Fail;
     }
-    if (f.color_depth < 24 || !f.style_effects_allowed || f.software_rotated) {
+    if (f.color_depth < 24 || !f.style_effects_allowed || f.software_rotated ||
+        !f.multi_stop_gradients) {
         return GlassGateVerdict::Fail;
     }
     if (f.stored && f.stored->version == f.version && f.stored->board == f.board) {
@@ -100,7 +101,18 @@ constexpr int32_t kProbeButtonW = 140;
 constexpr int32_t kProbeButtonH = 46;
 constexpr int32_t kProbeRadius = 10;
 
-void fill_glass(lv_layer_t* layer, const lv_area_t& area, GlassFamily family, lv_color_t base) {
+/// One glass rect as a live frame draws it: its drop shadow, then its gradient fill.
+void fill_glass(lv_layer_t* layer, const lv_area_t& area, GlassFamily family, lv_color_t base,
+                const GlassShadow& shadow) {
+    lv_draw_box_shadow_dsc_t sh;
+    lv_draw_box_shadow_dsc_init(&sh);
+    sh.radius = kProbeRadius;
+    sh.width = shadow.width;
+    sh.ofs_y = shadow.offset_y;
+    sh.color = glass_shadow_color(base, true);
+    sh.opa = shadow.dark_opa;
+    lv_draw_box_shadow(layer, &sh, &area);
+
     lv_draw_fill_dsc_t dsc;
     lv_draw_fill_dsc_init(&dsc);
     dsc.radius = kProbeRadius;
@@ -114,13 +126,13 @@ void draw_probe_frame(lv_obj_t* canvas, int32_t width, int32_t height) {
     lv_layer_t layer;
     lv_canvas_init_layer(canvas, &layer);
     const lv_area_t whole{0, 0, width - 1, height - 1};
-    fill_glass(&layer, whole, GlassFamily::Surface, lv_color_hex(0x2E3440));
+    fill_glass(&layer, whole, GlassFamily::Surface, lv_color_hex(0x2E3440), kGlassSurfaceShadow);
     const int32_t cols = std::max<int32_t>(1, width / (kProbeButtonW + 8));
     for (int i = 0; i < kProbeButtons; ++i) {
         const int32_t x = (i % cols) * (kProbeButtonW + 8);
         const int32_t y = (i / cols) * (kProbeButtonH + 8);
         const lv_area_t btn{x, y, x + kProbeButtonW - 1, y + kProbeButtonH - 1};
-        fill_glass(&layer, btn, GlassFamily::Raised, lv_color_hex(0x5E81AC));
+        fill_glass(&layer, btn, GlassFamily::Raised, lv_color_hex(0x5E81AC), kGlassButtonShadow);
     }
     lv_canvas_finish_layer(canvas, &layer);
 }
@@ -131,9 +143,10 @@ double measure_glass_frame_ms(int32_t width, int32_t height) {
     if (width <= 0 || height <= 0) {
         return 0;
     }
-    lv_draw_buf_t* buf =
-        lv_draw_buf_create(static_cast<uint32_t>(width), static_cast<uint32_t>(height),
-                           LV_COLOR_FORMAT_NATIVE, LV_STRIDE_AUTO);
+    lv_display_t* disp = lv_display_get_default();
+    const lv_color_format_t cf = disp ? lv_display_get_color_format(disp) : LV_COLOR_FORMAT_NATIVE;
+    lv_draw_buf_t* buf = lv_draw_buf_create(static_cast<uint32_t>(width),
+                                            static_cast<uint32_t>(height), cf, LV_STRIDE_AUTO);
     if (buf == nullptr) {
         spdlog::warn("[Glass] Probe could not allocate a {}x{} buffer", width, height);
         return 0;
@@ -252,7 +265,11 @@ void run_probe(lv_timer_t*) {
 GlassGateFacts glass_gate_facts_now() {
     const helix::PlatformCapabilities caps = helix::PlatformCapabilities::detect();
     GlassGateFacts f;
-    f.color_depth = LV_COLOR_DEPTH;
+    // A 32 bpp build on a 16 bpp framebuffer renders RGB565: the display's format is the depth.
+    lv_display_t* disp = lv_display_get_default();
+    f.color_depth =
+        disp ? lv_color_format_get_size(lv_display_get_color_format(disp)) * 8 : LV_COLOR_DEPTH;
+    f.multi_stop_gradients = !LV_USE_DRAW_NANOVG;
     f.style_effects_allowed = helix::full_style_effects_allowed(caps.tier);
     std::string backend;
     if (DisplayManager* dm = DisplayManager::instance()) {

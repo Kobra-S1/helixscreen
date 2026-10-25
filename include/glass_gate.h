@@ -21,7 +21,8 @@ class Config;
  * @brief Whether this board may show the glass appearance at all
  *
  * A board fails outright below 24 bpp (radial gradients band into rings), on a tier without
- * full style effects, and on a software-rotated display. Any other board draws a glass frame
+ * full style effects, on a software-rotated display, and with a draw backend that renders only
+ * two gradient stops. Any other board draws a glass frame
  * offscreen once per board fingerprint and app version, and passes when it fits the budget.
  * The result is stored at kGlassProbeStorePath, beside the screensaver levels.
  */
@@ -43,8 +44,10 @@ struct GlassProbeRecord {
 
 /// Everything the gate decides from.
 struct GlassGateFacts {
-    int color_depth = 0;
+    int color_depth = 0; ///< What the display renders and scans out at, not LV_COLOR_DEPTH
     bool style_effects_allowed = false;
+    /// The draw backend renders a gradient's every stop. NanoVG's reads only the first two.
+    bool multi_stop_gradients = true;
     bool software_rotated = false;
     std::optional<bool> env_force; ///< HELIX_GLASS
     std::optional<GlassProbeRecord> stored;
@@ -76,8 +79,9 @@ void save_glass_probe(helix::Config& c, const GlassProbeRecord& r);
 /// A frame may take a third of a 60 Hz refresh.
 constexpr double kGlassFrameBudgetMs = 6.0;
 
-/// Draws a representative glass frame at `width` x `height` into an offscreen canvas (one
-/// full-size Surface fill and twelve Raised buttons), five times, and returns the median ms.
+/// Draws a representative glass frame at `width` x `height` into an offscreen canvas in the
+/// display's color format (one full-size Surface and twelve Raised buttons, each with its glass
+/// drop shadow), five times, and returns the median ms.
 /// Nothing reaches the display. Main thread.
 double measure_glass_frame_ms(int32_t width, int32_t height);
 
@@ -90,8 +94,8 @@ using GlassMeasureFn = std::function<double(int32_t width, int32_t height)>;
 /// How long after boot the probe waits, so it never competes with startup work.
 constexpr uint32_t kGlassProbeDelayMs = 10000;
 
-/// The facts for this run: the build's depth, this board's tier, display rotation, HELIX_GLASS,
-/// the stored record, and this version and board fingerprint. Main thread.
+/// The facts for this run: the display's depth, the draw backend, this board's tier, display
+/// rotation, HELIX_GLASS, the stored record, and this version and board fingerprint. Main thread.
 GlassGateFacts glass_gate_facts_now();
 
 /// Decides the gate once, after boot: Pass or Fail sets `glass_available` at once; NeedsProbe

@@ -36,6 +36,33 @@ struct GlassStops {
 /// whatever its size.
 constexpr int32_t kGlassGlowRadiusPx = 420;
 
+/// A glass drop shadow: blur width, downward offset and its opacity in dark mode. Light mode
+/// uses kGlassLightShadowOpa for every family.
+struct GlassShadow {
+    int width;
+    int offset_y;
+    lv_opa_t dark_opa;
+};
+
+constexpr GlassShadow kGlassButtonShadow{12, 5, 102};
+constexpr GlassShadow kGlassSurfaceShadow{10, 4, 90};
+/// A pressed glass button sits closer to the surface.
+constexpr GlassShadow kGlassPressedShadow{6, 2, 102};
+constexpr lv_opa_t kGlassLightShadowOpa = 56;
+/// How far light mode's shadow color is the theme's text color mixed toward black: a dark,
+/// slightly cool shade of a color the palette already has, softer than black.
+constexpr uint8_t kGlassLightShadowDarkenPct = 30;
+
+/// The drop shadow's color: black in dark mode; in light mode the palette's text color
+/// darkened, so it keeps the theme's tint.
+inline lv_color_t glass_shadow_color(lv_color_t text, bool dark) {
+    if (dark) {
+        return lv_color_black();
+    }
+    return lv_color_mix(lv_color_black(), text,
+                        static_cast<uint8_t>(kGlassLightShadowDarkenPct * 255 / 100));
+}
+
 /// The fill stops for `family` over `base`. Raised and Recessed run top to bottom; Surface
 /// runs out from the top-left corner. None has no stops.
 GlassStops glass_stops(GlassFamily family, lv_color_t base, bool dark, bool pressed);

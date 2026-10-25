@@ -666,7 +666,9 @@ either is 0, no hook is installed and the shared styles are configured exactly a
 Glass rewrites draw tasks, not styles (`include/glass_painter.h`). `glass_attach(obj)` sets
 `LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS` and handles `LV_EVENT_DRAW_TASK_ADDED`: each opaque flat
 fill becomes the family's gradient over the fill's resolved color, and each border becomes the
-family's rim. A translucent fill or one that already has a gradient is left alone. While glass is
+family's rim; an outline (a focus ring) keeps its own color. A translucent fill (judged by the
+part's own bg_opa, so a disabled button's faded fill is still shaded) or one that already has a
+gradient is left alone. While glass is
 effective, `glass_set_effective()` attaches every widget on every screen and layer, and the
 theme apply callback (`helix_theme_apply`) attaches each widget as it is created, so hot reload
 and new panels are covered. `ThemeManager::set_glass()` adds the soft drop shadows and the 1px
@@ -691,11 +693,13 @@ camera, gcode and 3D previews, bed mesh and graphs are never classified.
 
 ### The gate
 
-`include/glass_gate.h`. `decide_glass_gate()` fails outright below 24 bpp, on a tier
-`full_style_effects_allowed()` rejects, and on a software-rotated display. Any other board is
+`include/glass_gate.h`. `decide_glass_gate()` fails outright below 24 bpp (the display's
+color format, so a 32 bpp build on a 16 bpp framebuffer fails), on a tier
+`full_style_effects_allowed()` rejects, on a software-rotated display, and on a NanoVG build
+(`LV_USE_DRAW_NANOVG`), whose gradient renderer reads only the first two stops. Any other board is
 measured once per board fingerprint (`include/board_fingerprint.h`, shared with the screensaver
 gate) and app version: `kGlassProbeDelayMs` after boot, `measure_glass_frame_ms()` draws a glass
-frame into a hidden canvas, and a median at or under `kGlassFrameBudgetMs` passes. The record is
+frame, drop shadows included, into a hidden canvas, and a median at or under `kGlassFrameBudgetMs` passes. The record is
 stored at `/display/glass_probe`; a record from another version or board is ignored and the board
 is measured again. `HELIX_GLASS=1`/`0` forces the verdict (`docs/devel/ENVIRONMENT_VARIABLES.md`).
 The ESP32 firmware draws 16 bpp and does not compile glass.
