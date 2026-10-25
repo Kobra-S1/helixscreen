@@ -362,9 +362,14 @@ inline bool dock_free(const CalloutLayoutInput& in, const CalloutRect& img,
             });
         };
         const int h = chip_h_of(in, c);
+        // Along a strip the scan steps by the gap: a chip clears its neighbours
+        // by a full gap anyway, so a finer scan buys at most a gap of position
+        // for gap times the cost, and this runs on every layout attempt. Each
+        // strip keeps its exact edge position across.
+        const int step = std::max(1, in.gap);
         std::optional<CalloutRect> spot;
         for (const int x : {in.area_w - in.gap - c.w, in.gap}) {
-            for (int y = in.gap; !spot && y + h <= in.area_h - in.gap; ++y)
+            for (int y = in.gap; !spot && y + h <= in.area_h - in.gap; y += step)
                 if (free_at({x, y, c.w, h}))
                     spot = CalloutRect{x, y, c.w, h};
             if (spot)
@@ -373,7 +378,7 @@ inline bool dock_free(const CalloutLayoutInput& in, const CalloutRect& img,
         for (const int y : {in.area_h - in.gap - h, in.gap}) {
             if (spot)
                 break;
-            for (int x = in.area_w - in.gap - c.w; !spot && x >= in.gap; --x)
+            for (int x = in.area_w - in.gap - c.w; !spot && x >= in.gap; x -= step)
                 if (free_at({x, y, c.w, h}))
                     spot = CalloutRect{x, y, c.w, h};
         }

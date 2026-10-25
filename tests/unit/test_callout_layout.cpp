@@ -1353,3 +1353,24 @@ TEST_CASE("a tall chip in the toolhead group pushes the chips below it down",
     REQUIRE(find(l, CalloutKind::Nozzle)->rect.h == 60);
     check_apart_and_inside(l, in);
 }
+
+TEST_CASE("loose chips dock on the gap grid", "[printer_image][callout_layout]") {
+    auto in = base();
+    in.area_w = 200;
+    in.area_h = 200;
+    const CalloutRect img{60, 0, 80, 200};
+    // An obstacle ending off the grid, so the first free pixel row is not a gap multiple.
+    std::vector<CalloutChipOut> out{{CalloutKind::Light, {200 - in.gap - 40, in.gap, 40, 5}}};
+    CalloutChipIn tall{CalloutKind::SpeedFlow, 40, std::nullopt};
+    tall.h = 2 * in.chip_h + 3;
+    const std::vector<CalloutChipIn> chips{{CalloutKind::AuxFan, 40, std::nullopt}, tall};
+    REQUIRE(callout_detail::dock_free(in, img, chips, out));
+    REQUIRE(out.size() == 3);
+    for (size_t i = 1; i < out.size(); ++i) {
+        INFO("chip " << i << " at " << out[i].rect.x << "," << out[i].rect.y);
+        CHECK(out[i].rect.y % in.gap == 0);
+        CHECK_FALSE(overlaps(out[i].rect, img));
+        for (size_t j = 0; j < i; ++j)
+            CHECK_FALSE(callout_detail::rects_near(out[i].rect, out[j].rect, in.gap - 1));
+    }
+}
