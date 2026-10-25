@@ -6,6 +6,10 @@
 
 #include "ui_leader_line.h"
 
+#include "../lvgl_test_fixture.h"
+#include "helix-xml/src/xml/lv_xml.h"
+#include "lvgl/lvgl.h"
+
 #include <cmath>
 
 #include "../catch_amalgamated.hpp"
@@ -71,4 +75,39 @@ TEST_CASE("no dash style draws nothing here", "[leader_line]") {
     const LeaderPoint pts[] = {{0, 0}, {10, 10}};
     CHECK(leader_dashes(pts, 2, 0, 5).empty());
     CHECK(leader_dashes(pts, 1, 3, 5).empty());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a leader_line draws its diagonal leg dashed", "[leader_line]") {
+    helix::ui::register_leader_line_widget();
+    lv_obj_t* box = lv_obj_create(test_screen());
+    lv_obj_remove_style_all(box);
+    lv_obj_set_size(box, 60, 60);
+    auto* line = static_cast<lv_obj_t*>(lv_xml_create(box, "leader_line", nullptr));
+    REQUIRE(line != nullptr);
+    static const lv_point_precise_t pts[] = {{2, 2}, {52, 52}};
+    lv_line_set_points(line, pts, 2);
+    lv_obj_set_style_line_width(line, 2, LV_PART_MAIN);
+    lv_obj_set_style_line_color(line, lv_color_black(), LV_PART_MAIN);
+    lv_obj_set_style_line_opa(line, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_line_dash_width(line, 4, LV_PART_MAIN);
+    lv_obj_set_style_line_dash_gap(line, 6, LV_PART_MAIN);
+    lv_obj_update_layout(box);
+
+    lv_draw_buf_t* snap = lv_snapshot_take(box, LV_COLOR_FORMAT_ARGB8888);
+    REQUIRE(snap != nullptr);
+    int inked = 0;
+    int clear = 0;
+    for (uint32_t i = 4; i < 50; ++i) {
+        const uint8_t alpha = snap->data[i * snap->header.stride + i * 4 + 3];
+        if (alpha > 200)
+            ++inked;
+        else if (alpha < 50)
+            ++clear;
+    }
+    lv_draw_buf_destroy(snap);
+    lv_obj_delete(box);
+
+    // LVGL itself would draw the diagonal solid.
+    CHECK(inked > 0);
+    CHECK(clear > 0);
 }
