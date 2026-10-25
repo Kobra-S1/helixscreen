@@ -39,6 +39,7 @@
 #include "moonraker_client_mock.h"
 #include "print_job_ref.h"
 #include "printer_cache_registry.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "slot_registry.h"
 
@@ -661,6 +662,34 @@ TEST_CASE("remap restore: a record from another filament system is not reused",
         CHECK(be.backend->calls.empty());
         CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
     }
+}
+
+TEST_CASE("remap restore: a backend with no mapping table drops the record unsent",
+          "[remap-restore][tool_mapping]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"remap_no_table"};
+    ScopedCountingBackend be{{1, 2}};
+    // An AFC shim over a firmware that maps tools per print has no table.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"AFC", "AFC_unit IFS", "zmod_afclite"}));
+    be.backend->set_discovery(hw);
+    REQUIRE(be.backend->get_remap_strategy() == AmsBackend::RemapStrategy::None);
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+
+    const auto record = std::filesystem::path(helix::get_user_config_dir()) / "pending_remap.json";
+    std::filesystem::create_directories(record.parent_path());
+    {
+        std::ofstream ofs(record);
+        ofs << "{\"backend_index\":0,\"tool_mapping\":[2,1]}";
+    }
+    PrintStartControllerTestAccess::seed_saved_mapping(h.controller, {2, 1}, 0);
+
+    PrintStartControllerTestAccess::restore(h.controller);
+
+    CHECK(be.backend->calls.empty());
+    CHECK(PrintStartControllerTestAccess::saved_mapping(h.controller).empty());
+    CHECK_FALSE(std::filesystem::exists(record));
 }
 
 TEST_CASE("remap restore: a printer switch drops the record", "[remap-restore][1859]") {

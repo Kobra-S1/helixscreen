@@ -456,8 +456,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     AmsError disable_bypass() override;
     [[nodiscard]] bool is_bypass_active() const override;
 
+    /// None where the firmware maps tools per print itself and refuses SET_MAP:
+    /// a pick sent there only raises an error before the firmware asks anyway.
     [[nodiscard]] RemapStrategy get_remap_strategy() const override {
-        return RemapStrategy::Native;
+        return firmware_maps_tools_per_print_.load(std::memory_order_relaxed)
+                   ? RemapStrategy::None
+                   : RemapStrategy::Native;
     }
 
     /// AFC owns the lane->tool map (SET_MAP) and get_tool_mapping() returns it.
@@ -1319,6 +1323,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     // opt-in to virtual tools and defaults false, so only presence is a version
     // signal.
     bool afc_reset_mapping_renamed_{false};
+
+    /// The AFC object is a shim over a firmware that owns tool mapping per
+    /// print (Z-Mod's afclite): its SET_MAP raises an error by design.
+    std::atomic<bool> firmware_maps_tools_per_print_{false};
 
     // AFC state strings outside our known vocabulary — dedupes the schema-drift
     // warning so it fires once per distinct string, not once per status update.
