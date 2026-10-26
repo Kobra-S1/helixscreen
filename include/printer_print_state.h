@@ -443,20 +443,20 @@ class PrinterPrintState {
      * printer can be working on the job long before it reports it
      * (prestonbrown/helixscreen#1890). No-op without a preparing job.
      */
-    void note_preparing_start_sent() {
-        if (!preparing_job_.empty()) {
-            preparing_start_sent_ = true;
-        }
+    void note_preparing_start_sent();
+
+    /// The start sent for the job armed at @p epoch answered: OK when
+    /// @p accepted, else refused, which leaves the printer nothing to cancel.
+    /// No-op once a different job is preparing.
+    void note_preparing_start_answered(int epoch, bool accepted);
+
+    [[nodiscard]] PreparingStart preparing_start() const {
+        return static_cast<PreparingStart>(
+            lv_subject_get_int(const_cast<lv_subject_t*>(&preparing_start_)));
     }
-    [[nodiscard]] bool preparing_start_sent() const {
-        return preparing_start_sent_;
-    }
-    /// The start sent for the job armed at @p epoch was refused, so the
-    /// printer has nothing to cancel. No-op once a different job is preparing.
-    void note_preparing_start_refused(int epoch) {
-        if (epoch != 0 && epoch == preparing_epoch_counter_ && !preparing_job_.empty()) {
-            preparing_start_sent_ = false;
-        }
+    /// Integer PreparingStart; see note_preparing_start_sent().
+    lv_subject_t* get_preparing_start_subject() {
+        return &preparing_start_;
     }
 
     /**
@@ -1225,8 +1225,9 @@ class PrinterPrintState {
 
     /// The job we are preparing; empty when none. See begin_preparing().
     PrintJobRef preparing_job_{};
-    bool preparing_start_sent_ = false; // See note_preparing_start_sent()
-    lv_subject_t preparing_epoch_{};    // Integer: bumped per preparing job, 0 when none
+    lv_subject_t preparing_start_{}; // Integer PreparingStart
+    void set_preparing_start(PreparingStart start);
+    lv_subject_t preparing_epoch_{}; // Integer: bumped per preparing job, 0 when none
     int preparing_epoch_counter_ = 0;
     PreparingExit last_preparing_exit_ = PreparingExit::Confirmed;
     lv_subject_t print_start_chamber_wait_{}; // Integer 0/1: a heater wait on the chamber

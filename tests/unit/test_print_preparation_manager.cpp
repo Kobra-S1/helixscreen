@@ -3980,7 +3980,7 @@ TEST_CASE_METHOD(HelixTestFixture,
                   deleted.end());
         }
     } else {
-        CHECK(state.print_state().preparing_start_sent());
+        CHECK(state.print_state().preparing_start() == helix::PreparingStart::Accepted);
     }
 }
 
@@ -4015,6 +4015,19 @@ TEST_CASE_METHOD(HelixTestFixture,
         kRemapFixture, {{1, 2}}, nullptr,
         [&completed](bool ok, const std::string&) { completed = ok; });
     REQUIRE(api.job_mock().edited_prints().size() == 1);
+    CHECK(state.print_state().preparing_start() == helix::PreparingStart::InFlight);
+    const bool withdraw = GENERATE(true, false);
+    CAPTURE(withdraw);
+    if (!withdraw) {
+        // The fallback runs first: the plugin refused, so nothing reached the
+        // printer and Stop must not cancel there while the copy is rewritten.
+        UpdateQueue::instance().drain();
+        CHECK(state.print_state().preparing_start() == helix::PreparingStart::None);
+        drain_until_quiet();
+        CHECK(api.job_mock().started_prints().size() + api.job_mock().modified_prints().size() ==
+              1);
+        return;
+    }
     // Stop while the plugin's refusal is on its way back.
     state.print_state().retire_preparing(helix::PreparingExit::Cancelled);
     drain_until_quiet();

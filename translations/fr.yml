@@ -4085,7 +4085,6 @@ translations:
   The print is still stuck to the bed: L'impression est toujours collée au plateau
   The print is waiting for the chamber to reach {}°C, but the heater is not heating.: 'L''impression attend que la chambre atteigne {}°C, mais le chauffage ne chauffe pas.'
   The print is waiting for the chamber, but the heater is not heating.: 'L''impression attend la chambre, mais le chauffage ne chauffe pas.'
-  The print started after the cancel was answered. Cancel it again to stop it.: 'L''impression a démarré après la réponse à l''annulation. Annulez-la à nouveau pour l''arrêter.'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: 'La taille imprimable en millimètres (X × Y × Z), d''après les limites des axes dans la configuration Klipper de l''imprimante.'
   The printer applied this value and keeps it for this tool.: 'L''imprimante a appliqué cette valeur et la conserve pour cet outil.'
   The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.: 'L''imprimante peut tracer une ligne d''amorçage avant une impression. HelixScreen la propose dans les options de pré-impression.'
@@ -4117,6 +4116,7 @@ translations:
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'L''imprimante attend que la chambre atteigne une température, et seuls un arrêt d''urgence et un redémarrage du firmware mettent fin à cette attente. L''impression s''arrête immédiatement et ne peut pas être reprise.'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: 'L''imprimante ne détecte aucun filament chargé. Que voulez-vous faire ?'
+  The printer kept printing after the cancel.: 'L''imprimante a continué d''imprimer après l''annulation.'
   The printer lost power during a print. It can resume where it left off.: 'L''imprimante
     a été mise hors tension pendant une impression. Elle peut reprendre là où elle
     s''est arrêtée.'

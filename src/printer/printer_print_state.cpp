@@ -110,6 +110,7 @@ void PrinterPrintState::init_subjects(bool register_xml) {
                      register_xml);
     INIT_SUBJECT_INT(spool_latch, spool_latch_active_.load() ? 1 : 0, subjects_, register_xml);
     INIT_SUBJECT_INT(preparing_epoch, 0, subjects_, false);
+    INIT_SUBJECT_INT(preparing_start, static_cast<int>(PreparingStart::None), subjects_, false);
     INIT_SUBJECT_INT(print_identity_epoch, 0, subjects_, false);
     INIT_SUBJECT_INT(print_lifecycle_prev, static_cast<int>(PrintState::Idle), subjects_, false);
     INIT_SUBJECT_STRING(print_start_message, "", subjects_, register_xml);
@@ -1557,6 +1558,25 @@ void PrinterPrintState::reconcile_preparing() {
     retire_preparing(mine ? PreparingExit::Confirmed : PreparingExit::Superseded);
 }
 
+void PrinterPrintState::set_preparing_start(PreparingStart start) {
+    if (lv_subject_get_int(&preparing_start_) != static_cast<int>(start)) {
+        lv_subject_set_int(&preparing_start_, static_cast<int>(start));
+    }
+}
+
+void PrinterPrintState::note_preparing_start_sent() {
+    if (!preparing_job_.empty()) {
+        set_preparing_start(PreparingStart::InFlight);
+    }
+}
+
+void PrinterPrintState::note_preparing_start_answered(int epoch, bool accepted) {
+    if (epoch == 0 || epoch != preparing_epoch_counter_ || preparing_job_.empty()) {
+        return;
+    }
+    set_preparing_start(accepted ? PreparingStart::Accepted : PreparingStart::None);
+}
+
 void PrinterPrintState::begin_preparing(const PrintJobRef& job) {
     if (job.empty()) {
         spdlog::warn("[PrinterPrintState] begin_preparing called with no job");
@@ -1564,7 +1584,7 @@ void PrinterPrintState::begin_preparing(const PrintJobRef& job) {
     }
     spdlog::info("[PrinterPrintState] Preparing '{}'", job.filename);
     preparing_job_ = job;
-    preparing_start_sent_ = false;
+    set_preparing_start(PreparingStart::None);
 
     // Adopt this job's identity NOW, not when the printer first reports a name.
     // print_stats still names the PREVIOUS job for the whole pre-start block, and
@@ -1643,7 +1663,7 @@ void PrinterPrintState::retire_preparing(PreparingExit reason) {
     spdlog::info("[PrinterPrintState] Retiring preparing job '{}': {}", preparing_job_.filename,
                  preparing_exit_name(reason));
     preparing_job_ = {};
-    preparing_start_sent_ = false;
+    set_preparing_start(PreparingStart::None);
     last_preparing_exit_ = reason;
     cancel_preparing_watchdog();
     set_print_in_progress_internal(false);

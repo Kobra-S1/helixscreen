@@ -160,35 +160,58 @@ applies:
 
 | Route | When | What Stop does |
 |---|---|---|
-| `RetirePreparing` | preparing, start not yet sent | `retire_preparing(Cancelled)`; every start send first checks its preparing epoch, so nothing reaches the printer |
-| `CancelSentStart` | preparing, start sent, printer not reporting the job | `printer.print.cancel`; the job stays preparing and Stop stays off until the printer's job state settles it (below) |
+| `RetirePreparing` | preparing, no start in flight or accepted | `retire_preparing(Cancelled)`; every start send first checks its preparing epoch, so nothing reaches the printer |
+| `CancelSentStart` | preparing, a start in flight or accepted, printer not reporting the job | Requests a cancel and disables Stop; the state table below decides when `printer.print.cancel` goes out and what settles it |
 | `Abort` | the printer reports the job | `AbortManager` |
 
-`CANCEL_PRINT` sent to an idle printer is worse than useless: `AbortManager`
-reads the terminal state as proof the cancel succeeded. But once
-`printer.print.start` has been sent, retiring locally stops nothing either. Some
-firmwares run the whole print-start sequence inside `SDCARD_PRINT_FILE`, so
-`print_stats` stays idle while the printer homes, heats and probes
-(prestonbrown/helixscreen#1890). Klipper cannot interrupt a running macro: the
-cancel queues behind it and runs before the first line of the file, so the
-start sequence finishes and the print never begins. The Stop handler says so in
-a notification, keeps Stop disabled, and does not show the job cancelled until the
-printer reports it:
+`CANCEL_PRINT` sent to an idle printer is worse than useless: it is answered at
+once, and the start that follows prints. But once a start has been sent,
+retiring locally stops nothing either. Some firmwares run the whole print-start
+sequence inside `SDCARD_PRINT_FILE`, so `print_stats` stays idle while the
+printer homes, heats and probes (prestonbrown/helixscreen#1890), and the start
+RPC answers only once that sequence ends. Klipper cannot interrupt a running
+macro, so the start sequence finishes either way.
 
-- `cancelled` / `complete` / `error` for our job retires it as `EndedByPrinter`,
-  which says nothing itself: the completion observer reports the printer's
-  terminal state once.
-- The RPC's answer alone settles nothing. Its success cannot tell a cancel that
-  ran after the start from one that ran on an idle printer before the start
-  arrived, and a timeout or dropped connection may leave the cancel queued.
-- `printing` / `paused` after the RPC is over means the start arrived after the
-  cancel ran: Stop comes back and a warning says the print is running.
-- `standby` is never an answer: `SDCARD_PRINT_FILE` passes through it while
-  loading the file.
+**The ordering rule: `CANCEL_PRINT` goes out only after the start RPC has
+answered OK.** Then the cancel always queues behind a start the printer has
+actually received, whichever path sent it (plain `printer.print.start`, a staged
+copy, the plugin's `print_edited` or `print_modified`, the on-screen rewrite
+fallback). The cost: on a firmware whose start answers only after its sequence,
+the cancel lands a round trip after the file starts rather than before its
+first line, so the first commands of the file can run.
 
-A refused start (`note_preparing_start_refused()`) clears the mark, so Stop
-withdraws that job locally instead of cancelling an idle printer. `PrinterPrintState::note_preparing_start_sent()`
-records the hand-over at every site that sends a start.
+`PrinterPrintState` tracks the preparing job's start hand-over
+(`PreparingStart`: `None` -> `InFlight` on send -> `Accepted` on an OK answer,
+or back to `None` on a refusal). `PrintControlButtons` tracks the cancel
+(`CancelState`: `Idle`, `Requested`, `Sent`, `Answered`). Stop is disabled in
+every state but `Idle`.
+
+| Cancel state | Event | Next | Action |
+|---|---|---|---|
+| `Idle` | Stop confirmed, start `Accepted` | `Sent` | send `printer.print.cancel`; notify "Cancel sent" |
+| `Idle` | Stop confirmed, start `InFlight` | `Requested` | notify "Cancel sent"; nothing goes to the printer yet |
+| `Requested` | start answers OK (`Accepted`) | `Sent` | send `printer.print.cancel` |
+| `Requested` | the printer reports our job (retired `Confirmed`) | `Sent` | send `printer.print.cancel`: the printer has the start |
+| `Requested` | start refused (`None`), job still preparing | `Idle` | `retire_preparing(Cancelled)`, no cancel sent |
+| `Requested` | job retired any other way (start failed) | `Idle` | nothing: the job is gone and nothing reached the printer |
+| `Sent` / `Answered` | job state `cancelled` / `complete` / `error` | `Idle` | retire as `EndedByPrinter` if still ours; the completion observer reports once |
+| `Sent` | cancel answers OK | `Answered` | if the job state already reads terminal, settle now (no transition will come) |
+| `Sent` | cancel answers with a real error | `Idle` | notify "Failed to cancel: ..."; Stop comes back |
+| `Sent` | cancel times out or the connection drops | `Sent` | nothing: the cancel may still be queued, so only the job state settles it |
+| `Answered` | printer still holds the job (`printing` / `paused`) when the confirm timer fires | `Idle` | warn that the printer kept printing; Stop routes to `Abort` |
+| any | `set_api()` with a different API, or teardown | `Idle` | drop the request |
+
+`standby` is never an answer: `SDCARD_PRINT_FILE` passes through it while
+loading the file. A `printing` report right after the cancel's OK is not proof
+the cancel failed either: status notifications and RPC answers reach the main
+thread through different queues, so a frame from before the cancel can land
+after its answer. That is why `Answered` waits `kCancelConfirmMs` before it
+judges a printer still holding the job.
+
+`EndedByPrinter` leaves the heaters to the printer's own cancel gcode, the same
+as `Abort`. A printer whose `CANCEL_PRINT` is `[pause_resume]`'s built-in, with
+no `TURN_OFF_HEATERS`, keeps the start sequence's targets until Klipper's
+`idle_timeout`.
 
 Inputs → outputs at a glance:
 

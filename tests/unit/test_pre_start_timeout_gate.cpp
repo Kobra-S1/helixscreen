@@ -286,13 +286,14 @@ TEST_CASE_METHOD(PreStartGateFixture, "A start sent to the printer marks the pre
 
     manager.start_print("part.gcode", "", []() {}, completion());
     REQUIRE(api->captured_success);
-    CHECK_FALSE(state.print_state().preparing_start_sent()); // pre-start block still running
+    // The pre-start block is still running.
+    CHECK(state.print_state().preparing_start() == helix::PreparingStart::None);
     api->captured_success();
     drain();
 
     REQUIRE(jobs.start_print_calls == 1);
     CHECK(state.print_state().has_preparing_job());
-    CHECK(state.print_state().preparing_start_sent());
+    CHECK(state.print_state().preparing_start() == helix::PreparingStart::Accepted);
 }
 
 TEST_CASE_METHOD(PreStartGateFixture, "A refused start clears the sent mark; a lost one keeps it",
@@ -312,7 +313,8 @@ TEST_CASE_METHOD(PreStartGateFixture, "A refused start clears the sent mark; a l
     drain();
 
     REQUIRE(jobs.start_print_calls == 1);
-    CHECK(state.print_state().preparing_start_sent() == !refused);
+    CHECK(state.print_state().preparing_start() ==
+          (refused ? helix::PreparingStart::None : helix::PreparingStart::InFlight));
 }
 
 // ============================================================================

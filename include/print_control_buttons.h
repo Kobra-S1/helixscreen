@@ -35,12 +35,11 @@ class PrintControlButtons {
     /// wire the event callbacks, and start observing the print state. Idempotent.
     void init_subjects();
 
-    /// A new connection drops a cancel pending on the old one.
+    /// Swapping the API object drops a cancel pending on the old one, whose
+    /// answer can no longer arrive. A reconnect keeps the same object.
     void set_api(IMoonrakerAPI* api) {
         if (api != api_) {
-            cancel_requested_ = false;
-            cancel_epoch_ = 0;
-            cancel_rpc_done_ = false;
+            reset_cancel();
         }
         api_ = api;
     }
@@ -114,14 +113,38 @@ class PrintControlButtons {
 
     /// Stop was confirmed: run whichever route current_view() picks.
     void confirm_stop();
-    /// Ask the printer to cancel a start it was sent but has not reported.
-    void cancel_sent_start();
-    /// Drop the pending cancel and re-enable Stop.
-    void clear_cancel_request();
-    /// Drop a pending cancel the printer has answered once its job is no
-    /// longer the one being prepared.
-    void release_cancel_if_job_moved_on();
+
+    /// Where a Stop on a start the printer was sent stands. The full table is
+    /// in docs/devel/PRINT_CONTROL_BUTTONS.md; Stop is disabled in every state
+    /// but Idle.
+    enum class CancelState {
+        Idle,
+        Requested, ///< waiting on the start's answer before anything is sent
+        Sent,      ///< printer.print.cancel out, unanswered (or answer lost)
+        Answered,  ///< the cancel answered OK; waiting on the job state
+    };
+
+    /// A cancel answered OK while the printer still reports the job running is
+    /// judged only after this long: a status frame from before the cancel can
+    /// reach the main thread after the cancel's answer.
+    static constexpr uint32_t kCancelConfirmMs = 10000;
+
+    /// Stop on a start in flight or accepted (StopRoute::CancelSentStart).
+    void request_sent_start_cancel();
+    /// Send printer.print.cancel for the requested job.
+    void send_cancel();
+    /// Move a Requested cancel on once the start answers or the job leaves.
+    void advance_requested_cancel();
+    /// A cancel that is out reads the printer's job state.
     void settle_cancel_from_job_state(helix::PrintJobState job_state);
+    /// The printer ended our job: retire it if it is still ours, then reset.
+    void settle_ended_by_printer();
+    void on_cancel_confirm_timeout();
+    /// Back to Idle, Stop enabled again.
+    void clear_cancel();
+    /// Back to Idle without recomputing, for teardown and set_api().
+    void reset_cancel();
+    void cancel_confirm_timer();
 
     /// Shared by clear_pending_action(), the StaticSubjectRegistry teardown and
     /// the destructor — a timer cancelled on only some of those paths stays armed
@@ -141,13 +164,13 @@ class PrintControlButtons {
     bool subjects_initialized_ = false;
     PendingAction pending_action_ = PendingAction::None;
     lv_timer_t* pending_action_timeout_ = nullptr;
-    /// A cancel_sent_start() the printer has not answered yet, and the
-    /// preparing epoch it was sent for.
-    bool cancel_requested_ = false;
+    CancelState cancel_state_ = CancelState::Idle;
+    /// The preparing epoch the cancel was requested for.
     int cancel_epoch_ = 0;
-    /// That cancel's RPC is over (answered, or given up on): only the job
-    /// state can settle it now.
-    bool cancel_rpc_done_ = false;
+    /// Bumped per printer.print.cancel sent, so a late answer to an earlier
+    /// one cannot advance this one.
+    int cancel_seq_ = 0;
+    lv_timer_t* cancel_confirm_timer_ = nullptr;
 
     SubjectManager subjects_;
     lv_subject_t primary_icon_subject_{};
@@ -168,6 +191,10 @@ class PrintControlButtons {
     /// all - a host-side pre-start block leaves the printer reporting the
     /// PREVIOUS job for its whole duration.
     ObserverGuard print_lifecycle_observer_;
+    /// The preparing job's start hand-over and its epoch: a Requested cancel
+    /// waits on them.
+    ObserverGuard preparing_start_observer_;
+    ObserverGuard preparing_epoch_observer_;
     PrintCancelModal cancel_modal_;
 
     friend struct PrintControlButtonsTestAccess;

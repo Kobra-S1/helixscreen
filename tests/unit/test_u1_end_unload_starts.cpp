@@ -122,7 +122,8 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint withdrawn during the pre-print send ne
     CHECK(starts == (withdraw ? 0 : 1));
     CHECK(errored == withdraw);
     // A start that went out is one only the printer can stop now.
-    CHECK(ps.print_state().preparing_start_sent() == !withdraw);
+    CHECK(ps.print_state().preparing_start() ==
+          (withdraw ? PreparingStart::None : PreparingStart::Accepted));
 }
 
 TEST_CASE_METHOD(U1StartFx,

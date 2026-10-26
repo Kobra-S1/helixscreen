@@ -52,6 +52,14 @@ struct PrintJobRef {
  */
 enum class PreparingExit { Confirmed, Superseded, Failed, Cancelled, TimedOut, EndedByPrinter };
 
+/// How far the preparing job's start has got towards the printer. Int values
+/// are the wire format of the preparing_start subject.
+enum class PreparingStart : int {
+    None = 0,     ///< nothing sent, or the send was refused
+    InFlight = 1, ///< sent, not answered: the printer may or may not have it
+    Accepted = 2, ///< answered OK: the printer has received the start
+};
+
 /// Human-readable name, for logs.
 const char* preparing_exit_name(PreparingExit reason);
 

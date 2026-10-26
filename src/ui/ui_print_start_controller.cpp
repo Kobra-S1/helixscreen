@@ -624,7 +624,12 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
         printer_state_.print_state().note_preparing_start_sent();
         api_->job().start_print(
             filename,
-            [tok, on_started]() mutable {
+            [tok, on_started, ps = &printer_state_, epoch]() mutable {
+                // Recorded even if this controller is gone: a pending Stop is
+                // waiting on it to send its cancel.
+                helix::ui::queue_update("PrintStartController::reprint.answered", [ps, epoch]() {
+                    ps->print_state().note_preparing_start_answered(epoch, true);
+                });
                 tok.defer("PrintStartController::reprint.ok", [on_started]() {
                     if (on_started) {
                         on_started();
