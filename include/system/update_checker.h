@@ -209,11 +209,13 @@ class UpdateChecker {
     void on_channel_changed();
 
     /**
-     * @brief Point moonraker.conf's [update_manager helixscreen] at the app's channel
+     * @brief Reconcile moonraker.conf's [update_manager helixscreen] with the app's channel
      *
      * Mainsail and Fluidd offer whatever that stanza's `channel:` names, so a stale one
-     * offers a beta install a "stable" downgrade. Rewrites the line only when a stanza
-     * with a channel line exists and disagrees, then restarts Moonraker, which reads its
+     * offers a beta install a "stable" downgrade. Which side moved is judged against the
+     * channel the two last agreed on (decide_moonraker_channel_sync()): a hand edit of the
+     * stanza is adopted as the app's channel, and an app change rewrites the line, only
+     * when a stanza with a channel line exists, then restarts Moonraker, which reads its
      * config only at startup. While a job holds the machine the file is still written
      * but the restart is skipped, so the change lands at Moonraker's next start. Called
      * on every Moonraker discovery and whenever the effective channel changes. Main
@@ -481,6 +483,28 @@ class UpdateChecker {
      */
     static const char* moonraker_channel_name(UpdateChannel channel);
 
+    /// What a moonraker.conf channel sync does with the stanza it read.
+    enum class MoonrakerChannelSync {
+        Write,      ///< Rewrite the stanza to the app's channel
+        Adopt,      ///< The stanza was edited by hand: take its channel into the app
+        RecordOnly, ///< Already agreeing: remember the channel, touch nothing
+        Leave,      ///< A hand edit to a channel the app has no name for
+    };
+
+    /**
+     * @brief Decide which side of a moonraker.conf channel disagreement moved
+     *
+     * @param app         moonraker_channel_name() of the app's effective channel
+     * @param conf        the stanza's `channel:` value, empty when it has none
+     * @param last_synced the channel the two last agreed on, empty when unknown
+     *
+     * Only a stanza that moved away from @p last_synced while the app stayed put counts
+     * as a hand edit; anything else, including no record at all, lets the app win.
+     */
+    static MoonrakerChannelSync decide_moonraker_channel_sync(const std::string& app,
+                                                              const std::string& conf,
+                                                              const std::string& last_synced);
+
     /**
      * @brief Resolve the R2 base URL the next check will actually use.
      *
@@ -714,6 +738,11 @@ class UpdateChecker {
     /// sync_moonraker_channel() with this install's directory supplied; the stanza's
     /// `path:` must resolve to it.
     void sync_moonraker_channel_for(const std::string& install_root);
+    /// Take @p conf_channel, a hand edit of the stanza, as the app's update channel the
+    /// way a Settings change does, without writing it back to moonraker.conf.
+    void adopt_moonraker_channel(const std::string& conf_channel);
+    /// on_channel_changed() short of the moonraker.conf sync.
+    void recheck_for_channel();
 
 #ifdef __ANDROID__
     /**
