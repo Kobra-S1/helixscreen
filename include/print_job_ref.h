@@ -58,6 +58,10 @@ enum class PreparingStart : int {
     None = 0,     ///< nothing sent, or the send was refused
     InFlight = 1, ///< sent, not answered: the printer may or may not have it
     Accepted = 2, ///< answered OK: the printer has received the start
+    /// The answer was lost (timeout, dropped connection) while a cancel was
+    /// requested. A timeout means Klipper is busy with the start, so a cancel
+    /// sent now queues behind it.
+    Unanswered = 3,
 };
 
 /// Human-readable name, for logs.

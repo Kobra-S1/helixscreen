@@ -317,6 +317,24 @@ TEST_CASE_METHOD(PreStartGateFixture, "A refused start clears the sent mark; a l
           (refused ? helix::PreparingStart::None : helix::PreparingStart::InFlight));
 }
 
+TEST_CASE_METHOD(PreStartGateFixture, "A start that times out while Stop waits is held, not failed",
+                 "[print_preparation][preparing_cancel]") {
+    jobs.fail_with = MoonrakerError::timeout("printer.print.start", 600000);
+    state.print_state().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    set_busy(false);
+
+    manager.start_print("part.gcode", "", []() {}, completion());
+    REQUIRE(api->captured_success);
+    state.print_state().note_preparing_cancel_requested(); // Stop while it runs
+    api->captured_success();
+    drain();
+
+    REQUIRE(jobs.start_print_calls == 1);
+    CHECK(state.print_state().has_preparing_job());
+    CHECK(state.print_state().preparing_start() == helix::PreparingStart::Unanswered);
+    CHECK_FALSE(completed); // no failure reported for a start the printer may be running
+}
+
 // ============================================================================
 // printer.print.start's own RPC ceiling
 // ============================================================================

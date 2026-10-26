@@ -1974,6 +1974,13 @@ void note_start_answered(helix::PrinterState* ps, int epoch, bool accepted) {
     });
 }
 
+/// Main thread. A start whose answer was lost while Stop waits to cancel it is
+/// held for that cancel rather than failed: the printer may well have it, and
+/// a timeout means Klipper is busy running it. True when held.
+bool held_for_cancel(helix::PrinterState* ps, int epoch, const MoonrakerError& error) {
+    return ps && error.is_transport_loss() && ps->print_state().hold_for_requested_cancel(epoch);
+}
+
 } // namespace
 
 int PrintPreparationManager::current_preparing_epoch() const {
@@ -2421,16 +2428,19 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
             });
     };
 
-    auto on_print_error = [this, token, remote_temp_path,
-                           on_completion](const MoonrakerError& error) {
-        queue_busy_hide();
-
-        helix::ui::notify_error_tr(storage::print_start_failure_tag(error.code), error);
-        LOG_ERROR_INTERNAL("[PrintPreparationManager] Print start failed for {}: {}",
-                           remote_temp_path, error.message);
-
+    auto on_print_error = [this, token, remote_temp_path, on_completion, ps,
+                           epoch](const MoonrakerError& error) {
         token.defer("PrintPreparationManager::start_print_error_cleanup",
-                    [this, remote_temp_path, on_completion]() {
+                    [this, remote_temp_path, on_completion, ps, epoch, error]() {
+                        if (held_for_cancel(ps, epoch, error)) {
+                            return;
+                        }
+                        queue_busy_hide();
+                        helix::ui::notify_error_tr(storage::print_start_failure_tag(error.code),
+                                                   error);
+                        LOG_ERROR_INTERNAL("[PrintPreparationManager] Print start failed for "
+                                           "{}: {}",
+                                           remote_temp_path, error.message);
                         abandon_start("print_start_failed", on_completion);
                         // Moonraker's delete_file takes the root too.
                         api_->files().delete_file(
@@ -2453,8 +2463,8 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
     if (plugin_edits) {
         // The plugin writes the copy itself, and removes it if the start fails, so no
         // branch here deletes it.
-        auto on_edit_error = [this, token, job, on_navigate_to_status,
-                              on_completion](const MoonrakerError& error) {
+        auto on_edit_error = [this, token, job, on_navigate_to_status, on_completion, ps,
+                              epoch](const MoonrakerError& error) {
             switch (gcode::classify_print_edited_failure(error)) {
             case gcode::EditedPrintFailure::Unsupported:
                 spdlog::warn("[PrintPreparationManager] Plugin cannot edit {} ({}); rewriting "
@@ -2477,14 +2487,23 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
             case gcode::EditedPrintFailure::Unanswered:
                 // The plugin may still start this print: starting it again here would
                 // print the job twice.
-                queue_busy_hide();
-                helix::ui::notify_error_tr(
-                    TR_NOOP("The printer did not confirm the print started ({}). It may still "
-                            "start: check the printer before starting it again."),
-                    error);
-                LOG_ERROR_INTERNAL("[PrintPreparationManager] print_edited unanswered for {}: {}",
-                                   job->file_path, error.message);
-                break;
+                token.defer("PrintPreparationManager::edit_unanswered",
+                            [this, job, on_completion, ps, epoch, error]() {
+                                if (held_for_cancel(ps, epoch, error)) {
+                                    return;
+                                }
+                                queue_busy_hide();
+                                helix::ui::notify_error_tr(
+                                    TR_NOOP("The printer did not confirm the print started ({}). "
+                                            "It may still start: check the printer before "
+                                            "starting it again."),
+                                    error);
+                                LOG_ERROR_INTERNAL(
+                                    "[PrintPreparationManager] print_edited unanswered for {}: {}",
+                                    job->file_path, error.message);
+                                abandon_start("print_edited_failed", on_completion);
+                            });
+                return;
             case gcode::EditedPrintFailure::Refused:
                 queue_busy_hide();
                 helix::ui::notify_error_tr(storage::print_start_failure_tag(error.code), error);
@@ -2675,13 +2694,20 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
             if (!error.is_transport_loss()) {
                 note_start_answered(ps, epoch, false);
             }
-            helix::ui::notify_error_tr(TR_NOOP("Failed to start print: {}"), error);
-            LOG_ERROR_INTERNAL("[PrintPreparationManager] Print start failed for {}: {} ({})",
-                               filename, error.message, error.get_type_string());
-
-            if (on_completion) {
-                on_completion(false, error.message);
-            }
+            helix::ui::queue_update(
+                "PrintPreparationManager::start_failed",
+                [filename, on_completion, ps, epoch, error]() {
+                    if (held_for_cancel(ps, epoch, error)) {
+                        return;
+                    }
+                    helix::ui::notify_error_tr(TR_NOOP("Failed to start print: {}"), error);
+                    LOG_ERROR_INTERNAL("[PrintPreparationManager] Print start failed for {}: {} "
+                                       "({})",
+                                       filename, error.message, error.get_type_string());
+                    if (on_completion) {
+                        on_completion(false, error.message);
+                    }
+                });
         });
 }
 

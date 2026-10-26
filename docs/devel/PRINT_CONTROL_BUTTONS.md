@@ -178,11 +178,18 @@ actually received, whichever path sent it (plain `printer.print.start`, a staged
 copy, the plugin's `print_edited` or `print_modified`, the on-screen rewrite
 fallback). The cost: on a firmware whose start answers only after its sequence,
 the cancel lands a round trip after the file starts rather than before its
-first line, so the first commands of the file can run.
+first line, so the first commands of the file can run. A macro is one line to
+`virtual_sdcard`, so if the file's first line calls the slicer's own start macro
+(`START_PRINT ...`), that whole macro runs before the cancel lands: homing,
+heating, possibly a bed mesh, and a purge line on the bed.
 
 `PrinterPrintState` tracks the preparing job's start hand-over
 (`PreparingStart`: `None` -> `InFlight` on send -> `Accepted` on an OK answer,
-or back to `None` on a refusal). `PrintControlButtons` tracks the cancel
+or back to `None` on a refusal, or `Unanswered` when the answer is lost while
+a cancel is requested). A start that loses its answer (timeout, dropped
+connection) with a cancel requested is held, not retired as failed
+(`hold_for_requested_cancel()`): a timeout means Klipper is busy running it,
+so the cancel queues behind it. `PrintControlButtons` tracks the cancel
 (`CancelState`: `Idle`, `Requested`, `Sent`, `Answered`). Stop is disabled in
 every state but `Idle`.
 
@@ -191,19 +198,24 @@ every state but `Idle`.
 | `Idle` | Stop confirmed, start `Accepted` | `Sent` | send `printer.print.cancel`; notify "Cancel sent" |
 | `Idle` | Stop confirmed, start `InFlight` | `Requested` | notify "Cancel sent"; nothing goes to the printer yet |
 | `Requested` | start answers OK (`Accepted`) | `Sent` | send `printer.print.cancel` |
+| `Requested` | start loses its answer (`Unanswered`; job held) | `Sent` | send `printer.print.cancel`: it queues behind the start |
 | `Requested` | the printer reports our job (retired `Confirmed`) | `Sent` | send `printer.print.cancel`: the printer has the start |
 | `Requested` | start refused (`None`), job still preparing | `Idle` | `retire_preparing(Cancelled)`, no cancel sent |
 | `Requested` | job retired any other way (start failed) | `Idle` | nothing: the job is gone and nothing reached the printer |
 | `Sent` / `Answered` | job state `cancelled` / `complete` / `error` | `Idle` | retire as `EndedByPrinter` if still ours; the completion observer reports once |
 | `Sent` | cancel answers OK | `Answered` | if the job state already reads terminal, settle now (no transition will come) |
 | `Sent` | cancel answers with a real error | `Idle` | notify "Failed to cancel: ..."; Stop comes back |
-| `Sent` | cancel times out or the connection drops | `Sent` | nothing: the cancel may still be queued, so only the job state settles it |
-| `Answered` | printer still holds the job (`printing` / `paused`) when the confirm timer fires | `Idle` | warn that the printer kept printing; Stop routes to `Abort` |
+| `Sent` | the client refuses the cancel before sending it (not connected) | `Idle` | notify "Failed to cancel: Not connected to printer"; Stop comes back |
+| `Sent` | cancel times out or the connection drops | `Sent` (lost) | nothing: the cancel may still be queued, so only the job state settles it |
+| `Sent` (lost) / `Answered` | printer holds the job (`printing` / `paused`) | same | arm the `kCancelConfirmMs` timer |
+| `Sent` (lost) / `Answered` | confirm timer fires, printer still holds the job | `Idle` | warn that the printer kept printing; Stop routes to `Abort` |
+| any but `Idle` | a different job starts preparing (new epoch) | `Idle` | drop the request |
 | any | `set_api()` with a different API, or teardown | `Idle` | drop the request |
 
 `standby` is never an answer: `SDCARD_PRINT_FILE` passes through it while
-loading the file. A `printing` report right after the cancel's OK is not proof
-the cancel failed either: status notifications and RPC answers reach the main
+loading the file. `printing` while the cancel is out and unanswered is expected:
+it waits behind whatever line the file is running. A `printing` report right
+after the cancel's OK is not proof the cancel failed either: status notifications and RPC answers reach the main
 thread through different queues, so a frame from before the cancel can land
 after its answer. That is why `Answered` waits `kCancelConfirmMs` before it
 judges a printer still holding the job.
