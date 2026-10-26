@@ -733,6 +733,54 @@ write_shim_source() {
     grep -q "Manual fix:.*init\.d/helixscreen enable" "$BATS_TEST_TMPDIR/log"
 }
 
+# The shim lives on the root overlay, which can be full during a self-update.
+# A copy that dies mid-write must never leave the boot entry truncated.
+@test "k2 shim install: an identical installed shim is not copied again" {
+    write_shim_source
+    cp "$INSTALL_DIR/config/helixscreen-k2-procd-shim.sh" "$MOCK_ROOT/etc/init.d/helixscreen"
+    chmod +x "$MOCK_ROOT/etc/init.d/helixscreen"
+    cp() { echo "cp $*" >> "$BATS_TEST_TMPDIR/cp-calls"; command cp "$@"; }
+
+    run install_procd_shim_k2
+    [ "$status" -eq 0 ]
+    [ ! -e "$BATS_TEST_TMPDIR/cp-calls" ]
+    [ "$(readlink "$MOCK_ROOT/etc/rc.d/S99helixscreen")" = "../init.d/helixscreen" ]
+}
+
+@test "k2 shim install: a failed copy keeps the existing shim byte-identical" {
+    write_shim_source
+    printf '#!/bin/sh %s\nSTART=99\nSTOP=01\n# older shim\n' "$MOCK_ROOT/etc/rc.common" \
+        > "$MOCK_ROOT/etc/init.d/helixscreen"
+    chmod +x "$MOCK_ROOT/etc/init.d/helixscreen"
+    command cp "$MOCK_ROOT/etc/init.d/helixscreen" "$BATS_TEST_TMPDIR/before"
+    # ENOSPC: the destination is opened (truncated) and the write fails.
+    cp() { : > "$2"; return 1; }
+
+    run install_procd_shim_k2
+    cmp -s "$BATS_TEST_TMPDIR/before" "$MOCK_ROOT/etc/init.d/helixscreen"
+    grep -q "WARN.*kept" "$BATS_TEST_TMPDIR/log"
+    [ -z "$(ls "$MOCK_ROOT/etc/init.d" | grep '\.new\.')" ]
+}
+
+@test "k2 shim install: a failed copy with no shim installed fails" {
+    write_shim_source
+    cp() { : > "$2"; return 1; }
+
+    run install_procd_shim_k2
+    [ "$status" -ne 0 ]
+    [ ! -e "$MOCK_ROOT/etc/init.d/helixscreen" ]
+    [ -z "$(ls "$MOCK_ROOT/etc/init.d" | grep '\.new\.')" ]
+}
+
+@test "k2 shim install: a fresh install copies the shim" {
+    write_shim_source
+
+    run install_procd_shim_k2
+    [ "$status" -eq 0 ]
+    cmp -s "$INSTALL_DIR/config/helixscreen-k2-procd-shim.sh" "$MOCK_ROOT/etc/init.d/helixscreen"
+    [ -x "$MOCK_ROOT/etc/init.d/helixscreen" ]
+}
+
 @test "k2 shim install: a verification failure warns instead of aborting the install" {
     # install_service calls the shim installer after the stock UI is
     # stopped and before anything of ours starts, so an unguarded failure

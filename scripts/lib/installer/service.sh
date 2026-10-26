@@ -322,9 +322,23 @@ install_procd_shim_k2() {
         return 1
     fi
 
-    log_info "Installing K2 procd boot shim..."
-    $SUDO cp "$shim_src" "$shim_dest"
-    $SUDO chmod +x "$shim_dest"
+    # The shim sits on the root overlay, which may be full: copy beside it and
+    # rename over it, so a failed write never truncates a working boot entry.
+    if [ -f "$shim_dest" ] && cmp -s "$shim_src" "$shim_dest"; then
+        log_info "K2 procd boot shim already current"
+    else
+        log_info "Installing K2 procd boot shim..."
+        local shim_tmp="${shim_dest}.new.$$"
+        if ! { $SUDO cp "$shim_src" "$shim_tmp" 2>/dev/null && $SUDO chmod +x "$shim_tmp" \
+               && $SUDO mv -f "$shim_tmp" "$shim_dest"; }; then
+            $SUDO rm -f "$shim_tmp" 2>/dev/null || true
+            if [ ! -f "$shim_dest" ]; then
+                log_error "Could not write the K2 procd shim to $shim_dest"
+                return 1
+            fi
+            log_warn "Could not write the K2 procd shim (filesystem full or read-only); the existing $shim_dest is kept"
+        fi
+    fi
 
     # Drop any rc.d entry an older install left, then verify the fresh pair.
     enable_and_verify_rcd "$shim_dest" || return 1
