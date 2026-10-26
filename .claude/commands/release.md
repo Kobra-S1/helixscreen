@@ -240,7 +240,7 @@ Rules for writing the changelog:
 - **Omit** noise: refactors with no user impact, CI-only changes, typo fixes, test-only changes
 - **Categorize** using conventional commit types: `feat:` → Added, `fix:` → Fixed, `refactor:/perf:/build:` → Changed, `docs:` → Changed (only if user-visible)
 - Only include categories that have entries (don't add empty sections)
-- If this is a significant release (minor or major bump), use the milestone shape from `docs/devel/CHANGELOG_STYLE.md`: intro paragraph naming the release's role, bold sub-group headers inside categories, and a `<!-- whatsnew -->` block
+- If this is a significant release (minor or major bump), use the milestone shape from `docs/devel/CHANGELOG_STYLE.md`: intro paragraph naming the release's role, bold sub-group headers inside categories. Never a `<!-- whatsnew -->` block: the Play Store text lives in `android/whatsnew/` (STEP 5)
 
 ### Show draft to user
 
@@ -284,6 +284,13 @@ Write `NEW_VERSION` (just the version string, with trailing newline) to `VERSION
   ```
 - Update the previous version's link if needed (the `[PREVIOUS]` entry should compare against its predecessor, not HEAD)
 
+### Write the Play Store "What's new" (stable releases only)
+For a version with no `-` suffix, write `android/whatsnew/{NEW_VERSION}.txt`: plain text,
+at most 500 characters, what changed for a Play Store user, distilled from the entry
+(`android/whatsnew/README.md`). Show it to Preston with the changelog draft. Check it:
+`scripts/generate-whatsnew.sh /tmp/whatsnew-preview.txt` must exit 0. The release
+workflow fails a stable tag without it. Prereleases skip this.
+
 ### Apply any approved doc changes from Step 4
 
 ### Show summary
@@ -296,8 +303,9 @@ make release-gate TIERS=fast
 ```
 
 Checks that `VERSION.txt` has a `## [X.Y.Z] - date` heading and a `[X.Y.Z]:` compare
-link in `CHANGELOG.md`, that the tag does not exist yet, and that the installer bundles
-build. Any FAIL row → STOP and fix it before committing.
+link in `CHANGELOG.md`, that the tag does not exist yet, that the Play Store text
+generates (a stable version needs `android/whatsnew/{NEW_VERSION}.txt`), and that the
+installer bundles build. Any FAIL row → STOP and fix it before committing.
 
 ---
 
@@ -308,13 +316,14 @@ In the release worktree, on `release-prep/v{NEW_VERSION}` (its parent is `RELEAS
 
 ```bash
 git commit -m "chore(release): v{NEW_VERSION}" -- VERSION.txt CHANGELOG.md
-# Append tools/xml-linter/schema/schema.json if Step 2's regeneration changed it,
-# and any other file modified in Step 5.
+# A stable release also commits android/whatsnew/{NEW_VERSION}.txt (new file:
+# `git add -N` it first). Append tools/xml-linter/schema/schema.json if Step 2's
+# regeneration changed it, and any other file modified in Step 5.
 git rev-parse HEAD^    # must print RELEASE_SHA: the release is exactly what CI proved, plus this commit
 ```
 
 The tag goes on this commit. Everything it contains beyond `RELEASE_SHA` is the version,
-the changelog and generated snapshots, so the green CI verdict on `RELEASE_SHA` covers it.
+the changelog, the Play Store text and generated snapshots, so the green CI verdict on `RELEASE_SHA` covers it.
 
 ### Create annotated tag
 The tag annotation becomes the GitHub release body (CI extracts it). Use the changelog entry as the tag message.
@@ -459,7 +468,7 @@ website deploy needed. Prereleases skip this.
 closed-testing track keeps serving the previous version until someone uploads this one.
 When the Release run is green, as its own message (never folded into the push summary):
 1. `gh release download v{NEW_VERSION} -p 'helixscreen-android-v{NEW_VERSION}.aab' -D ~/Downloads`
-2. `gh run download <release run id> -n release-android-whatsnew` for the release notes text.
+2. The release notes text is `android/whatsnew/{NEW_VERSION}.txt` from the release commit.
 3. Tell Preston v{NEW_VERSION} is not on Play yet and walk him through
    `docs/devel/ANDROID_PLAY_STORE.md` "Uploading a stable release by hand", with the AAB
    path and the `<en-US>` release notes ready to paste. Browser automation cannot do the

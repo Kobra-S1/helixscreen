@@ -4,8 +4,10 @@ Working draft of the release notes for 1.1. Lives here rather than in
 `CHANGELOG.md` so the release tooling owns that file uncontested; at release,
 this becomes the `## [1.1.0]` entry more or less verbatim. The heading has to be
 the exact string in `VERSION.txt` at that point, because
-`scripts/generate-whatsnew.sh` looks the section up by it and hard-fails when it
-is absent.
+`make release-gate` refuses a version with no section and the release workflow
+looks the section up by it for the update notes and the Discord post. The Play
+Store text for 1.1.0 is separate: `android/whatsnew/<version>.txt`, written in
+the release commit.
 
 Each `1.1.0-beta.N` tag from the trunk gets its own short `CHANGELOG.md` entry for
 what that build changed. This file is the cumulative story of the release, not a

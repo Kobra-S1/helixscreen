@@ -142,7 +142,7 @@ the store screenshots are landscape to match.
 
 On every release tag (`v*`), `.github/workflows/release.yml` runs:
 
-1. **`build-android`** — builds APKs (`assembleRelease`) and an AAB (`bundleRelease`), signed with the upload keystore held in GitHub secrets. Verifies the signature on the built bytes before anything is uploaded (see "What happens when the keystore is missing"). Generates a Play Store "What's new" text from `CHANGELOG.md` and uploads three artifacts: `release-android` (APKs), `release-android-aab` (AAB), `release-android-whatsnew`.
+1. **`build-android`** — builds APKs (`assembleRelease`) and an AAB (`bundleRelease`), signed with the upload keystore held in GitHub secrets. Verifies the signature on the built bytes before anything is uploaded (see "What happens when the keystore is missing"). Generates the Play Store "What's new" text (`android/whatsnew/<version>.txt`, see below) and uploads three artifacts: `release-android` (APKs), `release-android-aab` (AAB), `release-android-whatsnew`.
 2. **`publish-android`** — uploads the AAB to the Play Store's **internal** track with status **draft**, using the `r0adkll/upload-google-play@v1` action. Inert when `PLAY_SERVICE_ACCOUNT_JSON` is unset.
 3. **`release`** — attaches all artifacts to the GitHub release. It `needs` **both** `build-platforms` and `build-android`, and asserts the three APKs and the AAB are present by name before creating the release. Without the `build-android` dependency the release could be created while Android was still building (90 min budget against the matrix's 82) and, because the artifact globs run with `fail_on_unmatched_files: false`, it would publish with no Android downloads and still report success.
 
@@ -158,7 +158,8 @@ Once the upload lands on the internal track, you promote it to open testing or p
 | `android/fastlane/metadata/android/en-US/images/icon.png` | Store icon (512×512, symlinked to `docs/store/android/icon-512.png`) |
 | `android/fastlane/metadata/android/en-US/images/featureGraphic.png` | Feature graphic (1024×500, symlinked to `docs/store/android/`) |
 | `android/fastlane/metadata/android/en-US/images/phoneScreenshots/*.png` | Phone screenshots (symlinked to `docs/store/android/`) |
-| `android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` | "What's new" per release. **Generated, not maintained** — `scripts/generate-whatsnew.sh` writes it from `CHANGELOG.md` at release time and `release.yml` reads it straight back. Nothing is committed here; the source of truth is the `CHANGELOG.md` section for the version. (One stale file, 9943.txt, was committed under the retired `major*10000` packing and has been removed — it would have read as the naming convention.) |
+| `android/fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` | "What's new" per release. **Generated, not maintained** — `scripts/generate-whatsnew.sh` writes it at release time and `release.yml` reads it straight back. Nothing is committed here. |
+| `android/whatsnew/<version>.txt` | The source of that text for a stable release: plain text, at most 500 characters, hand-written and committed in the release commit (`android/whatsnew/README.md`). Used verbatim; over-length or missing fails the release. A prerelease needs none: it never reaches Play, and the script distills its `CHANGELOG.md` section instead. |
 
 The listing text (title / descriptions / screenshots) is **not** synced by the workflow — `r0adkll/upload-google-play` only handles the AAB + whatsnew. Updates to those files are version-controlled here so the Play Console listing can be kept in sync by hand, with this tree as the canonical record. If we ever need full metadata sync, switch to `fastlane supply` (see "Future work").
 
@@ -239,7 +240,7 @@ Do them for every stable tag, the day it is published.
 1. Download `helixscreen-android-vX.Y.Z.aab` from the GitHub release (`gh release download vX.Y.Z -p 'helixscreen-android-vX.Y.Z.aab'`). Play takes the bundle, never the APKs.
 2. Play Console (`/u/1/`, the `preston.brown@gmail.com` account) → HelixScreen → Test and release → Testing → **Closed testing** → **Closed testing - Alpha** → **Create new release**.
 3. Upload the AAB under **App bundles**. The row must show the versionCode `scripts/android-version-code.sh X.Y.Z` prints (1.0.5 is `100000599`).
-4. Release name `X.Y.Z`. Release notes: the `release-android-whatsnew` artifact of the tag's Release run holds `whatsnew-en-US`; paste it between `<en-US>` and `</en-US>`.
+4. Release name `X.Y.Z`. Release notes: `android/whatsnew/<X.Y.Z>.txt` from the release commit (the `release-android-whatsnew` artifact of the tag's Release run holds the same text as `whatsnew-en-US`); paste it between `<en-US>` and `</en-US>`.
 5. **Next**. Errors block the release; the "no deobfuscation file" warning is expected because the build does not minify. **Save** → **Go to Publishing overview** → **Send changes for review**.
 6. With managed publishing off, testers get the update as soon as Google approves it. Check by opening the Play listing on a tester phone: it offers **Update**.
 
@@ -287,10 +288,9 @@ Regenerate the whatsnew file locally to inspect what CI will upload:
 ```bash
 scripts/generate-whatsnew.sh /tmp/whatsnew-preview.txt
 cat /tmp/whatsnew-preview.txt
-wc -m /tmp/whatsnew-preview.txt   # must be ≤500 chars for Play Store
 ```
 
-The script reads the section for `VERSION.txt`'s current version from `CHANGELOG.md`, strips markdown, and truncates on a sentence boundary with an ellipsis if it would exceed 500 characters.
+For a stable version the script copies `android/whatsnew/<version>.txt` verbatim and fails if it is missing or over 500 characters (UTF-16 code units, as Play counts them). For a prerelease with no such file it reads the version's `CHANGELOG.md` section, drops HTML comments and markdown, and truncates on a sentence boundary.
 
 To test the full upload path without touching production, point the action at a sandbox app: create a second Play Console app (e.g. `org.helixscreen.app.dev`), invite the same service account, and override `packageName` in a temporary workflow branch. Not currently set up — only add this if we need to debug the uploader itself.
 
@@ -311,11 +311,10 @@ To test the full upload path without touching production, point the action at a 
 
 - **Full metadata sync via `fastlane supply`** — would let the workflow also update the store listing text/screenshots on every release. Adds a fastlane install step in CI. Skipped for now since listing copy changes rarely.
 - **Pre-release gating** — skip `publish-android` on tags containing `-` (e.g., `v1.0.0-beta`).
-- **Per-platform release notes** — currently the same whatsnew is used for Android and all other platforms. Splitting is low-value until we have Android-specific changes that don't apply elsewhere.
 - **Automatic promotion internal → open testing** — possible via a scheduled workflow that checks internal crash rates. Premature until we have tester volume.
 
 ## Related docs
 
 - `docs/user/PRIVACY_POLICY.md` — privacy policy text (to be published at helixscreen.org/privacy)
 - `scripts/generate-upload-keystore.sh` — one-time upload keystore generation
-- `scripts/generate-whatsnew.sh` — per-release whatsnew extraction from CHANGELOG.md
+- `scripts/generate-whatsnew.sh` — writes the per-release whatsnew file from `android/whatsnew/<version>.txt`
