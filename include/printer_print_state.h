@@ -435,6 +435,31 @@ class PrinterPrintState {
     }
 
     /**
+     * @brief The preparing job's start command is being sent to the printer
+     *
+     * From here retiring the job locally no longer stops it: only the printer
+     * can. A firmware that runs its print-start sequence inside
+     * SDCARD_PRINT_FILE keeps print_stats idle for the whole sequence, so the
+     * printer can be working on the job long before it reports it
+     * (prestonbrown/helixscreen#1890). No-op without a preparing job.
+     */
+    void note_preparing_start_sent();
+
+    /// The start sent for the job armed at @p epoch answered: OK when
+    /// @p accepted, else refused, which leaves the printer nothing to cancel.
+    /// No-op once a different job is preparing.
+    void note_preparing_start_answered(int epoch, bool accepted);
+
+    [[nodiscard]] PreparingStart preparing_start() const {
+        return static_cast<PreparingStart>(
+            lv_subject_get_int(const_cast<lv_subject_t*>(&preparing_start_)));
+    }
+    /// Integer PreparingStart; see note_preparing_start_sent().
+    lv_subject_t* get_preparing_start_subject() {
+        return &preparing_start_;
+    }
+
+    /**
      * @brief Bumped each time a job starts preparing; 0 when none is
      *
      * Consumers that must adopt the new job's identity - the media manager
@@ -1200,6 +1225,8 @@ class PrinterPrintState {
 
     /// The job we are preparing; empty when none. See begin_preparing().
     PrintJobRef preparing_job_{};
+    lv_subject_t preparing_start_{}; // Integer PreparingStart
+    void set_preparing_start(PreparingStart start);
     lv_subject_t preparing_epoch_{}; // Integer: bumped per preparing job, 0 when none
     int preparing_epoch_counter_ = 0;
     PreparingExit last_preparing_exit_ = PreparingExit::Confirmed;

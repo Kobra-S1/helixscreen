@@ -30,6 +30,8 @@
 #include "printer_state.h"
 #include "test_helpers/printer_state_test_access.h"
 
+#include <optional>
+
 #include "../catch_amalgamated.hpp"
 
 namespace {
@@ -41,11 +43,18 @@ struct RecordingJobAPI : public MoonrakerJobAPI {
 
     int start_print_calls = 0;
     std::string last_filename;
+    /// Answer start_print with this instead of success.
+    std::optional<MoonrakerError> fail_with;
 
     void start_print(const std::string& filename, IMoonrakerAPI::SuccessCallback on_success,
-                     IMoonrakerAPI::ErrorCallback /*on_error*/) override {
+                     IMoonrakerAPI::ErrorCallback on_error) override {
         ++start_print_calls;
         last_filename = filename;
+        if (fail_with) {
+            if (on_error)
+                on_error(*fail_with);
+            return;
+        }
         if (on_success)
             on_success();
     }
@@ -266,6 +275,46 @@ TEST_CASE_METHOD(PreStartGateFixture, "A start with no preparing job still runs"
     drain();
 
     CHECK(jobs.start_print_calls == 1);
+}
+
+TEST_CASE_METHOD(PreStartGateFixture, "A start sent to the printer marks the preparing job",
+                 "[print_preparation][preparing_cancel]") {
+    // From the send on, withdrawing the job locally stops nothing, so Stop
+    // must know to cancel on the printer instead (#1890).
+    state.print_state().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    set_busy(false);
+
+    manager.start_print("part.gcode", "", []() {}, completion());
+    REQUIRE(api->captured_success);
+    // The pre-start block is still running.
+    CHECK(state.print_state().preparing_start() == helix::PreparingStart::None);
+    api->captured_success();
+    drain();
+
+    REQUIRE(jobs.start_print_calls == 1);
+    CHECK(state.print_state().has_preparing_job());
+    CHECK(state.print_state().preparing_start() == helix::PreparingStart::Accepted);
+}
+
+TEST_CASE_METHOD(PreStartGateFixture, "A refused start clears the sent mark; a lost one keeps it",
+                 "[print_preparation][preparing_cancel]") {
+    // A refusal never reached the printer, so Stop must not cancel there. A
+    // timeout says nothing about whether it did.
+    const bool refused = GENERATE(true, false);
+    CAPTURE(refused);
+    jobs.fail_with = refused ? MoonrakerError::validation_error("printer.print.start", "Spools")
+                             : MoonrakerError::timeout("printer.print.start", 600000);
+    state.print_state().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    set_busy(false);
+
+    manager.start_print("part.gcode", "", []() {}, completion());
+    REQUIRE(api->captured_success);
+    api->captured_success();
+    drain();
+
+    REQUIRE(jobs.start_print_calls == 1);
+    CHECK(state.print_state().preparing_start() ==
+          (refused ? helix::PreparingStart::None : helix::PreparingStart::InFlight));
 }
 
 // ============================================================================

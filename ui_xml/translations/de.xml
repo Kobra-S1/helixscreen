@@ -571,6 +571,7 @@
   <translation tag="Cancel Scheduled Pause" de="Geplante Pause abbrechen"/>
   <translation tag="Cancel macro not configured" de="Abbruch-Makro nicht konfiguriert"/>
   <translation tag="Cancel print" de="Druck abbrechen"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." de="Abbruch gesendet. Der Drucker beendet seine Startsequenz und hält dann vor dem Drucken an."/>
   <translation tag="Canceled" de="Abgebrochen"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." de="Beim Abbrechen wird das Kammerziel ausgeschaltet, damit das Warten endet; dann wird der Druck gestoppt."/>
   <translation tag="Cannot add to queue: internal error" de="Zur Warteschlange hinzufügen nicht möglich: interner Fehler"/>
@@ -3710,6 +3711,7 @@
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." de="Der Drucker extrudiert in einer Ecke und wiederholt, bis die Messwerte übereinstimmen. Du beurteilst nichts mit dem Auge."/>
   <translation tag="The printer finishes this measurement on its own." de="Der Drucker beendet diese Messung selbst."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" de="Der Drucker hat diesen Druck angehalten und kann ihn nicht fortsetzen. Von vorne neu starten?"/>
+  <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." de="Der Drucker hat den Abbruch noch nicht bestätigt. Er hält an, sobald seine Startsequenz beendet ist."/>
   <translation tag="The printer has not reported its axis limits yet." de="Der Drucker hat seine Achsgrenzen noch nicht gemeldet."/>
   <translation tag="The printer has not reported its maximum velocity yet." de="Der Drucker hat seine Höchstgeschwindigkeit noch nicht gemeldet."/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." de="Der Drucker heizt die Düse, macht ein paar kurze Testbewegungen in einer Ecke der Platte und misst sie selbst. Er wiederholt, bis die Messwerte übereinstimmen, und meldet dann eine Zahl."/>
@@ -3720,6 +3722,7 @@
   <translation tag="The printer is shut down." de="Der Drucker ist heruntergefahren."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." de="Der Drucker wartet, bis die Kammer eine Temperatur erreicht, und nur ein Notaus mit Firmware-Neustart beendet dieses Warten. Der Druck stoppt sofort und kann nicht fortgesetzt werden."/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" de="Der Drucker erkennt derzeit kein geladenes Filament. Was möchten Sie tun?"/>
+  <translation tag="The printer kept printing after the cancel." de="Der Drucker hat nach dem Abbruch weitergedruckt."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." de="Der Drucker hatte während eines Drucks einen Stromausfall. Er kann dort fortsetzen, wo er aufgehört hat."/>
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." de="Der Drucker hatte während eines Drucks einen Stromausfall. Die fortgesetzte Schicht passt möglicherweise nicht exakt."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" de="Der Drucker hatte einen Stromausfall während des Drucks von {}. Dort fortsetzen, wo er aufgehört hat?"/>

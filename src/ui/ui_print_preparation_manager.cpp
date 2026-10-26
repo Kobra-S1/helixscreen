@@ -1960,6 +1960,38 @@ void PrintPreparationManager::abandon_start(const char* where,
     }
 }
 
+namespace {
+
+/// Record a start's answer for the job armed at @p epoch. Safe from any
+/// thread: the write hops to the main thread. PrinterState outlives every
+/// start, so the bare pointer cannot dangle.
+void note_start_answered(helix::PrinterState* ps, int epoch, bool accepted) {
+    if (!ps) {
+        return;
+    }
+    helix::ui::queue_update("PrintPreparationManager::start_answered", [ps, epoch, accepted]() {
+        ps->print_state().note_preparing_start_answered(epoch, accepted);
+    });
+}
+
+} // namespace
+
+int PrintPreparationManager::current_preparing_epoch() const {
+    return printer_state_
+               ? lv_subject_get_int(printer_state_->print_state().get_preparing_epoch_subject())
+               : 0;
+}
+
+bool PrintPreparationManager::start_withdrawn(int preparing_epoch) const {
+    return preparing_epoch != 0 && current_preparing_epoch() != preparing_epoch;
+}
+
+void PrintPreparationManager::note_start_sent() {
+    if (printer_state_) {
+        printer_state_->print_state().note_preparing_start_sent();
+    }
+}
+
 void PrintPreparationManager::modify_and_print(
     const std::string& file_path, const std::vector<gcode::OperationType>& ops_to_disable,
     const std::vector<std::pair<std::string, std::string>>& macro_skip_params,
@@ -2157,6 +2189,20 @@ void PrintPreparationManager::rewrite_and_print(RewriteRoute route,
     if (route.archive_plate > 0) {
         route.use_plugin = false;
     }
+    // A route that already names its job keeps it, so a retry of a withdrawn
+    // start cannot adopt "no job" and print anyway.
+    if (route.preparing_epoch == 0) {
+        route.preparing_epoch = current_preparing_epoch();
+    }
+    if (start_withdrawn(route.preparing_epoch)) {
+        spdlog::info("[PrintPreparationManager] Start abandoned - '{}' is no longer being "
+                     "prepared",
+                     route.file_path);
+        if (on_completion) {
+            on_completion(false, "");
+        }
+        return;
+    }
     const auto job = std::make_shared<const RewriteRoute>(std::move(route));
     const std::string remote_temp_path =
         job->archive_plate > 0
@@ -2215,6 +2261,15 @@ void PrintPreparationManager::rewrite_and_print(RewriteRoute route,
                 token.defer("PrintPreparationManager::rewrite_unchanged_start",
                             [this, job, on_navigate_to_status, on_completion]() {
                                 BusyOverlay::hide();
+                                if (start_withdrawn(job->preparing_epoch)) {
+                                    spdlog::info("[PrintPreparationManager] Start abandoned - "
+                                                 "'{}' is no longer being prepared",
+                                                 job->file_path);
+                                    if (on_completion) {
+                                        on_completion(false, "");
+                                    }
+                                    return;
+                                }
                                 start_print_directly(job->file_path, on_navigate_to_status,
                                                      on_completion);
                             });
@@ -2311,11 +2366,37 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
                                                  bool plugin_edits,
                                                  NavigateToStatusCallback on_navigate_to_status,
                                                  PrintCompletionCallback on_completion) {
+    // Download, rewrite and upload can take minutes; a job cancelled during
+    // them must not start once they finish.
+    if (start_withdrawn(job->preparing_epoch)) {
+        spdlog::info("[PrintPreparationManager] Start abandoned - '{}' is no longer being "
+                     "prepared",
+                     job->file_path);
+        BusyOverlay::hide();
+        // The plugin writes its copy only once asked to start; ours is uploaded.
+        if (!plugin_edits && api_) {
+            api_->files().delete_file(
+                "gcodes/" + remote_temp_path, []() {}, [](const MoonrakerError& /*del_err*/) {});
+        }
+        if (on_completion) {
+            on_completion(false, "");
+        }
+        return;
+    }
+    note_start_sent();
+    // The transfer is done. A firmware that runs its start sequence inside
+    // SDCARD_PRINT_FILE answers the start only once that sequence ends, and
+    // the overlay would keep Stop out of reach for all of it.
+    BusyOverlay::hide();
+    helix::PrinterState* ps = printer_state_;
+    const int epoch = current_preparing_epoch();
+
     auto token = lifetime_.token();
-    auto on_print_success = [job, on_navigate_to_status]() {
+    auto on_print_success = [job, on_navigate_to_status, ps, epoch]() {
         spdlog::info("[PrintPreparationManager] Print started with "
                      "modified G-code (original: {})",
                      job->file_path);
+        note_start_answered(ps, epoch, true);
 
         // Defer LVGL operations to main thread
         struct PrintStartedData {
@@ -2381,6 +2462,12 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
                              job->file_path, error.message);
                 token.defer("PrintPreparationManager::edit_fallback",
                             [this, job, on_navigate_to_status, on_completion]() {
+                                // Refused before anything ran: the fallback
+                                // sends its own start.
+                                if (printer_state_) {
+                                    printer_state_->print_state().note_preparing_start_answered(
+                                        job->preparing_epoch, false);
+                                }
                                 RewriteRoute route = *job;
                                 route.server_edits.reset();
                                 rewrite_and_print(std::move(route), on_navigate_to_status,
@@ -2562,11 +2649,15 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
         start_print_directly(printable, std::move(on_navigate_to_status), std::move(on_completion));
         return;
     }
+    note_start_sent();
+    helix::PrinterState* ps = printer_state_;
+    const int epoch = current_preparing_epoch();
     api_->job().start_print(
         filename,
         // Success callback
-        [on_navigate_to_status, on_completion]() {
+        [on_navigate_to_status, on_completion, ps, epoch]() {
             spdlog::debug("[PrintPreparationManager] Print started successfully");
+            note_start_answered(ps, epoch, true);
 
             if (on_navigate_to_status) {
                 on_navigate_to_status();
@@ -2577,7 +2668,13 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
             }
         },
         // Error callback
-        [filename, on_completion](const MoonrakerError& error) {
+        [filename, on_completion, ps, epoch](const MoonrakerError& error) {
+            // A refusal (spool latch, bad path) means nothing reached the
+            // printer, so Stop must not cancel there. A transport loss says
+            // nothing about whether it did.
+            if (!error.is_transport_loss()) {
+                note_start_answered(ps, epoch, false);
+            }
             helix::ui::notify_error_tr(TR_NOOP("Failed to start print: {}"), error);
             LOG_ERROR_INTERNAL("[PrintPreparationManager] Print start failed for {}: {} ({})",
                                filename, error.message, error.get_type_string());

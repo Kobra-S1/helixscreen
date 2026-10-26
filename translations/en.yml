@@ -603,6 +603,7 @@ translations:
   Cancel Scheduled Pause: Cancel Scheduled Pause
   Cancel macro not configured: Cancel macro not configured
   Cancel print: Cancel print
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: Cancel sent. The printer finishes its start sequence, then stops before printing.
   Canceled: Canceled
   Canceling turns the chamber target off so the wait ends, then stops the print.: Canceling turns the chamber target off so the wait ends, then stops the print.
   'Cannot add to queue: internal error': 'Cannot add to queue: internal error'
@@ -3983,6 +3984,7 @@ translations:
   The printer finishes this measurement on its own.: 'The printer finishes this measurement on its own.'
   The printer halted this print and cannot resume it. Restart from the beginning?: The
     printer halted this print and cannot resume it. Restart from the beginning?
+  The printer has not answered the cancel yet. It stops once its start sequence finishes.: The printer has not answered the cancel yet. It stops once its start sequence finishes.
   The printer has not reported its axis limits yet.: The printer has not reported its axis limits yet.
   The printer has not reported its maximum velocity yet.: The printer has not reported its maximum velocity yet.
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -3996,6 +3998,7 @@ translations:
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: The printer isn't detecting that any filament is currently loaded. What would you like to do?
+  The printer kept printing after the cancel.: The printer kept printing after the cancel.
   The printer lost power during a print. It can resume where it left off.: The printer lost power during a print. It can resume where it left off.
   The printer lost power during a print. The resumed layer may not line up exactly.: The printer lost power during a print. The resumed layer may not line up exactly.
   The printer lost power while printing {}. Resume where it left off?: The printer lost power while printing {}. Resume where it left off?

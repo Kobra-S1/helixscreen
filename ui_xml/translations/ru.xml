@@ -610,6 +610,7 @@
   <translation tag="Cancel Scheduled Pause" ru="Отменить запланированную паузу"/>
   <translation tag="Cancel macro not configured" ru="Макрос отмены не настроен"/>
   <translation tag="Cancel print" ru="Отменить печать"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." ru="Отмена отправлена. Принтер завершит стартовую последовательность и остановится до начала печати."/>
   <translation tag="Canceled" ru="Отменено"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." ru="Отмена выключит целевую температуру камеры, чтобы ожидание закончилось, затем остановит печать."/>
   <translation tag="Cannot add to queue: internal error" ru="Не удалось добавить в очередь: внутренняя ошибка"/>
@@ -3770,6 +3771,7 @@
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ru="Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз."/>
   <translation tag="The printer finishes this measurement on its own." ru="Принтер завершит это измерение сам."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ru="Принтер остановил эту печать и не может её возобновить. Начать с начала?"/>
+  <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." ru="Принтер ещё не ответил на отмену. Он остановится, как только завершит стартовую последовательность."/>
   <translation tag="The printer has not reported its axis limits yet." ru="Принтер ещё не сообщил пределы осей."/>
   <translation tag="The printer has not reported its maximum velocity yet." ru="Принтер ещё не сообщил максимальную скорость."/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ru="Принтер нагревает сопло, делает несколько коротких тестовых перемещений в углу стола и сам их измеряет. Он повторяет, пока показания не сойдутся, и затем сообщает одно число."/>
@@ -3780,6 +3782,7 @@
   <translation tag="The printer is shut down." ru="Принтер выключен."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." ru="Принтер ждёт, пока камера достигнет температуры, и прервать это ожидание могут только аварийная остановка и перезапуск прошивки. Печать остановится сразу, продолжить её будет нельзя."/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" ru="Принтер не обнаруживает загруженный филамент. Что вы хотите сделать?"/>
+  <translation tag="The printer kept printing after the cancel." ru="Принтер продолжил печать после отмены."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." ru="Принтер потерял питание во время печати. Он может продолжить с места остановки."/>
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." ru="Принтер потерял питание во время печати. Возобновлённый слой может не совпасть точно."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ru="Принтер потерял питание при печати {}. Продолжить с места остановки?"/>

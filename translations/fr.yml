@@ -622,6 +622,7 @@ translations:
   Cancel Scheduled Pause: 'Annuler la pause prévue'
   Cancel macro not configured: Macro d'annulation non configurée
   Cancel print: 'Annuler l''impression'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Annulation envoyée. L''imprimante termine sa séquence de démarrage, puis s''arrête avant d''imprimer.'
   Canceled: Annulé
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'L''annulation coupe la consigne de la chambre pour mettre fin à l''attente, puis arrête l''impression.'
   'Cannot add to queue: internal error': 'Impossible d''ajouter à la file : erreur interne'
@@ -4099,6 +4100,7 @@ translations:
   The printer halted this print and cannot resume it. Restart from the beginning?: L'imprimante
     a arrêté cette impression et ne peut pas la reprendre. Redémarrer depuis le début
     ?
+  The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'L''imprimante n''a pas encore répondu à l''annulation. Elle s''arrête dès que sa séquence de démarrage est terminée.'
   The printer has not reported its axis limits yet.: 'L''imprimante n''a pas encore signalé les limites de ses axes.'
   The printer has not reported its maximum velocity yet.: 'L''imprimante n''a pas encore signalé sa vitesse maximale.'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -4114,6 +4116,7 @@ translations:
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'L''imprimante attend que la chambre atteigne une température, et seuls un arrêt d''urgence et un redémarrage du firmware mettent fin à cette attente. L''impression s''arrête immédiatement et ne peut pas être reprise.'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: 'L''imprimante ne détecte aucun filament chargé. Que voulez-vous faire ?'
+  The printer kept printing after the cancel.: 'L''imprimante a continué d''imprimer après l''annulation.'
   The printer lost power during a print. It can resume where it left off.: 'L''imprimante
     a été mise hors tension pendant une impression. Elle peut reprendre là où elle
     s''est arrêtée.'

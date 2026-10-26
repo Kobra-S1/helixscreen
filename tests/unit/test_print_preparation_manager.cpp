@@ -3932,6 +3932,114 @@ TEST_CASE_METHOD(HelixTestFixture,
 }
 
 TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: a remap cancelled during the transfer never starts",
+                 "[print_preparation][remap][preparing_cancel]") {
+    lv_init_safe();
+    PrinterStateTestAccess::reset(get_printer_state());
+    get_printer_state().init_subjects(false);
+
+    MockPrinter mock_printer;
+    auto& state = mock_printer.state;
+    auto& api = mock_printer.api;
+
+    PrintPreparationManager manager;
+    manager.set_dependencies(&api, &state);
+    state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
+
+    // T1 -> T2 rewrites and uploads a copy; T5 is not in the file, so the
+    // original starts unchanged.
+    const bool rewritten = GENERATE(true, false);
+    CAPTURE(rewritten);
+    const std::map<int, int> remap =
+        rewritten ? std::map<int, int>{{1, 2}} : std::map<int, int>{{5, 6}};
+    const bool withdraw = GENERATE(true, false);
+    CAPTURE(withdraw);
+
+    std::optional<bool> completed;
+    manager.modify_and_print_with_remap(
+        kRemapFixture, remap, nullptr,
+        [&completed](bool ok, const std::string&) { completed = ok; });
+    if (withdraw) {
+        // Stop while the copy is still on its way.
+        state.print_state().retire_preparing(helix::PreparingExit::Cancelled);
+    }
+    drain_until_quiet();
+
+    const size_t sent =
+        api.job_mock().started_prints().size() + api.job_mock().modified_prints().size();
+    CHECK(sent == (withdraw ? 0u : 1u));
+    if (withdraw) {
+        REQUIRE(completed.has_value());
+        CHECK_FALSE(*completed);
+        if (rewritten) {
+            // The uploaded copy goes with the start it was made for.
+            const auto& uploads = api.transfers_mock().path_uploads();
+            REQUIRE(uploads.size() == 1);
+            const auto& deleted = api.files_mock().deleted_files();
+            CHECK(std::find(deleted.begin(), deleted.end(), "gcodes/" + uploads[0].dest_path) !=
+                  deleted.end());
+        }
+    } else {
+        CHECK(state.print_state().preparing_start() == helix::PreparingStart::Accepted);
+    }
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: a plugin fallback for a cancelled job never starts",
+                 "[print_preparation][remap][plugin_server_edits][preparing_cancel]") {
+    // The fallback rewrites on the screen, minutes after the job was armed. It
+    // must stay bound to that job rather than adopt "no job" and print.
+    lv_init_safe();
+    PrinterStateTestAccess::reset(get_printer_state());
+    get_printer_state().init_subjects(false);
+
+    MockPrinter mock_printer;
+    auto& state = mock_printer.state;
+    auto& api = mock_printer.api;
+    state.set_helix_plugin_installed(true);
+    PluginFeatureEntry entry;
+    entry.version = gcode::kServerEditsMinVersion;
+    entry.available = true;
+    entry.enabled = true;
+    state.plugin_status_state().set_features({{gcode::kServerEditsFeature, entry}});
+    drain_until_quiet();
+    api.job_mock().mock_edited_print_error(MoonrakerError::from_json_rpc(
+        {{"code", 503}, {"message", "Feature unavailable"}}, "server.helix.print_edited"));
+
+    PrintPreparationManager manager;
+    manager.set_dependencies(&api, &state);
+    state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
+    manager.set_cached_file_size(123456);
+    std::optional<bool> completed;
+    manager.modify_and_print_with_remap(
+        kRemapFixture, {{1, 2}}, nullptr,
+        [&completed](bool ok, const std::string&) { completed = ok; });
+    REQUIRE(api.job_mock().edited_prints().size() == 1);
+    CHECK(state.print_state().preparing_start() == helix::PreparingStart::InFlight);
+    const bool withdraw = GENERATE(true, false);
+    CAPTURE(withdraw);
+    if (!withdraw) {
+        // The fallback runs first: the plugin refused, so nothing reached the
+        // printer and Stop must not cancel there while the copy is rewritten.
+        UpdateQueue::instance().drain();
+        CHECK(state.print_state().preparing_start() == helix::PreparingStart::None);
+        drain_until_quiet();
+        CHECK(api.job_mock().started_prints().size() + api.job_mock().modified_prints().size() ==
+              1);
+        return;
+    }
+    // Stop while the plugin's refusal is on its way back.
+    state.print_state().retire_preparing(helix::PreparingExit::Cancelled);
+    drain_until_quiet();
+
+    CHECK(api.transfers_mock().download_destinations().empty());
+    CHECK(api.job_mock().started_prints().empty());
+    CHECK(api.job_mock().modified_prints().empty());
+    REQUIRE(completed.has_value());
+    CHECK_FALSE(*completed);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
                  "PrintPreparationManager: a remap on a transport without local copies is refused",
                  "[print_preparation][remap]") {
     lv_init_safe();

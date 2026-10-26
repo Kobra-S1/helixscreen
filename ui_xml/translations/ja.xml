@@ -571,6 +571,7 @@
   <translation tag="Cancel Scheduled Pause" ja="予約した一時停止を取り消す"/>
   <translation tag="Cancel macro not configured" ja="キャンセルマクロが未設定です"/>
   <translation tag="Cancel print" ja="印刷をキャンセル"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." ja="キャンセルを送信しました。プリンターは開始シーケンスを終えてから、印刷前に停止します。"/>
   <translation tag="Canceled" ja="キャンセル済み"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." ja="キャンセルするとチャンバーの目標温度をオフにして待機を終了し、その後印刷を停止します。"/>
   <translation tag="Cannot add to queue: internal error" ja="キューに追加できません: 内部エラー"/>
@@ -3710,6 +3711,7 @@
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ja="プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。"/>
   <translation tag="The printer finishes this measurement on its own." ja="この測定はプリンターが最後まで行います。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ja="プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？"/>
+  <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." ja="プリンターからキャンセルの応答がまだありません。開始シーケンスが終わると停止します。"/>
   <translation tag="The printer has not reported its axis limits yet." ja="プリンターがまだ軸の範囲を報告していません。"/>
   <translation tag="The printer has not reported its maximum velocity yet." ja="プリンターがまだ最大速度を報告していません。"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ja="プリンターはノズルを加熱し、プレートの隅で短いテスト移動を数回行って自ら測定します。測定値が一致するまで繰り返し、最後にひとつの数値を報告します。"/>
@@ -3720,6 +3722,7 @@
   <translation tag="The printer is shut down." ja="プリンターはシャットダウンしています。"/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." ja="プリンターはチャンバーが温度に達するのを待っており、この待機を終わらせるには緊急停止とファームウェアの再起動しかありません。印刷はすぐに停止し、再開できません。"/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" ja="プリンターは現在フィラメントが装填されていることを検出していません。どうしますか？"/>
+  <translation tag="The printer kept printing after the cancel." ja="キャンセル後もプリンターは印刷を続けています。"/>
   <translation tag="The printer lost power during a print. It can resume where it left off." ja="印刷中にプリンターの電源が失われました。中断した箇所から再開できます。"/>
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." ja="印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ja="{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？"/>

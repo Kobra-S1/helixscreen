@@ -615,6 +615,7 @@ translations:
   Cancel Scheduled Pause: 'Annulla pausa programmata'
   Cancel macro not configured: Macro annullamento non configurata
   Cancel print: 'Annulla stampa'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Annullamento inviato. La stampante completa la sequenza di avvio, poi si ferma prima di stampare.'
   Canceled: Annullato
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'L''annullamento spegne il target della camera per terminare l''attesa, poi ferma la stampa.'
   'Cannot add to queue: internal error': 'Impossibile aggiungere alla coda: errore interno'
@@ -4073,6 +4074,7 @@ translations:
   The printer finishes this measurement on its own.: 'La stampante completa questa misurazione da sola.'
   The printer halted this print and cannot resume it. Restart from the beginning?: La
     stampante ha interrotto questa stampa e non può riprenderla. Riavviare dall'inizio?
+  The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'La stampante non ha ancora risposto all''annullamento. Si ferma appena termina la sequenza di avvio.'
   The printer has not reported its axis limits yet.: 'La stampante non ha ancora comunicato i limiti degli assi.'
   The printer has not reported its maximum velocity yet.: 'La stampante non ha ancora comunicato la velocità massima.'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -4088,6 +4090,7 @@ translations:
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'La stampante attende che la camera raggiunga una temperatura, e solo un arresto di emergenza con riavvio del firmware termina l''attesa. La stampa si ferma subito e non può essere ripresa.'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: La stampante non rileva alcun filamento caricato. Cosa vuoi fare?
+  The printer kept printing after the cancel.: 'La stampante ha continuato a stampare dopo l''annullamento.'
   The printer lost power during a print. It can resume where it left off.: La stampante
     ha perso l'alimentazione durante una stampa. Può riprendere da dove si è interrotta.
   The printer lost power during a print. The resumed layer may not line up exactly.: La stampante ha perso l'alimentazione durante una stampa. Il layer ripreso potrebbe non allinearsi perfettamente.

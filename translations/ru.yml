@@ -662,6 +662,7 @@ translations:
   Cancel Scheduled Pause: 'Отменить запланированную паузу'
   Cancel macro not configured: Макрос отмены не настроен
   Cancel print: 'Отменить печать'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Отмена отправлена. Принтер завершит стартовую последовательность и остановится до начала печати.'
   Canceled: Отменено
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'Отмена выключит целевую температуру камеры, чтобы ожидание закончилось, затем остановит печать.'
   'Cannot add to queue: internal error': 'Не удалось добавить в очередь: внутренняя ошибка'
@@ -4122,6 +4123,7 @@ translations:
   The printer finishes this measurement on its own.: 'Принтер завершит это измерение сам.'
   The printer halted this print and cannot resume it. Restart from the beginning?: Принтер
     остановил эту печать и не может её возобновить. Начать с начала?
+  The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'Принтер ещё не ответил на отмену. Он остановится, как только завершит стартовую последовательность.'
   The printer has not reported its axis limits yet.: 'Принтер ещё не сообщил пределы осей.'
   The printer has not reported its maximum velocity yet.: 'Принтер ещё не сообщил максимальную скорость.'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -4137,6 +4139,7 @@ translations:
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'Принтер ждёт, пока камера достигнет температуры, и прервать это ожидание могут только аварийная остановка и перезапуск прошивки. Печать остановится сразу, продолжить её будет нельзя.'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: Принтер не обнаруживает загруженный филамент. Что вы хотите сделать?
+  The printer kept printing after the cancel.: 'Принтер продолжил печать после отмены.'
   The printer lost power during a print. It can resume where it left off.: Принтер потерял питание во время печати. Он может продолжить с места остановки.
   The printer lost power during a print. The resumed layer may not line up exactly.: Принтер потерял питание во время печати. Возобновлённый слой может не совпасть точно.
   The printer lost power while printing {}. Resume where it left off?: Принтер потерял питание при печати {}. Продолжить с места остановки?

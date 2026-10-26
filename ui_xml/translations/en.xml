@@ -571,6 +571,7 @@
   <translation tag="Cancel Scheduled Pause" en="Cancel Scheduled Pause"/>
   <translation tag="Cancel macro not configured" en="Cancel macro not configured"/>
   <translation tag="Cancel print" en="Cancel print"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." en="Cancel sent. The printer finishes its start sequence, then stops before printing."/>
   <translation tag="Canceled" en="Canceled"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." en="Canceling turns the chamber target off so the wait ends, then stops the print."/>
   <translation tag="Cannot add to queue: internal error" en="Cannot add to queue: internal error"/>
@@ -3710,6 +3711,7 @@
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." en="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye."/>
   <translation tag="The printer finishes this measurement on its own." en="The printer finishes this measurement on its own."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" en="The printer halted this print and cannot resume it. Restart from the beginning?"/>
+  <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." en="The printer has not answered the cancel yet. It stops once its start sequence finishes."/>
   <translation tag="The printer has not reported its axis limits yet." en="The printer has not reported its axis limits yet."/>
   <translation tag="The printer has not reported its maximum velocity yet." en="The printer has not reported its maximum velocity yet."/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." en="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number."/>
@@ -3720,6 +3722,7 @@
   <translation tag="The printer is shut down." en="The printer is shut down."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." en="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed."/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" en="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?"/>
+  <translation tag="The printer kept printing after the cancel." en="The printer kept printing after the cancel."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." en="The printer lost power during a print. It can resume where it left off."/>
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." en="The printer lost power during a print. The resumed layer may not line up exactly."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" en="The printer lost power while printing {}. Resume where it left off?"/>

@@ -1438,7 +1438,12 @@ During this window the Print Status panel and the home panel's print card show t
 
 **Check the printer is actually working.** Look at the machine — is the toolhead moving, the bed heating? Or open a web interface's console and watch for ongoing output. Motion and messages mean it's working, not stuck.
 
-**Not willing to wait? Cancel — it's clean.** Cancel is always available during preparation, and canceling there is a clean cancel, not a failed print: the print never starts, and if the printer is mid-way through a motion it finishes that move first. Then start again with the slow step switched off — see [Pre-Print Options](guide/printing.md#pre-print-options).
+**Not willing to wait? Cancel.** Cancel is always available during preparation, and it ends as a canceled start, not a failed print: the print never starts. When it takes effect depends on where the work is running:
+
+- If HelixScreen has not handed the job to the printer yet, the cancel is immediate. A move already under way finishes first.
+- If the printer is already running its start sequence (its `PRINT_START` macro), Klipper cannot interrupt that macro. HelixScreen sends the cancel to the printer and tells you so; the printer finishes its start sequence (homing, heating, probing) and stops before the first print move. The job shows as canceled once the printer confirms it. If you need it to stop right now, use the E-Stop.
+
+Then start again with the slow step switched off — see [Pre-Print Options](guide/printing.md#pre-print-options).
 
 **If the printer has gone quiet** — no motion, no console output, for a good while — it may genuinely be stuck. Collect a [debug bundle](#collecting-logs) and check the Klipper log for the macro that was running.
 
