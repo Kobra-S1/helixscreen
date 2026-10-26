@@ -39,7 +39,13 @@ moment a status frame carries either object (`ifs_module_live_`):
 `loaded_channels` and `active_channel` are folded into the same
 `ZColorSilentResult` the zmod objects and macro responses use, so every seated-
 channel guard, presence corroboration, and external-edit baseline applies
-unchanged. `ifs_loaded` overwrites `seated_chan_` directly.
+unchanged. `ifs_loaded` overwrites `seated_chan_` directly, and once the module has
+published it, it stays the seated lane on every module frame (`active_channel` included),
+unless a lessWaste/bambufy plugin runs beside the module: its swaps need not run
+`IFS_LOAD`, so that rig keeps following `active_channel`.
+The remembered seated lane (the `lane_data` DB `seated` key) mirrors it instead of
+feeding the cold-boot floor: on the module, `active_channel=0` with a loaded head is the
+normal idle state, not a firmware that forgot its lane (#1897).
 
 **Ops and writes route to the module's macros** once live:
 

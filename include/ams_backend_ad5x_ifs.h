@@ -1293,6 +1293,17 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // mutex_; the store call dispatches asynchronously and does not block.
     void persist_seated_slot_locked(int slot0);
 
+    // While module_owns_seated_lane_locked(), make the remembered seated lane
+    // mirror module_loaded_ (cleared when it names no lane), so the
+    // remembered lane can never name a different lane than the module's own
+    // record (prestonbrown/helixscreen#1897). Caller holds mutex_.
+    void sync_remembered_lane_to_module_locked();
+
+    // The module is live, no lessWaste/bambufy plugin owns the tool map, and
+    // `ifs_loaded` has been published: module_loaded_ is the seated lane.
+    // Caller holds mutex_.
+    bool module_owns_seated_lane_locked() const;
+
     // Belt-and-suspenders for #1065 row 28: the firmware does NOT blank
     // FFMInfo.channel / IFS_STATUS Chan when a lane is ejected (same stickiness as
     // ffmColor/ffmType), so a stale seated pointer at the just-ejected lane would
@@ -1433,6 +1444,13 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     // it survives a load that failed after the feed. Read only while the
     // module is live; native ZMOD writes no such row.
     int module_at_hub_ = 0;
+    // The standalone module's `ifs_loaded` save_variable (1-based, clamped to
+    // a real lane; 0 = none), nullopt while save_variables carries no such
+    // row. Stored before the module latch for the same reason as
+    // module_at_hub_. When module_owns_seated_lane_locked() it is the seated
+    // authority and the remembered lane is never consulted: the module keeps
+    // this record across restarts itself.
+    std::optional<int> module_loaded_;
     // Gates the cold-boot seated-lane restore to genuine power-cycle amnesia.
     // False until we observe a definitive seated signal this session — a real
     // IFS_STATUS Chan>0, or a confirmed-empty head (Chan==0 with head_filament_
