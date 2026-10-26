@@ -581,6 +581,15 @@ class AmsState {
     [[nodiscard]] bool any_bypass_active() const;
 
     /**
+     * @brief Is any backend in the middle of a filament operation?
+     *
+     * ams_action_is_busy() over every backend's current action: a load,
+     * unload, swap or heat it is running. A print must not start under one;
+     * the operation would keep sending moves into it.
+     */
+    [[nodiscard]] bool any_operation_in_progress() const;
+
+    /**
      * @brief Does Moonraker's global active Spoolman spool describe the bypass?
      *
      * Spoolman models "active spool" as a single global value, but HelixScreen
@@ -2573,6 +2582,14 @@ class AmsState {
 
     /// Wire (or rewire) klippy_state_observer_. Idempotent.
     void install_klippy_state_observer();
+
+    /// Tells every backend the Moonraker connection dropped, on the edge out of
+    /// CONNECTED: nothing sent before it will be answered.
+    ObserverGuard connection_state_observer_;
+    /// The connection state the observer last saw; -1 before its first fire.
+    int last_connection_state_ = -1;
+    /// Wire (or rewire) connection_state_observer_. Idempotent.
+    void install_connection_state_observer();
 
     /// Re-syncs the clog meter on FilamentSensorManager's motion signature.
     ObserverGuard motion_sensor_observer_;

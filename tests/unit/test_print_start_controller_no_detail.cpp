@@ -21,6 +21,8 @@
 #include "../test_helpers/print_start_grace.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "ams_backend_mock.h"
+#include "ams_state.h"
 #include "app_globals.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -173,4 +175,33 @@ TEST_CASE_METHOD(NoDetailFixture, "a missing prep manager ends the start through
     PrintStartControllerTestAccess::execute(bare);
     drain();
     CHECK(bare_cancelled == 1);
+}
+
+TEST_CASE_METHOD(NoDetailFixture, "a filament operation under way refuses the start",
+                 "[print_start_controller]") {
+    controller->set_file_facts(facts_for("cube.gcode"));
+    controller->set_file("cube.gcode", "", {"#FF0000"});
+    struct UnloadingBackend : helix::AmsBackendMock {
+        UnloadingBackend() : helix::AmsBackendMock(4) {}
+        helix::AmsAction get_current_action() const override {
+            return helix::AmsAction::UNLOADING;
+        }
+    };
+    helix::AmsState::instance().set_backend(std::make_unique<UnloadingBackend>());
+    struct Unset {
+        ~Unset() {
+            helix::AmsState::instance().set_backend(nullptr);
+        }
+    } unset;
+
+    controller->initiate();
+    drain();
+    CHECK(cancelled == 1);
+    CHECK(started == 0);
+
+    bool reprint_failed = false;
+    controller->initiate_reprint("cube.gcode", "", {0}, nullptr,
+                                 [&reprint_failed]() { reprint_failed = true; });
+    drain();
+    CHECK(reprint_failed);
 }

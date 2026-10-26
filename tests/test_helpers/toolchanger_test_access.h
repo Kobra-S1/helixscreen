@@ -9,6 +9,8 @@
 #include "filament_slot_override_store.h"
 #include "test_helpers/seeded_override.h"
 
+#include <chrono>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -79,9 +81,15 @@ class ToolChangerTestAccess {
         b.handle_wait_elapsed(ms);
     }
 
-    /// A reconnect arriving under a live run (on_started).
-    static void feed_disconnect_started(AmsBackendToolChanger& b) {
-        b.on_started();
+    /// Replace the operator-wait watchdog's clock.
+    static void set_feed_clock(AmsBackendToolChanger& b,
+                               std::function<std::chrono::steady_clock::time_point()> clock) {
+        b.feed_clock_ = std::move(clock);
+    }
+
+    /// One firing of the operator-wait watchdog timer, as LVGL runs it.
+    static void feed_wait_tick(AmsBackendToolChanger& b) {
+        b.feed_wait_tick();
     }
 
     /// The backend stopping under a live run, through stop() itself so the

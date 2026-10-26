@@ -163,6 +163,7 @@
   <translation tag="A print is in progress - restart still pending" en="A print is in progress - restart still pending"/>
   <translation tag="A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes." en="A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes."/>
   <translation tag="A print is running. Apply the result after it ends." en="A print is running. Apply the result after it ends."/>
+  <translation tag="A print started" en="A print started"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." en="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop."/>
   <translation tag="A restart is already in progress" en="A restart is already in progress"/>
   <translation tag="A right, B left" en="A right, B left"/>
@@ -3641,9 +3642,11 @@
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" en="The buffer may be disconnected, stuck, or faulty. Check it before retrying"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" en="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer"/>
   <translation tag="The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm." en="The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm."/>
+  <translation tag="The carriage was not put back: check which tool is mounted" en="The carriage was not put back: check which tool is mounted"/>
   <translation tag="The chamber heater can run a filament drying cycle. Start one from the drying dialog." en="The chamber heater can run a filament drying cycle. Start one from the drying dialog."/>
   <translation tag="The chamber wait already ended; nothing was stopped." en="The chamber wait already ended; nothing was stopped."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." en="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted."/>
+  <translation tag="The connection to Klipper was lost" en="The connection to Klipper was lost"/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." en="The controller boards Klipper runs on. See their load in the system settings."/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" en="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" en="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS"/>

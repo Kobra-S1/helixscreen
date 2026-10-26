@@ -172,6 +172,7 @@ translations:
   A print is in progress - restart still pending: 'Une impression est en cours - redémarrage en attente'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: Une impression est en cours sur ce gate. HelixScreen a effacé sa propre copie ; effacez-le à nouveau une fois l'impression terminée.
   A print is running. Apply the result after it ends.: Une impression est en cours. Appliquez le résultat quand elle sera terminée.
+  A print started: 'Une impression a démarré'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Une impression a démarré alors que des bobines sont signalées sur le plateau. Si elles y sont encore, arrêtez l'imprimante maintenant avec l'arrêt d'urgence."
   A restart is already in progress: Un redémarrage est déjà en cours
   A right, B left: "A droite, B gauche"
@@ -4017,10 +4018,12 @@ translations:
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Le tampon n'a détecté aucun mouvement pendant 16 secondes. Vérifiez s'il y a une obstruction entre le CFS et l'extrudeur, ou un tampon bloqué
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : 'La caméra a cru voir quelque chose sur le plateau, l''imprimante s''est donc arrêtée avant d''imprimer. Si le plateau est libre, c''était une fausse alerte.'
+  'The carriage was not put back: check which tool is mounted': 'Le chariot n''a pas été remis en place : vérifiez quel outil est monté'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: 'Le chauffage de l''enceinte peut lancer un cycle de séchage du filament. Démarrez-le depuis la boîte de dialogue de séchage.'
   The chamber wait already ended; nothing was stopped.: 'L''attente de la chambre est déjà terminée ; rien n''a été arrêté.'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Le changement prend effet après le redémarrage de Klipper. Le firmware Klipper sera redémarré. Les opérations actives seront interrompues.
+  The connection to Klipper was lost: 'La connexion à Klipper a été perdue'
   The controller boards Klipper runs on. See their load in the system settings.: 'Les cartes contrôleur sur lesquelles tourne Klipper. Consultez leur charge dans les paramètres système.'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: La lame n'est pas revenue. Vérifiez qu'aucun filament n'est enroulé autour du mécanisme de coupe
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: Le coupe-filament est désaligné. Recalibrez avec CALIBRATE_CUT_POS

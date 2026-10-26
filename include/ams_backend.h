@@ -2056,6 +2056,17 @@ class AmsBackend {
     virtual void on_klipper_restarted() {}
 
     /**
+     * @brief The Moonraker connection dropped
+     *
+     * Nothing sent before the drop will be answered, and gcode cannot reach
+     * the printer until the reconnect. A backend that sequences an operation
+     * itself ends it here rather than waiting on acks. Main thread, from
+     * AmsState's connection observer, on the edge out of CONNECTED. Default:
+     * nothing to end.
+     */
+    virtual void on_connection_lost() {}
+
+    /**
      * @brief Whether cancel() can reach what is running now
      *
      * False while the running operation holds something cancel() would queue

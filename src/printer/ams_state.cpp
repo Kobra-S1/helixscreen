@@ -509,6 +509,16 @@ bool AmsState::any_bypass_active() const {
     return false;
 }
 
+bool AmsState::any_operation_in_progress() const {
+    assert_main_thread();
+    for (const auto& backend : registry_.backends()) {
+        if (backend && ams_action_is_busy(backend->get_current_action())) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool AmsState::active_spool_describes_bypass() const {
     assert_main_thread();
     return get_backend() == nullptr || any_bypass_active();

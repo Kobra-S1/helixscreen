@@ -216,21 +216,58 @@ gone out, the plan's heaters turned off BY NAME (`SET_HEATER_TEMPERATURE ... TAR
 never a blanket `M104 S0` - the active extruder before the first mount is the PREVIOUS
 tool's, and its user-set target must survive) and the carriage restored. A stop at the
 prompt itself, before anything moved or heated, only closes the prompt. A stage that fails does the same; Klipper's own error line reports
-the failure. A cleanup that cannot be sent at all ends the run and says
-`Could not turn the heaters off`.
+the failure. A cleanup that turns heaters off and cannot be sent at all ends the run and
+says `Could not turn the heaters off`. A cleanup that only closes the prompt heated
+nothing, so its failure ends the run with nothing further said: a printer without
+`[respond]` refuses the prompt and its close alike, and the run's own "Load stopped."
+already told the stop.
 
-A lost connection or a klippy restart under a live run strands it: no ack can arrive for
-the stage in flight. `abandon_feed_run_after_disconnect()` runs from both `on_started()`
-(the reconnect) and `on_stopped()`: it sends the whole cleanup best effort and resets the
-run without waiting for an ack. Both run without `mutex_` held, since the unwind takes it
-and emits; `on_stopping()` runs under it.
+A stop that leaves the carriage where it found it - a swap in flight, a lost connection,
+a print taking over - adds "The carriage was not put back: check which tool is mounted."
+to its toast, even for a single tool's own Cancel. Every sentence of a stop toast ends in a
+period: "Load all stopped. Completed: Tool 1, Tool 3." (`toast_partial_run()`).
+
+**A lost connection or a Klipper restart ends the run.** Neither can carry a cleanup: the
+socket is gone, or Klippy is. Three signals reach the backend, whichever comes first:
+the stage in flight failing with `CONNECTION_LOST` (`MoonrakerRequestTracker::cleanup_all()`
+fails every pending request when the socket closes or Klippy disconnects),
+`on_connection_lost()` (AmsState's connection observer, on the edge out of `CONNECTED`, for
+a run waiting on the operator or the sensors with nothing in flight), and
+`on_klipper_restarted()` (AmsState's klippy_state observer, on READY after any other
+state). Each calls `stop_feed_run_unreachable()`: the run ends sending nothing, the action
+goes IDLE, and the toast says "Load stopped. The connection to Klipper was lost." with the
+carriage sentence and the completed tools.
+
+The run's heaters are then OWED (`owed_heaters_off_`, the plan's heaters once anything past
+the prompt went out, none before) and go out by name once Klippy is ready again: on the
+first status frame after the reconnect (frames come only from a ready Klippy), or straight
+from `on_klipper_restarted()`. A Klipper restart already zeroes every target, while a
+dropped websocket leaves them all set; the failed request looks the same either way, so
+the heaters-off always goes out, harmlessly after a restart. A heaters-off dropped by the
+connection again stays owed; a new run sends any owed one before its own first stage.
+The carriage is never restored after a loss: nothing can vouch for it.
+
+`abandon_feed_run_after_disconnect()` is the backend STOPPING under a live run
+(`on_stopped()`, a printer switch or shutdown, with the connection possibly still up): it
+sends the whole cleanup best effort and resets the run without waiting for an ack. It runs
+without `mutex_` held, since the unwind takes it and emits; `on_stopping()` runs under it.
+
+**A print ends the run.** Before each stage `send_feed_stage()` asks
+`refuse_motion_if_printing()`: once a print is printing or paused, the run ends without
+sending that stage or any cleanup - the print owns the heaters and the carriage - closes
+the prompt if the operator's answer left it open, and toasts "... A print started." The
+other side is `PrintStartController`: a start (and a reprint) is refused with "Wait for
+the current filament operation to finish" while `AmsState::any_operation_in_progress()`
+(any backend's action `ams_action_is_busy()`).
 
 **The wait has a ceiling.** Nobody inserting the filament for three minutes
 (`mount_feed::kPromptTimeoutMs`) unwinds the run the same way and raises the error toast
 "No filament was inserted in time": a run nobody is attending must not go on to mount and
-heat a tool. A `LvglTimerGuard` watches the wait while LVGL is up; unit tests drive
-`handle_wait_elapsed()` through `ToolChangerTestAccess` instead, and the swap confirmation's
-grace through `handle_swap_check_elapsed()` the same way.
+heat a tool. A `LvglTimerGuard` fires `feed_wait_tick()` once a second while LVGL is up;
+each tick hands `Run::advance_wait()` only the time since the previous tick, and the run
+sums them. Unit tests drive `feed_wait_tick()` with an injected clock, or
+`handle_wait_elapsed()` directly, through `ToolChangerTestAccess`, and the swap
+confirmation's grace through `handle_swap_check_elapsed()` the same way.
 
 **Load all / Unload all.** `max_heads_per_filament_op()` answers the tool count, so the
 sidebar's picker accepts several heads on this backend. A Load of several asks **once**, up
@@ -255,7 +292,8 @@ shared contract for its parameters or what it does around the moves.
 While a run is active its stage owns the published action and step: the swap frames its
 Mount and Restore stages raise (`operation`, the gripper) do not end it. The step bar is
 the stage list, laid out by `mount_feed::bar_rows()`: each tool's steps for a multi-tool run
-("Tool 2 of 3: Purge"), with the insert on the first tool only and the restore on the last
+("Tool 3 (2/3): Purge" while the second of heads {0, 2, 4} purges: the real tool, then its
+place in the run), with the insert on the first tool only and the restore on the last
 only, since one prompt and one restore cover the run. `get_operation_step_model()` builds
 it from the live run and `Run::phase_index()` publishes the index into it. A batch from the
 head picker names its operation to the sidebar, which rebuilds the bar once the run exists. The backend claims

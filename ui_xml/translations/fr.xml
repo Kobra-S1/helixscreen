@@ -163,6 +163,7 @@
   <translation tag="A print is in progress - restart still pending" fr="Une impression est en cours - redémarrage en attente"/>
   <translation tag="A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes." fr="Une impression est en cours sur ce gate. HelixScreen a effacé sa propre copie ; effacez-le à nouveau une fois l&apos;impression terminée."/>
   <translation tag="A print is running. Apply the result after it ends." fr="Une impression est en cours. Appliquez le résultat quand elle sera terminée."/>
+  <translation tag="A print started" fr="Une impression a démarré"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." fr="Une impression a démarré alors que des bobines sont signalées sur le plateau. Si elles y sont encore, arrêtez l&apos;imprimante maintenant avec l&apos;arrêt d&apos;urgence."/>
   <translation tag="A restart is already in progress" fr="Un redémarrage est déjà en cours"/>
   <translation tag="A right, B left" fr="A droite, B gauche"/>
@@ -3641,9 +3642,11 @@
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" fr="Le tampon est peut-être débranché, bloqué ou défectueux. Vérifiez-le avant de réessayer"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" fr="Le tampon n&apos;a détecté aucun mouvement pendant 16 secondes. Vérifiez s&apos;il y a une obstruction entre le CFS et l&apos;extrudeur, ou un tampon bloqué"/>
   <translation tag="The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm." fr="La caméra a cru voir quelque chose sur le plateau, l&apos;imprimante s&apos;est donc arrêtée avant d&apos;imprimer. Si le plateau est libre, c&apos;était une fausse alerte."/>
+  <translation tag="The carriage was not put back: check which tool is mounted" fr="Le chariot n&apos;a pas été remis en place : vérifiez quel outil est monté"/>
   <translation tag="The chamber heater can run a filament drying cycle. Start one from the drying dialog." fr="Le chauffage de l&apos;enceinte peut lancer un cycle de séchage du filament. Démarrez-le depuis la boîte de dialogue de séchage."/>
   <translation tag="The chamber wait already ended; nothing was stopped." fr="L&apos;attente de la chambre est déjà terminée ; rien n&apos;a été arrêté."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." fr="Le changement prend effet après le redémarrage de Klipper. Le firmware Klipper sera redémarré. Les opérations actives seront interrompues."/>
+  <translation tag="The connection to Klipper was lost" fr="La connexion à Klipper a été perdue"/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." fr="Les cartes contrôleur sur lesquelles tourne Klipper. Consultez leur charge dans les paramètres système."/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" fr="La lame n&apos;est pas revenue. Vérifiez qu&apos;aucun filament n&apos;est enroulé autour du mécanisme de coupe"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" fr="Le coupe-filament est désaligné. Recalibrez avec CALIBRATE_CUT_POS"/>

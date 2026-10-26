@@ -100,10 +100,6 @@ AmsError AmsBackendToolChanger::additional_start_checks() {
 }
 
 void AmsBackendToolChanger::on_started() {
-    // A reconnect under a live run means the stage in flight will never be
-    // acked: unwind it before anything else, while the new connection can
-    // still carry the cleanup.
-    abandon_feed_run_after_disconnect();
     // Deliberately NOT additional_start_checks(): start() calls that one while
     // holding mutex_, and load_blocking() both blocks the caller and needs
     // mutex_ to publish its result. Doing it there self-deadlocks on a
@@ -471,10 +467,14 @@ AmsBackendToolChanger::get_operation_step_model(StepOperationType op) const {
     // A run of several tools (main thread, like every feed_run_ access) gets a
     // bar with one stride per tool, so the highlight walks forward through the
     // whole batch instead of restarting at each tool.
-    const size_t run_tools = (feed_run_ && feed_run_->request().heads.size() > 1 &&
-                              ((op != StepOperationType::UNLOAD) == feed_run_->request().load))
-                                 ? feed_run_->request().heads.size()
-                                 : 0;
+    std::vector<int> run_heads;
+    if (feed_run_ && feed_run_->request().heads.size() > 1 &&
+        ((op != StepOperationType::UNLOAD) == feed_run_->request().load)) {
+        for (const auto& head : feed_run_->request().heads) {
+            run_heads.push_back(head.head);
+        }
+    }
+    const size_t run_tools = run_heads.size();
 
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -483,12 +483,16 @@ AmsBackendToolChanger::get_operation_step_model(StepOperationType op) const {
     // Restore are skipped when the tool is already on the carriage.
     if (mounts_to_feed_ && op != StepOperationType::LOAD_SWAP) {
         const bool load = op != StepOperationType::UNLOAD;
-        const auto tool_label = [this, n = run_tools](int tool) {
-            if (n < 2) {
+        // Each row names the real tool it works and where it falls in the
+        // run: "Tool 3 (2/3): Purge" while the second of heads {0, 2, 4} purges.
+        const auto tool_label = [this, &run_heads](int tool) {
+            if (run_heads.size() < 2 || tool < 0 || static_cast<size_t>(tool) >= run_heads.size()) {
                 return std::string();
             }
-            return helix::ui::lane_label(lane_noun(), tool) + " " + lv_tr("of") + " " +
-                   std::to_string(n) + ": ";
+            return fmt::format(
+                "{} ({}/{}): ",
+                helix::ui::lane_label(lane_noun(), run_heads[static_cast<size_t>(tool)]), tool + 1,
+                run_heads.size());
         };
         int index = 0;
         for (const auto& row : helix::mount_feed::bar_rows(load, run_tools)) {
@@ -820,6 +824,9 @@ void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
     } else if (feed_swap_check_) {
         recheck_swap();
     }
+    // A status frame comes only from a ready Klippy: what a run stopped by a
+    // lost connection owes its heaters can go out.
+    flush_owed_heaters_off();
 
     // Emit event OUTSIDE the lock to avoid deadlock if the callback
     // queries backend state (e.g., calls get_system_info() which acquires mutex_)
@@ -1698,6 +1705,9 @@ AmsError AmsBackendToolChanger::start_mount_feed(const std::vector<int>& heads, 
     if (heads.empty()) {
         return AmsErrorHelper::invalid_parameter("mount-to-feed with no head");
     }
+    // Ahead of this run's own heating, so Klipper turns an earlier run's
+    // heaters off before this one sets any.
+    flush_owed_heaters_off();
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (sensor_error_) {
@@ -1754,29 +1764,14 @@ void AmsBackendToolChanger::send_feed_stage() {
         if (!feed_run_->aborted() && !feed_run_->request().load) {
             toast_unload_complete();
         }
-        feed_run_.reset();
-        feed_swap_check_.reset();
-        set_swap_watchdog(false);
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            feed_active_ = false;
-            feed_swap_in_flight_ = false;
-            feed_prompt_up_ = false;
-            feed_sensor_fault_ = false;
-            feed_phase_ = -1;
-            feed_step_action_.reset();
-            system_info_.action = AmsAction::IDLE;
-            system_info_.operation_phase = -1;
-            step_action_.reset();
-            // The run held the published state through a sensor fault; once it
-            // is over, a fault the sensors still report is what shows.
-            if (tool_sensor_.present && raw_sensor_fault_locked()) {
-                sensor_error_ = true;
-                system_info_.action = AmsAction::ERROR;
-                system_info_.operation_detail = "sensor error";
-            }
-        }
-        emit_event(EVENT_STATE_CHANGED);
+        reset_feed_run();
+        return;
+    }
+
+    // A print holds the printer: no swap, move or heater target of this run's
+    // may reach it, the cleanup's included.
+    if (!refuse_motion_if_printing().success()) {
+        stop_feed_run_for_print();
         return;
     }
 
@@ -1798,9 +1793,10 @@ void AmsBackendToolChanger::send_feed_stage() {
     AmsError sent = ensure_homed_then(
         *gcode, [this, generation]() { on_feed_stage_acked(generation); },
         [this, token, generation](const MoonrakerError& err) {
+            const bool lost = err.type == MoonrakerErrorType::CONNECTION_LOST;
             token.defer("AmsBackendToolChanger::feed_stage_failed",
-                        [this, generation, message = err.message]() {
-                            on_feed_stage_failed(generation, message);
+                        [this, generation, message = err.message, lost]() {
+                            on_feed_stage_failed(generation, message, lost);
                         });
         },
         IMoonrakerAPI::kAmsOperationTimeoutMs, /*skip_homing=*/false, /*silent=*/true,
@@ -1912,7 +1908,8 @@ void AmsBackendToolChanger::on_feed_sensor_fault() {
     }
     spdlog::warn("[AMS ToolChanger] Mount-to-feed run stopped: the dock sensors cannot vouch for "
                  "the carriage, so it is left where it is");
-    toast_partial_run(FeedStopReason::SensorFault, feed_run_->completed_heads());
+    toast_partial_run(FeedStopReason::SensorFault, feed_run_->completed_heads(),
+                      /*carriage_restored=*/false);
     feed_run_->abort(/*restore_carriage=*/false);
     ++feed_generation_;
     send_feed_stage();
@@ -1934,16 +1931,32 @@ void AmsBackendToolChanger::set_swap_watchdog(bool armed) {
         kSwapConfirmGraceMs, this));
 }
 
-void AmsBackendToolChanger::on_feed_stage_failed(uint64_t generation, const std::string& message) {
+void AmsBackendToolChanger::on_feed_stage_failed(uint64_t generation, const std::string& message,
+                                                 bool connection_lost) {
     if (!feed_run_ || generation != feed_generation_) {
+        return;
+    }
+    if (connection_lost) {
+        // Dropped with the connection, not refused: a cleanup sent now would
+        // be dropped the same way.
+        spdlog::warn("[AMS ToolChanger] Mount-to-feed stage lost with the connection ({})",
+                     message);
+        stop_feed_run_unreachable();
         return;
     }
     if (feed_run_->aborted()) {
         // The CLEANUP itself failed to leave: no repeat of the run's toast -
         // the run already accounted for itself. What is new is that a nozzle
-        // may still be hot, and nothing further this side can do about it.
-        spdlog::error("[AMS ToolChanger] Mount-to-feed cleanup failed to send ({})", message);
-        show_feed_toast(lv_tr("Could not turn the heaters off"), ToastSeverity::ERROR);
+        // may still be hot, and nothing further this side can do about it. A
+        // cleanup that only closes the prompt heated nothing, so its failure
+        // adds nothing to tell.
+        const helix::mount_feed::Stage* cleanup = feed_run_->current_stage();
+        if (cleanup != nullptr && cleanup->heaters_off) {
+            spdlog::error("[AMS ToolChanger] Mount-to-feed cleanup failed to send ({})", message);
+            show_feed_toast(lv_tr("Could not turn the heaters off"), ToastSeverity::ERROR);
+        } else {
+            spdlog::warn("[AMS ToolChanger] Mount-to-feed prompt close failed ({})", message);
+        }
         feed_run_->abort(); // already unwinding: this only ends the run
         ++feed_generation_;
         send_feed_stage();
@@ -1958,8 +1971,9 @@ void AmsBackendToolChanger::on_feed_stage_failed(uint64_t generation, const std:
         std::lock_guard<std::mutex> lock(mutex_);
         controller_failure_noticed_ = message;
     }
-    toast_partial_run(FeedStopReason::Failed, feed_run_->completed_heads());
-    feed_run_->abort(carriage_trusted_for_restore());
+    const bool restore = carriage_trusted_for_restore();
+    toast_partial_run(FeedStopReason::Failed, feed_run_->completed_heads(), restore);
+    feed_run_->abort(restore);
     ++feed_generation_;
     send_feed_stage();
 }
@@ -2008,35 +2022,51 @@ void AmsBackendToolChanger::handle_wait_elapsed(uint32_t elapsed_ms) {
     send_feed_stage();
 }
 
-void AmsBackendToolChanger::toast_partial_run(FeedStopReason why,
-                                              const std::vector<int>& completed) {
+void AmsBackendToolChanger::toast_partial_run(FeedStopReason why, const std::vector<int>& completed,
+                                              bool carriage_restored) {
     if (!feed_run_) {
         return;
     }
-    const bool several = feed_run_->request().heads.size() > 1;
-    if (why == FeedStopReason::Cancelled && !several) {
+    const auto& req = feed_run_->request();
+    const bool several = req.heads.size() > 1;
+    // The carriage is left wherever the stop found it, mid-swap perhaps, when
+    // the run moved anything and had a restore planned that is not going out.
+    const bool carriage_left = !carriage_restored && feed_run_->started() &&
+                               !req.restore_gcode.empty() && why != FeedStopReason::SensorFault;
+    if (why == FeedStopReason::Cancelled && !several && !carriage_left) {
         // A single tool's Cancel is the operator's own act, said on the prompt
         // they tapped; only a multi-tool run stops with accounting due.
         return;
     }
-    std::string base;
+    std::vector<std::string> sentences;
     if (why == FeedStopReason::TimedOut) {
         // The prompt is the run's first stage: nothing has heated or moved.
-        base = lv_tr("No filament was inserted in time");
+        sentences.emplace_back(lv_tr("No filament was inserted in time"));
     } else if (several) {
-        base = feed_run_->request().load ? lv_tr("Load all stopped") : lv_tr("Unload all stopped");
+        sentences.emplace_back(req.load ? lv_tr("Load all stopped") : lv_tr("Unload all stopped"));
     } else {
         // One tool never was an "all": the toast is about its own load.
-        base = feed_run_->request().load ? lv_tr("Load stopped") : lv_tr("Unload stopped");
+        sentences.emplace_back(req.load ? lv_tr("Load stopped") : lv_tr("Unload stopped"));
     }
     if (why == FeedStopReason::SensorFault) {
-        base += ". " + std::string(lv_tr("Dock sensors cannot tell which tool is mounted"));
+        sentences.emplace_back(lv_tr("Dock sensors cannot tell which tool is mounted"));
+    } else if (why == FeedStopReason::Unreachable) {
+        sentences.emplace_back(lv_tr("The connection to Klipper was lost"));
+    } else if (why == FeedStopReason::PrintStarted) {
+        sentences.emplace_back(lv_tr("A print started"));
+    }
+    if (carriage_left) {
+        sentences.emplace_back(lv_tr("The carriage was not put back: check which tool is mounted"));
     }
     const std::string list = feed_lane_list(completed);
     if (!list.empty()) {
-        base += " " + fmt::format(fmt::runtime(lv_tr("Completed: {}")), list);
+        sentences.push_back(fmt::format(fmt::runtime(lv_tr("Completed: {}")), list));
     }
-    show_feed_toast(base, ToastSeverity::ERROR);
+    std::string text;
+    for (const std::string& sentence : sentences) {
+        text += (text.empty() ? "" : " ") + sentence + ".";
+    }
+    show_feed_toast(text, ToastSeverity::ERROR);
 }
 
 void AmsBackendToolChanger::toast_unload_complete() {
@@ -2081,13 +2111,86 @@ void AmsBackendToolChanger::abandon_feed_run_after_disconnect() {
     // No ack can arrive for the stage in flight, and the operator prompt
     // stays up on every other client. Send the whole cleanup best effort and
     // reset the run now, rather than leaving a hot nozzle behind bookkeeping.
-    spdlog::warn("[AMS ToolChanger] Connection lost under a mount-to-feed run; sending the "
+    spdlog::warn("[AMS ToolChanger] Backend stopping under a mount-to-feed run; sending the "
                  "cleanup and resetting the run");
     feed_run_->abort(carriage_trusted_for_restore());
     const std::optional<std::string> cleanup = feed_run_->current_gcode();
+    reset_feed_run();
+    if (cleanup) {
+        execute_gcode(*cleanup);
+    }
+}
+
+void AmsBackendToolChanger::stop_feed_run_unreachable() {
+    if (!feed_run_) {
+        return;
+    }
+    spdlog::warn("[AMS ToolChanger] The printer cannot take the mount-to-feed run's gcode; "
+                 "ending the run, its heaters-off owed until Klippy is ready");
+    if (!feed_run_->aborted()) {
+        toast_partial_run(FeedStopReason::Unreachable, feed_run_->completed_heads(),
+                          /*carriage_restored=*/false);
+    }
+    for (int head : feed_run_->heater_heads()) {
+        if (std::find(owed_heaters_off_.begin(), owed_heaters_off_.end(), head) ==
+            owed_heaters_off_.end()) {
+            owed_heaters_off_.push_back(head);
+        }
+    }
+    reset_feed_run();
+}
+
+void AmsBackendToolChanger::stop_feed_run_for_print() {
+    if (!feed_run_) {
+        return;
+    }
+    spdlog::warn("[AMS ToolChanger] A print holds the printer; ending the mount-to-feed run "
+                 "without its cleanup");
+    const helix::mount_feed::Stage* stage = feed_run_->current_stage();
+    const bool prompt_open = stage != nullptr && stage->closes_prompt;
+    if (!feed_run_->aborted()) {
+        toast_partial_run(FeedStopReason::PrintStarted, feed_run_->completed_heads(),
+                          /*carriage_restored=*/false);
+    }
+    reset_feed_run();
+    if (prompt_open) {
+        // The operator answered, but the dialog stays up on every client until
+        // it is closed; a RESPOND line moves nothing.
+        execute_gcode(helix::mount_feed::prompt_end_gcode());
+    }
+}
+
+void AmsBackendToolChanger::flush_owed_heaters_off() {
+    if (owed_heaters_off_.empty()) {
+        return;
+    }
+    std::vector<int> heads = std::exchange(owed_heaters_off_, {});
+    spdlog::info("[AMS ToolChanger] Turning off {} heater(s) a stopped mount-to-feed run left on",
+                 heads.size());
+    auto token = lifetime_.token();
+    const AmsError sent = execute_gcode(
+        helix::mount_feed::heaters_off_gcode(heads), nullptr,
+        [this, token, heads](const MoonrakerError& err) {
+            if (err.type != MoonrakerErrorType::CONNECTION_LOST) {
+                spdlog::error("[AMS ToolChanger] Heaters-off after a stopped run refused: {}",
+                              err.message);
+                return;
+            }
+            // Dropped again: owed until the printer is back.
+            token.defer("AmsBackendToolChanger::owed_heaters_off_lost",
+                        [this, heads]() { owed_heaters_off_ = heads; });
+        },
+        /*silent=*/true);
+    if (!sent.success()) {
+        owed_heaters_off_ = std::move(heads);
+    }
+}
+
+void AmsBackendToolChanger::reset_feed_run() {
     feed_run_.reset();
     feed_swap_check_.reset();
     set_swap_watchdog(false);
+    set_wait_watchdog(false);
     ++feed_generation_;
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -2100,9 +2203,13 @@ void AmsBackendToolChanger::abandon_feed_run_after_disconnect() {
         system_info_.action = AmsAction::IDLE;
         system_info_.operation_phase = -1;
         step_action_.reset();
-    }
-    if (cleanup) {
-        execute_gcode(*cleanup);
+        // The run held the published state through a sensor fault; once it is
+        // over, a fault the sensors still report is what shows.
+        if (tool_sensor_.present && raw_sensor_fault_locked()) {
+            sensor_error_ = true;
+            system_info_.action = AmsAction::ERROR;
+            system_info_.operation_detail = "sensor error";
+        }
     }
     emit_event(EVENT_STATE_CHANGED);
 }
@@ -2112,7 +2219,7 @@ void AmsBackendToolChanger::set_wait_watchdog(bool armed) {
         feed_wait_timer_.reset();
         return;
     }
-    feed_wait_started_ = std::chrono::steady_clock::now();
+    feed_wait_last_tick_ = feed_clock_();
     if (!lv_is_initialized()) {
         return;
     }
@@ -2128,9 +2235,12 @@ void AmsBackendToolChanger::feed_wait_tick() {
         feed_wait_timer_.reset();
         return;
     }
-    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - feed_wait_started_);
-    handle_wait_elapsed(static_cast<uint32_t>(elapsed.count()));
+    // The run sums what it is handed, so each tick passes only its own share.
+    const auto now = feed_clock_();
+    const auto elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - feed_wait_last_tick_);
+    feed_wait_last_tick_ = now;
+    handle_wait_elapsed(static_cast<uint32_t>(std::max<int64_t>(elapsed.count(), 0)));
 }
 
 void AmsBackendToolChanger::register_mount_feed_listener() {
@@ -2346,14 +2456,23 @@ void AmsBackendToolChanger::on_klipper_restarted() {
         pending_dispatch_action_.reset();
         ++dispatch_generation_;
     }
+    // Everything the run had queued died with the restart. Klippy is ready
+    // again, so what the run owes its heaters can go out now.
+    stop_feed_run_unreachable();
+    flush_owed_heaters_off();
     AmsSubscriptionBackend::on_klipper_restarted();
+}
+
+void AmsBackendToolChanger::on_connection_lost() {
+    stop_feed_run_unreachable();
 }
 
 AmsError AmsBackendToolChanger::cancel() {
     if (feed_run_ && !feed_run_->aborted()) {
         spdlog::info("[AMS ToolChanger] Cancel: unwinding the mount-to-feed run");
-        toast_partial_run(FeedStopReason::Cancelled, feed_run_->completed_heads());
-        feed_run_->abort(carriage_trusted_for_restore());
+        const bool restore = carriage_trusted_for_restore();
+        toast_partial_run(FeedStopReason::Cancelled, feed_run_->completed_heads(), restore);
+        feed_run_->abort(restore);
         // An ack still in flight belongs to the stage being dropped. Klipper
         // queues the cleanup behind it, so the heater goes off once it is done.
         ++feed_generation_;

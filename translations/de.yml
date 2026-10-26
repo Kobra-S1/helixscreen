@@ -172,6 +172,7 @@ translations:
   A print is in progress - restart still pending: 'Ein Druck läuft - Neustart noch ausstehend'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: Auf diesem Gate läuft ein Druck. HelixScreen hat seine eigene Kopie gelöscht; leere ihn nach Druckende erneut.
   A print is running. Apply the result after it ends.: Ein Druck läuft. Übernimm das Ergebnis, wenn er fertig ist.
+  A print started: 'Ein Druck wurde gestartet'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Ein Druck wurde gestartet, während Spulen als auf dem Heizbett liegend markiert sind. Falls sie noch dort liegen, stoppe den Drucker sofort mit dem Notaus."
   A restart is already in progress: Ein Neustart läuft bereits
   A right, B left: "A rechts, B links"
@@ -3998,10 +3999,12 @@ translations:
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Der Puffer hat 16 Sekunden lang keine Bewegung erkannt. Auf eine Blockade zwischen CFS und Extruder oder einen klemmenden Puffer prüfen
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : 'Die Kamera hat etwas auf dem Heizbett erkannt, daher hat der Drucker vor dem Drucken angehalten. Wenn das Heizbett frei ist, war es ein Fehlalarm.'
+  'The carriage was not put back: check which tool is mounted': 'Der Wagen wurde nicht zurückgestellt: prüfe, welches Werkzeug montiert ist'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: 'Die Kammerheizung kann einen Filament-Trocknungszyklus ausführen. Starte ihn im Trocknungsdialog.'
   The chamber wait already ended; nothing was stopped.: 'Das Warten auf die Kammer ist bereits beendet; es wurde nichts gestoppt.'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Die Änderung wird wirksam, nachdem Klipper neu gestartet wurde. Klipper-Firmware wird neu gestartet. Aktive Vorgänge werden unterbrochen.
+  The connection to Klipper was lost: 'Die Verbindung zu Klipper wurde unterbrochen'
   The controller boards Klipper runs on. See their load in the system settings.: 'Die Steuerplatinen, auf denen Klipper läuft. Ihre Auslastung siehst du in den Systemeinstellungen.'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: Die Schneidklinge ist nicht zurückgefahren. Prüfen, ob Filament um den Schneidmechanismus gewickelt ist
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: Der Schneider ist verstellt. Mit CALIBRATE_CUT_POS neu kalibrieren

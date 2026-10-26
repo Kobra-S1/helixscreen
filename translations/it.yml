@@ -170,6 +170,7 @@ translations:
   A print is in progress - restart still pending: 'Stampa in corso - riavvio in attesa'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: Una stampa è in corso su questo gate. HelixScreen ha svuotato la propria copia; svuotalo di nuovo a stampa terminata.
   A print is running. Apply the result after it ends.: È in corso una stampa. Applica il risultato quando finisce.
+  A print started: 'È iniziata una stampa'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "È partita una stampa mentre le bobine risultano sul piano. Se sono ancora lì, ferma subito la stampante con l'arresto emergenza."
   A restart is already in progress: Un riavvio è già in corso
   A right, B left: "A destra, B sinistra"
@@ -3991,10 +3992,12 @@ translations:
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Il buffer non ha rilevato movimento per 16 secondi. Verificare un'ostruzione tra CFS ed estrusore, o un buffer bloccato
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : 'La telecamera ha creduto di vedere qualcosa sul piano, quindi la stampante si è fermata prima di stampare. Se il piano è libero, era un falso allarme.'
+  'The carriage was not put back: check which tool is mounted': 'Il carrello non è stato ripristinato: controlla quale utensile è montato'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: 'Il riscaldatore della camera può eseguire un ciclo di essiccazione del filamento. Avvialo dalla finestra di essiccazione.'
   The chamber wait already ended; nothing was stopped.: 'L''attesa della camera è già terminata; non è stato fermato nulla.'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : La modifica ha effetto dopo il riavvio di Klipper. Il firmware Klipper verrà riavviato. Le operazioni attive saranno interrotte.
+  The connection to Klipper was lost: 'La connessione a Klipper è stata persa'
   The controller boards Klipper runs on. See their load in the system settings.: 'Le schede controller su cui gira Klipper. Vedi il loro carico nelle impostazioni di sistema.'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: La lama non è rientrata. Verificare che non ci sia filamento avvolto attorno al meccanismo di taglio
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: La taglierina è disallineata. Ricalibrare con CALIBRATE_CUT_POS

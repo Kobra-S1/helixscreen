@@ -163,6 +163,7 @@
   <translation tag="A print is in progress - restart still pending" zh="打印进行中 - 重启待执行"/>
   <translation tag="A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes." zh="此通道正在打印中。HelixScreen 已清除本地副本；打印结束后请再次清空。"/>
   <translation tag="A print is running. Apply the result after it ends." zh="正在打印。请在打印结束后应用结果。"/>
+  <translation tag="A print started" zh="打印已开始"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." zh="在料盘仍标记为放在热床上时开始了打印。如果料盘还在，请立即用紧急停止停下打印机。"/>
   <translation tag="A restart is already in progress" zh="重启正在进行中"/>
   <translation tag="A right, B left" zh="A 右,B 左"/>
@@ -3641,9 +3642,11 @@
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" zh="缓冲器可能未连接、卡住或损坏。请检查后重试"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" zh="缓冲器已 16 秒未检测到运动。请检查 CFS 与挤出机之间是否堵塞，或缓冲器是否卡住"/>
   <translation tag="The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm." zh="摄像头认为热床上有东西，因此打印机在打印前停止了。如果热床是空的，这是误报。"/>
+  <translation tag="The carriage was not put back: check which tool is mounted" zh="打印头未归位：请检查当前装载的是哪个工具"/>
   <translation tag="The chamber heater can run a filament drying cycle. Start one from the drying dialog." zh="腔体加热器可以运行耗材烘干周期。在烘干对话框中启动。"/>
   <translation tag="The chamber wait already ended; nothing was stopped." zh="腔体等待已经结束，未停止任何操作。"/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." zh="更改在 Klipper 重启后生效。将重启 Klipper 固件。所有正在进行的操作将被中断。"/>
+  <translation tag="The connection to Klipper was lost" zh="与 Klipper 的连接已断开"/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." zh="运行 Klipper 的控制板。在系统设置中查看其负载。"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" zh="切刀未复位。请检查切刀机构上是否缠绕耗材"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" zh="切刀未对准。请使用 CALIBRATE_CUT_POS 重新校准"/>

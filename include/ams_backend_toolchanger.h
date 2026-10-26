@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -431,8 +432,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     AmsError cancel() override;
     /// Also drops the optimistic dispatch, which would otherwise read the
     /// first idle frame after the restart as the middle of an operation, and
-    /// retires its generation so a late ack resolves nothing.
+    /// retires its generation so a late ack resolves nothing. A mount-to-feed
+    /// run ends here too, and any heaters-off a lost run still owes goes out.
     void on_klipper_restarted() override;
+    /// A mount-to-feed run ends: nothing it sent will be answered, and its
+    /// cleanup waits for a printer that can take it.
+    void on_connection_lost() override;
 
     // Configuration
     AmsError apply_user_edit(int slot_index, const SlotInfo& info,
@@ -558,15 +563,31 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Send the run's current stage, or end the run when none is left.
     void send_feed_stage();
     void on_feed_stage_acked(uint64_t generation);
-    void on_feed_stage_failed(uint64_t generation, const std::string& message);
+    /// @p connection_lost: the stage was dropped with the connection rather
+    /// than refused by Klipper, so no cleanup can go out on it either.
+    void on_feed_stage_failed(uint64_t generation, const std::string& message,
+                              bool connection_lost = false);
     void on_feed_reply(helix::mount_feed::Reply reply);
     /// The console watcher's signal, once a reply or a dismissal arrives.
     void on_feed_signal(helix::mount_feed::ConsoleSignal signal);
-    /// A lost connection (or a klippy restart) under a live run: the full
-    /// cleanup goes out, best effort, and the run resets without waiting for
-    /// an ack that can no longer arrive. Shared by on_started() (reconnect)
-    /// and on_stopped(). Takes mutex_ and emits, so never under the lock.
+    /// The backend stopping under a live run: the full cleanup goes out, best
+    /// effort, and the run resets without waiting for an ack that may never
+    /// arrive. From on_stopped(). Takes mutex_ and emits, so never under the
+    /// lock.
     void abandon_feed_run_after_disconnect();
+    /// The printer can no longer take the run's gcode (a lost connection, a
+    /// Klipper restart): end the run sending nothing, say so, and owe its
+    /// heaters-off to the next moment Klippy is ready.
+    void stop_feed_run_unreachable();
+    /// A print holds the printer: end the run before it sends another stage.
+    /// The print owns the heaters and the carriage, so nothing is undone.
+    void stop_feed_run_for_print();
+    /// Send the heaters-off a run stopped by stop_feed_run_unreachable() owes.
+    /// Klippy must be ready: a status frame or a Klipper restart says it is.
+    void flush_owed_heaters_off();
+    /// Drop the run and every piece of state that mirrors it, publish IDLE
+    /// (or the sensor fault the run held back), and emit. Main thread.
+    void reset_feed_run();
     /// A swap stage acked but the dock sensors never confirmed it.
     void handle_swap_check_elapsed();
     /// The tool (slot) the stage in flight puts on the carriage, -1 for a park,
@@ -601,12 +622,21 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     void set_wait_watchdog(bool armed);
     void feed_wait_tick();
     /// Why a run unwound early, for the toast that names what got done.
-    enum class FeedStopReason : uint8_t { Cancelled, TimedOut, Failed, SensorFault };
+    enum class FeedStopReason : uint8_t {
+        Cancelled,
+        TimedOut,
+        Failed,
+        SensorFault,
+        Unreachable,
+        PrintStarted
+    };
     /// A run stopping early says what it did finish. A single tool's Cancel
     /// stays silent; everything else accounts for itself. @p completed was
     /// read off the run BEFORE its unwind: abort() collapses the stage list
-    /// the answer is derived from.
-    void toast_partial_run(FeedStopReason why, const std::vector<int>& completed);
+    /// the answer is derived from. @p carriage_restored false says the
+    /// carriage was left where the stop found it.
+    void toast_partial_run(FeedStopReason why, const std::vector<int>& completed,
+                           bool carriage_restored = true);
     /// A completed Unload leaves the strand in the tube for the operator to
     /// pull out by hand: say so, naming every tool the run unloaded.
     void toast_unload_complete();
@@ -635,7 +665,16 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     std::optional<AmsAction> feed_step_action_;
     /// Watches the operator prompt while it is up. Main thread (lv_timer).
     helix::ui::LvglTimerGuard feed_wait_timer_;
-    std::chrono::steady_clock::time_point feed_wait_started_{};
+    /// When the watchdog last advanced the wait: each tick hands the run only
+    /// the time since the one before.
+    std::chrono::steady_clock::time_point feed_wait_last_tick_{};
+    /// The watchdog's clock; a test steps it by hand.
+    std::function<std::chrono::steady_clock::time_point()> feed_clock_ = [] {
+        return std::chrono::steady_clock::now();
+    };
+    /// Heads whose heaters a run stopped by stop_feed_run_unreachable() left
+    /// on. Main thread.
+    std::vector<int> owed_heaters_off_;
     /// The last toast a feed run raised, recorded before the LVGL guard so
     /// unit tests can pin the wording without a display.
     std::string feed_last_toast_;

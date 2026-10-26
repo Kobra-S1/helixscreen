@@ -136,9 +136,9 @@ TEST_CASE_METHOD(BatchStepsFixture,
     CHECK(AmsState::instance().get_active_step_operation() == StepOperationType::UNLOAD);
     const auto shown = labels();
     REQUIRE(shown.size() == helix::mount_feed::bar_rows(/*load=*/false, 6).size());
-    CHECK(shown.front() == "Tool 1 of 6: Mount tool");
-    CHECK(shown[2] == "Tool 1 of 6: Retract filament");
-    CHECK(shown.back() == "Tool 6 of 6: Restore tool");
+    CHECK(shown.front() == "Tool 1 (1/6): Mount tool");
+    CHECK(shown[2] == "Tool 1 (1/6): Retract filament");
+    CHECK(shown.back() == "Tool 6 (6/6): Restore tool");
 }
 
 TEST_CASE_METHOD(BatchStepsFixture, "A batch load shows the load rows of every tool",
@@ -148,8 +148,8 @@ TEST_CASE_METHOD(BatchStepsFixture, "A batch load shows the load rows of every t
     CHECK(AmsState::instance().get_active_step_operation() == StepOperationType::LOAD_FRESH);
     const auto shown = labels();
     REQUIRE(shown.size() == helix::mount_feed::bar_rows(/*load=*/true, 3).size());
-    CHECK(shown.front() == "Tool 1 of 3: Insert filament");
-    CHECK(shown.back() == "Tool 3 of 3: Restore tool");
+    CHECK(shown.front() == "Tool 2 (1/3): Insert filament");
+    CHECK(shown.back() == "Tool 4 (3/3): Restore tool");
 }
 
 TEST_CASE_METHOD(BatchStepsFixture, "The live temperature follows the heat row under way",
@@ -157,15 +157,15 @@ TEST_CASE_METHOD(BatchStepsFixture, "The live temperature follows the heat row u
     pick(HeadPickOp::Unload, {0, 1, 2});
     // Tool 1 is already on the carriage: the run opens on its heat row.
     auto shown = labels();
-    REQUIRE(shown[1].rfind("Tool 1 of 3: Heat nozzle ", 0) == 0);
+    REQUIRE(shown[1].rfind("Tool 1 (1/3): Heat nozzle ", 0) == 0);
     CHECK(shown[1].find("°C") != std::string::npos);
-    CHECK(shown[4] == "Tool 2 of 3: Heat nozzle");
+    CHECK(shown[4] == "Tool 2 (2/3): Heat nozzle");
 
     changer_->ack(); // tool 1 heated
     changer_->ack(); // tool 1 retracted
     changer_->ack(); // tool 2 mounted
     shown = labels();
-    CHECK(shown[1] == "Tool 1 of 3: Heat nozzle");
-    REQUIRE(shown[4].rfind("Tool 2 of 3: Heat nozzle ", 0) == 0);
+    CHECK(shown[1] == "Tool 1 (1/3): Heat nozzle");
+    REQUIRE(shown[4].rfind("Tool 2 (2/3): Heat nozzle ", 0) == 0);
     CHECK(shown[4].find("°C") != std::string::npos);
 }

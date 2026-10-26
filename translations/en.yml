@@ -164,6 +164,7 @@ translations:
   A print is in progress - restart still pending: A print is in progress - restart still pending
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.
   A print is running. Apply the result after it ends.: A print is running. Apply the result after it ends.
+  A print started: A print started
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.
   A restart is already in progress: A restart is already in progress
   A right, B left: A right, B left
@@ -3903,10 +3904,12 @@ translations:
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
+  'The carriage was not put back: check which tool is mounted': 'The carriage was not put back: check which tool is mounted'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: The chamber heater can run a filament drying cycle. Start one from the drying dialog.
   The chamber wait already ended; nothing was stopped.: The chamber wait already ended; nothing was stopped.
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
+  The connection to Klipper was lost: The connection to Klipper was lost
   The controller boards Klipper runs on. See their load in the system settings.: The controller boards Klipper runs on. See their load in the system settings.
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: The cutter blade didn't return — check for filament wrapped around the cutting mechanism
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS

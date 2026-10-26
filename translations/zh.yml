@@ -165,6 +165,7 @@ translations:
   A print is in progress - restart still pending: '打印进行中 - 重启待执行'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: 此通道正在打印中。HelixScreen 已清除本地副本；打印结束后请再次清空。
   A print is running. Apply the result after it ends.: 正在打印。请在打印结束后应用结果。
+  A print started: '打印已开始'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "在料盘仍标记为放在热床上时开始了打印。如果料盘还在，请立即用紧急停止停下打印机。"
   A restart is already in progress: 重启正在进行中
   A right, B left: "A 右,B 左"
@@ -3775,10 +3776,12 @@ translations:
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: 缓冲器已 16 秒未检测到运动。请检查 CFS 与挤出机之间是否堵塞，或缓冲器是否卡住
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : '摄像头认为热床上有东西，因此打印机在打印前停止了。如果热床是空的，这是误报。'
+  'The carriage was not put back: check which tool is mounted': '打印头未归位：请检查当前装载的是哪个工具'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: '腔体加热器可以运行耗材烘干周期。在烘干对话框中启动。'
   The chamber wait already ended; nothing was stopped.: '腔体等待已经结束，未停止任何操作。'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 更改在 Klipper 重启后生效。将重启 Klipper 固件。所有正在进行的操作将被中断。
+  The connection to Klipper was lost: '与 Klipper 的连接已断开'
   The controller boards Klipper runs on. See their load in the system settings.: '运行 Klipper 的控制板。在系统设置中查看其负载。'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: 切刀未复位。请检查切刀机构上是否缠绕耗材
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: 切刀未对准。请使用 CALIBRATE_CUT_POS 重新校准

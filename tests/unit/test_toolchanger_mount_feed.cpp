@@ -12,10 +12,16 @@
 
 #include "../busy_guard_fixture.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
+#include "../test_helpers/update_queue_test_access.h"
+#include "ams_backend_mock.h"
 #include "ams_backend_toolchanger.h"
+#include "ams_state.h"
+#include "app_globals.h"
 #include "config.h"
+#include "connection_state.h"
 #include "filament_op_slot_resolver.h"
 #include "macro_param_cache.h"
 #include "mount_feed_sequence.h"
@@ -97,6 +103,15 @@ class AckingChanger : public ToolChangerHelper {
         REQUIRE_FALSE(acks_.empty());
         auto cb = acks_.back();
         cb();
+        helix::ui::UpdateQueue::instance().drain();
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    /// The newest stage dropped with the connection, as the request tracker
+    /// fails everything in flight when the socket or Klippy goes away.
+    void lose() {
+        REQUIRE_FALSE(errors_.empty());
+        errors_.back()(MoonrakerError::connection_lost("printer.gcode.script"));
         helix::ui::UpdateQueue::instance().drain();
         helix::ui::UpdateQueue::instance().drain();
     }
@@ -366,7 +381,7 @@ TEST_CASE("MedusaHC refuses a second op while one runs, and cleans up a failed s
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0\n"
                              "SELECT_TOOL T=0");
     // One tool: the failure toast is about the load, not a batch.
-    CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Load stopped");
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Load stopped.");
     tc.ack();
     CHECK(tc.get_current_action() == AmsAction::IDLE);
 }
@@ -584,7 +599,7 @@ TEST_CASE("MedusaHC times a multi-tool load out at the prompt, before anything m
 
     ToolChangerTestAccess::feed_wait_elapsed(tc, mf::kPromptTimeoutMs);
     CHECK(tc.sent_.back() == mf::prompt_end_gcode());
-    CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "No filament was inserted in time");
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "No filament was inserted in time.");
     tc.ack();
     CHECK(tc.get_current_action() == AmsAction::IDLE);
 }
@@ -604,7 +619,7 @@ TEST_CASE("MedusaHC cancels a multi-tool load mid-sequence and unwinds every hea
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0\n"
                              "SET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0\n"
                              "SELECT_TOOL T=0");
-    CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Load all stopped Completed: Tool 2");
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Load all stopped. Completed: Tool 2.");
     tc.ack();
     CHECK(tc.get_current_action() == AmsAction::IDLE);
 }
@@ -633,7 +648,7 @@ TEST_CASE("MedusaHC times a single-tool load out when nobody inserts",
     ToolChangerTestAccess::feed_wait_elapsed(tc, 1000);
     CHECK(tc.sent_.back() == mf::prompt_end_gcode());
     // The toast claims nothing about heaters or the carriage: neither was touched.
-    CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "No filament was inserted in time");
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "No filament was inserted in time.");
     tc.ack();
     CHECK(tc.get_current_action() == AmsAction::IDLE);
 }
@@ -691,14 +706,14 @@ TEST_CASE("MedusaHC's step model spans every tool of a multi-tool run",
     // One prompt covers every strand and one restore ends the run, so only the
     // first tool has an insert row and only the last has a restore row.
     REQUIRE(model.steps.size() == 8);
-    CHECK(model.steps[0].label == "Tool 1 of 2: Insert filament");
-    CHECK(model.steps[1].label == "Tool 1 of 2: Mount tool");
-    CHECK(model.steps[3].label == "Tool 1 of 2: Purge");
-    CHECK(model.steps[4].label == "Tool 2 of 2: Mount tool");
-    CHECK(model.steps[7].label == "Tool 2 of 2: Restore tool");
+    CHECK(model.steps[0].label == "Tool 2 (1/2): Insert filament");
+    CHECK(model.steps[1].label == "Tool 2 (1/2): Mount tool");
+    CHECK(model.steps[3].label == "Tool 2 (1/2): Purge");
+    CHECK(model.steps[4].label == "Tool 4 (2/2): Mount tool");
+    CHECK(model.steps[7].label == "Tool 4 (2/2): Restore tool");
     for (const auto& step : model.steps) {
-        CHECK(step.label.find("Tool 2 of 2: Insert") == std::string::npos);
-        CHECK(step.label.find("Tool 1 of 2: Restore") == std::string::npos);
+        CHECK(step.label.find("Tool 4 (2/2): Insert") == std::string::npos);
+        CHECK(step.label.find("Tool 2 (1/2): Restore") == std::string::npos);
     }
     // The first tool may already be on the carriage, and the carriage may need
     // no putting back.
@@ -837,9 +852,8 @@ TEST_CASE("A tool changer that does not mount to feed has no purge setting",
 
 TEST_CASE("MedusaHC unwinds a live run when the connection is lost or restored",
           "[toolchanger][mount_feed][medusahc]") {
-    // The reconnect path: the prompt is up, nothing will ever ack it, and the
-    // cleanup has to reach the printer while the new connection still carries
-    // gcode.
+    // The connection drops at the prompt: the run ends, and since nothing
+    // heated, nothing is owed once the printer is back.
     {
         AckingChanger tc(4);
         tc.feed_status("ready", 0);
@@ -847,10 +861,14 @@ TEST_CASE("MedusaHC unwinds a live run when the connection is lost or restored",
         tc.ack(); // the prompt is up
         REQUIRE(tc.get_system_info().is_busy());
 
-        ToolChangerTestAccess::feed_disconnect_started(tc);
-        CHECK(tc.sent_.back() == mf::prompt_end_gcode());
+        tc.on_connection_lost();
+        CHECK(tc.sent_.size() == 1);
         CHECK(tc.get_current_action() == AmsAction::IDLE);
         CHECK_FALSE(tc.can_cancel_operation());
+        CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
+              "Load stopped. The connection to Klipper was lost.");
+        tc.feed_status("ready", 0); // reconnected
+        CHECK(tc.sent_.size() == 1);
     }
     // And the stopping path, mid-purge rather than mid-prompt: no prompt_end,
     // every heater in the plan off, carriage back.
@@ -1101,7 +1119,7 @@ TEST_CASE("MedusaHC: the dock sensors losing the tool mid-run stop it without a 
     tc.feed(pin_watch_frame(-2));
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0");
     CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
-          "Load stopped. Dock sensors cannot tell which tool is mounted");
+          "Load stopped. Dock sensors cannot tell which tool is mounted.");
     tc.ack();
     CHECK_FALSE(tc.can_cancel_operation());
     // The fault stays on show once the run is over.
@@ -1165,7 +1183,7 @@ TEST_CASE("MedusaHC tells the operator to pull the strand once an unload complet
         tc.fail(); // the heat failed
         tc.ack();  // the cleanup landed
         CHECK(tc.get_current_action() == AmsAction::IDLE);
-        CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Unload stopped");
+        CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Unload stopped.");
         CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::ERROR);
     }
 }
@@ -1221,7 +1239,7 @@ TEST_CASE("MedusaHC: a mount the sensors still cannot place stops the run withou
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0");
     CHECK(std::find(tc.sent_.begin(), tc.sent_.end(), "SELECT_TOOL T=0") == tc.sent_.end());
     CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
-          "Load stopped. Dock sensors cannot tell which tool is mounted");
+          "Load stopped. Dock sensors cannot tell which tool is mounted.");
     tc.ack();
     CHECK(tc.get_system_info().action == AmsAction::ERROR);
     CHECK_FALSE(tc.unload_blocked_reason(1).empty());
@@ -1236,7 +1254,7 @@ TEST_CASE("MedusaHC: a mount that seated the wrong tool stops the run without a 
     ToolChangerTestAccess::feed_swap_check_elapsed(tc);
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0");
     CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
-          "Load stopped. Dock sensors cannot tell which tool is mounted");
+          "Load stopped. Dock sensors cannot tell which tool is mounted.");
     tc.ack();
     CHECK_FALSE(tc.can_cancel_operation());
 }
@@ -1334,6 +1352,8 @@ TEST_CASE("MedusaHC: a Mount stage that fails sends no restore swap",
     tc.fail();                    // the machine's T1 reported `!!`
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0");
     CHECK(std::find(tc.sent_.begin(), tc.sent_.end(), "SELECT_TOOL T=0") == tc.sent_.end());
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
+          "Load stopped. The carriage was not put back: check which tool is mounted.");
 }
 
 TEST_CASE("MedusaHC: a Cancel while a swap waits on the sensors sends no restore",
@@ -1344,6 +1364,9 @@ TEST_CASE("MedusaHC: a Cancel while a swap waits on the sensors sends no restore
     REQUIRE(tc.cancel().success());
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0");
     CHECK(std::find(tc.sent_.begin(), tc.sent_.end(), "SELECT_TOOL T=0") == tc.sent_.end());
+    // Even a single tool's own Cancel says so: the carriage is where the stop found it.
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
+          "Load stopped. The carriage was not put back: check which tool is mounted.");
 }
 
 TEST_CASE("MedusaHC: losing the connection mid-Mount sends no restore",
@@ -1364,6 +1387,8 @@ TEST_CASE("MedusaHC: a Cancel after a confirmed Mount still restores the carriag
     REQUIRE(tc.cancel().success());
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0\n"
                              "SELECT_TOOL T=0");
+    // The carriage goes back, and the operator's own Cancel needs no toast.
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc).empty());
 }
 
 TEST_CASE("MedusaHC: a dock sensor jostled while the operator inserts is no fault",
@@ -1535,4 +1560,241 @@ TEST_CASE("MedusaHC tells a failed swap stage once, not again when the frame rep
                    {"sensor_error", true},
                    {"last_error", failure}}}});
     CHECK(ToolChangerTestAccess::feed_last_toast(tc) == run_toast);
+}
+
+// ============================================================================
+// The run machinery: the wait's clock, a lost printer, a print, a missing
+// [respond], the step bar's labels
+// ============================================================================
+
+TEST_CASE("MedusaHC's prompt waits its whole ceiling under a watchdog ticking each second",
+          "[toolchanger][mount_feed][medusahc]") {
+    using namespace std::chrono_literals;
+    AckingChanger tc(4);
+    std::chrono::steady_clock::time_point now{};
+    ToolChangerTestAccess::set_feed_clock(tc, [&now]() { return now; });
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.load_filament(3).success());
+    tc.ack(); // the prompt is up; the watchdog starts counting here
+
+    for (int i = 0; i < 30; ++i) {
+        now += 1s;
+        ToolChangerTestAccess::feed_wait_tick(tc);
+    }
+    CHECK(tc.get_system_info().is_busy());
+    CHECK(tc.sent_.size() == 1);
+
+    // Still waiting one second short of the ceiling.
+    const auto ceiling = std::chrono::milliseconds(mf::kPromptTimeoutMs);
+    while (now < std::chrono::steady_clock::time_point{} + ceiling - 1s) {
+        now += 1s;
+        ToolChangerTestAccess::feed_wait_tick(tc);
+    }
+    REQUIRE(tc.sent_.size() == 1);
+    now += 1s;
+    ToolChangerTestAccess::feed_wait_tick(tc);
+    CHECK(tc.sent_.back() == mf::prompt_end_gcode());
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "No filament was inserted in time.");
+}
+
+TEST_CASE("MedusaHC ends a run on a Klipper restart and turns its heaters off once ready",
+          "[toolchanger][mount_feed][medusahc]") {
+    SECTION("mid-heat, the restart reported only by klippy_state") {
+        AckingChanger tc(4);
+        tc.feed_status("ready", 0);
+        REQUIRE(tc.load_filament(3).success());
+        tc.ack(); // the prompt is up
+        ToolChangerTestAccess::feed_operator_reply(tc, mf::Reply::Continue);
+        tc.ack(); // mounted; the heat is in flight
+        const size_t before = tc.sent_.size();
+
+        tc.on_klipper_restarted();
+        CHECK(tc.get_current_action() == AmsAction::IDLE);
+        CHECK_FALSE(tc.can_cancel_operation());
+        REQUIRE(tc.sent_.size() == before + 1);
+        CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0");
+        CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
+              "Load stopped. The connection to Klipper was lost. The carriage was not put back: "
+              "check which tool is mounted.");
+
+        // A frame later the run stays over: nothing republishes its action.
+        tc.feed_status("ready", 0);
+        CHECK(tc.get_current_action() == AmsAction::IDLE);
+        CHECK(tc.sent_.size() == before + 1);
+    }
+    SECTION("the stage failed with Klippy's disconnect first") {
+        AckingChanger tc(4);
+        tc.feed_status("ready", 0);
+        REQUIRE(tc.load_filament(3).success());
+        tc.ack();
+        ToolChangerTestAccess::feed_operator_reply(tc, mf::Reply::Continue);
+        tc.ack(); // mounted; the heat is in flight
+        const size_t before = tc.sent_.size();
+        tc.lose();
+        CHECK(tc.sent_.size() == before); // nothing goes out to a Klippy that is gone
+        CHECK(tc.get_current_action() == AmsAction::IDLE);
+        tc.on_klipper_restarted();
+        REQUIRE(tc.sent_.size() == before + 1);
+        CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0");
+    }
+    SECTION("at the prompt nothing heated, so nothing is owed") {
+        AckingChanger tc(4);
+        tc.feed_status("ready", 0);
+        REQUIRE(tc.load_filament(3).success());
+        tc.ack(); // the prompt is up
+        tc.on_klipper_restarted();
+        CHECK(tc.get_current_action() == AmsAction::IDLE);
+        CHECK(tc.sent_.size() == 1);
+    }
+}
+
+TEST_CASE("MedusaHC: a dropped connection ends the run and turns its heaters off on return",
+          "[toolchanger][mount_feed][medusahc]") {
+    AckingChanger tc(4);
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.load_filament_batch({1, 3}).success());
+    tc.ack();
+    ToolChangerTestAccess::feed_operator_reply(tc, mf::Reply::Continue);
+    tc.ack(); // tool 1 mounted, tool 3 preheating; the heat is in flight
+    const size_t before = tc.sent_.size();
+
+    tc.lose(); // the socket closed under the stage
+    CHECK(tc.sent_.size() == before);
+    CHECK(tc.get_current_action() == AmsAction::IDLE);
+    CHECK_FALSE(tc.can_cancel_operation());
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
+          "Load all stopped. The connection to Klipper was lost. The carriage was not put back: "
+          "check which tool is mounted.");
+    tc.on_connection_lost(); // the connection edge arrives after the failed stage
+    CHECK(tc.sent_.size() == before);
+
+    tc.feed_status("ready", 1); // reconnected: Klippy reports again
+    REQUIRE(tc.sent_.size() == before + 1);
+    CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0\n"
+                             "SET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0");
+    tc.feed_status("ready", 1);
+    CHECK(tc.sent_.size() == before + 1);
+}
+
+TEST_CASE("MedusaHC: a heaters-off dropped by the connection again stays owed",
+          "[toolchanger][mount_feed][medusahc]") {
+    AckingChanger tc(4);
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.load_filament(3).success());
+    tc.ack();
+    ToolChangerTestAccess::feed_operator_reply(tc, mf::Reply::Continue);
+    tc.ack(); // mounted; heating
+    tc.lose();
+    tc.feed_status("ready", 0);
+    const std::string off = "SET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0";
+    REQUIRE(tc.sent_.back() == off);
+    tc.lose(); // that send dropped too
+    tc.feed_status("ready", 0);
+    CHECK(std::count(tc.sent_.begin(), tc.sent_.end(), off) == 2);
+}
+
+TEST_CASE("MedusaHC: a cleanup that only closes the prompt never claims the heaters failed",
+          "[toolchanger][mount_feed][medusahc]") {
+    // A printer without [respond] refuses every RESPOND line: the prompt
+    // stage fails, and so does the cleanup closing it.
+    struct NoRespondChanger : AckingChanger {
+        explicit NoRespondChanger(int tools) : AckingChanger(tools) {}
+        AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
+                               std::function<void(const MoonrakerError&)> on_error,
+                               bool silent) override {
+            const bool refused = gcode.find("RESPOND") != std::string::npos;
+            auto error = on_error;
+            AmsError sent = AckingChanger::execute_gcode(gcode, std::move(on_complete),
+                                                         std::move(on_error), silent);
+            if (refused && error) {
+                MoonrakerError err;
+                err.message = "Unknown command:\"RESPOND\"";
+                error(err); // deferred: the test drains it
+            }
+            return sent;
+        }
+    };
+    NoRespondChanger tc(4);
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.load_filament(3).success());
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    CHECK(tc.get_current_action() == AmsAction::IDLE);
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Load stopped.");
+    CHECK(tc.sent_.back() == mf::prompt_end_gcode());
+}
+
+namespace {
+
+/// A print already on the printer the moment a run would send its next stage.
+void start_printing(BusyGuardFixture& f) {
+    helix::test::set_wire_state(f.state, PrintJobState::PRINTING);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(BusyGuardFixture, "MedusaHC: a print starting under a run ends it, unsent",
+                 "[toolchanger][mount_feed][medusahc]") {
+    LiveApiChanger tc(api.get(), &mock_client);
+    tc.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 0}}}});
+    const auto drain = []() {
+        for (int i = 0; i < 4; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    };
+    REQUIRE(tc.unload_filament_batch({1, 2, 3}).success());
+    const auto& history = mock_client.gcode_script_history();
+    REQUIRE_FALSE(history.empty());
+    // The first stage, the Mount with the next tool's preheat, went out.
+    REQUIRE(history.back() == "SET_HEATER_TEMPERATURE HEATER=extruder2 TARGET=220");
+    const size_t sent = history.size();
+
+    start_printing(*this);
+    drain(); // the Mount's ack arrives with the print running
+    CHECK(history.size() == sent);
+    CHECK(tc.get_current_action() == AmsAction::IDLE);
+    CHECK_FALSE(tc.can_cancel_operation());
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
+          "Unload all stopped. A print started. The carriage was not put back: check which "
+          "tool is mounted.");
+}
+
+namespace {
+
+class ConnectionRecordingBackend : public AmsBackendMock {
+  public:
+    ConnectionRecordingBackend() : AmsBackendMock(4) {}
+    int lost = 0;
+    void on_connection_lost() override {
+        ++lost;
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "Every backend hears the connection drop, once per drop",
+                 "[toolchanger][mount_feed][ams]") {
+    get_printer_state().init_subjects(false);
+    AmsState::instance().init_subjects(true);
+    const auto set_connection = [](ConnectionState state) {
+        get_printer_state().set_printer_connection_state(static_cast<int>(state), "");
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    };
+    set_connection(ConnectionState::CONNECTED);
+    auto owned = std::make_unique<ConnectionRecordingBackend>();
+    auto* backend = owned.get();
+    AmsState::instance().set_backend(std::move(owned));
+
+    set_connection(ConnectionState::RECONNECTING);
+    CHECK(backend->lost == 1);
+    set_connection(ConnectionState::DISCONNECTED); // still down: no second drop
+    CHECK(backend->lost == 1);
+    set_connection(ConnectionState::CONNECTED);
+    CHECK(backend->lost == 1);
+    set_connection(ConnectionState::RECONNECTING);
+    CHECK(backend->lost == 2);
+
+    AmsState::instance().set_backend(nullptr);
+    set_connection(ConnectionState::CONNECTED);
 }
