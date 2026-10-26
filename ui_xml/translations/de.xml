@@ -571,6 +571,7 @@
   <translation tag="Cancel Scheduled Pause" de="Geplante Pause abbrechen"/>
   <translation tag="Cancel macro not configured" de="Abbruch-Makro nicht konfiguriert"/>
   <translation tag="Cancel print" de="Druck abbrechen"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." de="Abbruch gesendet. Der Drucker beendet seine Startsequenz und hält dann vor dem Drucken an."/>
   <translation tag="Canceled" de="Abgebrochen"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." de="Beim Abbrechen wird das Kammerziel ausgeschaltet, damit das Warten endet; dann wird der Druck gestoppt."/>
   <translation tag="Cannot add to queue: internal error" de="Zur Warteschlange hinzufügen nicht möglich: interner Fehler"/>

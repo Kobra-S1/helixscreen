@@ -571,6 +571,7 @@
   <translation tag="Cancel Scheduled Pause" zh="取消已设置的暂停"/>
   <translation tag="Cancel macro not configured" zh="取消宏未配置"/>
   <translation tag="Cancel print" zh="取消打印"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." zh="已发送取消。打印机会先完成启动流程，然后在打印前停止。"/>
   <translation tag="Canceled" zh="已取消"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." zh="取消会关闭腔体目标温度以结束等待，然后停止打印。"/>
   <translation tag="Cannot add to queue: internal error" zh="无法添加到队列：内部错误"/>

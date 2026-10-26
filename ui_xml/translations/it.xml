@@ -571,6 +571,7 @@
   <translation tag="Cancel Scheduled Pause" it="Annulla pausa programmata"/>
   <translation tag="Cancel macro not configured" it="Macro annullamento non configurata"/>
   <translation tag="Cancel print" it="Annulla stampa"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." it="Annullamento inviato. La stampante completa la sequenza di avvio, poi si ferma prima di stampare."/>
   <translation tag="Canceled" it="Annullato"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." it="L&apos;annullamento spegne il target della camera per terminare l&apos;attesa, poi ferma la stampa."/>
   <translation tag="Cannot add to queue: internal error" it="Impossibile aggiungere alla coda: errore interno"/>

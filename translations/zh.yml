@@ -579,6 +579,7 @@ translations:
   Cancel Scheduled Pause: '取消已设置的暂停'
   Cancel macro not configured: 取消宏未配置
   Cancel print: '取消打印'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: '已发送取消。打印机会先完成启动流程，然后在打印前停止。'
   Canceled: 已取消
   Canceling turns the chamber target off so the wait ends, then stops the print.: '取消会关闭腔体目标温度以结束等待，然后停止打印。'
   'Cannot add to queue: internal error': '无法添加到队列：内部错误'

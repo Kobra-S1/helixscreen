@@ -7,6 +7,7 @@
 #include "ui_event_safety.h"    // LVGL_SAFE_EVENT_CB_BEGIN / END
 #include "ui_resume_dispatch.h"
 #include "ui_timer_guard.h" // lv_timer_cancel_safe
+#include "ui_update_queue.h"
 
 #include "abort_manager.h"
 #include "app_globals.h" // get_printer_state()
@@ -104,6 +105,8 @@ ControlButtonView PrintControlButtons::current_view() const {
     in.pause_available = !macros.get(StandardMacroSlot::Pause).is_empty();
     in.resume_available = !macros.get(StandardMacroSlot::Resume).is_empty();
     in.cancel_available = !macros.get(StandardMacroSlot::Cancel).is_empty();
+    in.start_sent = state.print_state().preparing_start_sent();
+    in.cancel_requested = cancel_requested_;
     return compute_control_button_view(in);
 }
 
@@ -189,36 +192,83 @@ void PrintControlButtons::handle_stop_button() {
         NOTIFY_WARNING(lv_tr("Abort already in progress"));
         return;
     }
-    cancel_modal_.set_on_confirm([]() {
-        // A job we are still preparing may not exist on the printer yet: a
-        // host-side pre-start block runs before the job is handed over, so
-        // print_stats is idle or still holds the PREVIOUS job. Routing that
-        // through AbortManager would send CANCEL_PRINT to an idle printer,
-        // which its own state watcher reads as an immediate success
-        // (abort_manager.cpp, terminal states complete the abort) while the
-        // queued start_print fires anyway once the macro returns.
-        //
-        // Retiring the preparing job is what actually stops it: the start
-        // choke point in PrintPreparationManager refuses to start a job that
-        // is no longer being prepared. Any running macro still finishes its
-        // current motion - Klipper cannot interrupt one - but no print begins.
-        auto& state = get_printer_state();
-        // The same decision that enabled the button picks the mechanism, so the
-        // two can never disagree about which one applies.
-        if (PrintControlButtons::instance().current_view().stop_retires_preparing) {
-            spdlog::info("[PrintControl] Stop confirmed while preparing - cancelling the start");
-            // The notification and the heater cooldown belong to the
-            // preparing-exit observer, which sees every retirement rather than
-            // just this one path.
-            state.print_state().retire_preparing(helix::PreparingExit::Cancelled);
-            return;
-        }
-
-        spdlog::info("[PrintControl] Stop confirmed - starting AbortManager");
-        // AbortManager handles its own UI state (progress modal, button states).
-        helix::AbortManager::instance().start_abort();
-    });
+    cancel_modal_.set_on_confirm([]() { PrintControlButtons::instance().confirm_stop(); });
     cancel_modal_.show(lv_screen_active());
+}
+
+void PrintControlButtons::confirm_stop() {
+    auto& state = get_printer_state();
+    // The same decision that enabled the button picks the mechanism, so the
+    // two can never disagree about which one applies.
+    switch (current_view().stop_route) {
+    case StopRoute::RetirePreparing:
+        // Nothing has reached the printer, and the start choke points in
+        // PrintPreparationManager refuse a job that is no longer being
+        // prepared, so withdrawing it here is what stops it. Sending
+        // CANCEL_PRINT instead would reach an idle printer, which AbortManager
+        // reads as an immediate success.
+        spdlog::info("[PrintControl] Stop confirmed while preparing - cancelling the start");
+        // The notification and the heater cooldown belong to the
+        // preparing-exit observer, which sees every retirement rather than
+        // just this one path.
+        state.print_state().retire_preparing(helix::PreparingExit::Cancelled);
+        return;
+    case StopRoute::CancelSentStart:
+        cancel_sent_start();
+        return;
+    case StopRoute::Abort:
+        break;
+    }
+
+    spdlog::info("[PrintControl] Stop confirmed - starting AbortManager");
+    // AbortManager handles its own UI state (progress modal, button states).
+    helix::AbortManager::instance().start_abort();
+}
+
+void PrintControlButtons::cancel_sent_start() {
+    if (!api_) {
+        NOTIFY_ERROR(lv_tr("Failed to cancel: {}"), "not connected to printer");
+        return;
+    }
+    // Klipper cannot interrupt a running macro. The cancel queues behind the
+    // print-start sequence and runs before the first line of the file, so the
+    // sequence finishes and the print never begins. Until the printer answers,
+    // the job stays preparing: it is not cancelled yet.
+    const int epoch =
+        lv_subject_get_int(get_printer_state().print_state().get_preparing_epoch_subject());
+    spdlog::info("[PrintControl] Stop confirmed after the start was sent - cancelling on the "
+                 "printer (preparing epoch {})",
+                 epoch);
+    cancel_requested_ = true;
+    recompute();
+    NOTIFY_INFO(lv_tr("Cancel sent. The printer finishes its start sequence, then stops "
+                      "before printing."));
+
+    api_->job().cancel_print(
+        [epoch]() {
+            queue_update("PrintControlButtons::cancel_sent_start.ok", [epoch]() {
+                auto& self = PrintControlButtons::instance();
+                self.cancel_requested_ = false;
+                auto& ps = get_printer_state().print_state();
+                // A job the printer reported meanwhile was retired as Confirmed
+                // and ends through the printer's own cancelled state; a newer
+                // job is not ours to cancel.
+                if (lv_subject_get_int(ps.get_preparing_epoch_subject()) == epoch) {
+                    spdlog::info("[PrintControl] Printer confirmed the cancel of a sent start");
+                    ps.retire_preparing(helix::PreparingExit::Cancelled);
+                }
+                self.recompute();
+            });
+        },
+        [](const MoonrakerError& err) {
+            spdlog::error("[PrintControl] Cancel of a sent start failed: {}", err.message);
+            queue_update("PrintControlButtons::cancel_sent_start.err", [err]() {
+                auto& self = PrintControlButtons::instance();
+                self.cancel_requested_ = false;
+                self.recompute();
+                NOTIFY_ERROR(lv_tr("Failed to cancel: {}"), err.localized_message());
+            });
+        });
 }
 
 void PrintControlButtons::start_pending_action(PendingAction action) {

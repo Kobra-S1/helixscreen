@@ -615,6 +615,7 @@ translations:
   Cancel Scheduled Pause: 'Annulla pausa programmata'
   Cancel macro not configured: Macro annullamento non configurata
   Cancel print: 'Annulla stampa'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Annullamento inviato. La stampante completa la sequenza di avvio, poi si ferma prima di stampare.'
   Canceled: Annullato
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'L''annullamento spegne il target della camera per terminare l''attesa, poi ferma la stampa.'
   'Cannot add to queue: internal error': 'Impossibile aggiungere alla coda: errore interno'

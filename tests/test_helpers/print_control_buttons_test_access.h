@@ -24,6 +24,16 @@ struct PrintControlButtonsTestAccess {
         // process (PrintStatusPanel::pending_action_observer_ above all).
         s.teardown_subjects();
         s.pending_action_ = PendingAction::None;
+        s.cancel_requested_ = false;
+    }
+
+    /// What the cancel modal's confirm button runs.
+    static void confirm_stop() {
+        PrintControlButtons::instance().confirm_stop();
+    }
+
+    static bool cancel_requested() {
+        return PrintControlButtons::instance().cancel_requested_;
     }
 
     /// True if the singleton currently holds a live observer on the global

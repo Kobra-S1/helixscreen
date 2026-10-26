@@ -580,6 +580,7 @@ translations:
   Cancel Scheduled Pause: '予約した一時停止を取り消す'
   Cancel macro not configured: キャンセルマクロが未設定です
   Cancel print: '印刷をキャンセル'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: 'キャンセルを送信しました。プリンターは開始シーケンスを終えてから、印刷前に停止します。'
   Canceled: キャンセル済み
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'キャンセルするとチャンバーの目標温度をオフにして待機を終了し、その後印刷を停止します。'
   'Cannot add to queue: internal error': 'キューに追加できません: 内部エラー'

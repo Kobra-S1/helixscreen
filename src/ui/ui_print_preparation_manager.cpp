@@ -1960,6 +1960,18 @@ void PrintPreparationManager::abandon_start(const char* where,
     }
 }
 
+bool PrintPreparationManager::start_withdrawn(int preparing_epoch) const {
+    return preparing_epoch != 0 && printer_state_ &&
+           lv_subject_get_int(printer_state_->print_state().get_preparing_epoch_subject()) !=
+               preparing_epoch;
+}
+
+void PrintPreparationManager::note_start_sent() {
+    if (printer_state_) {
+        printer_state_->print_state().note_preparing_start_sent();
+    }
+}
+
 void PrintPreparationManager::modify_and_print(
     const std::string& file_path, const std::vector<gcode::OperationType>& ops_to_disable,
     const std::vector<std::pair<std::string, std::string>>& macro_skip_params,
@@ -2157,6 +2169,10 @@ void PrintPreparationManager::rewrite_and_print(RewriteRoute route,
     if (route.archive_plate > 0) {
         route.use_plugin = false;
     }
+    if (printer_state_) {
+        route.preparing_epoch =
+            lv_subject_get_int(printer_state_->print_state().get_preparing_epoch_subject());
+    }
     const auto job = std::make_shared<const RewriteRoute>(std::move(route));
     const std::string remote_temp_path =
         job->archive_plate > 0
@@ -2215,6 +2231,15 @@ void PrintPreparationManager::rewrite_and_print(RewriteRoute route,
                 token.defer("PrintPreparationManager::rewrite_unchanged_start",
                             [this, job, on_navigate_to_status, on_completion]() {
                                 BusyOverlay::hide();
+                                if (start_withdrawn(job->preparing_epoch)) {
+                                    spdlog::info("[PrintPreparationManager] Start abandoned - "
+                                                 "'{}' is no longer being prepared",
+                                                 job->file_path);
+                                    if (on_completion) {
+                                        on_completion(false, "");
+                                    }
+                                    return;
+                                }
                                 start_print_directly(job->file_path, on_navigate_to_status,
                                                      on_completion);
                             });
@@ -2311,6 +2336,25 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
                                                  bool plugin_edits,
                                                  NavigateToStatusCallback on_navigate_to_status,
                                                  PrintCompletionCallback on_completion) {
+    // Download, rewrite and upload can take minutes; a job cancelled during
+    // them must not start once they finish.
+    if (start_withdrawn(job->preparing_epoch)) {
+        spdlog::info("[PrintPreparationManager] Start abandoned - '{}' is no longer being "
+                     "prepared",
+                     job->file_path);
+        BusyOverlay::hide();
+        // The plugin writes its copy only once asked to start; ours is uploaded.
+        if (!plugin_edits && api_) {
+            api_->files().delete_file(
+                "gcodes/" + remote_temp_path, []() {}, [](const MoonrakerError& /*del_err*/) {});
+        }
+        if (on_completion) {
+            on_completion(false, "");
+        }
+        return;
+    }
+    note_start_sent();
+
     auto token = lifetime_.token();
     auto on_print_success = [job, on_navigate_to_status]() {
         spdlog::info("[PrintPreparationManager] Print started with "
@@ -2562,6 +2606,7 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
         start_print_directly(printable, std::move(on_navigate_to_status), std::move(on_completion));
         return;
     }
+    note_start_sent();
     api_->job().start_print(
         filename,
         // Success callback

@@ -571,6 +571,7 @@
   <translation tag="Cancel Scheduled Pause" ja="予約した一時停止を取り消す"/>
   <translation tag="Cancel macro not configured" ja="キャンセルマクロが未設定です"/>
   <translation tag="Cancel print" ja="印刷をキャンセル"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." ja="キャンセルを送信しました。プリンターは開始シーケンスを終えてから、印刷前に停止します。"/>
   <translation tag="Canceled" ja="キャンセル済み"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." ja="キャンセルするとチャンバーの目標温度をオフにして待機を終了し、その後印刷を停止します。"/>
   <translation tag="Cannot add to queue: internal error" ja="キューに追加できません: 内部エラー"/>

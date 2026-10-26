@@ -571,6 +571,7 @@
   <translation tag="Cancel Scheduled Pause" en="Cancel Scheduled Pause"/>
   <translation tag="Cancel macro not configured" en="Cancel macro not configured"/>
   <translation tag="Cancel print" en="Cancel print"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." en="Cancel sent. The printer finishes its start sequence, then stops before printing."/>
   <translation tag="Canceled" en="Canceled"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." en="Canceling turns the chamber target off so the wait ends, then stops the print."/>
   <translation tag="Cannot add to queue: internal error" en="Cannot add to queue: internal error"/>

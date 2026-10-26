@@ -84,7 +84,7 @@ struct ControlButtonView {
     const char* primary_label = "Pause";            // English; caller runs lv_tr()
     bool        primary_enabled = false;
     bool        stop_enabled    = false;
-    bool        stop_retires_preparing = false;      // Stop cancels the start, not the print
+    StopRoute   stop_route      = StopRoute::Abort; // which mechanism Stop uses
 };
 
 struct ControlButtonInputs {
@@ -95,6 +95,8 @@ struct ControlButtonInputs {
     bool pause_available = false;
     bool resume_available = false;
     bool cancel_available = false;
+    bool start_sent = false;        // the preparing job's start went to the printer
+    bool cancel_requested = false;  // a cancel is in flight, unanswered
 };
 
 ControlButtonView compute_control_button_view(const ControlButtonInputs& in);
@@ -112,8 +114,11 @@ const bool printer_has_the_job = (in.job_state == PrintJobState::PRINTING ||
                                   in.job_state == PrintJobState::PAUSED);
 const bool preparing = (in.lifecycle == PrintState::Preparing);
 
-v.stop_retires_preparing = in.has_preparing_job && !printer_has_the_job;
-v.stop_enabled = v.stop_retires_preparing || (printer_has_the_job && in.cancel_available);
+const bool unclaimed = in.has_preparing_job && !printer_has_the_job;
+if (unclaimed)
+    v.stop_route = in.start_sent ? StopRoute::CancelSentStart : StopRoute::RetirePreparing;
+v.stop_enabled = !in.cancel_requested &&
+                 (unclaimed || (printer_has_the_job && in.cancel_available));
 
 const bool slot_ok = (in.job_state == PrintJobState::PAUSED) ? in.resume_available
                                                              : in.pause_available;
@@ -147,13 +152,29 @@ diverged in opposite directions:
 | **Pause, before** | disabled (incidentally) | **enabled - sent PAUSE mid-macro** |
 | **Cancel, before** | **disabled - the retire path was unreachable** | enabled |
 | Pause, now | disabled | disabled |
-| Cancel, now | enabled, retires the preparing job | enabled, routes to `AbortManager` |
+| Cancel, now | enabled, retires the preparing job (or cancels a sent start, below) | enabled, routes to `AbortManager` |
 
-`stop_retires_preparing` is computed here rather than at the call site so the
-button's enablement and the handler's routing cannot disagree about which
-mechanism applies. `CANCEL_PRINT` sent to an idle printer is worse than useless:
-`AbortManager` reads the terminal state as proof the cancel succeeded while the
-queued `start_print` still fires.
+`stop_route` is computed here rather than at the call site so the button's
+enablement and the handler's routing cannot disagree about which mechanism
+applies:
+
+| Route | When | What Stop does |
+|---|---|---|
+| `RetirePreparing` | preparing, start not yet sent | `retire_preparing(Cancelled)`; the start choke points refuse a withdrawn job, so nothing reaches the printer |
+| `CancelSentStart` | preparing, start sent, printer not reporting the job | `printer.print.cancel`; the job stays preparing until the printer answers, then retires as Cancelled |
+| `Abort` | the printer reports the job | `AbortManager` |
+
+`CANCEL_PRINT` sent to an idle printer is worse than useless: `AbortManager`
+reads the terminal state as proof the cancel succeeded. But once
+`printer.print.start` has been sent, retiring locally stops nothing either. Some
+firmwares run the whole print-start sequence inside `SDCARD_PRINT_FILE`, so
+`print_stats` stays idle while the printer homes, heats and probes
+(prestonbrown/helixscreen#1890). Klipper cannot interrupt a running macro: the
+cancel queues behind it and runs before the first line of the file, so the
+start sequence finishes and the print never begins. The Stop handler says so in
+a notification, keeps Stop disabled until the printer answers, and does not show
+the job cancelled until it does. `PrinterPrintState::note_preparing_start_sent()`
+records the hand-over at every site that sends a start.
 
 Inputs → outputs at a glance:
 

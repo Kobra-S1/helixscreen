@@ -610,6 +610,7 @@
   <translation tag="Cancel Scheduled Pause" ru="Отменить запланированную паузу"/>
   <translation tag="Cancel macro not configured" ru="Макрос отмены не настроен"/>
   <translation tag="Cancel print" ru="Отменить печать"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." ru="Отмена отправлена. Принтер завершит стартовую последовательность и остановится до начала печати."/>
   <translation tag="Canceled" ru="Отменено"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." ru="Отмена выключит целевую температуру камеры, чтобы ожидание закончилось, затем остановит печать."/>
   <translation tag="Cannot add to queue: internal error" ru="Не удалось добавить в очередь: внутренняя ошибка"/>

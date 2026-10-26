@@ -622,6 +622,7 @@ translations:
   Cancel Scheduled Pause: 'Geplante Pause abbrechen'
   Cancel macro not configured: Abbruch-Makro nicht konfiguriert
   Cancel print: 'Druck abbrechen'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Abbruch gesendet. Der Drucker beendet seine Startsequenz und hält dann vor dem Drucken an.'
   Canceled: Abgebrochen
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'Beim Abbrechen wird das Kammerziel ausgeschaltet, damit das Warten endet; dann wird der Druck gestoppt.'
   'Cannot add to queue: internal error': 'Zur Warteschlange hinzufügen nicht möglich: interner Fehler'

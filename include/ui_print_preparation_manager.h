@@ -938,6 +938,8 @@ class PrintPreparationManager {
         std::optional<nlohmann::json> server_edits;
         /// The original's size in bytes, 0 when unknown: sizes the wait for print_edited.
         uint64_t file_size = 0;
+        /// The preparing epoch this start belongs to, 0 when none was armed.
+        int preparing_epoch = 0;
     };
 
     /**
@@ -1004,6 +1006,15 @@ class PrintPreparationManager {
      *        route, which has none.
      */
     void abandon_start(const char* where, const PrintCompletionCallback& on_completion = nullptr);
+
+    /// The preparing job @p preparing_epoch named is gone: cancelled, failed
+    /// or replaced while the work in front of the start ran. False for 0,
+    /// which no armed job carries.
+    [[nodiscard]] bool start_withdrawn(int preparing_epoch) const;
+
+    /// Record that the preparing job's start is going to the printer, after
+    /// which only the printer can stop it. Called beside every start send.
+    void note_start_sent();
 
     /**
      * @brief Lazy-initialize the prep-time estimate subject.

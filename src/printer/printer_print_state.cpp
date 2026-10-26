@@ -1562,6 +1562,7 @@ void PrinterPrintState::begin_preparing(const PrintJobRef& job) {
     }
     spdlog::info("[PrinterPrintState] Preparing '{}'", job.filename);
     preparing_job_ = job;
+    preparing_start_sent_ = false;
 
     // Adopt this job's identity NOW, not when the printer first reports a name.
     // print_stats still names the PREVIOUS job for the whole pre-start block, and
@@ -1640,6 +1641,7 @@ void PrinterPrintState::retire_preparing(PreparingExit reason) {
     spdlog::info("[PrinterPrintState] Retiring preparing job '{}': {}", preparing_job_.filename,
                  preparing_exit_name(reason));
     preparing_job_ = {};
+    preparing_start_sent_ = false;
     last_preparing_exit_ = reason;
     cancel_preparing_watchdog();
     set_print_in_progress_internal(false);

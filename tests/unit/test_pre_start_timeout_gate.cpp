@@ -268,6 +268,24 @@ TEST_CASE_METHOD(PreStartGateFixture, "A start with no preparing job still runs"
     CHECK(jobs.start_print_calls == 1);
 }
 
+TEST_CASE_METHOD(PreStartGateFixture, "A start sent to the printer marks the preparing job",
+                 "[print_preparation][preparing_cancel]") {
+    // From the send on, withdrawing the job locally stops nothing, so Stop
+    // must know to cancel on the printer instead (#1890).
+    state.print_state().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    set_busy(false);
+
+    manager.start_print("part.gcode", "", []() {}, completion());
+    REQUIRE(api->captured_success);
+    CHECK_FALSE(state.print_state().preparing_start_sent()); // pre-start block still running
+    api->captured_success();
+    drain();
+
+    REQUIRE(jobs.start_print_calls == 1);
+    CHECK(state.print_state().has_preparing_job());
+    CHECK(state.print_state().preparing_start_sent());
+}
+
 // ============================================================================
 // printer.print.start's own RPC ceiling
 // ============================================================================

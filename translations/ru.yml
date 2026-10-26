@@ -662,6 +662,7 @@ translations:
   Cancel Scheduled Pause: 'Отменить запланированную паузу'
   Cancel macro not configured: Макрос отмены не настроен
   Cancel print: 'Отменить печать'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Отмена отправлена. Принтер завершит стартовую последовательность и остановится до начала печати.'
   Canceled: Отменено
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'Отмена выключит целевую температуру камеры, чтобы ожидание закончилось, затем остановит печать.'
   'Cannot add to queue: internal error': 'Не удалось добавить в очередь: внутренняя ошибка'

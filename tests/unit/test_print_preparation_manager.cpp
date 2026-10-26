@@ -3932,6 +3932,35 @@ TEST_CASE_METHOD(HelixTestFixture,
 }
 
 TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: a remap cancelled during the transfer never starts",
+                 "[print_preparation][remap][preparing_cancel]") {
+    lv_init_safe();
+    PrinterStateTestAccess::reset(get_printer_state());
+    get_printer_state().init_subjects(false);
+
+    MockPrinter mock_printer;
+    auto& state = mock_printer.state;
+    auto& api = mock_printer.api;
+
+    PrintPreparationManager manager;
+    manager.set_dependencies(&api, &state);
+    state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
+
+    std::optional<bool> completed;
+    manager.modify_and_print_with_remap(
+        kRemapFixture, {{1, 2}}, nullptr,
+        [&completed](bool ok, const std::string&) { completed = ok; });
+    // Stop while the copy is still on its way.
+    state.print_state().retire_preparing(helix::PreparingExit::Cancelled);
+    drain_until_quiet();
+
+    CHECK(api.job_mock().started_prints().empty());
+    CHECK(api.job_mock().modified_prints().empty());
+    REQUIRE(completed.has_value());
+    CHECK_FALSE(*completed);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
                  "PrintPreparationManager: a remap on a transport without local copies is refused",
                  "[print_preparation][remap]") {
     lv_init_safe();

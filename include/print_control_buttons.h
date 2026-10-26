@@ -105,6 +105,11 @@ class PrintControlButtons {
     void start_pending_action(PendingAction action);
     void clear_pending_action();
 
+    /// Stop was confirmed: run whichever route current_view() picks.
+    void confirm_stop();
+    /// Ask the printer to cancel a start it was sent but has not reported.
+    void cancel_sent_start();
+
     /// Shared by clear_pending_action(), the StaticSubjectRegistry teardown and
     /// the destructor — a timer cancelled on only some of those paths stays armed
     /// on a freed `this` on the others.
@@ -123,6 +128,8 @@ class PrintControlButtons {
     bool subjects_initialized_ = false;
     PendingAction pending_action_ = PendingAction::None;
     lv_timer_t* pending_action_timeout_ = nullptr;
+    /// A cancel_sent_start() the printer has not answered yet.
+    bool cancel_requested_ = false;
 
     SubjectManager subjects_;
     lv_subject_t primary_icon_subject_{};

@@ -607,6 +607,7 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
                 });
             return;
         }
+        printer_state_.print_state().note_preparing_start_sent();
         api_->job().start_print(
             filename,
             [tok, on_started]() mutable {

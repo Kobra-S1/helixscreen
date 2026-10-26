@@ -571,6 +571,7 @@
   <translation tag="Cancel Scheduled Pause" fr="Annuler la pause prévue"/>
   <translation tag="Cancel macro not configured" fr="Macro d&apos;annulation non configurée"/>
   <translation tag="Cancel print" fr="Annuler l&apos;impression"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." fr="Annulation envoyée. L&apos;imprimante termine sa séquence de démarrage, puis s&apos;arrête avant d&apos;imprimer."/>
   <translation tag="Canceled" fr="Annulé"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." fr="L&apos;annulation coupe la consigne de la chambre pour mettre fin à l&apos;attente, puis arrête l&apos;impression."/>
   <translation tag="Cannot add to queue: internal error" fr="Impossible d&apos;ajouter à la file : erreur interne"/>
