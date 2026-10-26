@@ -75,7 +75,10 @@ void PrintControlButtons::init_subjects() {
     // would re-evaluate for the entire window.
     print_lifecycle_observer_ = observe<int>(
         get_printer_state().print_state().get_print_lifecycle_subject(), this,
-        [](PrintControlButtons* self, int) { self->recompute(); },
+        [](PrintControlButtons* self, int) {
+            self->release_cancel_if_job_moved_on();
+            self->recompute();
+        },
         get_printer_state().get_subjects_lifetime());
 
     // Self-register cleanup so subjects/observer are torn down before lv_deinit().
@@ -230,13 +233,13 @@ void PrintControlButtons::confirm_stop() {
 
 void PrintControlButtons::cancel_sent_start() {
     if (!api_) {
-        NOTIFY_ERROR(lv_tr("Failed to cancel: {}"), "not connected to printer");
+        NOTIFY_ERROR(lv_tr("Failed to cancel: {}"), lv_tr("Not connected to printer"));
         return;
     }
     // Klipper cannot interrupt a running macro. The cancel queues behind the
     // print-start sequence and runs before the first line of the file, so the
-    // sequence finishes and the print never begins. Until the printer answers,
-    // the job stays preparing: it is not cancelled yet.
+    // sequence finishes and the print never begins. Until the printer reports
+    // how the job ended, it stays preparing: it is not cancelled yet.
     const int epoch =
         lv_subject_get_int(get_printer_state().print_state().get_preparing_epoch_subject());
     spdlog::info("[PrintControl] Stop confirmed after the start was sent - cancelling on the "
@@ -244,7 +247,7 @@ void PrintControlButtons::cancel_sent_start() {
                  epoch);
     cancel_requested_ = true;
     cancel_epoch_ = epoch;
-    cancel_unanswered_ = false;
+    cancel_rpc_done_ = false;
     recompute();
     NOTIFY_INFO(lv_tr("Cancel sent. The printer finishes its start sequence, then stops "
                       "before printing."));
@@ -252,16 +255,20 @@ void PrintControlButtons::cancel_sent_start() {
     api_->job().cancel_print(
         [epoch]() {
             queue_update("PrintControlButtons::cancel_sent_start.ok", [epoch]() {
-                spdlog::info("[PrintControl] Printer confirmed the cancel of a sent start");
-                PrintControlButtons::instance().settle_sent_start_cancel(
-                    epoch, helix::PreparingExit::Cancelled);
+                auto& self = PrintControlButtons::instance();
+                if (!self.cancel_requested_ || self.cancel_epoch_ != epoch) {
+                    return; // already settled by the printer's job state
+                }
+                spdlog::info("[PrintControl] Printer answered the cancel of a sent start");
+                self.cancel_rpc_done_ = true;
+                self.release_cancel_if_job_moved_on();
             });
         },
         [epoch](const MoonrakerError& err) {
             queue_update("PrintControlButtons::cancel_sent_start.err", [epoch, err]() {
                 auto& self = PrintControlButtons::instance();
                 if (!self.cancel_requested_ || self.cancel_epoch_ != epoch) {
-                    return; // already settled by the printer's job state
+                    return;
                 }
                 if (err.is_transport_loss()) {
                     // The cancel may still be queued behind the start sequence:
@@ -271,58 +278,69 @@ void PrintControlButtons::cancel_sent_start() {
                     spdlog::warn("[PrintControl] Cancel of a sent start unanswered ({}) - "
                                  "waiting on the printer's job state",
                                  err.message);
-                    self.cancel_unanswered_ = true;
                     NOTIFY_INFO(lv_tr("The printer has not answered the cancel yet. It "
                                       "stops once its start sequence finishes."));
+                    self.cancel_rpc_done_ = true;
+                    self.release_cancel_if_job_moved_on();
                     return;
                 }
                 spdlog::error("[PrintControl] Cancel of a sent start refused: {}", err.message);
-                self.cancel_requested_ = false;
-                self.recompute();
+                self.clear_cancel_request();
                 NOTIFY_ERROR(lv_tr("Failed to cancel: {}"), err.localized_message());
             });
         });
 }
 
-void PrintControlButtons::settle_sent_start_cancel(int epoch, helix::PreparingExit exit) {
-    if (!cancel_requested_ || cancel_epoch_ != epoch) {
-        return;
-    }
+void PrintControlButtons::clear_cancel_request() {
     cancel_requested_ = false;
     cancel_epoch_ = 0;
-    cancel_unanswered_ = false;
-    auto& ps = get_printer_state().print_state();
-    // A job the printer reported meanwhile was retired as Confirmed and ends
-    // through the printer's own state; a newer job is not ours to end.
-    if (lv_subject_get_int(ps.get_preparing_epoch_subject()) == epoch) {
-        ps.retire_preparing(exit);
-    }
+    cancel_rpc_done_ = false;
     recompute();
+}
+
+void PrintControlButtons::release_cancel_if_job_moved_on() {
+    // The printer took the job (Confirmed) or something else retired it. Its
+    // own state now carries the outcome, so Stop belongs to that job.
+    const int now =
+        lv_subject_get_int(get_printer_state().print_state().get_preparing_epoch_subject());
+    if (cancel_requested_ && cancel_rpc_done_ && now != cancel_epoch_) {
+        clear_cancel_request();
+    }
 }
 
 void PrintControlButtons::settle_cancel_from_job_state(helix::PrintJobState job_state) {
     if (!cancel_requested_) {
         return;
     }
+    auto& ps = get_printer_state().print_state();
+    const bool still_ours = lv_subject_get_int(ps.get_preparing_epoch_subject()) == cancel_epoch_;
     // RAW_PRINT_STATE_OK: how the PRINTER ended the start a cancel is queued
     // behind. STANDBY is not an answer: SDCARD_PRINT_FILE passes through it
     // while loading the file, before the queued cancel can run.
     switch (job_state) {
     case helix::PrintJobState::CANCELLED:
     case helix::PrintJobState::COMPLETE:
-        settle_sent_start_cancel(cancel_epoch_, helix::PreparingExit::Cancelled);
-        break;
     case helix::PrintJobState::ERROR:
-        settle_sent_start_cancel(cancel_epoch_, helix::PreparingExit::Failed);
+        // The printer ended our job itself. Its terminal state reaches the
+        // completion observer, which reports it once.
+        if (still_ours) {
+            ps.retire_preparing(helix::PreparingExit::EndedByPrinter);
+        }
+        clear_cancel_request();
         break;
+    // RAW_PRINT_STATE_OK: the printer holding the job, as it reports it.
     case helix::PrintJobState::PRINTING:
     case helix::PrintJobState::PAUSED:
-        // The start sequence has returned and the printer holds the job. While
-        // the RPC is still waiting its answer settles it; once the RPC has
-        // given up, a cancel that was queued ends the job through the normal
-        // print path, and Stop must come back in case it was never received.
-        if (cancel_unanswered_) {
-            settle_sent_start_cancel(cancel_epoch_, helix::PreparingExit::Cancelled);
+        // Holding the job while the cancel is still unanswered is the expected
+        // path: the cancel runs next and ends it. Holding it after the printer
+        // answered means the cancel ran before the start reached the printer,
+        // and this print is running.
+        if (cancel_rpc_done_) {
+            spdlog::warn("[PrintControl] Printer took the job after answering the cancel - "
+                         "the print is running");
+            NOTIFY_WARNING(lv_tr("The print started after the cancel was answered. Cancel "
+                                 "it again to stop it."));
+            clear_cancel_request();
         }
         break;
     default:
@@ -373,6 +391,9 @@ PrintControlButtons::~PrintControlButtons() {
 
 void PrintControlButtons::teardown_subjects() {
     cancel_pending_action_timer();
+    cancel_requested_ = false;
+    cancel_epoch_ = 0;
+    cancel_rpc_done_ = false;
     subjects_.deinit_all();
     subjects_initialized_ = false;
 }

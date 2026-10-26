@@ -3970,6 +3970,7 @@ translations:
   The print is still stuck to the bed: The print is still stuck to the bed
   The print is waiting for the chamber to reach {}°C, but the heater is not heating.: The print is waiting for the chamber to reach {}°C, but the heater is not heating.
   The print is waiting for the chamber, but the heater is not heating.: The print is waiting for the chamber, but the heater is not heating.
+  The print started after the cancel was answered. Cancel it again to stop it.: 'The print started after the cancel was answered. Cancel it again to stop it.'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.
   The printer applied this value and keeps it for this tool.: 'The printer applied this value and keeps it for this tool.'
   The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.: The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.

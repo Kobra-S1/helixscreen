@@ -1960,10 +1960,14 @@ void PrintPreparationManager::abandon_start(const char* where,
     }
 }
 
+int PrintPreparationManager::current_preparing_epoch() const {
+    return printer_state_
+               ? lv_subject_get_int(printer_state_->print_state().get_preparing_epoch_subject())
+               : 0;
+}
+
 bool PrintPreparationManager::start_withdrawn(int preparing_epoch) const {
-    return preparing_epoch != 0 && printer_state_ &&
-           lv_subject_get_int(printer_state_->print_state().get_preparing_epoch_subject()) !=
-               preparing_epoch;
+    return preparing_epoch != 0 && current_preparing_epoch() != preparing_epoch;
 }
 
 void PrintPreparationManager::note_start_sent() {
@@ -2171,9 +2175,8 @@ void PrintPreparationManager::rewrite_and_print(RewriteRoute route,
     }
     // A route that already names its job keeps it, so a retry of a withdrawn
     // start cannot adopt "no job" and print anyway.
-    if (printer_state_ && route.preparing_epoch == 0) {
-        route.preparing_epoch =
-            lv_subject_get_int(printer_state_->print_state().get_preparing_epoch_subject());
+    if (route.preparing_epoch == 0) {
+        route.preparing_epoch = current_preparing_epoch();
     }
     if (start_withdrawn(route.preparing_epoch)) {
         spdlog::info("[PrintPreparationManager] Start abandoned - '{}' is no longer being "
@@ -2365,6 +2368,10 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
         return;
     }
     note_start_sent();
+    // The transfer is done. A firmware that runs its start sequence inside
+    // SDCARD_PRINT_FILE answers the start only once that sequence ends, and
+    // the overlay would keep Stop out of reach for all of it.
+    BusyOverlay::hide();
 
     auto token = lifetime_.token();
     auto on_print_success = [job, on_navigate_to_status]() {
@@ -2436,6 +2443,12 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
                              job->file_path, error.message);
                 token.defer("PrintPreparationManager::edit_fallback",
                             [this, job, on_navigate_to_status, on_completion]() {
+                                // Refused before anything ran: the fallback
+                                // sends its own start.
+                                if (printer_state_) {
+                                    printer_state_->print_state().note_preparing_start_refused(
+                                        job->preparing_epoch);
+                                }
                                 RewriteRoute route = *job;
                                 route.server_edits.reset();
                                 rewrite_and_print(std::move(route), on_navigate_to_status,
@@ -2618,6 +2631,8 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
         return;
     }
     note_start_sent();
+    helix::PrinterState* ps = printer_state_;
+    const int epoch = current_preparing_epoch();
     api_->job().start_print(
         filename,
         // Success callback
@@ -2633,7 +2648,15 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
             }
         },
         // Error callback
-        [filename, on_completion](const MoonrakerError& error) {
+        [filename, on_completion, ps, epoch](const MoonrakerError& error) {
+            // A refusal (spool latch, bad path) means nothing reached the
+            // printer, so Stop must not cancel there. A transport loss says
+            // nothing about whether it did.
+            if (ps && !error.is_transport_loss()) {
+                helix::ui::queue_update("PrintPreparationManager::start_refused", [ps, epoch]() {
+                    ps->print_state().note_preparing_start_refused(epoch);
+                });
+            }
             helix::ui::notify_error_tr(TR_NOOP("Failed to start print: {}"), error);
             LOG_ERROR_INTERNAL("[PrintPreparationManager] Print start failed for {}: {} ({})",
                                filename, error.message, error.get_type_string());

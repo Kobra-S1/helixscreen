@@ -3946,18 +3946,42 @@ TEST_CASE_METHOD(HelixTestFixture,
     manager.set_dependencies(&api, &state);
     state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
 
+    // T1 -> T2 rewrites and uploads a copy; T5 is not in the file, so the
+    // original starts unchanged.
+    const bool rewritten = GENERATE(true, false);
+    CAPTURE(rewritten);
+    const std::map<int, int> remap =
+        rewritten ? std::map<int, int>{{1, 2}} : std::map<int, int>{{5, 6}};
+    const bool withdraw = GENERATE(true, false);
+    CAPTURE(withdraw);
+
     std::optional<bool> completed;
     manager.modify_and_print_with_remap(
-        kRemapFixture, {{1, 2}}, nullptr,
+        kRemapFixture, remap, nullptr,
         [&completed](bool ok, const std::string&) { completed = ok; });
-    // Stop while the copy is still on its way.
-    state.print_state().retire_preparing(helix::PreparingExit::Cancelled);
+    if (withdraw) {
+        // Stop while the copy is still on its way.
+        state.print_state().retire_preparing(helix::PreparingExit::Cancelled);
+    }
     drain_until_quiet();
 
-    CHECK(api.job_mock().started_prints().empty());
-    CHECK(api.job_mock().modified_prints().empty());
-    REQUIRE(completed.has_value());
-    CHECK_FALSE(*completed);
+    const size_t sent =
+        api.job_mock().started_prints().size() + api.job_mock().modified_prints().size();
+    CHECK(sent == (withdraw ? 0u : 1u));
+    if (withdraw) {
+        REQUIRE(completed.has_value());
+        CHECK_FALSE(*completed);
+        if (rewritten) {
+            // The uploaded copy goes with the start it was made for.
+            const auto& uploads = api.transfers_mock().path_uploads();
+            REQUIRE(uploads.size() == 1);
+            const auto& deleted = api.files_mock().deleted_files();
+            CHECK(std::find(deleted.begin(), deleted.end(), "gcodes/" + uploads[0].dest_path) !=
+                  deleted.end());
+        }
+    } else {
+        CHECK(state.print_state().preparing_start_sent());
+    }
 }
 
 TEST_CASE_METHOD(HelixTestFixture,

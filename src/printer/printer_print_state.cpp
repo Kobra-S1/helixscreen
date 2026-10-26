@@ -1514,6 +1514,8 @@ const char* preparing_exit_name(PreparingExit reason) {
         return "cancelled";
     case PreparingExit::TimedOut:
         return "timed out";
+    case PreparingExit::EndedByPrinter:
+        return "ended by the printer";
     }
     return "?";
 }

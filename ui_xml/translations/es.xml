@@ -3698,6 +3698,7 @@
   <translation tag="The print is still stuck to the bed" es="La impresión sigue pegada a la cama"/>
   <translation tag="The print is waiting for the chamber to reach {}°C, but the heater is not heating." es="La impresión espera a que la cámara alcance {}°C, pero el calentador no calienta."/>
   <translation tag="The print is waiting for the chamber, but the heater is not heating." es="La impresión espera a la cámara, pero el calentador no calienta."/>
+  <translation tag="The print started after the cancel was answered. Cancel it again to stop it." es="La impresión empezó después de responder a la cancelación. Cancélala de nuevo para detenerla."/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." es="El tamaño imprimible en milímetros (X × Y × Z), según los límites de los ejes en la configuración de Klipper de la impresora."/>
   <translation tag="The printer applied this value and keeps it for this tool." es="La impresora aplicó este valor y lo conserva para esta herramienta."/>
   <translation tag="The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options." es="La impresora puede trazar una línea de purga antes de imprimir. HelixScreen la ofrece en las opciones previas a la impresión."/>

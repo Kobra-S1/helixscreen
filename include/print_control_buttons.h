@@ -35,7 +35,13 @@ class PrintControlButtons {
     /// wire the event callbacks, and start observing the print state. Idempotent.
     void init_subjects();
 
+    /// A new connection drops a cancel pending on the old one.
     void set_api(IMoonrakerAPI* api) {
+        if (api != api_) {
+            cancel_requested_ = false;
+            cancel_epoch_ = 0;
+            cancel_rpc_done_ = false;
+        }
         api_ = api;
     }
 
@@ -110,10 +116,11 @@ class PrintControlButtons {
     void confirm_stop();
     /// Ask the printer to cancel a start it was sent but has not reported.
     void cancel_sent_start();
-    /// End the cancel_sent_start() made for @p epoch, retiring that job with
-    /// @p exit if it is still the one being prepared. No-op for any other.
-    void settle_sent_start_cancel(int epoch, helix::PreparingExit exit);
-    /// The printer's job state answers a pending cancel its RPC did not.
+    /// Drop the pending cancel and re-enable Stop.
+    void clear_cancel_request();
+    /// Drop a pending cancel the printer has answered once its job is no
+    /// longer the one being prepared.
+    void release_cancel_if_job_moved_on();
     void settle_cancel_from_job_state(helix::PrintJobState job_state);
 
     /// Shared by clear_pending_action(), the StaticSubjectRegistry teardown and
@@ -138,9 +145,9 @@ class PrintControlButtons {
     /// preparing epoch it was sent for.
     bool cancel_requested_ = false;
     int cancel_epoch_ = 0;
-    /// That cancel's RPC ended without an answer, so only the job state can
-    /// settle it.
-    bool cancel_unanswered_ = false;
+    /// That cancel's RPC is over (answered, or given up on): only the job
+    /// state can settle it now.
+    bool cancel_rpc_done_ = false;
 
     SubjectManager subjects_;
     lv_subject_t primary_icon_subject_{};

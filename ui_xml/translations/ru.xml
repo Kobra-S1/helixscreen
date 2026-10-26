@@ -3758,6 +3758,7 @@
   <translation tag="The print is still stuck to the bed" ru="Модель всё ещё держится на столе"/>
   <translation tag="The print is waiting for the chamber to reach {}°C, but the heater is not heating." ru="Печать ждёт, пока камера нагреется до {}°C, но нагреватель не греет."/>
   <translation tag="The print is waiting for the chamber, but the heater is not heating." ru="Печать ждёт камеру, но нагреватель не греет."/>
+  <translation tag="The print started after the cancel was answered. Cancel it again to stop it." ru="Печать началась после ответа на отмену. Отмените её ещё раз, чтобы остановить."/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." ru="Размер области печати в миллиметрах (X × Y × Z) по пределам осей в конфигурации Klipper принтера."/>
   <translation tag="The printer applied this value and keeps it for this tool." ru="Принтер применил это значение и сохранил его для этого инструмента."/>
   <translation tag="The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options." ru="Принтер может нарисовать линию прочистки перед печатью. HelixScreen предлагает ее в параметрах подготовки к печати."/>

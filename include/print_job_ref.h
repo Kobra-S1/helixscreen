@@ -46,8 +46,11 @@ struct PrintJobRef {
  * Cancelled  - the user abandoned the start.
  * TimedOut   - no confirmation arrived. Ungated: a commit-armed job can be
  *              raised on a printer that never reaches state=printing at all.
+ * EndedByPrinter - the printer took this job and ended it before reporting it
+ *              printing (a cancel queued behind its start sequence). Its own
+ *              terminal state reports the outcome, so this exit says nothing.
  */
-enum class PreparingExit { Confirmed, Superseded, Failed, Cancelled, TimedOut };
+enum class PreparingExit { Confirmed, Superseded, Failed, Cancelled, TimedOut, EndedByPrinter };
 
 /// Human-readable name, for logs.
 const char* preparing_exit_name(PreparingExit reason);

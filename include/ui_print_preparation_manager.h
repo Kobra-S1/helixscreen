@@ -1012,6 +1012,9 @@ class PrintPreparationManager {
     /// which no armed job carries.
     [[nodiscard]] bool start_withdrawn(int preparing_epoch) const;
 
+    /// The preparing epoch PrinterPrintState publishes, 0 without a state.
+    [[nodiscard]] int current_preparing_epoch() const;
+
     /// Record that the preparing job's start is going to the printer, after
     /// which only the printer can stop it. Called beside every start send.
     void note_start_sent();

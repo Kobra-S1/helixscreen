@@ -3842,6 +3842,7 @@ translations:
   The print is still stuck to the bed: 打印件仍附着在热床上
   The print is waiting for the chamber to reach {}°C, but the heater is not heating.: '打印正在等待腔体达到 {}°C，但加热器没有加热。'
   The print is waiting for the chamber, but the heater is not heating.: '打印正在等待腔体，但加热器没有加热。'
+  The print started after the cancel was answered. Cancel it again to stop it.: '取消得到响应后打印仍已开始。请再次取消以停止打印。'
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: '可打印尺寸（毫米，X × Y × Z），取自打印机 Klipper 配置中的轴限位。'
   The printer applied this value and keeps it for this tool.: '打印机已应用此值，并为该工具保存。'
   The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.: '打印机可在打印前画一条预挤出线。HelixScreen 在打印前选项中提供该功能。'

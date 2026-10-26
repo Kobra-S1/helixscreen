@@ -26,7 +26,7 @@ struct PrintControlButtonsTestAccess {
         s.pending_action_ = PendingAction::None;
         s.cancel_requested_ = false;
         s.cancel_epoch_ = 0;
-        s.cancel_unanswered_ = false;
+        s.cancel_rpc_done_ = false;
     }
 
     /// What the cancel modal's confirm button runs.

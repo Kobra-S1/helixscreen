@@ -120,14 +120,40 @@ TEST_CASE_METHOD(SentStartFixture,
     CHECK(PrintControlButtonsTestAccess::cancel_requested());
     CHECK(stop_enabled() == 0);
 
-    // CANCEL_PRINT ran once the sequence yielded.
+    // The answer alone settles nothing: it cannot tell a cancel that ran after
+    // the start from one that ran on an idle printer before the start arrived.
     REQUIRE(cancel_ok);
     cancel_ok(json::object());
     drain();
+    CHECK(ps().has_preparing_job());
+    CHECK(PrintControlButtonsTestAccess::cancel_requested());
 
+    // The printer's own report ends it, once: the completion observer owns the
+    // message, so the preparing exit says nothing.
+    report("cancelled", "part.gcode");
     CHECK_FALSE(ps().has_preparing_job());
-    CHECK(ps().last_preparing_exit() == helix::PreparingExit::Cancelled);
+    CHECK(ps().last_preparing_exit() == helix::PreparingExit::EndedByPrinter);
+    CHECK(ps().get_print_lifecycle() == PrintState::Cancelled);
     CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
+}
+
+TEST_CASE_METHOD(SentStartFixture,
+                 "A cancel answered before the start reached the printer does not hide the print",
+                 "[print_control][preparing_cancel]") {
+    ps().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    ps().note_preparing_start_sent();
+    drain();
+    PrintControlButtonsTestAccess::confirm_stop();
+    drain();
+
+    // CANCEL_PRINT ran on an idle printer, then the start arrived and runs.
+    REQUIRE(cancel_ok);
+    cancel_ok(json::object());
+    drain();
+    report("printing", "part.gcode");
+
+    CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
+    CHECK(ps().last_preparing_exit() == helix::PreparingExit::Confirmed);
 }
 
 TEST_CASE_METHOD(SentStartFixture, "A refused cancel of a sent start leaves the job and Stop live",
@@ -172,7 +198,7 @@ TEST_CASE_METHOD(SentStartFixture,
 
     report("cancelled", "part.gcode");
     CHECK_FALSE(ps().has_preparing_job());
-    CHECK(ps().last_preparing_exit() == helix::PreparingExit::Cancelled);
+    CHECK(ps().last_preparing_exit() == helix::PreparingExit::EndedByPrinter);
     CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
 }
 
@@ -193,7 +219,6 @@ TEST_CASE_METHOD(SentStartFixture,
     REQUIRE(cancel_err);
     cancel_err(MoonrakerError::connection_lost("printer.print.cancel"));
     drain();
-    report("paused", "part.gcode");
     CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
 }
 
@@ -214,6 +239,24 @@ TEST_CASE_METHOD(SentStartFixture,
 
     CHECK(ps().has_preparing_job());
     CHECK(ps().preparing_job().filename == "next.gcode");
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A refused start leaves nothing on the printer to cancel",
+                 "[print_control][preparing_cancel]") {
+    ps().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    const int epoch = lv_subject_get_int(ps().get_preparing_epoch_subject());
+    ps().note_preparing_start_sent();
+
+    ps().note_preparing_start_refused(epoch + 1); // another job's refusal
+    CHECK(ps().preparing_start_sent());
+    ps().note_preparing_start_refused(epoch);
+    CHECK_FALSE(ps().preparing_start_sent());
+
+    // So Stop withdraws it locally instead of cancelling an idle printer.
+    PrintControlButtonsTestAccess::confirm_stop();
+    drain();
+    CHECK(cancels == 0);
+    CHECK(ps().last_preparing_exit() == helix::PreparingExit::Cancelled);
 }
 
 TEST_CASE_METHOD(SentStartFixture, "The start-sent mark belongs to one preparing job",

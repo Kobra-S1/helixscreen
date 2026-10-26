@@ -161,7 +161,7 @@ applies:
 | Route | When | What Stop does |
 |---|---|---|
 | `RetirePreparing` | preparing, start not yet sent | `retire_preparing(Cancelled)`; every start send first checks its preparing epoch, so nothing reaches the printer |
-| `CancelSentStart` | preparing, start sent, printer not reporting the job | `printer.print.cancel`; the job stays preparing and Stop stays off until the printer answers. A timeout or dropped connection is not an answer (the cancel may still be queued): the printer's job state settles it instead |
+| `CancelSentStart` | preparing, start sent, printer not reporting the job | `printer.print.cancel`; the job stays preparing and Stop stays off until the printer's job state settles it (below) |
 | `Abort` | the printer reports the job | `AbortManager` |
 
 `CANCEL_PRINT` sent to an idle printer is worse than useless: `AbortManager`
@@ -172,8 +172,22 @@ firmwares run the whole print-start sequence inside `SDCARD_PRINT_FILE`, so
 (prestonbrown/helixscreen#1890). Klipper cannot interrupt a running macro: the
 cancel queues behind it and runs before the first line of the file, so the
 start sequence finishes and the print never begins. The Stop handler says so in
-a notification, keeps Stop disabled until the printer answers, and does not show
-the job cancelled until it does. `PrinterPrintState::note_preparing_start_sent()`
+a notification, keeps Stop disabled, and does not show the job cancelled until the
+printer reports it:
+
+- `cancelled` / `complete` / `error` for our job retires it as `EndedByPrinter`,
+  which says nothing itself: the completion observer reports the printer's
+  terminal state once.
+- The RPC's answer alone settles nothing. Its success cannot tell a cancel that
+  ran after the start from one that ran on an idle printer before the start
+  arrived, and a timeout or dropped connection may leave the cancel queued.
+- `printing` / `paused` after the RPC is over means the start arrived after the
+  cancel ran: Stop comes back and a warning says the print is running.
+- `standby` is never an answer: `SDCARD_PRINT_FILE` passes through it while
+  loading the file.
+
+A refused start (`note_preparing_start_refused()`) clears the mark, so Stop
+withdraws that job locally instead of cancelling an idle printer. `PrinterPrintState::note_preparing_start_sent()`
 records the hand-over at every site that sends a start.
 
 Inputs → outputs at a glance:

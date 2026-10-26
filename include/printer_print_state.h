@@ -451,6 +451,13 @@ class PrinterPrintState {
     [[nodiscard]] bool preparing_start_sent() const {
         return preparing_start_sent_;
     }
+    /// The start sent for the job armed at @p epoch was refused, so the
+    /// printer has nothing to cancel. No-op once a different job is preparing.
+    void note_preparing_start_refused(int epoch) {
+        if (epoch != 0 && epoch == preparing_epoch_counter_ && !preparing_job_.empty()) {
+            preparing_start_sent_ = false;
+        }
+    }
 
     /**
      * @brief Bumped each time a job starts preparing; 0 when none is
