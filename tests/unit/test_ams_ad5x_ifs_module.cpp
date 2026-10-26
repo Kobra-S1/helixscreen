@@ -19,6 +19,7 @@
 #include "printer_discovery.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/backend_user_edit.h"
+#include "test_helpers/mock_printer.h"
 
 #include <algorithm>
 #include <array>
@@ -627,6 +628,70 @@ TEST_CASE("AD5X IFS module with no lane record keeps the remembered-lane fallbac
     backend.captured_gcodes.clear();
     REQUIRE(backend.unload_filament(-1).success());
     CHECK(backend.has_gcode("IFS_UNLOAD SLOT=4"));
+}
+
+TEST_CASE("AD5X IFS module keeps the ifs_loaded lane while another lane's eject engages",
+          "[ams][ad5x_ifs][ifs_module][1897]") {
+    // Lane 2 is loaded; an IFS_EJECT of lane 3 moves active_channel to 3 while
+    // lane 3 still reads present. The seated lane must stay on lane 2.
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_head_switch(backend, true, true);
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(2, {2, 3}));
+    Ad5xIfsTestAccess::handle_status(
+        backend, json{{"save_variables", {{"variables", {{"ifs_loaded", 2}}}}}});
+    REQUIRE(Ad5xIfsTestAccess::seated_chan(backend) == 2);
+
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(3, {2, 3}));
+    CHECK(Ad5xIfsTestAccess::seated_chan(backend) == 2);
+    CHECK(backend.get_current_slot() == 1);
+    backend.captured_gcodes.clear();
+    REQUIRE(backend.unload_filament(-1).success());
+    CHECK(backend.has_gcode("IFS_UNLOAD SLOT=2"));
+    CHECK_FALSE(backend.has_gcode_containing("SLOT=3"));
+}
+
+TEST_CASE("AD5X IFS module beside a plugin keeps following active_channel",
+          "[ams][ad5x_ifs][ifs_module][1897]") {
+    // A lessWaste/bambufy swap need not run IFS_LOAD, so ifs_loaded can lag on
+    // a plugin rig; neither the seated lane nor the remembered lane follows it.
+    AmsBackendAd5xIfs backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::set_ifs_macro_confirmed_missing(backend, false);
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    Ad5xIfsTestAccess::handle_status(
+        backend,
+        json{{"save_variables",
+              {{"variables", {{"bambufy_tools", json::array({1, 2, 3, 4})}, {"ifs_loaded", 2}}}}}});
+    REQUIRE(Ad5xIfsTestAccess::has_ifs_vars(backend));
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(3, {2, 3}));
+    REQUIRE(Ad5xIfsTestAccess::module_live(backend));
+
+    CHECK(Ad5xIfsTestAccess::seated_chan(backend) == 3);
+    CHECK(Ad5xIfsTestAccess::persisted_seated_slot(backend) == std::optional<int>(2));
+}
+
+TEST_CASE("AD5X IFS module writes the remembered lane only when ifs_loaded changes",
+          "[ams][ad5x_ifs][ifs_module][1897]") {
+    MockPrinter mock_printer;
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::inject_override_store(
+        backend, std::make_unique<helix::ams::FilamentSlotOverrideStore>(&mock_printer.api, "ifs"));
+    Ad5xIfsTestAccess::set_head_switch(backend, true, true);
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    const json lane2_vars{{"save_variables", {{"variables", {{"ifs_loaded", 2}}}}}};
+
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2}));
+    Ad5xIfsTestAccess::handle_status(backend, lane2_vars);
+    const int posts = mock_printer.client.call_count("server.database.post_item");
+    REQUIRE(posts == 1);
+    CHECK(mock_printer.client.mock_db_get("lane_data", "seated") == json(1));
+
+    for (int i = 0; i < 5; ++i) {
+        Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2}));
+        Ad5xIfsTestAccess::handle_status(backend, lane2_vars);
+    }
+    CHECK(mock_printer.client.call_count("server.database.post_item") == posts);
 }
 
 TEST_CASE("AD5X IFS module driver_error surfaces as ERROR", "[ams][ad5x_ifs][ifs_module]") {

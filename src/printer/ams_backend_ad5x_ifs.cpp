@@ -898,6 +898,20 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
         }
     }
 
+    // The standalone module's lane records. Stored whatever the module latch
+    // says, because this frame can arrive before the one that latches it, and
+    // ahead of the plugin branch's early return; unload_lane_decision_locked()
+    // and apply_zcolor_result() read them only while the module is live.
+    module_at_hub_ = (vars.contains("ifs_at_hub") && vars["ifs_at_hub"].is_number_integer())
+                         ? vars["ifs_at_hub"].get<int>()
+                         : 0;
+    if (vars.contains("ifs_loaded") && vars["ifs_loaded"].is_number_integer()) {
+        const int loaded = vars["ifs_loaded"].get<int>(); // 1-based; 0 = none
+        module_loaded_ = (loaded >= 1 && loaded <= kNumPorts) ? loaded : 0;
+    } else {
+        module_loaded_.reset();
+    }
+
     const std::string p = var_prefix_;
 
     // NOTE on colors/types: <prefix>_colors and <prefix>_types live in the
@@ -1009,8 +1023,7 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
         // running this loop would lock those defaults in over real data that
         // might arrive later via apply_zcolor_result's extruder_slot path.
         rebuild_slot_tool_mapping_locked();
-    } else if (ifs_module_live_.load() && vars.contains("ifs_loaded") &&
-               vars["ifs_loaded"].is_number_integer()) {
+    } else if (module_owns_seated_lane_locked()) {
         // Standalone IFS module: `ifs_loaded` is the module's own
         // success-confirmed record of the lane in the nozzle (SAVE_VARIABLE at
         // the end of IFS_LOAD / IFS_UNLOAD, cleared on eject), and it survives
@@ -1022,8 +1035,7 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
         // the module is live. Gated on the latch because save_variables rows
         // persist after a firmware change, same lesson as the plugin rows
         // above.
-        const int loaded = vars["ifs_loaded"].get<int>(); // 1-based; 0 = none
-        module_loaded_ = loaded;
+        const int loaded = *module_loaded_;
         if (loaded != seated_chan_) {
             spdlog::debug("{} module ifs_loaded={} (was Chan {}) — adopting as seated channel",
                           backend_log_tag(), loaded, seated_chan_);
@@ -1032,19 +1044,9 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
         // Keep current_tool in step too — handle_status snapshots
         // active_tool_ into system_info_ on this same frame, and the identity
         // tool map the latch installed makes tool == channel - 1.
-        active_tool_ = (loaded >= 1 && loaded <= kNumPorts) ? loaded - 1 : -1;
+        active_tool_ = loaded - 1;
         module_last_chan_ = loaded;
         sync_remembered_lane_to_module_locked();
-    }
-
-    // Stored whatever the module latch says, because this frame can arrive
-    // before the one that latches it; unload_lane_decision_locked() and
-    // apply_zcolor_result() read them only while the module is live.
-    module_at_hub_ = (vars.contains("ifs_at_hub") && vars["ifs_at_hub"].is_number_integer())
-                         ? vars["ifs_at_hub"].get<int>()
-                         : 0;
-    if (vars.contains("ifs_loaded") && vars["ifs_loaded"].is_number_integer()) {
-        module_loaded_ = vars["ifs_loaded"].get<int>();
     }
 
     // Sync all slots from cached state
@@ -5605,15 +5607,13 @@ void AmsBackendAd5xIfs::apply_zcolor_result(const ZColorSilentResult& result) {
             // remembered-lane floor below unnecessary: on the module, Chan=0 with
             // a loaded head is the normal idle state, not post-reboot amnesia
             // (prestonbrown/helixscreen#1897).
-            const bool module_record = ifs_module_live_.load() && module_loaded_.has_value();
+            const bool module_record = module_owns_seated_lane_locked();
             if (module_record) {
-                const int loaded = *module_loaded_;
-                const int seated = (loaded >= 1 && loaded <= kNumPorts) ? loaded : 0;
-                if (seated_chan_ != seated) {
+                if (seated_chan_ != *module_loaded_) {
                     spdlog::debug("{} Seated lane from module ifs_loaded={} (active_channel={})",
-                                  backend_log_tag(), loaded, chan);
+                                  backend_log_tag(), *module_loaded_, chan);
                 }
-                seated_chan_ = seated;
+                seated_chan_ = *module_loaded_;
             } else if (ffm_channel_ > 0 && head_empty_authoritative) {
                 if (seated_chan_ != 0) {
                     spdlog::debug("{} FFMInfo.channel={} rejected as seated: toolhead switch "
@@ -7094,13 +7094,19 @@ void AmsBackendAd5xIfs::persist_seated_slot_locked(int slot0) {
     }
 }
 
+bool AmsBackendAd5xIfs::module_owns_seated_lane_locked() const {
+    // A lessWaste/bambufy plugin running beside the module owns the tool map
+    // and its own swap path, which need not run IFS_LOAD, so ifs_loaded can lag
+    // there; the plugin rig keeps following active_channel.
+    return ifs_module_live_.load() && !has_ifs_vars_ && module_loaded_.has_value();
+}
+
 void AmsBackendAd5xIfs::sync_remembered_lane_to_module_locked() {
-    if (!ifs_module_live_.load() || !module_loaded_.has_value()) {
+    if (!module_owns_seated_lane_locked()) {
         return;
     }
     const int loaded = *module_loaded_;
-    const std::optional<int> slot0 =
-        (loaded >= 1 && loaded <= kNumPorts) ? std::optional<int>(loaded - 1) : std::nullopt;
+    const std::optional<int> slot0 = loaded > 0 ? std::optional<int>(loaded - 1) : std::nullopt;
     if (persisted_seated_slot_ == slot0) {
         return;
     }
