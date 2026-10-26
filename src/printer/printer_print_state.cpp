@@ -1577,6 +1577,18 @@ void PrinterPrintState::note_preparing_start_answered(int epoch, bool accepted) 
     set_preparing_start(accepted ? PreparingStart::Accepted : PreparingStart::None);
 }
 
+bool PrinterPrintState::hold_for_requested_cancel(int epoch) {
+    if (!preparing_cancel_requested_ || epoch == 0 || epoch != preparing_epoch_counter_ ||
+        preparing_job_.empty()) {
+        return false;
+    }
+    spdlog::warn("[PrinterPrintState] Start of '{}' lost its answer with a cancel requested - "
+                 "holding the job for the cancel",
+                 preparing_job_.filename);
+    set_preparing_start(PreparingStart::Unanswered);
+    return true;
+}
+
 void PrinterPrintState::begin_preparing(const PrintJobRef& job) {
     if (job.empty()) {
         spdlog::warn("[PrinterPrintState] begin_preparing called with no job");
@@ -1584,6 +1596,7 @@ void PrinterPrintState::begin_preparing(const PrintJobRef& job) {
     }
     spdlog::info("[PrinterPrintState] Preparing '{}'", job.filename);
     preparing_job_ = job;
+    preparing_cancel_requested_ = false;
     set_preparing_start(PreparingStart::None);
 
     // Adopt this job's identity NOW, not when the printer first reports a name.
@@ -1663,6 +1676,7 @@ void PrinterPrintState::retire_preparing(PreparingExit reason) {
     spdlog::info("[PrinterPrintState] Retiring preparing job '{}': {}", preparing_job_.filename,
                  preparing_exit_name(reason));
     preparing_job_ = {};
+    preparing_cancel_requested_ = false;
     set_preparing_start(PreparingStart::None);
     last_preparing_exit_ = reason;
     cancel_preparing_watchdog();

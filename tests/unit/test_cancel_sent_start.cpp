@@ -54,6 +54,12 @@ struct SentStartFixture : LVGLTestFixture {
             [this](MoonrakerClientMock*, const json&, std::function<void(const json&)> ok,
                    std::function<void(const MoonrakerError&)> err) -> bool {
                 ++cancels;
+                if (refuse_unsent) {
+                    // What a client that is not connected does: refuse before
+                    // sending, calling the error back at once.
+                    err(MoonrakerError::connection_lost("printer.print.cancel"));
+                    return true;
+                }
                 cancel_ok = std::move(ok);
                 cancel_err = std::move(err);
                 return true;
@@ -109,6 +115,7 @@ struct SentStartFixture : LVGLTestFixture {
     MoonrakerClientMock client;
     std::unique_ptr<MoonrakerAPIMock> api;
     int cancels = 0;
+    bool refuse_unsent = false;
     std::function<void(const json&)> cancel_ok;
     std::function<void(const MoonrakerError&)> cancel_err;
 };
@@ -187,7 +194,35 @@ TEST_CASE_METHOD(SentStartFixture, "A refused start withdraws a job whose cancel
     CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
 }
 
-TEST_CASE_METHOD(SentStartFixture, "A start that fails while a cancel waits sends no cancel",
+TEST_CASE_METHOD(SentStartFixture,
+                 "A start that loses its answer while a cancel waits is held and cancelled",
+                 "[print_control][preparing_cancel]") {
+    // A timeout means Klipper is busy running the start, so the cancel queues
+    // behind it. Failing the job instead would drop the cancel and print.
+    const int epoch = arm_in_flight();
+    stop();
+    REQUIRE(ps().hold_for_requested_cancel(epoch)); // what every start site does
+    drain();
+
+    CHECK(cancels == 1);
+    CHECK(ps().has_preparing_job());
+    CHECK(ps().preparing_start() == helix::PreparingStart::Unanswered);
+    CHECK(PrintControlButtonsTestAccess::cancel_requested());
+
+    report("cancelled", "part.gcode");
+    CHECK(ps().last_preparing_exit() == helix::PreparingExit::EndedByPrinter);
+}
+
+TEST_CASE_METHOD(SentStartFixture, "Only a requested cancel holds a start that lost its answer",
+                 "[print_control][preparing_cancel]") {
+    const int epoch = arm_in_flight();
+    CHECK_FALSE(ps().hold_for_requested_cancel(epoch));
+    CHECK(ps().preparing_start() == helix::PreparingStart::InFlight);
+    stop();
+    CHECK_FALSE(ps().hold_for_requested_cancel(epoch + 1));
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A start that fails outright while a cancel waits sends none",
                  "[print_control][preparing_cancel]") {
     arm_in_flight();
     stop();
@@ -195,6 +230,57 @@ TEST_CASE_METHOD(SentStartFixture, "A start that fails while a cancel waits send
     drain();
 
     CHECK(cancels == 0);
+    CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A cancel the client refused before sending gives Stop back",
+                 "[print_control][preparing_cancel]") {
+    std::vector<std::string> errors;
+    helix::ui::set_test_notification_error_hook(
+        [&errors](const std::string& m) { errors.push_back(m); });
+    const int epoch = arm_in_flight();
+    start_answers(epoch, true);
+    refuse_unsent = true;
+    stop();
+    helix::ui::set_test_notification_error_hook(nullptr);
+
+    CHECK(cancels == 1);
+    CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
+    CHECK(stop_enabled() == 1);
+    REQUIRE(errors.size() == 1);
+    CHECK(errors[0].find("Not connected") != std::string::npos);
+}
+
+TEST_CASE_METHOD(SentStartFixture,
+                 "A cancel whose answer was lost gives Stop back once the printer keeps printing",
+                 "[print_control][preparing_cancel]") {
+    const int epoch = arm_in_flight();
+    start_answers(epoch, true);
+    stop();
+    // Still waiting on the answer: printing is the cancel queued behind a line.
+    report("printing", "part.gcode");
+    CHECK_FALSE(PrintControlButtonsTestAccess::cancel_confirm_armed());
+
+    REQUIRE(cancel_err);
+    cancel_err(MoonrakerError::timeout("printer.print.cancel", 300000));
+    drain();
+    REQUIRE(PrintControlButtonsTestAccess::cancel_confirm_armed());
+    PrintControlButtonsTestAccess::fire_cancel_confirm();
+    drain();
+    CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A cancel never outlives its job into the next one",
+                 "[print_control][preparing_cancel]") {
+    const int epoch = arm_in_flight();
+    start_answers(epoch, true);
+    stop();
+    REQUIRE(PrintControlButtonsTestAccess::cancel_requested());
+
+    // Our job ended without the printer ever reporting a transition.
+    ps().retire_preparing(helix::PreparingExit::Confirmed);
+    drain();
+    arm_in_flight("next.gcode");
     CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
 }
 
@@ -246,10 +332,11 @@ TEST_CASE_METHOD(SentStartFixture,
     report("standby", "part.gcode");
     report("printing", "part.gcode");
     CHECK(PrintControlButtonsTestAccess::cancel_requested());
-    CHECK_FALSE(PrintControlButtonsTestAccess::cancel_confirm_armed());
+    CHECK(PrintControlButtonsTestAccess::cancel_confirm_armed());
 
     report("cancelled", "part.gcode");
     CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
+    CHECK_FALSE(PrintControlButtonsTestAccess::cancel_confirm_armed());
     CHECK(warnings.empty());
 }
 

@@ -133,13 +133,16 @@ class PrintControlButtons {
     void request_sent_start_cancel();
     /// Send printer.print.cancel for the requested job.
     void send_cancel();
-    /// Move a Requested cancel on once the start answers or the job leaves.
+    /// Move a Requested cancel on once the start answers or the job leaves,
+    /// and drop any cancel once a different job is preparing.
     void advance_requested_cancel();
     /// A cancel that is out reads the printer's job state.
     void settle_cancel_from_job_state(helix::PrintJobState job_state);
     /// The printer ended our job: retire it if it is still ours, then reset.
     void settle_ended_by_printer();
     void on_cancel_confirm_timeout();
+    /// Start the kCancelConfirmMs judgement of a printer still holding the job.
+    void arm_cancel_confirm();
     /// Back to Idle, Stop enabled again.
     void clear_cancel();
     /// Back to Idle without recomputing, for teardown and set_api().
@@ -171,6 +174,9 @@ class PrintControlButtons {
     /// one cannot advance this one.
     int cancel_seq_ = 0;
     lv_timer_t* cancel_confirm_timer_ = nullptr;
+    /// The cancel's answer was lost: the printer holding the job is then
+    /// judged like an answered cancel.
+    bool cancel_lost_ = false;
 
     SubjectManager subjects_;
     lv_subject_t primary_icon_subject_{};

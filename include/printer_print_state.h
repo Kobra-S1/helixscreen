@@ -450,6 +450,29 @@ class PrinterPrintState {
     /// No-op once a different job is preparing.
     void note_preparing_start_answered(int epoch, bool accepted);
 
+    /**
+     * @brief Stop asked the printer to cancel this job's start
+     *
+     * Set by PrintControlButtons. While it is set, a start whose answer is lost
+     * is held rather than retired: see hold_for_requested_cancel().
+     */
+    void note_preparing_cancel_requested() {
+        preparing_cancel_requested_ = !preparing_job_.empty();
+    }
+    [[nodiscard]] bool preparing_cancel_requested() const {
+        return preparing_cancel_requested_;
+    }
+
+    /**
+     * @brief A start for the job armed at @p epoch lost its answer
+     *
+     * With a cancel requested, the job is kept and its start marked
+     * Unanswered, so the cancel goes out behind it instead of being dropped
+     * with a job retired as failed. Returns true when it held the job; the
+     * caller then skips its failure handling.
+     */
+    bool hold_for_requested_cancel(int epoch);
+
     [[nodiscard]] PreparingStart preparing_start() const {
         return static_cast<PreparingStart>(
             lv_subject_get_int(const_cast<lv_subject_t*>(&preparing_start_)));
@@ -1225,7 +1248,8 @@ class PrinterPrintState {
 
     /// The job we are preparing; empty when none. See begin_preparing().
     PrintJobRef preparing_job_{};
-    lv_subject_t preparing_start_{}; // Integer PreparingStart
+    lv_subject_t preparing_start_{};          // Integer PreparingStart
+    bool preparing_cancel_requested_ = false; // See note_preparing_cancel_requested()
     void set_preparing_start(PreparingStart start);
     lv_subject_t preparing_epoch_{}; // Integer: bumped per preparing job, 0 when none
     int preparing_epoch_counter_ = 0;
