@@ -391,8 +391,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(false);
     h.select_tool(1); // != active T0
 
-    // RecordingBackend::change_tool() succeeds synchronously, so on_success()
-    // (the "Switched to {}" toast) runs inside this call, on this thread.
+    // RecordingBackend::change_tool() accepts synchronously, so on_success()
+    // (the "Switching to {}" toast) runs inside this call, on this thread. An
+    // accepted change has not happened yet: the toast must not claim it has.
     helix::LogCapture log(64);
     TA::handle_extruder_changed(*h.panel);
 
@@ -400,8 +401,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(h.mock->last_change_tool == 1);
     // NOTIFY_SUCCESS logs the text of the toast it raises.
     // The toast names the tool the user tapped, never the 0-based G-code form.
-    CHECK(log.count_containing("Switched to Tool 2") >= 1);
-    CHECK(log.count_containing("Switched to T1") == 0);
+    CHECK(log.count_containing("Switching to Tool 2") >= 1);
+    CHECK(log.count_containing("Switching to T1") == 0);
+    CHECK(log.count_containing("Switched to") == 0);
 }
 
 // With "Confirm tool changes" on, the dropdown's selection waits on the dialog,
