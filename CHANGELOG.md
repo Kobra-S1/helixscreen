@@ -5,6 +5,80 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-beta.13] - 2026-10-25
+
+The thirteenth beta of 1.1. The headline is Glass Effects, an optional lit, glassy finish for buttons, cards and controls on screens fast enough to draw it. Prints that end or pause on an error now say why, and finding a printer gets easier: the connection screens sweep your local network for Moonraker, fall back to port 80, and test an address without dropping the printer you are connected to. Print Status follows up on beta.12 with a speed chip that reads the live toolhead speed and flow, a camera button in the preview card on remote screens, and a picture that holds still while fans spin up. MedusaHC tool changers gain a purge length setting and explain failed tool changes, AFC faults during a paused print open their recovery dialog, and the K-Touch catches fast taps on its keyboard.
+
+**Upgrading from beta.12?**
+
+- **Print Status speed chip:** it now shows how fast the toolhead is moving in mm/s, with the volumetric flow in mm³/s under it, instead of the speed and flow percentages. The percentages live in Tune; the chip still turns amber while either is not 100%, and tapping it opens Tune.
+- **Fan names:** the hotend fan reads "HE" in fan settings, as on its chip, and the fan stack's third row reads "Aux" (it read "Chamber"), the same fan the Print Status chip calls Aux.
+- **Pre-print options:** the toggles use the step names the progress checklist shows, so Nozzle Priming now reads "Purge".
+- **Slot menu:** its two columns are headed **Actions** and **Spool Info**.
+- **MedusaHC loads and unloads** always use HelixScreen's own feed and retract moves and never call your printer's LOAD_FILAMENT or UNLOAD_FILAMENT macros.
+
+### Added
+
+- **Glass Effects** - an appearance option under Settings > Appearance that gives buttons a lit, glassy finish and every card and panel a soft light from its top-left corner. Switches, sliders, input fields, keyboard keys and the navigation bar get it too. It is drawn from your theme's own colors, so it works with every theme in dark and light mode, and it leaves filament color swatches, camera views and previews untouched. It only appears on hardware fast enough to draw it: HelixScreen measures this once on your screen and hides the option on slower boards and 16-bit panels, which keep the flat look.
+- **Why a print stopped** - a canceled or failed print shows the reason, such as a quad gantry level that never converged, in the completion dialog, the print screen's cancel and error messages and the cancel toast. A paused print says why it paused too. The reason is Klipper's own message when it gives one, else the last error the printer reported. Works on the K-Touch as well.
+- **Find printers on your local network** - the setup wizard's connection step and Change Host / Add Printer list every Moonraker on your local network, not only those that announce themselves (which needs `[zeroconf]` in Moonraker). Picking one fills in the address and port. A Moonraker behind a login is listed too, and a printer running HelixScreen finds its own Moonraker. This also works on the K-Touch.
+- **Camera in the Print Status preview** - on a screen running on a different machine than the printer, a camera button in the corner of the preview card swaps the thumbnail or G-code render for the live webcam feed. Tap it again to go back; the choice carries over to the next print.
+- **Live speed and flow on the home print card** - the detailed print card shows the toolhead speed in its own row and the volumetric flow beside the filament used, dropping either when the card is too small.
+- **Random screensaver** - picks a different screensaver your screen can run each time it goes idle, never the same one twice in a row. Select it under Settings > Display > Screensaver.
+- **MedusaHC purge length** - a Purge Length setting (0-200 mm, default 50) under Purge & Wipe in Device Operations sets how far a load purges past the nozzle, per printer. When loading several tools, each next tool now preheats to its full load temperature.
+- **MedusaHC says why a tool change failed** - the fault dialog quotes the controller's own message (for example "sensors did not confirm T1"), and a failure that is not shown as a fault appears once as a "Tool change failed" notice.
+- **Resume reloads the saved bed mesh** (#1864) - with the HelixPrint plugin's power-loss recovery, a new row in Settings > Printing adds HelixScreen's include line to printer.cfg so a resume reloads the mesh the print started with, keeping a backup, and offers the Klipper restart that applies it. Tapping it again removes the lines; uninstalling the plugin removes them too.
+- **Clear Spool in the slot editor** - printers without a filament system can take a spool off the slot from the editor, and it works while Spoolman is offline.
+- **The QIDI Box shows its own logo** (#1514) - instead of the generic filament system chip.
+- **Chamber reading on the home picture without a heater** (#1879) - a printer with only a chamber thermometer now gets the chamber chip on the home printer picture, as Print Status already showed it.
+
+### Changed
+
+- **The print status picture holds still** (#1879) - the chips around the printer picture no longer rearrange it when a fan spins up, the speed is tuned or the light turns on. The layout is decided once for preparing and once for printing; a reading that becomes unusual mid-print (a spinning aux fan) slots into free space instead. A wide picture shrinks to make room for a column of chips beside it before chips are laid over the photo, and chips over the photo get a near-solid background. The picture is also drawn from a copy sized to fit, as on the home screen.
+- **Moonraker on port 80** - when the port field still holds the default 7125 and nothing answers there, the connection screens try port 80 (Moonraker behind a web server) and save the port that answered. A port you typed, a saved port and a printer picked from the list are tried as they are.
+- **Test Connection leaves your printer alone** - testing an address in Change Host / Add Printer no longer switches the screen to it; only Save does. The result names the port that answered and Klipper's state, or what failed.
+- **CFS on the K1 series** (#968) - the fit check before a print allows for the 5 mm of Y travel the CFS upgrade takes on a K1, K1C or K1 Max.
+- **Pre-print time estimate** - the estimate counts this print's own heating instead of replaying the last print's, so a cold ASA start after a quick PLA one is no longer predicted far too short.
+- **Screensavers on slower boards** - a screensaver that had to drop to a lighter setting climbs back once the screen keeps up again, and a step down taken while printing lasts only for that print.
+
+### Fixed
+
+**Filament systems**
+
+- **AFC faults during a paused print** - an AFC load that failed mid-print paused it without a dialog. It now opens the loading error dialog, and recovery ejects the lane of the newest fault. On the K-Touch, AFC errors outside a print get the dialog too, and the dialog no longer reappears as the error text changes.
+- **Stale AFC error in the sidebar** - an old AFC error message no longer stays in the status line through a print that runs fine.
+- **AD5X on Z-Mod's AFC layer: no tool remap error at print start** - Z-Mod maps tools in its own "Select print materials" prompt and refuses the screen's remap, so the screen no longer offers one there or sends it. That prompt's Start print button is also no longer read as the print having started.
+- **MedusaHC Unload on docked tools** - Unload is offered for docked heads in the Filament screen, the slot menu and the Unload picker, instead of saying no filament is loaded.
+- **MedusaHC sensor error** - a tool docked by hand after a failed change, or a restart, no longer leaves the screen showing a sensor error once the docks agree, and one failure is reported once instead of twice.
+- **Slot cards keep the material** - a spool whose name includes the material, such as "Overture Gray ASA", no longer hides the material line.
+- **Empty spools** - an empty spool's side view draws its bare core instead of nothing.
+- **Unlinking a slot as a different filament** - the slot no longer keeps the old spool's weight.
+- **Spoolman external spool** - an unlinked external spool entry you edited no longer vanishes.
+- **Spoolman starting after Moonraker** - when Spoolman comes up late, as it can on the Centauri Carbon at boot, Spoolman features turn on as soon as it is ready instead of staying off.
+
+**Printing**
+
+- **Chamber presets that never heated** - on printers whose M141 macro only drives an exhaust fan, chamber temperatures are now sent to the chamber heater directly.
+- **Flow during a retract** - the flow readout shows 0.0 mm³/s instead of a negative number.
+- **Home print card** (#1440) - a long filament line scrolls again instead of being cut off.
+- **Heaters with no target** show a dash instead of "/ 0" on the temperature and filament screens.
+- **Closing the printer type warning keeps your type** (#1881) - tapping X on the "printer type mismatch" warning now counts as keeping the saved type, like Review > Keep current, so it stops coming back on every restart.
+
+**Screen and devices**
+
+- **Camera views** - closing a camera view no longer freezes the screen for up to five seconds, and two views of the same camera take turns, so a camera that serves one viewer at a time keeps streaming.
+- **WiFi permission problems** - when HelixScreen is not allowed to manage WiFi, it says so instead of "WiFi system not ready".
+- **WiFi switch on the QIDI Q2** - turning WiFi back on no longer snaps the switch back off.
+- **Navigation bar icons on 480x272 screens** - the Controls and Filament icons are no longer clipped at the sides.
+- **Calibration & Tools card** - has its border again, like the cards beside it.
+- **HelixPrint storage report loads again** (#1885) - the plugin's storage module failed to load on Moonraker because it was loaded before the photo module it reads from.
+- **Storage warnings now translate** (#1867) - when a storage cleanup folder was configured unsafely, the plugin overview showed the Moonraker plugin's raw English sentence; it is translated now like every other plugin message.
+
+**K-Touch**
+
+- **Fast taps** (#1884) - quick taps and rolled-over keys on the keyboard are no longer lost, and keys no longer show a preview bubble. A failing touch connection no longer floods the log.
+- **Reconnects** - after the connection to the printer drops and comes back, the screen picks up Klipper's state again instead of leaving the navigation bar grayed out until a reboot.
+
 ## [1.1.0-beta.12] - 2026-10-24
 
 <!-- whatsnew
@@ -9908,6 +9982,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.0-beta.13]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.12...v1.1.0-beta.13
 [1.1.0-beta.12]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.11...v1.1.0-beta.12
 [1.1.0-beta.11]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.10...v1.1.0-beta.11
 [1.1.0-beta.10]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.9...v1.1.0-beta.10
