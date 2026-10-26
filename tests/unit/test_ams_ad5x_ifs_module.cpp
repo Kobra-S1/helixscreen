@@ -630,6 +630,26 @@ TEST_CASE("AD5X IFS module with no lane record keeps the remembered-lane fallbac
     CHECK(backend.has_gcode("IFS_UNLOAD SLOT=4"));
 }
 
+TEST_CASE("AD5X IFS module ignores an ifs_loaded that names no real lane",
+          "[ams][ad5x_ifs][ifs_module][1897]") {
+    // A save_variables-only update, with no ifs frame after it to re-derive the
+    // seated lane, must not seat a lane the IFS does not have.
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_head_switch(backend, true, true);
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2}));
+    REQUIRE(Ad5xIfsTestAccess::module_live(backend));
+
+    Ad5xIfsTestAccess::handle_status(
+        backend, json{{"save_variables", {{"variables", {{"ifs_loaded", 5}}}}}});
+    CHECK(Ad5xIfsTestAccess::seated_chan(backend) == 0);
+    CHECK(backend.get_current_slot() < 0);
+    backend.captured_gcodes.clear();
+    (void)backend.unload_filament(-1);
+    CHECK_FALSE(backend.has_gcode_containing("SLOT=5"));
+}
+
 TEST_CASE("AD5X IFS module keeps the ifs_loaded lane while another lane's eject engages",
           "[ams][ad5x_ifs][ifs_module][1897]") {
     // Lane 2 is loaded; an IFS_EJECT of lane 3 moves active_channel to 3 while
@@ -692,6 +712,52 @@ TEST_CASE("AD5X IFS module writes the remembered lane only when ifs_loaded chang
         Ad5xIfsTestAccess::handle_status(backend, lane2_vars);
     }
     CHECK(mock_printer.client.call_count("server.database.post_item") == posts);
+}
+
+TEST_CASE("AD5X IFS module eject of its loaded lane names a temperature when the module "
+          "has none",
+          "[ams][ad5x_ifs][ifs_module][1897]") {
+    // The head reads empty but ifs_loaded still names a lane (a runout tail
+    // cleared, then a restart). IFS_EJECT of the module's loaded lane clears the
+    // extruder and takes its temperature from TEMP=, else the slot's material,
+    // else the nozzle target; with none of them it raises an error.
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2, 3}));
+    Ad5xIfsTestAccess::handle_status(backend, module_materials_frame());
+    Ad5xIfsTestAccess::set_head_switch(backend, true, false);
+    Ad5xIfsTestAccess::set_head_filament(backend, false);
+
+    const auto record = [&](int ifs_loaded) {
+        Ad5xIfsTestAccess::handle_status(
+            backend, json{{"save_variables", {{"variables", {{"ifs_loaded", ifs_loaded}}}}}});
+        Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2, 3}));
+        backend.captured_gcodes.clear();
+    };
+
+    SECTION("an unlabelled loaded lane on a cold nozzle gets the fallback temperature") {
+        record(3);
+        REQUIRE(Ad5xIfsTestAccess::seated_chan(backend) == 3);
+        REQUIRE(backend.unload_filament(-1).success());
+        CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_EJECT SLOT=3 TEMP=220"});
+    }
+    SECTION("a nozzle the user already heated keeps its target") {
+        record(3);
+        Ad5xIfsTestAccess::handle_status(
+            backend, json{{"extruder", {{"target", 255.0}, {"temperature", 30.0}}}});
+        REQUIRE(backend.unload_filament(-1).success());
+        CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_EJECT SLOT=3 TEMP=255"});
+    }
+    SECTION("a labelled loaded lane leaves the temperature to the module's material") {
+        record(2);
+        REQUIRE(backend.unload_filament(-1).success());
+        CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_EJECT SLOT=2"});
+    }
+    SECTION("an unlabelled lane that is not the loaded one needs no temperature") {
+        record(1);
+        REQUIRE(backend.eject_lane(2).success());
+        CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_EJECT SLOT=3"});
+    }
 }
 
 TEST_CASE("AD5X IFS module driver_error surfaces as ERROR", "[ams][ad5x_ifs][ifs_module]") {

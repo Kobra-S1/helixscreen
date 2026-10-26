@@ -1023,7 +1023,8 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
         // running this loop would lock those defaults in over real data that
         // might arrive later via apply_zcolor_result's extruder_slot path.
         rebuild_slot_tool_mapping_locked();
-    } else if (module_owns_seated_lane_locked()) {
+    } else if (ifs_module_live_.load() && vars.contains("ifs_loaded") &&
+               vars["ifs_loaded"].is_number_integer()) {
         // Standalone IFS module: `ifs_loaded` is the module's own
         // success-confirmed record of the lane in the nozzle (SAVE_VARIABLE at
         // the end of IFS_LOAD / IFS_UNLOAD, cleared on eject), and it survives
@@ -1044,7 +1045,7 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
         // Keep current_tool in step too — handle_status snapshots
         // active_tool_ into system_info_ on this same frame, and the identity
         // tool map the latch installed makes tool == channel - 1.
-        active_tool_ = loaded - 1;
+        active_tool_ = (loaded >= 1 && loaded <= kNumPorts) ? loaded - 1 : -1;
         module_last_chan_ = loaded;
         sync_remembered_lane_to_module_locked();
     }
@@ -2503,6 +2504,11 @@ AmsError AmsBackendAd5xIfs::eject_lane(int slot_index) {
     int len = filament_eject_default_.first;
     int speed = filament_eject_default_.second;
     std::string material;
+    // The module's IFS_EJECT of its own loaded lane also clears the extruder,
+    // heated to TEMP=, else the slot material's temperature, else the nozzle
+    // target, and raises an error with none of them. An unlabelled lane has no
+    // material temperature, so name one.
+    std::optional<int> eject_temp_c;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2550,6 +2556,9 @@ AmsError AmsBackendAd5xIfs::eject_lane(int slot_index) {
                 speed = it->second.second;
             }
         }
+        if (module_loaded_ == std::optional<int>(slot_index + 1) && material.empty()) {
+            eject_temp_c = clear_toolhead_temp_c(last_extruder_target_deci_);
+        }
     }
 
     int port = slot_index + 1; // DISPLAY_NUMBERING_OK: 1-based SLOT= gcode parameter (IFS_EJECT)
@@ -2562,7 +2571,8 @@ AmsError AmsBackendAd5xIfs::eject_lane(int slot_index) {
         // is the loaded one. One command, one ack.
         spdlog::info("{} Eject lane {} (port {}) -> IFS_EJECT", backend_log_tag(), slot_index,
                      port);
-        err39 = execute_gcode("IFS_EJECT SLOT=" + port_str);
+        err39 = execute_gcode("IFS_EJECT SLOT=" + port_str +
+                              (eject_temp_c ? " TEMP=" + std::to_string(*eject_temp_c) : ""));
     } else {
         spdlog::info("{} Cold eject lane {} (port {}, material '{}') -> IFS_F24 / IFS_F11 LEN={} "
                      "SPEED={} / IFS_F39",
@@ -2971,12 +2981,16 @@ AmsBackendAd5xIfs::native_lane_dispatch(int lane, bool file_read, std::optional<
                                      : NativeLaneDispatch::RecordNamesOther;
 }
 
-std::string AmsBackendAd5xIfs::clear_toolhead_gcode(bool module_live, int nozzle_target_deci) {
+int AmsBackendAd5xIfs::clear_toolhead_temp_c(int nozzle_target_deci) {
     // No lane names a material to take a temperature from, so a nozzle the
     // user already heated keeps its target. The module's clear refuses below
     // 150C.
     const int target_c = ui::temperature::deci_to_degrees(nozzle_target_deci);
-    const int temp_c = target_c >= kClearToolheadMinTempC ? target_c : kClearToolheadFallbackTempC;
+    return target_c >= kClearToolheadMinTempC ? target_c : kClearToolheadFallbackTempC;
+}
+
+std::string AmsBackendAd5xIfs::clear_toolhead_gcode(bool module_live, int nozzle_target_deci) {
+    const int temp_c = clear_toolhead_temp_c(nozzle_target_deci);
     if (module_live) {
         // The module's extruder clear (cut, wipe, withdraw) with no SLOT=: it
         // clamps and retracts no lane.
@@ -5663,8 +5677,8 @@ void AmsBackendAd5xIfs::apply_zcolor_result(const ZColorSilentResult& result) {
             // Chan==0 is a genuine clear rather than post-reboot amnesia — close the
             // cold-boot restore window. A stale FFMInfo.channel pointing at an empty
             // lane (#1065) does NOT resolve on its own — it isn't real seated truth.
-            if (module_record || (ffm_channel_ > 0 && !ffm_lane_empty) ||
-                (chan > 0 && !chan_lane_empty) || (chan == 0 && !head_filament_)) {
+            if ((ffm_channel_ > 0 && !ffm_lane_empty) || (chan > 0 && !chan_lane_empty) ||
+                (chan == 0 && !head_filament_)) {
                 seated_resolved_since_boot_ = true;
             }
 

@@ -53,7 +53,7 @@ normal idle state, not a firmware that forgot its lane (#1897).
 |--------|---------|
 | Load | `IFS_LOAD SLOT={n}` (resolves its own heat from the slot's material; self-unloads the outgoing lane) |
 | Toolhead unload | `IFS_UNLOAD SLOT={n}`, or bare when a live active slot exists (the macro defaults `SLOT=` from `ifs_loaded`). With no active slot the backend names the lane itself or asks the user; see "Unload with no lane named" below |
-| Lane eject | `IFS_EJECT SLOT={n}` (replaces the zmod `IFS_F24`/`F11`/`F39` sequence) |
+| Lane eject | `IFS_EJECT SLOT={n}` (replaces the zmod `IFS_F24`/`F11`/`F39` sequence). Ejecting the lane `ifs_loaded` names also clears the extruder, which needs a temperature: an unlabelled lane gets `TEMP=` (the nozzle target from 150C, else 220C), a labelled one leaves it to the module's material |
 | Tool change | `T{n}` — the module maps T0..T3 to slots 1..4 itself, so the identity tool map is firmware truth |
 | Material/colour edit | `IFS_SET_MATERIAL SLOT={n} TYPE=… COLOR=7EC8E3` (bare hex — klipper's parser eats `#`; the module re-prefixes) |
 | Fault recovery / abort | `IFS_RESET_DRIVER` / `IFS_STOP` |
