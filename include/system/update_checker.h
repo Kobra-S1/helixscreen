@@ -390,6 +390,17 @@ class UpdateChecker {
     static std::string service_dest_probe_error(const std::string& init_dir);
 
     /**
+     * @brief Whether @p init_dir already holds a HelixScreen service definition
+     *        (any non-hidden entry whose name contains "helixscreen").
+     *
+     * A SysV self-update keeps the installed init script as it is, so a failed
+     * service_dest_probe_error() only blocks the update when there is no script
+     * to keep. install.sh's check_service_dest_space makes the exact call
+     * (it also knows about a root migration or a stale hooks path to rewrite).
+     */
+    static bool service_definition_installed(const std::string& init_dir);
+
+    /**
      * @brief The directory the service definition installs into on this host.
      * @return "/etc/systemd/system" when systemd runs, "/etc/init.d" for SysV,
      *         "" when neither shape is present (a dev machine; the installer's

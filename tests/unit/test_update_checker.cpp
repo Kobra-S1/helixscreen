@@ -1163,6 +1163,44 @@ TEST_CASE("UpdateChecker probes the service destination only where an update wri
     CHECK_FALSE(UC::update_writes_service_dest(false, true));
 }
 
+TEST_CASE("UpdateChecker knows whether a service definition is already installed",
+          "[update_checker][1778]") {
+    using UC = UpdateChecker;
+    namespace fs = std::filesystem;
+    const fs::path base =
+        fs::temp_directory_path() / ("helix-svc-installed-" + std::to_string(getpid()));
+    fs::remove_all(base);
+    fs::create_directories(base);
+    auto touch = [&](const char* name) { std::ofstream(base / name) << "x"; };
+
+    // A self-update leaves an installed init script alone, so an unwritable
+    // init dir only blocks the update when there is no script to keep.
+    SECTION("an init script carrying the service name counts") {
+        touch("S50other");
+        touch("S99helixscreen");
+        CHECK(UC::service_definition_installed(base.string()));
+    }
+    SECTION("the K2 procd shim name counts") {
+        touch("helixscreen");
+        CHECK(UC::service_definition_installed(base.string()));
+    }
+    SECTION("other services alone do not") {
+        touch("S50other");
+        CHECK_FALSE(UC::service_definition_installed(base.string()));
+    }
+    SECTION("a leftover space probe is not a service definition") {
+        touch(".helixscreen-space-probe.1234");
+        CHECK_FALSE(UC::service_definition_installed(base.string()));
+    }
+    SECTION("a missing or empty dir has none") {
+        CHECK_FALSE(UC::service_definition_installed(base.string()));
+        CHECK_FALSE(UC::service_definition_installed((base / "absent").string()));
+        CHECK_FALSE(UC::service_definition_installed(""));
+    }
+
+    fs::remove_all(base);
+}
+
 TEST_CASE("UpdateChecker service_dest_probe_error mirrors the installer's write probe",
           "[update_checker][1778]") {
     using UC = UpdateChecker;
