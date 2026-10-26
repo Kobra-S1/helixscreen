@@ -8,7 +8,9 @@
 # still carrying the ctl server) surfaces for the first time on the tag.
 #
 # usage: scripts/release-gate.sh [fast] [heavy]      (default: both)
-#   fast   VERSION.txt has a CHANGELOG entry and is not tagged yet; installer bundles build;
+#   fast   VERSION.txt has a CHANGELOG entry and is not tagged yet; the Play Store "What's
+#          new" generates (a stable version needs android/whatsnew/<version>.txt);
+#          installer bundles build;
 #          release-health prints the newest beta against stable in telemetry (informational,
 #          never fails; its table is in the step log; RELEASE_HEALTH=0 skips it)
 #   heavy  per target: the packaged docker cross build, `make release-<target>` (which
@@ -97,6 +99,7 @@ check_no_mocks() {
 
 fast() {
     step version check_version
+    step whatsnew scripts/generate-whatsnew.sh "$LOGDIR/whatsnew.txt"
     step installer "$MAKE" --no-print-directory installer
     if [ "${RELEASE_HEALTH:-1}" = 0 ]; then
         skip release-health "RELEASE_HEALTH=0"
