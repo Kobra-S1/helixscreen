@@ -125,13 +125,29 @@ remove_superseded_host_init() {
     return 0
 }
 
+_init_script_has_stale_hooks_path() {
+    grep -q 'assets/config/platform/hooks\.sh' "$1" 2>/dev/null
+}
+
 _migrate_init_script_hooks_path() {
     local init_script="${INIT_SCRIPT_DEST:-}"
     [ -n "$init_script" ] && [ -f "$init_script" ] || return 0
-    if grep -q 'assets/config/platform/hooks\.sh' "$init_script" 2>/dev/null; then
+    if _init_script_has_stale_hooks_path "$init_script"; then
         log_info "Migrating stale PLATFORM_HOOKS path in $init_script"
         _sed_inplace 's|assets/config/platform/hooks\.sh|platform/hooks.sh|' "$init_script"
     fi
+}
+
+# True when this run writes the SysV init script: a fresh install, a
+# self-update with no script installed, or a self-update whose
+# install_service_sysv edits the installed script (a root migration
+# repointing DAEMON_DIR, or the stale hooks path). Any other self-update
+# leaves the script exactly as it is.
+_self_update_needs_service_write() {
+    _is_self_update || return 0
+    [ -n "${INIT_SCRIPT_DEST:-}" ] && [ -f "$INIT_SCRIPT_DEST" ] || return 0
+    [ -z "${MIGRATE_FROM_DIR:-}" ] || return 0
+    _init_script_has_stale_hooks_path "$INIT_SCRIPT_DEST"
 }
 
 # Install service (dispatcher)
@@ -306,9 +322,23 @@ install_procd_shim_k2() {
         return 1
     fi
 
-    log_info "Installing K2 procd boot shim..."
-    $SUDO cp "$shim_src" "$shim_dest"
-    $SUDO chmod +x "$shim_dest"
+    # The shim sits on the root overlay, which may be full: copy beside it and
+    # rename over it, so a failed write never truncates a working boot entry.
+    if [ -f "$shim_dest" ] && cmp -s "$shim_src" "$shim_dest"; then
+        log_info "K2 procd boot shim already current"
+    else
+        log_info "Installing K2 procd boot shim..."
+        local shim_tmp="${shim_dest}.new.$$"
+        if ! { $SUDO cp "$shim_src" "$shim_tmp" 2>/dev/null && $SUDO chmod +x "$shim_tmp" \
+               && $SUDO mv -f "$shim_tmp" "$shim_dest"; }; then
+            $SUDO rm -f "$shim_tmp" 2>/dev/null || true
+            if [ ! -f "$shim_dest" ]; then
+                log_error "Could not write the K2 procd shim to $shim_dest"
+                return 1
+            fi
+            log_warn "Could not write the K2 procd shim (filesystem full or read-only); the existing $shim_dest is kept"
+        fi
+    fi
 
     # Drop any rc.d entry an older install left, then verify the fresh pair.
     enable_and_verify_rcd "$shim_dest" || return 1

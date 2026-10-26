@@ -1183,6 +1183,21 @@ std::string UpdateChecker::service_dest_probe_error(const std::string& init_dir)
     return fmt::format(lv_tr("Error: cannot write the service file in {}"), init_dir);
 }
 
+bool UpdateChecker::service_definition_installed(const std::string& init_dir) {
+    if (init_dir.empty()) {
+        return false;
+    }
+    std::error_code ec;
+    for (std::filesystem::directory_iterator it(init_dir, ec), end; !ec && it != end;
+         it.increment(ec)) {
+        const std::string name = it->path().filename().string();
+        if (!name.empty() && name[0] != '.' && name.find("helixscreen") != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool UpdateChecker::update_writes_service_dest(bool is_root, bool systemd_init) {
     return is_root && !systemd_init;
 }
@@ -1554,13 +1569,19 @@ void UpdateChecker::start_download() {
     // and on boards whose root overlay is full the installer refuses only
     // AFTER the app has downloaded the whole archive. Only where the update
     // writes it (update_writes_service_dest); install.sh's pre-flight remains
-    // the authority.
+    // the authority. A self-update keeps an init script that is already
+    // installed, so with one present a failed probe is only worth a warning.
     {
         auto* rc = get_runtime_config();
         if (update_writes_service_dest(geteuid() == 0, helix::host_runs_systemd()) &&
             !(rc && rc->test_mode)) {
-            const std::string failure = service_dest_probe_error(init_service_dest_dir());
-            if (!failure.empty()) {
+            const std::string init_dir = init_service_dest_dir();
+            const std::string failure = service_dest_probe_error(init_dir);
+            if (!failure.empty() && service_definition_installed(init_dir)) {
+                spdlog::warn("[UpdateChecker] {} is full or read-only; continuing, the "
+                             "installed service definition is kept as it is",
+                             init_dir);
+            } else if (!failure.empty()) {
                 spdlog::error("[UpdateChecker] Service destination unwritable, not "
                               "downloading: {}",
                               failure);
