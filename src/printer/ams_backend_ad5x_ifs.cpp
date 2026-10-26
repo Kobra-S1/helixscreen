@@ -1023,7 +1023,8 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
         // running this loop would lock those defaults in over real data that
         // might arrive later via apply_zcolor_result's extruder_slot path.
         rebuild_slot_tool_mapping_locked();
-    } else if (module_owns_seated_lane_locked()) {
+    } else if (ifs_module_live_.load() && vars.contains("ifs_loaded") &&
+               vars["ifs_loaded"].is_number_integer()) {
         // Standalone IFS module: `ifs_loaded` is the module's own
         // success-confirmed record of the lane in the nozzle (SAVE_VARIABLE at
         // the end of IFS_LOAD / IFS_UNLOAD, cleared on eject), and it survives
@@ -1044,7 +1045,7 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
         // Keep current_tool in step too — handle_status snapshots
         // active_tool_ into system_info_ on this same frame, and the identity
         // tool map the latch installed makes tool == channel - 1.
-        active_tool_ = loaded - 1;
+        active_tool_ = (loaded >= 1 && loaded <= kNumPorts) ? loaded - 1 : -1;
         module_last_chan_ = loaded;
         sync_remembered_lane_to_module_locked();
     }
@@ -5676,8 +5677,8 @@ void AmsBackendAd5xIfs::apply_zcolor_result(const ZColorSilentResult& result) {
             // Chan==0 is a genuine clear rather than post-reboot amnesia — close the
             // cold-boot restore window. A stale FFMInfo.channel pointing at an empty
             // lane (#1065) does NOT resolve on its own — it isn't real seated truth.
-            if (module_record || (ffm_channel_ > 0 && !ffm_lane_empty) ||
-                (chan > 0 && !chan_lane_empty) || (chan == 0 && !head_filament_)) {
+            if ((ffm_channel_ > 0 && !ffm_lane_empty) || (chan > 0 && !chan_lane_empty) ||
+                (chan == 0 && !head_filament_)) {
                 seated_resolved_since_boot_ = true;
             }
 

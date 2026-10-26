@@ -630,6 +630,26 @@ TEST_CASE("AD5X IFS module with no lane record keeps the remembered-lane fallbac
     CHECK(backend.has_gcode("IFS_UNLOAD SLOT=4"));
 }
 
+TEST_CASE("AD5X IFS module ignores an ifs_loaded that names no real lane",
+          "[ams][ad5x_ifs][ifs_module][1897]") {
+    // A save_variables-only update, with no ifs frame after it to re-derive the
+    // seated lane, must not seat a lane the IFS does not have.
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_head_switch(backend, true, true);
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2}));
+    REQUIRE(Ad5xIfsTestAccess::module_live(backend));
+
+    Ad5xIfsTestAccess::handle_status(
+        backend, json{{"save_variables", {{"variables", {{"ifs_loaded", 5}}}}}});
+    CHECK(Ad5xIfsTestAccess::seated_chan(backend) == 0);
+    CHECK(backend.get_current_slot() < 0);
+    backend.captured_gcodes.clear();
+    (void)backend.unload_filament(-1);
+    CHECK_FALSE(backend.has_gcode_containing("SLOT=5"));
+}
+
 TEST_CASE("AD5X IFS module keeps the ifs_loaded lane while another lane's eject engages",
           "[ams][ad5x_ifs][ifs_module][1897]") {
     // Lane 2 is loaded; an IFS_EJECT of lane 3 moves active_channel to 3 while
