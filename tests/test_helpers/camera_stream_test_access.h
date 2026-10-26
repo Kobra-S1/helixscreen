@@ -74,6 +74,22 @@ class CameraStreamTestAccess {
         s.stream_thread_func();
     }
 
+    /// Consecutive failed snapshots tolerated before the stream reports an error.
+    static constexpr int max_snapshot_failures() {
+        return CameraStream::kMaxSnapshotFailures;
+    }
+
+    /// Run one snapshot fetch of @p snapshot_url on the calling thread, as the
+    /// poll loop does, with @p on_error as the stream's error callback.
+    static void fetch_snapshot_once(CameraStream& s, const std::string& snapshot_url,
+                                    CameraStream::ErrorCallback on_error) {
+        s.snapshot_url_ = snapshot_url;
+        s.on_error_ = std::move(on_error);
+        s.running_.store(true);
+        s.fetch_snapshot();
+        s.running_.store(false);
+    }
+
     /// Ask a worker parked in run_worker_inline_with_snapshot() to unwind.
     static void release_worker(CameraStream& s) {
         s.running_.store(false);

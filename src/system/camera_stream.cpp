@@ -8,13 +8,20 @@
 #if HELIX_HAS_CAMERA
 
 #include "app_globals.h"
+#include "helix_version.h"
+#include "hv/hssl.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "scope_exit.h"
 #include "spdlog/spdlog.h"
 #include "stb_image.h"
+#include "system/platform_tls.h"
 #include "webcam_selection.h"
+
+#ifdef __ANDROID__
+#include "system/http_android.h"
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -171,6 +178,7 @@ void CameraStream::start(const std::string& stream_url, const std::string& snaps
     on_frame_ = std::move(on_frame);
     on_error_ = std::move(on_error);
     stream_fail_count_ = 0;
+    snapshot_fail_count_ = 0;
     running_.store(true);
     {
         std::lock_guard<std::mutex> reg(g_streams_mutex);
@@ -179,15 +187,26 @@ void CameraStream::start(const std::string& stream_url, const std::string& snaps
 
     spdlog::info("[CameraStream] Starting — stream={}, snapshot={}", stream_url_, snapshot_url_);
 
-    if (!stream_url_.empty()) {
+    bool use_stream = !stream_url_.empty();
+#ifdef __ANDROID__
+    // The platform TLS bridge makes one-shot requests and cannot carry an
+    // endless MJPEG response, so an https stream is shown by snapshot polling.
+    if (use_stream && needs_platform_tls(stream_url_, HV_WITH_SSL)) {
+        spdlog::info("[CameraStream] https stream needs platform TLS, polling snapshots instead");
+        use_stream = false;
+    }
+#endif
+
+    if (use_stream) {
         spdlog::info("[CameraStream] Using MJPEG streaming mode");
         stream_thread_ = helix::make_thread(&CameraStream::stream_thread_func, this);
     } else if (!snapshot_url_.empty()) {
         spdlog::info("[CameraStream] Using snapshot mode (interval={}ms)", kSnapshotIntervalMs);
         stream_thread_ = helix::make_thread(&CameraStream::snapshot_poll_loop, this);
     } else {
-        spdlog::warn("[CameraStream] No stream or snapshot URL provided");
+        spdlog::warn("[CameraStream] No usable stream or snapshot URL provided");
         running_.store(false);
+        report_error(lifetime_.token(), "Camera unavailable");
     }
 }
 
@@ -641,18 +660,35 @@ void CameraStream::fetch_snapshot() {
 
     spdlog::trace("[CameraStream] Fetching snapshot from {}", snapshot_url_);
 
-    auto req = std::make_shared<HttpRequest>();
-    req->method = HTTP_GET;
-    req->url = snapshot_url_;
-    req->timeout = kStreamTimeoutSec;
-
-    // Store weak reference for cancellation by stop()
+    std::string body;
+    bool fetched = false;
+#ifdef __ANDROID__
+    if (needs_platform_tls(snapshot_url_, HV_WITH_SSL)) {
+        fetched = android::https_get_bytes(snapshot_url_, HELIX_USER_AGENT,
+                                           kPlatformSnapshotTimeoutSec, body);
+    } else
+#endif
     {
-        std::lock_guard<std::mutex> lock(req_mutex_);
-        active_req_ = req; // weak_ptr assignment from shared_ptr
-    }
+        auto req = std::make_shared<HttpRequest>();
+        req->method = HTTP_GET;
+        req->url = snapshot_url_;
+        req->timeout = kStreamTimeoutSec;
 
-    auto resp = requests::request(req);
+        // Store weak reference for cancellation by stop()
+        {
+            std::lock_guard<std::mutex> lock(req_mutex_);
+            active_req_ = req; // weak_ptr assignment from shared_ptr
+        }
+
+        auto resp = requests::request(req);
+        if (resp && resp->status_code >= 200 && resp->status_code < 300) {
+            fetched = true;
+            body = std::move(resp->body);
+        } else {
+            spdlog::debug("[CameraStream] Snapshot fetch failed (status={})",
+                          resp ? static_cast<int>(resp->status_code) : -1);
+        }
+    }
 
     // After the blocking HTTP call, stop() may have run and the CameraStream
     // may be destroyed (detached thread). Check lifetime BEFORE touching members.
@@ -665,19 +701,22 @@ void CameraStream::fetch_snapshot() {
         return;
     }
 
-    if (!resp || resp->status_code < 200 || resp->status_code >= 300) {
-        spdlog::debug("[CameraStream] Snapshot fetch failed (status={})",
-                      resp ? static_cast<int>(resp->status_code) : -1);
+    auto* data = reinterpret_cast<const uint8_t*>(body.data());
+    if (!fetched || body.empty() || !decode_jpeg(data, body.size())) {
+        note_snapshot_failure(snap_token);
         return;
     }
+    snapshot_fail_count_ = 0;
+    deliver_frame();
+}
 
-    if (resp->body.empty()) {
-        return;
-    }
-
-    auto* data = reinterpret_cast<const uint8_t*>(resp->body.data());
-    if (decode_jpeg(data, resp->body.size())) {
-        deliver_frame();
+void CameraStream::note_snapshot_failure(const helix::LifetimeToken& token) {
+    // Without a message a view waiting on its first frame spins forever. One
+    // report per run of failures; a decoded frame starts a new run.
+    if (++snapshot_fail_count_ == kMaxSnapshotFailures) {
+        spdlog::warn("[CameraStream] {} snapshots in a row failed from {}", snapshot_fail_count_,
+                     snapshot_url_);
+        report_error(token, "Snapshot unavailable");
     }
 }
 

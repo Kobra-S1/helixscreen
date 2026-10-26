@@ -24,6 +24,7 @@
 #include <memory>
 #include <new>
 #include <thread>
+#include <vector>
 #endif
 
 using namespace helix;
@@ -457,6 +458,48 @@ TEST_CASE_METHOD(HelixTestFixture,
     CHECK(untouched);
 
     helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "CameraStream: a snapshot feed that keeps failing reports an error once",
+                 "[camera][1891]") {
+    // Nothing listens on port 9, so every fetch is refused at once.
+    const std::string dead = "http://127.0.0.1:9/snapshot";
+    CameraStream stream;
+    std::vector<std::string> errors;
+    auto fetch = [&] {
+        CameraStreamTestAccess::fetch_snapshot_once(
+            stream, dead, [&](const char* msg) { errors.emplace_back(msg ? msg : ""); });
+        helix::ui::UpdateQueue::instance().drain(); // report_error() defers to the main thread
+    };
+
+    for (int i = 1; i < CameraStreamTestAccess::max_snapshot_failures(); ++i) {
+        fetch();
+    }
+    CHECK(errors.empty());
+
+    // A view waiting on its first frame shows this instead of spinning forever.
+    fetch();
+    REQUIRE(errors.size() == 1);
+    CHECK_FALSE(errors.front().empty());
+
+    // One message per run of failures, not one per poll.
+    fetch();
+    fetch();
+    CHECK(errors.size() == 1);
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "CameraStream: a start with no URL at all reports an error",
+                 "[camera][1891]") {
+    CameraStream stream;
+    std::vector<std::string> errors;
+    stream.start(
+        "", "", [](lv_draw_buf_t*) {},
+        [&](const char* msg) { errors.emplace_back(msg ? msg : ""); });
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(stream.is_running());
+    CHECK(errors.size() == 1);
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "CameraStream: snapshot fallback keeps is_running() true",

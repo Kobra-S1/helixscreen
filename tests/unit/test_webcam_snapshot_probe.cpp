@@ -24,6 +24,7 @@
 
 #include "../../include/moonraker_discovery_sequence.h"
 #include "hv/HttpServer.h"
+#include "system/platform_tls.h"
 
 #include <arpa/inet.h>
 #include <chrono>
@@ -190,17 +191,17 @@ TEST_CASE("Snapshot probe allows a live endpoint more time than a dead one",
     REQUIRE(kSnapshotProbeTotalTimeoutSec > kSnapshotProbeConnectTimeoutSec);
 }
 
-TEST_CASE("Snapshot probe sends https to the platform TLS stack only when libhv has none",
+TEST_CASE("https goes to the platform TLS stack only when libhv has none",
           "[webcam][discovery][probe][1891]") {
     // libhv is built without SSL on Android: an https probe through it fails
     // without reaching the camera, so it has to take the platform bridge.
-    REQUIRE(snapshot_probe_needs_platform_tls("https://cam.example/snapshot", false));
-    REQUIRE(snapshot_probe_needs_platform_tls("HTTPS://cam.example/snapshot", false));
+    REQUIRE(needs_platform_tls("https://cam.example/snapshot", false));
+    REQUIRE(needs_platform_tls("HTTPS://cam.example/snapshot", false));
 
     // Plain http works through libhv everywhere and keeps its two budgets.
-    REQUIRE_FALSE(snapshot_probe_needs_platform_tls("http://192.168.1.5/snapshot", false));
-    REQUIRE_FALSE(snapshot_probe_needs_platform_tls("http://httpsproxy.local/snapshot", false));
+    REQUIRE_FALSE(needs_platform_tls("http://192.168.1.5/snapshot", false));
+    REQUIRE_FALSE(needs_platform_tls("http://httpsproxy.local/snapshot", false));
 
     // With SSL compiled in, libhv handles https itself.
-    REQUIRE_FALSE(snapshot_probe_needs_platform_tls("https://cam.example/snapshot", true));
+    REQUIRE_FALSE(needs_platform_tls("https://cam.example/snapshot", true));
 }

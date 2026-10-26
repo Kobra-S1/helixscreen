@@ -43,6 +43,7 @@
 #include "probe_sensor_manager.h"
 #include "screws_tilt_dialect.h"
 #include "sensor_state.h"
+#include "system/platform_tls.h"
 #include "text_io.h"
 #include "tool_offsets.h"
 #include "toolchanger_addon.h"
@@ -56,7 +57,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <string_view>
 #include <thread>
 #include <unordered_set>
 #include <utility>
@@ -75,20 +75,9 @@ bool is_backend_filament_sensor(const std::string& name) {
 
 } // namespace
 
-bool snapshot_probe_needs_platform_tls(const std::string& url, bool http_client_has_tls) {
-    if (http_client_has_tls) {
-        return false;
-    }
-    constexpr std::string_view kHttps = "https://";
-    return url.size() >= kHttps.size() &&
-           std::equal(kHttps.begin(), kHttps.end(), url.begin(), [](char a, char b) {
-               return a == std::tolower(static_cast<unsigned char>(b));
-           });
-}
-
 bool probe_snapshot_reachable(const std::string& snapshot_url) {
 #ifdef __ANDROID__
-    if (snapshot_probe_needs_platform_tls(snapshot_url, HV_WITH_SSL)) {
+    if (needs_platform_tls(snapshot_url, HV_WITH_SSL)) {
         // HttpURLConnection applies one budget to connect and to read, so the
         // response budget covers both here.
         const auto [status, detail] =

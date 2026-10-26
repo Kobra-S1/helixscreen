@@ -19,6 +19,7 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -773,6 +774,43 @@ public class HelixActivity extends SDLActivity {
         } catch (Exception e) {
             Log.w("HelixHTTPS", "GET failed: " + errorText(e));
             return "0\n" + errorText(e);
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    /**
+     * HTTP(S) GET returning the raw response bytes, for binary bodies such as a
+     * camera snapshot JPEG that cannot round-trip through a Java String.
+     *
+     * @return The body of a 2xx response, or null on any other status or failure
+     */
+    public static byte[] httpsGetBytes(String url, String userAgent, int timeoutSec) {
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(timeoutSec * 1000);
+            conn.setReadTimeout(timeoutSec * 1000);
+            conn.setRequestProperty("User-Agent", userAgent);
+
+            int status = conn.getResponseCode();
+            if (status < 200 || status >= 300) {
+                Log.w("HelixHTTPS", "GET bytes answered " + status);
+                return null;
+            }
+            try (InputStream in = conn.getInputStream()) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                byte[] chunk = new byte[16384];
+                int n;
+                while ((n = in.read(chunk)) != -1) {
+                    out.write(chunk, 0, n);
+                }
+                return out.toByteArray();
+            }
+        } catch (Exception e) {
+            Log.w("HelixHTTPS", "GET bytes failed: " + errorText(e));
+            return null;
         } finally {
             if (conn != null) conn.disconnect();
         }

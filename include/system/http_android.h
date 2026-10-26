@@ -30,6 +30,12 @@ https_post_binary(const std::string& url, const std::vector<unsigned char>& body
                   const std::string& content_type, const std::string& content_encoding,
                   const std::string& user_agent, const std::string& api_key, int timeout_sec);
 
+/// HTTP(S) GET of a binary body (a camera snapshot) via Android's Java
+/// HttpURLConnection. Fills @p body and returns true only for a 2xx answer;
+/// a non-2xx status or any transport failure returns false.
+bool https_get_bytes(const std::string& url, const std::string& user_agent, int timeout_sec,
+                     std::string& body);
+
 } // namespace helix::android
 
 #endif // __ANDROID__

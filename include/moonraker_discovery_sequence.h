@@ -442,14 +442,4 @@ inline constexpr int kSnapshotProbeTotalTimeoutSec = 6;
  */
 [[nodiscard]] bool probe_snapshot_reachable(const std::string& snapshot_url);
 
-/**
- * @brief Whether a snapshot probe of @p url must use the platform's own TLS stack.
- *
- * True for an https URL when the HTTP client has no TLS of its own (libhv on
- * Android is built without SSL, so an https request through it never leaves the
- * device).
- */
-[[nodiscard]] bool snapshot_probe_needs_platform_tls(const std::string& url,
-                                                     bool http_client_has_tls);
-
 } // namespace helix
