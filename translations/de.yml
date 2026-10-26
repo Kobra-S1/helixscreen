@@ -272,6 +272,7 @@ translations:
   Alert: Alarm
   Alerts: Alarme
   Alerts and messages waiting for you: Wartende Alarme und Meldungen
+  Alerts and printer events: Alarme und Druckerereignisse
   All: Alle
   All Devices: Alle Geräte
   All Healthy: 'Alles in Ordnung'
@@ -2639,6 +2640,7 @@ translations:
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Es wurde nichts geändert. Temperatur und Material bleiben erhalten, ein erneuter Versuch ist ein Tipp.'
   Nothing was saved and the heaters are off.: Es wurde nichts gespeichert und die Heizungen sind aus.
   Notification: Benachrichtigung
+  Notification History: Benachrichtigungsverlauf
   Notifications: Benachrichtigungen
   Notify when print finishes: Benachrichtigen wenn Druck beendet
   Now printing: 'Wird gedruckt'

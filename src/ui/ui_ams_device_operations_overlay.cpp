@@ -130,17 +130,7 @@ void AmsDeviceOperationsOverlay::register_callbacks() {
          }},
         {"on_ams_device_ops_abort",
          [](lv_event_t*) {
-             AmsBackend* backend = AmsState::instance().get_backend();
-             if (!backend) {
-                 NOTIFY_WARNING("{}", lv_tr("No Multi-Filament System connected"));
-                 return;
-             }
-             AmsError result = backend->cancel();
-             if (result.success()) {
-                 NOTIFY_INFO("{}", lv_tr("Aborting..."));
-             } else {
-                 helix::ui::notify_ams_error(result, lv_tr("Abort failed"));
-             }
+             abort_ams_operation();
              get_ams_device_operations_overlay().refresh();
          }},
         {"on_ams_device_ops_bypass_toggled",
@@ -267,6 +257,20 @@ lv_obj_t* AmsDeviceOperationsOverlay::create(lv_obj_t* parent) {
 void AmsDeviceOperationsOverlay::on_ui_destroyed() {
     action_observer_.reset();
     bypass_toggle_.cancel_pending();
+}
+
+void abort_ams_operation() {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        NOTIFY_WARNING("{}", lv_tr("No Multi-Filament System connected"));
+        return;
+    }
+    AmsError result = backend->cancel();
+    if (result.success()) {
+        NOTIFY_INFO("{}", lv_tr("Aborting..."));
+    } else {
+        helix::ui::notify_ams_error(result, lv_tr("Abort failed"));
+    }
 }
 
 std::vector<DeviceDetailRow> ams_device_detail_rows(const AmsSystemInfo& info) {

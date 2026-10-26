@@ -240,7 +240,7 @@ See [Print History](print-history.md) for the full guide.
 
 Review past system notifications:
 
-1. Tap the **Notifications** widget on the Home screen
+1. Tap the **Notifications** widget on the Home screen. If you have removed that widget, open **Advanced > Notification History** instead; the row appears there only while no Notifications widget is on any home page.
 2. Scroll through history
 3. Tap **Clear All** to dismiss
 
@@ -257,7 +257,7 @@ Some notifications can be tapped to act on them, such as an update notice that o
 
 Notifications are what HelixScreen told you. **Printer Events** is what happened to the printer: Klipper shutting down and why, a lost connection to a controller board (MCU), Klipper disconnecting or coming back ready, a firmware restart, a print pausing and what paused it, a filament runout, error messages from the printer, and how each print ended (completed, canceled, or failed and why).
 
-1. Tap the **Notifications** widget on the Home screen
+1. Open Notification History, from the **Notifications** widget or **Advanced > Notification History**
 2. Tap **Printer Events** at the top
 3. The newest event is at the top. Each shows its time and, when a print was running, the file name
 

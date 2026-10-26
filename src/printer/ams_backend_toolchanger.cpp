@@ -538,6 +538,31 @@ lv_subject_t* AmsBackendToolChanger::get_operation_step_index_subject(StepOperat
     return AmsState::instance().get_ams_operation_phase_subject();
 }
 
+std::optional<StepOperationType> AmsBackendToolChanger::running_step_operation() const {
+    // Main thread, like every feed_run_ access.
+    if (!feed_run_) {
+        return std::nullopt;
+    }
+    return feed_run_->request().load ? StepOperationType::LOAD_FRESH : StepOperationType::UNLOAD;
+}
+
+std::string AmsBackendToolChanger::step_heater(int step_index) const {
+    if (!feed_run_ || step_index < 0) {
+        return {};
+    }
+    // The same rows get_operation_step_model() lays out for this run.
+    const auto& heads = feed_run_->request().heads;
+    const auto rows = helix::mount_feed::bar_rows(feed_run_->request().load, heads.size());
+    if (step_index >= static_cast<int>(rows.size())) {
+        return {};
+    }
+    const int tool = rows[static_cast<size_t>(step_index)].tool;
+    if (tool < 0 || tool >= static_cast<int>(heads.size())) {
+        return {};
+    }
+    return helix::mount_feed::heater_name(heads[static_cast<size_t>(tool)].head);
+}
+
 AmsBackendToolChanger::ResolvedStep
 AmsBackendToolChanger::resolve_step_locked(const std::string& operation, bool mid_operation) const {
     // Against the operation the sidebar is CURRENTLY rendering: load, unload and

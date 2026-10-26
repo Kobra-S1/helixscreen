@@ -270,6 +270,7 @@ translations:
   Alert: Avviso
   Alerts: Avvisi
   Alerts and messages waiting for you: Avvisi e messaggi in attesa
+  Alerts and printer events: Avvisi ed eventi della stampante
   All: Tutto
   All Devices: Tutti i dispositivi
   All Healthy: 'Tutto in ordine'
@@ -2631,6 +2632,7 @@ translations:
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Nulla è stato modificato. Temperatura e materiale restano, riprovare è un tocco.'
   Nothing was saved and the heaters are off.: Non è stato salvato nulla e i riscaldatori sono spenti.
   Notification: Notifica
+  Notification History: Cronologia notifiche
   Notifications: Notifiche
   Notify when print finishes: Notifica al termine della stampa
   Now printing: 'In stampa ora'

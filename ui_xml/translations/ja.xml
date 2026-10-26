@@ -257,6 +257,7 @@
   <translation tag="Alert" ja="アラート"/>
   <translation tag="Alerts" ja="アラート"/>
   <translation tag="Alerts and messages waiting for you" ja="待機中のアラートとメッセージ"/>
+  <translation tag="Alerts and printer events" ja="アラートとプリンターイベント"/>
   <translation tag="All" ja="すべて"/>
   <translation tag="All Devices" ja="すべてのデバイス"/>
   <translation tag="All Healthy" ja="すべて正常"/>
@@ -2401,6 +2402,7 @@
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." ja="何も変更されていません。温度と材料は保持されるので、再試行はワンタップです。"/>
   <translation tag="Nothing was saved and the heaters are off." ja="何も保存されず、ヒーターはオフです。"/>
   <translation tag="Notification" ja="通知"/>
+  <translation tag="Notification History" ja="通知履歴"/>
   <translation tag="Notifications" ja="通知"/>
   <translation tag="Notify when print finishes" ja="印刷完了時に通知"/>
   <translation tag="Now printing" ja="印刷中"/>

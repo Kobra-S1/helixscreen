@@ -257,6 +257,7 @@
   <translation tag="Alert" fr="Alerte"/>
   <translation tag="Alerts" fr="Alertes"/>
   <translation tag="Alerts and messages waiting for you" fr="Alertes et messages en attente"/>
+  <translation tag="Alerts and printer events" fr="Alertes et événements de l&apos;imprimante"/>
   <translation tag="All" fr="Tous"/>
   <translation tag="All Devices" fr="Tous les appareils"/>
   <translation tag="All Healthy" fr="Tout est en ordre"/>
@@ -2401,6 +2402,7 @@
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." fr="Rien n&apos;a été modifié. La température et le matériau sont conservés, réessayer ne demande qu&apos;un appui."/>
   <translation tag="Nothing was saved and the heaters are off." fr="Rien n&apos;a été enregistré et les chauffages sont éteints."/>
   <translation tag="Notification" fr="Notification"/>
+  <translation tag="Notification History" fr="Historique des notifications"/>
   <translation tag="Notifications" fr="Notifications"/>
   <translation tag="Notify when print finishes" fr="Notifier à la fin de l&apos;impression"/>
   <translation tag="Now printing" fr="En cours d&apos;impression"/>

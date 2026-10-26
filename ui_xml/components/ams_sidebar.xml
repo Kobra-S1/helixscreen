@@ -14,6 +14,7 @@
     - ams_sidebar_reset_clicked: Reset button
     - ams_sidebar_check_gates_clicked: Check slots button (Happy Hare only)
     - ams_sidebar_settings_clicked: Settings button
+    - ams_sidebar_cancel_clicked: Cancel button (running operation)
     C++ companion: AmsOperationSidebar (ui_ams_sidebar.h)
   -->
   <!-- Scrolls vertically: with every action a backend offers, the buttons
@@ -77,9 +78,19 @@
         </ui_switch>
       </lv_obj>
     </lv_obj>
-    <!-- Step Progress Stepper (shown during load operations) -->
+    <!-- Cancel stands in for the action buttons while an operation the backend
+         can stop is running (AmsOperationSidebar::refresh_button_gating). It sits
+         above the stepper: a run of several tools outgrows a small screen's
+         column, and the steps scroll where Cancel must not. -->
+    <ui_button name="btn_cancel_operation" width="100%" variant="danger" icon="stop" text="Cancel" long_mode="dots">
+      <bind_flag_if_eq subject="ams_sidebar_cancel_shown" flag="hidden" ref_value="0"/>
+      <event_cb trigger="clicked" callback="ams_sidebar_cancel_clicked"/>
+    </ui_button>
+    <!-- Step Progress Stepper (shown during load operations). It scrolls inside
+         a share of the column, so a run of many steps never scrolls the column
+         and Cancel above it off screen. -->
     <lv_obj name="progress_stepper_container"
-            width="100%" height="content" style_max_height="260" style_pad_all="0" scrollable="true" scroll_dir="ver"
+            width="100%" height="content" style_max_height="55%" style_pad_all="0" scrollable="true" scroll_dir="ver"
             scrollbar_mode="auto" hidden="true">
       <!-- Step progress widget created dynamically by AmsOperationSidebar -->
     </lv_obj>

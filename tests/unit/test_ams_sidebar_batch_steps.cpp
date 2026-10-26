@@ -14,6 +14,7 @@
 #include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_state.h"
 #include "ams_step_operation.h"
@@ -23,6 +24,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -50,6 +52,15 @@ class FeedChanger : public helix::test::ToolChangerHelper {
         return helix::AmsErrorHelper::success();
     }
 
+    helix::AmsError cancel() override {
+        ++cancel_calls_;
+        return ToolChangerHelper::cancel();
+    }
+
+    [[nodiscard]] bool can_cancel_operation() const override {
+        return cancellable_.value_or(ToolChangerHelper::can_cancel_operation());
+    }
+
     /// Ack the newest stage and let the deferred handlers run.
     void ack() {
         REQUIRE_FALSE(acks_.empty());
@@ -58,6 +69,17 @@ class FeedChanger : public helix::test::ToolChangerHelper {
         helix::ui::UpdateQueue::instance().drain();
         helix::ui::UpdateQueue::instance().drain();
     }
+
+    /// The operator answers the run's Insert prompt.
+    void continue_prompt() {
+        helix::ToolChangerTestAccess::feed_operator_reply(*this,
+                                                          helix::mount_feed::Reply::Continue);
+        helix::ui::UpdateQueue::instance().drain();
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    int cancel_calls_ = 0;
+    std::optional<bool> cancellable_;
 
   private:
     std::vector<std::function<void()>> acks_;
@@ -73,6 +95,11 @@ struct BatchStepsFixture : public XMLTestFixture {
         AmsState::instance().sync_from_backend();
 
         helix::test::register_ams_sidebar_xml();
+        open();
+    }
+
+    /// Build the sidebar the way the AMS panel does each time it opens.
+    void open() {
         panel_ = lv_obj_create(test_screen());
         const char* attrs[] = {"name", "ams_operation_sidebar", nullptr};
         REQUIRE(lv_xml_create(panel_, "ams_sidebar", attrs) != nullptr);
@@ -84,12 +111,33 @@ struct BatchStepsFixture : public XMLTestFixture {
     }
 
     ~BatchStepsFixture() override {
+        close();
+        AmsState::instance().set_backend(nullptr);
+    }
+
+    void close() {
         sidebar_.reset();
         if (panel_ && lv_obj_is_valid(panel_)) {
             lv_obj_delete(panel_);
         }
+        panel_ = nullptr;
         helix::ui::UpdateQueue::instance().drain();
-        AmsState::instance().set_backend(nullptr);
+    }
+
+    /// Close the AMS panel and open it again: the new sidebar started nothing.
+    void reopen() {
+        close();
+        open();
+    }
+
+    [[nodiscard]] lv_obj_t* cancel_button() const {
+        lv_obj_t* btn = lv_obj_find_by_name(panel_, "btn_cancel_operation");
+        REQUIRE(btn != nullptr);
+        return btn;
+    }
+
+    [[nodiscard]] bool cancel_shown() const {
+        return !lv_obj_has_flag(cancel_button(), LV_OBJ_FLAG_HIDDEN);
     }
 
     void pick(HeadPickOp op, const std::vector<int>& slots) {
@@ -168,4 +216,81 @@ TEST_CASE_METHOD(BatchStepsFixture, "The live temperature follows the heat row u
     CHECK(shown[1] == "Tool 1 (1/3): Heat nozzle");
     REQUIRE(shown[4].rfind("Tool 2 (2/3): Heat nozzle ", 0) == 0);
     CHECK(shown[4].find("°C") != std::string::npos);
+}
+
+TEST_CASE_METHOD(BatchStepsFixture,
+                 "A load batch reopened while it heats keeps the load rows, not a swap",
+                 "[ams][sidebar][mount_feed][batch][reopen]") {
+    pick(HeadPickOp::Load, {1, 2, 3});
+    changer_->ack();             // the Insert prompt is up
+    changer_->continue_prompt(); // filament inserted
+    changer_->ack();             // tool 2 mounted: tool 2 heats
+    REQUIRE(AmsState::instance().system_info()->current_slot >= 0);
+
+    reopen();
+
+    CHECK(AmsState::instance().get_active_step_operation() == StepOperationType::LOAD_FRESH);
+    const auto shown = labels();
+    REQUIRE(shown.size() == helix::mount_feed::bar_rows(/*load=*/true, 3).size());
+    CHECK(shown.front() == "Tool 1 of 3: Insert filament");
+}
+
+TEST_CASE_METHOD(BatchStepsFixture,
+                 "An unload batch reopened before it retracts keeps the unload rows",
+                 "[ams][sidebar][mount_feed][batch][reopen]") {
+    pick(HeadPickOp::Unload, {0, 1, 2});
+
+    reopen();
+
+    CHECK(AmsState::instance().get_active_step_operation() == StepOperationType::UNLOAD);
+    const auto shown = labels();
+    REQUIRE(shown.size() == helix::mount_feed::bar_rows(/*load=*/false, 3).size());
+    CHECK(shown.front() == "Tool 1 of 3: Mount tool");
+    CHECK(shown[2] == "Tool 1 of 3: Retract filament");
+}
+
+TEST_CASE_METHOD(BatchStepsFixture, "The heat row reads the heater of the tool it heats",
+                 "[ams][sidebar][mount_feed][batch]") {
+    auto& temps = state().temperature_state();
+    temps.init_extruders({"extruder", "extruder1", "extruder2", "extruder3"});
+    temps.set_active_extruder("extruder");
+    lv_subject_set_int(temps.get_active_extruder_temp_subject(), 2000);
+    lv_subject_set_int(temps.get_active_extruder_target_subject(), 0);
+    REQUIRE(temps.get_extruder_temp_subject("extruder2") != nullptr);
+    lv_subject_set_int(temps.get_extruder_temp_subject("extruder2"), 1230);
+    lv_subject_set_int(temps.get_extruder_target_subject("extruder2"), 2400);
+
+    pick(HeadPickOp::Unload, {2, 3});
+    changer_->ack(); // Tool 3 mounted: Tool 3 heats
+    auto shown = labels();
+    REQUIRE(shown[1].rfind("Tool 1 of 2: Heat nozzle ", 0) == 0);
+    CHECK(shown[1].find("123") != std::string::npos);
+    CHECK(shown[1].find("240") != std::string::npos);
+    CHECK(shown[1].find("200") == std::string::npos);
+
+    // The reading follows that heater, not the active one.
+    lv_subject_set_int(temps.get_extruder_temp_subject("extruder2"), 1870);
+    helix::ui::UpdateQueue::instance().drain();
+    shown = labels();
+    CHECK(shown[1].find("187") != std::string::npos);
+}
+
+TEST_CASE_METHOD(BatchStepsFixture,
+                 "The sidebar offers Cancel while a cancellable run is under way",
+                 "[ams][sidebar][mount_feed][batch][cancel]") {
+    CHECK_FALSE(cancel_shown()); // idle
+
+    pick(HeadPickOp::Unload, {0, 1, 2});
+    REQUIRE(cancel_shown());
+
+    lv_obj_send_event(cancel_button(), LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(changer_->cancel_calls_ == 1);
+}
+
+TEST_CASE_METHOD(BatchStepsFixture, "The sidebar withholds Cancel when the backend cannot cancel",
+                 "[ams][sidebar][mount_feed][batch][cancel]") {
+    changer_->cancellable_ = false;
+    pick(HeadPickOp::Unload, {0, 1, 2});
+    CHECK_FALSE(cancel_shown());
 }

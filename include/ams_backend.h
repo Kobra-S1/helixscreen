@@ -773,6 +773,31 @@ class AmsBackend {
     [[nodiscard]] virtual lv_subject_t* get_operation_step_index_subject(StepOperationType op);
 
     /**
+     * @brief The operation the backend is running, when it knows which.
+     *
+     * A sidebar that did not start the operation (the AMS panel opened mid-run)
+     * otherwise guesses it from the action frames, and a load that is still
+     * heating reads the same as a swap. nullopt (default) => not known; the
+     * sidebar guesses. Main thread.
+     */
+    [[nodiscard]] virtual std::optional<StepOperationType> running_step_operation() const {
+        return std::nullopt;
+    }
+
+    /**
+     * @brief The heater a live-temp step of the current step model heats.
+     *
+     * A machine with a heater per tool heats a different one at each tool's
+     * step, and Klipper's active extruder need not be it. Empty (default) =>
+     * the active extruder. Main thread.
+     *
+     * @param step_index  Index into the model get_operation_step_model() built
+     */
+    [[nodiscard]] virtual std::string step_heater(int /*step_index*/) const {
+        return {};
+    }
+
+    /**
      * @brief Does `action` mean an operation the STEP BAR should be following?
      *
      * Drives both halves of the step bar from one definition: whether the bar is

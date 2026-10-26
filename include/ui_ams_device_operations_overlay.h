@@ -45,6 +45,10 @@ struct DeviceDetailRow {
 /// A row appears only when its value is published.
 std::vector<DeviceDetailRow> ams_device_detail_rows(const AmsSystemInfo& info);
 
+/// Cancel the filament system's running operation and toast the outcome. The
+/// one abort every surface that offers one calls.
+void abort_ams_operation();
+
 /**
  * @class AmsDeviceOperationsOverlay
  * @brief Progressive disclosure overlay for AMS device operations

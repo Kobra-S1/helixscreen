@@ -402,6 +402,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// The shared operation-phase subject. apply_tool_sensor_locked() writes the
     /// step index into system_info_.operation_phase, the same route the U1 uses.
     [[nodiscard]] lv_subject_t* get_operation_step_index_subject(StepOperationType op) override;
+    /// A mount-to-feed run knows whether it loads or unloads; nothing else is
+    /// known here.
+    [[nodiscard]] std::optional<StepOperationType> running_step_operation() const override;
+    /// The heater of the tool a mount-to-feed run's step belongs to.
+    [[nodiscard]] std::string step_heater(int step_index) const override;
 
     // NOTE: has_per_slot_loaded_authority() is deliberately NOT overridden, and
     // this backend has a reason none of the others do: it carries no filament

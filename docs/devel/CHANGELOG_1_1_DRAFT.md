@@ -93,6 +93,9 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 **Home screen**
 
+- **Notification history without the bell** - removing the Notifications widget from the
+  home screen no longer cuts you off from notification history and Printer Events:
+  **Advanced > Notification History** appears whenever no bell is on any home page.
 - **The home screen is one square-cell grid on every panel** (#1126, #1559) - both axes now
   divide the panel by the same per-breakpoint track size, so a cell is square everywhere and
   a rotated panel transposes its grid exactly. The per-layout-type branches, the fixed count

@@ -311,6 +311,7 @@ translations:
   Alert: Оповещение
   Alerts: Оповещения
   Alerts and messages waiting for you: Уведомления и сообщения для вас
+  Alerts and printer events: Оповещения и события принтера
   All: Все
   All Devices: Все устройства
   All Healthy: 'Всё в порядке'
@@ -2670,6 +2671,7 @@ translations:
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Ничего не изменилось. Температура и материал сохранены, повторить можно одним нажатием.'
   Nothing was saved and the heaters are off.: Ничего не сохранено, нагреватели выключены.
   Notification: Уведомление
+  Notification History: История уведомлений
   Notifications: Уведомления
   Notify when print finishes: Уведомить о завершении печати
   Now printing: 'Сейчас печатается'

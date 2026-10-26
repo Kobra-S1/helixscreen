@@ -296,7 +296,14 @@ the stage list, laid out by `mount_feed::bar_rows()`: each tool's steps for a mu
 place in the run), with the insert on the first tool only and the restore on the last
 only, since one prompt and one restore cover the run. `get_operation_step_model()` builds
 it from the live run and `Run::phase_index()` publishes the index into it. A batch from the
-head picker names its operation to the sidebar, which rebuilds the bar once the run exists. The backend claims
+head picker names its operation to the sidebar, which rebuilds the bar once the run exists. A
+sidebar opened mid-run asks `running_step_operation()` (load or unload, from the run) instead
+of guessing from the action frames, where a load still heating reads like a swap. Each Heat
+row's live readout follows that tool's own heater (`step_heater()`, `mount_feed::heater_name()`
+of the row's head), not Klipper's active extruder: a MedusaHC without klipper-toolchanger never
+runs `ACTIVATE_EXTRUDER`, so the active extruder stays `extruder` whatever is mounted. While
+the run is cancellable (`can_cancel_operation()`), the sidebar shows Cancel in place of its
+action buttons; it is the same abort as Settings > AMS > Abort. The backend claims
 `filament_ops_self_home`, so a load or unload is refused while a print is running or
 paused, and `supports_auto_heat_on_load/unload`, so the UI does not preheat the active tool
 before the backend mounts another.

@@ -257,6 +257,7 @@
   <translation tag="Alert" en="Alert"/>
   <translation tag="Alerts" en="Alerts"/>
   <translation tag="Alerts and messages waiting for you" en="Alerts and messages waiting for you"/>
+  <translation tag="Alerts and printer events" en="Alerts and printer events"/>
   <translation tag="All" en="All"/>
   <translation tag="All Devices" en="All Devices"/>
   <translation tag="All Healthy" en="All Healthy"/>
@@ -2401,6 +2402,7 @@
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." en="Nothing was changed. Temperature and material are kept, so a retry is one tap."/>
   <translation tag="Nothing was saved and the heaters are off." en="Nothing was saved and the heaters are off."/>
   <translation tag="Notification" en="Notification"/>
+  <translation tag="Notification History" en="Notification History"/>
   <translation tag="Notifications" en="Notifications"/>
   <translation tag="Notify when print finishes" en="Notify when print finishes"/>
   <translation tag="Now printing" en="Now printing"/>
