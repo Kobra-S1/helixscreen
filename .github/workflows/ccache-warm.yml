@@ -201,15 +201,21 @@ jobs:
         if-no-files-found: error
         retention-days: 3
 
-  # release.yml's Android job, native code only: the same CMake arguments as a
-  # signed release (helixDiagUploads stands in for the keystore that turns
-  # diagnostic uploads on), all three ABIs, no packaging or signing.
+  # release.yml's build-android-native, one leg per ABI through the same
+  # composite action, so each ABI's cache holds exactly the objects that
+  # release leg will look up. No packaging or signing.
   warm-android:
-    name: Warm (Android)
+    name: Warm (Android ${{ matrix.abi }})
     needs: [prune]
     if: always() && github.repository == 'prestonbrown/helixscreen'
     runs-on: ubuntu-22.04
-    timeout-minutes: 130
+    # Sized for a cold ABI, the only kind this job is guaranteed to tolerate:
+    # ~30 min, so 60 is twofold margin.
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86_64]
 
     steps:
     - name: Checkout repository
@@ -220,39 +226,11 @@ jobs:
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v5
-      with:
-        distribution: temurin
-        java-version: 17
-
-    - name: Install Android NDK
-      run: |
-        yes | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install "ndk;29.0.14206865" || true
-
-    - name: Set up ccache
-      uses: hendrikmuhs/ccache-action@v1.2.22
-      with:
-        key: release-android
-        max-size: 3G
-        evict-old-files: job
-
-    - name: Cache Gradle
-      uses: actions/cache@v5
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: gradle-${{ hashFiles('android/**/*.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
-        restore-keys: |
-          gradle-
-
-    - name: Apply submodule patches
-      run: make apply-patches
-
     - name: Compile native code (release, warm cache only)
-      working-directory: android
-      run: ./gradlew externalNativeBuildRelease -PuseCcache -PhelixDiagUploads
+      uses: ./.github/actions/android-native-release
+      with:
+        abi: ${{ matrix.abi }}
+        save-cache: "true"
 
   # release.yml's gpu-libs-hidden-smoke, on the nightly x86 build. A job of its
   # own rather than a step in the warm leg: a failed step there would also lose

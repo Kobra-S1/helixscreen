@@ -35,6 +35,26 @@ def helixAbis = project.hasProperty('helixAbis')
     ? project.property('helixAbis').split(',')*.trim().findAll { it }
     : ['arm64-v8a', 'armeabi-v7a', 'x86_64']
 
+// -PhelixPrebuiltJniLibs=<dir> packages native libraries compiled by an earlier
+// build instead of running CMake: <dir>/<abi>/*.so, as stripReleaseDebugSymbols
+// lays them out, for exactly the ABIs in helixAbis. release.yml compiles each
+// ABI in a job of its own and packages all of them once with this.
+def prebuiltJniLibs = project.hasProperty('helixPrebuiltJniLibs')
+    ? file(project.property('helixPrebuiltJniLibs'))
+    : null
+if (prebuiltJniLibs != null) {
+    // An ABI missing here would ship an APK that fails to install on that ABI,
+    // and an extra one would ride along in the universal APK.
+    def present = (prebuiltJniLibs.listFiles()?.findAll { it.isDirectory() }*.name ?: []) as Set
+    def missing = helixAbis.findAll { !new File(prebuiltJniLibs, "${it}/libmain.so").isFile() }
+    def extra = present - (helixAbis as Set)
+    if (missing || extra) {
+        throw new GradleException(
+            "helixPrebuiltJniLibs=${prebuiltJniLibs} does not match helixAbis ${helixAbis}: " +
+            "missing libmain.so for ${missing ?: 'none'}, unexpected ABI dirs ${extra ?: 'none'}")
+    }
+}
+
 android {
     namespace "org.helixscreen.app"
     compileSdkVersion 36
@@ -47,7 +67,7 @@ android {
         versionCode vCode  // 1.0.0 → 100000099, 1.1.0-beta.1 → 100100031
         versionName helix_version
 
-        externalNativeBuild {
+        if (prebuiltJniLibs == null) externalNativeBuild {
             cmake {
                 def cmakeArgs = ["-DANDROID_STL=c++_shared"]
                 if (project.hasProperty('useCcache')) {
@@ -107,9 +127,17 @@ android {
         }
     }
 
-    externalNativeBuild {
-        cmake {
-            path 'jni/CMakeLists.txt'
+    if (prebuiltJniLibs == null) {
+        externalNativeBuild {
+            cmake {
+                path 'jni/CMakeLists.txt'
+            }
+        }
+    } else {
+        sourceSets {
+            main {
+                jniLibs.srcDirs = [prebuiltJniLibs]
+            }
         }
     }
 

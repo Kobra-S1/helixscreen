@@ -801,6 +801,24 @@ jobs:
       working-directory: server/telemetry-worker
       run: npm test
 
+  # Drop the generations this push superseded, as soon as its own are saved.
+  # Every save above lands in a job end post-step, so the prune has to be a job
+  # that needs them. Left to GitHub's LRU, the 10 GB budget evicts the
+  # ccache-release-* caches instead: they are read only by the nightly warm
+  # and a release, while these are read on every push. Keeps the newest
+  # generation per (ref, family) and never touches ccache-release-*.
+  # always(): a failed build still saved its partial cache, and the prune never
+  # deletes a family's newest entry.
+  prune-ccache:
+    name: Prune superseded ccaches
+    needs: [compile-ubuntu, build-macos, build-android, link-aux-binaries]
+    if: >-
+      ${{ always() && github.event_name == 'push'
+      && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) }}
+    uses: ./.github/workflows/cache-prune.yml
+    permissions:
+      actions: write
+
   build-status:
     name: Build Status
     runs-on: ubuntu-latest

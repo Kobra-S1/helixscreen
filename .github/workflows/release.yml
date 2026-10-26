@@ -394,13 +394,25 @@ jobs:
   # ============================================================================
   # Build Android APKs (runs in parallel with embedded platform builds)
   # ============================================================================
-  build-android:
-    name: Build (Android)
+  # Each ABI's native code compiles in a job of its own, at the same time; the
+  # libraries are then packaged and signed once, in build-android, with no
+  # native recompile. Downstream jobs depend on build-android only.
+  build-android-native:
+    name: Build (Android native, ${{ matrix.abi }})
     needs: [validate-shell, plan]
     runs-on: ubuntu-22.04
-    # Two ABIs ran 46-64 minutes through assembleRelease + bundleRelease, and
-    # armeabi-v7a adds roughly half again, so 90 would cut a cold-cache run.
-    timeout-minutes: 130
+    # One ABI, cold, is about a third of the three-ABI cold build that ran
+    # 1h20m, so ~30 min including setup; a warm one is minutes. 60 covers a
+    # cold run with margin and still stops a hung NDK fetch.
+    timeout-minutes: 60
+    strategy:
+      # The release needs every ABI, so one failure ends the others early.
+      fail-fast: true
+      matrix:
+        # Must equal android/app/build.gradle's default helixAbis, ccache-warm's
+        # warm-android matrix and cache-prune's per-ABI release families;
+        # tests/shell/test_android_release_abis.bats holds them together.
+        abi: [arm64-v8a, armeabi-v7a, x86_64]
 
     steps:
     - name: Checkout repository
@@ -411,25 +423,50 @@ jobs:
     - name: Initialize submodules
       uses: ./.github/actions/init-submodules
 
+    # A tag sees only its own caches and main's, so this restores the
+    # generation ccache-warm.yml's warm-android job builds on main each night.
+    # Saving here would make a tag-scoped cache no later release can read.
+    - name: Compile native code
+      id: native
+      uses: ./.github/actions/android-native-release
+      with:
+        abi: ${{ matrix.abi }}
+
+    - name: Upload native libraries
+      uses: actions/upload-artifact@v7
+      with:
+        name: android-jnilibs-${{ matrix.abi }}
+        path: ${{ steps.native.outputs.lib-dir }}
+        if-no-files-found: error
+        retention-days: 1
+
+  build-android:
+    name: Build (Android)
+    needs: [build-android-native, validate-shell, plan]
+    runs-on: ubuntu-22.04
+    # Packaging and signing only: assembleRelease + bundleRelease over prebuilt
+    # libraries is a few minutes. The ceiling is for a hung Gradle download.
+    timeout-minutes: 30
+
+    steps:
+    # No submodules: packaging reads ui_xml/, assets/ and config/ and compiles
+    # nothing from lib/.
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        submodules: false
+
     - name: Set up JDK 17
       uses: actions/setup-java@v5
       with:
         distribution: temurin
         java-version: 17
 
+    # AGP still runs its strip pass over the prebuilt libraries, which needs
+    # the NDK; on already-stripped input it is a no-op.
     - name: Install Android NDK
       run: |
         yes | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install "ndk;29.0.14206865" || true
-
-    # A tag sees only its own caches and main's, so this restores the
-    # generation ccache-warm.yml's warm-android job builds on main each night.
-    # Saving here would make a tag-scoped cache no later release can read.
-    - name: Set up ccache
-      uses: hendrikmuhs/ccache-action@v1.2.22
-      with:
-        key: release-android
-        max-size: 3G
-        save: false
 
     - name: Cache Gradle
       uses: actions/cache@v5
@@ -441,8 +478,15 @@ jobs:
         restore-keys: |
           gradle-
 
-    - name: Apply submodule patches
-      run: make apply-patches
+    # Lands as <dir>/<abi>/*.so, the layout -PhelixPrebuiltJniLibs reads. Gradle
+    # refuses the build if any ABI in helixAbis is missing or an extra one is
+    # present.
+    - name: Download native libraries
+      uses: actions/download-artifact@v8
+      with:
+        pattern: android-jnilibs-*
+        merge-multiple: true
+        path: ${{ runner.temp }}/jniLibs
 
     - name: Materialize upload keystore
       id: keystore
@@ -453,7 +497,7 @@ jobs:
           # A release tag has no business producing unsigned or debug-signed
           # artifacts: Play Store rejects a debug-signed AAB. Gradle refuses the
           # same case, but failing here names the missing secret instead of
-          # surfacing as a build error 40 minutes later.
+          # surfacing as a build error later.
           echo "::error::ANDROID_KEYSTORE_BASE64 is not set. A release build must be signed with the upload keystore; see docs/devel/ANDROID_PLAY_STORE.md for the four ANDROID_KEYSTORE_* / ANDROID_KEY_* secrets."
           exit 1
         else
@@ -470,7 +514,7 @@ jobs:
         ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-      run: ./gradlew assembleRelease -PuseCcache
+      run: ./gradlew assembleRelease -PhelixPrebuiltJniLibs="$RUNNER_TEMP/jniLibs"
 
     - name: Build Android AAB (release)
       working-directory: android
@@ -479,7 +523,7 @@ jobs:
         ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-      run: ./gradlew bundleRelease -PuseCcache
+      run: ./gradlew bundleRelease -PhelixPrebuiltJniLibs="$RUNNER_TEMP/jniLibs"
 
     # Runs before anything is renamed or uploaded, so a debug-signed artifact
     # can never reach an artifact store or a GitHub release. Gradle already
@@ -749,7 +793,7 @@ jobs:
     # min budget, against the platform matrix's 82) the release was created
     # with no Android assets and nothing went red.
     # No cycle: publish-android needs [build-android, release], and build-android
-    # needs only validate-shell.
+    # needs only build-android-native, validate-shell and plan.
     # gpu-libs-hidden-smoke is skipped when a dry run builds no x86. A smoke that
     # timed out ends 'cancelled', not 'failure', so the gate names what passes.
     needs: [build-platforms, build-android, build-esp32, gpu-libs-hidden-smoke, plan]
