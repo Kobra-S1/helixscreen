@@ -197,19 +197,35 @@ is_rc_common_script() {
     esac
 }
 
+# True when the rc.d link $1 points at $2. Silent; a missing link is false.
+_rcd_link_points_at() {
+    [ "$($SUDO readlink "$1" 2>/dev/null || true)" = "$2" ]
+}
+
 # Verify one rc.d boot link points where rc.common's `enable` puts it. A
 # mismatch — including a missing link — is a failed boot entry; the caller
 # has already run `enable`, so the manual fix is to run it again by hand.
 _verify_rcd_link() {
     local link="$1" expected="$2" script="$3"
-    local actual
-    actual="$($SUDO readlink "$link" 2>/dev/null || true)"
-    if [ "$actual" != "$expected" ]; then
-        log_error "$link -> '$actual' (expected '$expected')"
+    if ! _rcd_link_points_at "$link" "$expected"; then
+        log_error "$link -> '$($SUDO readlink "$link" 2>/dev/null || true)' (expected '$expected')"
         log_error "The rc.d boot entry is incomplete; Manual fix: $SUDO $script enable"
         return 1
     fi
     return 0
+}
+
+# True when rc.d already holds exactly the boot links `enable` makes for
+# <name>: S<start>, plus K<stop> when STOP is declared, each pointing at
+# ../init.d/<name>, and no other S??/K?? entry for the name.
+_rcd_links_current() {
+    local name="$1" start="$2" stop="$3" entries
+    # Expanded as root for the same reason as enable_and_verify_rcd's rm.
+    entries="$($SUDO sh -c "for f in /etc/rc.d/S??\"$name\" /etc/rc.d/K??\"$name\"; do
+        if [ -e \"\$f\" ] || [ -L \"\$f\" ]; then printf '%s ' \"\$f\"; fi; done" 2>/dev/null)"
+    [ "${entries% }" = "/etc/rc.d/S${start}${name}${stop:+ /etc/rc.d/K${stop}${name}}" ] || return 1
+    _rcd_link_points_at "/etc/rc.d/S${start}${name}" "../init.d/$name" || return 1
+    [ -z "$stop" ] || _rcd_link_points_at "/etc/rc.d/K${stop}${name}" "../init.d/$name"
 }
 
 # The START=/STOP= slot a script declares, as bare digits; prints it and
@@ -275,6 +291,13 @@ enable_and_verify_rcd() {
     if ! stop="$(_rcd_slot STOP "$script")"; then
         log_warn "$name: no parseable STOP= in $script — the shutdown half of the boot entry is left unverified"
         stop=""
+    fi
+
+    # Rewriting links that already verify gains nothing, and on a full or
+    # read-only overlay the remove can succeed where `enable` then fails.
+    if _rcd_links_current "$name" "$start" "$stop"; then
+        log_info "$name: rc.d boot links already current (S${start}${name}${stop:+ K${stop}${name}})"
+        return 0
     fi
 
     # The glob must expand as root: an unprivileged shell cannot read
