@@ -23,50 +23,18 @@
  */
 
 #include "../../include/moonraker_discovery_sequence.h"
-#include "hv/HttpServer.h"
+#include "../test_helpers/loopback_http_server.h"
 #include "system/platform_tls.h"
 
-#include <arpa/inet.h>
 #include <chrono>
-#include <netinet/in.h>
 #include <string>
-#include <sys/socket.h>
 #include <thread>
-#include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
 
 namespace {
-
-/// A loopback port nothing is listening on. Asked of the kernel per fixture so
-/// parallel test shards (and other sessions' runs) never contend for one number.
-int free_loopback_port() {
-    const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
-    sockaddr_in addr{};
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    socklen_t len = sizeof(addr);
-    const bool ok = fd >= 0 && ::bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0 &&
-                    ::getsockname(fd, reinterpret_cast<sockaddr*>(&addr), &len) == 0;
-    if (fd >= 0)
-        ::close(fd);
-    return ok ? ntohs(addr.sin_port) : 0;
-}
-
-/// True once a TCP connect to the loopback port succeeds.
-bool accepts_connections(int port) {
-    const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
-    sockaddr_in addr{};
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    addr.sin_port = htons(static_cast<uint16_t>(port));
-    const bool ok = fd >= 0 && ::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0;
-    if (fd >= 0)
-        ::close(fd);
-    return ok;
-}
 
 /// Milliseconds the "slow camera" endpoint stalls before answering. Above the 2s
 /// connect budget so it fails under the old single-timeout scheme, and comfortably
@@ -77,56 +45,27 @@ constexpr int kSlowResponseMs = 2500;
 /// only reads the status code) but a realistic body keeps the fixture honest.
 const std::string kJpegBody = "\xFF\xD8\xFF\xE0 fake jpeg payload \xFF\xD9";
 
-/// A libhv HTTP server that serves the probe fixtures for the life of the object.
-class ProbeServer {
+/// The probe fixtures, served for the life of the object.
+class ProbeServer : public test::LoopbackHttpServer {
   public:
     ProbeServer() {
-        service_.GET("/fast.jpg", [](HttpRequest*, HttpResponse* resp) {
+        service().GET("/fast.jpg", [](HttpRequest*, HttpResponse* resp) {
             resp->content_type = APPLICATION_OCTET_STREAM;
             resp->body = kJpegBody;
             return 200;
         });
-        service_.GET("/slow.jpg", [](HttpRequest*, HttpResponse* resp) {
+        service().GET("/slow.jpg", [](HttpRequest*, HttpResponse* resp) {
             std::this_thread::sleep_for(std::chrono::milliseconds(kSlowResponseMs));
             resp->content_type = APPLICATION_OCTET_STREAM;
             resp->body = kJpegBody;
             return 200;
         });
-        service_.GET("/missing.jpg", [](HttpRequest*, HttpResponse* resp) {
+        service().GET("/missing.jpg", [](HttpRequest*, HttpResponse* resp) {
             resp->body = "no such camera";
             return 404;
         });
-
-        server_.registerHttpService(&service_);
-        server_.setPort(port_);
-        // One loop thread: every case sends one request at a time, and libhv's
-        // HttpMessage caches its Date header in a process-wide buffer that two loop
-        // threads write without a lock.
-        server_.setThreadNum(1);
-        started_ = port_ != 0 && server_.start() == 0;
-        // start() is asynchronous: probe until the listener accepts.
-        for (int i = 0; started_ && i < 500 && !accepts_connections(port_); ++i) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
+        start();
     }
-
-    ~ProbeServer() {
-        server_.stop();
-    }
-
-    [[nodiscard]] bool started() const {
-        return started_;
-    }
-
-    std::string url(const std::string& path) const {
-        return "http://127.0.0.1:" + std::to_string(port_) + path;
-    }
-
-  private:
-    const int port_ = free_loopback_port();
-    hv::HttpService service_;
-    hv::HttpServer server_;
-    bool started_ = false;
 };
 
 /// Run fn and report how long it took, in milliseconds.
@@ -171,7 +110,7 @@ TEST_CASE("Snapshot probe rejects a reachable host that has no camera there",
 TEST_CASE("Snapshot probe rejects a dead address without waiting out the response budget",
           "[webcam][discovery][probe][1205]") {
     const std::string dead =
-        "http://127.0.0.1:" + std::to_string(free_loopback_port()) + "/frame.jpeg";
+        "http://127.0.0.1:" + std::to_string(test::free_loopback_port()) + "/frame.jpeg";
 
     bool reachable = true;
     const long long elapsed_ms = time_ms([&] { reachable = probe_snapshot_reachable(dead); });

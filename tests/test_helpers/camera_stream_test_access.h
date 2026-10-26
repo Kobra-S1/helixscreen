@@ -80,11 +80,13 @@ class CameraStreamTestAccess {
     }
 
     /// Run one snapshot fetch of @p snapshot_url on the calling thread, as the
-    /// poll loop does, with @p on_error as the stream's error callback.
+    /// poll loop does, with the given error and frame callbacks.
     static void fetch_snapshot_once(CameraStream& s, const std::string& snapshot_url,
-                                    CameraStream::ErrorCallback on_error) {
+                                    CameraStream::ErrorCallback on_error,
+                                    CameraStream::FrameCallback on_frame = nullptr) {
         s.snapshot_url_ = snapshot_url;
         s.on_error_ = std::move(on_error);
+        s.on_frame_ = std::move(on_frame);
         s.running_.store(true);
         s.fetch_snapshot();
         s.running_.store(false);

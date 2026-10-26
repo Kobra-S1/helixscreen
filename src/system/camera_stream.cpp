@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cstring>
 #include <dlfcn.h>
+#include <new>
 #include <string_view>
 
 // TurboJPEG pixel format and flag constants (avoid header dependency)
@@ -637,7 +638,16 @@ void CameraStream::snapshot_poll_loop() {
 
     // L081_OK: loop conditions on the thread the owner joins; no LVGL below.
     while (!poll_token.expired_no_lvgl() && running_.load()) {
-        fetch_snapshot();
+        // As the thread entry this loop has no outer handler, and an escaping
+        // throw is std::terminate. An allocation failure is one failed snapshot.
+        try {
+            fetch_snapshot();
+        } catch (const std::bad_alloc& e) {
+            spdlog::error("[CameraStream] Out of memory fetching a snapshot: {}", e.what());
+            if (!poll_token.expired_no_lvgl()) { // L081_OK: guards members, not LVGL
+                note_snapshot_failure(poll_token);
+            }
+        }
         // Sleep in small increments to check running_ flag
         for (int i = 0;
              i < kSnapshotIntervalMs / 100 && !poll_token.expired_no_lvgl() && running_.load();

@@ -14,6 +14,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/camera_stream_test_access.h"
 #include "../test_helpers/camera_widget_test_access.h"
+#include "../test_helpers/loopback_http_server.h"
 #include "camera_stream.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "static_subject_registry.h"
@@ -21,6 +22,8 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <new>
 #include <thread>
@@ -460,33 +463,118 @@ TEST_CASE_METHOD(HelixTestFixture,
     helix::ui::UpdateQueue::instance().drain();
 }
 
+namespace {
+
+/// A snapshot endpoint that answers 404 until told to serve a real JPEG.
+class SnapshotServer : public test::LoopbackHttpServer {
+  public:
+    SnapshotServer() {
+        std::ifstream in("assets/test_timelapse/benchy_timelapse_20260310.thumb.jpg",
+                         std::ios::binary);
+        jpeg_.assign(std::istreambuf_iterator<char>(in), {});
+        service().GET("/snapshot", [this](HttpRequest*, HttpResponse* resp) {
+            if (!serve_jpeg.load()) {
+                resp->body = "no camera";
+                return 404;
+            }
+            resp->content_type = IMAGE_JPEG;
+            resp->body = jpeg_;
+            return 200;
+        });
+        start();
+    }
+
+    std::atomic<bool> serve_jpeg{false};
+    [[nodiscard]] bool has_jpeg() const {
+        return !jpeg_.empty();
+    }
+
+  private:
+    std::string jpeg_;
+};
+
+/// Drives single snapshot fetches against a SnapshotServer and records what
+/// the stream reports, draining the deferred error callbacks after each.
+struct SnapshotFetcher {
+    CameraStream stream;
+    SnapshotServer server;
+    std::vector<std::string> errors;
+    int frames = 0;
+
+    void fetch() {
+        CameraStreamTestAccess::fetch_snapshot_once(
+            stream, server.url("/snapshot"),
+            [this](const char* msg) { errors.emplace_back(msg ? msg : ""); },
+            [this](lv_draw_buf_t*) { ++frames; });
+        helix::ui::UpdateQueue::instance().drain(); // report_error() defers to the main thread
+    }
+    void fail(int times) {
+        server.serve_jpeg.store(false);
+        for (int i = 0; i < times; ++i) {
+            fetch();
+        }
+    }
+};
+
+} // namespace
+
 TEST_CASE_METHOD(HelixTestFixture,
                  "CameraStream: a snapshot feed that keeps failing reports an error once",
                  "[camera][1891]") {
-    // Nothing listens on port 9, so every fetch is refused at once.
-    const std::string dead = "http://127.0.0.1:9/snapshot";
-    CameraStream stream;
-    std::vector<std::string> errors;
-    auto fetch = [&] {
-        CameraStreamTestAccess::fetch_snapshot_once(
-            stream, dead, [&](const char* msg) { errors.emplace_back(msg ? msg : ""); });
-        helix::ui::UpdateQueue::instance().drain(); // report_error() defers to the main thread
-    };
+    SnapshotFetcher f;
+    REQUIRE(f.server.started());
+    const int max = CameraStreamTestAccess::max_snapshot_failures();
 
-    for (int i = 1; i < CameraStreamTestAccess::max_snapshot_failures(); ++i) {
-        fetch();
-    }
-    CHECK(errors.empty());
+    f.fail(max - 1);
+    CHECK(f.errors.empty());
 
     // A view waiting on its first frame shows this instead of spinning forever.
-    fetch();
-    REQUIRE(errors.size() == 1);
-    CHECK_FALSE(errors.front().empty());
+    f.fail(1);
+    REQUIRE(f.errors.size() == 1);
+    CHECK_FALSE(f.errors.front().empty());
 
     // One message per run of failures, not one per poll.
-    fetch();
-    fetch();
-    CHECK(errors.size() == 1);
+    f.fail(2);
+    CHECK(f.errors.size() == 1);
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "CameraStream: a decoded snapshot starts a new run of failures",
+                 "[camera][1891]") {
+    SnapshotFetcher f;
+    REQUIRE(f.server.started());
+    REQUIRE(f.server.has_jpeg());
+    const int max = CameraStreamTestAccess::max_snapshot_failures();
+
+    // One short of reporting, then a good frame: the count starts over.
+    f.fail(max - 1);
+    f.server.serve_jpeg.store(true);
+    f.fetch();
+    REQUIRE(f.frames == 1);
+    f.fail(max - 1);
+    CHECK(f.errors.empty());
+
+    // A run that reported, then a good frame: the next full run reports again.
+    f.fail(1);
+    REQUIRE(f.errors.size() == 1);
+    f.server.serve_jpeg.store(true);
+    f.fetch();
+    f.fail(max);
+    CHECK(f.errors.size() == 2);
+
+    // A restart starts the count over too: one short of a run, restart, then
+    // one more failure stays silent. The restart's own no-URL report is the
+    // only new message.
+    f.server.serve_jpeg.store(true);
+    f.fetch();
+    f.fail(max - 1);
+    REQUIRE(f.errors.size() == 2);
+    f.stream.start(
+        "", "", [](lv_draw_buf_t*) {},
+        [&f](const char* msg) { f.errors.emplace_back(msg ? msg : ""); });
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(f.errors.size() == 3);
+    f.fail(1);
+    CHECK(f.errors.size() == 3);
 }
 
 TEST_CASE("CameraStream: an https stream without client TLS is shown by snapshot polling",
