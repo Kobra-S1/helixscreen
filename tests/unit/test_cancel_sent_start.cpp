@@ -222,6 +222,22 @@ TEST_CASE_METHOD(SentStartFixture, "Only a requested cancel holds a start that l
     CHECK_FALSE(ps().hold_for_requested_cancel(epoch + 1));
 }
 
+TEST_CASE_METHOD(SentStartFixture,
+                 "A cancel requested on one job does not hold the next one's start",
+                 "[print_control][preparing_cancel]") {
+    ps().begin_preparing(helix::PrintJobRef{"a.gcode", "", ""});
+    ps().note_preparing_cancel_requested();
+    REQUIRE(ps().preparing_cancel_requested());
+
+    // Another job replaces it without a retirement in between.
+    ps().begin_preparing(helix::PrintJobRef{"b.gcode", "", ""});
+    ps().note_preparing_start_sent();
+    const int epoch = lv_subject_get_int(ps().get_preparing_epoch_subject());
+    CHECK_FALSE(ps().preparing_cancel_requested());
+    CHECK_FALSE(ps().hold_for_requested_cancel(epoch));
+    CHECK(ps().preparing_start() == helix::PreparingStart::InFlight);
+}
+
 TEST_CASE_METHOD(SentStartFixture, "A start that fails outright while a cancel waits sends none",
                  "[print_control][preparing_cancel]") {
     arm_in_flight();
