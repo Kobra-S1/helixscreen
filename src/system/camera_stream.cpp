@@ -164,6 +164,17 @@ bool CameraStream::configure_from_printer(std::string& stream_url, std::string& 
     return true;
 }
 
+CameraStream::FetchMode CameraStream::choose_fetch_mode(const std::string& stream_url,
+                                                        const std::string& snapshot_url,
+                                                        bool http_client_has_tls) {
+    // The platform TLS bridge makes one-shot requests and cannot carry an
+    // endless MJPEG response.
+    if (!stream_url.empty() && !needs_platform_tls(stream_url, http_client_has_tls)) {
+        return FetchMode::Stream;
+    }
+    return snapshot_url.empty() ? FetchMode::None : FetchMode::Snapshot;
+}
+
 void CameraStream::start(const std::string& stream_url, const std::string& snapshot_url,
                          FrameCallback on_frame, ErrorCallback on_error) {
     // A worker that exited on its own leaves running_ false but the std::thread
@@ -187,20 +198,18 @@ void CameraStream::start(const std::string& stream_url, const std::string& snaps
 
     spdlog::info("[CameraStream] Starting — stream={}, snapshot={}", stream_url_, snapshot_url_);
 
-    bool use_stream = !stream_url_.empty();
 #ifdef __ANDROID__
-    // The platform TLS bridge makes one-shot requests and cannot carry an
-    // endless MJPEG response, so an https stream is shown by snapshot polling.
-    if (use_stream && needs_platform_tls(stream_url_, HV_WITH_SSL)) {
-        spdlog::info("[CameraStream] https stream needs platform TLS, polling snapshots instead");
-        use_stream = false;
-    }
+    const bool http_client_has_tls = HV_WITH_SSL;
+#else
+    // No platform bridge to fall back to: an https stream goes to libhv as is.
+    const bool http_client_has_tls = true;
 #endif
+    const FetchMode mode = choose_fetch_mode(stream_url_, snapshot_url_, http_client_has_tls);
 
-    if (use_stream) {
+    if (mode == FetchMode::Stream) {
         spdlog::info("[CameraStream] Using MJPEG streaming mode");
         stream_thread_ = helix::make_thread(&CameraStream::stream_thread_func, this);
-    } else if (!snapshot_url_.empty()) {
+    } else if (mode == FetchMode::Snapshot) {
         spdlog::info("[CameraStream] Using snapshot mode (interval={}ms)", kSnapshotIntervalMs);
         stream_thread_ = helix::make_thread(&CameraStream::snapshot_poll_loop, this);
     } else {

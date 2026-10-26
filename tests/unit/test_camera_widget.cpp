@@ -489,6 +489,25 @@ TEST_CASE_METHOD(HelixTestFixture,
     CHECK(errors.size() == 1);
 }
 
+TEST_CASE("CameraStream: an https stream without client TLS is shown by snapshot polling",
+          "[camera][1891]") {
+    using Mode = CameraStream::FetchMode;
+    const std::string https_stream = "https://cam.example/stream";
+    const std::string https_snap = "https://cam.example/snapshot";
+    const std::string http_stream = "http://192.168.1.5/stream";
+
+    // libhv without TLS (Android): an https stream cannot be streamed.
+    CHECK(CameraStream::choose_fetch_mode(https_stream, https_snap, false) == Mode::Snapshot);
+    CHECK(CameraStream::choose_fetch_mode(https_stream, "", false) == Mode::None);
+    CHECK(CameraStream::choose_fetch_mode(http_stream, https_snap, false) == Mode::Stream);
+
+    // With client TLS, a stream URL streams whatever its scheme.
+    CHECK(CameraStream::choose_fetch_mode(https_stream, https_snap, true) == Mode::Stream);
+
+    CHECK(CameraStream::choose_fetch_mode("", https_snap, true) == Mode::Snapshot);
+    CHECK(CameraStream::choose_fetch_mode("", "", true) == Mode::None);
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "CameraStream: a start with no URL at all reports an error",
                  "[camera][1891]") {
     CameraStream stream;

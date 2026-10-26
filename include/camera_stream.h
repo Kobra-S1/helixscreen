@@ -211,6 +211,16 @@ class CameraStream {
      */
     static CameraFrame latest_running_frame(const WebcamInfo& feed, int max_w, int max_h);
 
+    /// How a stream with these URLs fetches frames.
+    enum class FetchMode { Stream, Snapshot, None };
+
+    /// MJPEG when there is a stream URL the HTTP client can carry, else snapshot
+    /// polling when there is a snapshot URL. Without client TLS an https stream
+    /// cannot stream: snapshots then go through the platform's one-shot TLS
+    /// bridge instead (see needs_platform_tls()).
+    static FetchMode choose_fetch_mode(const std::string& stream_url,
+                                       const std::string& snapshot_url, bool http_client_has_tls);
+
     void start(const std::string& stream_url, const std::string& snapshot_url,
                FrameCallback on_frame, ErrorCallback on_error = nullptr);
     void stop();
