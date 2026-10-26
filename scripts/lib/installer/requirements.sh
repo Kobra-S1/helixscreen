@@ -360,8 +360,9 @@ check_service_dest_space() {
         2) return 0 ;;
     esac
 
-    # The K2's procd shim also lands in this dir on a self-update; its
-    # install is non-fatal, so it does not make the write required.
+    # The K2's procd shim and its rc.d links also live here. A self-update
+    # leaves each untouched when already current, and a failed write keeps
+    # the installed copy, so neither makes the write required.
     if ! _self_update_needs_service_write; then
         log_warn "Cannot write to ${dest_dir} (full or read-only); continuing, the self-update leaves the installed service definition as it is."
         return 0
