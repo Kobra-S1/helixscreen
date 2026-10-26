@@ -467,6 +467,7 @@ jobs:
 
     - name: Configure ccache
       run: |
+        echo "CCACHE_RUN_START=$(date +%s)" >> "$GITHUB_ENV"
         ccache --set-config=max_size=2G
         ccache --set-config=compression=true
         ccache -z  # Reset stats for this run
@@ -485,6 +486,12 @@ jobs:
         make -j$(sysctl -n hw.ncpu)
         echo "HelixScreen built successfully"
         ccache -s
+
+    - name: Trim ccache
+      if: always()
+      run: |
+        ccache --evict-older-than "$(( $(date +%s) - CCACHE_RUN_START + 60 ))s"
+        ccache -s | grep -i 'cache size'
 
     - name: Save ccache
       if: always() && github.ref == 'refs/heads/main'
