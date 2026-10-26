@@ -558,6 +558,77 @@ TEST_CASE("AD5X IFS module ifs_loaded is the seated authority", "[ams][ad5x_ifs]
     CHECK(backend.get_current_slot() < 0);
 }
 
+TEST_CASE("AD5X IFS module's own lane record outranks the remembered seated lane",
+          "[ams][ad5x_ifs][ifs_module][1897]") {
+    // At boot the module reports active_channel=0 with the head loaded, which is
+    // its normal idle state, while the remembered lane names lane 4 and the
+    // module's save_variables name lane 2.
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_head_switch(backend, true, true);
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    Ad5xIfsTestAccess::set_persisted_seated_slot(backend, 3);
+    const json lane2_vars{
+        {"save_variables", {{"variables", {{"ifs_loaded", 2}, {"ifs_at_hub", 2}}}}}};
+
+    SECTION("save_variables before the module latches") {
+        Ad5xIfsTestAccess::handle_status(backend, lane2_vars);
+        Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2, 3, 4}));
+    }
+    SECTION("save_variables after the module latches") {
+        Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2, 3, 4}));
+        Ad5xIfsTestAccess::handle_status(backend, lane2_vars);
+        Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2, 3, 4}));
+    }
+
+    REQUIRE(Ad5xIfsTestAccess::module_live(backend));
+    CHECK(Ad5xIfsTestAccess::seated_chan(backend) == 2);
+    CHECK(backend.get_current_slot() == 1);
+    // The remembered lane is corrected so a later boot cannot bring lane 4 back.
+    CHECK(Ad5xIfsTestAccess::persisted_seated_slot(backend) == std::optional<int>(1));
+
+    backend.captured_gcodes.clear();
+    REQUIRE(backend.unload_filament(-1).success());
+    CHECK(backend.has_gcode("IFS_UNLOAD SLOT=2"));
+    CHECK_FALSE(backend.has_gcode_containing("SLOT=4"));
+}
+
+TEST_CASE("AD5X IFS module with nothing recorded does not seat the remembered lane",
+          "[ams][ad5x_ifs][ifs_module][1897]") {
+    // ifs_loaded=0 is the module saying no load completed; the remembered lane is
+    // dropped and the at-hub lane, the module's own record, names the lane.
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_head_switch(backend, true, true);
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    Ad5xIfsTestAccess::set_persisted_seated_slot(backend, 3);
+    Ad5xIfsTestAccess::handle_status(
+        backend, json{{"save_variables", {{"variables", {{"ifs_loaded", 0}, {"ifs_at_hub", 2}}}}}});
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2, 3, 4}));
+
+    CHECK(Ad5xIfsTestAccess::seated_chan(backend) == 0);
+    CHECK_FALSE(Ad5xIfsTestAccess::persisted_seated_slot(backend).has_value());
+    backend.captured_gcodes.clear();
+    REQUIRE(backend.unload_filament(-1).success());
+    CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_UNLOAD SLOT=2"});
+}
+
+TEST_CASE("AD5X IFS module with no lane record keeps the remembered-lane fallback",
+          "[ams][ad5x_ifs][ifs_module][1897]") {
+    // No ifs_loaded row at all: the remembered lane is the only record.
+    TestableModuleBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_head_switch(backend, true, true);
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    Ad5xIfsTestAccess::set_persisted_seated_slot(backend, 3);
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {1, 2, 3, 4}));
+
+    CHECK(Ad5xIfsTestAccess::seated_chan(backend) == 4);
+    backend.captured_gcodes.clear();
+    REQUIRE(backend.unload_filament(-1).success());
+    CHECK(backend.has_gcode("IFS_UNLOAD SLOT=4"));
+}
+
 TEST_CASE("AD5X IFS module driver_error surfaces as ERROR", "[ams][ad5x_ifs][ifs_module]") {
     AmsBackendAd5xIfs backend(nullptr, nullptr);
     Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}, "ready"));

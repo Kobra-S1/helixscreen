@@ -1023,6 +1023,7 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
         // persist after a firmware change, same lesson as the plugin rows
         // above.
         const int loaded = vars["ifs_loaded"].get<int>(); // 1-based; 0 = none
+        module_loaded_ = loaded;
         if (loaded != seated_chan_) {
             spdlog::debug("{} module ifs_loaded={} (was Chan {}) — adopting as seated channel",
                           backend_log_tag(), loaded, seated_chan_);
@@ -1033,14 +1034,18 @@ void AmsBackendAd5xIfs::parse_save_variables(const json& vars) {
         // tool map the latch installed makes tool == channel - 1.
         active_tool_ = (loaded >= 1 && loaded <= kNumPorts) ? loaded - 1 : -1;
         module_last_chan_ = loaded;
+        sync_remembered_lane_to_module_locked();
     }
 
     // Stored whatever the module latch says, because this frame can arrive
-    // before the one that latches it; unload_lane_decision_locked() reads it
-    // only while the module is live.
+    // before the one that latches it; unload_lane_decision_locked() and
+    // apply_zcolor_result() read them only while the module is live.
     module_at_hub_ = (vars.contains("ifs_at_hub") && vars["ifs_at_hub"].is_number_integer())
                          ? vars["ifs_at_hub"].get<int>()
                          : 0;
+    if (vars.contains("ifs_loaded") && vars["ifs_loaded"].is_number_integer()) {
+        module_loaded_ = vars["ifs_loaded"].get<int>();
+    }
 
     // Sync all slots from cached state
     for (int i = 0; i < kNumPorts; ++i) {
@@ -5594,7 +5599,22 @@ void AmsBackendAd5xIfs::apply_zcolor_result(const ZColorSilentResult& result) {
             // published) head_switch_seen_ stays false and we fall back to
             // adopting FFMInfo.channel as before.
             const bool head_empty_authoritative = head_switch_seen_ && !head_switch_present_;
-            if (ffm_channel_ > 0 && head_empty_authoritative) {
+            // The standalone module's `ifs_loaded` is its own success-confirmed,
+            // restart-surviving record of the lane in the nozzle. It outranks
+            // active_channel (which also tracks cold ejects) and makes the
+            // remembered-lane floor below unnecessary: on the module, Chan=0 with
+            // a loaded head is the normal idle state, not post-reboot amnesia
+            // (prestonbrown/helixscreen#1897).
+            const bool module_record = ifs_module_live_.load() && module_loaded_.has_value();
+            if (module_record) {
+                const int loaded = *module_loaded_;
+                const int seated = (loaded >= 1 && loaded <= kNumPorts) ? loaded : 0;
+                if (seated_chan_ != seated) {
+                    spdlog::debug("{} Seated lane from module ifs_loaded={} (active_channel={})",
+                                  backend_log_tag(), loaded, chan);
+                }
+                seated_chan_ = seated;
+            } else if (ffm_channel_ > 0 && head_empty_authoritative) {
                 if (seated_chan_ != 0) {
                     spdlog::debug("{} FFMInfo.channel={} rejected as seated: toolhead switch "
                                   "reads empty (sticky/stale channel, #1065 row 28); clearing "
@@ -5643,8 +5663,8 @@ void AmsBackendAd5xIfs::apply_zcolor_result(const ZColorSilentResult& result) {
             // Chan==0 is a genuine clear rather than post-reboot amnesia — close the
             // cold-boot restore window. A stale FFMInfo.channel pointing at an empty
             // lane (#1065) does NOT resolve on its own — it isn't real seated truth.
-            if ((ffm_channel_ > 0 && !ffm_lane_empty) || (chan > 0 && !chan_lane_empty) ||
-                (chan == 0 && !head_filament_)) {
+            if (module_record || (ffm_channel_ > 0 && !ffm_lane_empty) ||
+                (chan > 0 && !chan_lane_empty) || (chan == 0 && !head_filament_)) {
                 seated_resolved_since_boot_ = true;
             }
 
@@ -5653,8 +5673,11 @@ void AmsBackendAd5xIfs::apply_zcolor_result(const ZColorSilentResult& result) {
             // cold-boot-restored). On a confirmed unload (Chan=0 with the head
             // empty) drop the memory so a later boot doesn't resurrect a lane that
             // is no longer loaded. Writes are deduped so idle status frames don't
-            // re-post the DB key every ~1.4 s.
-            if (seated_chan_ > 0) {
+            // re-post the DB key every ~1.4 s. On the module the remembered lane
+            // mirrors ifs_loaded instead.
+            if (module_record) {
+                sync_remembered_lane_to_module_locked();
+            } else if (seated_chan_ > 0) {
                 const int seated_slot0 = seated_chan_ - 1;
                 if (persisted_seated_slot_ != std::optional<int>(seated_slot0)) {
                     persisted_seated_slot_ = seated_slot0;
@@ -7069,6 +7092,20 @@ void AmsBackendAd5xIfs::persist_seated_slot_locked(int slot0) {
                 spdlog::warn("{} failed to clear persisted seated slot: {}", tag, err);
         });
     }
+}
+
+void AmsBackendAd5xIfs::sync_remembered_lane_to_module_locked() {
+    if (!ifs_module_live_.load() || !module_loaded_.has_value()) {
+        return;
+    }
+    const int loaded = *module_loaded_;
+    const std::optional<int> slot0 =
+        (loaded >= 1 && loaded <= kNumPorts) ? std::optional<int>(loaded - 1) : std::nullopt;
+    if (persisted_seated_slot_ == slot0) {
+        return;
+    }
+    persisted_seated_slot_ = slot0;
+    persist_seated_slot_locked(slot0.value_or(-1));
 }
 
 // ensure_homed_then() provided by AmsSubscriptionBackend
