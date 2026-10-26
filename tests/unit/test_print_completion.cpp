@@ -550,6 +550,17 @@ TEST_CASE("decide_preparing_exit_action distinguishes cancel from failure",
     }
 }
 
+TEST_CASE("decide_preparing_exit_action leaves a printer-ended start to the printer",
+          "[print_completion][preparing_cancel]") {
+    // The printer took the job and ended it itself: its terminal state reaches
+    // the completion observer, which reports it, and its own end gcode owns the
+    // heaters. Saying anything here would report the cancel twice.
+    const auto a = helix::decide_preparing_exit_action(helix::PreparingExit::EndedByPrinter);
+    CHECK_FALSE(a.notify_cancelled);
+    CHECK_FALSE(a.notify_failure);
+    CHECK_FALSE(a.cool_down);
+}
+
 TEST_CASE("decide_preparing_exit_action only cools down when no print is running",
           "[print_completion][preparing]") {
     using helix::decide_preparing_exit_action;
