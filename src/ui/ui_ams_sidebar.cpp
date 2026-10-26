@@ -950,7 +950,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
             int idx = 0;
             for (const auto& s : current_step_model_.steps) {
                 steps.push_back({lv_tr(s.label.c_str()), helix::StepState::Pending});
-                if (s.live_temp) {
+                if (s.live_temp && live_temp_step_index_ < 0) {
                     live_temp_step_index_ = idx;
                 }
                 ++idx;
@@ -1131,6 +1131,18 @@ void AmsOperationSidebar::apply_backend_step_index(int index) {
 void AmsOperationSidebar::refresh_live_temp_step_label(int current_index) {
     if (!step_progress_ || live_temp_step_index_ < 0) {
         return;
+    }
+    // A run of several tools heats once per tool, so the model can carry several
+    // live-temp steps: the readout follows the one under way.
+    const auto& steps = current_step_model_.steps;
+    if (current_index != live_temp_step_index_ && current_index >= 0 &&
+        current_index < static_cast<int>(steps.size()) && steps[current_index].live_temp) {
+        if (heat_label_showing_temp_) {
+            ui_step_progress_set_label(step_progress_, live_temp_step_index_,
+                                       lv_tr(steps[live_temp_step_index_].label.c_str()));
+            heat_label_showing_temp_ = false;
+        }
+        live_temp_step_index_ = current_index;
     }
     if (current_index == live_temp_step_index_) {
         const char* base_label =
@@ -1552,7 +1564,18 @@ void AmsOperationSidebar::run_picked(HeadPickOp op, const std::vector<HeadPickRo
     for (const HeadPickRow& row : chosen) {
         slots.push_back(row.slot);
     }
-    BatchFilamentModal::dispatch_batch(*backend, slots, op == HeadPickOp::Load);
+    // The bar is told which operation this is: guessed from the first frame,
+    // an unload of a loaded head reads as a swap and an empty one as a load.
+    const StepOperationType op_type =
+        op == HeadPickOp::Load ? StepOperationType::LOAD_FRESH : StepOperationType::UNLOAD;
+    start_operation(op_type, slots.front());
+    if (!BatchFilamentModal::dispatch_batch(*backend, slots, op == HeadPickOp::Load)) {
+        abandon_started_operation();
+        return;
+    }
+    // Rebuilt now the batch is under way: a backend sizes its step model from
+    // the run it holds, which did not exist when start_operation() built it.
+    recreate_step_progress_for_operation(op_type);
 }
 
 void AmsOperationSidebar::handle_unload() {

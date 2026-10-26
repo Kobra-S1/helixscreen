@@ -490,7 +490,7 @@ TEST_CASE("mount-to-feed: an unload of several tools preheats the next and resto
     CHECK(stages[6].gcode == "SELECT_TOOL T=0");
 }
 
-TEST_CASE("mount-to-feed: a multi-tool run's step index walks every tool's stride",
+TEST_CASE("mount-to-feed: a multi-tool run's step index walks only the rows it runs",
           "[toolchanger][mount_feed][batch]") {
     mf::Run run(multi_load_request());
     REQUIRE(run.phase_index() == 0); // the prompt reads as tool 1's insert
@@ -503,12 +503,12 @@ TEST_CASE("mount-to-feed: a multi-tool run's step index walks every tool's strid
     run.stage_done();
     CHECK(run.phase_index() == 3); // tool 1: purge
     run.stage_done();
-    CHECK(run.phase_index() == 6); // tool 2: mount
+    CHECK(run.phase_index() == 4); // tool 2: mount, with no restore or insert between
     run.stage_done();
     CHECK(run.completed_heads() == std::vector<int>{1}); // tool 1's work is done
     run.stage_done();
     run.stage_done();
-    CHECK(run.phase_index() == 9); // restore belongs to the last tool
+    CHECK(run.phase_index() == 7); // restore belongs to the last tool
     // The restore in flight counts the tool it is putting back as complete:
     // its filament work is done.
     CHECK(run.completed_heads() == std::vector<int>({1, 3}));
@@ -688,15 +688,27 @@ TEST_CASE("MedusaHC's step model spans every tool of a multi-tool run",
     tc.feed_status("ready", 0);
     REQUIRE(tc.load_filament_batch({1, 3}).success());
     const auto model = tc.get_operation_step_model(StepOperationType::LOAD_FRESH);
-    // Two tools x five steps, each label naming its tool.
-    REQUIRE(model.steps.size() == 10);
+    // One prompt covers every strand and one restore ends the run, so only the
+    // first tool has an insert row and only the last has a restore row.
+    REQUIRE(model.steps.size() == 8);
     CHECK(model.steps[0].label == "Tool 1 of 2: Insert filament");
     CHECK(model.steps[1].label == "Tool 1 of 2: Mount tool");
-    CHECK(model.steps[6].label == "Tool 2 of 2: Mount tool");
-    CHECK(model.steps[9].label == "Tool 2 of 2: Restore tool");
-    // One prompt covers every strand: the later tools' insert never runs.
+    CHECK(model.steps[3].label == "Tool 1 of 2: Purge");
+    CHECK(model.steps[4].label == "Tool 2 of 2: Mount tool");
+    CHECK(model.steps[7].label == "Tool 2 of 2: Restore tool");
+    for (const auto& step : model.steps) {
+        CHECK(step.label.find("Tool 2 of 2: Insert") == std::string::npos);
+        CHECK(step.label.find("Tool 1 of 2: Restore") == std::string::npos);
+    }
+    // The first tool may already be on the carriage, and the carriage may need
+    // no putting back.
     CHECK_FALSE(model.steps[0].optional);
-    CHECK(model.steps[5].optional);
+    CHECK(model.steps[1].optional);
+    CHECK_FALSE(model.steps[4].optional);
+    CHECK(model.steps[7].optional);
+    // Every heat row shows its own live temperature.
+    CHECK(model.steps[2].live_temp);
+    CHECK(model.steps[5].live_temp);
     // The phase the run publishes lands inside this model.
     tc.ack(); // prompt up -> phase 0
     CHECK(tc.get_system_info().operation_phase == 0);

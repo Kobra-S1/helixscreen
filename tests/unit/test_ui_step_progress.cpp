@@ -219,3 +219,51 @@ TEST_CASE_METHOD(LVGLTestFixture, "step progress horizontal: the row of dots is 
         }
     }
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "step progress: a list taller than its scrolling parent follows the current step",
+                 "[ui][step]") {
+    // The AMS sidebar's stepper container: a short box that scrolls, holding a
+    // content-sized bar of many steps (a six-tool run is 19).
+    lv_obj_t* parent = make_sized_parent(test_screen());
+    lv_obj_set_height(parent, 120);
+    lv_obj_set_scroll_dir(parent, LV_DIR_VER);
+
+    std::vector<std::string> names;
+    std::vector<ui_step_t> steps;
+    for (int i = 0; i < 19; ++i) {
+        names.push_back("Step " + std::to_string(i + 1));
+    }
+    for (const auto& n : names) {
+        steps.push_back({n.c_str(), helix::StepState::Pending});
+    }
+    lv_obj_t* widget = ui_step_progress_create(parent, steps.data(), static_cast<int>(steps.size()),
+                                               /*horizontal=*/false, nullptr);
+    REQUIRE(widget != nullptr);
+    lv_obj_update_layout(parent);
+    REQUIRE(lv_obj_get_scroll_bottom(parent) > 0); // the bar overflows its parent
+
+    // One scroller: a drag on the bar moves the parent, never rows inside the
+    // bar's own box, which would open a gap below the last row.
+    CHECK_FALSE(lv_obj_has_flag(widget, LV_OBJ_FLAG_SCROLLABLE));
+
+    ui_step_progress_set_current(widget, 15);
+    process_lvgl(1000);
+    CHECK(lv_obj_get_scroll_y(parent) > 0);
+    // Step 16 is on screen.
+    lv_obj_t* current = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(widget); ++i) {
+        lv_obj_t* item = lv_obj_get_child(widget, static_cast<int32_t>(i));
+        if (lv_obj_get_child_count(item) >= 2 &&
+            std::string(lv_label_get_text(lv_obj_get_child(item, 1))) == "Step 16") {
+            current = item;
+        }
+    }
+    REQUIRE(current != nullptr);
+    lv_area_t row;
+    lv_area_t box;
+    lv_obj_get_coords(current, &row);
+    lv_obj_get_coords(parent, &box);
+    CHECK(row.y1 >= box.y1);
+    CHECK(row.y2 <= box.y2);
+}

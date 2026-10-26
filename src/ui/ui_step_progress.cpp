@@ -402,6 +402,9 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
     lv_obj_set_style_bg_opa(container, LV_OPA_0, 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_style_pad_all(container, 0, 0);
+    // The parent scrolls a list too long for it. A bar that scrolled as well
+    // would take a drag itself and slide its rows inside its own box.
+    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(container, horizontal ? LV_FLEX_FLOW_ROW : LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     if (horizontal) {
@@ -638,10 +641,12 @@ void ui_step_progress_set_current(lv_obj_t* widget, int step_index) {
 
     // Scroll the active step into view if the widget lives in a scrollable
     // container (vertical step bars can exceed the AMS sidebar column on small
-    // screens). Use the stored step item directly — connectors are moved to
-    // child index 0, so lv_obj_get_child(container, step_index) is unreliable.
+    // screens). The scroller is an ancestor, not the step's own parent, so the
+    // scroll walks up to it. Use the stored step item directly — connectors are
+    // moved to child index 0, so lv_obj_get_child(container, step_index) is
+    // unreliable.
     if (data->step_items[step_index]) {
-        lv_obj_scroll_to_view(data->step_items[step_index], LV_ANIM_ON);
+        lv_obj_scroll_to_view_recursive(data->step_items[step_index], LV_ANIM_ON);
     }
 }
 

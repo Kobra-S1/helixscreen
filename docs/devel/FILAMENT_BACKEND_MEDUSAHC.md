@@ -254,9 +254,11 @@ shared contract for its parameters or what it does around the moves.
 
 While a run is active its stage owns the published action and step: the swap frames its
 Mount and Restore stages raise (`operation`, the gripper) do not end it. The step bar is
-the stage list, one stride per tool for a multi-tool run ("Tool 2 of 3: Purge"), built by
-`get_operation_step_model()` from the live run; `Run::phase_index()` publishes the index
-into it. The backend claims
+the stage list, laid out by `mount_feed::bar_rows()`: each tool's steps for a multi-tool run
+("Tool 2 of 3: Purge"), with the insert on the first tool only and the restore on the last
+only, since one prompt and one restore cover the run. `get_operation_step_model()` builds
+it from the live run and `Run::phase_index()` publishes the index into it. A batch from the
+head picker names its operation to the sidebar, which rebuilds the bar once the run exists. The backend claims
 `filament_ops_self_home`, so a load or unload is refused while a print is running or
 paused, and `supports_auto_heat_on_load/unload`, so the UI does not preheat the active tool
 before the backend mounts another.

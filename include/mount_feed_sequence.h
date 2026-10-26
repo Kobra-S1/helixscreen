@@ -40,6 +40,22 @@ enum class Step : uint8_t { Mount, Heat, Insert, Purge, Retract, Restore };
 /// skipped when the tool is already on the carriage.
 [[nodiscard]] std::vector<Step> steps(bool load);
 
+/// One row of a run's step bar: a step of the tool at @ref tool (0-based
+/// position in the run, not the head number).
+struct Row {
+    int tool = 0;
+    Step step = Step::Mount;
+    bool operator==(const Row& other) const {
+        return tool == other.tool && step == other.step;
+    }
+};
+
+/// The rows a run of @p tools tools shows, in order: each tool's steps(), less
+/// the ones no multi-tool plan runs for it. One prompt covers every strand, so
+/// only the first tool inserts; one restore ends the run, so only the last
+/// restores. Run::phase_index() indexes into exactly this list.
+[[nodiscard]] std::vector<Row> bar_rows(bool load, size_t tools);
+
 /// Untranslated label for @p step; the caller passes it through lv_tr().
 [[nodiscard]] const char* step_label(Step step);
 
@@ -155,8 +171,8 @@ class Run {
 
     /// Position of the current stage in steps(load), within the current tool.
     [[nodiscard]] int step_index() const;
-    /// Position in the whole run's step bar: with several tools, each tool owns
-    /// one strides'-worth of the bar, so the index never restarts mid-run.
+    /// Position of the current stage in bar_rows(), so the index walks the whole
+    /// run without restarting at each tool. -1 for a stage no row shows.
     [[nodiscard]] int phase_index() const;
     [[nodiscard]] Step current_step() const;
     /// The stage in flight, or nullptr once the run is over.

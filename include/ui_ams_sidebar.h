@@ -103,6 +103,10 @@ class AmsOperationSidebar {
      */
     void start_operation(StepOperationType op_type, int target_slot);
 
+    /// Run the head picker's choice: one head takes the per-slot path, several
+    /// run as the backend's one batch.
+    void run_picked(helix::ui::HeadPickOp op, const std::vector<helix::ui::HeadPickRow>& chosen);
+
     /**
      * @brief Revert a start_operation() whose backend dispatch failed
      *
@@ -303,7 +307,8 @@ class AmsOperationSidebar {
 
     // Update the live-temp step (live_temp_step_index_) label: a live
     // "<label> X / Y°C" readout while that step is current, reverting to the
-    // static label otherwise. Driven by apply_backend_step_index and the
+    // static label otherwise. With several live-temp steps, the index moves to
+    // whichever one is current. Driven by apply_backend_step_index and the
     // extruder temp/target observers (live updates while heating).
     void refresh_live_temp_step_label(int current_index);
 
@@ -394,8 +399,6 @@ class AmsOperationSidebar {
 
     /// Open the head picker for @p op; its choice comes back to run_picked().
     void open_head_picker(helix::ui::HeadPickOp op);
-    /// One chosen head runs the per-slot path; several run as one batch.
-    void run_picked(helix::ui::HeadPickOp op, const std::vector<helix::ui::HeadPickRow>& chosen);
 
     /// The busy/print refusal every filament-op entry shares. The buttons are
     /// bound to the gating subjects, but a tap can land in the window between

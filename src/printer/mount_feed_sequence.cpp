@@ -100,6 +100,20 @@ std::vector<Step> steps(bool load) {
     return {Step::Mount, Step::Heat, Step::Retract, Step::Restore};
 }
 
+std::vector<Row> bar_rows(bool load, size_t tools) {
+    std::vector<Row> out;
+    const size_t n = std::max<size_t>(tools, 1);
+    for (size_t t = 0; t < n; ++t) {
+        for (const Step step : steps(load)) {
+            if ((step == Step::Insert && t > 0) || (step == Step::Restore && t + 1 < n)) {
+                continue;
+            }
+            out.push_back({static_cast<int>(t), step});
+        }
+    }
+    return out;
+}
+
 const char* step_label(Step step) {
     switch (step) {
     case Step::Mount:
@@ -278,13 +292,11 @@ int Run::step_index() const {
 }
 
 int Run::phase_index() const {
-    const int within = step_index();
-    if (within < 0) {
-        return -1;
-    }
     const int tool = finished() ? static_cast<int>(request_.heads.size()) - 1
                                 : std::max(stages_[index_].tool_index, 0);
-    return tool * static_cast<int>(steps(request_.load).size()) + within;
+    const auto all = bar_rows(request_.load, request_.heads.size());
+    const auto it = std::find(all.begin(), all.end(), Row{tool, current_step()});
+    return it == all.end() ? -1 : static_cast<int>(it - all.begin());
 }
 
 std::vector<int> Run::completed_heads() const {

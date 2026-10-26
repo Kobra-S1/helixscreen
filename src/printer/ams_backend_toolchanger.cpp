@@ -483,7 +483,6 @@ AmsBackendToolChanger::get_operation_step_model(StepOperationType op) const {
     // Restore are skipped when the tool is already on the carriage.
     if (mounts_to_feed_ && op != StepOperationType::LOAD_SWAP) {
         const bool load = op != StepOperationType::UNLOAD;
-        const auto stride = helix::mount_feed::steps(load);
         const auto tool_label = [this, n = run_tools](int tool) {
             if (n < 2) {
                 return std::string();
@@ -492,19 +491,16 @@ AmsBackendToolChanger::get_operation_step_model(StepOperationType op) const {
                    std::to_string(n) + ": ";
         };
         int index = 0;
-        for (size_t t = 0; t < std::max<size_t>(run_tools, 1); ++t) {
-            const std::string prefix = tool_label(static_cast<int>(t));
-            for (const auto step : stride) {
-                // The first tool may already be mounted; only the last one
-                // puts the carriage back; the one prompt is the first tool's.
-                const bool optional = (step == helix::mount_feed::Step::Mount && t == 0) ||
-                                      (step == helix::mount_feed::Step::Insert && t > 0) ||
-                                      step == helix::mount_feed::Step::Restore;
-                model.steps.push_back({prefix + lv_tr(helix::mount_feed::step_label(step)), index++,
-                                       optional,
-                                       /*live_temp=*/step == helix::mount_feed::Step::Heat,
-                                       helix::mount_feed::step_action(step)});
-            }
+        for (const auto& row : helix::mount_feed::bar_rows(load, run_tools)) {
+            using helix::mount_feed::Step;
+            // The first tool may already be mounted, and the carriage may need
+            // no putting back.
+            const bool optional =
+                (row.step == Step::Mount && row.tool == 0) || row.step == Step::Restore;
+            model.steps.push_back(
+                {tool_label(row.tool) + lv_tr(helix::mount_feed::step_label(row.step)), index++,
+                 optional,
+                 /*live_temp=*/row.step == Step::Heat, helix::mount_feed::step_action(row.step)});
         }
         return model;
     }
