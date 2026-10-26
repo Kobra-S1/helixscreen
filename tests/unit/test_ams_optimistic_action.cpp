@@ -880,3 +880,24 @@ TEST_CASE_METHOD(OptimisticSidebarFixture,
     CHECK(shown_action() == AmsAction::IDLE);
     CHECK_FALSE(steps_shown());
 }
+
+TEST_CASE_METHOD(OptimisticSidebarFixture,
+                 "Snapmaker U1: a batch the firmware never reports holds only the dispatch budget",
+                 "[ams][optimistic_action][snapmaker][batch]") {
+    auto& u1 = build_u1();
+    u1.seat(0);
+    u1.seat(1);
+    AmsState::instance().sync_from_backend();
+    hot_nozzle();
+    api_.hold_acks = true;
+
+    std::vector<helix::ui::HeadPickRow> chosen = {{0, 0, true, "", true}, {1, 1, true, "", true}};
+    sidebar_->run_picked(helix::ui::HeadPickOp::Unload, chosen);
+    REQUIRE_FALSE(api_.sent.empty()); // the batch reached the firmware
+    REQUIRE(held());
+
+    // Accepted and then silent: past the dispatch hold, well inside the preheat one.
+    helix::AmsStateTestAccess::age_optimistic_action(AmsState::instance(), std::chrono::minutes(2));
+    let_watchdog_run();
+    CHECK_FALSE(held());
+}

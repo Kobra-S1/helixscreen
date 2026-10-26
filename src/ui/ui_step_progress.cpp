@@ -402,9 +402,13 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
     lv_obj_set_style_bg_opa(container, LV_OPA_0, 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_style_pad_all(container, 0, 0);
-    // The parent scrolls a list too long for it. A bar that scrolled as well
-    // would take a drag itself and slide its rows inside its own box.
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    // A vertical bar's parent scrolls a list too long for it. A bar that
+    // scrolled as well would take a drag itself and slide its rows inside its
+    // own box. A horizontal bar is its own scroller: its parent scrolls only
+    // vertically, so a row of dots wider than the column scrolls here.
+    if (!horizontal) {
+        lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    }
     lv_obj_set_flex_flow(container, horizontal ? LV_FLEX_FLOW_ROW : LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     if (horizontal) {

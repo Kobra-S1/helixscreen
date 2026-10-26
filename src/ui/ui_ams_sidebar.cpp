@@ -950,7 +950,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
             int idx = 0;
             for (const auto& s : current_step_model_.steps) {
                 steps.push_back({lv_tr(s.label.c_str()), helix::StepState::Pending});
-                if (s.live_temp && live_temp_step_index_ < 0) {
+                if (s.live_temp) {
                     live_temp_step_index_ = idx;
                 }
                 ++idx;
@@ -1576,6 +1576,7 @@ void AmsOperationSidebar::run_picked(HeadPickOp op, const std::vector<HeadPickRo
     // Rebuilt now the batch is under way: a backend sizes its step model from
     // the run it holds, which did not exist when start_operation() built it.
     recreate_step_progress_for_operation(op_type);
+    hand_operation_to_backend();
 }
 
 void AmsOperationSidebar::handle_unload() {

@@ -267,3 +267,16 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(row.y1 >= box.y1);
     CHECK(row.y2 <= box.y2);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "step progress horizontal: a row wider than its column scrolls itself",
+                 "[ui][step]") {
+    // The sidebar's stepper container scrolls only vertically, so a horizontal
+    // row of dots has no other scroller.
+    lv_obj_t* parent = make_sized_parent(test_screen());
+    auto steps = make_vertical_steps();
+    lv_obj_t* widget = ui_step_progress_create(parent, steps.data(), static_cast<int>(steps.size()),
+                                               /*horizontal=*/true, nullptr);
+    REQUIRE(widget != nullptr);
+    CHECK(lv_obj_has_flag(widget, LV_OBJ_FLAG_SCROLLABLE));
+}
