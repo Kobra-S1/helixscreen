@@ -53,6 +53,7 @@
 #include "system/telemetry_manager.h"
 #include "system/tls_trust.h"
 #include "system_power.h"
+#include "system_settings_manager.h"
 #include "text_io.h"
 #include "utils/network_validation.h"
 
@@ -1182,6 +1183,21 @@ std::string UpdateChecker::service_dest_probe_error(const std::string& init_dir)
     return fmt::format(lv_tr("Error: cannot write the service file in {}"), init_dir);
 }
 
+bool UpdateChecker::service_definition_installed(const std::string& init_dir) {
+    if (init_dir.empty()) {
+        return false;
+    }
+    std::error_code ec;
+    for (std::filesystem::directory_iterator it(init_dir, ec), end; !ec && it != end;
+         it.increment(ec)) {
+        const std::string name = it->path().filename().string();
+        if (!name.empty() && name[0] != '.' && name.find("helixscreen") != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool UpdateChecker::update_writes_service_dest(bool is_root, bool systemd_init) {
     return is_root && !systemd_init;
 }
@@ -1553,13 +1569,19 @@ void UpdateChecker::start_download() {
     // and on boards whose root overlay is full the installer refuses only
     // AFTER the app has downloaded the whole archive. Only where the update
     // writes it (update_writes_service_dest); install.sh's pre-flight remains
-    // the authority.
+    // the authority. A self-update keeps an init script that is already
+    // installed, so with one present a failed probe is only worth a warning.
     {
         auto* rc = get_runtime_config();
         if (update_writes_service_dest(geteuid() == 0, helix::host_runs_systemd()) &&
             !(rc && rc->test_mode)) {
-            const std::string failure = service_dest_probe_error(init_service_dest_dir());
-            if (!failure.empty()) {
+            const std::string init_dir = init_service_dest_dir();
+            const std::string failure = service_dest_probe_error(init_dir);
+            if (!failure.empty() && service_definition_installed(init_dir)) {
+                spdlog::warn("[UpdateChecker] {} is full or read-only; continuing, the "
+                             "installed service definition is kept as it is",
+                             init_dir);
+            } else if (!failure.empty()) {
                 spdlog::error("[UpdateChecker] Service destination unwritable, not "
                               "downloading: {}",
                               failure);
@@ -2966,6 +2988,11 @@ void UpdateChecker::clear_cache() {
 }
 
 void UpdateChecker::on_channel_changed() {
+    recheck_for_channel();
+    sync_moonraker_channel();
+}
+
+void UpdateChecker::recheck_for_channel() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         cached_info_.reset();
@@ -2983,7 +3010,6 @@ void UpdateChecker::on_channel_changed() {
 
     spdlog::info("[UpdateChecker] Update channel changed, re-checking");
     check_for_updates();
-    sync_moonraker_channel();
 }
 
 // ============================================================================
@@ -3112,6 +3138,22 @@ const char* UpdateChecker::moonraker_channel_name(UpdateChannel channel) {
     return channel == UpdateChannel::Stable ? "stable" : "beta";
 }
 
+UpdateChecker::MoonrakerChannelSync
+UpdateChecker::decide_moonraker_channel_sync(const std::string& app, const std::string& conf,
+                                             const std::string& last_synced) {
+    if (conf.empty())
+        return MoonrakerChannelSync::Write;
+    if (app == conf)
+        return MoonrakerChannelSync::RecordOnly;
+    if (!last_synced.empty() && app == last_synced && conf != last_synced) {
+        if (conf == moonraker_channel_name(UpdateChannel::Stable) ||
+            conf == moonraker_channel_name(UpdateChannel::Beta))
+            return MoonrakerChannelSync::Adopt;
+        return MoonrakerChannelSync::Leave;
+    }
+    return MoonrakerChannelSync::Write;
+}
+
 void UpdateChecker::sync_moonraker_channel() {
     sync_moonraker_channel_for(app_get_install_root());
 }
@@ -3120,6 +3162,21 @@ namespace {
 
 constexpr const char* kMoonrakerConf = "moonraker.conf";
 constexpr const char* kHelixStanza = "update_manager helixscreen";
+/// The stanza channel the app and moonraker.conf last agreed on: the reference that
+/// tells a hand edit of the stanza from a channel change in the app.
+constexpr const char* kSyncedChannelKey = "/update/moonraker_channel";
+
+std::string synced_moonraker_channel() {
+    return Config::get_instance()->get<std::string>(kSyncedChannelKey, "");
+}
+
+void record_synced_moonraker_channel(const std::string& channel) {
+    if (synced_moonraker_channel() == channel)
+        return;
+    auto* config = Config::get_instance();
+    config->set<std::string>(kSyncedChannelKey, channel);
+    config->save();
+}
 
 /// Both name the same directory once `.`, `..`, symlinks and trailing slashes are
 /// resolved. Empty never matches: an unknown directory proves nothing.
@@ -3153,6 +3210,7 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
     }
 
     const std::string want = moonraker_channel_name(get_channel());
+    const std::string last_synced = synced_moonraker_channel();
     // The newest sync wins, and detach() (every printer teardown) also bumps the
     // generation: a new API can reuse the old one's address, so the generation, not
     // the pointer, says this sync is still current.
@@ -3171,8 +3229,8 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
     // mainsail.conf does on some firmware; it is rewritten where Moonraker reads it.
     helix::system::download_config_include_graph(
         *api, kMoonrakerConf, "",
-        [this, tok, api, want, gen, install_root](const std::set<std::string>&,
-                                                  const std::map<std::string, std::string>& files) {
+        [this, tok, api, want, last_synced, gen, install_root](
+            const std::set<std::string>&, const std::map<std::string, std::string>& files) {
             const std::string file = helix::MoonrakerConfigManager::find_section_file(
                 files, kMoonrakerConf, kHelixStanza);
             if (file.empty()) {
@@ -3190,6 +3248,35 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
                               file, path, install_root);
                 return;
             }
+            const std::string conf_channel =
+                helix::MoonrakerConfigManager::get_section_value(content, kHelixStanza, "channel");
+            switch (decide_moonraker_channel_sync(want, conf_channel, last_synced)) {
+            case MoonrakerChannelSync::Leave:
+                spdlog::warn("[UpdateChecker] {} names update channel '{}', which HelixScreen "
+                             "does not know; leaving it and the app's channel alone",
+                             file, conf_channel);
+                return;
+            case MoonrakerChannelSync::RecordOnly:
+                tok.defer("UpdateChecker::sync_moonraker_channel_record", [this, gen, want]() {
+                    if (gen != moonraker_sync_generation_.load())
+                        return;
+                    record_synced_moonraker_channel(want);
+                });
+                return;
+            case MoonrakerChannelSync::Adopt:
+                tok.defer("UpdateChecker::sync_moonraker_channel_adopt",
+                          [this, gen, file, conf_channel]() {
+                              if (gen != moonraker_sync_generation_.load())
+                                  return;
+                              spdlog::info("[UpdateChecker] {} was set to the {} update channel; "
+                                           "following it",
+                                           file, conf_channel);
+                              adopt_moonraker_channel(conf_channel);
+                          });
+                return;
+            case MoonrakerChannelSync::Write:
+                break;
+            }
             std::string updated = helix::MoonrakerConfigManager::set_existing_value(
                 content, kHelixStanza, "channel", want);
             if (updated == content)
@@ -3201,11 +3288,12 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
                 spdlog::info("[UpdateChecker] Setting {} update channel to {}", file, want);
                 api->transfers().upload_file(
                     "config", file, updated,
-                    [this, tok, api, gen]() {
+                    [this, tok, api, gen, want]() {
                         tok.defer("UpdateChecker::sync_moonraker_channel_restart",
-                                  [this, api, gen]() {
+                                  [this, api, gen, want]() {
                                       if (gen != moonraker_sync_generation_.load())
                                           return;
+                                      record_synced_moonraker_channel(want);
                                       restart_moonraker_for_channel(*api, gen);
                                   });
                     },
@@ -3225,6 +3313,16 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
                          err);
         },
         std::move(download));
+}
+
+void UpdateChecker::adopt_moonraker_channel(const std::string& conf_channel) {
+    const UpdateChannel channel = conf_channel == moonraker_channel_name(UpdateChannel::Beta)
+                                      ? UpdateChannel::Beta
+                                      : UpdateChannel::Stable;
+    // Recorded first: the stanza already names this channel, so nothing is written back.
+    record_synced_moonraker_channel(conf_channel);
+    SystemSettingsManager::instance().set_update_channel(static_cast<int>(channel));
+    recheck_for_channel();
 }
 
 void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t gen) {

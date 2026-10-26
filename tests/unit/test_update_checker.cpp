@@ -1163,6 +1163,44 @@ TEST_CASE("UpdateChecker probes the service destination only where an update wri
     CHECK_FALSE(UC::update_writes_service_dest(false, true));
 }
 
+TEST_CASE("UpdateChecker knows whether a service definition is already installed",
+          "[update_checker][1778]") {
+    using UC = UpdateChecker;
+    namespace fs = std::filesystem;
+    const fs::path base =
+        fs::temp_directory_path() / ("helix-svc-installed-" + std::to_string(getpid()));
+    fs::remove_all(base);
+    fs::create_directories(base);
+    auto touch = [&](const char* name) { std::ofstream(base / name) << "x"; };
+
+    // A self-update leaves an installed init script alone, so an unwritable
+    // init dir only blocks the update when there is no script to keep.
+    SECTION("an init script carrying the service name counts") {
+        touch("S50other");
+        touch("S99helixscreen");
+        CHECK(UC::service_definition_installed(base.string()));
+    }
+    SECTION("the K2 procd shim name counts") {
+        touch("helixscreen");
+        CHECK(UC::service_definition_installed(base.string()));
+    }
+    SECTION("other services alone do not") {
+        touch("S50other");
+        CHECK_FALSE(UC::service_definition_installed(base.string()));
+    }
+    SECTION("a leftover space probe is not a service definition") {
+        touch(".helixscreen-space-probe.1234");
+        CHECK_FALSE(UC::service_definition_installed(base.string()));
+    }
+    SECTION("a missing or empty dir has none") {
+        CHECK_FALSE(UC::service_definition_installed(base.string()));
+        CHECK_FALSE(UC::service_definition_installed((base / "absent").string()));
+        CHECK_FALSE(UC::service_definition_installed(""));
+    }
+
+    fs::remove_all(base);
+}
+
 TEST_CASE("UpdateChecker service_dest_probe_error mirrors the installer's write probe",
           "[update_checker][1778]") {
     using UC = UpdateChecker;
@@ -3171,15 +3209,30 @@ struct ChannelSyncFixture : public GlobalPrintStateFixture {
     helix::PrinterState state;
     ChannelSyncApi api{client, state};
 
+    bool checks_were_blocked = false;
+
     ChannelSyncFixture() {
         get_printer_state().init_subjects(false);
         api.set_http_base_url("http://127.0.0.1:7125");
         set_moonraker_api(&api);
+        auto& checker = UpdateChecker::instance();
+        checks_were_blocked = UpdateCheckerTestAccess::checks_blocked(checker);
+        UpdateCheckerTestAccess::set_checks_blocked(checker, true);
+        set_synced("");
     }
 
     std::string install_root = kInstallRoot;
     ~ChannelSyncFixture() override {
+        UpdateCheckerTestAccess::set_checks_blocked(UpdateChecker::instance(), checks_were_blocked);
         set_moonraker_api(nullptr);
+    }
+
+    /// The channel the app and moonraker.conf last agreed on; empty is unknown.
+    static void set_synced(const char* channel) {
+        Config::get_instance()->set<std::string>("/update/moonraker_channel", channel);
+    }
+    static std::string synced() {
+        return Config::get_instance()->get<std::string>("/update/moonraker_channel", "");
     }
 
     void seed(const std::string& conf) {
@@ -3212,6 +3265,84 @@ struct ChannelSyncFixture : public GlobalPrintStateFixture {
 };
 
 } // namespace
+
+using Sync = UpdateChecker::MoonrakerChannelSync;
+
+TEST_CASE("Channel sync decides which side of a disagreement moved",
+          "[update_checker][moonraker_channel]") {
+    const auto decide = &UpdateChecker::decide_moonraker_channel_sync;
+
+    SECTION("a stanza without a channel gets the app's") {
+        CHECK(decide("beta", "", "") == Sync::Write);
+        CHECK(decide("beta", "", "stable") == Sync::Write);
+    }
+    SECTION("agreement is recorded, nothing written") {
+        CHECK(decide("beta", "beta", "") == Sync::RecordOnly);
+        CHECK(decide("stable", "stable", "beta") == Sync::RecordOnly);
+    }
+    SECTION("a stanza edited by hand is adopted") {
+        CHECK(decide("stable", "beta", "stable") == Sync::Adopt);
+        CHECK(decide("beta", "stable", "beta") == Sync::Adopt);
+    }
+    SECTION("a hand edit to an unknown channel is left alone") {
+        CHECK(decide("stable", "nightly", "stable") == Sync::Leave);
+    }
+    SECTION("an app change is written") {
+        CHECK(decide("beta", "stable", "stable") == Sync::Write);
+    }
+    SECTION("with no record, or both sides moved, the app wins") {
+        CHECK(decide("beta", "stable", "") == Sync::Write);
+        CHECK(decide("stable", "nightly", "") == Sync::Write);
+        CHECK(decide("stable", "beta", "dev") == Sync::Write);
+    }
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync adopts a channel edited into moonraker.conf",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("beta"));
+    set_app_channel(0, false); // Stable
+    set_synced("stable");
+
+    CHECK(sync() == conf("beta"));
+    CHECK(api.xfers_.uploads == 0);
+    CHECK(api.restarts == 0);
+    CHECK(UpdateChecker::instance().get_channel() == UpdateChecker::UpdateChannel::Beta);
+    CHECK(synced() == "beta");
+
+    // The next connect finds the two agreeing and writes nothing.
+    CHECK(sync() == conf("beta"));
+    CHECK(api.xfers_.uploads == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync leaves an unknown hand-edited channel alone",
+                 "[update_checker][moonraker_channel]") {
+    seed(conf("nightly"));
+    set_app_channel(0, false);
+    set_synced("stable");
+
+    CHECK(sync() == conf("nightly"));
+    CHECK(api.xfers_.uploads == 0);
+    CHECK(UpdateChecker::instance().get_channel() == UpdateChecker::UpdateChannel::Stable);
+    CHECK(synced() == "stable");
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync records the channel it agrees on",
+                 "[update_checker][moonraker_channel]") {
+    SECTION("already matching") {
+        seed(conf("beta"));
+        set_app_channel(1, true);
+        CHECK(sync() == conf("beta"));
+        CHECK(api.xfers_.uploads == 0);
+    }
+    SECTION("after writing an app change") {
+        seed(conf("stable"));
+        set_app_channel(1, true);
+        set_synced("stable");
+        CHECK(sync() == conf("beta"));
+        CHECK(api.xfers_.uploads == 1);
+    }
+    CHECK(synced() == "beta");
+}
 
 TEST_CASE_METHOD(ChannelSyncFixture,
                  "Channel sync rewrites a drifted stanza and restarts Moonraker",
