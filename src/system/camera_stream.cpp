@@ -205,6 +205,11 @@ void CameraStream::start(const std::string& stream_url, const std::string& snaps
     const bool http_client_has_tls = true;
 #endif
     const FetchMode mode = choose_fetch_mode(stream_url_, snapshot_url_, http_client_has_tls);
+    if (mode != FetchMode::Stream && !stream_url_.empty()) {
+        spdlog::info("[CameraStream] {} needs TLS the HTTP client lacks; the platform bridge "
+                     "is one-shot, so snapshots are polled instead",
+                     stream_url_);
+    }
 
     if (mode == FetchMode::Stream) {
         spdlog::info("[CameraStream] Using MJPEG streaming mode");
@@ -673,8 +678,9 @@ void CameraStream::fetch_snapshot() {
     bool fetched = false;
 #ifdef __ANDROID__
     if (needs_platform_tls(snapshot_url_, HV_WITH_SSL)) {
-        fetched = android::https_get_bytes(snapshot_url_, HELIX_USER_AGENT,
-                                           kPlatformSnapshotTimeoutSec, body);
+        fetched =
+            android::https_get_bytes(snapshot_url_, HELIX_USER_AGENT, kPlatformSnapshotTimeoutSec,
+                                     kMaxPlatformSnapshotBytes, body);
     } else
 #endif
     {

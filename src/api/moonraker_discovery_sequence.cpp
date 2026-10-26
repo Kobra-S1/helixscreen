@@ -78,16 +78,17 @@ bool is_backend_filament_sensor(const std::string& name) {
 bool probe_snapshot_reachable(const std::string& snapshot_url) {
 #ifdef __ANDROID__
     if (needs_platform_tls(snapshot_url, HV_WITH_SSL)) {
-        // HttpURLConnection applies one budget to connect and to read, so the
-        // response budget covers both here.
-        const auto [status, detail] =
-            android::https_get(snapshot_url, HELIX_USER_AGENT, "", kSnapshotProbeTotalTimeoutSec);
-        if (status == 200) {
-            return true;
+        // This runs on the WebSocket thread, so the bridge gets the probe's total
+        // budget as one deadline over connect, handshake and response. The
+        // platform bridge has no separate connect budget, and accepts any 2xx.
+        std::string body;
+        const bool ok =
+            android::https_get_bytes(snapshot_url, HELIX_USER_AGENT, kSnapshotProbeTotalTimeoutSec,
+                                     kMaxPlatformSnapshotBytes, body);
+        if (!ok) {
+            spdlog::debug("[Discovery] Snapshot probe of {} via platform TLS failed", snapshot_url);
         }
-        spdlog::debug("[Discovery] Snapshot probe of {} via platform TLS: {}", snapshot_url,
-                      status != 0 ? std::to_string(status) : detail);
-        return false;
+        return ok;
     }
 #endif
     auto req = std::make_shared<HttpRequest>();

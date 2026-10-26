@@ -10,6 +10,8 @@
 #include <spdlog/spdlog.h>
 
 #include <SDL.h>
+#include <algorithm>
+#include <cstdint>
 #include <jni.h>
 
 namespace helix::android {
@@ -209,10 +211,10 @@ https_post_binary(const std::string& url, const std::vector<unsigned char>& body
 }
 
 bool https_get_bytes(const std::string& url, const std::string& user_agent, int timeout_sec,
-                     std::string& body) {
+                     size_t max_bytes, std::string& body) {
     BridgeMethod bridge;
     std::string error;
-    if (!find_bridge_method("httpsGetBytes", "(Ljava/lang/String;Ljava/lang/String;I)[B", bridge,
+    if (!find_bridge_method("httpsGetBytes", "(Ljava/lang/String;Ljava/lang/String;II)[B", bridge,
                             error)) {
         return false;
     }
@@ -230,7 +232,8 @@ bool https_get_bytes(const std::string& url, const std::string& user_agent, int 
     }
 
     auto j_result = static_cast<jbyteArray>(env->CallStaticObjectMethod(
-        bridge.cls, bridge.method, j_url, j_ua, static_cast<jint>(timeout_sec)));
+        bridge.cls, bridge.method, j_url, j_ua, static_cast<jint>(timeout_sec),
+        static_cast<jint>(std::min<size_t>(max_bytes, INT32_MAX))));
 
     env->DeleteLocalRef(j_url);
     env->DeleteLocalRef(j_ua);

@@ -5,10 +5,15 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <string>
 #include <string_view>
 
 namespace helix {
+
+/// Largest camera snapshot accepted through the platform TLS bridge. A JPEG
+/// frame is well under this even at 4K; the cap bounds a misbehaving server.
+inline constexpr size_t kMaxPlatformSnapshotBytes = 8 * 1024 * 1024;
 
 /**
  * @brief Whether a request to @p url must use the platform's own TLS stack.
