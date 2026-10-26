@@ -6,6 +6,7 @@
 #include "ui_print_cancel_modal.h"
 
 #include "print_control_view.h"
+#include "print_job_ref.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
@@ -109,6 +110,11 @@ class PrintControlButtons {
     void confirm_stop();
     /// Ask the printer to cancel a start it was sent but has not reported.
     void cancel_sent_start();
+    /// End the cancel_sent_start() made for @p epoch, retiring that job with
+    /// @p exit if it is still the one being prepared. No-op for any other.
+    void settle_sent_start_cancel(int epoch, helix::PreparingExit exit);
+    /// The printer's job state answers a pending cancel its RPC did not.
+    void settle_cancel_from_job_state(helix::PrintJobState job_state);
 
     /// Shared by clear_pending_action(), the StaticSubjectRegistry teardown and
     /// the destructor — a timer cancelled on only some of those paths stays armed
@@ -128,8 +134,13 @@ class PrintControlButtons {
     bool subjects_initialized_ = false;
     PendingAction pending_action_ = PendingAction::None;
     lv_timer_t* pending_action_timeout_ = nullptr;
-    /// A cancel_sent_start() the printer has not answered yet.
+    /// A cancel_sent_start() the printer has not answered yet, and the
+    /// preparing epoch it was sent for.
     bool cancel_requested_ = false;
+    int cancel_epoch_ = 0;
+    /// That cancel's RPC ended without an answer, so only the job state can
+    /// settle it.
+    bool cancel_unanswered_ = false;
 
     SubjectManager subjects_;
     lv_subject_t primary_icon_subject_{};

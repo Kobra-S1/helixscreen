@@ -3961,6 +3961,48 @@ TEST_CASE_METHOD(HelixTestFixture,
 }
 
 TEST_CASE_METHOD(HelixTestFixture,
+                 "PrintPreparationManager: a plugin fallback for a cancelled job never starts",
+                 "[print_preparation][remap][plugin_server_edits][preparing_cancel]") {
+    // The fallback rewrites on the screen, minutes after the job was armed. It
+    // must stay bound to that job rather than adopt "no job" and print.
+    lv_init_safe();
+    PrinterStateTestAccess::reset(get_printer_state());
+    get_printer_state().init_subjects(false);
+
+    MockPrinter mock_printer;
+    auto& state = mock_printer.state;
+    auto& api = mock_printer.api;
+    state.set_helix_plugin_installed(true);
+    PluginFeatureEntry entry;
+    entry.version = gcode::kServerEditsMinVersion;
+    entry.available = true;
+    entry.enabled = true;
+    state.plugin_status_state().set_features({{gcode::kServerEditsFeature, entry}});
+    drain_until_quiet();
+    api.job_mock().mock_edited_print_error(MoonrakerError::from_json_rpc(
+        {{"code", 503}, {"message", "Feature unavailable"}}, "server.helix.print_edited"));
+
+    PrintPreparationManager manager;
+    manager.set_dependencies(&api, &state);
+    state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
+    manager.set_cached_file_size(123456);
+    std::optional<bool> completed;
+    manager.modify_and_print_with_remap(
+        kRemapFixture, {{1, 2}}, nullptr,
+        [&completed](bool ok, const std::string&) { completed = ok; });
+    REQUIRE(api.job_mock().edited_prints().size() == 1);
+    // Stop while the plugin's refusal is on its way back.
+    state.print_state().retire_preparing(helix::PreparingExit::Cancelled);
+    drain_until_quiet();
+
+    CHECK(api.transfers_mock().download_destinations().empty());
+    CHECK(api.job_mock().started_prints().empty());
+    CHECK(api.job_mock().modified_prints().empty());
+    REQUIRE(completed.has_value());
+    CHECK_FALSE(*completed);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
                  "PrintPreparationManager: a remap on a transport without local copies is refused",
                  "[print_preparation][remap]") {
     lv_init_safe();

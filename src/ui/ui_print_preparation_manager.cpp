@@ -2169,9 +2169,20 @@ void PrintPreparationManager::rewrite_and_print(RewriteRoute route,
     if (route.archive_plate > 0) {
         route.use_plugin = false;
     }
-    if (printer_state_) {
+    // A route that already names its job keeps it, so a retry of a withdrawn
+    // start cannot adopt "no job" and print anyway.
+    if (printer_state_ && route.preparing_epoch == 0) {
         route.preparing_epoch =
             lv_subject_get_int(printer_state_->print_state().get_preparing_epoch_subject());
+    }
+    if (start_withdrawn(route.preparing_epoch)) {
+        spdlog::info("[PrintPreparationManager] Start abandoned - '{}' is no longer being "
+                     "prepared",
+                     route.file_path);
+        if (on_completion) {
+            on_completion(false, "");
+        }
+        return;
     }
     const auto job = std::make_shared<const RewriteRoute>(std::move(route));
     const std::string remote_temp_path =

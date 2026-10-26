@@ -160,8 +160,8 @@ applies:
 
 | Route | When | What Stop does |
 |---|---|---|
-| `RetirePreparing` | preparing, start not yet sent | `retire_preparing(Cancelled)`; the start choke points refuse a withdrawn job, so nothing reaches the printer |
-| `CancelSentStart` | preparing, start sent, printer not reporting the job | `printer.print.cancel`; the job stays preparing until the printer answers, then retires as Cancelled |
+| `RetirePreparing` | preparing, start not yet sent | `retire_preparing(Cancelled)`; every start send first checks its preparing epoch, so nothing reaches the printer |
+| `CancelSentStart` | preparing, start sent, printer not reporting the job | `printer.print.cancel`; the job stays preparing and Stop stays off until the printer answers. A timeout or dropped connection is not an answer (the cancel may still be queued): the printer's job state settles it instead |
 | `Abort` | the printer reports the job | `AbortManager` |
 
 `CANCEL_PRINT` sent to an idle printer is worse than useless: `AbortManager`

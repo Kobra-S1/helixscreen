@@ -57,6 +57,8 @@ void PrintControlButtons::init_subjects() {
     print_state_observer_ = observe<int>(
         get_printer_state().print_state().get_print_state_enum_subject(), this,
         [](PrintControlButtons* self, int) {
+            self->settle_cancel_from_job_state(
+                get_printer_state().print_state().get_print_job_state());
             // A real state change clears any optimistic
             // pending action; the new state is authoritative.
             // Otherwise just recompute the buttons.
@@ -202,9 +204,10 @@ void PrintControlButtons::confirm_stop() {
     // two can never disagree about which one applies.
     switch (current_view().stop_route) {
     case StopRoute::RetirePreparing:
-        // Nothing has reached the printer, and the start choke points in
-        // PrintPreparationManager refuse a job that is no longer being
-        // prepared, so withdrawing it here is what stops it. Sending
+        // Nothing has reached the printer, and every path that sends a start
+        // (PrintPreparationManager's choke points, the reprint in
+        // PrintStartController) first checks that its job is still the one
+        // being prepared, so withdrawing it here is what stops it. Sending
         // CANCEL_PRINT instead would reach an idle printer, which AbortManager
         // reads as an immediate success.
         spdlog::info("[PrintControl] Stop confirmed while preparing - cancelling the start");
@@ -240,6 +243,8 @@ void PrintControlButtons::cancel_sent_start() {
                  "printer (preparing epoch {})",
                  epoch);
     cancel_requested_ = true;
+    cancel_epoch_ = epoch;
+    cancel_unanswered_ = false;
     recompute();
     NOTIFY_INFO(lv_tr("Cancel sent. The printer finishes its start sequence, then stops "
                       "before printing."));
@@ -247,28 +252,82 @@ void PrintControlButtons::cancel_sent_start() {
     api_->job().cancel_print(
         [epoch]() {
             queue_update("PrintControlButtons::cancel_sent_start.ok", [epoch]() {
-                auto& self = PrintControlButtons::instance();
-                self.cancel_requested_ = false;
-                auto& ps = get_printer_state().print_state();
-                // A job the printer reported meanwhile was retired as Confirmed
-                // and ends through the printer's own cancelled state; a newer
-                // job is not ours to cancel.
-                if (lv_subject_get_int(ps.get_preparing_epoch_subject()) == epoch) {
-                    spdlog::info("[PrintControl] Printer confirmed the cancel of a sent start");
-                    ps.retire_preparing(helix::PreparingExit::Cancelled);
-                }
-                self.recompute();
+                spdlog::info("[PrintControl] Printer confirmed the cancel of a sent start");
+                PrintControlButtons::instance().settle_sent_start_cancel(
+                    epoch, helix::PreparingExit::Cancelled);
             });
         },
-        [](const MoonrakerError& err) {
-            spdlog::error("[PrintControl] Cancel of a sent start failed: {}", err.message);
-            queue_update("PrintControlButtons::cancel_sent_start.err", [err]() {
+        [epoch](const MoonrakerError& err) {
+            queue_update("PrintControlButtons::cancel_sent_start.err", [epoch, err]() {
                 auto& self = PrintControlButtons::instance();
+                if (!self.cancel_requested_ || self.cancel_epoch_ != epoch) {
+                    return; // already settled by the printer's job state
+                }
+                if (err.is_transport_loss()) {
+                    // The cancel may still be queued behind the start sequence:
+                    // a print-start macro can outlast any RPC ceiling. Stop stays
+                    // off, so a second tap cannot queue another CANCEL_PRINT, and
+                    // the printer's job state settles it.
+                    spdlog::warn("[PrintControl] Cancel of a sent start unanswered ({}) - "
+                                 "waiting on the printer's job state",
+                                 err.message);
+                    self.cancel_unanswered_ = true;
+                    NOTIFY_INFO(lv_tr("The printer has not answered the cancel yet. It "
+                                      "stops once its start sequence finishes."));
+                    return;
+                }
+                spdlog::error("[PrintControl] Cancel of a sent start refused: {}", err.message);
                 self.cancel_requested_ = false;
                 self.recompute();
                 NOTIFY_ERROR(lv_tr("Failed to cancel: {}"), err.localized_message());
             });
         });
+}
+
+void PrintControlButtons::settle_sent_start_cancel(int epoch, helix::PreparingExit exit) {
+    if (!cancel_requested_ || cancel_epoch_ != epoch) {
+        return;
+    }
+    cancel_requested_ = false;
+    cancel_epoch_ = 0;
+    cancel_unanswered_ = false;
+    auto& ps = get_printer_state().print_state();
+    // A job the printer reported meanwhile was retired as Confirmed and ends
+    // through the printer's own state; a newer job is not ours to end.
+    if (lv_subject_get_int(ps.get_preparing_epoch_subject()) == epoch) {
+        ps.retire_preparing(exit);
+    }
+    recompute();
+}
+
+void PrintControlButtons::settle_cancel_from_job_state(helix::PrintJobState job_state) {
+    if (!cancel_requested_) {
+        return;
+    }
+    // RAW_PRINT_STATE_OK: how the PRINTER ended the start a cancel is queued
+    // behind. STANDBY is not an answer: SDCARD_PRINT_FILE passes through it
+    // while loading the file, before the queued cancel can run.
+    switch (job_state) {
+    case helix::PrintJobState::CANCELLED:
+    case helix::PrintJobState::COMPLETE:
+        settle_sent_start_cancel(cancel_epoch_, helix::PreparingExit::Cancelled);
+        break;
+    case helix::PrintJobState::ERROR:
+        settle_sent_start_cancel(cancel_epoch_, helix::PreparingExit::Failed);
+        break;
+    case helix::PrintJobState::PRINTING:
+    case helix::PrintJobState::PAUSED:
+        // The start sequence has returned and the printer holds the job. While
+        // the RPC is still waiting its answer settles it; once the RPC has
+        // given up, a cancel that was queued ends the job through the normal
+        // print path, and Stop must come back in case it was never received.
+        if (cancel_unanswered_) {
+            settle_sent_start_cancel(cancel_epoch_, helix::PreparingExit::Cancelled);
+        }
+        break;
+    default:
+        break;
+    }
 }
 
 void PrintControlButtons::start_pending_action(PendingAction action) {

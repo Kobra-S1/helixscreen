@@ -70,6 +70,13 @@ struct SentStartFixture : LVGLTestFixture {
         return get_printer_state().print_state();
     }
 
+    /// Drive print_stats through the real parse, as Moonraker reports it.
+    static void report(const std::string& job_state, const std::string& filename) {
+        get_printer_state().update_from_status(
+            json{{"print_stats", {{"state", job_state}, {"filename", filename}}}});
+        drain();
+    }
+
     static int stop_enabled() {
         return lv_subject_get_int(lv_xml_get_subject(nullptr, "print_control_stop_enabled"));
     }
@@ -132,12 +139,62 @@ TEST_CASE_METHOD(SentStartFixture, "A refused cancel of a sent start leaves the 
     PrintControlButtonsTestAccess::confirm_stop();
     drain();
     REQUIRE(cancel_err);
-    cancel_err(MoonrakerError::timeout("printer.print.cancel", 300000));
+    cancel_err(MoonrakerError::validation_error("printer.print.cancel", "Klippy not ready"));
     drain();
 
     CHECK(ps().has_preparing_job());
     CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
     CHECK(stop_enabled() == 1);
+}
+
+TEST_CASE_METHOD(SentStartFixture,
+                 "An unanswered cancel stays pending until the printer reports the outcome",
+                 "[print_control][preparing_cancel]") {
+    // A print-start macro can outlast any RPC ceiling, so a timeout says
+    // nothing about whether the cancel is still queued behind it.
+    ps().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    ps().note_preparing_start_sent();
+    drain();
+
+    PrintControlButtonsTestAccess::confirm_stop();
+    drain();
+    REQUIRE(cancel_err);
+    cancel_err(MoonrakerError::timeout("printer.print.cancel", 300000));
+    drain();
+
+    CHECK(ps().has_preparing_job());
+    CHECK(PrintControlButtonsTestAccess::cancel_requested());
+    CHECK(stop_enabled() == 0);
+
+    // The file loading on its way to the cancel is not an answer.
+    report("standby", "part.gcode");
+    CHECK(PrintControlButtonsTestAccess::cancel_requested());
+
+    report("cancelled", "part.gcode");
+    CHECK_FALSE(ps().has_preparing_job());
+    CHECK(ps().last_preparing_exit() == helix::PreparingExit::Cancelled);
+    CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
+}
+
+TEST_CASE_METHOD(SentStartFixture,
+                 "An unanswered cancel releases Stop once the printer holds the job",
+                 "[print_control][preparing_cancel]") {
+    ps().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    ps().note_preparing_start_sent();
+    drain();
+    PrintControlButtonsTestAccess::confirm_stop();
+    drain();
+
+    // While the RPC still waits, the printer taking the job settles nothing:
+    // the queued cancel runs next and the RPC answers for it.
+    report("printing", "part.gcode");
+    CHECK(PrintControlButtonsTestAccess::cancel_requested());
+
+    REQUIRE(cancel_err);
+    cancel_err(MoonrakerError::connection_lost("printer.print.cancel"));
+    drain();
+    report("paused", "part.gcode");
+    CHECK_FALSE(PrintControlButtonsTestAccess::cancel_requested());
 }
 
 TEST_CASE_METHOD(SentStartFixture,

@@ -4080,6 +4080,7 @@ translations:
   The printer finishes this measurement on its own.: 'A impressora conclui esta medição por conta própria.'
   The printer halted this print and cannot resume it. Restart from the beginning?: A
     impressora parou esta impressão e não pode retomá-la. Reiniciar do início?
+  The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'A impressora ainda não respondeu ao cancelamento. Ela para assim que concluir a sequência de início.'
   The printer has not reported its axis limits yet.: 'A impressora ainda não informou os limites dos eixos.'
   The printer has not reported its maximum velocity yet.: 'A impressora ainda não informou a velocidade máxima.'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
