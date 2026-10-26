@@ -2503,6 +2503,11 @@ AmsError AmsBackendAd5xIfs::eject_lane(int slot_index) {
     int len = filament_eject_default_.first;
     int speed = filament_eject_default_.second;
     std::string material;
+    // The module's IFS_EJECT of its own loaded lane also clears the extruder,
+    // heated to TEMP=, else the slot material's temperature, else the nozzle
+    // target, and raises an error with none of them. An unlabelled lane has no
+    // material temperature, so name one.
+    std::optional<int> eject_temp_c;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2550,6 +2555,9 @@ AmsError AmsBackendAd5xIfs::eject_lane(int slot_index) {
                 speed = it->second.second;
             }
         }
+        if (module_loaded_ == std::optional<int>(slot_index + 1) && material.empty()) {
+            eject_temp_c = clear_toolhead_temp_c(last_extruder_target_deci_);
+        }
     }
 
     int port = slot_index + 1; // DISPLAY_NUMBERING_OK: 1-based SLOT= gcode parameter (IFS_EJECT)
@@ -2562,7 +2570,8 @@ AmsError AmsBackendAd5xIfs::eject_lane(int slot_index) {
         // is the loaded one. One command, one ack.
         spdlog::info("{} Eject lane {} (port {}) -> IFS_EJECT", backend_log_tag(), slot_index,
                      port);
-        err39 = execute_gcode("IFS_EJECT SLOT=" + port_str);
+        err39 = execute_gcode("IFS_EJECT SLOT=" + port_str +
+                              (eject_temp_c ? " TEMP=" + std::to_string(*eject_temp_c) : ""));
     } else {
         spdlog::info("{} Cold eject lane {} (port {}, material '{}') -> IFS_F24 / IFS_F11 LEN={} "
                      "SPEED={} / IFS_F39",
@@ -2971,12 +2980,16 @@ AmsBackendAd5xIfs::native_lane_dispatch(int lane, bool file_read, std::optional<
                                      : NativeLaneDispatch::RecordNamesOther;
 }
 
-std::string AmsBackendAd5xIfs::clear_toolhead_gcode(bool module_live, int nozzle_target_deci) {
+int AmsBackendAd5xIfs::clear_toolhead_temp_c(int nozzle_target_deci) {
     // No lane names a material to take a temperature from, so a nozzle the
     // user already heated keeps its target. The module's clear refuses below
     // 150C.
     const int target_c = ui::temperature::deci_to_degrees(nozzle_target_deci);
-    const int temp_c = target_c >= kClearToolheadMinTempC ? target_c : kClearToolheadFallbackTempC;
+    return target_c >= kClearToolheadMinTempC ? target_c : kClearToolheadFallbackTempC;
+}
+
+std::string AmsBackendAd5xIfs::clear_toolhead_gcode(bool module_live, int nozzle_target_deci) {
+    const int temp_c = clear_toolhead_temp_c(nozzle_target_deci);
     if (module_live) {
         // The module's extruder clear (cut, wipe, withdraw) with no SLOT=: it
         // clamps and retracts no lane.

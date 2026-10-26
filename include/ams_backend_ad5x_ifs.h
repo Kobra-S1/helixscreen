@@ -801,6 +801,10 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     /// filament no lane can be named for.
     [[nodiscard]] static std::string clear_toolhead_gcode(bool module_live, int nozzle_target_deci);
 
+    /// Temperature for an extruder clear no lane's material can name: the
+    /// nozzle's own target when the clear accepts it, else the fallback.
+    [[nodiscard]] static int clear_toolhead_temp_c(int nozzle_target_deci);
+
     /// Why only the extruder clear can run when native ZMOD's file has no lane record.
     [[nodiscard]] static std::string no_lane_record_message();
     // One-shot fetch of /mod_data/user.cfg. Parses the [zmod_ifs] section for
