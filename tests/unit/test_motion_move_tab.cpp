@@ -25,6 +25,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/bed_occupancy_state_test_access.h"
 #include "../test_helpers/holding_motion_api.h"
+#include "../test_helpers/modal_answer.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -841,6 +842,11 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: Cleared shows while a part may be on 
     CHECK_FALSE(lv_obj_has_flag(cleared, LV_OBJ_FLAG_HIDDEN));
 
     click(cleared);
+    // A dismissed question clears nothing; only a yes does.
+    helix::test::dismiss_top_modal();
+    CHECK(lv_subject_get_int(occupied) == 1);
+    click(cleared);
+    helix::test::answer_top_modal("btn_primary");
 
     CHECK(lv_subject_get_int(occupied) == 0);
     CHECK(lv_obj_has_flag(cleared, LV_OBJ_FLAG_HIDDEN));

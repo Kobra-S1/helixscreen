@@ -788,6 +788,7 @@
   <translation tag="Confirm PIN" it="Conferma PIN"/>
   <translation tag="Confirm before running macros" it="Conferma prima di eseguire le macro"/>
   <translation tag="Confirm clearing the extruder to unload it" it="Conferma lo svuotamento dell&apos;estrusore per scaricare"/>
+  <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." it="Conferma solo quando l&apos;ultima stampa è stata tolta dal piano. Da quel momento i movimenti non si alzano più sopra di essa."/>
   <translation tag="Confirm tool changes" it="Conferma cambi utensile"/>
   <translation tag="Connect" it="Connetti"/>
   <translation tag="Connect a USB label printer first" it="Connettere prima una stampante etichette USB"/>
@@ -1818,6 +1819,7 @@
   <translation tag="Invalid value" it="Valore non valido"/>
   <translation tag="Invalid value type" it="Tipo di valore non valido"/>
   <translation tag="Is new filament coming out of the nozzle?" it="Il nuovo filamento esce dall&apos;ugello?"/>
+  <translation tag="Is the bed clear?" it="Il piano è libero?"/>
   <translation tag="Issue description" it="Descrizione problema"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." it="Può essere ripristinata dall&apos;interfaccia web di Spoolman."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." it="Non ha ancora segnalato i suoi slot. Riprova tra un momento."/>

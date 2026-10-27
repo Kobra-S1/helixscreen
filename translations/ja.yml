@@ -804,6 +804,7 @@ translations:
   Confirm PIN: PIN を確認
   Confirm before running macros: マクロ実行前に確認する
   Confirm clearing the extruder to unload it: '取り出すには、エクストルーダーを空にすることを確認してください'
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: "最後のプリントをベッドから取り除いてから確認してください。以降、移動時にその上を避けて持ち上げなくなります。"
   Confirm tool changes: 'ツール交換を確認する'
   Connect: 接続
   Connect a USB label printer first: 先にUSBラベルプリンターを接続してください
@@ -1891,6 +1892,7 @@ translations:
   Invalid value: '無効な値です'
   Invalid value type: '値の型が無効です'
   Is new filament coming out of the nozzle?: "ノズルから新しいフィラメントが出ていますか？"
+  Is the bed clear?: "ベッドは空いていますか？"
   Issue description: 問題の説明
   It can be un-archived in Spoolman's web UI.: Spoolman の Web 画面でアーカイブを解除できます。
   It has not reported its slots yet. Try again in a moment.: スロットがまだ報告されていません。しばらくしてからもう一度お試しください。

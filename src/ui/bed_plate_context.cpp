@@ -3,6 +3,7 @@
 #include "bed_plate_context.h"
 
 #include "ui_error_reporting.h"
+#include "ui_modal.h"
 
 #include "async_lifetime_guard.h"
 #include "bed_occupancy_state.h"
@@ -170,6 +171,20 @@ std::string plate_lift_readout(double shown_z, const PlateLift& lift) {
 
 const char* part_too_tall_text() {
     return lv_tr("The part on the bed is too tall to clear. Remove it, then tap Cleared.");
+}
+
+void confirm_bed_cleared() {
+    if (!get_bed_occupancy_state()) {
+        return;
+    }
+    ui::modal_confirm(
+        lv_tr("Is the bed clear?"),
+        lv_tr("Confirm only once the last print is off the bed. Moves then stop lifting above it."),
+        ModalSeverity::Warning, lv_tr("Cleared"), []() {
+            if (BedOccupancyState* state = get_bed_occupancy_state()) {
+                state->mark_cleared();
+            }
+        });
 }
 
 } // namespace helix

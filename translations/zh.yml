@@ -802,6 +802,7 @@ translations:
   Confirm PIN: 确认 PIN 码
   Confirm before running macros: 运行宏前进行确认
   Confirm clearing the extruder to unload it: '请确认清空挤出机以卸载'
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: "请在最后一次打印件从热床上取下后再确认。之后移动将不再抬升以避开它。"
   Confirm tool changes: '确认切换工具'
   Connect: 连接
   Connect a USB label printer first: 请先连接 USB 标签打印机
@@ -1886,6 +1887,7 @@ translations:
   Invalid value: '值无效'
   Invalid value type: '值类型无效'
   Is new filament coming out of the nozzle?: "喷嘴是否有新耗材挤出？"
+  Is the bed clear?: "热床已清空吗？"
   Issue description: 问题描述
   It can be un-archived in Spoolman's web UI.: 可以在 Spoolman 的网页界面中取消归档。
   It has not reported its slots yet. Try again in a moment.: 尚未报告其料槽。请稍后再试。

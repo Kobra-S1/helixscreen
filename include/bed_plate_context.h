@@ -92,4 +92,9 @@ bool run_park_toolhead_macro(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime, c
 /// What a Refuse lift tells the user: the part on the bed is too tall to clear.
 [[nodiscard]] const char* part_too_tall_text();
 
+/// The Cleared chips' action: ask whether the last print is off the bed, and only on a yes
+/// mark it cleared, which drops the lift over it. The answer is read from the state live at
+/// that moment, so a printer switch while the dialog is up clears nothing stale.
+void confirm_bed_cleared();
+
 } // namespace helix

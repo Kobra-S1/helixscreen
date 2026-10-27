@@ -910,6 +910,7 @@ translations:
   Confirm PIN: Подтвердите PIN
   Confirm before running macros: Подтверждать перед запуском макросов
   Confirm clearing the extruder to unload it: 'Подтвердите очистку экструдера, чтобы выгрузить'
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Подтверждайте, только когда последняя печать снята со стола. После этого перемещения перестанут подниматься над ней."
   Confirm tool changes: 'Подтверждать смену инструмента'
   Connect: Подключить
   Connect a USB label printer first: Сначала подключите USB-принтер этикеток
@@ -2041,6 +2042,7 @@ translations:
   Invalid value: 'Неверное значение'
   Invalid value type: 'Неверный тип значения'
   Is new filament coming out of the nozzle?: "Выходит ли новый филамент из сопла?"
+  Is the bed clear?: "Стол свободен?"
   Issue description: Описание проблемы
   It can be un-archived in Spoolman's web UI.: Это можно восстановить из архива в веб-интерфейсе Spoolman.
   It has not reported its slots yet. Try again in a moment.: Она ещё не сообщила о своих слотах. Повторите попытку через минуту.

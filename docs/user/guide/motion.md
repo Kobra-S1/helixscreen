@@ -156,7 +156,7 @@ While a part may be on the bed:
 
 - The plate on the Bed tab (and on the home screen's [Toolhead widget](home-panel.md#toolhead-widget)) outlines the print's objects, when the print recorded their shapes.
 - Every move across the plate first lifts the nozzle to the print's height plus the **Bed Map Clearance**. The readout tells you why, for example "Z 0.20, will lift to 77.6mm: last print is 72.6mm tall". This covers the Bed tab, the Move tab's positions, **Park**, and the Toolhead widget's plate and preset buttons.
-- A **Cleared** button sits in the plate's top-right corner. Once you have taken the part off, tap **Cleared**: the outlines go away and moves go back to the normal clearance.
+- A **Cleared** button sits in the plate's top-right corner. Once you have taken the part off, tap **Cleared**. HelixScreen asks **Is the bed clear?**; confirm, and the outlines go away and moves go back to the normal clearance. Cancelling keeps the extra lift.
 - Starting the next print also clears it.
 
 If the print's file does not say how tall the part is, the outlines and the **Cleared** button still appear, but there is no height to add, so moves lift only to the normal clearance.

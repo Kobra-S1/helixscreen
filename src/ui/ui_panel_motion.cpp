@@ -579,12 +579,7 @@ void MotionPanel::register_callbacks() {
         {"on_motion_bed_size_changed",
          [](lv_event_t*) { get_global_motion_panel().layout_bed_map(); }},
         {"on_motion_bed_home", [](lv_event_t*) { get_global_motion_panel().home('A'); }},
-        {"on_motion_bed_cleared",
-         [](lv_event_t*) {
-             if (helix::BedOccupancyState* state = helix::get_bed_occupancy_state()) {
-                 state->mark_cleared();
-             }
-         }},
+        {"on_motion_bed_cleared", [](lv_event_t*) { helix::confirm_bed_cleared(); }},
         {"on_motion_bed_plate_draw",
          [](lv_event_t* e) { get_global_motion_panel().draw_bed_plate(e); }},
     });

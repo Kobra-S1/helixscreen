@@ -788,6 +788,7 @@
   <translation tag="Confirm PIN" zh="确认 PIN 码"/>
   <translation tag="Confirm before running macros" zh="运行宏前进行确认"/>
   <translation tag="Confirm clearing the extruder to unload it" zh="请确认清空挤出机以卸载"/>
+  <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." zh="请在最后一次打印件从热床上取下后再确认。之后移动将不再抬升以避开它。"/>
   <translation tag="Confirm tool changes" zh="确认切换工具"/>
   <translation tag="Connect" zh="连接"/>
   <translation tag="Connect a USB label printer first" zh="请先连接 USB 标签打印机"/>
@@ -1818,6 +1819,7 @@
   <translation tag="Invalid value" zh="值无效"/>
   <translation tag="Invalid value type" zh="值类型无效"/>
   <translation tag="Is new filament coming out of the nozzle?" zh="喷嘴是否有新耗材挤出？"/>
+  <translation tag="Is the bed clear?" zh="热床已清空吗？"/>
   <translation tag="Issue description" zh="问题描述"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." zh="可以在 Spoolman 的网页界面中取消归档。"/>
   <translation tag="It has not reported its slots yet. Try again in a moment." zh="尚未报告其料槽。请稍后再试。"/>

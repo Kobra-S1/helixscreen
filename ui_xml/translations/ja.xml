@@ -788,6 +788,7 @@
   <translation tag="Confirm PIN" ja="PIN を確認"/>
   <translation tag="Confirm before running macros" ja="マクロ実行前に確認する"/>
   <translation tag="Confirm clearing the extruder to unload it" ja="取り出すには、エクストルーダーを空にすることを確認してください"/>
+  <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." ja="最後のプリントをベッドから取り除いてから確認してください。以降、移動時にその上を避けて持ち上げなくなります。"/>
   <translation tag="Confirm tool changes" ja="ツール交換を確認する"/>
   <translation tag="Connect" ja="接続"/>
   <translation tag="Connect a USB label printer first" ja="先にUSBラベルプリンターを接続してください"/>
@@ -1818,6 +1819,7 @@
   <translation tag="Invalid value" ja="無効な値です"/>
   <translation tag="Invalid value type" ja="値の型が無効です"/>
   <translation tag="Is new filament coming out of the nozzle?" ja="ノズルから新しいフィラメントが出ていますか？"/>
+  <translation tag="Is the bed clear?" ja="ベッドは空いていますか？"/>
   <translation tag="Issue description" ja="問題の説明"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." ja="Spoolman の Web 画面でアーカイブを解除できます。"/>
   <translation tag="It has not reported its slots yet. Try again in a moment." ja="スロットがまだ報告されていません。しばらくしてからもう一度お試しください。"/>

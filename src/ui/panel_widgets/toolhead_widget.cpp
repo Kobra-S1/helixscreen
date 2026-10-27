@@ -1362,8 +1362,7 @@ void register_toolhead_widget() {
     lv_xml_register_event_cb(nullptr, "toolhead_bed_cleared_cb", [](lv_event_t* e) {
         LVGL_SAFE_EVENT_CB_BEGIN("[ToolheadWidget] bed_cleared_cb");
         lv_event_stop_bubbling(e);
-        if (BedOccupancyState* occupancy = get_bed_occupancy_state())
-            occupancy->mark_cleared();
+        confirm_bed_cleared();
         LVGL_SAFE_EVENT_CB_END();
     });
     lv_xml_register_event_cb(nullptr, "toolhead_preset_0_cb", preset_cb<0>);

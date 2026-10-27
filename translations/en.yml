@@ -840,6 +840,7 @@ translations:
   Confirm PIN: Confirm PIN
   Confirm before running macros: Confirm before running macros
   Confirm clearing the extruder to unload it: Confirm clearing the extruder to unload it
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: Confirm only once the last print is off the bed. Moves then stop lifting above it.
   Confirm tool changes: Confirm tool changes
   Connect: Connect
   Connect a USB label printer first: Connect a USB label printer first
@@ -1949,6 +1950,7 @@ translations:
   Invalid value: Invalid value
   Invalid value type: Invalid value type
   Is new filament coming out of the nozzle?: Is new filament coming out of the nozzle?
+  Is the bed clear?: Is the bed clear?
   Issue description: Issue description
   It can be un-archived in Spoolman's web UI.: It can be un-archived in Spoolman's web UI.
   It has not reported its slots yet. Try again in a moment.: It has not reported its slots yet. Try again in a moment.

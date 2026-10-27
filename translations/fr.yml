@@ -870,6 +870,7 @@ translations:
   Confirm PIN: Confirmer le code PIN
   Confirm before running macros: Confirmer avant d'exécuter les macros
   Confirm clearing the extruder to unload it: 'Confirmez le vidage de l''extrudeur pour décharger'
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Ne confirmez qu'une fois la dernière impression retirée du plateau. Les déplacements cessent alors de s'élever au-dessus."
   Confirm tool changes: 'Confirmer les changements d''outil'
   Connect: Connecter
   Connect a USB label printer first: Connectez d'abord une imprimante d'étiquettes
@@ -2014,6 +2015,7 @@ translations:
   Invalid value: 'Valeur non valide'
   Invalid value type: 'Type de valeur non valide'
   Is new filament coming out of the nozzle?: "Le nouveau filament sort-il de la buse ?"
+  Is the bed clear?: "Le plateau est-il dégagé ?"
   Issue description: Description du problème
   It can be un-archived in Spoolman's web UI.: Elle peut être désarchivée dans l'interface web de Spoolman.
   It has not reported its slots yet. Try again in a moment.: Il n'a pas encore signalé ses emplacements. Réessayez dans un instant.

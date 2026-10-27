@@ -845,7 +845,7 @@ From 1.5x1 up, the plate moves the toolhead once the printer is homed and idle:
 
 To move the toolhead live, **drag** on the plate instead: the toolhead follows your finger, just like the [Bed tab](motion.md#bed-tab) of the Motion screen. Start the drag on the plate itself; a drag that starts there does not swipe the home page.
 
-Before any move across the plate, the nozzle lifts to the **Bed Map Clearance** height if it is lower ([Motion Settings](motion.md#motion-settings), 5 mm by default). While your last print may still be on the bed, it lifts above that print instead, the plate outlines the print's objects, and a **Cleared** button appears in the plate's top-right corner. Tap it once you have removed the part. See [A print on the bed](motion.md#a-print-on-the-bed).
+Before any move across the plate, the nozzle lifts to the **Bed Map Clearance** height if it is lower ([Motion Settings](motion.md#motion-settings), 5 mm by default). While your last print may still be on the bed, it lifts above that print instead, the plate outlines the print's objects, and a **Cleared** button appears in the plate's top-right corner. Tap it once you have removed the part, and confirm when HelixScreen asks **Is the bed clear?**. See [A print on the bed](motion.md#a-print-on-the-bed).
 
 On a small plate the **Move here** and **Cleared** buttons show only their icons.
 

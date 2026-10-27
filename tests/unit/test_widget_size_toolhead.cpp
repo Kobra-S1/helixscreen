@@ -20,6 +20,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/bed_occupancy_state_test_access.h"
 #include "../test_helpers/holding_motion_api.h"
+#include "../test_helpers/modal_answer.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
@@ -997,8 +998,16 @@ TEST_CASE_METHOD(PlateFixture, "toolhead plate: Cleared shows while a part may b
     drain();
     REQUIRE(shown(part(h, "toolhead_bed_cleared")));
 
+    // The chip asks first: cancelling keeps the part, and its lift, on the bed.
     lv_obj_send_event(part(h, "toolhead_bed_cleared"), LV_EVENT_CLICKED, nullptr);
     drain();
+    helix::test::answer_top_modal("btn_secondary");
+    CHECK(lv_subject_get_int(occupancy.get_occupied_subject()) == 1);
+
+    lv_obj_send_event(part(h, "toolhead_bed_cleared"), LV_EVENT_CLICKED, nullptr);
+    drain();
+    CHECK(lv_subject_get_int(occupancy.get_occupied_subject()) == 1);
+    helix::test::answer_top_modal("btn_primary");
     CHECK(lv_subject_get_int(occupancy.get_occupied_subject()) == 0);
     CHECK_FALSE(get_global_motion_panel().is_visible());
 }
