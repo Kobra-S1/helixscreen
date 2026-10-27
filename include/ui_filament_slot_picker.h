@@ -84,6 +84,8 @@ class FilamentSlotPicker {
     void create_extra_row(lv_obj_t* list, const std::string& text);
     void create_cancel_row(lv_obj_t* list, const std::string& text);
     void select(const Selection& sel);
+    /// Size the card to its widest row, capped at the screen width.
+    void fit_card_width(lv_obj_t* card);
     void position_card(lv_obj_t* card);
     void scroll_to_selected(lv_obj_t* card);
 

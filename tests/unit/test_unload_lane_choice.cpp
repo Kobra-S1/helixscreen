@@ -361,3 +361,37 @@ TEST_CASE_METHOD(UnloadLaneSidebarFixture,
     CHECK(cancel_area.y2 <= card_area.y2);
     tap(cancel);
 }
+
+TEST_CASE_METHOD(UnloadLaneSidebarFixture, "The lane picker is as wide as its widest row",
+                 "[ams][1324][picker]") {
+    REQUIRE(helix::ui::choose_unload_lane(backend_, lv_obj_find_by_name(panel_, "btn_unload"),
+                                          [](int) {}));
+    lv_obj_t* cancel = find_on_screen("cancel_choice");
+    REQUIRE(cancel != nullptr);
+    lv_obj_t* card = lv_obj_get_parent(cancel);
+    lv_obj_update_layout(card);
+
+    // Every label shows its whole text, and the widest one leaves no slack:
+    // the card fits its content rather than a fixed width.
+    int32_t least_slack = INT32_MAX;
+    const uint32_t rows = lv_obj_get_child_count(card);
+    for (uint32_t i = 0; i < rows; ++i) {
+        lv_obj_t* row = lv_obj_get_child(card, static_cast<int32_t>(i));
+        lv_obj_t* label =
+            lv_obj_check_type(row, &lv_label_class) ? row : lv_obj_find_by_name(row, "slot_label");
+        if (!label) {
+            continue;
+        }
+        lv_point_t text{};
+        lv_text_get_size(&text, lv_label_get_text(label),
+                         lv_obj_get_style_text_font(label, LV_PART_MAIN),
+                         lv_obj_get_style_text_letter_space(label, LV_PART_MAIN), 0, LV_COORD_MAX,
+                         LV_TEXT_FLAG_NONE);
+        const int32_t slack = lv_obj_get_content_width(label) - text.x;
+        CHECK(slack >= 0);
+        least_slack = std::min(least_slack, slack);
+    }
+    CHECK(least_slack <= 2);
+    CHECK(lv_obj_get_width(card) < lv_display_get_horizontal_resolution(lv_display_get_default()));
+    tap(cancel);
+}
