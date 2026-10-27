@@ -68,7 +68,8 @@ PreviewGate decide_preview_gate(uint64_t bytes, const PreviewGateInputs& in) {
 }
 
 // A build without the viewer never streams a preview, so it has no rate to learn
-// or key; the board and version are empty and record_preview_rate() is inert.
+// or key: the board and version are empty, the gate never reads a rate and
+// record_preview_rate() is inert.
 const std::string& preview_rate_board() {
     static const std::string board = [] {
 #if HELIX_HAS_GCODE_VIEWER
@@ -97,11 +98,13 @@ bool print_holds_machine() {
     return job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
 }
 
+#if HELIX_HAS_GCODE_VIEWER
 /// The last rate kept this run (main thread), for when none is stored.
 double& session_rate() {
     static double rate = 0.0;
     return rate;
 }
+#endif
 
 } // namespace
 
@@ -110,6 +113,7 @@ PreviewGateInputs current_preview_gate_inputs(uint64_t bytes) {
     in.memory_safe = helix::is_gcode_2d_streaming_safe(static_cast<size_t>(bytes));
     in.auto_mode = preview_mode_is_auto();
     in.printing = print_holds_machine();
+#if HELIX_HAS_GCODE_VIEWER
     const helix::Config* config = helix::Config::get_instance();
     if (config && !preview_rate_board().empty()) {
         in.learned_rate =
@@ -118,6 +122,7 @@ PreviewGateInputs current_preview_gate_inputs(uint64_t bytes) {
     if (!(in.learned_rate > 0.0)) {
         in.learned_rate = session_rate();
     }
+#endif
     return in;
 }
 
@@ -163,6 +168,11 @@ RateRecord decide_rate_record(double mb_per_cpu_s, bool board_known, bool printi
 }
 
 void record_preview_rate(double mb_per_cpu_s) {
+#if !HELIX_HAS_GCODE_VIEWER
+    // Nothing scans an index here, so there is never a rate to keep; compiling
+    // the store out lets the linker drop it from the firmware image.
+    (void)mb_per_cpu_s;
+#else
     helix::Config* config = helix::Config::get_instance();
     const bool board_known = config && !preview_rate_board().empty();
     const double stored =
@@ -181,6 +191,7 @@ void record_preview_rate(double mb_per_cpu_s) {
         save_preview_rate(*config, {mb_per_cpu_s, preview_rate_board(), preview_rate_version()});
         return;
     }
+#endif
 }
 
 } // namespace helix::ui
