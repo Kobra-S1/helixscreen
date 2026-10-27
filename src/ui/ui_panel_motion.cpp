@@ -1660,10 +1660,14 @@ std::optional<double> MotionPanel::bed_lift_z() {
     if (!bounds.has_z || !helix::axis_is_homed(get_printer_state(), helix::Axis::Z)) {
         return std::nullopt;
     }
-    return helix::bed_map_lift_z(
+    const auto lift = helix::plate_lift(
         jog_coalescer_.target_start_z(current_z_),
         static_cast<double>(SettingsManager::instance().get_bed_map_clearance_mm()),
-        static_cast<double>(bounds.z_max));
+        static_cast<double>(bounds.z_max), std::nullopt);
+    if (lift.kind != helix::PlateLift::Kind::Lift) {
+        return std::nullopt;
+    }
+    return lift.z;
 }
 
 namespace {

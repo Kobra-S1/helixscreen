@@ -100,15 +100,6 @@ BedCoordMapper bed_map_mapper(const AxisBounds& area, int viewport_w_px, int vie
 std::optional<AxisTarget> bed_map_target(float x_px, float y_px, const BedCoordMapper& mapper,
                                          const AxisBounds& area, bool circular_bed);
 
-/**
- * @brief Z a Bed-tab move lifts to before it travels, if any
- *
- * A nozzle below @p clearance_mm would drag across the plate, so the move
- * rises to the clearance (capped at @p z_max) first. At or above it, or
- * when the cap leaves nothing to rise to, there is no lift.
- */
-std::optional<double> bed_map_lift_z(double current_z, double clearance_mm, double z_max);
-
 /// The least clearance, in millimetres, the top of z_max must leave above a part on the
 /// bed for a lift to count as clearing it.
 inline constexpr double kPartClearanceMinMm = 1.0;

@@ -170,12 +170,28 @@ float bed_map_guide_half_span(float offset, float half_extent, bool circular) {
     return squared > 0.0f ? std::sqrt(squared) : 0.0f;
 }
 
-std::optional<double> bed_map_lift_z(double current_z, double clearance_mm, double z_max) {
-    const double lift = std::min(clearance_mm, z_max);
-    if (current_z >= lift - AxisMove::kEpsilonMm) {
-        return std::nullopt;
+double plate_z_floor(double clearance_mm, std::optional<double> part_height_mm) {
+    return part_height_mm ? *part_height_mm + clearance_mm : clearance_mm;
+}
+
+PlateLift plate_lift(double current_z, double clearance_mm, double z_max,
+                     std::optional<double> part_height_mm) {
+    if (part_height_mm && z_max < *part_height_mm + kPartClearanceMinMm) {
+        return {PlateLift::Kind::Refuse, 0.0};
     }
-    return lift;
+    const double lift = std::min(plate_z_floor(clearance_mm, part_height_mm), z_max);
+    if (current_z >= lift - AxisMove::kEpsilonMm) {
+        return {};
+    }
+    return {PlateLift::Kind::Lift, lift};
+}
+
+double clamp_z_down_to_floor(double target_z, double clearance_mm,
+                             std::optional<double> part_height_mm) {
+    if (!part_height_mm) {
+        return target_z;
+    }
+    return std::max(target_z, plate_z_floor(clearance_mm, part_height_mm));
 }
 
 } // namespace helix
