@@ -18,11 +18,13 @@
 #include "ui_panel_motion.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/bed_occupancy_state_test_access.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "bed_occupancy_state.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
@@ -722,4 +724,263 @@ TEST_CASE_METHOD(ToolheadFixture, "toolhead: any velocity at all counts as movin
     set_velocity(1);
     settle();
     CHECK(subject_text("toolhead_x_text") == "105.0");
+}
+
+// ============================================================================
+// The interactive plate
+// ============================================================================
+
+namespace {
+
+/// A homed, idle, connected printer with a 0..250 x 0..250 x 0..200 envelope, the nozzle
+/// at Z 0.2, a bed occupancy state of its own, and a widget at the default 2x2.
+struct PlateFixture : public ToolheadFixture {
+    PlateFixture() : occupancy(state(), nullptr) {
+        std::array<lv_obj_t*, 7> panels{};
+        for (auto& p : panels)
+            p = lv_obj_create(lv_screen_active());
+        NavigationManager::instance().set_panels(panels.data());
+
+        // The widget's XML binds bed_occupied, so the state exists before the tile.
+        occupancy.init_subjects();
+        drain();
+        previous_occupancy = get_bed_occupancy_state();
+        set_bed_occupancy_state(&occupancy);
+
+        state().update_from_status(
+            {{"toolhead", {{"axis_minimum", {0, 0, 0, 0}}, {"axis_maximum", {250, 250, 200, 0}}}}});
+        lv_subject_set_int(state().network_state().get_nav_buttons_enabled_subject(), 1);
+        set_homed("xyz");
+        set_position(10000, 10000, 20);
+        drain();
+        mock.clear_gcode_script_history();
+    }
+    ~PlateFixture() override {
+        set_bed_occupancy_state(previous_occupancy);
+        lv_subject_set_int(state().network_state().get_nav_buttons_enabled_subject(), 0);
+    }
+
+    std::string all_scripts() const {
+        std::string joined;
+        for (const auto& script : mock.gcode_script_history())
+            joined += script + "\n";
+        return joined;
+    }
+    size_t xy_moves() const {
+        size_t n = 0;
+        for (const auto& script : mock.gcode_script_history()) {
+            if (script.find("G0 X") != std::string::npos ||
+                script.find("G1 X") != std::string::npos)
+                ++n;
+        }
+        return n;
+    }
+
+    /// The screen point at the drawn plate's centre.
+    static lv_point_t plate_centre(PanelWidgetHarness<ToolheadWidget>& h) {
+        const auto g = h.widget().plate_geometry();
+        REQUIRE(g.has_value());
+        lv_area_t c;
+        lv_obj_get_coords(part(h, "toolhead_plate"), &c);
+        return {c.x1 + static_cast<int32_t>(g->plate.x + g->plate.w / 2),
+                c.y1 + static_cast<int32_t>(g->plate.y + g->plate.h / 2)};
+    }
+    /// Press and release at @p at, then the CLICKED the indev sends after them.
+    void tap_plate(PanelWidgetHarness<ToolheadWidget>& h, lv_point_t at) {
+        h.widget().handle_plate_touch(BedTouch::Pressed, at);
+        h.widget().handle_plate_touch(BedTouch::Released, at);
+        lv_obj_send_event(part(h, "toolhead_plate"), LV_EVENT_CLICKED, nullptr);
+        drain();
+    }
+    /// A Full tile, settled, with the plate on screen.
+    void build(PanelWidgetHarness<ToolheadWidget>& h) {
+        h.resize(2, 2, kFull.w, kFull.h);
+        settle();
+        REQUIRE(rung_subject() == static_cast<int>(SizeRung::Full));
+        mock.clear_gcode_script_history();
+    }
+
+    BedOccupancyState occupancy;
+    BedOccupancyState* previous_occupancy = nullptr;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: a homed tap drops a target and moves nothing",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    REQUIRE(h.widget().plate_interactive());
+    CHECK(lv_obj_has_flag(part(h, "toolhead_plate"), LV_OBJ_FLAG_CLICKABLE));
+
+    tap_plate(h, plate_centre(h));
+    process_lvgl(500);
+
+    CHECK(subject_int("toolhead_ghost_active") == 1);
+    REQUIRE(h.widget().ghost_target().has_value());
+    CHECK(*h.widget().ghost_target()->x == Catch::Approx(125.0).margin(2.0));
+    CHECK(*h.widget().ghost_target()->y == Catch::Approx(125.0).margin(2.0));
+    CHECK(shown(part(h, "toolhead_move_here")));
+    CHECK(subject_text("toolhead_ghost_text").rfind("-> X12", 0) == 0);
+    // From Z 0.2 the move lifts to the 5mm clearance first, and says so.
+    CHECK(subject_text("toolhead_ghost_text").find("will lift to 5mm") != std::string::npos);
+    CHECK(all_scripts().empty());
+    CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: Move here lifts, then travels, then clears",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    tap_plate(h, plate_centre(h));
+    REQUIRE(subject_int("toolhead_ghost_active") == 1);
+
+    lv_obj_send_event(part(h, "toolhead_move_here"), LV_EVENT_CLICKED, nullptr);
+    drain();
+
+    const std::string scripts = all_scripts();
+    INFO(scripts);
+    const auto lift = scripts.find("Z5");
+    const auto travel = scripts.find(" X12");
+    REQUIRE(lift != std::string::npos);
+    REQUIRE(travel != std::string::npos);
+    CHECK(lift < travel);
+    CHECK(xy_moves() == 1);
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK_FALSE(h.widget().ghost_target().has_value());
+    CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: dismiss clears the target and sends nothing",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    tap_plate(h, plate_centre(h));
+    REQUIRE(subject_int("toolhead_ghost_active") == 1);
+
+    lv_obj_send_event(part(h, "toolhead_ghost_dismiss"), LV_EVENT_CLICKED, nullptr);
+    drain();
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK(subject_int("toolhead_target_shown") == 0);
+    CHECK(all_scripts().empty());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: an unconfirmed target clears after its timeout",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    tap_plate(h, plate_centre(h));
+    REQUIRE(subject_int("toolhead_ghost_active") == 1);
+
+    process_lvgl(ToolheadWidget::kGhostTimeoutMs - 500);
+    CHECK(subject_int("toolhead_ghost_active") == 1);
+    process_lvgl(501);
+    drain();
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK(all_scripts().empty());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: unhomed or printing, a tap opens Motion",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    const lv_point_t centre = plate_centre(h);
+
+    SECTION("unhomed") {
+        set_homed("xy");
+    }
+    SECTION("printing") {
+        set_print_active(true);
+    }
+    settle();
+    CHECK_FALSE(h.widget().plate_interactive());
+    CHECK(subject_int("toolhead_plate_interactive") == 0);
+    // Not clickable, so a real tap lands on the tile itself.
+    CHECK_FALSE(lv_obj_has_flag(part(h, "toolhead_plate"), LV_OBJ_FLAG_CLICKABLE));
+
+    tap_plate(h, centre);
+    process_lvgl(500);
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK(all_scripts().empty());
+    CHECK(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: a tap on the Z bar opens Motion and sends nothing",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    REQUIRE(h.widget().plate_interactive());
+    const auto g = h.widget().plate_geometry();
+    REQUIRE(g.has_value());
+    lv_area_t c;
+    lv_obj_get_coords(part(h, "toolhead_plate"), &c);
+    const lv_point_t bar{c.x1 + static_cast<int32_t>(g->z_bar.x + g->z_bar.w / 2),
+                         c.y1 + static_cast<int32_t>(g->z_bar.y + g->z_bar.h / 2)};
+
+    tap_plate(h, bar);
+    process_lvgl(500);
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK(all_scripts().empty());
+    CHECK(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: a drag moves the head live and drops no target",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    const lv_point_t from = plate_centre(h);
+    const lv_point_t to{from.x + 30, from.y};
+
+    h.widget().handle_plate_touch(BedTouch::Pressed, from);
+    h.widget().handle_plate_touch(BedTouch::Pressing, to);
+    drain();
+    CHECK(subject_int("toolhead_target_shown") == 1);
+    CHECK(subject_text("toolhead_ghost_text").rfind("-> X", 0) == 0);
+    h.widget().handle_plate_touch(BedTouch::Released, to);
+    lv_obj_send_event(part(h, "toolhead_plate"), LV_EVENT_CLICKED, nullptr);
+    drain();
+
+    INFO(all_scripts());
+    CHECK(xy_moves() >= 1);
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK(subject_int("toolhead_target_shown") == 0);
+    CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: Cleared shows while a part may be on the bed",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    CHECK_FALSE(shown(part(h, "toolhead_bed_cleared")));
+
+    BedOccupancyStateTestAccess::set_verdict(occupancy, {true, 38.0, "job-on-the-bed"});
+    drain();
+    CHECK(shown(part(h, "toolhead_bed_cleared")));
+    // A target showing hides it, so the two never stack.
+    tap_plate(h, plate_centre(h));
+    CHECK_FALSE(shown(part(h, "toolhead_bed_cleared")));
+    CHECK(subject_text("toolhead_ghost_text").find("last print is 38mm tall") != std::string::npos);
+    h.widget().clear_ghost();
+    drain();
+    REQUIRE(shown(part(h, "toolhead_bed_cleared")));
+
+    lv_obj_send_event(part(h, "toolhead_bed_cleared"), LV_EVENT_CLICKED, nullptr);
+    drain();
+    CHECK(lv_subject_get_int(occupancy.get_occupied_subject()) == 0);
+    CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: a detached tile's target timer never fires",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    tap_plate(h, plate_centre(h));
+    REQUIRE(subject_int("toolhead_ghost_active") == 1);
+
+    h.widget().detach();
+    CHECK_FALSE(h.widget().ghost_target().has_value());
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    process_lvgl(ToolheadWidget::kGhostTimeoutMs + 100);
+    drain();
+    CHECK(all_scripts().empty());
 }

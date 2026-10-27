@@ -3,6 +3,7 @@
 
 #include "toolhead_widget.h"
 
+#include "ui_drag_surface.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_icon.h"
@@ -11,11 +12,15 @@
 #include "ui_subject_registry.h"
 
 #include "app_globals.h"
+#include "bed_occupancy_state.h"
+#include "bed_plate_context.h"
+#include "bed_plate_draw.h"
 #include "display_numbering.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_error.h"
+#include "observe_language.h"
 #include "observer_factory.h"
 #include "panel_widget_registry.h"
 #include "printer_capabilities_state.h"
@@ -37,6 +42,7 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 using helix::ui::copy_string_if_changed;
 using helix::ui::measure_text_px;
@@ -61,11 +67,16 @@ HELIX_PSRAM_BSS lv_subject_t s_y_text_subject{};
 HELIX_PSRAM_BSS lv_subject_t s_z_text_subject{};
 HELIX_PSRAM_BSS lv_subject_t s_tool_text_subject{};
 HELIX_PSRAM_BSS lv_subject_t s_speed_text_subject{};
+HELIX_PSRAM_BSS lv_subject_t s_plate_interactive_subject{};
+HELIX_PSRAM_BSS lv_subject_t s_ghost_active_subject{};
+HELIX_PSRAM_BSS lv_subject_t s_target_shown_subject{};
+HELIX_PSRAM_BSS lv_subject_t s_ghost_text_subject{};
 HELIX_PSRAM_BSS char s_x_text_buf[16];
 HELIX_PSRAM_BSS char s_y_text_buf[16];
 HELIX_PSRAM_BSS char s_z_text_buf[16];
 HELIX_PSRAM_BSS char s_tool_text_buf[32];
 HELIX_PSRAM_BSS char s_speed_text_buf[24];
+HELIX_PSRAM_BSS char s_ghost_text_buf[256];
 helix::WidgetSubjects s_subjects{"ToolheadWidgetSubjects"};
 // The instance bound to the live tile. Only it publishes and acts: a transient
 // instance (a fits_at probe, a rebuild's outgoing widget) must not overwrite the
@@ -97,6 +108,12 @@ void toolhead_init_subjects() {
         UI_MANAGED_SUBJECT_STRING(s_tool_text_subject, s_tool_text_buf, "", "toolhead_tool_text",
                                   s_subjects);
         UI_MANAGED_SUBJECT_STRING(s_speed_text_subject, s_speed_text_buf, "", "toolhead_speed_text",
+                                  s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_plate_interactive_subject, 0, "toolhead_plate_interactive",
+                               s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_ghost_active_subject, 0, "toolhead_ghost_active", s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_target_shown_subject, 0, "toolhead_target_shown", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(s_ghost_text_subject, s_ghost_text_buf, "", "toolhead_ghost_text",
                                   s_subjects);
     });
 }
@@ -203,7 +220,18 @@ DrawKey draw_key(const helix::ToolheadPlateGeometry& g) {
 struct PlateView {
     helix::ToolheadPlateInput input;
     std::optional<DrawKey> drawn;
+    /// The plate in G-code space, for the grid, the outlines and the tapped target.
+    std::optional<helix::AxisBounds> area;
+    std::vector<helix::BedObjectOutline> outlines;
+    std::optional<helix::AxisTarget> ghost;
 };
+
+/// Maps the plate's G-code area onto the plate rectangle the geometry drew.
+helix::BedCoordMapper plate_mapper(const helix::AxisBounds& area,
+                                   const helix::ToolheadPlateGeometry& g) {
+    return helix::bed_map_mapper(area, static_cast<int>(std::lround(g.plate.w)),
+                                 static_cast<int>(std::lround(g.plate.h)));
+}
 
 lv_area_t px_area(const lv_area_t& origin, float x, float y, float w, float h) {
     lv_area_t a;
@@ -305,6 +333,26 @@ void draw_plate(lv_event_t* e) {
         draw_line(layer, l, b, l, t, edge, line_w, dash);
     }
 
+    const lv_point_t plate_origin{area.x1 + static_cast<int32_t>(std::lround(g.plate.x)),
+                                  area.y1 + static_cast<int32_t>(std::lround(g.plate.y))};
+    if (view->area) {
+        const auto& a = *view->area;
+        helix::BedPlateLayersInput layers_in;
+        layers_in.x_min = a.x_min;
+        layers_in.x_max = a.x_max;
+        layers_in.y_min = a.y_min;
+        layers_in.y_max = a.y_max;
+        layers_in.circular = g.circular;
+        layers_in.outlines = view->outlines;
+        helix::BedPlateStyle style;
+        style.grid_color = edge;
+        style.outline_color = theme_manager_get_color("warning");
+        style.outline_width_px = line_w;
+        helix::draw_bed_plate_layers(layer, plate_origin,
+                                     helix::plan_bed_plate_layers(layers_in, plate_mapper(a, g)),
+                                     style);
+    }
+
     // The Z bar: an outline, filled from the bottom as the gantry rises or from the top
     // as the bed lowers.
     const lv_area_t bar = px_area(area, g.z_bar.x, g.z_bar.y, g.z_bar.w, g.z_bar.h);
@@ -345,12 +393,35 @@ void draw_plate(lv_event_t* e) {
         dot_dsc.bg_opa = LV_OPA_COVER;
         dot_dsc.radius = LV_RADIUS_CIRCLE;
         lv_draw_rect(layer, &dot_dsc, &dot);
+
+        // A tapped target: a ring there and a dashed line to it from the head.
+        if (view->ghost && view->ghost->x && view->ghost->y && view->area) {
+            const auto [gx, gy] = plate_mapper(*view->area, g)
+                                      .mm_to_px(static_cast<float>(*view->ghost->x),
+                                                static_cast<float>(*view->ghost->y));
+            const float tx = static_cast<float>(plate_origin.x) + gx;
+            const float ty = static_cast<float>(plate_origin.y) + gy;
+            draw_line(layer, cx, cy, tx, ty, accent, line_w, dash);
+            lv_draw_arc_dsc_t ring;
+            lv_draw_arc_dsc_init(&ring);
+            ring.color = accent;
+            ring.width = 2 * line_w;
+            ring.opa = LV_OPA_COVER;
+            ring.center.x = static_cast<int32_t>(std::lround(tx));
+            ring.center.y = static_cast<int32_t>(std::lround(ty));
+            ring.radius = static_cast<uint16_t>(theme_manager_get_spacing("space_sm"));
+            ring.start_angle = 0;
+            ring.end_angle = 360;
+            lv_draw_arc(layer, &ring);
+        }
     }
 }
 
 void on_plate_delete(lv_event_t* e) {
     delete static_cast<PlateView*>(lv_event_get_user_data(e));
 }
+
+void plate_touch_cb(lv_event_t* e, helix::BedTouch phase);
 
 } // namespace
 
@@ -366,7 +437,23 @@ struct ToolheadWidget::LiveState {
     std::string tool_label;
 };
 
-ToolheadWidget::ToolheadWidget(PrinterState& printer_state) : printer_state_(printer_state) {}
+ToolheadWidget::ToolheadWidget(PrinterState& printer_state)
+    : printer_state_(printer_state),
+      move_sender_(lifetime_, "ToolheadWidget",
+                   {[this]() {
+                        // An ack moves where the next target starts, and with it the lift
+                        // the readout announces.
+                        publish_target_text();
+                    },
+                    [this](const MoonrakerError&) { gesture_.mark_failed(); }}),
+      gesture_({[this](int x, int y) { return target_at(x, y); },
+                [this]() { return plate_interactive(); },
+                [this]() {
+                    return current_plate_lift(printer_state_,
+                                              move_sender_.target_start_z(current_z_mm()));
+                },
+                [this](const AxisTarget& target) { send_plate_target(target); },
+                []() { MotionPanel::notify_part_too_tall(); }}) {}
 
 ToolheadWidget::~ToolheadWidget() {
     detach();
@@ -423,8 +510,19 @@ ToolheadVerdict ToolheadWidget::decide(int width_px, int height_px, bool printin
 
 void ToolheadWidget::resolve_bed() {
     IMoonrakerAPI* api = get_moonraker_api();
-    bed_ = bed_dimensions(api, &printer_state_);
-    circular_ = api && circular_bed_kinematics(api->hardware().kinematics());
+    // The plate maps the area the Bed tab maps, so a point means the same on both.
+    if (const auto plate = current_bed_plate(printer_state_, api)) {
+        const AxisBounds& a = plate->area;
+        plate_area_ = a;
+        bed_ = BedDimensions{a.x_max - a.x_min, a.y_max - a.y_min, a.x_min, a.y_min};
+        circular_ = plate->circular;
+    } else {
+        plate_area_.reset();
+        bed_ = bed_dimensions(api, &printer_state_);
+        circular_ = api && circular_bed_kinematics(api->hardware().kinematics());
+    }
+    if (PlateView* view = plate_ ? static_cast<PlateView*>(lv_obj_get_user_data(plate_)) : nullptr)
+        view->area = plate_area_;
 }
 
 void ToolheadWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
@@ -441,6 +539,10 @@ void ToolheadWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         // fires after the draw tasks are queued and cannot add any.
         lv_obj_add_event_cb(plate_, draw_plate, LV_EVENT_DRAW_MAIN_END, view);
         lv_obj_add_event_cb(plate_, on_plate_delete, LV_EVENT_DELETE, view);
+        ui::mark_drag_surface(plate_);
+        // mark_drag_surface makes the plate clickable; toolhead_plate_interactive decides
+        // that, so its binding is applied again.
+        lv_subject_notify(&s_plate_interactive_subject);
     }
 
     auto& motion = printer_state_.motion_state();
@@ -514,16 +616,53 @@ void ToolheadWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         ui::observe<int>(tools.get_tools_version_subject(), this, on_tool, tools_lifetime);
     active_tool_observer_ =
         ui::observe<int>(tools.get_active_tool_subject(), this, on_tool, tools_lifetime);
+    // The rest of the plate's motion gate: plate_moves_allowed() reads these too.
+    const auto on_gate = [token](ToolheadWidget* self, int) {
+        if (token.expired())
+            return;
+        self->publish_interaction();
+    };
+    nav_enabled_observer_ = ui::observe<int>(
+        printer_state_.network_state().get_nav_buttons_enabled_subject(), this, on_gate, lifetime);
+    motion_blocked_observer_ = ui::observe<int>(
+        printer_state_.print_state().get_machine_motion_blocked_subject(), this, on_gate, lifetime);
+    if (BedOccupancyState* occupancy = get_bed_occupancy_state()) {
+        occupancy_observer_ = ui::observe<int>(
+            occupancy->get_version_subject(), this,
+            [token](ToolheadWidget* self, int) {
+                if (token.expired())
+                    return;
+                self->refresh_outlines();
+            },
+            occupancy->get_subjects_lifetime());
+    }
+    language_observer_ = ui::observe_language_change(this, [token](ToolheadWidget* self) {
+        if (token.expired())
+            return;
+        self->publish_target_text();
+    });
 
     resolve_bed();
+    refresh_outlines();
     // Instances are recycled across rebuilds: the verdict is republished here too.
     relayout_for_granted_size();
     publish_state(read_live());
 }
 
 void ToolheadWidget::detach() {
+    // Ends the gesture and the target while this instance still owns the subjects, so
+    // the tile it leaves shows neither.
+    gesture_.lost();
+    press_taken_ = false;
+    clear_ghost();
     lifetime_.invalidate();
+    move_sender_.reset();
     refresh_timer_.cancel();
+    ghost_timer_.cancel();
+    nav_enabled_observer_.reset();
+    motion_blocked_observer_.reset();
+    occupancy_observer_.reset();
+    language_observer_.reset();
     homed_observer_.reset();
     print_active_observer_.reset();
     for (auto& guard : position_observers_)
@@ -587,6 +726,7 @@ void ToolheadWidget::publish_state(const LiveState& live) {
     for (int i = 0; i < 3; ++i)
         set_int_if_changed(&s_homed_subjects[i], live.homed[i] ? 1 : 0);
     publish_values(live);
+    publish_interaction();
 }
 
 void ToolheadWidget::publish_values(const LiveState& live) {
@@ -649,6 +789,11 @@ void ToolheadWidget::refresh() {
     publish_values(live);
     if (!plate_visible())
         return;
+    // The bounds the plate maps arrive with the printer's status, not on an event of
+    // their own.
+    resolve_bed();
+    if (gesture_.dragging() || ghost_)
+        publish_target_text();
     auto* view = static_cast<PlateView*>(lv_obj_get_user_data(plate_));
     const int w = lv_obj_get_width(plate_);
     const int h = lv_obj_get_height(plate_);
@@ -731,6 +876,190 @@ void ToolheadWidget::home_all() {
         }));
 }
 
+bool ToolheadWidget::plate_interactive() const {
+    return s_tile.is_owner(this) && plate_visible() && plate_area_ &&
+           get_moonraker_api() != nullptr &&
+           lv_subject_get_int(printer_state_.print_state().get_print_active_subject()) == 0 &&
+           plate_moves_allowed(printer_state_);
+}
+
+void ToolheadWidget::publish_interaction() {
+    if (!s_tile.is_owner(this))
+        return;
+    const bool interactive = plate_interactive();
+    if (!interactive) {
+        if (gesture_.active())
+            gesture_.lost();
+        clear_ghost();
+    }
+    set_int_if_changed(&s_plate_interactive_subject, interactive ? 1 : 0);
+    publish_target_text();
+}
+
+void ToolheadWidget::publish_target_text() {
+    if (!s_tile.is_owner(this))
+        return;
+    std::optional<AxisTarget> target;
+    if (gesture_.dragging() && gesture_.drag_target())
+        target = gesture_.drag_target();
+    else if (ghost_)
+        target = ghost_;
+    set_int_if_changed(&s_ghost_active_subject, ghost_ ? 1 : 0);
+    set_int_if_changed(&s_target_shown_subject, target ? 1 : 0);
+
+    std::string text;
+    if (target && target->x && target->y) {
+        text = fmt::format("-> X{:.0f} Y{:.0f}", *target->x, *target->y);
+        const double z = current_z_mm();
+        const PlateLift lift = current_plate_lift(printer_state_, move_sender_.target_start_z(z));
+        const std::string lift_text = lift.kind == PlateLift::Kind::Refuse
+                                          ? std::string(part_too_tall_text())
+                                          : plate_lift_readout(z, lift);
+        if (!lift_text.empty()) {
+            text += "\n";
+            text += lift_text;
+        }
+    }
+    copy_string_if_changed(&s_ghost_text_subject, text.c_str());
+}
+
+double ToolheadWidget::current_z_mm() const {
+    return units::from_centimm(
+        lv_subject_get_int(printer_state_.motion_state().get_position_z_subject()));
+}
+
+bool ToolheadWidget::on_plate(int screen_x, int screen_y) const {
+    const auto g = plate_geometry();
+    if (!g || !g->has_room)
+        return false;
+    lv_area_t coords;
+    lv_obj_get_coords(plate_, &coords);
+    const float x = static_cast<float>(screen_x - coords.x1) - g->plate.x;
+    const float y = static_cast<float>(screen_y - coords.y1) - g->plate.y;
+    return x >= 0.0f && x <= g->plate.w && y >= 0.0f && y <= g->plate.h;
+}
+
+std::optional<AxisTarget> ToolheadWidget::target_at(int screen_x, int screen_y) const {
+    const auto g = plate_geometry();
+    if (!plate_area_ || !g || !g->has_room)
+        return std::nullopt;
+    lv_area_t coords;
+    lv_obj_get_coords(plate_, &coords);
+    return bed_map_target(static_cast<float>(screen_x - coords.x1) - g->plate.x,
+                          static_cast<float>(screen_y - coords.y1) - g->plate.y,
+                          plate_mapper(*plate_area_, *g), *plate_area_, circular_);
+}
+
+void ToolheadWidget::handle_plate_touch(BedTouch phase, lv_point_t screen_point) {
+    if (!s_tile.is_owner(this))
+        return;
+    const int x = static_cast<int>(screen_point.x);
+    const int y = static_cast<int>(screen_point.y);
+    switch (phase) {
+    case BedTouch::Pressed:
+        press_taken_ = false;
+        // The Z bar and the margin beside the plate are the tile's: a tap there opens
+        // the Motion panel.
+        if (!plate_interactive() || !on_plate(x, y))
+            return;
+        press_taken_ = gesture_.press(x, y);
+        if (press_taken_)
+            record_interaction();
+        break;
+    case BedTouch::Pressing: {
+        if (!gesture_.active())
+            return;
+        const bool was_dragging = gesture_.dragging();
+        const auto before = gesture_.drag_target();
+        gesture_.pressing(x, y);
+        if (gesture_.dragging() && !was_dragging)
+            clear_ghost();
+        const auto& after = gesture_.drag_target();
+        if (after && (!before || before->x != after->x || before->y != after->y))
+            publish_target_text();
+        break;
+    }
+    case BedTouch::Released: {
+        if (!gesture_.active())
+            return;
+        const auto release = gesture_.release(x, y);
+        if (!release.was_drag && release.tap_target)
+            set_ghost(*release.tap_target);
+        publish_target_text();
+        break;
+    }
+    case BedTouch::Lost:
+        if (!gesture_.active())
+            return;
+        gesture_.lost();
+        publish_target_text();
+        break;
+    }
+}
+
+void ToolheadWidget::plate_clicked(lv_event_t* e) {
+    // A tap or drag the gesture took is the plate's; anything else is a tap on the tile.
+    if (press_taken_)
+        lv_event_stop_bubbling(e);
+    press_taken_ = false;
+}
+
+void ToolheadWidget::set_ghost(const AxisTarget& target) {
+    ghost_ = target;
+    ghost_timer_.schedule([this]() { clear_ghost(); });
+    publish_target_text();
+    invalidate_plate();
+}
+
+void ToolheadWidget::clear_ghost() {
+    ghost_timer_.cancel();
+    if (!ghost_)
+        return;
+    ghost_.reset();
+    publish_target_text();
+    invalidate_plate();
+}
+
+void ToolheadWidget::move_here() {
+    if (!s_tile.is_owner(this) || !ghost_)
+        return;
+    const AxisTarget target = *ghost_;
+    clear_ghost();
+    gesture_.send_once(target);
+}
+
+void ToolheadWidget::send_plate_target(const AxisTarget& target) {
+    spdlog::info("[ToolheadWidget] Plate target X{:.2f} Y{:.2f}{}", target.x.value_or(0.0),
+                 target.y.value_or(0.0),
+                 target.z ? fmt::format(" (lift Z{:.2f})", *target.z) : std::string());
+    if (!move_sender_.send_target(get_moonraker_api(), target, move_clamp_bounds(printer_state_),
+                                  current_z_mm())) {
+        gesture_.mark_failed();
+    }
+}
+
+void ToolheadWidget::refresh_outlines() {
+    if (!plate_)
+        return;
+    auto* view = static_cast<PlateView*>(lv_obj_get_user_data(plate_));
+    if (!view)
+        return;
+    const BedOccupancyState* occupancy = get_bed_occupancy_state();
+    view->outlines = occupancy ? occupancy->outlines() : std::vector<BedObjectOutline>{};
+    invalidate_plate();
+}
+
+void ToolheadWidget::invalidate_plate() {
+    if (!plate_)
+        return;
+    auto* view = static_cast<PlateView*>(lv_obj_get_user_data(plate_));
+    if (!view)
+        return;
+    view->ghost = ghost_;
+    if (plate_visible() && !panel_hidden_)
+        lv_obj_invalidate(plate_);
+}
+
 void ToolheadWidget::open_motion_panel() {
     get_global_motion_panel().show(parent_screen_);
 }
@@ -744,6 +1073,28 @@ void ToolheadWidget::clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
+} // namespace helix
+
+namespace {
+
+/// Forward a pointer event on the plate, with the point it fired at, to the live tile.
+void plate_touch_cb(lv_event_t* e, helix::BedTouch phase) {
+    // A press on one of the plate's chips is the chip's.
+    if (lv_event_get_target(e) != lv_event_get_current_target(e))
+        return;
+    lv_indev_t* indev = lv_indev_active();
+    if (!indev)
+        return;
+    lv_point_t point;
+    lv_indev_get_point(indev, &point);
+    if (auto* owner = s_tile.owner())
+        owner->handle_plate_touch(phase, point);
+}
+
+} // namespace
+
+namespace helix {
+
 void register_toolhead_widget() {
     register_widget_factory("toolhead", [](const std::string&) {
         return std::make_unique<ToolheadWidget>(get_printer_state());
@@ -751,6 +1102,41 @@ void register_toolhead_widget() {
     register_widget_subjects("toolhead", toolhead_init_subjects);
 
     lv_xml_register_event_cb(nullptr, "toolhead_clicked_cb", ToolheadWidget::clicked_cb);
+    lv_xml_register_event_cb(nullptr, "toolhead_plate_pressed_cb",
+                             [](lv_event_t* e) { plate_touch_cb(e, BedTouch::Pressed); });
+    lv_xml_register_event_cb(nullptr, "toolhead_plate_pressing_cb",
+                             [](lv_event_t* e) { plate_touch_cb(e, BedTouch::Pressing); });
+    lv_xml_register_event_cb(nullptr, "toolhead_plate_released_cb",
+                             [](lv_event_t* e) { plate_touch_cb(e, BedTouch::Released); });
+    lv_xml_register_event_cb(nullptr, "toolhead_plate_press_lost_cb",
+                             [](lv_event_t* e) { plate_touch_cb(e, BedTouch::Lost); });
+    lv_xml_register_event_cb(nullptr, "toolhead_plate_clicked_cb", [](lv_event_t* e) {
+        LVGL_SAFE_EVENT_CB_BEGIN("[ToolheadWidget] plate_clicked_cb");
+        if (auto* owner = s_tile.owner())
+            owner->plate_clicked(e);
+        LVGL_SAFE_EVENT_CB_END();
+    });
+    lv_xml_register_event_cb(nullptr, "toolhead_move_here_cb", [](lv_event_t* e) {
+        LVGL_SAFE_EVENT_CB_BEGIN("[ToolheadWidget] move_here_cb");
+        lv_event_stop_bubbling(e);
+        if (auto* owner = s_tile.owner())
+            owner->move_here();
+        LVGL_SAFE_EVENT_CB_END();
+    });
+    lv_xml_register_event_cb(nullptr, "toolhead_ghost_dismiss_cb", [](lv_event_t* e) {
+        LVGL_SAFE_EVENT_CB_BEGIN("[ToolheadWidget] ghost_dismiss_cb");
+        lv_event_stop_bubbling(e);
+        if (auto* owner = s_tile.owner())
+            owner->clear_ghost();
+        LVGL_SAFE_EVENT_CB_END();
+    });
+    lv_xml_register_event_cb(nullptr, "toolhead_bed_cleared_cb", [](lv_event_t* e) {
+        LVGL_SAFE_EVENT_CB_BEGIN("[ToolheadWidget] bed_cleared_cb");
+        lv_event_stop_bubbling(e);
+        if (BedOccupancyState* occupancy = get_bed_occupancy_state())
+            occupancy->mark_cleared();
+        LVGL_SAFE_EVENT_CB_END();
+    });
     lv_xml_register_event_cb(nullptr, "toolhead_home_all_cb", [](lv_event_t* e) {
         LVGL_SAFE_EVENT_CB_BEGIN("[ToolheadWidget] home_all_cb");
         // A button tap is not a tap on the tile, which opens the Motion panel.

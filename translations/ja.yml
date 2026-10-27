@@ -2275,6 +2275,7 @@ translations:
   Mount which tool?: 'どのツールを装着しますか？'
   Mount...: '装着...'
   Move: 移動
+  Move here: ここへ移動
   Move out of range: '移動範囲外です'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: 調整中は紙を前後に動かしてください。紙がわずかに引っかかりながらも滑る状態で止めてください。
   Move selector: セレクターを移動

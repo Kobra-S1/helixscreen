@@ -88,9 +88,6 @@ struct JogLayoutFit {
 JogLayoutFit jog_layout_fit(MotionLayout layout, bool portrait, int box_w, int box_h, int gap,
                             int step_h, int step_count, int min_key);
 
-/// One pointer event on the Bed tab's touch surface.
-enum class BedTouch { Pressed, Pressing, Released, Lost };
-
 enum class JogMode { Fine = 0, Coarse = 1, Turbo = 2 };
 constexpr int kJogModeCount = 3;
 
@@ -271,6 +268,10 @@ class MotionPanel : public OverlayBase {
     /// Move tab: raise the shared Disable Motors confirmation.
     void handle_motors_off();
 
+    /// The Refuse notice: a part on the bed is too tall to clear. The home Toolhead
+    /// widget's plate raises it too.
+    static void notify_part_too_tall();
+
     /// Bed tab: one pointer event at @p screen_point on the touch surface
     /// @p area. A tap moves on release to the press point; travel past a few
     /// px makes it a drag, and the head follows the finger (latest target
@@ -420,9 +421,6 @@ class MotionPanel : public OverlayBase {
     /// The gesture's send hook: one plate target (Bed tab or preset), lift
     /// already applied.
     void send_bed_target(const helix::AxisTarget& target);
-
-    /// The Refuse notice: a part on the bed is too tall to clear.
-    static void notify_part_too_tall();
 
     /// Gating backstop behind the Move tab's XML disabled bindings: commands
     /// are allowed only while nav buttons are enabled (connected + klippy

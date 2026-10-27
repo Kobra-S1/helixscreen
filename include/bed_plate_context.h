@@ -11,6 +11,7 @@
 #include "printer_motion_state.h"
 
 #include <optional>
+#include <string>
 
 namespace helix {
 
@@ -49,5 +50,13 @@ inline constexpr double kParkZLiftMm = 10.0;
 /// (a part too tall to clear); Kind::None when Z bounds are unknown or the cap leaves no
 /// rise. Shared by the Move tab's Park and the home Toolhead widget's Park slot.
 [[nodiscard]] PlateLift park_plate_lift(const PrinterState& ps, double current_z);
+
+/// The sentence announcing @p lift before a move made at @p shown_z: "Z 0.20, will lift to
+/// 43mm", plus the part's height when a part on the bed raised it. Empty unless the lift is
+/// Lift. The Bed tab's readout and the home Toolhead widget's both show it.
+[[nodiscard]] std::string plate_lift_readout(double shown_z, const PlateLift& lift);
+
+/// What a Refuse lift tells the user: the part on the bed is too tall to clear.
+[[nodiscard]] const char* part_too_tall_text();
 
 } // namespace helix

@@ -2236,6 +2236,7 @@
   <translation tag="Mount which tool?" ru="Какой инструмент установить?"/>
   <translation tag="Mount..." ru="Установить..."/>
   <translation tag="Move" ru="Двигать"/>
+  <translation tag="Move here" ru="Переместить сюда"/>
   <translation tag="Move out of range" ru="Движение за пределами диапазона"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." ru="Перемещайте бумагу вперёд-назад во время регулировки. Остановитесь, когда бумага слегка цепляется, но ещё скользит."/>
   <translation tag="Move selector" ru="Двигать селектор"/>

@@ -2191,6 +2191,7 @@
   <translation tag="Mount which tool?" ja="どのツールを装着しますか？"/>
   <translation tag="Mount..." ja="装着..."/>
   <translation tag="Move" ja="移動"/>
+  <translation tag="Move here" ja="ここへ移動"/>
   <translation tag="Move out of range" ja="移動範囲外です"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." ja="調整中は紙を前後に動かしてください。紙がわずかに引っかかりながらも滑る状態で止めてください。"/>
   <translation tag="Move selector" ja="セレクターを移動"/>

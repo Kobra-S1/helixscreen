@@ -2440,6 +2440,7 @@ translations:
   Mount which tool?: 'Какой инструмент установить?'
   Mount...: 'Установить...'
   Move: Двигать
+  Move here: Переместить сюда
   Move out of range: 'Движение за пределами диапазона'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Перемещайте
     бумагу вперёд-назад во время регулировки. Остановитесь, когда бумага слегка цепляется,

@@ -18,6 +18,9 @@
 
 namespace helix {
 
+/// One pointer event on a plate's touch surface.
+enum class BedTouch { Pressed, Pressing, Released, Lost };
+
 /// Movement, in pixels on either axis, before a press counts as a drag.
 inline constexpr int kPlateDragThresholdPx = 8;
 

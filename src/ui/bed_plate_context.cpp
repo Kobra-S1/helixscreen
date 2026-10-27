@@ -4,11 +4,16 @@
 
 #include "bed_occupancy_state.h"
 #include "i_moonraker_api.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "toolhead_homing.h"
 
+#include <spdlog/fmt/fmt.h>
+
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
 
 namespace helix {
 
@@ -72,6 +77,39 @@ PlateLift park_plate_lift(const PrinterState& ps, double current_z) {
         return {};
     }
     return {PlateLift::Kind::Lift, z};
+}
+
+namespace {
+
+/// Trailing zeros trimmed, so 43 reads "43" and 5.5 reads "5.5".
+std::string format_lift_mm(double mm) {
+    char buf[16];
+    if (mm == std::floor(mm)) {
+        std::snprintf(buf, sizeof(buf), "%.0f", mm);
+    } else {
+        std::snprintf(buf, sizeof(buf), "%g", mm);
+    }
+    return buf;
+}
+
+} // namespace
+
+std::string plate_lift_readout(double shown_z, const PlateLift& lift) {
+    if (lift.kind != PlateLift::Kind::Lift) {
+        return {};
+    }
+    char z_buf[16];
+    std::snprintf(z_buf, sizeof(z_buf), "%.2f", shown_z);
+    const std::string lift_mm = format_lift_mm(lift.z);
+    if (const auto part = bed_part_height()) {
+        return fmt::format(fmt::runtime(lv_tr("Z {}, will lift to {}mm: last print is {}mm tall")),
+                           z_buf, lift_mm, format_lift_mm(*part));
+    }
+    return fmt::format(fmt::runtime(lv_tr("Z {}, will lift to {}mm")), z_buf, lift_mm);
+}
+
+const char* part_too_tall_text() {
+    return lv_tr("The part on the bed is too tall to clear. Remove it, then tap Cleared.");
 }
 
 } // namespace helix

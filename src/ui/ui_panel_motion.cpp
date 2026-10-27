@@ -1533,7 +1533,7 @@ void MotionPanel::park_over_plate() {
 }
 
 void MotionPanel::notify_part_too_tall() {
-    NOTIFY_WARNING(lv_tr("The part on the bed is too tall to clear. Remove it, then tap Cleared."));
+    NOTIFY_WARNING(helix::part_too_tall_text());
 }
 
 // ============================================================================
@@ -1751,24 +1751,13 @@ void MotionPanel::refresh_bed_readout() {
                               ? helix::current_plate_lift(get_printer_state(),
                                                           move_sender_.target_start_z(current_z_))
                               : helix::PlateLift{};
-        if (lift.kind == helix::PlateLift::Kind::Lift) {
-            char z_buf[16];
-            char lift_buf[16];
-            format_axis_value(z_buf, sizeof(z_buf), show_actual_ ? live_z_ : current_z_);
-            format_distance_label(lift_buf, sizeof(lift_buf), static_cast<float>(lift.z));
+        const std::string lift_text =
+            helix::plate_lift_readout(show_actual_ ? live_z_ : current_z_, lift);
+        if (!lift_text.empty()) {
             if (!text.empty()) {
                 text += "  ";
             }
-            if (const auto part = helix::bed_part_height()) {
-                char part_buf[16];
-                format_distance_label(part_buf, sizeof(part_buf), static_cast<float>(*part));
-                text += fmt::format(
-                    fmt::runtime(lv_tr("Z {}, will lift to {}mm: last print is {}mm tall")), z_buf,
-                    lift_buf, part_buf);
-            } else {
-                text +=
-                    fmt::format(fmt::runtime(lv_tr("Z {}, will lift to {}mm")), z_buf, lift_buf);
-            }
+            text += lift_text;
         }
     }
     // Position frames arrive many times a second; most change nothing shown.
