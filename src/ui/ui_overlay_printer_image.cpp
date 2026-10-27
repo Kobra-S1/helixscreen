@@ -16,7 +16,9 @@
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
+#if HELIX_HAS_IMAGE_TAGGER
 #include "ui_overlay_printer_image_tagger.h"
+#endif
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
@@ -184,17 +186,21 @@ void PrinterImageOverlay::update_preview(const std::string& /*image_id*/,
 }
 
 void PrinterImageOverlay::update_tag_state() {
+    int state = 0;
+#if HELIX_HAS_IMAGE_TAGGER
     // Selecting an image makes it the displayed one, so the tag buttons act on
     // what the home widget shows.
     const auto target = displayed_image_tag_target();
-    int state = 0;
     if (target) {
         state =
             lookup_user_image_regions(target->key, target->natural_w, target->natural_h) ? 2 : 1;
     }
+#endif
+    // State 0 hides both tag buttons, which is all a build without the tagger shows.
     lv_subject_set_int(&tag_state_subject_, state);
 }
 
+#if HELIX_HAS_IMAGE_TAGGER
 void PrinterImageOverlay::handle_tag_parts() {
     const auto target = displayed_image_tag_target();
     if (!target) {
@@ -228,6 +234,11 @@ void PrinterImageOverlay::reset_tags(const std::string& key) {
     helix::PrinterImageManager::instance().notify_image_changed();
     update_tag_state();
 }
+#else
+void PrinterImageOverlay::handle_tag_parts() {}
+void PrinterImageOverlay::handle_reset_tags() {}
+void PrinterImageOverlay::reset_tags(const std::string&) {}
+#endif // HELIX_HAS_IMAGE_TAGGER
 
 std::string PrinterImageOverlay::get_preview_path_for_id(const std::string& image_id) {
     if (image_id.rfind("shipped:", 0) == 0) {

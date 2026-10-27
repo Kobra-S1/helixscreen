@@ -605,7 +605,6 @@ src/ui/ui_overlay_console_settings.cpp
 src/ui/ui_overlay_network_settings.cpp
 src/ui/ui_overlay_performance.cpp
 src/ui/ui_overlay_printer_image.cpp
-src/ui/ui_overlay_printer_image_tagger.cpp
 src/ui/ui_overlay_printer_type.cpp
 src/ui/ui_overlay_retraction_settings.cpp
 src/ui/ui_overlay_temp_graph.cpp

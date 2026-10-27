@@ -346,6 +346,7 @@ target_compile_definitions(main PRIVATE
     # The Belt Tension panel reads Klipper's /tmp results, so it needs the
     # screen co-located with Klipper.
     HELIX_HAS_BELT_TUNER=0
+    HELIX_HAS_IMAGE_TAGGER=1
     # FONT_SOURCES above globs every face under assets/fonts/*.c with no tier
     # filtering, so the 48/64pt and 32/40pt hi-DPI CJK rungs are linked into
     # libmain.so same as every other tier. Left undefined, HELIX_HAS_HIDPI_FONTS
