@@ -627,6 +627,7 @@ src/ui/ui_panel_filament.cpp
 src/ui/ui_panel_history_dashboard.cpp
 src/ui/ui_panel_history_list.cpp
 src/ui/ui_panel_home.cpp
+src/ui/ui_drag_surface.cpp
 src/ui/ui_panel_macros.cpp
 src/bed_grid.cpp
 src/motion_presets.cpp

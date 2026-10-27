@@ -5,6 +5,7 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_carousel.h"
+#include "ui_drag_surface.h"
 #include "ui_event_safety.h"
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
@@ -1101,23 +1102,14 @@ static bool should_suppress_edit_mode(lv_event_t* e) {
     if (indev && lv_indev_get_scroll_obj(indev))
         return true;
 
-    // Check if the original press target (before event bubbling) is an arc or
-    // slider — these widgets consume drag gestures for value adjustment, so a
-    // long hold on them should never trigger edit mode.
+    // The original press target (before event bubbling) on a drag surface: an
+    // arc, a slider, or a widget's mark_drag_surface() object consumes the drag,
+    // so a long hold on it never enters edit mode. The walk stops at the
+    // container that owns the event handler.
     lv_obj_t* target = lv_event_get_target_obj(e);
     if (!target)
         return false;
-    lv_obj_t* current = lv_event_get_current_target_obj(e);
-    while (target) {
-        if (lv_obj_has_class(target, &lv_arc_class) || lv_obj_has_class(target, &lv_slider_class))
-            return true;
-        // Stop at the container that owns the event handler
-        if (target == current)
-            break;
-        target = lv_obj_get_parent(target);
-    }
-
-    return false;
+    return helix::ui::is_drag_surface_hit(target, lv_event_get_current_target_obj(e));
 }
 
 bool HomePanel::finger_drifted_since_press() const {
