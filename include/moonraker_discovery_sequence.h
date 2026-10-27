@@ -210,6 +210,8 @@ class MoonrakerDiscoverySequence {
     }
 
   private:
+    friend class MoonrakerDiscoverySequenceTestAccess;
+
     /**
      * @brief Check if the current discovery sequence is stale
      *
