@@ -213,14 +213,9 @@ void FavoriteMacroConfigModal::populate_macro_list() {
         return;
     }
 
-    const auto& macros = api->hardware().macros();
-    std::vector<std::string> sorted(macros.begin(), macros.end());
-    std::sort(sorted.begin(), sorted.end());
+    const std::vector<std::string> sorted = helix::pickable_macro_names(api->hardware().macros());
 
     for (const auto& macro : sorted) {
-        if (!macro.empty() && macro[0] == '_')
-            continue;
-
         bool is_selected = (macro == macro_name_);
         std::string display = helix::get_display_name(macro, helix::DeviceType::MACRO);
 

@@ -46,4 +46,10 @@ void toolhead_preset_slots_to_config(const ToolheadPresetSlots& slots, nlohmann:
 /// Whether the slot needs every axis homed and the lift rule: Position, Park, ZUp, ZDown.
 [[nodiscard]] bool toolhead_slot_moves_toolhead(const ToolheadPresetSlot& slot);
 
+/// The slot's button text in the current language: the position or action, or the macro's
+/// display name. Empty for Kind::Empty.
+[[nodiscard]] std::string toolhead_preset_slot_label(const ToolheadPresetSlot& slot);
+/// The slot's icon name (ui_icon_codepoints.h). Empty for Kind::Empty.
+[[nodiscard]] const char* toolhead_preset_slot_icon(const ToolheadPresetSlot& slot);
+
 } // namespace helix

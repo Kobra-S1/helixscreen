@@ -17,6 +17,7 @@
 #include "bed_plate_draw.h"
 #include "display_numbering.h"
 #include "helix_psram_attr.h"
+#include "home_macro_run.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_error.h"
@@ -32,6 +33,7 @@
 #include "theme_manager.h"
 #include "tool_state.h"
 #include "toolhead_homing.h"
+#include "toolhead_preset_config_modal.h"
 #include "unit_conversions.h"
 #include "widget_subjects.h"
 
@@ -77,6 +79,15 @@ HELIX_PSRAM_BSS char s_z_text_buf[16];
 HELIX_PSRAM_BSS char s_tool_text_buf[32];
 HELIX_PSRAM_BSS char s_speed_text_buf[24];
 HELIX_PSRAM_BSS char s_ghost_text_buf[256];
+HELIX_PSRAM_BSS lv_subject_t s_show_presets_subject{};
+HELIX_PSRAM_BSS lv_subject_t s_chip_icon_only_subject{};
+HELIX_PSRAM_BSS lv_subject_t s_lift_text_subject{};
+HELIX_PSRAM_BSS char s_lift_text_buf[160];
+HELIX_PSRAM_BSS lv_subject_t s_preset_icon_subjects[helix::kToolheadPresetSlotCount]{};
+HELIX_PSRAM_BSS lv_subject_t s_preset_label_subjects[helix::kToolheadPresetSlotCount]{};
+HELIX_PSRAM_BSS lv_subject_t s_preset_state_subjects[helix::kToolheadPresetSlotCount]{};
+HELIX_PSRAM_BSS char s_preset_icon_bufs[helix::kToolheadPresetSlotCount][32];
+HELIX_PSRAM_BSS char s_preset_label_bufs[helix::kToolheadPresetSlotCount][64];
 helix::WidgetSubjects s_subjects{"ToolheadWidgetSubjects"};
 // The instance bound to the live tile. Only it publishes and acts: a transient
 // instance (a fits_at probe, a rebuild's outgoing widget) must not overwrite the
@@ -85,6 +96,16 @@ helix::LiveTileOwner<helix::ToolheadWidget> s_tile;
 
 constexpr const char* kHomedSubjectNames[3] = {"toolhead_homed_x", "toolhead_homed_y",
                                                "toolhead_homed_z"};
+constexpr const char* kPresetIconNames[helix::kToolheadPresetSlotCount] = {
+    "toolhead_preset_0_icon", "toolhead_preset_1_icon", "toolhead_preset_2_icon"};
+constexpr const char* kPresetLabelNames[helix::kToolheadPresetSlotCount] = {
+    "toolhead_preset_0_label", "toolhead_preset_1_label", "toolhead_preset_2_label"};
+/// 0 an empty slot (hidden), 1 inert (disabled), 2 live.
+constexpr const char* kPresetStateNames[helix::kToolheadPresetSlotCount] = {
+    "toolhead_preset_0_state", "toolhead_preset_1_state", "toolhead_preset_2_state"};
+constexpr int kSlotEmpty = 0;
+constexpr int kSlotInert = 1;
+constexpr int kSlotLive = 2;
 
 void toolhead_init_subjects() {
     s_subjects.ensure_init([] {
@@ -115,6 +136,18 @@ void toolhead_init_subjects() {
         UI_MANAGED_SUBJECT_INT(s_target_shown_subject, 0, "toolhead_target_shown", s_subjects);
         UI_MANAGED_SUBJECT_STRING(s_ghost_text_subject, s_ghost_text_buf, "", "toolhead_ghost_text",
                                   s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_show_presets_subject, 0, "toolhead_show_presets", s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_chip_icon_only_subject, 0, "toolhead_chip_icon_only", s_subjects);
+        UI_MANAGED_SUBJECT_STRING(s_lift_text_subject, s_lift_text_buf, "", "toolhead_lift_text",
+                                  s_subjects);
+        for (std::size_t i = 0; i < helix::kToolheadPresetSlotCount; ++i) {
+            UI_MANAGED_SUBJECT_STRING(s_preset_icon_subjects[i], s_preset_icon_bufs[i], "target",
+                                      kPresetIconNames[i], s_subjects);
+            UI_MANAGED_SUBJECT_STRING(s_preset_label_subjects[i], s_preset_label_bufs[i], "",
+                                      kPresetLabelNames[i], s_subjects);
+            UI_MANAGED_SUBJECT_INT(s_preset_state_subjects[i], kSlotEmpty, kPresetStateNames[i],
+                                   s_subjects);
+        }
     });
 }
 
@@ -197,6 +230,45 @@ helix::RungNeeds measure_needs() {
     needs.full = rung_box(std::max(values_row_w, plate_min + bar_w + col_gap) + comfort,
                           plate_min + row_gap + small_h + row_gap + footer_h + comfort + kSlackPx);
     return needs;
+}
+
+/// The height the preset row and its lift line add under the Full rung's content. Mirrors
+/// panel_widget_toolhead.xml: each slot is an icon over a font_small label (label pad_top
+/// space_xxs) in a button padded space_xxs top and bottom, then the lift line, each after
+/// the map's pad_row.
+int measure_presets_extra_h() {
+    const int row_gap = theme_manager_get_spacing("space_xxs");
+    const int pad = theme_manager_get_spacing("space_xxs");
+    const int border = theme_manager_get_spacing("border_width");
+    const int small_h = line_px(theme_manager_get_font("font_small"));
+    const int icon_h = line_px(theme_manager_get_font("icon_font_sm"));
+    constexpr int kSlackPx = 1;
+    const int button_h = icon_h + pad + small_h + 2 * pad + 2 * border;
+    return row_gap + button_h + row_gap + small_h + kSlackPx;
+}
+
+/// The Move-here chip with its label, measured off the built chip: the button's padding
+/// and border, its icon and label with the gap between, then the chip's gap and the
+/// dismiss button. 0 before the chip exists.
+int measure_labelled_chip_w(lv_obj_t* root) {
+    if (!root)
+        return 0;
+    lv_obj_t* chip = lv_obj_find_by_name(root, "toolhead_ghost_chip");
+    lv_obj_t* button = lv_obj_find_by_name(root, "toolhead_move_here");
+    lv_obj_t* dismiss = lv_obj_find_by_name(root, "toolhead_ghost_dismiss");
+    if (!chip || !button || !dismiss || lv_obj_get_child_count(button) == 0)
+        return 0;
+    // ui_button puts the icon first and the label last.
+    lv_obj_t* label = lv_obj_get_child(button, -1);
+    const lv_font_t* label_font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
+    const int icon_w = measure_text_px(helix::ui::icon::lookup_codepoint("cursor_move"),
+                                       theme_manager_get_font("icon_font_sm"));
+    const int button_w = lv_obj_get_style_space_left(button, LV_PART_MAIN) + icon_w +
+                         lv_obj_get_style_pad_column(button, LV_PART_MAIN) +
+                         measure_text_px(lv_tr("Move here"), label_font) +
+                         lv_obj_get_style_space_right(button, LV_PART_MAIN);
+    return button_w + lv_obj_get_style_pad_column(chip, LV_PART_MAIN) +
+           theme_manager_get_spacing("button_height_sm");
 }
 
 /// What the plate last drew, so an unchanged position costs no redraw.
@@ -444,6 +516,7 @@ ToolheadWidget::ToolheadWidget(PrinterState& printer_state)
                         // An ack moves where the next target starts, and with it the lift
                         // the readout announces.
                         publish_target_text();
+                        publish_lift_text();
                     },
                     [this](const MoonrakerError&) { gesture_.mark_failed(); }}),
       gesture_({[this](int x, int y) { return target_at(x, y); },
@@ -499,12 +572,15 @@ ToolheadVerdict ToolheadWidget::decide(int width_px, int height_px, bool printin
     in.printing = printing;
     in.homed = homed;
     in.needs = measure_needs();
+    in.presets_extra_h = measure_presets_extra_h();
+    in.labelled_chip_w = measure_labelled_chip_w(root());
+    in.wide_gap_w = theme_manager_get_spacing("space_xs");
     const auto& n = in.needs;
     spdlog::trace("[ToolheadWidget] box {}x{} chrome {}x{} needs g{}x{} s{}x{} c{}x{} cell{}x{} "
-                  "w{}x{} f{}x{}",
+                  "w{}x{} f{}x{} presets+{} chip{}",
                   width_px, height_px, chrome.w, chrome.h, n.glance.w, n.glance.h, n.strip.w,
                   n.strip.h, n.column.w, n.column.h, n.cell.w, n.cell.h, n.wide.w, n.wide.h,
-                  n.full.w, n.full.h);
+                  n.full.w, n.full.h, in.presets_extra_h, in.labelled_chip_w);
     return decide_toolhead_layout(in);
 }
 
@@ -633,13 +709,18 @@ void ToolheadWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
                 if (token.expired())
                     return;
                 self->refresh_outlines();
+                self->publish_lift_text();
             },
             occupancy->get_subjects_lifetime());
     }
     language_observer_ = ui::observe_language_change(this, [token](ToolheadWidget* self) {
         if (token.expired())
             return;
+        // The Move-here label's width decides whether the chip keeps it.
+        self->relayout_for_granted_size();
         self->publish_target_text();
+        self->publish_presets();
+        self->publish_lift_text();
     });
 
     resolve_bed();
@@ -700,11 +781,12 @@ void ToolheadWidget::on_size_changed(int /*colspan*/, int /*rowspan*/, int width
         schedule_refresh();
 
     spdlog::debug("[ToolheadWidget] on_size_changed {}x{} rung={} letters={} z_only={} rows={} "
-                  "plate={} home={} status={} fits={} printing={} homed={}",
+                  "plate={} home={} status={} presets={} chip_icon_only={} fits={} printing={} "
+                  "homed={}",
                   width_px, height_px, static_cast<int>(verdict_.rung), verdict_.show_letters,
                   verdict_.show_z_only, verdict_.show_rows, verdict_.show_plate,
-                  verdict_.show_home_button, verdict_.show_status_row, verdict_.fits, live.printing,
-                  live.homed_all);
+                  verdict_.show_home_button, verdict_.show_status_row, verdict_.show_presets,
+                  verdict_.chip_icon_only, verdict_.fits, live.printing, live.homed_all);
 }
 
 bool ToolheadWidget::fits_at(int width_px, int height_px) const {
@@ -723,6 +805,8 @@ void ToolheadWidget::publish_state(const LiveState& live) {
     set_int_if_changed(&s_show_plate_subject, verdict_.show_plate ? 1 : 0);
     set_int_if_changed(&s_show_home_subject, verdict_.show_home_button ? 1 : 0);
     set_int_if_changed(&s_show_status_subject, verdict_.show_status_row ? 1 : 0);
+    set_int_if_changed(&s_show_presets_subject, verdict_.show_presets ? 1 : 0);
+    set_int_if_changed(&s_chip_icon_only_subject, verdict_.chip_icon_only ? 1 : 0);
     for (int i = 0; i < 3; ++i)
         set_int_if_changed(&s_homed_subjects[i], live.homed[i] ? 1 : 0);
     publish_values(live);
@@ -794,6 +878,7 @@ void ToolheadWidget::refresh() {
     resolve_bed();
     if (gesture_.dragging() || ghost_)
         publish_target_text();
+    publish_lift_text();
     auto* view = static_cast<PlateView*>(lv_obj_get_user_data(plate_));
     const int w = lv_obj_get_width(plate_);
     const int h = lv_obj_get_height(plate_);
@@ -894,6 +979,141 @@ void ToolheadWidget::publish_interaction() {
     }
     set_int_if_changed(&s_plate_interactive_subject, interactive ? 1 : 0);
     publish_target_text();
+    publish_presets();
+    publish_lift_text();
+}
+
+void ToolheadWidget::publish_presets() {
+    if (!s_tile.is_owner(this))
+        return;
+    const bool moves_ok = plate_interactive();
+    const bool api_ok = get_moonraker_api() != nullptr;
+    for (std::size_t i = 0; i < slots_.size(); ++i) {
+        const ToolheadPresetSlot& slot = slots_[i];
+        int state = kSlotEmpty;
+        if (slot.kind == ToolheadPresetSlot::Kind::Macro)
+            state = api_ok ? kSlotLive : kSlotInert;
+        else if (toolhead_slot_moves_toolhead(slot))
+            state = moves_ok ? kSlotLive : kSlotInert;
+        if (state != kSlotEmpty) {
+            copy_string_if_changed(&s_preset_icon_subjects[i], toolhead_preset_slot_icon(slot));
+            copy_string_if_changed(&s_preset_label_subjects[i],
+                                   toolhead_preset_slot_label(slot).c_str());
+        }
+        set_int_if_changed(&s_preset_state_subjects[i], state);
+    }
+}
+
+void ToolheadWidget::publish_lift_text() {
+    if (!s_tile.is_owner(this))
+        return;
+    std::string text;
+    if (verdict_.show_presets && plate_interactive()) {
+        const double z = current_z_mm();
+        const PlateLift lift = current_plate_lift(printer_state_, move_sender_.target_start_z(z));
+        text = lift.kind == PlateLift::Kind::Refuse ? std::string(part_too_tall_text())
+                                                    : plate_lift_readout(z, lift);
+    }
+    copy_string_if_changed(&s_lift_text_subject, text.c_str());
+}
+
+void ToolheadWidget::set_config(const nlohmann::json& config) {
+    config_ = config.is_object() ? config : nlohmann::json::object();
+    slots_ = toolhead_preset_slots_from_config(config_);
+    publish_presets();
+}
+
+bool ToolheadWidget::on_edit_configure() {
+    spdlog::info("[ToolheadWidget] Configure requested - showing the preset picker");
+    config_modal_ = std::make_unique<ToolheadPresetConfigModal>(
+        slots_, [this](const ToolheadPresetSlots& slots) { save_slots(slots); });
+    config_modal_->show(lv_screen_active());
+    return false;
+}
+
+void ToolheadWidget::save_slots(const ToolheadPresetSlots& slots) {
+    slots_ = slots;
+    toolhead_preset_slots_to_config(slots_, config_);
+    save_widget_config(config_);
+    publish_presets();
+}
+
+void ToolheadWidget::run_preset(std::size_t index) {
+    if (!s_tile.is_owner(this) || !verdict_.show_presets || index >= slots_.size())
+        return;
+    const ToolheadPresetSlot slot = slots_[index];
+    if (slot.kind == ToolheadPresetSlot::Kind::Empty)
+        return;
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (slot.kind == ToolheadPresetSlot::Kind::Macro) {
+        record_interaction();
+        run_home_macro(api, {slot.macro, true, parent_screen_, "ToolheadWidget"});
+        return;
+    }
+    if (!plate_interactive())
+        return;
+    record_interaction();
+    switch (slot.kind) {
+    case ToolheadPresetSlot::Kind::Position: {
+        // Computed at tap time: the bounds can change between the tile drawing and the tap.
+        const auto plate = current_bed_plate(printer_state_, api);
+        const auto target = plate
+                                ? motion_preset_target(slot.position, plate->area, plate->circular)
+                                : std::nullopt;
+        if (!target) {
+            NOTIFY_INFO(lv_tr("Axis limits unknown"));
+            return;
+        }
+        gesture_.send_once(*target);
+        return;
+    }
+    case ToolheadPresetSlot::Kind::Park:
+        park();
+        return;
+    case ToolheadPresetSlot::Kind::ZUp:
+        step_z(kToolheadZStepMm);
+        return;
+    case ToolheadPresetSlot::Kind::ZDown:
+        step_z(-kToolheadZStepMm);
+        return;
+    case ToolheadPresetSlot::Kind::Empty:
+    case ToolheadPresetSlot::Kind::Macro:
+        return;
+    }
+}
+
+void ToolheadWidget::park() {
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (run_park_toolhead_macro(api, lifetime_, "ToolheadWidget::park_failed"))
+        return;
+    // Park's own lift rule, not the plate's: the target already carries its Z.
+    const auto park =
+        park_over_plate_target(printer_state_, api, move_sender_.target_start_z(current_z_mm()));
+    switch (park.kind) {
+    case ParkOverPlate::Kind::Unknown:
+        NOTIFY_INFO(lv_tr("Axis limits unknown"));
+        return;
+    case ParkOverPlate::Kind::Refuse:
+        MotionPanel::notify_part_too_tall();
+        return;
+    case ParkOverPlate::Kind::Move:
+        send_plate_target(park.target);
+        return;
+    }
+}
+
+void ToolheadWidget::step_z(double delta_mm) {
+    const double current = current_z_mm();
+    double z = move_sender_.target_start_z(current) + delta_mm;
+    if (delta_mm < 0.0)
+        z = clamp_z_down_to_current_floor(z);
+    const AxisBounds bounds = move_clamp_bounds(printer_state_);
+    if (bounds.has_z)
+        z = std::clamp(z, static_cast<double>(bounds.z_min), static_cast<double>(bounds.z_max));
+    AxisTarget target;
+    target.z = z;
+    spdlog::info("[ToolheadWidget] Z step {:+.1f} to Z{:.2f}", delta_mm, z);
+    move_sender_.send_target(get_moonraker_api(), target, bounds, current);
 }
 
 void ToolheadWidget::publish_target_text() {
@@ -1091,6 +1311,15 @@ void plate_touch_cb(lv_event_t* e, helix::BedTouch phase) {
         owner->handle_plate_touch(phase, point);
 }
 
+/// A preset slot's CLICKED. A slot tap is not a tap on the tile, which opens Motion.
+template <std::size_t Index> void preset_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[ToolheadWidget] preset_cb");
+    lv_event_stop_bubbling(e);
+    if (auto* owner = s_tile.owner())
+        owner->run_preset(Index);
+    LVGL_SAFE_EVENT_CB_END();
+}
+
 } // namespace
 
 namespace helix {
@@ -1137,6 +1366,10 @@ void register_toolhead_widget() {
             occupancy->mark_cleared();
         LVGL_SAFE_EVENT_CB_END();
     });
+    lv_xml_register_event_cb(nullptr, "toolhead_preset_0_cb", preset_cb<0>);
+    lv_xml_register_event_cb(nullptr, "toolhead_preset_1_cb", preset_cb<1>);
+    lv_xml_register_event_cb(nullptr, "toolhead_preset_2_cb", preset_cb<2>);
+    register_toolhead_preset_config();
     lv_xml_register_event_cb(nullptr, "toolhead_home_all_cb", [](lv_event_t* e) {
         LVGL_SAFE_EVENT_CB_BEGIN("[ToolheadWidget] home_all_cb");
         // A button tap is not a tap on the tile, which opens the Motion panel.

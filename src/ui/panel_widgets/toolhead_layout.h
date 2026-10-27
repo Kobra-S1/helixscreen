@@ -28,6 +28,11 @@ struct ToolheadInput {
     /// Height the preset row adds below the Full rung's content. The row shows only when
     /// the box holds Full plus this much, so a 2x2 keeps its plate and a 2x3 gains the row.
     int presets_extra_h = 0;
+    /// The Move-here chip with its label, and the gap Wide leaves between the plate and
+    /// the values (the two share Wide's row equally). The chip drops its label on a plate
+    /// box narrower than it; 0 leaves the label on.
+    int labelled_chip_w = 0;
+    int wide_gap_w = 0;
 };
 
 /// The published verdict. `rung` is SizeRung's int; the flags are 0/1 subjects.
@@ -42,7 +47,14 @@ struct ToolheadVerdict {
     bool show_home_button = false; ///< Full, idle, and an axis is not homed
     bool show_status_row = false;  ///< Full while printing: active tool and live speed
     bool show_presets = false;     ///< Full with presets_extra_h to spare, printing or not
+    bool chip_icon_only = false;   ///< the plate is narrower than the labelled Move-here chip
 };
+
+/// The width of the box the plate draws in at @p rung: half the row at Wide, where the
+/// values sit beside it, the whole width above.
+[[nodiscard]] constexpr int toolhead_plate_box_w(const ToolheadInput& in, SizeRung rung) {
+    return rung == SizeRung::Wide ? (in.content_w - in.wide_gap_w) / 2 : in.content_w;
+}
 
 [[nodiscard]] constexpr ToolheadVerdict decide_toolhead_layout(const ToolheadInput& in) {
     ToolheadVerdict v;
@@ -58,6 +70,8 @@ struct ToolheadVerdict {
     v.show_status_row = v.rung == SizeRung::Full && in.printing;
     v.show_presets = v.rung == SizeRung::Full && in.presets_extra_h > 0 &&
                      in.content_h >= in.needs.full.h + in.presets_extra_h;
+    v.chip_icon_only = v.show_plate && in.labelled_chip_w > 0 &&
+                       toolhead_plate_box_w(in, v.rung) < in.labelled_chip_w;
     return v;
 }
 

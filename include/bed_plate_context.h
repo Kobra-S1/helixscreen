@@ -15,6 +15,7 @@
 
 namespace helix {
 
+class AsyncLifetimeGuard;
 class IMoonrakerAPI;
 class PrinterState;
 
@@ -50,6 +51,31 @@ inline constexpr double kParkZLiftMm = 10.0;
 /// (a part too tall to clear); Kind::None when Z bounds are unknown or the cap leaves no
 /// rise. Shared by the Move tab's Park and the home Toolhead widget's Park slot.
 [[nodiscard]] PlateLift park_plate_lift(const PrinterState& ps, double current_z);
+
+/// Park with no ParkToolhead macro: plate_rear_park() with park_plate_lift() applied.
+struct ParkOverPlate {
+    enum class Kind {
+        Unknown, ///< no plate area to park over: "Axis limits unknown"
+        Refuse,  ///< a part too tall to clear: part_too_tall_text()
+        Move,    ///< send `target`
+    };
+    Kind kind = Kind::Unknown;
+    AxisTarget target;
+};
+
+/// Where Park goes over the plate for a move starting at @p start_z. Shared by the Move
+/// tab's Park and the home Toolhead widget's Park slot.
+[[nodiscard]] ParkOverPlate park_over_plate_target(const PrinterState& ps, IMoonrakerAPI* api,
+                                                   double start_z);
+
+/// Run the ParkToolhead standard macro with its Running / complete / failed notices.
+/// Returns false, having done nothing, when none is configured: the caller parks over the
+/// plate instead. @p lifetime guards the failure callback.
+bool run_park_toolhead_macro(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime, const char* tag);
+
+/// clamp_z_down_to_floor() with the clearance setting and the bed-occupancy part height:
+/// a downward Z step never ends below the floor while a part may be on the bed.
+[[nodiscard]] double clamp_z_down_to_current_floor(double target_z);
 
 /// The sentence announcing @p lift before a move made at @p shown_z: "Z 0.20, will lift to
 /// 43mm", plus the part's height when a part on the bed raised it. Empty unless the lift is

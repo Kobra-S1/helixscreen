@@ -1493,20 +1493,8 @@ void MotionPanel::handle_park() {
     if (!api || !helix::plate_moves_allowed(get_printer_state())) {
         return;
     }
-    const auto info = StandardMacros::instance().get(StandardMacroSlot::ParkToolhead);
-    if (info.is_empty()) {
+    if (!helix::run_park_toolhead_macro(api, lifetime_, "MotionPanel::park_failed")) {
         park_over_plate();
-        return;
-    }
-    const std::string name = info.translated_name();
-    NOTIFY_INFO(lv_tr("Running {}..."), name.c_str());
-    if (!StandardMacros::instance().execute(
-            StandardMacroSlot::ParkToolhead, api, {},
-            [name]() { NOTIFY_SUCCESS(lv_tr("{} complete"), name.c_str()); },
-            lifetime_.bg_cb("MotionPanel::park_failed", [](const MoonrakerError& err) {
-                NOTIFY_ERROR(lv_tr("Macro failed: {}"), clean_gcode_error(err.localized_message()));
-            }))) {
-        NOTIFY_WARNING(lv_tr("{} macro not configured"), name.c_str());
     }
 }
 
@@ -1514,22 +1502,19 @@ void MotionPanel::park_over_plate() {
     if (!get_moonraker_api() || !helix::plate_moves_allowed(get_printer_state())) {
         return;
     }
-    const auto plate = helix::current_bed_plate(get_printer_state(), get_moonraker_api());
-    auto target = plate ? helix::plate_rear_park(plate->area) : std::nullopt;
-    if (!target) {
+    const auto park = helix::park_over_plate_target(get_printer_state(), get_moonraker_api(),
+                                                    move_sender_.target_start_z(current_z_));
+    switch (park.kind) {
+    case helix::ParkOverPlate::Kind::Unknown:
         NOTIFY_INFO(lv_tr("Axis limits unknown"));
         return;
-    }
-    const auto lift =
-        helix::park_plate_lift(get_printer_state(), move_sender_.target_start_z(current_z_));
-    if (lift.kind == helix::PlateLift::Kind::Refuse) {
+    case helix::ParkOverPlate::Kind::Refuse:
         notify_part_too_tall();
         return;
+    case helix::ParkOverPlate::Kind::Move:
+        dispatch_target(park.target);
+        return;
     }
-    if (lift.kind == helix::PlateLift::Kind::Lift) {
-        target->z = lift.z;
-    }
-    dispatch_target(*target);
 }
 
 void MotionPanel::notify_part_too_tall() {

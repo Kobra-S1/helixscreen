@@ -2,12 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "bed_plate_context.h"
 
+#include "ui_error_reporting.h"
+
+#include "async_lifetime_guard.h"
 #include "bed_occupancy_state.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "standard_macros.h"
 #include "toolhead_homing.h"
+#include "toolhead_move_sender.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -77,6 +82,50 @@ PlateLift park_plate_lift(const PrinterState& ps, double current_z) {
         return {};
     }
     return {PlateLift::Kind::Lift, z};
+}
+
+ParkOverPlate park_over_plate_target(const PrinterState& ps, IMoonrakerAPI* api, double start_z) {
+    ParkOverPlate park;
+    const auto plate = current_bed_plate(ps, api);
+    const auto target = plate ? plate_rear_park(plate->area) : std::nullopt;
+    if (!target) {
+        return park;
+    }
+    const PlateLift lift = park_plate_lift(ps, start_z);
+    if (lift.kind == PlateLift::Kind::Refuse) {
+        park.kind = ParkOverPlate::Kind::Refuse;
+        return park;
+    }
+    park.kind = ParkOverPlate::Kind::Move;
+    park.target = *target;
+    if (lift.kind == PlateLift::Kind::Lift) {
+        park.target.z = lift.z;
+    }
+    return park;
+}
+
+bool run_park_toolhead_macro(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime, const char* tag) {
+    const auto info = StandardMacros::instance().get(StandardMacroSlot::ParkToolhead);
+    if (info.is_empty()) {
+        return false;
+    }
+    const std::string name = info.translated_name();
+    NOTIFY_INFO(lv_tr("Running {}..."), name.c_str());
+    if (!StandardMacros::instance().execute(
+            StandardMacroSlot::ParkToolhead, api, {},
+            [name]() { NOTIFY_SUCCESS(lv_tr("{} complete"), name.c_str()); },
+            lifetime.bg_cb(tag, [](const MoonrakerError& err) {
+                NOTIFY_ERROR(lv_tr("Macro failed: {}"), clean_gcode_error(err.localized_message()));
+            }))) {
+        NOTIFY_WARNING(lv_tr("{} macro not configured"), name.c_str());
+    }
+    return true;
+}
+
+double clamp_z_down_to_current_floor(double target_z) {
+    return clamp_z_down_to_floor(
+        target_z, static_cast<double>(SettingsManager::instance().get_bed_map_clearance_mm()),
+        bed_part_height());
 }
 
 namespace {

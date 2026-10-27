@@ -402,6 +402,7 @@ src/ui/queued_job_start.cpp
 src/ui/keyboard_layout_provider.cpp
 src/ui/layout_port.cpp
 src/ui/light_button_config.cpp
+src/ui/home_macro_run.cpp
 src/ui/i18n_plural.cpp
 src/ui/locale_formats.cpp
 src/ui/printer_discovery_list.cpp
@@ -410,6 +411,7 @@ src/ui/modals/camera_config_modal.cpp
 src/ui/modals/clog_detection_config_modal.cpp
 src/ui/modals/favorite_macro_config_modal.cpp
 src/ui/modals/macro_param_modal.cpp
+src/ui/modals/toolhead_preset_config_modal.cpp
 src/ui/modals/ui_preflight_check_modal.cpp
 src/ui/observer_factory.cpp
 src/ui/operation_timeout_guard.cpp
@@ -465,6 +467,7 @@ src/ui/panel_widgets/temp_graph_widget.cpp
 src/ui/panel_widgets/temp_stack_widget.cpp
 src/ui/panel_widgets/thermistor_widget.cpp
 src/ui/panel_widgets/tips_widget.cpp
+src/ui/panel_widgets/toolhead_preset_slots.cpp
 src/ui/panel_widgets/toolhead_widget.cpp
 src/ui/panel_widgets/tool_switcher_widget.cpp
 src/ui/panel_widgets/width_sensor_widget.cpp

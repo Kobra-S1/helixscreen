@@ -12,12 +12,15 @@
 #include "src/ui/panel_widgets/toolhead_layout.h"
 #include "src/ui/panel_widgets/toolhead_plate.h"
 #include "toolhead_move_sender.h"
+#include "toolhead_preset_slots.h"
 
+#include <memory>
 #include <optional>
 
 namespace helix {
 
 class PrinterState;
+class ToolheadPresetConfigModal;
 
 /// Home widget for the toolhead's position and homing. Measures what each rung would
 /// draw, decides the rung with decide_toolhead_layout(), and publishes the verdict and
@@ -29,6 +32,10 @@ class PrinterState;
 /// sends, and a drag moves the head live, both through the BedPlateGesture and the lift
 /// rule the Motion panel's Bed tab uses. A tap on the Z bar or beside the plate, or on an
 /// inert plate, still opens the Motion panel.
+///
+/// A Full tile with room to spare (a 2x3) adds a row of three configurable preset slots
+/// under the plate and a line saying what lift the next move takes; the edit-mode gear
+/// configures the slots.
 class ToolheadWidget : public PanelWidget {
   public:
     explicit ToolheadWidget(PrinterState& printer_state);
@@ -43,6 +50,24 @@ class ToolheadWidget : public PanelWidget {
     }
 
     static void clicked_cb(lv_event_t* e);
+
+    void set_config(const nlohmann::json& config) override;
+    bool has_edit_configure() const override {
+        return true;
+    }
+    bool on_edit_configure() override;
+
+    /// Run preset slot @p index: a position or Park through the plate's lift rule, a Z
+    /// step, or a macro. Does nothing unless the row is on screen, and a slot that moves
+    /// the toolhead does nothing while the plate is inert.
+    void run_preset(std::size_t index);
+    [[nodiscard]] const ToolheadPresetSlots& preset_slots() const {
+        return slots_;
+    }
+    /// The open preset picker, or nullptr.
+    [[nodiscard]] ToolheadPresetConfigModal* preset_config_modal() const {
+        return config_modal_.get();
+    }
 
     /// Send G28. Does nothing unless Home All is on screen, which it is only while
     /// idle with an axis not homed.
@@ -95,6 +120,11 @@ class ToolheadWidget : public PanelWidget {
     void refresh_outlines();
     void publish_interaction();
     void publish_target_text();
+    void publish_presets();
+    void publish_lift_text();
+    void save_slots(const ToolheadPresetSlots& slots);
+    void step_z(double delta_mm);
+    void park();
     void set_ghost(const AxisTarget& target);
     void send_plate_target(const AxisTarget& target);
     void invalidate_plate();
@@ -125,6 +155,9 @@ class ToolheadWidget : public PanelWidget {
     /// The press in progress was taken by the gesture, so its CLICKED stops at the plate.
     bool press_taken_ = false;
     std::optional<AxisTarget> ghost_;
+    ToolheadPresetSlots slots_ = default_toolhead_preset_slots();
+    nlohmann::json config_ = nlohmann::json::object();
+    std::unique_ptr<ToolheadPresetConfigModal> config_modal_;
 
     ObserverGuard homed_observer_;
     ObserverGuard print_active_observer_;
