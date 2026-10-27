@@ -37,6 +37,8 @@
 
 #pragma once
 
+#include "gcode_projection.h"
+
 namespace helix {
 namespace gcode {
 
@@ -98,33 +100,81 @@ constexpr int ghost_sample_budget(int resolvable_rows) {
     return resolvable_rows;
 }
 
+/// Index-scan throughput below which a board is treated as CPU-poor, in MB of
+/// G-code per CPU second. A dual Cortex-A7 (CC1, K2) scans about 10; a Pi 4
+/// several times that; a desktop hundreds.
+inline constexpr double kWeakIndexRateMbPerCpuS = 40.0;
+
 /**
- * @brief Decide the ghost pass's layer budget for one file.
+ * @brief Ghost samples per screen row of the model's Z extent on this board.
  *
- * @param total_layers    Layer count from the index/parse. May be 0 before an
- *                        index exists; a negative can only be an upstream bug,
- *                        and is treated as empty rather than propagated into a
- *                        loop bound.
- * @param streaming       True when layers come from GCodeStreamingController
- *                        (each visit is a disk seek and parse), false for a
- *                        resident ParsedGCodeFile (a pointer dereference).
- * @param resolvable_rows Height of the ghost buffer in pixels - the most layers
- *                        the projection can draw distinguishably.
- * @return The stride and the number of layers to visit.
+ * One sample a row is gap-free and differs from drawing every layer in about
+ * 0.1% of pixels (a faint speckle on some top faces); two closes most of that
+ * at twice the cost. A board that scanned the file's index slower than
+ * kWeakIndexRateMbPerCpuS takes one, as does one whose rate is unknown (0).
  *
- * @note In streaming mode the returned `count` is guaranteed >=
- *       ghost_sample_budget(resolvable_rows) (so no row the model occupies can
- *       be skipped) and < twice it, and `step * (count - 1)` lands within one
- *       stride of the top layer, so the sample spans the model's full height
- *       rather than trailing off partway up.
+ * @param index_mb_per_cpu_s GCodeStreamingController::index_throughput_mb_per_cpu_s().
  */
-constexpr GhostSamplePlan plan_ghost_sampling(int total_layers, bool streaming,
-                                              int resolvable_rows) {
+constexpr int ghost_samples_per_z_row(double index_mb_per_cpu_s) {
+    return index_mb_per_cpu_s >= kWeakIndexRateMbPerCpuS ? 2 : 1;
+}
+
+/// Floor on a model-derived budget. Below the canvas floor because the model's
+/// rows are known here: a 2mm-tall part spans a row or two, and drawing it from
+/// 64 layers paints the same pixels 30 times over.
+inline constexpr int kGhostMinModelSamples = 16;
+
+/// Screen rows a Z span of @p z_span_mm covers in the FRONT view at @p scale
+/// pixels per millimetre: Z rises by cos(45deg) per unit (see gcode_projection.h).
+constexpr float front_view_z_rows(float z_span_mm, float scale) {
+    return z_span_mm > 0.0f && scale > 0.0f ? z_span_mm * projection::kCosE * scale : 0.0f;
+}
+
+/**
+ * @brief Layer budget for a model whose Z extent spans @p z_rows screen rows.
+ *
+ * In the FRONT view consecutive layers sit a fraction of a row apart, so each
+ * one is painted over by the next everywhere but a sliver of its front edge.
+ * The rows the model's own height spans are what can be resolved, which for a
+ * flat plate is a small fraction of the canvas. @p samples_per_row per row
+ * (ghost_samples_per_z_row()), never below kGhostMinModelSamples and never
+ * above the canvas rule.
+ *
+ * @param canvas_rows     Ghost buffer height in pixels (the canvas rule's input).
+ * @param z_rows          front_view_z_rows() of the model; 0 or less when
+ *                        unknown, which falls back to the canvas rule.
+ * @param samples_per_row Samples per row of Z extent; below 1 counts as 1.
+ */
+constexpr int ghost_model_budget(int canvas_rows, float z_rows, int samples_per_row) {
+    const int canvas_budget = ghost_sample_budget(canvas_rows);
+    if (!(z_rows > 0.0f)) {
+        return canvas_budget;
+    }
+    const float wanted_f = z_rows * static_cast<float>(samples_per_row < 1 ? 1 : samples_per_row);
+    int wanted = static_cast<int>(wanted_f);
+    if (static_cast<float>(wanted) < wanted_f) {
+        ++wanted;
+    }
+    if (wanted < kGhostMinModelSamples) {
+        wanted = kGhostMinModelSamples;
+    }
+    return wanted < canvas_budget ? wanted : canvas_budget;
+}
+
+/**
+ * @brief Decide the ghost pass's stride for one file against an explicit budget.
+ *
+ * The stride rule of plan_ghost_sampling() with the budget supplied by the
+ * caller, so a budget derived from the model (ghost_model_budget()) shares it.
+ * A budget below 1 is treated as 1.
+ */
+constexpr GhostSamplePlan plan_ghost_sampling_budget(int total_layers, bool streaming, int budget) {
     if (total_layers <= 0) {
         return {1, 0};
     }
-
-    const int budget = ghost_sample_budget(resolvable_rows);
+    if (budget < 1) {
+        budget = 1;
+    }
 
     // Resident parse, or few enough layers that striding would only cost
     // fidelity: visit all of them.
@@ -147,6 +197,32 @@ constexpr GhostSamplePlan plan_ghost_sampling(int total_layers, bool streaming,
     const int step = total_layers / budget;
     const int count = (total_layers + step - 1) / step;
     return {step, count};
+}
+
+/**
+ * @brief Decide the ghost pass's layer budget for one file.
+ *
+ * @param total_layers    Layer count from the index/parse. May be 0 before an
+ *                        index exists; a negative can only be an upstream bug,
+ *                        and is treated as empty rather than propagated into a
+ *                        loop bound.
+ * @param streaming       True when layers come from GCodeStreamingController
+ *                        (each visit is a disk seek and parse), false for a
+ *                        resident ParsedGCodeFile (a pointer dereference).
+ * @param resolvable_rows Height of the ghost buffer in pixels - the most layers
+ *                        the projection can draw distinguishably.
+ * @return The stride and the number of layers to visit.
+ *
+ * @note In streaming mode the returned `count` is guaranteed >=
+ *       ghost_sample_budget(resolvable_rows) (so no row the model occupies can
+ *       be skipped) and < twice it, and `step * (count - 1)` lands within one
+ *       stride of the top layer, so the sample spans the model's full height
+ *       rather than trailing off partway up.
+ */
+constexpr GhostSamplePlan plan_ghost_sampling(int total_layers, bool streaming,
+                                              int resolvable_rows) {
+    return plan_ghost_sampling_budget(total_layers, streaming,
+                                      ghost_sample_budget(resolvable_rows));
 }
 
 } // namespace gcode

@@ -18,26 +18,23 @@ std::optional<SaverLevelEntry> parse_level_entry(const nlohmann::json* node) {
     }
     const auto level = node->find("level");
     const auto too_heavy = node->find("too_heavy");
-    const auto version = node->find("version");
-    const auto board = node->find("board");
+    const auto key = parse_measurement_key(*node);
     if (level == node->end() || !level->is_number_unsigned() || too_heavy == node->end() ||
-        !too_heavy->is_boolean() || version == node->end() || !version->is_string() ||
-        board == node->end() || !board->is_string()) {
+        !too_heavy->is_boolean() || !key) {
         return std::nullopt;
     }
     SaverLevelEntry entry;
     entry.level = level->get<size_t>();
     entry.too_heavy = too_heavy->get<bool>();
-    entry.version = version->get<std::string>();
-    entry.board = board->get<std::string>();
+    entry.version = key->version;
+    entry.board = key->board;
     return entry;
 }
 
 nlohmann::json level_entry_json(const SaverLevelEntry& entry) {
-    return nlohmann::json{{"level", entry.level},
-                          {"too_heavy", entry.too_heavy},
-                          {"version", entry.version},
-                          {"board", entry.board}};
+    nlohmann::json node{{"level", entry.level}, {"too_heavy", entry.too_heavy}};
+    write_measurement_key(node, {entry.board, entry.version});
+    return node;
 }
 
 SaverLevelEntry start_entry(const std::optional<SaverLevelEntry>& stored,

@@ -140,7 +140,7 @@ struct LayerIndexStats {
     ///
     /// Unlike ParsedGCodeFile::tools_used_indices this does NOT inject {0} for a
     /// single-extruder file that carries only a colour palette; consumers that
-    /// want that convention apply it themselves (ui_gcode_viewer_get_tools_used
+    /// want that convention apply it themselves (helix::ui::gcode_viewer_get_tools_used
     /// does), matching scan_tools_used_from_file()'s documented behaviour.
     std::set<int> tools_used;
     /// Scheduled pauses (M600 / PAUSE / M601 / M0) and layer marks with their

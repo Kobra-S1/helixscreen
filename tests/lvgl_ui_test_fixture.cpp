@@ -139,7 +139,7 @@ void LVGLUITestFixture::register_widgets() {
     ui_severity_card_register();
     ui_dialog_register();
     ui_bed_mesh_register();
-    ui_gcode_viewer_register();
+    helix::ui::gcode_viewer_register();
     ui_gradient_canvas_register();
     // Grouped-list card used by every settings-style overlay
     setting_group_register();

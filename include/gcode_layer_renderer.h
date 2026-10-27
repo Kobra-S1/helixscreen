@@ -371,6 +371,25 @@ class GCodeLayerRenderer {
     bool is_ghost_build_running() const;
 
     /**
+     * @brief Build the ghost now and return when it is finished.
+     *
+     * The same pass the UI runs on its background worker, waited for on the
+     * calling thread. For measurement (`helix-screen bench-gcode`); the UI never
+     * blocks on it. Main thread only, like everything that starts the worker.
+     * @return true when a ghost was built, false when there was nothing to build.
+     */
+    bool build_ghost_blocking();
+
+    /**
+     * @brief The ghost build_ghost_blocking() produced, copied out.
+     *
+     * Rows of ARGB8888 pixels (stride width * 4), before the translucent blit.
+     * Empty when no finished ghost is waiting. For measurement, like
+     * build_ghost_blocking().
+     */
+    std::vector<uint8_t> copy_ghost_pixels(int& width, int& height) const;
+
+    /**
      * @brief The viewer's reveal gate: is there real content on the canvas?
      *
      * reveal_ready_2d() over this renderer's own state. True once the ghost
@@ -957,6 +976,15 @@ class GCodeLayerRenderer {
         bool show_supports = true;
         int line_width = 1;
         int layer_count = 0;
+
+        /// Screen rows the model's Z extent spans in this transform
+        /// (front_view_z_rows()), or 0 when unknown or not a FRONT view. Sets the
+        /// streamed ghost's sampling budget.
+        float model_z_rows = 0.0f;
+
+        /// Ghost samples per row of that extent (ghost_samples_per_z_row()),
+        /// from how fast this board scanned the file's index.
+        int samples_per_z_row = 1;
 
         /// Selection colors. Captured like everything else here because reading
         /// the tokens walks LVGL's const registry, which the worker must not do.

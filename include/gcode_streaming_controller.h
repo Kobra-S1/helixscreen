@@ -427,6 +427,46 @@ class GCodeStreamingController {
      */
     size_t get_file_size() const;
 
+    /**
+     * @brief How fast this board scanned the open file's layer index, in MB of
+     *        G-code per CPU second of the scanning thread.
+     *
+     * A direct measure of the CPU the preview runs on, from a finished scan or
+     * one the cost guard stopped (over the share it read). 0 before any scan,
+     * for an index read from the plugin's sidecar (no scan ran), and for a scan
+     * shorter than kMinRateSampleBytes and kMinRateSampleCpuS, which is mostly
+     * fixed cost.
+     */
+    static constexpr uint64_t kMinRateSampleBytes = 8ull * 1024 * 1024;
+    static constexpr double kMinRateSampleCpuS = 0.25;
+
+    double index_throughput_mb_per_cpu_s() const {
+        return index_mb_per_cpu_s_.load(std::memory_order_relaxed);
+    }
+
+    /**
+     * @brief Consulted as the index scan progresses: return false to stop it.
+     *
+     * Receives the share of the file scanned and the scanning thread's CPU
+     * seconds so far. Set before open_file()/open_file_async(); it runs on the
+     * scanning thread, so it must read nothing the main thread writes. A scan it
+     * stops fails like any other, and index_abandoned_for_cost() says why.
+     */
+    using IndexCostGuard = std::function<bool(float fraction, double cpu_s)>;
+    void set_index_cost_guard(IndexCostGuard guard) {
+        index_cost_guard_ = std::move(guard);
+    }
+
+    /// True when the last scan was stopped by the cost guard.
+    bool index_abandoned_for_cost() const {
+        return index_abandoned_for_cost_.load(std::memory_order_relaxed);
+    }
+
+    /// Test seam: stand in for a measured index throughput.
+    void set_index_throughput_for_test(double mb_per_cpu_s) {
+        index_mb_per_cpu_s_.store(mb_per_cpu_s, std::memory_order_relaxed);
+    }
+
     // =========================================================================
     // Cache Management
     // =========================================================================
@@ -572,6 +612,9 @@ class GCodeStreamingController {
     std::future<bool> index_future_;
     std::atomic<bool> indexing_{false};
     std::atomic<float> index_progress_{0.0f};
+    std::atomic<double> index_mb_per_cpu_s_{0.0}; ///< See index_throughput_mb_per_cpu_s()
+    IndexCostGuard index_cost_guard_;             ///< Set before the scan starts
+    std::atomic<bool> index_abandoned_for_cost_{false};
     // Set by close()/destructor before joining index_future_: the progress
     // callback withdraws consent and the scan unwinds, so the join costs one
     // progress interval instead of the rest of the build. Cleared when a new

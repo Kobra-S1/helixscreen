@@ -165,17 +165,17 @@ TEST_CASE_METHOD(LVGLTestFixture, "watchdog: a new load starts from a fresh base
     }
     REQUIRE_FALSE(path.empty()); // run helix-tests from the repo root
 
-    lv_obj_t* viewer = ui_gcode_viewer_create(test_screen());
+    lv_obj_t* viewer = helix::ui::gcode_viewer_create(test_screen());
     REQUIRE(viewer != nullptr);
 
     g_load_done = false;
-    ui_gcode_viewer_set_load_callback(
+    helix::ui::gcode_viewer_set_load_callback(
         viewer, [](lv_obj_t*, void*, bool) { g_load_done = true; }, nullptr);
 
     // One tick short of giving up on the previous file's stall.
     gcode_viewer_set_watchdog_track(viewer, {-1, 0, kMaxStallKicks - 1});
 
-    ui_gcode_viewer_load_file(viewer, path.c_str());
+    helix::ui::gcode_viewer_load_file(viewer, path.c_str());
 
     const GcodeViewerWatchdogTrack track = gcode_viewer_watchdog_track(viewer);
     CHECK(track.prev_cached == kNeverSampled);
@@ -183,8 +183,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "watchdog: a new load starts from a fresh base
     CHECK(track.stall_streak == 0);
 
     REQUIRE(wait_until([] { return g_load_done; }, 30000));
-    ui_gcode_viewer_set_load_callback(viewer, nullptr, nullptr);
-    ui_gcode_viewer_clear(viewer);
+    helix::ui::gcode_viewer_set_load_callback(viewer, nullptr, nullptr);
+    helix::ui::gcode_viewer_clear(viewer);
     lv_obj_delete(viewer);
     process_lvgl(50);
 }

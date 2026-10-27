@@ -67,7 +67,7 @@ TEST_CASE_METHOD(PrintStatusPreviewFixture,
     land_dropped(kPrintA);
 
     CHECK(gcode_displayed_file().empty());
-    CHECK_FALSE(ui_gcode_viewer_has_content(viewer_));
+    CHECK_FALSE(helix::ui::gcode_viewer_has_content(viewer_));
 }
 
 TEST_CASE_METHOD(PrintStatusPreviewFixture,
@@ -114,13 +114,13 @@ TEST_CASE_METHOD(PrintStatusPreviewFixture,
     report_print(kPrintA);
     start_fetch(kPrintA);
     land(kPrintA);
-    REQUIRE(ui_gcode_viewer_has_content(viewer_));
+    REQUIRE(helix::ui::gcode_viewer_has_content(viewer_));
 
     helix::ScopedEnv metadata_fails("HELIX_MOCK_METADATA_404", "1");
     PrintStatusPanelTestAccess::load_gcode_for_viewing(*panel_, kPrintA);
     drain();
 
-    CHECK(ui_gcode_viewer_has_content(viewer_));
+    CHECK(helix::ui::gcode_viewer_has_content(viewer_));
     CHECK(gcode_displayed_file() == kPrintA);
     CHECK(transfers_.held_count() == 0);
 }
@@ -155,7 +155,7 @@ TEST_CASE_METHOD(PrintStatusPreviewFixture,
     land_dropped(kPrintA);
 
     CHECK(gcode_displayed_file().empty());
-    CHECK_FALSE(ui_gcode_viewer_has_content(viewer_));
+    CHECK_FALSE(helix::ui::gcode_viewer_has_content(viewer_));
 }
 
 TEST_CASE_METHOD(PrintStatusPreviewFixture,

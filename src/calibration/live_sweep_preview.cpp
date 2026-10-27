@@ -5,6 +5,7 @@
 #include "app_globals.h"
 #include "belt_stream_client.h"
 #include "env_knobs.h"
+#include "helix_thread.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "runtime_config.h"
@@ -219,14 +220,6 @@ bool preview_disabled() {
     return true;
 }
 
-int64_t thread_cpu_ns() {
-    timespec ts{};
-    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) != 0) {
-        return 0;
-    }
-    return static_cast<int64_t>(ts.tv_sec) * 1000000000LL + ts.tv_nsec;
-}
-
 } // namespace
 
 std::unique_ptr<IAccelBatchSource> make_accel_batch_source(const SweepPlan& plan) {
@@ -337,7 +330,7 @@ void LiveSweepPreview::on_batch(const AccelBatch& batch) {
         }
 #endif
     }
-    const int64_t cpu_at_start = thread_cpu_ns();
+    const int64_t cpu_at_start = helix::thread_cpu_ns();
     if (loop_cpu_first_ns_ < 0) {
         loop_cpu_first_ns_ = cpu_at_start;
     }
@@ -347,7 +340,7 @@ void LiveSweepPreview::on_batch(const AccelBatch& batch) {
         accumulator_->add_samples(batch.samples, batch.contiguous(), source_->sample_rate_hz());
     const double stream_s = accumulator_->stream_time_s();
     stream_time_s_.store(stream_s);
-    loop_cpu_ns_.store(thread_cpu_ns() - loop_cpu_first_ns_);
+    loop_cpu_ns_.store(helix::thread_cpu_ns() - loop_cpu_first_ns_);
 
     if (!fresh.empty()) {
         stream_token_->defer(

@@ -64,24 +64,23 @@ std::optional<GlassProbeRecord> parse_glass_probe(const nlohmann::json* node) {
     }
     const auto passed = node->find("passed");
     const auto frame_ms = node->find("frame_ms");
-    const auto version = node->find("version");
-    const auto board = node->find("board");
+    const auto key = parse_measurement_key(*node);
     if (passed == node->end() || !passed->is_boolean() || frame_ms == node->end() ||
-        !frame_ms->is_number() || version == node->end() || !version->is_string() ||
-        board == node->end() || !board->is_string()) {
+        !frame_ms->is_number() || !key) {
         return std::nullopt;
     }
     GlassProbeRecord r;
     r.passed = passed->get<bool>();
     r.frame_ms = frame_ms->get<double>();
-    r.version = version->get<std::string>();
-    r.board = board->get<std::string>();
+    r.version = key->version;
+    r.board = key->board;
     return r;
 }
 
 nlohmann::json glass_probe_json(const GlassProbeRecord& r) {
-    return nlohmann::json{
-        {"passed", r.passed}, {"frame_ms", r.frame_ms}, {"version", r.version}, {"board", r.board}};
+    nlohmann::json node{{"passed", r.passed}, {"frame_ms", r.frame_ms}};
+    write_measurement_key(node, {r.board, r.version});
+    return node;
 }
 
 std::optional<GlassProbeRecord> load_glass_probe(const helix::Config& c) {

@@ -3,14 +3,21 @@
 
 #include "gcode_layer_index.h"
 #include "gcode_streaming_controller.h"
+#include "helix_thread.h"
 
+#include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <future>
 #include <string>
 #include <thread>
 #include <unistd.h>
+#ifdef __linux__
+#include <sys/resource.h>
+#include <sys/syscall.h>
+#endif
 
 #include "../catch_amalgamated.hpp"
 
@@ -867,6 +874,130 @@ TEST_CASE("close during async indexing cancels the build", "[gcode][streaming][c
     REQUIRE_FALSE(result.load());
 }
 
+TEST_CASE("a small file's scan reports no index rate", "[gcode][streaming][index_rate]") {
+    // A 1KB scan is all fixed overhead, so its rate says nothing about the board,
+    // and a board taught an underestimate would refuse previews it can afford.
+    TempGCodeFile file(kSimple3LayerGcode);
+    GCodeStreamingController controller;
+    REQUIRE(controller.open_file(file.path()));
+    CHECK(controller.index_throughput_mb_per_cpu_s() == 0.0);
+}
+
+namespace {
+/// Enough lines that the index scan reports progress many times over.
+std::string make_long_gcode() {
+    std::string out = "G90\nM82\n";
+    double e = 0.0;
+    for (int layer = 0; layer < 50; ++layer) {
+        out += "G1 Z" + std::to_string(0.2 * (layer + 1)) + "\n";
+        for (int i = 0; i < 1000; ++i) {
+            e += 0.01;
+            out += "G1 X" + std::to_string(10 + i % 50) + " Y" + std::to_string(10 + i % 7) + " E" +
+                   std::to_string(e) + "\n";
+        }
+    }
+    return out;
+}
+} // namespace
+
+TEST_CASE("a cost guard that refuses stops the index scan and says why",
+          "[gcode][streaming][index_rate]") {
+    TempGCodeFile file(make_long_gcode());
+    GCodeStreamingController controller;
+    int calls = 0;
+    controller.set_index_cost_guard([&calls](float fraction, double cpu_s) {
+        ++calls;
+        CHECK(fraction > 0.0f);
+        CHECK(cpu_s >= 0.0);
+        return false;
+    });
+    CHECK_FALSE(controller.open_file(file.path()));
+    CHECK(calls == 1);
+    CHECK(controller.index_abandoned_for_cost());
+}
+
+TEST_CASE("a cost guard that allows the scan changes nothing", "[gcode][streaming][index_rate]") {
+    TempGCodeFile file(make_long_gcode());
+    GCodeStreamingController controller;
+    int calls = 0;
+    controller.set_index_cost_guard([&calls](float, double) {
+        ++calls;
+        return true;
+    });
+    REQUIRE(controller.open_file(file.path()));
+    CHECK(calls > 0);
+    CHECK_FALSE(controller.index_abandoned_for_cost());
+    CHECK(controller.get_layer_count() >= 49);
+}
+
+TEST_CASE("a fresh scan clears an earlier cost abandonment", "[gcode][streaming][index_rate]") {
+    TempGCodeFile file(make_long_gcode());
+    GCodeStreamingController controller;
+    bool refuse = true;
+    controller.set_index_cost_guard([&refuse](float, double) { return !refuse; });
+    CHECK_FALSE(controller.open_file(file.path()));
+    REQUIRE(controller.index_abandoned_for_cost());
+    refuse = false;
+    REQUIRE(controller.open_file(file.path()));
+    CHECK_FALSE(controller.index_abandoned_for_cost());
+}
+
+#ifdef __linux__
+TEST_CASE("the index scan runs below the UI thread's priority",
+          "[gcode][streaming][thread_priority]") {
+    const int spawner = ::getpriority(PRIO_PROCESS, static_cast<id_t>(::syscall(SYS_gettid)));
+    if (spawner >= helix::kBackgroundThreadNice) {
+        SKIP("the test runner itself already runs at nice " << spawner);
+    }
+    // Indexing a large print is a full pass over the file. On a printer's own
+    // board it must yield to the UI and to Klipper whatever the launcher did.
+    TempGCodeFile file(kSimple3LayerGcode);
+    GCodeStreamingController controller;
+
+    struct GateGuard {
+        ~GateGuard() {
+            GCodeStreamingController::index_worker_gate = nullptr;
+        }
+    } gate_guard;
+    std::atomic<int> worker_nice{-100};
+    GCodeStreamingController::index_worker_gate = [&] {
+        worker_nice = ::getpriority(PRIO_PROCESS, static_cast<id_t>(::syscall(SYS_gettid)));
+    };
+
+    std::promise<bool> done;
+    auto done_future = done.get_future();
+    controller.open_file_async(file.path(), [&](bool ok) { done.set_value(ok); });
+    REQUIRE(done_future.wait_for(std::chrono::seconds(10)) == std::future_status::ready);
+    REQUIRE(done_future.get());
+
+    CHECK(worker_nice.load() == helix::kBackgroundThreadNice);
+}
+
+TEST_CASE("the ghost builder's worker runs below the UI thread's priority",
+          "[gcode][streaming][thread_priority]") {
+    const int spawner = ::getpriority(PRIO_PROCESS, static_cast<id_t>(::syscall(SYS_gettid)));
+    if (spawner >= helix::kBackgroundThreadNice) {
+        SKIP("the test runner itself already runs at nice " << spawner);
+    }
+    TempGCodeFile file(kSimple3LayerGcode);
+    GCodeStreamingController controller;
+    REQUIRE(controller.open_file(file.path()));
+
+    std::atomic<int> worker_nice{-100};
+    BackgroundGhostBuilder builder;
+    builder.start(&controller, [&](size_t, const std::vector<ToolpathSegment>&) {
+        worker_nice = ::getpriority(PRIO_PROCESS, static_cast<id_t>(::syscall(SYS_gettid)));
+    });
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!builder.is_complete() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    builder.cancel();
+    REQUIRE(worker_nice.load() != -100);
+    CHECK(worker_nice.load() == helix::kBackgroundThreadNice);
+}
+#endif
+
 TEST_CASE("close in the async launch window still cancels the build",
           "[gcode][streaming][cancel]") {
     // The window between open_file_async's std::async and the worker's first
@@ -914,4 +1045,39 @@ TEST_CASE("close in the async launch window still cancels the build",
     // A build that ran to completion under the close would report success.
     REQUIRE(completed.load());
     REQUIRE_FALSE(result.load());
+}
+
+TEST_CASE("open_file measures how fast this board scans the index",
+          "[gcode][streaming][index_rate]") {
+    // Big enough for the rate to be the scan's, not its fixed start-up cost.
+    BigGCodeFile file(GCodeStreamingController::kMinRateSampleBytes + 1024 * 1024);
+    GCodeStreamingController controller;
+    CHECK(controller.index_throughput_mb_per_cpu_s() == 0.0);
+    REQUIRE(controller.open_file(file.path()));
+    const double rate = controller.index_throughput_mb_per_cpu_s();
+    CHECK(rate > 0.0);
+    CHECK(std::isfinite(rate));
+}
+
+TEST_CASE("a scan the cost guard stops still measures the share it read",
+          "[gcode][streaming][index_rate]") {
+    // Stopped halfway through 20MB: 10MB read, past the sample floor.
+    BigGCodeFile file(20ull * 1024 * 1024);
+    GCodeStreamingController controller;
+    controller.set_index_cost_guard([](float fraction, double) { return fraction < 0.5f; });
+    CHECK_FALSE(controller.open_file(file.path()));
+    REQUIRE(controller.index_abandoned_for_cost());
+    const double rate = controller.index_throughput_mb_per_cpu_s();
+    CHECK(rate > 0.0);
+    CHECK(std::isfinite(rate));
+}
+
+TEST_CASE("a scan stopped before a usable sample reports no rate",
+          "[gcode][streaming][index_rate]") {
+    BigGCodeFile file(20ull * 1024 * 1024);
+    GCodeStreamingController controller;
+    controller.set_index_cost_guard([](float, double) { return false; });
+    CHECK_FALSE(controller.open_file(file.path()));
+    REQUIRE(controller.index_abandoned_for_cost());
+    CHECK(controller.index_throughput_mb_per_cpu_s() == 0.0);
 }

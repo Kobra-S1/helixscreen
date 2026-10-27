@@ -171,6 +171,8 @@ void GCodeParser::reset() {
     current_e_ = 0.0f;
     current_object_.clear();
     current_object_index_ = -1;
+    current_object_entry_ = nullptr;
+    wipe_tower_name_index_ = -1;
     object_name_lookup_.clear();
     object_name_table_.clear();
     is_absolute_positioning_ = true;
@@ -192,30 +194,116 @@ void GCodeParser::reset() {
     // (see add_segment() which creates a layer if layers_ is empty)
 }
 
-void GCodeParser::parse_line(const std::string& line) {
+namespace {
+
+bool starts_with(std::string_view s, std::string_view prefix) {
+    return s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0;
+}
+
+/// Where each axis word a move or arc reads FIRST appears, from one pass over the
+/// line. extract_param() semantics depend on the first occurrence only, so one
+/// scan answers every axis.
+struct AxisWords {
+    static constexpr size_t kNone = std::string_view::npos;
+    size_t x = kNone, y = kNone, z = kNone, e = kNone, i = kNone, j = kNone, p = kNone;
+};
+
+AxisWords find_axis_words(std::string_view line) {
+    AxisWords w;
+    for (size_t k = 0; k < line.size(); ++k) {
+        size_t* slot = nullptr;
+        switch (line[k]) {
+        case 'X':
+            slot = &w.x;
+            break;
+        case 'Y':
+            slot = &w.y;
+            break;
+        case 'Z':
+            slot = &w.z;
+            break;
+        case 'E':
+            slot = &w.e;
+            break;
+        case 'I':
+            slot = &w.i;
+            break;
+        case 'J':
+            slot = &w.j;
+            break;
+        case 'P':
+            slot = &w.p;
+            break;
+        default:
+            break;
+        }
+        if (slot && *slot == AxisWords::kNone) {
+            *slot = k;
+        }
+    }
+    return w;
+}
+
+/// The value of the parameter whose letter is at @p pos, by extract_param()'s
+/// rules: preceded by whitespace (or at the start), followed by a number.
+bool param_value_at(std::string_view line, size_t pos, float& out_value) {
+    if (pos == std::string_view::npos) {
+        return false;
+    }
+    if (pos > 0 && line[pos - 1] != ' ' && line[pos - 1] != '\t') {
+        return false;
+    }
+    const size_t start = pos + 1;
+    if (start >= line.length()) {
+        return false;
+    }
+    size_t end = start;
+    while (end < line.length() && (std::isdigit(static_cast<unsigned char>(line[end])) ||
+                                   line[end] == '.' || line[end] == '-' || line[end] == '+')) {
+        end++;
+    }
+    if (end == start) {
+        return false;
+    }
+    auto [ptr, ec] = parse_gcode_decimal(line.data() + start, line.data() + end, out_value);
+    return ec == std::errc{};
+}
+
+} // namespace
+
+void GCodeParser::parse_line(std::string_view line) {
     lines_parsed_++;
 
     // Extract and parse metadata comments before trimming
     size_t comment_pos = line.find(';');
-    if (comment_pos != std::string::npos) {
-        std::string comment = line.substr(comment_pos);
+    if (comment_pos != std::string_view::npos) {
+        const std::string comment(line.substr(comment_pos));
         parse_metadata_comment(comment);
         parse_wipe_tower_marker(comment);
         parse_type_marker(comment);
     }
 
-    std::string trimmed = trim_line(line);
+    const std::string_view trimmed = trim_line(line);
     if (trimmed.empty()) {
         return;
     }
 
+    // Movement first: it is nearly every line of a sliced file.
+    if (trimmed[0] == 'G') {
+        if (starts_with(trimmed, "G0 ") || starts_with(trimmed, "G1 ") || trimmed == "G0" ||
+            trimmed == "G1") {
+            parse_movement_command(trimmed);
+            return;
+        }
+    }
+
     if (trimmed[0] == 'T') {
-        parse_tool_change_command(trimmed);
+        parse_tool_change_command(std::string(trimmed));
     }
 
     // Check for EXCLUDE_OBJECT commands first
-    if (trimmed.find("EXCLUDE_OBJECT") == 0) {
-        parse_exclude_object_command(trimmed);
+    if (starts_with(trimmed, "EXCLUDE_OBJECT")) {
+        parse_exclude_object_command(std::string(trimmed));
         return;
     }
 
@@ -235,42 +323,36 @@ void GCodeParser::parse_line(const std::string& line) {
     }
 
     // G92: Set position (resets extruder and/or axis positions)
-    if (trimmed.find("G92 ") == 0 || trimmed == "G92") {
+    if (starts_with(trimmed, "G92 ") || trimmed == "G92") {
         parse_set_position_command(trimmed);
         return;
     }
 
-    // Parse movement commands (G0, G1)
-    if (trimmed[0] == 'G' && (trimmed.find("G0 ") == 0 || trimmed.find("G1 ") == 0 ||
-                              trimmed == "G0" || trimmed == "G1")) {
-        parse_movement_command(trimmed);
-        return;
-    }
-
     // G2/G3: Arc moves — linearize into short segments
-    if (trimmed[0] == 'G' && (trimmed.find("G2 ") == 0 || trimmed.find("G3 ") == 0)) {
+    if (trimmed[0] == 'G' && (starts_with(trimmed, "G2 ") || starts_with(trimmed, "G3 "))) {
         bool clockwise = (trimmed[1] == '2');
         parse_arc_command(trimmed, clockwise);
     }
 }
 
-bool GCodeParser::parse_movement_command(const std::string& line) {
+bool GCodeParser::parse_movement_command(std::string_view line) {
     glm::vec3 new_position = current_position_;
     float new_e = current_e_;
     bool has_movement = false;
     bool has_extrusion = false;
+    const AxisWords words = find_axis_words(line);
 
     // Extract X, Y, Z parameters
     float value;
-    if (extract_param(line, 'X', value)) {
+    if (param_value_at(line, words.x, value)) {
         new_position.x = is_absolute_positioning_ ? value : current_position_.x + value;
         has_movement = true;
     }
-    if (extract_param(line, 'Y', value)) {
+    if (param_value_at(line, words.y, value)) {
         new_position.y = is_absolute_positioning_ ? value : current_position_.y + value;
         has_movement = true;
     }
-    if (extract_param(line, 'Z', value)) {
+    if (param_value_at(line, words.z, value)) {
         new_position.z = is_absolute_positioning_ ? value : current_position_.z + value;
         has_movement = true;
 
@@ -293,7 +375,7 @@ bool GCodeParser::parse_movement_command(const std::string& line) {
     }
 
     // Extract E (extrusion) parameter
-    if (extract_param(line, 'E', value)) {
+    if (param_value_at(line, words.e, value)) {
         new_e = is_absolute_extrusion_ ? value : current_e_ + value;
         has_extrusion = true;
     }
@@ -321,7 +403,7 @@ bool GCodeParser::parse_movement_command(const std::string& line) {
     return has_movement;
 }
 
-void GCodeParser::parse_set_position_command(const std::string& line) {
+void GCodeParser::parse_set_position_command(std::string_view line) {
     // G92 sets the current position without moving.
     // Most commonly: G92 E0 (reset extruder position to 0)
     float value;
@@ -339,28 +421,29 @@ void GCodeParser::parse_set_position_command(const std::string& line) {
     }
 }
 
-void GCodeParser::parse_arc_command(const std::string& line, bool clockwise) {
+void GCodeParser::parse_arc_command(std::string_view line, bool clockwise) {
     // G2/G3 arc moves: linearize into short line segments for the 2D renderer.
     // Parameters: X Y Z (endpoint), I J (center offset from start), E (extrusion)
     float value;
+    const AxisWords words = find_axis_words(line);
     glm::vec3 end_pos = current_position_;
     float new_e = current_e_;
     bool has_extrusion = false;
     float i_offset = 0.0f, j_offset = 0.0f;
 
-    if (extract_param(line, 'X', value))
+    if (param_value_at(line, words.x, value))
         end_pos.x = is_absolute_positioning_ ? value : current_position_.x + value;
-    if (extract_param(line, 'Y', value))
+    if (param_value_at(line, words.y, value))
         end_pos.y = is_absolute_positioning_ ? value : current_position_.y + value;
-    if (extract_param(line, 'Z', value))
+    if (param_value_at(line, words.z, value))
         end_pos.z = is_absolute_positioning_ ? value : current_position_.z + value;
-    if (extract_param(line, 'E', value)) {
+    if (param_value_at(line, words.e, value)) {
         new_e = is_absolute_extrusion_ ? value : current_e_ + value;
         has_extrusion = true;
     }
-    if (extract_param(line, 'I', value))
+    if (param_value_at(line, words.i, value))
         i_offset = value;
-    if (extract_param(line, 'J', value))
+    if (param_value_at(line, words.j, value))
         j_offset = value;
 
     // Calculate arc center
@@ -392,7 +475,7 @@ void GCodeParser::parse_arc_command(const std::string& line, bool clockwise) {
 
     // Check for full circle (P parameter or endpoint == startpoint)
     int full_turns = 0;
-    if (extract_param(line, 'P', value))
+    if (param_value_at(line, words.p, value))
         full_turns = static_cast<int>(value);
     if (full_turns > 0) {
         float dir = clockwise ? -1.0f : 1.0f;
@@ -403,10 +486,7 @@ void GCodeParser::parse_arc_command(const std::string& line, bool clockwise) {
             sweep += 2.0f * static_cast<float>(M_PI);
     }
 
-    // Linearize: ~1mm segments or at least 8 segments
-    float arc_length = std::abs(sweep) * radius;
-    int num_segments = std::max(8, static_cast<int>(arc_length / 1.0f));
-    num_segments = std::min(num_segments, 128); // Cap to avoid excessive segments
+    const int num_segments = arc_segment_count(radius, sweep);
 
     float total_e_delta = has_extrusion ? (new_e - current_e_) : 0.0f;
     bool is_extruding = has_extrusion && total_e_delta > 0.00001f;
@@ -549,6 +629,15 @@ std::vector<GCodeObject> collect_exclude_object_defines(std::string_view content
     return out;
 }
 
+void GCodeParser::refresh_current_object_entry() {
+    if (current_object_.empty()) {
+        current_object_entry_ = nullptr;
+        return;
+    }
+    auto it = objects_.find(current_object_);
+    current_object_entry_ = it != objects_.end() ? &it->second : nullptr;
+}
+
 bool GCodeParser::parse_exclude_object_command(const std::string& line) {
     // EXCLUDE_OBJECT_DEFINE NAME=... CENTER=... POLYGON=...
     if (line.find("EXCLUDE_OBJECT_DEFINE") == 0) {
@@ -559,6 +648,7 @@ bool GCodeParser::parse_exclude_object_command(const std::string& line) {
         spdlog::trace("[GCode Parser] Defined object: {} at ({}, {})", obj->name, obj->center.x,
                       obj->center.y);
         objects_[obj->name] = std::move(*obj);
+        refresh_current_object_entry();
         return true;
     }
     // EXCLUDE_OBJECT_START NAME=...
@@ -566,8 +656,10 @@ bool GCodeParser::parse_exclude_object_command(const std::string& line) {
         if (!extract_string_param(line, "NAME", current_object_)) {
             current_object_.clear();
             current_object_index_ = -1;
+            refresh_current_object_entry();
             return false;
         }
+        refresh_current_object_entry();
         // Intern the object name for segment tagging
         auto it = object_name_lookup_.find(current_object_);
         if (it != object_name_lookup_.end()) {
@@ -591,6 +683,7 @@ bool GCodeParser::parse_exclude_object_command(const std::string& line) {
             spdlog::trace("[GCode Parser] Ended object: {}", current_object_);
             current_object_.clear();
             current_object_index_ = -1;
+            refresh_current_object_entry();
             return true;
         }
     }
@@ -955,36 +1048,8 @@ FeatureType GCodeParser::parse_feature_type_value(const std::string& value) {
     return FeatureType::Unknown;
 }
 
-bool GCodeParser::extract_param(const std::string& line, char param, float& out_value) {
-    size_t pos = line.find(param);
-    if (pos == std::string::npos) {
-        return false;
-    }
-
-    // Make sure it's a parameter (preceded by space or at start after command)
-    if (pos > 0 && line[pos - 1] != ' ' && line[pos - 1] != '\t') {
-        return false;
-    }
-
-    // Extract number after parameter letter
-    size_t start = pos + 1;
-    if (start >= line.length()) {
-        return false;
-    }
-
-    // Find end of number (space, end of string, or another letter)
-    size_t end = start;
-    while (end < line.length() &&
-           (std::isdigit(line[end]) || line[end] == '.' || line[end] == '-' || line[end] == '+')) {
-        end++;
-    }
-
-    if (end == start) {
-        return false;
-    }
-
-    auto [ptr, ec] = parse_gcode_decimal(line.data() + start, line.data() + end, out_value);
-    return ec == std::errc{};
+bool GCodeParser::extract_param(std::string_view line, char param, float& out_value) {
+    return param_value_at(line, line.find(param), out_value);
 }
 
 bool GCodeParser::extract_string_param(const std::string& line, const std::string& param,
@@ -1016,13 +1081,18 @@ void GCodeParser::add_segment(const glm::vec3& start, const glm::vec3& end, bool
 
     // Wipe tower support: Tag wipe tower segments with interned special name
     if (in_wipe_tower_ && segment.object_name_index < 0) {
-        auto it = object_name_lookup_.find("__WIPE_TOWER__");
-        if (it != object_name_lookup_.end()) {
-            segment.object_name_index = it->second;
-        } else if (object_name_table_.size() < static_cast<size_t>(INT16_MAX)) {
-            segment.object_name_index = static_cast<int16_t>(object_name_table_.size());
-            object_name_table_.push_back("__WIPE_TOWER__");
-            object_name_lookup_["__WIPE_TOWER__"] = segment.object_name_index;
+        if (wipe_tower_name_index_ < 0) {
+            auto it = object_name_lookup_.find("__WIPE_TOWER__");
+            if (it != object_name_lookup_.end()) {
+                wipe_tower_name_index_ = it->second;
+            } else if (object_name_table_.size() < static_cast<size_t>(INT16_MAX)) {
+                wipe_tower_name_index_ = static_cast<int16_t>(object_name_table_.size());
+                object_name_table_.push_back("__WIPE_TOWER__");
+                object_name_lookup_["__WIPE_TOWER__"] = wipe_tower_name_index_;
+            }
+        }
+        if (wipe_tower_name_index_ >= 0) {
+            segment.object_name_index = wipe_tower_name_index_;
         }
     }
 
@@ -1111,20 +1181,9 @@ void GCodeParser::add_segment(const glm::vec3& start, const glm::vec3& end, bool
     // never auxiliary geometry: an object box reaching into the tower region
     // turns every pick footprint and selection bracket toward empty plate,
     // and a tap there can long-press-exclude real printed geometry).
-    if (!current_object_.empty() && objects_.count(current_object_) > 0 && is_extrusion &&
-        !auxiliary) {
-        objects_[current_object_].bounding_box.expand(start);
-        objects_[current_object_].bounding_box.expand(end);
-
-        // Debug: Log first few extrusion segments per object
-        static std::map<std::string, int> segment_counts;
-        segment_counts[current_object_]++;
-        if (segment_counts[current_object_] <= 3) {
-            spdlog::trace(
-                "[GCode Parser] Object '{}' extrusion segment: start=({:.2f},{:.2f},{:.2f}) "
-                "end=({:.2f},{:.2f},{:.2f})",
-                current_object_, start.x, start.y, start.z, end.x, end.y, end.z);
-        }
+    if (current_object_entry_ && is_extrusion && !auxiliary) {
+        current_object_entry_->bounding_box.expand(start);
+        current_object_entry_->bounding_box.expand(end);
     }
 }
 
@@ -1155,14 +1214,7 @@ void GCodeParser::start_new_layer(float z) {
     spdlog::trace("[GCode Parser] Started layer {} at Z={:.3f}", layers_.size() - 1, z);
 }
 
-std::string GCodeParser::trim_line(const std::string& line) {
-    if (line.empty()) {
-        return line;
-    }
-
-    // Work with string_view to avoid intermediate allocations
-    std::string_view sv(line);
-
+std::string_view GCodeParser::trim_line(std::string_view sv) {
     // Remove comments (everything after ';')
     size_t comment_pos = sv.find(';');
     if (comment_pos != std::string_view::npos) {
@@ -1171,21 +1223,17 @@ std::string GCodeParser::trim_line(const std::string& line) {
 
     // Trim leading whitespace
     size_t start = 0;
-    while (start < sv.length() && std::isspace(sv[start])) {
+    while (start < sv.length() && std::isspace(static_cast<unsigned char>(sv[start]))) {
         start++;
-    }
-
-    if (start == sv.length()) {
-        return "";
     }
 
     // Trim trailing whitespace
     size_t end = sv.length();
-    while (end > start && std::isspace(sv[end - 1])) {
+    while (end > start && std::isspace(static_cast<unsigned char>(sv[end - 1]))) {
         end--;
     }
 
-    return std::string(sv.substr(start, end - start));
+    return sv.substr(start, end - start);
 }
 
 void GCodeParser::promote_auxiliary_only_extrusion() {
@@ -1945,6 +1993,21 @@ bool is_macro_param(std::string_view word) {
 }
 
 } // namespace
+
+int arc_segment_count(float radius_mm, float sweep_rad) {
+    const float sweep = std::abs(sweep_rad);
+    if (!(radius_mm > kArcChordToleranceMm) || !(sweep > 0.0f)) {
+        return 1;
+    }
+    // A chord spanning angle a deviates from its arc by r * (1 - cos(a / 2)),
+    // so the widest angle within tolerance is 2 * acos(1 - tol / r).
+    const float max_step = 2.0f * std::acos(1.0f - kArcChordToleranceMm / radius_mm);
+    const float needed = std::ceil(sweep / max_step);
+    if (!(needed < static_cast<float>(kMaxArcSegments))) {
+        return kMaxArcSegments;
+    }
+    return std::max(1, static_cast<int>(needed));
+}
 
 // Declared in gcode_parser.h: the single T-parse the whole tree shares.
 int tool_index_for_line(const std::string& raw, std::pair<size_t, size_t>* digits) {

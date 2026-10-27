@@ -1825,6 +1825,13 @@ GCodeLayerRenderer::GhostSnapshot GCodeLayerRenderer::capture_ghost_snapshot() c
 
     snap.line_width = get_extrusion_pixel_width();
     snap.layer_count = get_layer_count();
+    if (streaming_controller_) {
+        snap.samples_per_z_row =
+            ghost_samples_per_z_row(streaming_controller_->index_throughput_mb_per_cpu_s());
+    }
+    if (bounds_valid_ && snap.transform.view_mode == ViewMode::FRONT) {
+        snap.model_z_rows = front_view_z_rows(bounds_max_z_ - bounds_min_z_, snap.transform.scale);
+    }
 
     snap.gcode = gcode_;
     snap.streaming = streaming_controller_;
@@ -1839,6 +1846,13 @@ void GCodeLayerRenderer::start_background_ghost_render() {
     int layer_count = get_layer_count();
     if (layer_count == 0) {
         return;
+    }
+
+    // The snapshot below projects with the current fit. pump_offscreen_build()
+    // reaches here straight after set_canvas_size() dropped it, without the
+    // render() that would otherwise re-fit first.
+    if (!bounds_valid_) {
+        auto_fit();
     }
 
     // Allocate raw buffer if dimensions changed or not allocated
@@ -1879,8 +1893,8 @@ void GCodeLayerRenderer::start_background_ghost_render() {
         // Snapshot on THIS thread, then hand it over. std::thread copies the
         // argument on the spawning side, so everything the worker reads was
         // sampled while the main thread still owned it.
-        ghost_thread_ = helix::make_thread(&GCodeLayerRenderer::background_ghost_render_thread,
-                                           this, capture_ghost_snapshot());
+        ghost_thread_ = helix::make_background_thread(
+            &GCodeLayerRenderer::background_ghost_render_thread, this, capture_ghost_snapshot());
     } catch (const std::system_error& e) {
         // No worker exists to clear the claim above, so unwind it here.
         ghost_thread_running_.store(false);
@@ -1890,6 +1904,27 @@ void GCodeLayerRenderer::start_background_ghost_render() {
 
     spdlog::debug("[GCodeLayerRenderer] Started background ghost render thread ({}x{})", width,
                   height);
+}
+
+bool GCodeLayerRenderer::build_ghost_blocking() {
+    start_background_ghost_render();
+    if (!ghost_thread_.joinable()) {
+        return false;
+    }
+    ghost_thread_.join();
+    return ghost_thread_ready_.load();
+}
+
+std::vector<uint8_t> GCodeLayerRenderer::copy_ghost_pixels(int& width, int& height) const {
+    width = 0;
+    height = 0;
+    if (!ghost_thread_ready_.load() || !ghost_raw_buffer_) {
+        return {};
+    }
+    width = ghost_raw_width_;
+    height = ghost_raw_height_;
+    const size_t bytes = ghost_raw_stride_ * static_cast<size_t>(ghost_raw_height_);
+    return std::vector<uint8_t>(ghost_raw_buffer_.get(), ghost_raw_buffer_.get() + bytes);
 }
 
 void GCodeLayerRenderer::cancel_background_ghost_render() {
@@ -2028,16 +2063,30 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
         return {};
     };
 
-    // Visibility check for a segment given its pre-resolved object name.
-    // Uses name_looks_like_support() (shared with is_support_segment()) to avoid duplication.
-    auto local_should_render = [&](const ToolpathSegment& seg,
-                                   const std::string& obj_name) -> bool {
-        // The draw rule lives in segment_drawable(); this wrapper only feeds
-        // it the thread-safe snapshot values the worker captured at spawn.
-        // Support is resolved for extrusions only - the name scan is not free
-        // and travels never read it.
-        const bool support =
-            seg.is_extrusion && seg.object_name_index >= 0 && name_looks_like_support(obj_name);
+    // Whether an object is support, decided once per object index: an index
+    // always names the same object, and resolving it means a string copy and
+    // a case-insensitive scan that the segment loop would otherwise pay per
+    // segment. -1 = not yet decided.
+    std::vector<int8_t> support_by_index;
+    auto is_support_object = [&](int16_t index) -> bool {
+        if (index < 0) {
+            return false;
+        }
+        const auto slot = static_cast<size_t>(index);
+        if (slot >= support_by_index.size()) {
+            support_by_index.resize(slot + 1, -1);
+        }
+        if (support_by_index[slot] < 0) {
+            support_by_index[slot] = name_looks_like_support(local_resolve_name(index)) ? 1 : 0;
+        }
+        return support_by_index[slot] == 1;
+    };
+
+    // The draw rule lives in segment_drawable(); this wrapper only feeds it the
+    // thread-safe snapshot values the worker captured at spawn. Support is
+    // resolved for extrusions only: travels never read it.
+    auto local_should_render = [&](const ToolpathSegment& seg) -> bool {
+        const bool support = seg.is_extrusion && is_support_object(seg.object_name_index);
         return segment_drawable(seg, support, local_show_supports, local_show_extrusions,
                                 local_show_travels);
     };
@@ -2071,11 +2120,12 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
     // core for minutes on a 133MB file once large files moved onto streaming.
     // There the pass is bounded to an even sample that still spans the model.
     // See gcode_ghost_sampling.h.
-    // transform.canvas_height is the ghost buffer's height, captured above - the
-    // most layers this projection can draw as distinct rows in the default FRONT
-    // view, and so the most worth visiting.
-    const GhostSamplePlan ghost_plan =
-        plan_ghost_sampling(total_layers, local_streaming != nullptr, transform.canvas_height);
+    // The budget is the rows the model's own Z extent spans on this canvas,
+    // capped by the ghost buffer's height: between two samples a row apart,
+    // every layer is painted over by the next.
+    const GhostSamplePlan ghost_plan = plan_ghost_sampling_budget(
+        total_layers, local_streaming != nullptr,
+        ghost_model_budget(transform.canvas_height, snap.model_z_rows, snap.samples_per_z_row));
     if (local_streaming && ghost_plan.step > 1) {
         spdlog::debug("[GCodeLayerRenderer] Ghost sampling {} of {} layers (every {})",
                       ghost_plan.count, total_layers, ghost_plan.step);
@@ -2126,10 +2176,7 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
         }
 
         for (const auto& seg : *segments) {
-            // Resolve object name once per segment (used for support detection)
-            const std::string obj_name = local_resolve_name(seg.object_name_index);
-
-            if (!local_should_render(seg, obj_name))
+            if (!local_should_render(seg))
                 continue;
 
             // Use unified world_to_screen_raw - includes content offset!

@@ -245,7 +245,7 @@ screen and draw.
   but keeps its number, so later objects do not renumber.
 - **2D/3D render**: while the side list is open,
   `src/ui/ui_exclude_mode_controller.cpp#refresh_render_badges` pushes the badges to the
-  viewer (`ui_gcode_viewer_set_object_badges()`), and again on every
+  viewer (`helix::ui::gcode_viewer_set_object_badges()`), and again on every
   `defined_objects_version` / `excluded_objects_version` bump of the host's state, through
   the controller's own version observers (the current object bumps the latter). Closing
   the list pushes an empty set. The viewer draws them in its `LV_EVENT_DRAW_POST`
@@ -662,7 +662,7 @@ theme.
 |-------|-----------------|
 | Normal | Default filament color, standard line width |
 | Highlighted (selected) | **Keeps its own filament color**, plus a white silhouette rim tracing the object's contour and the corner-bracket wireframe around its bounding box |
-| Excluded | Selection dropped (`ui_gcode_viewer_set_excluded_objects()` removes it from the highlight and the tap toggle). Shading kept, hue drained to grey (`selection::excluded_grey`), red stripes (`gcode_selection_excluded`, `#FF3B30`) every 6px at 45 degrees. Line width is **unchanged**. Same in 2D, the 2D ghost and 3D; the 3D ghost (about 2% opacity) is left as is, and a 3D frame drawn while the camera is moving shows filament color until the still render lands |
+| Excluded | Selection dropped (`helix::ui::gcode_viewer_set_excluded_objects()` removes it from the highlight and the tap toggle). Shading kept, hue drained to grey (`selection::excluded_grey`), red stripes (`gcode_selection_excluded`, `#FF3B30`) every 6px at 45 degrees. Line width is **unchanged**. Same in 2D, the 2D ghost and 3D; the 3D ghost (about 2% opacity) is left as is, and a 3D frame drawn while the camera is moving shows filament color until the still render lands |
 | Excluded *and* selected | Grey inside the white rim, without stripes: a pixel carries one alpha tag and the selection tag wins, because seeing what you picked matters more |
 | Pending exclusion | Same as excluded (visual preview before API call) |
 

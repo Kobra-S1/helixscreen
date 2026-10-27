@@ -488,7 +488,7 @@ class GCodeParser {
      * Extracts movement commands, coordinate changes, and object metadata.
      * Automatically detects layer changes (Z-axis movement).
      */
-    void parse_line(const std::string& line);
+    void parse_line(std::string_view line);
 
     /**
      * @brief Finalize parsing and return complete data structure
@@ -664,17 +664,17 @@ class GCodeParser {
      * @param line Trimmed G-code line
      * @return true if parsed successfully
      */
-    bool parse_movement_command(const std::string& line);
+    bool parse_movement_command(std::string_view line);
 
     /**
      * @brief Parse G92 (set position) command
      */
-    void parse_set_position_command(const std::string& line);
+    void parse_set_position_command(std::string_view line);
 
     /**
      * @brief Parse G2/G3 arc command, linearizing into short line segments
      */
-    void parse_arc_command(const std::string& line, bool clockwise);
+    void parse_arc_command(std::string_view line, bool clockwise);
 
     /**
      * @brief Parse EXCLUDE_OBJECT_* command
@@ -735,7 +735,7 @@ class GCodeParser {
      * @param out_value Output value
      * @return true if parameter found
      */
-    bool extract_param(const std::string& line, char param, float& out_value);
+    bool extract_param(std::string_view line, char param, float& out_value);
 
     /**
      * @brief Extract string parameter value
@@ -785,15 +785,22 @@ class GCodeParser {
     /**
      * @brief Trim whitespace and comments from line
      * @param line Raw line
-     * @return Trimmed line
+     * @return Trimmed line, a view into @p line
      */
-    std::string trim_line(const std::string& line);
+    static std::string_view trim_line(std::string_view line);
 
     // Parser state
     glm::vec3 current_position_{0.0f, 0.0f, 0.0f}; ///< Current XYZ position
     float current_e_{0.0f};                        ///< Current E (extruder) position
     std::string current_object_;       ///< Current object name (from EXCLUDE_OBJECT_START)
     int16_t current_object_index_{-1}; ///< Current object name index for segments
+    /// objects_ entry for current_object_, or null when it has none. Refreshed
+    /// wherever either changes (refresh_current_object_entry()), so a segment
+    /// never pays a string-keyed lookup.
+    GCodeObject* current_object_entry_{nullptr};
+    /// Interned index of the wipe tower's special name, -1 until first used.
+    int16_t wipe_tower_name_index_{-1};
+    void refresh_current_object_entry();
     std::unordered_map<std::string, int16_t> object_name_lookup_; ///< O(1) name → index
     std::vector<std::string> object_name_table_;                  ///< Accumulated string table
     bool is_absolute_positioning_{true}; ///< G90 (absolute) vs G91 (relative)
@@ -1009,6 +1016,22 @@ std::set<int> scan_tools_used_from_content(const std::string& content,
  * @return Tool index >= 0, or -1 if @p raw is not a standalone tool change.
  */
 int tool_index_for_line(const std::string& raw, std::pair<size_t, size_t>* digits = nullptr);
+
+/// Largest gap allowed between a linearized G2/G3 arc and its chords, in mm.
+/// Below a pixel at any zoom the viewers reach, so the chords draw as the arc.
+inline constexpr float kArcChordToleranceMm = 0.02f;
+
+/// Most chords one arc is split into, whatever its size.
+inline constexpr int kMaxArcSegments = 128;
+
+/**
+ * @brief How many chords an arc of @p radius_mm sweeping @p sweep_rad needs.
+ *
+ * The fewest whose deviation from the arc stays within kArcChordToleranceMm,
+ * clamped to [1, kMaxArcSegments]. A sliced fillet a fraction of a millimetre
+ * across needs two or three; an arc no larger than the tolerance needs one.
+ */
+int arc_segment_count(float radius_mm, float sweep_rad);
 
 /**
  * @brief Streaming, memory-safe variant of scan_tools_used_from_content() that
