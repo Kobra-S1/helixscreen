@@ -1902,6 +1902,15 @@ void GCodeLayerRenderer::start_background_ghost_render() {
                   height);
 }
 
+bool GCodeLayerRenderer::build_ghost_blocking() {
+    start_background_ghost_render();
+    if (!ghost_thread_.joinable()) {
+        return false;
+    }
+    ghost_thread_.join();
+    return ghost_thread_ready_.load();
+}
+
 void GCodeLayerRenderer::cancel_background_ghost_render() {
     // Signal cancellation and join if the thread is joinable.
     // This handles the case where the thread completed naturally but wasn't
@@ -2038,16 +2047,30 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
         return {};
     };
 
-    // Visibility check for a segment given its pre-resolved object name.
-    // Uses name_looks_like_support() (shared with is_support_segment()) to avoid duplication.
-    auto local_should_render = [&](const ToolpathSegment& seg,
-                                   const std::string& obj_name) -> bool {
-        // The draw rule lives in segment_drawable(); this wrapper only feeds
-        // it the thread-safe snapshot values the worker captured at spawn.
-        // Support is resolved for extrusions only - the name scan is not free
-        // and travels never read it.
-        const bool support =
-            seg.is_extrusion && seg.object_name_index >= 0 && name_looks_like_support(obj_name);
+    // Whether an object is support, decided once per object index: an index
+    // always names the same object, and resolving it means a string copy and
+    // a case-insensitive scan that the segment loop would otherwise pay per
+    // segment. -1 = not yet decided.
+    std::vector<int8_t> support_by_index;
+    auto is_support_object = [&](int16_t index) -> bool {
+        if (index < 0) {
+            return false;
+        }
+        const auto slot = static_cast<size_t>(index);
+        if (slot >= support_by_index.size()) {
+            support_by_index.resize(slot + 1, -1);
+        }
+        if (support_by_index[slot] < 0) {
+            support_by_index[slot] = name_looks_like_support(local_resolve_name(index)) ? 1 : 0;
+        }
+        return support_by_index[slot] == 1;
+    };
+
+    // The draw rule lives in segment_drawable(); this wrapper only feeds it the
+    // thread-safe snapshot values the worker captured at spawn. Support is
+    // resolved for extrusions only: travels never read it.
+    auto local_should_render = [&](const ToolpathSegment& seg) -> bool {
+        const bool support = seg.is_extrusion && is_support_object(seg.object_name_index);
         return segment_drawable(seg, support, local_show_supports, local_show_extrusions,
                                 local_show_travels);
     };
@@ -2137,10 +2160,7 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
         }
 
         for (const auto& seg : *segments) {
-            // Resolve object name once per segment (used for support detection)
-            const std::string obj_name = local_resolve_name(seg.object_name_index);
-
-            if (!local_should_render(seg, obj_name))
+            if (!local_should_render(seg))
                 continue;
 
             // Use unified world_to_screen_raw - includes content offset!

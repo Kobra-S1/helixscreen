@@ -371,6 +371,16 @@ class GCodeLayerRenderer {
     bool is_ghost_build_running() const;
 
     /**
+     * @brief Build the ghost now and return when it is finished.
+     *
+     * The same pass the UI runs on its background worker, waited for on the
+     * calling thread. For measurement (`helix-screen bench-gcode`); the UI never
+     * blocks on it. Main thread only, like everything that starts the worker.
+     * @return true when a ghost was built, false when there was nothing to build.
+     */
+    bool build_ghost_blocking();
+
+    /**
      * @brief The viewer's reveal gate: is there real content on the canvas?
      *
      * reveal_ready_2d() over this renderer's own state. True once the ghost

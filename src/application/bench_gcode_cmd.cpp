@@ -3,7 +3,7 @@
 
 #include "bench_gcode_cmd.h"
 
-#include "gcode_ghost_sampling.h"
+#include "gcode_layer_renderer.h"
 #include "gcode_streaming_controller.h"
 
 #include <spdlog/spdlog.h>
@@ -19,8 +19,9 @@ namespace helix::bench {
 
 namespace {
 
-/// Default ghost canvas height: the CC1's 480x272 panel less the print-status chrome.
-constexpr int kDefaultCanvasRows = 240;
+/// Default ghost canvas: about the print-status preview on a CC1's 480x272 panel.
+constexpr int kDefaultCanvasWidth = 320;
+constexpr int kDefaultCanvasHeight = 240;
 /// Single-layer parses timed from the middle of the file, where layers are typical.
 constexpr size_t kSingleLayerSamples = 20;
 
@@ -54,11 +55,12 @@ void print_row(const char* name, const Clock& c, double mb) {
 
 int run_bench_gcode(int argc, char** argv) {
     if (argc < 3) {
-        std::fprintf(stderr, "usage: %s bench-gcode <file.gcode> [canvas_rows]\n", argv[0]);
+        std::fprintf(stderr, "usage: %s bench-gcode <file.gcode> [width height]\n", argv[0]);
         return 2;
     }
     const std::string path = argv[2];
-    const int rows = argc >= 4 ? std::atoi(argv[3]) : kDefaultCanvasRows;
+    const int width = argc >= 5 ? std::atoi(argv[3]) : kDefaultCanvasWidth;
+    const int height = argc >= 5 ? std::atoi(argv[4]) : kDefaultCanvasHeight;
     spdlog::set_level(spdlog::level::warn);
 
     gcode::GCodeStreamingController controller;
@@ -76,24 +78,22 @@ int run_bench_gcode(int argc, char** argv) {
                 controller.get_index_stats().total_lines);
     print_row("index", index, mb);
 
-    const gcode::GhostSamplePlan plan =
-        gcode::plan_ghost_sampling(static_cast<int>(layers), true, rows);
-    const int repeat =
-        std::getenv("HELIX_BENCH_REPEAT") ? std::atoi(std::getenv("HELIX_BENCH_REPEAT")) : 1;
+    // The ghost exactly as the print-status preview builds it: the renderer's
+    // own fit, sampling and rasterizer, on its own worker thread.
+    const int repeat = std::getenv("HELIX_BENCH_REPEAT")
+                           ? std::max(1, std::atoi(std::getenv("HELIX_BENCH_REPEAT")))
+                           : 1;
+    gcode::GCodeLayerRenderer renderer;
+    renderer.set_canvas_size(width, height);
+    renderer.set_streaming_controller(&controller);
     const Clock ghost_start = now();
-    size_t segments = 0;
-    for (int i = 0; i < plan.count * repeat; ++i) {
-        const size_t layer = std::min(layers - 1, static_cast<size_t>(i % plan.count) * plan.step);
-        if (auto segs = controller.load_layer_segments_no_prefetch(layer)) {
-            segments += segs->size();
-        }
-        controller.evict_layer(layer);
+    for (int i = 0; i < repeat; ++i) {
+        renderer.build_ghost_blocking();
     }
     const Clock ghost = since(ghost_start);
-    const double ghost_mb = layers > 0 ? mb * plan.count / static_cast<double>(layers) : 0;
-    std::printf("ghost    %d of %zu layers (step %d, %d rows), %zu segments\n", plan.count, layers,
-                plan.step, rows, segments);
-    print_row("ghost", ghost, ghost_mb);
+    const float layers_done = renderer.get_ghost_build_progress();
+    std::printf("ghost    %dx%d canvas, %.0f%% complete\n", width, height, layers_done * 100.0f);
+    print_row("ghost", ghost, mb * repeat);
 
     std::vector<double> layer_ms;
     const size_t first =

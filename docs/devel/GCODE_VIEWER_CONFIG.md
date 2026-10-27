@@ -132,13 +132,14 @@ noise, and `free()` does not lower it without `malloc_trim`.
 
 ## Measuring preview cost on a board
 
-`helix-screen bench-gcode <file> [canvas_rows]` times what a streamed preview of
-that file costs here, without the UI: the layer index scan, the ghost pass's
-layer parses (sampled as a canvas `canvas_rows` tall samples them, default 240),
-and single mid-file layer parses. It prints wall and CPU time for each. It reads
-no config and takes no lock, so it runs beside a live instance; keep the file on
-real storage, since `/tmp` is RAM on most boards. `HELIX_BENCH_REPEAT=N` repeats
-the ghost loop so a profiler can catch it.
+`helix-screen bench-gcode <file> [width height]` times what a streamed preview of
+that file costs here, without the UI: the layer index scan, the renderer's own
+ghost pass (fit, sampling, parse and raster) on a canvas of that size (default
+320x240, about a CC1's print-status preview), and single mid-file layer parses.
+It prints wall and CPU time for each. It reads no config and takes no lock, so it
+runs beside a live instance; keep the file on real storage, since `/tmp` is RAM
+on most boards. `HELIX_BENCH_REPEAT=N` repeats the ghost pass so a profiler can
+catch it.
 
 ## Example
 

@@ -35,7 +35,7 @@ int run(std::initializer_list<const char*> args) {
 
 TEST_CASE("bench-gcode indexes and parses a real file", "[bench_gcode]") {
     const std::string path = write_two_layer_file();
-    CHECK(run({"helix-screen", "bench-gcode", path.c_str(), "100"}) == 0);
+    CHECK(run({"helix-screen", "bench-gcode", path.c_str(), "200", "150"}) == 0);
     std::remove(path.c_str());
 }
 
