@@ -6259,6 +6259,95 @@ TEST_CASE("CFS drops the bypass declaration for a loaded bay even while stood do
     CHECK_FALSE(CfsTestAccess::bypass_declared(cfs));
 }
 
+namespace {
+
+/// A stock `box` frame with nothing on the bus: every address reports the
+/// "None" state a K2 publishes for an empty one.
+json make_empty_bus_box() {
+    json box = json::parse(R"({"state": "connect", "filament": 0, "enable": 1,
+                               "auto_refill": 0, "filament_useup": 1, "map": {}})");
+    for (const char* unit : {"T1", "T2", "T3", "T4"}) {
+        box[unit] = {{"state", "None"},
+                     {"filament", "None"},
+                     {"version", "-1"},
+                     {"vender", {"-1", "-1", "-1", "-1"}},
+                     {"remain_len", {"-1", "-1", "-1", "-1"}},
+                     {"color_value", {"-1", "-1", "-1", "-1"}},
+                     {"material_type", {"-1", "-1", "-1", "-1"}}};
+    }
+    return box;
+}
+
+} // namespace
+
+TEST_CASE("CFS with no unit on the bus feeds only the external spool", "[ams][cfs][bypass][1904]") {
+    CfsRemapHelper cfs;
+    cfs.mark_running();
+
+    SECTION("before any box frame it claims nothing") {
+        CHECK_FALSE(cfs.get_system_info().external_spool_only);
+        CHECK_FALSE(cfs.is_bypass_active());
+    }
+
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box()));
+    REQUIRE(cfs.get_system_info().units.empty());
+
+    SECTION("an empty bus is external-spool-only, bypass with no declaration") {
+        const auto info = cfs.get_system_info();
+        CHECK(info.external_spool_only);
+        CHECK_FALSE(CfsTestAccess::bypass_declared(cfs));
+        CHECK(cfs.is_bypass_active());
+        CHECK_FALSE(cfs.requires_slot_selection_for_load());
+        // Nothing to switch between: the toggle has no other side.
+        CHECK_FALSE(info.supports_bypass);
+    }
+
+    SECTION("the toolhead sensor decides whether the spool is loaded") {
+        CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/true);
+        CfsTestAccess::handle_status(cfs, json{{"params", json::array({json::object(), 0})}});
+        CHECK(cfs.get_system_info().current_slot == helix::ui::kExternalSpoolSlot);
+
+        CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/false);
+        CfsTestAccess::handle_status(cfs, json{{"params", json::array({json::object(), 0})}});
+        CHECK(cfs.get_system_info().current_slot == -1);
+    }
+
+    SECTION("unload of the loaded spool runs the external-spool script") {
+        CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/true);
+        CfsTestAccess::handle_status(cfs, json{{"params", json::array({json::object(), 0})}});
+        REQUIRE(cfs.unload_filament(helix::ui::kExternalSpoolSlot).result == AmsResult::SUCCESS);
+        REQUIRE(cfs.dispatched.size() == 1);
+        CHECK(cfs.dispatched[0] ==
+              AmsBackendCfs::bypass_unload_gcode(CfsTestAccess::macro_variant(cfs),
+                                                 /*has_quit_material=*/false));
+    }
+
+    SECTION("a unit coming online ends it, loaded spool included") {
+        CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/true);
+        CfsTestAccess::handle_status(cfs, json{{"params", json::array({json::object(), 0})}});
+        REQUIRE(cfs.get_system_info().current_slot == helix::ui::kExternalSpoolSlot);
+
+        json box =
+            make_single_unit_box({"101001", "-1", "-1", "-1"}, {"01A1A1A", "-1", "-1", "-1"});
+        CfsTestAccess::handle_status(cfs, make_cfs_notification(box));
+        const auto info = cfs.get_system_info();
+        CHECK_FALSE(info.external_spool_only);
+        CHECK_FALSE(cfs.is_bypass_active());
+        CHECK(info.supports_bypass);
+        CHECK(info.current_slot != helix::ui::kExternalSpoolSlot);
+    }
+}
+
+TEST_CASE("CFS with a unit on the bus is not external-spool-only", "[ams][cfs][bypass][1904]") {
+    CfsRemapHelper cfs;
+    json box = make_single_unit_box({"101001", "-1", "-1", "-1"}, {"01A1A1A", "-1", "-1", "-1"});
+    // A box stood down by the bypass declaration still has its unit.
+    box["enable"] = 0;
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(box));
+    CHECK_FALSE(cfs.get_system_info().external_spool_only);
+    CHECK_FALSE(cfs.is_bypass_active());
+}
+
 // ===========================================================================
 // Flat schema (community box.py fork): what a delta may and may not overwrite
 // ===========================================================================

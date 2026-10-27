@@ -1816,7 +1816,12 @@ struct AmsSystemInfo {
     /// capability answer would claim a negative it never read.
     bool endless_spool_groups_reported = false;
 
-    bool supports_bypass = false;            ///< Has bypass selector position
+    bool supports_bypass = false; ///< Has bypass selector position
+    /// The hardware is there in firmware but nothing feeds through it, so the
+    /// printer runs one external spool (a CFS-ready printer with no box on the
+    /// bus, #1904). The backend still owns load and unload; the UI presents no
+    /// filament system.
+    bool external_spool_only = false;
     bool has_hardware_bypass_sensor = false; ///< true=auto-detect sensor, false=virtual/manual
     TipMethod tip_method = TipMethod::CUT;   ///< How filament tip is handled during unload
     bool supports_purge = false;             ///< Has purge capability after load
@@ -1974,6 +1979,11 @@ struct AmsSystemInfo {
      */
     [[nodiscard]] bool is_available() const {
         return type != AmsType::NONE && !units.empty();
+    }
+
+    /// Whether the UI shows a filament system for this backend at all.
+    [[nodiscard]] bool presents_filament_system() const {
+        return type != AmsType::NONE && !external_spool_only;
     }
 
     /**

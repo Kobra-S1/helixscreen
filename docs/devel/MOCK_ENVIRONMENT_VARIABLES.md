@@ -914,7 +914,14 @@ HELIX_MOCK_PRINTER=k1 HELIX_MOCK_AMS=cfs ./build/bin/helix-screen --test -vv
 
 `HELIX_MOCK_CFS_BOXES` lists the box addresses on the bus, e.g. `1,2,3,4` for a full chain
 or `1,3` for a chain with box 2 off the bus (it shows as an absent unit). Box 1 is always
-present and carries the one spool; the others are empty. Default: box 1 only.
+present and carries the one spool; the others are empty. Default: box 1 only. `none` is a
+K2 with no CFS attached: `box` is still published and every address reads `"None"`, so
+the backend runs external-spool-only and the UI shows no filament system
+(`FILAMENT_BACKEND_CFS.md` § No CFS on the bus):
+
+```bash
+HELIX_MOCK_PRINTER=k2 HELIX_MOCK_CFS_BOXES=none ./build/bin/helix-screen --test -vv
+```
 
 **Multi-extruder and tool testing:** Setting `HELIX_MOCK_AMS=toolchanger` also creates multiple tool definitions and extruders in the mock environment. Multiple extruders (extruder, extruder1, etc.) and tools are auto-discovered from Klipper objects at runtime, so no separate env var is needed to control extruder count. The toolchanger mock provides a complete multi-tool, multi-extruder test environment.
 
