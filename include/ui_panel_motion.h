@@ -239,11 +239,12 @@ class MotionPanel : public OverlayBase {
 
     /// Open the coordinate keypad for one axis ('x'/'y'/'z'), seeded with the
     /// COMMANDED position and bounded by the axis envelope. Refuses (no-op)
-    /// while jogging is gated off (not connected or klippy not ready).
+    /// while jogging is gated off (not connected or klippy not ready) or the
+    /// axis is unhomed.
     void open_axis_keypad(char axis);
 
-    /// Keypad confirm: home the axis if needed, then dispatch the absolute
-    /// target for that one axis.
+    /// Keypad confirm: dispatch the absolute target for that one axis. An
+    /// unhomed axis sends nothing; nothing in the panel homes except Home.
     void request_axis_target(char axis, double mm);
 
     /// Select the content tab: 0=Jog, 1=Move, 2=Bed. Jog is re-selected every
@@ -252,17 +253,20 @@ class MotionPanel : public OverlayBase {
 
     /// Move tab: send the toolhead to one of the nine bed grid positions. The
     /// target is computed at tap time; unknown axis bounds warn instead of
-    /// moving, and an unhomed machine homes first.
+    /// moving. It goes out through the plate gesture's send_once(), so it lifts
+    /// to the plate floor, refuses a part too tall to clear, and sends nothing
+    /// unless every axis is homed.
     void handle_preset(helix::MotionPreset preset);
 
     /// Move tab: run the ParkToolhead macro when the slot resolves to one,
     /// else lift Z and park over the rear of the plate (plate_rear_park()).
+    /// Either way every axis must be homed, or nothing is sent.
     void handle_park();
 
-    /// Park with no macro: over the rear of the plate, after lifting Z by
-    /// kParkZLiftMm (capped at travel) when @p lift_z. Every axis must
-    /// already be homed.
-    void park_over_plate(bool lift_z);
+    /// Park with no macro: over the rear of the plate at park_plate_lift()'s
+    /// height. A part too tall to clear refuses with a notice; unhomed sends
+    /// nothing.
+    void park_over_plate();
 
     /// Move tab: raise the shared Disable Motors confirmation.
     void handle_motors_off();
@@ -413,8 +417,12 @@ class MotionPanel : public OverlayBase {
     /// Stop tracking the finger: no press, no drag target, readout at rest.
     void end_bed_gesture();
 
-    /// The gesture's send hook: one Bed-tab target, lift already applied.
+    /// The gesture's send hook: one plate target (Bed tab or preset), lift
+    /// already applied.
     void send_bed_target(const helix::AxisTarget& target);
+
+    /// The Refuse notice: a part on the bed is too tall to clear.
+    static void notify_part_too_tall();
 
     /// Gating backstop behind the Move tab's XML disabled bindings: commands
     /// are allowed only while nav buttons are enabled (connected + klippy

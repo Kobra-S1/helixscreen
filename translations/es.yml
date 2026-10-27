@@ -782,6 +782,7 @@ translations:
 
   Clear the extruder?: '¿Vaciar el extrusor?'
   Clear the plate and load {}. The tower prints in the middle of the bed.: Despeja la cama y carga {}. La torre se imprime en el centro de la cama.
+  Cleared: Despejado
   Cleared from settings — system unpair failed, may need OS Bluetooth: Borrado de
     los ajustes; falló el desemparejamiento del sistema, puede que necesite el Bluetooth
     del SO

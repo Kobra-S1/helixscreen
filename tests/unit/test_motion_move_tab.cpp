@@ -150,6 +150,34 @@ class MoveTabFixture : public LVGLUITestFixture {
 
 } // namespace
 
+namespace {
+
+/// Puts a part of @p height_mm on the bed for the panel to see, for the scope's life.
+class ScopedPartOnBed {
+  public:
+    explicit ScopedPartOnBed(double height_mm) : state_(get_printer_state(), nullptr) {
+        state_.init_subjects();
+        // The state's own observers fire on the drain and re-decide from its (empty)
+        // history; the verdict goes in after them.
+        MoveTabFixture::drain();
+        helix::BedOccupancyStateTestAccess::set_verdict(state_,
+                                                        {true, height_mm, "job-on-the-bed"});
+        previous_ = helix::get_bed_occupancy_state();
+        helix::set_bed_occupancy_state(&state_);
+    }
+    ~ScopedPartOnBed() {
+        helix::set_bed_occupancy_state(previous_);
+    }
+    ScopedPartOnBed(const ScopedPartOnBed&) = delete;
+    ScopedPartOnBed& operator=(const ScopedPartOnBed&) = delete;
+
+  private:
+    helix::BedOccupancyState state_;
+    helix::BedOccupancyState* previous_ = nullptr;
+};
+
+} // namespace
+
 TEST_CASE_METHOD(MoveTabFixture, "motion tab switching toggles the tab containers",
                  "[motion][move-tab][xml]") {
     auto& ps = get_printer_state();
@@ -226,17 +254,72 @@ TEST_CASE_METHOD(MoveTabFixture, "homed preset tap sends one absolute move", "[m
     CHECK(move_entries == 1);
 }
 
-TEST_CASE_METHOD(MoveTabFixture, "unhomed preset tap homes before moving", "[motion][move-tab]") {
+TEST_CASE_METHOD(MoveTabFixture, "unhomed presets are disabled and send nothing",
+                 "[motion][move-tab][xml]") {
     get_global_motion_panel().set_motion_tab(1);
     drain();
-    get_printer_state().update_from_status(ready_status(""));
+    lv_obj_t* preset = panel_widget("preset_front");
+    CHECK_FALSE(lv_obj_has_state(preset, LV_STATE_DISABLED));
+
+    // Any one axis unhomed is enough: X and Y homed, Z not.
+    get_printer_state().update_from_status(ready_status("xy"));
+    drain();
+    CHECK(lv_obj_has_state(preset, LV_STATE_DISABLED));
+
+    // The backstop: a click delivered anyway neither homes nor moves.
+    lv_obj_clear_state(preset, LV_STATE_DISABLED);
+    click(preset);
+    INFO(all_scripts());
+    CHECK(client_.gcode_script_history().empty());
+}
+
+TEST_CASE_METHOD(MoveTabFixture, "a preset lifts above a part still on the bed",
+                 "[motion][move-tab]") {
+    ScopedPartOnBed part(38.0);
+    get_global_motion_panel().set_motion_tab(1);
+    drain();
+
+    click(panel_widget("preset_front"));
+
+    // The default 5mm clearance over a 38mm part, before the travel.
+    const std::string scripts = all_scripts();
+    INFO(scripts);
+    const auto lift = scripts.find("Z43");
+    const auto travel = scripts.find("Y-140");
+    REQUIRE(lift != std::string::npos);
+    REQUIRE(travel != std::string::npos);
+    CHECK(lift < travel);
+}
+
+TEST_CASE_METHOD(MoveTabFixture, "a preset from below clearance lifts to it first",
+                 "[motion][move-tab]") {
+    get_printer_state().update_from_status(
+        {{"gcode_move", {{"gcode_position", {10.0, 10.0, 0.2, 0.0}}}}});
+    get_global_motion_panel().set_motion_tab(1);
     drain();
 
     click(panel_widget("preset_front"));
 
     const std::string scripts = all_scripts();
-    CHECK(scripts.find("G28") != std::string::npos);
-    CHECK(scripts.find("Y-140 ") != std::string::npos);
+    INFO(scripts);
+    const auto lift = scripts.find("Z5");
+    const auto travel = scripts.find("Y-140");
+    REQUIRE(lift != std::string::npos);
+    REQUIRE(travel != std::string::npos);
+    CHECK(lift < travel);
+}
+
+TEST_CASE_METHOD(MoveTabFixture, "a preset refuses a part too tall to clear",
+                 "[motion][move-tab]") {
+    // Z travel is 275mm; a 274.5mm part leaves under 1mm above it.
+    ScopedPartOnBed part(274.5);
+    get_global_motion_panel().set_motion_tab(1);
+    drain();
+
+    click(panel_widget("preset_front"));
+
+    INFO(all_scripts());
+    CHECK(client_.gcode_script_history().empty());
 }
 
 TEST_CASE_METHOD(MoveTabFixture, "park runs the configured macro", "[motion][move-tab]") {
@@ -281,40 +364,90 @@ TEST_CASE_METHOD(MoveTabFixture,
     CHECK(scripts.find("Y-140") == std::string::npos);
 }
 
-TEST_CASE_METHOD(MoveTabFixture, "park that has to home leaves Z where homing put it",
-                 "[motion][move-tab]") {
+TEST_CASE_METHOD(MoveTabFixture, "unhomed park is disabled and sends nothing, macro or not",
+                 "[motion][move-tab][xml]") {
+    const bool with_macro = GENERATE(false, true);
     StandardMacros::instance().reset();
     helix::PrinterDiscovery hardware;
-    hardware.parse_objects(nlohmann::json{"extruder"});
+    hardware.parse_objects(with_macro ? nlohmann::json{"extruder", "gcode_macro PARK"}
+                                      : nlohmann::json{"extruder"});
     StandardMacros::instance().init(hardware);
 
     get_global_motion_panel().set_motion_tab(1);
     drain();
     get_printer_state().update_from_status(ready_status(""));
     drain();
+    lv_obj_t* park = panel_widget("move_park");
+    CHECK(lv_obj_has_state(park, LV_STATE_DISABLED));
 
-    client_.clear_gcode_script_history();
+    lv_obj_clear_state(park, LV_STATE_DISABLED);
+    click(park);
+    INFO(all_scripts());
+    CHECK(client_.gcode_script_history().empty());
+}
+
+TEST_CASE_METHOD(MoveTabFixture, "park lifts to the plate floor when that is higher",
+                 "[motion][move-tab]") {
+    StandardMacros::instance().reset();
+    helix::PrinterDiscovery hardware;
+    hardware.parse_objects(nlohmann::json{"extruder"});
+    StandardMacros::instance().init(hardware);
+    ScopedPartOnBed part(38.0);
+    get_global_motion_panel().set_motion_tab(1);
+    drain();
+
     click(panel_widget("move_park"));
 
-    // The commanded Z the panel holds predates the G28, so a lift from it
-    // could command a descent; homing already leaves Z at a safe height.
-    bool homed = false;
-    bool parked = false;
-    bool z_moved = false;
-    for (const auto& line : client_.gcode_script_history()) {
-        if (line.rfind("G28", 0) == 0) {
-            homed = true;
-        }
-        if (line.find("Y165") != std::string::npos) {
-            parked = true;
-        }
-        if (homed && line.rfind("G0", 0) == 0 && line.find('Z') != std::string::npos) {
-            z_moved = true;
-        }
+    // Commanded Z 10: current + 10 is 20, the floor over a 38mm part is 43.
+    const std::string scripts = all_scripts();
+    INFO(scripts);
+    CHECK(scripts.find("Z43") != std::string::npos);
+    CHECK(scripts.find("Y165") != std::string::npos);
+    CHECK(scripts.find("Z20") == std::string::npos);
+}
+
+TEST_CASE_METHOD(MoveTabFixture, "park refuses a part too tall to clear", "[motion][move-tab]") {
+    StandardMacros::instance().reset();
+    helix::PrinterDiscovery hardware;
+    hardware.parse_objects(nlohmann::json{"extruder"});
+    StandardMacros::instance().init(hardware);
+    ScopedPartOnBed part(274.5);
+    get_global_motion_panel().set_motion_tab(1);
+    drain();
+
+    click(panel_widget("move_park"));
+
+    INFO(all_scripts());
+    CHECK(client_.gcode_script_history().empty());
+}
+
+TEST_CASE_METHOD(MoveTabFixture, "an unhomed coordinate is disabled and its entry sends nothing",
+                 "[motion][move-tab][coords][xml]") {
+    get_printer_state().update_from_status(ready_status("yz"));
+    drain();
+    // Only the unhomed axis's coordinate greys out (header or portrait row,
+    // whichever this layout built).
+    lv_obj_t* root = get_global_motion_panel().get_root();
+    lv_obj_t* x_group = lv_obj_find_by_name(root, "header_pos_x_group");
+    lv_obj_t* y_group = lv_obj_find_by_name(root, "header_pos_y_group");
+    if (!x_group) {
+        x_group = lv_obj_find_by_name(root, "row_pos_x_group");
+        y_group = lv_obj_find_by_name(root, "row_pos_y_group");
     }
-    CHECK(homed);
-    CHECK(parked);
-    CHECK_FALSE(z_moved);
+    REQUIRE(x_group != nullptr);
+    REQUIRE(y_group != nullptr);
+    CHECK(lv_obj_has_state(x_group, LV_STATE_DISABLED));
+    CHECK_FALSE(lv_obj_has_state(y_group, LV_STATE_DISABLED));
+
+    get_global_motion_panel().request_axis_target('x', 50.0);
+    drain();
+    INFO(all_scripts());
+    CHECK(client_.gcode_script_history().empty());
+
+    // The homed axis still moves.
+    get_global_motion_panel().request_axis_target('y', 50.0);
+    drain();
+    CHECK(all_scripts().find("Y50") != std::string::npos);
 }
 
 TEST_CASE_METHOD(MoveTabFixture, "the grid greys out while the toolhead is busy, Z stays live",
@@ -660,10 +793,37 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: a tap on an unhomed plate sends nothi
     get_printer_state().update_from_status(ready_status(""));
     drain();
     lv_obj_t* area = panel_widget("bed_map_area");
+    CHECK(lv_obj_has_state(area, LV_STATE_DISABLED));
 
     bed_tap(area, far_point(area, false, false));
 
     INFO(all_scripts());
+    CHECK(client_.gcode_script_history().empty());
+}
+
+TEST_CASE_METHOD(MoveTabFixture, "bed tab: Cleared shows while a part may be on the bed",
+                 "[motion][bed-tab][xml]") {
+    ScopedPartOnBed part(38.0);
+    // The panel's XML binds bed_occupied when it is built, so rebuild it with the
+    // state's subjects registered, as the app does (the session creates them first).
+    helix::ui::destroy_static_panels();
+    drain();
+    REQUIRE(get_global_motion_panel().show(lv_screen_active()));
+    drain();
+    get_global_motion_panel().set_motion_tab(2);
+    drain();
+    lv_subject_t* occupied = lv_xml_get_subject(nullptr, "bed_occupied");
+    REQUIRE(occupied != nullptr);
+    lv_obj_t* cleared = panel_widget("bed_map_cleared");
+    CHECK(lv_subject_get_int(occupied) == 1);
+    CHECK_FALSE(lv_obj_has_flag(cleared, LV_OBJ_FLAG_HIDDEN));
+
+    click(cleared);
+
+    CHECK(lv_subject_get_int(occupied) == 0);
+    CHECK(lv_obj_has_flag(cleared, LV_OBJ_FLAG_HIDDEN));
+    // The lift falls back to the plain clearance (commanded Z 10 is above it).
+    CHECK(bed_readout().find("last print") == std::string::npos);
     CHECK(client_.gcode_script_history().empty());
 }
 
@@ -800,34 +960,6 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: Z unhomed counts as unhomed, like Par
     CHECK(client_.gcode_script_history().empty());
 }
 
-namespace {
-
-/// Puts a part of @p height_mm on the bed for the panel to see, for the scope's life.
-class ScopedPartOnBed {
-  public:
-    explicit ScopedPartOnBed(double height_mm) : state_(get_printer_state(), nullptr) {
-        state_.init_subjects();
-        // The state's own observers fire on the drain and re-decide from its (empty)
-        // history; the verdict goes in after them.
-        MoveTabFixture::drain();
-        helix::BedOccupancyStateTestAccess::set_verdict(state_,
-                                                        {true, height_mm, "job-on-the-bed"});
-        previous_ = helix::get_bed_occupancy_state();
-        helix::set_bed_occupancy_state(&state_);
-    }
-    ~ScopedPartOnBed() {
-        helix::set_bed_occupancy_state(previous_);
-    }
-    ScopedPartOnBed(const ScopedPartOnBed&) = delete;
-    ScopedPartOnBed& operator=(const ScopedPartOnBed&) = delete;
-
-  private:
-    helix::BedOccupancyState state_;
-    helix::BedOccupancyState* previous_ = nullptr;
-};
-
-} // namespace
-
 TEST_CASE_METHOD(MoveTabFixture, "bed tab: a tap lifts above a part still on the bed",
                  "[motion][bed-tab]") {
     ScopedPartOnBed part(38.0);
@@ -946,7 +1078,7 @@ TEST_CASE_METHOD(MoveTabFixture, "motion: a Z frame landing before its ack is no
 
     // The head is at 2: the readout and every lift start from there.
     CHECK(bed_readout().find("Z 2.00, will lift to 5mm") != std::string::npos);
-    panel.park_over_plate(/*lift_z=*/true);
+    panel.park_over_plate();
     REQUIRE(motion.held.size() == 1);
     REQUIRE(motion.held[0].target.z.has_value());
     CHECK(*motion.held[0].target.z == Catch::Approx(12.0));

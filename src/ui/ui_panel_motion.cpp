@@ -49,11 +49,6 @@
 using namespace helix;
 using helix::ui::find_required;
 
-namespace {
-/// How far Park lifts the nozzle away from the plate before moving over it.
-constexpr double kParkZLiftMm = 10.0;
-} // namespace
-
 /// Trim trailing zeros so 0.1 reads "0.1" and 10.0 reads "10"; the default
 /// distances must render as 0.1, 1, 10 and 50.
 static void format_distance_label(char* buf, size_t n, float mm) {
@@ -302,10 +297,7 @@ MotionPanel::MotionPanel()
                                                 move_sender_.target_start_z(current_z_));
            },
            [this](const helix::AxisTarget& target) { send_bed_target(target); },
-           []() {
-               NOTIFY_WARNING(lv_tr("The part on the bed is too tall to clear. Remove "
-                                    "it, then tap Cleared."));
-           }}) {
+           []() { notify_part_too_tall(); }}) {
     // Initialize buffer contents (axis labels are in XML, values only here)
     std::strcpy(pos_x_buf_, "—");
     std::strcpy(pos_y_buf_, "—");
@@ -598,6 +590,12 @@ void MotionPanel::register_callbacks() {
         {"on_motion_bed_size_changed",
          [](lv_event_t*) { get_global_motion_panel().layout_bed_map(); }},
         {"on_motion_bed_home", [](lv_event_t*) { get_global_motion_panel().home('A'); }},
+        {"on_motion_bed_cleared",
+         [](lv_event_t*) {
+             if (helix::BedOccupancyState* state = helix::get_bed_occupancy_state()) {
+                 state->mark_cleared();
+             }
+         }},
         {"on_motion_bed_plate_draw",
          [](lv_event_t* e) { get_global_motion_panel().draw_bed_plate(e); }},
     });
@@ -1346,6 +1344,12 @@ void MotionPanel::toggle_coordinate_source() {
     refresh_position_display();
 }
 
+namespace {
+helix::Axis axis_from_letter(char axis) {
+    return axis == 'x' ? helix::Axis::X : axis == 'y' ? helix::Axis::Y : helix::Axis::Z;
+}
+} // namespace
+
 void MotionPanel::open_axis_keypad(char axis) {
     // Same gate as the jog controls: while the printer is not connected or
     // klippy is not ready, a jog would be refused, so the keypad must not
@@ -1356,9 +1360,12 @@ void MotionPanel::open_axis_keypad(char axis) {
         return;
     }
 
-    const helix::Axis axis_enum = axis == 'x'   ? helix::Axis::X
-                                  : axis == 'y' ? helix::Axis::Y
-                                                : helix::Axis::Z;
+    const helix::Axis axis_enum = axis_from_letter(axis);
+    // An unhomed axis has no position to seed from, and only an explicit Home homes.
+    if (!helix::axis_is_homed(get_printer_state(), axis_enum)) {
+        spdlog::debug("[{}] Axis keypad refused: {} unhomed", get_name(), axis);
+        return;
+    }
     const double commanded = axis == 'x' ? current_x_ : axis == 'y' ? current_y_ : current_z_;
     const auto params = helix::keypad_params_for_axis(
         get_printer_state().motion_state().get_gcode_axis_bounds(), axis_enum, commanded);
@@ -1406,20 +1413,12 @@ void MotionPanel::request_axis_target(char axis, double mm) {
         break;
     }
 
-    const helix::Axis axis_enum = axis == 'x'   ? helix::Axis::X
-                                  : axis == 'y' ? helix::Axis::Y
-                                                : helix::Axis::Z;
-    if (helix::axis_is_homed(get_printer_state(), axis_enum)) {
-        dispatch_target(target);
+    // Only an explicit Home homes; the coordinate is disabled while its axis is unhomed.
+    if (!helix::axis_is_homed(get_printer_state(), axis_from_letter(axis))) {
+        spdlog::debug("[{}] Coordinate target refused: {} unhomed", get_name(), axis);
         return;
     }
-
-    // Unhomed: offer homing instead of letting Klipper refuse the move.
-    helix::ensure_homed_then(
-        get_moonraker_api(), lifetime_, [this, target]() { dispatch_target(target); },
-        lifetime_.bg_cb("MotionPanel::coord_home_failed", [](const MoonrakerError& err) {
-            NOTIFY_ERROR(lv_tr("Homing failed: {}"), clean_gcode_error(err.localized_message()));
-        }));
+    dispatch_target(target);
 }
 
 // ============================================================================
@@ -1458,22 +1457,6 @@ bool MotionPanel::moves_allowed() const {
            lv_subject_get_int(ps.print_state().get_machine_motion_blocked_subject()) == 0;
 }
 
-/// Run `then` once X and Y are homed: homed runs it directly, anything else
-/// homes first and the move only fires once homing succeeded. Presets move XY
-/// only; Park needs every axis and uses ensure_homed_then directly.
-static void ensure_xy_homed_then(AsyncLifetimeGuard& lifetime, std::function<void()> then) {
-    auto& ps = get_printer_state();
-    if (helix::axis_is_homed(ps, helix::Axis::X) && helix::axis_is_homed(ps, helix::Axis::Y)) {
-        then();
-        return;
-    }
-    helix::ensure_homed_then(
-        get_moonraker_api(), lifetime, std::move(then),
-        lifetime.bg_cb("MotionPanel::xy_home_failed", [](const MoonrakerError& err) {
-            NOTIFY_ERROR(lv_tr("Homing failed: {}"), clean_gcode_error(err.localized_message()));
-        }));
-}
-
 void MotionPanel::refresh_tab_labels() {
     // Literal lv_tr calls, not an array of keys: the translation extractor
     // only sees string literals inside lv_tr().
@@ -1500,65 +1483,57 @@ void MotionPanel::handle_preset(helix::MotionPreset preset) {
         NOTIFY_INFO(lv_tr("Axis limits unknown"));
         return;
     }
-    ensure_xy_homed_then(lifetime_, [this, t = *target]() { dispatch_target(t); });
+    // The plate's send path: the lift floor, the Refuse notice and the homed gate.
+    bed_gesture_.send_once(*target);
 }
 
 void MotionPanel::handle_park() {
     IMoonrakerAPI* api = get_moonraker_api();
-    if (!api || !moves_allowed()) {
+    // Both paths may lift Z, so they need every axis homed; only an explicit Home homes.
+    if (!api || !helix::plate_moves_allowed(get_printer_state())) {
         return;
     }
     const auto info = StandardMacros::instance().get(StandardMacroSlot::ParkToolhead);
-    // Both paths may lift Z, so they need every axis homed.
     if (info.is_empty()) {
-        // The commanded Z the panel holds predates a G28 that runs first, so a
-        // lift computed from it could be a descent; homing already leaves Z at
-        // a safe height, so the lift only applies to a machine already homed.
-        const bool lift_z = helix::toolhead_is_homed(get_printer_state());
-        helix::ensure_homed_then(
-            api, lifetime_, [this, lift_z]() { park_over_plate(lift_z); },
-            lifetime_.bg_cb("MotionPanel::park_home_failed", [](const MoonrakerError& err) {
-                NOTIFY_ERROR(lv_tr("Homing failed: {}"),
-                             clean_gcode_error(err.localized_message()));
-            }));
+        park_over_plate();
         return;
     }
     const std::string name = info.translated_name();
-    helix::ensure_homed_then(
-        api, lifetime_,
-        [this, name]() {
-            NOTIFY_INFO(lv_tr("Running {}..."), name.c_str());
-            if (!StandardMacros::instance().execute(
-                    StandardMacroSlot::ParkToolhead, get_moonraker_api(), {},
-                    [name]() { NOTIFY_SUCCESS(lv_tr("{} complete"), name.c_str()); },
-                    lifetime_.bg_cb("MotionPanel::park_failed", [name](const MoonrakerError& err) {
-                        NOTIFY_ERROR(lv_tr("Macro failed: {}"),
-                                     clean_gcode_error(err.localized_message()));
-                    }))) {
-                NOTIFY_WARNING(lv_tr("{} macro not configured"), name.c_str());
-            }
-        },
-        lifetime_.bg_cb("MotionPanel::park_home_failed", [](const MoonrakerError& err) {
-            NOTIFY_ERROR(lv_tr("Homing failed: {}"), clean_gcode_error(err.localized_message()));
-        }));
+    NOTIFY_INFO(lv_tr("Running {}..."), name.c_str());
+    if (!StandardMacros::instance().execute(
+            StandardMacroSlot::ParkToolhead, api, {},
+            [name]() { NOTIFY_SUCCESS(lv_tr("{} complete"), name.c_str()); },
+            lifetime_.bg_cb("MotionPanel::park_failed", [](const MoonrakerError& err) {
+                NOTIFY_ERROR(lv_tr("Macro failed: {}"), clean_gcode_error(err.localized_message()));
+            }))) {
+        NOTIFY_WARNING(lv_tr("{} macro not configured"), name.c_str());
+    }
 }
 
-void MotionPanel::park_over_plate(bool lift_z) {
-    if (!get_moonraker_api()) {
+void MotionPanel::park_over_plate() {
+    if (!get_moonraker_api() || !helix::plate_moves_allowed(get_printer_state())) {
         return;
     }
-    const AxisBounds gcode = get_printer_state().motion_state().get_gcode_axis_bounds();
     const auto plate = helix::current_bed_plate(get_printer_state(), get_moonraker_api());
     auto target = plate ? helix::plate_rear_park(plate->area) : std::nullopt;
     if (!target) {
         NOTIFY_INFO(lv_tr("Axis limits unknown"));
         return;
     }
-    if (lift_z && gcode.has_z) {
-        target->z = std::min(static_cast<double>(current_z_) + kParkZLiftMm,
-                             static_cast<double>(gcode.z_max));
+    const auto lift =
+        helix::park_plate_lift(get_printer_state(), move_sender_.target_start_z(current_z_));
+    if (lift.kind == helix::PlateLift::Kind::Refuse) {
+        notify_part_too_tall();
+        return;
+    }
+    if (lift.kind == helix::PlateLift::Kind::Lift) {
+        target->z = lift.z;
     }
     dispatch_target(*target);
+}
+
+void MotionPanel::notify_part_too_tall() {
+    NOTIFY_WARNING(lv_tr("The part on the bed is too tall to clear. Remove it, then tap Cleared."));
 }
 
 // ============================================================================
@@ -1843,7 +1818,7 @@ void MotionPanel::end_bed_gesture() {
 }
 
 void MotionPanel::send_bed_target(const helix::AxisTarget& target) {
-    spdlog::info("[{}] Bed map target X{:.2f} Y{:.2f}{}", get_name(), target.x.value_or(0.0),
+    spdlog::info("[{}] Plate target X{:.2f} Y{:.2f}{}", get_name(), target.x.value_or(0.0),
                  target.y.value_or(0.0),
                  target.z ? fmt::format(" (lift Z{:.2f})", *target.z) : std::string());
     if (!dispatch_target(target)) {

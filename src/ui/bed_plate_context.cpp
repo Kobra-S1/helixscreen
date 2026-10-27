@@ -8,6 +8,8 @@
 #include "settings_manager.h"
 #include "toolhead_homing.h"
 
+#include <algorithm>
+
 namespace helix {
 
 std::optional<BedPlateArea> current_bed_plate(const PrinterState& ps, IMoonrakerAPI* api) {
@@ -50,6 +52,26 @@ PlateLift current_plate_lift(const PrinterState& ps, double start_z) {
     return plate_lift(start_z,
                       static_cast<double>(SettingsManager::instance().get_bed_map_clearance_mm()),
                       static_cast<double>(bounds.z_max), bed_part_height());
+}
+
+PlateLift park_plate_lift(const PrinterState& ps, double current_z) {
+    const PlateLift floor = current_plate_lift(ps, current_z);
+    if (floor.kind == PlateLift::Kind::Refuse) {
+        return floor;
+    }
+    const AxisBounds bounds = move_clamp_bounds(ps);
+    if (!bounds.has_z) {
+        return {};
+    }
+    double z = current_z + kParkZLiftMm;
+    if (floor.kind == PlateLift::Kind::Lift) {
+        z = std::max(z, floor.z);
+    }
+    z = std::min(z, static_cast<double>(bounds.z_max));
+    if (z <= current_z) {
+        return {};
+    }
+    return {PlateLift::Kind::Lift, z};
 }
 
 } // namespace helix

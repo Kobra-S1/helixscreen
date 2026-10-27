@@ -781,6 +781,7 @@ translations:
 
   Clear the extruder?: 'Esvaziar o extrusor?'
   Clear the plate and load {}. The tower prints in the middle of the bed.: Limpe a mesa e carregue {}. A torre é impressa no centro da mesa.
+  Cleared: Liberado
   Cleared from settings — system unpair failed, may need OS Bluetooth: Removido das
     configurações; falha ao desemparelhar no sistema, pode ser necessário o Bluetooth
     do SO

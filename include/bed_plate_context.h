@@ -41,4 +41,13 @@ struct BedPlateArea {
 /// envelope's z_max and the bed-occupancy part height. Kind::None when Z bounds are unknown.
 [[nodiscard]] PlateLift current_plate_lift(const PrinterState& ps, double start_z);
 
+/// How far Park raises the nozzle before it travels.
+inline constexpr double kParkZLiftMm = 10.0;
+
+/// Park's lift from @p current_z: the higher of current_z + kParkZLiftMm and the plate
+/// floor, capped at the clamp envelope's z_max. Refuse when current_plate_lift() refuses
+/// (a part too tall to clear); Kind::None when Z bounds are unknown or the cap leaves no
+/// rise. Shared by the Move tab's Park and the home Toolhead widget's Park slot.
+[[nodiscard]] PlateLift park_plate_lift(const PrinterState& ps, double current_z);
+
 } // namespace helix
