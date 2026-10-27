@@ -206,10 +206,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         return zmod_c5_row_active();
     }
 
-    // Marker for tool-changer expected-hardware recording during wizard setup.
-    [[nodiscard]] const char* get_klipper_object_name() const override {
-        return "toolchanger";
-    }
     [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
         return helix::ui::LaneNoun::Tool;
     }

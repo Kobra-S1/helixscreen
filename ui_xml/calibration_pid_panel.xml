@@ -81,7 +81,7 @@
                       width="1" height="content" flex_grow="1" style_pad_all="0" flex_flow="row"
                       style_pad_gap="#space_xs" style_flex_cross_place="center" scrollable="false"
                       style_flex_track_place="center">
-                <bind_flag_if_eq subject="cal_is_kalico" flag="hidden" ref_value="0"/>
+                <bind_flag_if_eq subject="cal_supports_mpc" flag="hidden" ref_value="0"/>
                 <lv_obj width="content"
                         height="content" style_pad_all="0" flex_flow="column" style_pad_gap="2"
                         style_flex_cross_place="center" scrollable="false">

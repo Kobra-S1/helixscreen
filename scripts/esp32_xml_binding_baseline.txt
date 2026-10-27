@@ -288,13 +288,13 @@ subject:cal_fan_is_detailed
 subject:cal_fan_is_quick
 subject:cal_fan_is_thorough
 subject:cal_fan_speed_text
-subject:cal_is_kalico
 subject:cal_method_is_mpc
 subject:cal_migration_notice
 subject:cal_needs_migration
 subject:cal_show_fan_config
 subject:cal_show_pid_fan
 subject:cal_show_wattage
+subject:cal_supports_mpc
 subject:cal_wattage_display
 subject:cam_flip_h_active
 subject:cam_flip_v_active

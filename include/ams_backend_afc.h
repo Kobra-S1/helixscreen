@@ -195,6 +195,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     static bool owns_filament_sensor(const std::string& bare_name,
                                      const helix::PrinterDiscovery& discovery);
 
+    /// Substrings of a lowercased sensor name that mark it as AFC hardware's
+    /// (BoxTurtle, quiet-mode switches) whether or not AFC was detected. See
+    /// AmsBackend::sensor_name_names_filament_system.
+    static constexpr const char* kSensorNameKeywords[] = {"afc", "turtle", "quiet"};
+
     /// What query_afc_configfile_topology() keeps from configfile.settings.
     struct ConfigfileTopology {
         /// settings was present and an object; only then does a missing
@@ -284,9 +289,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
         return t;
     }
 
-    [[nodiscard]] const char* get_klipper_object_name() const override {
-        return "AFC"; // Matches the Klipper object name (uppercase)
-    }
     [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
         return helix::ui::LaneNoun::Lane;
     }

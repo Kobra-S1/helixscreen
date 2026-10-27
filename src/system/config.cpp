@@ -14,6 +14,7 @@
 #endif
 #include "ui_error_reporting.h"
 
+#include "ams_types.h"
 #include "app_constants.h"
 #include "config_backup.h"
 #include "config_migrations.h"
@@ -1838,10 +1839,11 @@ bool Config::apply_preset_file(const std::string& preset_name) {
             }
         }
 
-        // Migration 4: hardware/expected union. The four AMS keywords are the only
-        // expected entries that can raise an expected_missing warning ("AMS/MMU system
-        // not detected"), so unioning one could invent that warning; every other name
-        // only ever suppresses a false "new hardware" report.
+        // Migration 4: hardware/expected union. A filament system's entry
+        // (ams_type_for_expected_hardware) is the only kind that can raise an
+        // expected_missing warning ("AMS/MMU system not detected"), so unioning one
+        // could invent that warning; every other name only ever suppresses a false
+        // "new hardware" report.
         if (preset_printer.contains("hardware") && preset_printer["hardware"].is_object() &&
             preset_printer["hardware"].contains("expected") &&
             preset_printer["hardware"]["expected"].is_array()) {
@@ -1860,8 +1862,7 @@ bool Config::apply_preset_file(const std::string& preset_name) {
                         continue;
                     }
                     const std::string name = entry.get<std::string>();
-                    if (name.empty() || name == "AFC" || name == "mmu" || name == "toolchanger" ||
-                        name == "ace") {
+                    if (name.empty() || ams_type_for_expected_hardware(name) != AmsType::NONE) {
                         continue;
                     }
                     if (std::find(stored.begin(), stored.end(), entry) == stored.end()) {

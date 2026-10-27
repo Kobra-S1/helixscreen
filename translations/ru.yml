@@ -542,6 +542,7 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Руководства,
     справочники по настройке и ресурсы по устранению неполадок для HelixScreen.
   Brush nozzle: 'Очистка сопла щёткой'
+  Buffer: Буфер
   Buffer Status: Статус буфера
   Buffer tube problem: Проблема с буферной трубкой
   Build Volume: 'Область печати'

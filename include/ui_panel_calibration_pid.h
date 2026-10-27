@@ -82,7 +82,7 @@ class PIDCalibrationPanel : public OverlayBase {
      *        the user has selected
      *
      * UNKNOWN until the firmware answers a control-type query. Firmware without
-     * MPC support never answers, so UNKNOWN also means "not Kalico".
+     * MPC support never answers, so UNKNOWN also means "no MPC".
      */
     enum class ControlType { UNKNOWN, PID, MPC };
 
@@ -300,12 +300,12 @@ class PIDCalibrationPanel : public OverlayBase {
     float old_kd_ = 0;
     bool has_old_values_ = false;
 
-    // MPC/Kalico state
+    // MPC state
     CalibMethod selected_method_ = CalibMethod::PID;
     int heater_wattage_ = kWattageDefaultExtruder;
     int fan_breakpoints_ = kFanBpQuick;
     bool needs_migration_ = false;
-    bool is_kalico_ = false;
+    bool supports_mpc_ = false;
     ControlType current_control_ = ControlType::UNKNOWN;
 
     // MPC results
@@ -367,7 +367,7 @@ class PIDCalibrationPanel : public OverlayBase {
     char buf_wattage_display_[16];
 
     // MPC-related int subjects
-    lv_subject_t subj_is_kalico_{};       // int 0/1
+    lv_subject_t subj_supports_mpc_{};    // int 0/1
     lv_subject_t subj_method_is_mpc_{};   // int 0/1
     lv_subject_t subj_show_wattage_{};    // int 0/1
     lv_subject_t subj_needs_migration_{}; // int 0/1
@@ -387,7 +387,7 @@ class PIDCalibrationPanel : public OverlayBase {
     lv_subject_t subj_pid_eta_{};
     char buf_pid_eta_[32];
     int pid_estimated_total_ = 3;      // Dynamic estimate, starts at 3
-    bool has_kalico_progress_ = false; // True once first sample callback arrives
+    bool has_sample_progress_ = false; // True once first sample callback arrives
 
     // Tick (lv_tick_get) when the current CALIBRATING run began; 0 when not calibrating.
     // Drives the "taking longer than expected" backstop (#988): once a run exceeds a

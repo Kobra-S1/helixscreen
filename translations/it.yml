@@ -497,6 +497,7 @@ translations:
     guide, riferimenti di configurazione e risorse per la risoluzione dei problemi
     per HelixScreen.
   Brush nozzle: 'Spazzola l''ugello'
+  Buffer: Buffer
   Buffer Status: Stato buffer
   Buffer tube problem: Problema al tubo del buffer
   Build Volume: 'Volume di stampa'

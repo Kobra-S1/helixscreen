@@ -528,43 +528,22 @@ bool PrinterHardware::is_ams_sensor_substring(const std::string& sensor_name) {
     std::string lower_name = sensor_name;
     lower_name = helix::text_io::to_lower(lower_name);
 
-    // AFC (Armored Turtle Filament Changer) patterns
-    if (lower_name.find("lane") != std::string::npos)
+    // A filament system's own keywords (afc, mmu, ercf, ...) belong to the
+    // backends that drive that hardware.
+    if (helix::AmsBackend::sensor_name_names_filament_system(lower_name))
         return true;
-    if (lower_name.find("afc") != std::string::npos)
+
+    // Generic multi-material patterns
+    if (lower_name.find("lane") != std::string::npos)
         return true;
     if (lower_name.find("slot") != std::string::npos)
         return true;
     if (lower_name.find("bypass") != std::string::npos)
         return true;
-    if (lower_name.find("quiet") != std::string::npos)
-        return true;
-
-    // ERCF (Enraged Rabbit Carrot Feeder) patterns
-    if (lower_name.find("ercf") != std::string::npos)
-        return true;
     if (lower_name.find("gate") != std::string::npos)
-        return true;
-
-    // MMU2/MMU3 (Prusa Multi-Material Unit) patterns
-    if (lower_name.find("mmu") != std::string::npos)
-        return true;
-
-    // TradRack patterns
-    if (lower_name.find("trad") != std::string::npos)
-        return true;
-
-    // BoxTurtle patterns
-    if (lower_name.find("turtle") != std::string::npos)
         return true;
     if (lower_name.find("box") != std::string::npos &&
         lower_name.find("filament") != std::string::npos)
-        return true;
-
-    // Happy Hare patterns
-    if (lower_name.find("happy") != std::string::npos)
-        return true;
-    if (lower_name.find("hare") != std::string::npos)
         return true;
 
     // Generic multi-material patterns (numbered sensors)
