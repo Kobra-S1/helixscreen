@@ -85,8 +85,11 @@ template <typename R, typename... Args> class Callback<R(Args...)> {
   public:
     Callback() noexcept = default;
     Callback(std::nullptr_t) noexcept {}
-    /// Never converts into a std::function: an empty one would become a non-empty
-    /// std::function, and calling that aborts. Wrap it in a lambda that tests it.
+    /// Never converts implicitly into a std::function: an empty one would become a
+    /// non-empty std::function, and calling that aborts. This refuses argument
+    /// passing and copy-initialization only; direct-initialization, emplace and
+    /// std::function's assignment still wrap, so hand a std::function a lambda
+    /// that tests this first.
     template <typename S> operator std::function<S>() const = delete;
 
     template <typename F, typename = EnableIfCallable<F>> Callback(F&& f) {
