@@ -12,11 +12,8 @@
  * controller treats it as authoritative (`_current_tool()` returns
  * `pin_watch.current_tool`, and `sensor_error` is `current_tool == -2`).
  *
- * Two [medusahc] schemas exist and object presence cannot separate them, so the
- * reader discriminates on field names and reads the Irbis3D ones first:
- *
- *   Irbis3D MedusaHC-Python-Controller   operation / last_error / sensor_error / sensors
- *   third-party fork                     state     / error      / toolN_docked
+ * The controller's [medusahc] status carries operation / last_error /
+ * sensor_error / sensors.
  */
 
 #include "printer_discovery.h"
@@ -111,26 +108,6 @@ TEST_CASE("An explicit sensor_error flag is honoured", "[toolchanger][toolsource
     auto r = read_tool(json{{"medusahc", {{"sensor_error", true}, {"current_tool", 1}}}});
     REQUIRE(r.has_value());
     CHECK(r->sensor_error);
-}
-
-// ============================================================================
-// The fork schema is a fallback, never a default
-// ============================================================================
-
-TEST_CASE("The fork's 'state' field is read when 'operation' is absent",
-          "[toolchanger][toolsource]") {
-    auto r = read_tool(json{{"medusahc", {{"state", "changing"}, {"current_tool", 1}}}});
-    REQUIRE(r.has_value());
-    CHECK(r->operation == "changing");
-    CHECK(r->current_tool == 1);
-}
-
-TEST_CASE("'operation' wins when a frame somehow carries both", "[toolchanger][toolsource]") {
-    // Irbis3D's name is the default; the fork's is only a fallback.
-    auto r = read_tool(
-        json{{"medusahc", {{"operation", "idle"}, {"state", "changing"}, {"current_tool", 0}}}});
-    REQUIRE(r.has_value());
-    CHECK(r->operation == "idle");
 }
 
 // ============================================================================
@@ -296,26 +273,6 @@ TEST_CASE("A dock nobody reported stays unknown, not empty", "[toolchanger][tool
     CHECK(r->docks[2] == false);
 }
 
-TEST_CASE("The fork's flat dock keys are read the same way", "[toolchanger][toolsource][docks]") {
-    // topi314/MedusaHC emits tool<N>_docked booleans and head_loaded instead of
-    // a sensors dict. Same physical answer, different spelling.
-    auto r = read_tool(json{{"medusahc",
-                             {{"state", "ready"},
-                              {"current_tool", 1},
-                              {"tool_count", 3},
-                              {"head_loaded", true},
-                              {"tool0_docked", true},
-                              {"tool1_docked", false},
-                              {"tool2_docked", true}}}});
-    REQUIRE(r.has_value());
-    REQUIRE(r->docks.size() == 3);
-    CHECK(r->docks[0] == true);
-    CHECK(r->docks[1] == false);
-    CHECK(r->docks[2] == true);
-    REQUIRE(r->head_loaded.has_value());
-    CHECK(*r->head_loaded);
-}
-
 TEST_CASE("A frame with no dock fields reports no docks at all",
           "[toolchanger][toolsource][docks]") {
     // Empty, not "all empty" — the caller must be able to tell a frame that said
@@ -343,8 +300,8 @@ TEST_CASE("klipper-toolchanger keeps its own select commands",
 TEST_CASE("A changer without klipper-toolchanger names its own commands",
           "[toolchanger][toolsource][commands]") {
     PrinterDiscovery hw;
-    hw.parse_objects(json::array(
-        {"medusahc", "gcode_macro T0", "gcode_macro T1", "extruder", "extruder1", "toolhead"}));
+    hw.parse_objects(json::array({"pin_watch io", "medusahc", "gcode_macro T0", "gcode_macro T1",
+                                  "extruder", "extruder1", "toolhead"}));
 
     auto cmds = toolchanger_addon::resolve_tool_commands(hw);
     REQUIRE(cmds.present);
@@ -380,7 +337,7 @@ TEST_CASE("A swap in flight makes a derived -2 transitional, not a fault",
     using helix::toolchanger_addon::sensor_error_is_fault;
 
     // Derived from -2: the controller published no flag of its own.
-    auto derived = read_tool(json{{"medusahc", {{"state", "changing"}, {"current_tool", -2}}}});
+    auto derived = read_tool(json{{"medusahc", {{"operation", "changing"}, {"current_tool", -2}}}});
     REQUIRE(derived.has_value());
     REQUIRE(derived->sensor_error);
     REQUIRE_FALSE(derived->sensor_error_reported);
@@ -422,7 +379,7 @@ TEST_CASE("A published sensor_error at rest beside a definite carriage is a past
 TEST_CASE("A clean reading is never a fault", "[toolchanger][toolsource]") {
     using helix::toolchanger_addon::sensor_error_is_fault;
 
-    auto clean = read_tool(json{{"medusahc", {{"state", "ready"}, {"current_tool", 1}}}});
+    auto clean = read_tool(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
     REQUIRE(clean.has_value());
     REQUIRE_FALSE(clean->sensor_error);
 

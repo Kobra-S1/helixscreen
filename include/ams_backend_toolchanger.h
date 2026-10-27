@@ -723,12 +723,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// of it: set only by a failed operation, so a last_error beside a clear
     /// latch (a failed initialization) is no tool change failure.
     bool controller_failure_latched_ = false;
-    /// topi314's fork reported `state: error`: its own failure, not a dock
-    /// sensor's, so a retry is the controller's to accept. Cleared by the next
-    /// phase word.
-    bool controller_fault_ = false;
-    /// The fork's `error` flag as last published (Moonraker sends deltas).
-    bool controller_error_flag_ = false;
     /// The failure already put in front of the user, by this toast or by a
     /// mount-to-feed run's own, so one failure is told once.
     std::string controller_failure_noticed_;

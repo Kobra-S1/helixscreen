@@ -233,7 +233,6 @@ enum class MedusaVariant {
     NONE,          ///< Not a MedusaHC mode
     CONTROLLER,    ///< Irbis3D controller with klipper-toolchanger (sync_toolchanger: 1)
     CONTROLLER_TN, ///< Irbis3D controller alone: T<n> macros -> SET -> MHC_SET, DROP_TOOL parks
-    FORK,          ///< topi314/MedusaHC: [medusahc] alone, forked status schema
 };
 
 [[nodiscard]] inline MedusaVariant medusa_variant(std::string_view mode) {
@@ -242,9 +241,6 @@ enum class MedusaVariant {
     }
     if (mode == "medusahc-tn" || mode == "medusa-tn") {
         return MedusaVariant::CONTROLLER_TN;
-    }
-    if (mode == "medusahc-fork" || mode == "medusa-fork") {
-        return MedusaVariant::FORK;
     }
     return MedusaVariant::NONE;
 }

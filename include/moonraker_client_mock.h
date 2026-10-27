@@ -1372,8 +1372,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// it: the docks' tool when they name one, -1 (UNSELECT_TOOL) when they do
     /// not, and while printing an unnamed reading leaves it alone.
     int sync_medusa_toolchanger_tool();
-    /// Tools the MedusaHC variant carries: six on the T<n>-macro controller
-    /// (topi's machine), four on the others.
+    /// Tools the MedusaHC variant carries: six on the T<n>-macro controller,
+    /// four on the klipper-toolchanger one.
     [[nodiscard]] static int medusa_tool_count();
     static constexpr int kMedusaMaxTools = 6;
 
@@ -1459,7 +1459,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /**
      * @brief `[pin_watch io]` status: `{"current_tool": int}`.
      *
-     * Empty object for the FORK variant (no pin_watch) and for NONE.
+     * Empty object for NONE.
      */
     nlohmann::json pin_watch_status_json() const;
 
@@ -1546,20 +1546,18 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /**
      * @brief Which MedusaHC shipping configuration the mock emulates.
      *
-     * The Python extra that publishes [medusahc] lives outside the hardware repo
-     * and has two independent implementations whose objects and status schemas
-     * differ, and Irbis3D's runs with or without klipper-toolchanger (see
+     * Irbis3D's Python controller runs with or without klipper-toolchanger (see
      * docs/devel/FILAMENT_BACKEND_MEDUSAHC.md). Each variant emits the object set
-     * its configuration has, so toolchanger_addon's detection and schema
-     * discrimination run outside the unit tests too.
+     * its configuration has, so toolchanger_addon's detection and swap command
+     * routing run outside the unit tests too.
      */
     using MedusaVariant = helix::mock::MedusaVariant;
 
     /**
      * @brief MedusaHC variant selected by HELIX_MOCK_AMS, or NONE.
      *
-     * "medusahc"/"medusa"/"mhc" select CONTROLLER, "medusahc-tn" CONTROLLER_TN and
-     * "medusahc-fork" FORK (helix::mock::medusa_variant). Unlike
+     * "medusahc"/"medusa"/"mhc" select CONTROLLER and "medusahc-tn" CONTROLLER_TN
+     * (helix::mock::medusa_variant). Unlike
      * is_mock_toolchanger(), these values do NOT build an AmsBackendMock:
      * try_create_mock() declines them so real discovery runs and the production
      * AmsBackendToolChanger drives the mock objects.

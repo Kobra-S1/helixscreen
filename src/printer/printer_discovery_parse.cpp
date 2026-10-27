@@ -472,11 +472,9 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
             pin_watch_object_name_ = name;
         }
         // [medusahc]: a hotend changer's own extra, recorded as the same
-        // kind of plain object fact as pin_watch above. Upstream ships it
-        // ALONGSIDE pin_watch and klipper-toolchanger; one fork folds the
-        // dock sensing into it and ships neither, and there this object is
-        // the only thing left to see. Matched exactly - [medusahc_calibrate]
-        // is a sibling object, not this one.
+        // kind of plain object fact as pin_watch above. It ships alongside
+        // pin_watch, with or without klipper-toolchanger. Matched exactly -
+        // [medusahc_calibrate] is a sibling object, not this one.
         else if (name == "medusahc" || name.rfind("medusahc ", 0) == 0) {
             has_medusahc_ = true;
             medusahc_object_name_ = name;

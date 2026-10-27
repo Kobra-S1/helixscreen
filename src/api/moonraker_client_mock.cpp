@@ -1464,21 +1464,18 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("gcode_macro CALIBRATE_TOOL_OFFSETS");
     }
 
-    // MedusaHC mock mode (HELIX_MOCK_AMS=medusahc[-fork]): a hotend changer
+    // MedusaHC mock mode (HELIX_MOCK_AMS=medusahc[-tn]): a hotend changer
     // bolted onto klipper-toolchanger. Unlike the toolchanger mode above this
     // does NOT build an AmsBackendMock - try_create_mock() declines these values
     // - so the objects pushed here are what real discovery sees, and the
     // production AmsBackendToolChanger + toolchanger_addon path runs against
-    // them. Each variant emits the object set its controller actually has, so
-    // toolchanger_addon's detection and schema discrimination are exercised at
-    // runtime and not only in the unit tests.
+    // them. Each variant emits the object set its configuration actually has,
+    // so toolchanger_addon's detection and swap command routing are exercised
+    // at runtime and not only in the unit tests.
     // See docs/devel/FILAMENT_BACKEND_MEDUSAHC.md § "Two shipping configurations".
     if (const MedusaVariant variant = mock_medusa_variant(); variant != MedusaVariant::NONE) {
-        // Irbis3D's controller reads the docks through [pin_watch io]; the fork
-        // absorbed them into [medusahc] itself.
-        if (variant != MedusaVariant::FORK) {
-            mock_objects.push_back("pin_watch io");
-        }
+        // The controller reads the docks through [pin_watch io].
+        mock_objects.push_back("pin_watch io");
         if (variant == MedusaVariant::CONTROLLER) {
             // klipper-toolchanger runs alongside (pin_watch sync_toolchanger: 1)
             // and registers T<n> itself.
@@ -1494,8 +1491,7 @@ void MoonrakerClientMock::populate_capabilities() {
                 mock_objects.push_back("gcode_macro T" + std::to_string(i));
             }
         }
-        // Every MedusaHC runs one of the two Python extras, so [medusahc] is
-        // always present.
+        // The Python controller registers [medusahc] on both variants.
         mock_objects.push_back("medusahc");
         // Sibling object on a real controller. Present so the exact-match rule
         // in PrinterDiscovery (which must NOT claim it) has something to not
@@ -1504,17 +1500,13 @@ void MoonrakerClientMock::populate_capabilities() {
         // The Irbis3D controller registers MHC_* as native commands, which
         // printer.objects.list never shows; its MHC_macros.cfg wraps them in
         // these macros.
-        if (variant != MedusaVariant::FORK) {
-            mock_objects.push_back("gcode_macro SET");
-            mock_objects.push_back("gcode_macro _DROP");
-            mock_objects.push_back("gcode_macro DROP_TOOL");
-        }
+        mock_objects.push_back("gcode_macro SET");
+        mock_objects.push_back("gcode_macro _DROP");
+        mock_objects.push_back("gcode_macro DROP_TOOL");
         mock_objects.push_back("gcode_macro OPEN");
         mock_objects.push_back("gcode_macro CLOSE");
         spdlog::info("[MoonrakerClientMock] MedusaHC mock: variant={}",
-                     variant == MedusaVariant::CONTROLLER      ? "controller"
-                     : variant == MedusaVariant::CONTROLLER_TN ? "controller-tn"
-                                                               : "fork");
+                     variant == MedusaVariant::CONTROLLER ? "controller" : "controller-tn");
     }
 
     // multiACE mock hardware (HELIX_MOCK_AMS=multiace): the U1's own feed
@@ -2680,12 +2672,6 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_zmod(const std::stri
 }
 
 namespace {
-// Out of the machine entirely - not on the head and not in its dock: the
-// ejected lane the ghost rendering and the EMPTY slot status need. Fork only:
-// on Irbis3D's controller a vacant dock beside a mounted tool is exactly what
-// pin_watch reads as -2, so no definite carriage could ever coexist with it.
-constexpr int kMedusaForkEjectedTool = 3;
-
 // Notifications a single swap phase lasts. One notification is
 // kNotificationIntervalTicks * kSimulationIntervalMs = ~1s, so a full
 // drop-then-pick swap runs ~7s: slow enough to watch the step bar move,
@@ -2791,38 +2777,19 @@ nlohmann::json MoonrakerClientMock::medusa_status_json() const {
     obj["feeder_open"] = m.feeder_open;
     obj["layer"] = 0;
 
-    if (variant != MedusaVariant::FORK) {
-        // Irbis3D medusahc.py get_status(). current_tool is pin_watch's, live
-        // from the pins; sensor_error is the operation latch, a separate signal.
-        obj["operation"] = medusa_operation_word(m.phase);
-        obj["current_tool"] = medusa_pin_tool_locked();
-        obj["last_error"] = m.last_error;
-        obj["sensor_error"] = m.op_failed;
-        // pin_watch's raw pins: "e" the toolhead, "t<n>" each dock.
-        nlohmann::json sensors;
-        sensors["e"] = (m.carriage_tool >= 0) ? 1 : 0;
-        for (int i = 0; i < count; ++i) {
-            sensors["t" + std::to_string(i)] = (i != m.carriage_tool || i == m.stuck_dock) ? 1 : 0;
-        }
-        obj["sensors"] = sensors;
-    } else {
-        // topi314/MedusaHC (scripts/medusahc.py). Verified against that source,
-        // NOT inferred from the upstream schema: `state` is a COARSER vocabulary
-        // than `operation`, not a rename of it. _set_state() is only ever called
-        // with uninitialized / ready / changing / error - there is no picking or
-        // dropping - so a swap here is one undifferentiated "changing", the same
-        // resolution klipper-toolchanger's own status gives.
-        obj["state"] = (m.phase == MedusaPhase::Idle) ? "ready" : "changing";
-        // -2 is how both schemas encode "the docks cannot tell".
-        obj["current_tool"] = m.stuck_dock >= 0 ? -2 : m.carriage_tool;
-        // A bool here, where upstream sends a `last_error` message string.
-        obj["error"] = m.op_failed;
-        obj["head_loaded"] = (m.carriage_tool >= 0);
-        for (int i = 0; i < count; ++i) {
-            const bool seated = i != m.carriage_tool || i == m.stuck_dock;
-            obj["tool" + std::to_string(i) + "_docked"] = seated && i != kMedusaForkEjectedTool;
-        }
+    // Irbis3D medusahc.py get_status(). current_tool is pin_watch's, live
+    // from the pins; sensor_error is the operation latch, a separate signal.
+    obj["operation"] = medusa_operation_word(m.phase);
+    obj["current_tool"] = medusa_pin_tool_locked();
+    obj["last_error"] = m.last_error;
+    obj["sensor_error"] = m.op_failed;
+    // pin_watch's raw pins: "e" the toolhead, "t<n>" each dock.
+    nlohmann::json sensors;
+    sensors["e"] = (m.carriage_tool >= 0) ? 1 : 0;
+    for (int i = 0; i < count; ++i) {
+        sensors["t" + std::to_string(i)] = (i != m.carriage_tool || i == m.stuck_dock) ? 1 : 0;
     }
+    obj["sensors"] = sensors;
     return obj;
 }
 
@@ -3332,7 +3299,7 @@ bool MoonrakerClientMock::apply_multiace_gcode(const std::string& gcode) {
 
 nlohmann::json MoonrakerClientMock::pin_watch_status_json() const {
     const MedusaVariant variant = mock_medusa_variant();
-    if (variant == MedusaVariant::NONE || variant == MedusaVariant::FORK) {
+    if (variant == MedusaVariant::NONE) {
         return nlohmann::json::object();
     }
     std::lock_guard<std::mutex> lock(medusa_mutex_);
@@ -3579,7 +3546,7 @@ void MoonrakerClientMock::populate_hardware() {
     // Gated entirely on is_mock_toolchanger() so other AMS modes are unaffected.
     // MedusaHC joins this: a hotend changer is one hot end (and so one extruder
     // heater) per tool, which is also how PrinterDiscovery names its tools when
-    // the fork variant ships no [tool N] objects.
+    // the controller-tn variant ships no [tool N] objects.
     if (is_mock_toolchanger() || is_mock_medusahc()) {
         const int tools = is_mock_medusahc() ? medusa_tool_count() : 4;
         for (int t = 1; t < tools; ++t) {

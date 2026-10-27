@@ -667,7 +667,7 @@ How the mapping reaches the printer depends on your setup:
 - **Original MedusaHC config or the Python controller** (your config has `[toolchanger]`):
   HelixScreen tells klipper-toolchanger the mapping and the file is printed as sliced,
   like any klipper-toolchanger machine.
-- **topi314's fork** (no `[toolchanger]`): there is no mapping table to write, so
+- **The Python controller without klipper-toolchanger** (no `[toolchanger]`): there is no mapping table to write, so
   HelixScreen rewrites the file instead. That needs the HelixPrint plugin, and any
   per-tool temperatures you pass to `PRINT_START` stay as sliced. Read
   [Printers that map filament by rewriting the file](#printers-that-map-filament-by-rewriting-the-file)

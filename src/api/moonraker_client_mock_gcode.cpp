@@ -153,8 +153,8 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_medusa(const std::st
     if (cmd == "UNSELECT_TOOL" || cmd == "DROP_TOOL") {
         return swap(-1, /*close_after=*/true);
     }
-    // Bare T<n>: the fork's own command, a T<n> macro running SET T=<n> on the
-    // controller alone, or klipper-toolchanger's T<n> beside it.
+    // Bare T<n>: a T<n> macro running SET T=<n> on the controller alone, or
+    // klipper-toolchanger's T<n> beside it.
     if (cmd.size() == 2 && cmd[0] == 'T' && cmd[1] >= '0' && cmd[1] < '0' + count) {
         return swap(cmd[1] - '0', /*close_after=*/true);
     }

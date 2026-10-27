@@ -544,7 +544,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["mmu"] = get_mock_mmu_status();
             }
 
-            // MedusaHC (HELIX_MOCK_AMS=medusahc[-fork]). Emitted only for
+            // MedusaHC (HELIX_MOCK_AMS=medusahc[-tn]). Emitted only for
             // the objects this variant actually ships, so a consumer that reads
             // the wrong schema finds nothing rather than a convenient default.
             if (objects.contains("medusahc")) {
@@ -879,7 +879,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["oams_manager"] = self->openams_status_json();
             }
 
-            // MedusaHC (HELIX_MOCK_AMS=medusahc[-fork]). Emitted only for
+            // MedusaHC (HELIX_MOCK_AMS=medusahc[-tn]). Emitted only for
             // the objects this variant actually ships, so a consumer that reads
             // the wrong schema finds nothing rather than a convenient default.
             if (objects.contains("medusahc")) {

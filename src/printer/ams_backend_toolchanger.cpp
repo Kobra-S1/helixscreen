@@ -403,10 +403,9 @@ enum class TcStep { Release, Dock, Pick, Change, Grip };
 
 /// Steps this machine can actually drive, in order.
 ///
-/// `has_feeder`      - reports `feeder_open` (both MedusaHC controllers do)
-/// `names_direction` - phase word distinguishes picking from dropping (only the
-///                     Irbis3D controller's `operation`; topi314's `state` says
-///                     just "changing")
+/// `has_feeder`      - reports `feeder_open` ([medusahc] does)
+/// `names_direction` - a phase word distinguishing picking from dropping has
+///                     been seen
 ///
 /// Empty means the machine reports no phases at all - plain klipper-toolchanger,
 /// or a MedusaHC running the stock macros with no Python extra - and the caller
@@ -594,7 +593,7 @@ AmsBackendToolChanger::resolve_step_locked(const std::string& operation, bool mi
         // it docks or picks: that is the swap's opening step, not a step of
         // its own.
         wanted = names_direction ? sequence.front() : TcStep::Change;
-    } else if (operation == "idle" || operation == "ready") {
+    } else if (operation == "idle") {
         // Both ends of a swap read idle, and the gripper is the only thing that
         // separates them: open is the release that OPENS an operation, closed is
         // the grip that CLOSES it. A machine that never reports the gripper
@@ -712,12 +711,6 @@ std::optional<helix::ErrorEvent> AmsBackendToolChanger::current_error() const {
         return helix::make_ams_fault_event(helix::ErrorSource::TOOLCHANGER,
                                            lv_tr("Dock sensors disagree"), detail,
                                            build_recovery_actions());
-    }
-    if (controller_fault_) {
-        // The fork's `error` state carries no message of its own.
-        return helix::make_ams_fault_event(
-            helix::ErrorSource::TOOLCHANGER, lv_tr("Tool Change Failed"),
-            lv_tr("The filament system reported an error"), build_recovery_actions());
     }
     if (!afclite_fault_message_.empty()) {
         // The shim's own fault, with the firmware's own wording: a message the
@@ -922,13 +915,6 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
             controller_failure_noticed_.clear();
         }
     }
-    // The fork's `error` flag: an operation failed. A raised flag the screen is
-    // not showing as a fault toasts once, like Irbis3D's last_error.
-    bool controller_error_raised = false;
-    if (reading.controller_error.has_value()) {
-        controller_error_raised = *reading.controller_error && !controller_error_flag_;
-        controller_error_flag_ = *reading.controller_error;
-    }
     if (reading.sensor_error_named) {
         controller_failure_latched_ = reading.sensor_error_reported;
         sensor_fault_reported_ = reading.sensor_error_reported && fault;
@@ -981,9 +967,6 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         controller_failure_noticed_ = controller_failure_;
         pending_failure_toast_ = controller_failure_;
     }
-    if (!sensor_error_ && controller_error_raised && reading.operation != "error") {
-        pending_failure_toast_ = lv_tr("The filament system reported an error");
-    }
 
     // Only when the frame named the carriage. A delta carrying just the gripper
     // or the phase says nothing about which tool is on the head, and answering
@@ -1029,35 +1012,11 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         direction_reported_ = true;
     }
 
-    // The two controllers do not share a phase vocabulary. Irbis3D's `operation`
-    // names the direction; topi314's `state` only ever says "changing", so a
-    // swap there is one undifferentiated phase - on that fork there is no
-    // [toolchanger] object either, so nothing else sets the action and only our
-    // own optimistic dispatch does.
-
     // Set by the idle branch below, consumed after the phase is computed.
     bool operation_ended = false;
 
     const std::string& op = reading.operation;
-    // The fork's `error` state is a fault of the controller's own; any other
-    // phase word means it has left it.
-    if (!op.empty()) {
-        controller_fault_ = (op == "error");
-    }
-    if (op == "error") {
-        // The swap is over: nothing will end the optimistic action otherwise.
-        system_info_.action = AmsAction::ERROR;
-        system_info_.operation_detail = op;
-        pending_dispatch_action_.reset();
-        operation_confirmed_ = false;
-        operation_ended = true;
-    } else if (op == "uninitialized") {
-        // The same state klipper-toolchanger reports before INITIALIZE_TOOLCHANGER:
-        // a swap would be refused, so a tap is refused here first.
-        system_info_.action = status_to_action(op);
-        system_info_.operation_detail = op;
-        operation_confirmed_ = false;
-    } else if (op == "picking") {
+    if (op == "picking") {
         system_info_.action = AmsAction::SELECTING;
         system_info_.operation_detail = op;
         operation_confirmed_ = true;
@@ -1066,13 +1025,14 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         system_info_.operation_detail = op;
         operation_confirmed_ = true;
     } else if (op == "changing") {
-        // Direction unknown on this controller. SELECTING is the honest generic
+        // The swap's opening phase (MHC_SET homes before it reads the docks),
+        // before the direction is named. SELECTING is the honest generic
         // "a swap is running": every caller treats it as busy, and the only
         // thing that wants the direction is the step bar, which asks separately.
         system_info_.action = AmsAction::SELECTING;
         system_info_.operation_detail = op;
         operation_confirmed_ = true;
-    } else if (op == "idle" || op == "ready") {
+    } else if (op == "idle") {
         // A swap RELEASES the filament before it moves, so its first frame is
         // idle-with-the-gripper-open. Reporting IDLE there ends the operation in
         // the UI the instant it starts: the step bar is torn down on step 0 and

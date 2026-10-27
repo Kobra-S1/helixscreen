@@ -8,8 +8,8 @@
  *
  * Two persona discoveries: Irbis3D's controller beside klipper-toolchanger
  * ([toolchanger] + [tool Tn] + pin_watch + [medusahc]), and a changer with no
- * klipper-toolchanger at all, whose swap is the controller's own T<n> (topi314's
- * machine and fork). The docks are the physical truth on both;
+ * klipper-toolchanger at all, whose swap is the controller's own T<n>
+ * ([pin_watch io] + [medusahc] + T<n> macros). The docks are the physical truth on both;
  * toolchanger.tool_number is only what SELECT_TOOL last set.
  */
 
@@ -42,9 +42,9 @@ PrinterDiscovery irbis_tc_discovery() {
     return hw;
 }
 
-/// [medusahc] with T<n> macros and no klipper-toolchanger.
+/// pin_watch and [medusahc] with T<n> macros and no klipper-toolchanger.
 PrinterDiscovery standalone_discovery(int tools) {
-    auto objects = json::array({"medusahc", "toolhead"});
+    auto objects = json::array({"pin_watch io", "medusahc", "toolhead"});
     for (int i = 0; i < tools; ++i) {
         objects.push_back("gcode_macro T" + std::to_string(i));
         objects.push_back(i == 0 ? std::string("extruder") : "extruder" + std::to_string(i));
@@ -168,49 +168,11 @@ TEST_CASE("A dock-sensor fault refuses park and tool change",
     }
 }
 
-// ============================================================================
-// topi314's fork: state "error" and the error flag
-// ============================================================================
-
-TEST_CASE("Fork state 'error' ends the optimistic swap", "[ams][toolchanger][medusahc][state]") {
-    ToolChangerHelper tc(6);
-    wire(tc, standalone_discovery(6));
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}, {"error", false}}}});
-    REQUIRE(tc.change_tool(3).success());
-    REQUIRE(tc.get_current_action() == AmsAction::SELECTING);
-    tc.feed(json{{"medusahc", {{"state", "changing"}}}});
-    tc.feed(json{{"medusahc", {{"state", "error"}, {"error", true}}}});
-
-    CHECK(tc.get_current_action() == AmsAction::ERROR);
-    CHECK(tc.current_error().has_value());
-    CHECK_FALSE(tc.get_system_info().is_busy());
-    // The controller's own failure is not a dock-sensor fault: a retry is the
-    // controller's to accept or refuse.
-    CHECK(tc.change_tool(1).success());
-}
-
-TEST_CASE("Fork error flag surfaces as a fault until the controller recovers",
-          "[ams][toolchanger][medusahc][state]") {
-    ToolChangerHelper tc(6);
-    wire(tc, standalone_discovery(6));
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}, {"error", false}}}});
-    tc.feed(json{{"medusahc", {{"state", "error"}, {"error", true}, {"current_tool", -1}}}});
-    CHECK(tc.get_current_action() == AmsAction::ERROR);
-    REQUIRE(tc.current_error().has_value());
-
-    // The next operation starting clears the controller's latch.
-    tc.feed(json{{"medusahc", {{"state", "changing"}, {"error", false}}}});
-    CHECK(tc.get_current_action() == AmsAction::SELECTING);
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 2}}}});
-    CHECK(tc.get_current_action() == AmsAction::IDLE);
-    CHECK_FALSE(tc.current_error().has_value());
-}
-
 TEST_CASE("A rejected swap command clears the optimistic action",
           "[ams][toolchanger][medusahc][state]") {
     ToolChangerHelper tc(6);
     wire(tc, standalone_discovery(6));
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}, {"error", false}}}});
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}}}});
 
     SECTION("a gcode error ends it") {
         REQUIRE(tc.change_tool(3).success());
@@ -236,29 +198,16 @@ TEST_CASE("A rejected swap command clears the optimistic action",
     }
 }
 
-TEST_CASE("Fork state 'uninitialized' refuses a tap like klipper-toolchanger's",
-          "[ams][toolchanger][medusahc][state]") {
-    ToolChangerHelper tc(6);
-    wire(tc, standalone_discovery(6));
-    tc.feed(json{{"medusahc", {{"state", "uninitialized"}, {"current_tool", -1}}}});
-    CHECK(tc.get_system_info().is_busy());
-    CHECK_FALSE(tc.change_tool(1).success());
-    CHECK(tc.sent().empty());
-
-    tc.feed(json{{"medusahc", {{"state", "ready"}}}});
-    CHECK_FALSE(tc.get_system_info().is_busy());
-}
-
 TEST_CASE("Klipper restart: a swap latched mid-'changing' clears",
           "[ams][toolchanger][medusahc][state]") {
     ToolChangerHelper tc(6);
     wire(tc, standalone_discovery(6));
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}}}});
-    tc.feed(json{{"medusahc", {{"state", "changing"}, {"feeder_open", true}}}});
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}}}});
+    tc.feed(json{{"medusahc", {{"operation", "changing"}, {"feeder_open", true}}}});
     tc.on_klipper_restarted();
-    // The fork's first frame after the restart: uninitialized, gripper closed.
-    tc.feed(json{
-        {"medusahc", {{"state", "uninitialized"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    // The controller's first frame after the restart: idle, gripper closed.
+    tc.feed(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
     CHECK(tc.get_system_info().operation_phase == -1);
 }
 
@@ -271,7 +220,7 @@ TEST_CASE("Recover and reset send INITIALIZE_TOOLCHANGER only where it exists",
     SECTION("no klipper-toolchanger") {
         ToolChangerHelper tc(6);
         wire(tc, standalone_discovery(6));
-        tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}}}});
+        tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}}}});
         CHECK_FALSE(tc.reset_available());
         CHECK_FALSE(tc.recover_available());
         CHECK(tc.reset().result == AmsResult::NOT_SUPPORTED);
@@ -354,7 +303,7 @@ TEST_CASE("An out-of-range dock reading never becomes the current slot",
     SECTION("on the controller's own T<n>") {
         ToolChangerHelper tc(6);
         wire(tc, standalone_discovery(6));
-        tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 7}}}});
+        tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 7}}}});
         CHECK(tc.get_current_slot() < tc.get_system_info().total_slots);
         CHECK(tc.get_current_tool() < tc.get_system_info().total_slots);
     }
@@ -368,7 +317,7 @@ TEST_CASE("A refused remap on a T<n> changer leaves the table alone",
           "[ams][toolchanger][medusahc][state]") {
     ToolChangerHelper tc(6);
     wire(tc, standalone_discovery(6));
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}}}});
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}}}});
 
     SECTION("set_tool_mapping") {
         REQUIRE_FALSE(tc.set_tool_mapping(0, 2).success());

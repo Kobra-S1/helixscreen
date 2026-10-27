@@ -639,7 +639,7 @@ Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-tn` / `medusahc-fork`, `ifs-module`, `cfs`, `openams`, `multiace` |
+| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace` |
 | **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare, LINEAR, 4 slots on every other persona |
 | **File** | `src/printer/ams_backend.cpp` |
 
@@ -659,7 +659,6 @@ Select the mock AMS topology/type.
 | `snapmaker` | 1 | Snapmaker U1, 4 slots, PARALLEL, non-editable mapping. Aliases: `snapswap`, `u1` |
 | `medusahc` | 1 | **MedusaHC hotend changer - mock HARDWARE, real backend.** Irbis3D controller. Aliases: `medusa`, `mhc`. See below |
 | `medusahc-tn` | 1 | MedusaHC on the Irbis3D controller without klipper-toolchanger. Alias: `medusa-tn` |
-| `medusahc-fork` | 1 | MedusaHC as driven by topi314's fork. Alias: `medusa-fork` |
 | `ifs-module` | 1 | **Standalone AD5X IFS module - mock HARDWARE, real backend.** The Forge-X drop-in's `ifs`/`ifs_materials` objects + stock-named sensors. Aliases: `ifs_module`, `ad5x-module`. See below |
 | `cfs` | 1 | **Creality CFS, K1 stock dialect - mock HARDWARE, real backend.** The stock `box` status object plus the calibration command surface. Alias: `cfs-k1`. See below |
 | `openams` | 1 | **OpenAMS hub - mock HARDWARE, real backend.** Lists and pushes the `oams_manager` status object (4-bay hub unit, FPS lane, groups T0/T1/T2, slot 4 loaded) so real discovery claims OpenAMS and the production `AmsBackendOpenAms` runs. Slots 3 and 4 get ASA identity seeded into `lane_data`; `OPENAMS_UNLOAD` / `OPENAMS_LOAD GROUP=Tn` flip the loaded slot |
@@ -768,21 +767,20 @@ They imply `--real-ams` (`cli_args.cpp`), so no second flag is needed:
 HELIX_MOCK_AMS=medusahc ./build/bin/helix-screen --test -vv
 ```
 
-The three values map to the shipping configurations in
-[FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md), so the schema discrimination
-in `read_medusahc()` is exercised at runtime and not only in the unit tests:
+The two values map to the shipping configurations in
+[FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md), so detection and the swap
+command route are exercised at runtime and not only in the unit tests:
 
 | Value | Objects | Phase key | Feeder | Step bar |
 |-------|---------|-----------|--------|----------|
 | `medusahc` | `pin_watch io` + `toolchanger` + `tool T0..3` + `medusahc`, the `SET`/`DROP_TOOL`/`OPEN`/`CLOSE` macros | `operation`: idle/changing/dropping/picking | `feeder_open` | 4 steps |
-| `medusahc-tn` | six tools (topi's machine): `pin_watch io` + `medusahc` + `gcode_macro T0..5` + `extruder`..`extruder5`, no `toolchanger`: the swap is `T<n>`, the park `DROP_TOOL` | as `medusahc` | `feeder_open` | 4 steps |
-| `medusahc-fork` | `medusahc` alone, forked `state`/`error`/`toolN_docked` schema | `state`: ready/changing | `feeder_open` | 3 steps |
+| `medusahc-tn` | six tools: `pin_watch io` + `medusahc` + `gcode_macro T0..5` + `extruder`..`extruder5`, no `toolchanger`: the swap is `T<n>`, the park `DROP_TOOL` | as `medusahc` | `feeder_open` | 4 steps |
 
 A swap advances through its phases on the simulation thread over ~7s, so they arrive as
 separate status frames rather than collapsing into one update. `MHC_SET`/`SET`,
 `SELECT_TOOL`, bare `T<n>`, `MHC_DROP`/`_DROP` (parks and leaves the gripper open),
 `DROP_TOOL`/`UNSELECT_TOOL` (parks and re-grips) and the feeder commands are all handled.
-`medusahc` and `medusahc-fork` carry four tools, `medusahc-tn` six.
+`medusahc` carries four tools, `medusahc-tn` six.
 
 A swap's `printer.gcode.script` reply waits for the swap to end, as the controller's
 `_wait_for_tool()` blocks the command: lines after the swap run only then. A failure with no

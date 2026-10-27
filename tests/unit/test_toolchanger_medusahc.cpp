@@ -305,9 +305,9 @@ TEST_CASE("A frame with no dock fields leaves the stamps alone", "[ams][toolchan
 // ============================================================================
 
 /// Discovery for a changer whose own extra does the swapping: no [toolchanger],
-/// no pin_watch, tools enumerated off the extruders.
+/// tools enumerated off the extruders.
 static PrinterDiscovery standalone_medusahc_discovery(int tools) {
-    auto objects = json::array({"medusahc", "toolhead"});
+    auto objects = json::array({"pin_watch io", "medusahc", "toolhead"});
     for (int i = 0; i < tools; ++i) {
         objects.push_back("gcode_macro T" + std::to_string(i));
         objects.push_back(i == 0 ? std::string("extruder") : "extruder" + std::to_string(i));
@@ -334,9 +334,9 @@ TEST_CASE("A changer without klipper-toolchanger selects with its own macro",
     ToolChangerHelper tc(3);
     tc.set_tool_commands(toolchanger_addon::resolve_tool_commands(hw));
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(hw));
-    // There is no toolchanger object to report "ready"; the extra's own state
-    // field is what settles the action.
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", -1}}}});
+    // There is no toolchanger object to report "ready"; the extra's own
+    // operation field is what settles the action.
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", -1}}}});
 
     auto err = tc.change_tool(2);
     REQUIRE(err.success());
@@ -349,7 +349,7 @@ TEST_CASE("Unmounting uses the machine's own drop command", "[ams][toolchanger][
     ToolChangerHelper tc(2);
     tc.set_tool_commands(toolchanger_addon::resolve_tool_commands(hw));
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(hw));
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 1}}}});
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
 
     auto err = tc.park_active_tool();
     REQUIRE(err.success());
@@ -359,69 +359,50 @@ TEST_CASE("Unmounting uses the machine's own drop command", "[ams][toolchanger][
 }
 
 // ============================================================================
-// Phase vocabulary: `state` is not another spelling of `operation`
+// Phase vocabulary
 // ============================================================================
 //
-// Read from both controllers' sources rather than inferred from each other:
-//   Irbis3D/MedusaHC-Python-Controller  klippy/extras/medusahc.py  `operation`
-//     -> idle / dropping / picking
-//   topi314/MedusaHC                    scripts/medusahc.py        `state`
-//     -> uninitialized / ready / changing / error
-// Only the first names the swap DIRECTION. Treating them as interchangeable is
-// what left `changing` matching no branch at all.
+// Irbis3D/MedusaHC-Python-Controller klippy/extras/medusahc.py `operation`:
+// idle / changing / dropping / picking. The words name the swap DIRECTION.
 
-TEST_CASE("Only the operation key names the swap direction", "[ams][toolchanger][medusahc]") {
+TEST_CASE("The operation key names the swap direction", "[ams][toolchanger][medusahc]") {
     auto upstream = toolchanger_addon::read_tool(
         json{{"medusahc", {{"operation", "picking"}, {"current_tool", 1}}}});
     REQUIRE(upstream.has_value());
     CHECK(upstream->operation == "picking");
     CHECK(upstream->phase_names_direction);
-
-    auto fork = toolchanger_addon::read_tool(
-        json{{"medusahc", {{"state", "changing"}, {"current_tool", 1}}}});
-    REQUIRE(fork.has_value());
-    CHECK(fork->operation == "changing");
-    CHECK_FALSE(fork->phase_names_direction);
 }
 
-TEST_CASE("The gripper is read from both schemas", "[ams][toolchanger][medusahc]") {
+TEST_CASE("The gripper is read from the controller", "[ams][toolchanger][medusahc]") {
     auto upstream = toolchanger_addon::read_tool(
         json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", true}}}});
     REQUIRE(upstream.has_value());
     REQUIRE(upstream->feeder_open.has_value());
     CHECK(*upstream->feeder_open);
 
-    // medusahc.py:370 publishes feeder_open too - the fork is NOT gripper-blind.
-    auto fork = toolchanger_addon::read_tool(
-        json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}, {"feeder_open", false}}}});
-    REQUIRE(fork.has_value());
-    REQUIRE(fork->feeder_open.has_value());
-    CHECK_FALSE(*fork->feeder_open);
-
     // A machine that never mentions the gripper is not a machine whose gripper
     // is closed: the step bar keys on the difference.
-    auto silent =
-        toolchanger_addon::read_tool(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}}}});
+    auto silent = toolchanger_addon::read_tool(
+        json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}}}});
     REQUIRE(silent.has_value());
     CHECK_FALSE(silent->feeder_open.has_value());
 }
 
 TEST_CASE("A swap reported only as 'changing' still reads as busy",
           "[ams][toolchanger][medusahc]") {
-    // Regression: `changing` matched none of picking/dropping/idle/ready, and on
-    // this fork there is no [toolchanger] object to set the action either, so a
-    // swap ran with nothing but our own optimistic dispatch driving the UI.
+    // MHC_SET homes as `changing` before it names a direction, and without
+    // klipper-toolchanger there is no [toolchanger] object to set the action.
     auto hw = standalone_medusahc_discovery(3);
     ToolChangerHelper tc(3);
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(hw));
 
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}}}});
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}}}});
     REQUIRE(tc.get_current_action() == AmsAction::IDLE);
 
-    tc.feed(json{{"medusahc", {{"state", "changing"}, {"current_tool", 0}}}});
+    tc.feed(json{{"medusahc", {{"operation", "changing"}, {"current_tool", 0}}}});
     CHECK(tc.get_current_action() != AmsAction::IDLE);
 
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 2}}}});
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 2}}}});
     CHECK(tc.get_current_action() == AmsAction::IDLE);
 }
 
@@ -626,16 +607,6 @@ TEST_CASE("A controller failure the screen is not showing toasts once",
         REQUIRE(tc.get_system_info().action != AmsAction::ERROR);
         CHECK(ToolChangerTestAccess::feed_last_toast(tc).find(failure) != std::string::npos);
     }
-}
-
-TEST_CASE("A controller with only 'changing' gets one middle step", "[ams][toolchanger][steps]") {
-    ToolChangerHelper tc(4);
-    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(standalone_medusahc_discovery(4)));
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 0}, {"feeder_open", false}}}});
-
-    // The gripper still brackets it; the middle cannot be split.
-    CHECK(step_labels(tc.get_operation_step_model(StepOperationType::LOAD_SWAP)) ==
-          std::vector<std::string>{"Release filament", "Change tool", "Grip filament"});
 }
 
 TEST_CASE("A changer with no phase source shows no bar at all", "[ams][toolchanger][steps]") {
@@ -1011,7 +982,7 @@ TEST_CASE("A partial medusahc frame leaves the mounted tool alone",
     ToolChangerHelper tc(4);
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
 
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 1}, {"tool_count", 4}}}});
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}, {"tool_count", 4}}}});
     REQUIRE(tc.get_current_slot() == 1);
     REQUIRE(tc.slot_is_actively_loaded(1));
 
@@ -1032,12 +1003,9 @@ TEST_CASE("A partial medusahc frame does not empty the mounted tool's slot",
 
     // The mounted tool's own dock reads vacant: that is where the tool came from.
     tc.feed(json{{"medusahc",
-                  {{"state", "ready"},
+                  {{"operation", "idle"},
                    {"current_tool", 1},
-                   {"tool0_docked", true},
-                   {"tool1_docked", false},
-                   {"tool2_docked", true},
-                   {"tool3_docked", true}}}});
+                   {"sensors", {{"e", 1}, {"t0", 1}, {"t1", 0}, {"t2", 1}, {"t3", 1}}}}}});
     REQUIRE(tc.get_slot_info(1).status == SlotStatus::LOADED);
 
     tc.feed(json{{"medusahc", {{"feeder_open", true}}}});
@@ -1054,15 +1022,15 @@ TEST_CASE("A -2 during a swap is transitional, not a sensor fault",
     ToolChangerHelper tc(4);
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
 
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 1}}}});
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
     REQUIRE(tc.slot_is_actively_loaded(1));
 
     // The tool is now between its dock and the head, where no settled switch
     // pattern exists and the firmware answers -2 for want of anything better.
-    tc.feed(json{{"medusahc", {{"state", "changing"}, {"current_tool", 1}}}});
-    REQUIRE(tc.get_system_info().action == AmsAction::SELECTING);
+    tc.feed(json{{"medusahc", {{"operation", "changing"}, {"current_tool", 1}}}});
+    REQUIRE(tc.get_system_info().is_busy());
 
-    tc.feed(json{{"medusahc", {{"state", "changing"}, {"current_tool", -2}}}});
+    tc.feed(json{{"medusahc", {{"operation", "changing"}, {"current_tool", -2}}}});
 
     CHECK(tc.get_system_info().action != AmsAction::ERROR);
     CHECK(tc.get_current_slot() == 1);
@@ -1126,8 +1094,8 @@ TEST_CASE("A -2 at rest is still a fault, and names the docks", "[ams][toolchang
     ToolChangerHelper tc(4);
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
 
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", 1}}}});
-    tc.feed(json{{"medusahc", {{"state", "ready"}, {"current_tool", -2}}}});
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", -2}}}});
 
     auto err = tc.current_error();
     REQUIRE(err.has_value());
@@ -1145,12 +1113,9 @@ TEST_CASE("An ejected tool draws no filament in its tube", "[ams][toolchanger][m
 
     // T0 on the head (its own dock therefore vacant), T3 off the rack entirely.
     tc.feed(json{{"medusahc",
-                  {{"state", "ready"},
+                  {{"operation", "idle"},
                    {"current_tool", 0},
-                   {"tool0_docked", false},
-                   {"tool1_docked", true},
-                   {"tool2_docked", true},
-                   {"tool3_docked", false}}}});
+                   {"sensors", {{"e", 1}, {"t0", 0}, {"t1", 1}, {"t2", 1}, {"t3", 0}}}}}});
 
     REQUIRE(tc.get_slot_info(3).status == SlotStatus::EMPTY);
     CHECK(tc.get_slot_filament_segment(3) == PathSegment::NONE);
@@ -1537,7 +1502,6 @@ TEST_CASE("Each MedusaHC mock variant lists its configuration's objects",
         const auto cmds = toolchanger_addon::resolve_tool_commands(hw);
         CHECK(cmds.select_prefix == "T");
         CHECK(cmds.unselect == "DROP_TOOL");
-        // The controller's schema, not the fork's.
         CHECK(mock.medusa_status_json().contains("operation"));
     }
 }

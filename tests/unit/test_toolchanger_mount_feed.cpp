@@ -962,8 +962,8 @@ TEST_CASE("MedusaHC stops under a live run without deadlocking, and still sends 
 
 namespace {
 
-/// The topi314 MedusaHC: a [medusahc] object and the pin_watch dock sensors,
-/// no klipper-toolchanger.
+/// Irbis3D's controller without klipper-toolchanger: a [medusahc] object and
+/// the pin_watch dock sensors.
 PrinterDiscovery pin_watch_medusahc_discovery() {
     PrinterDiscovery hw;
     hw.parse_objects(json::array(

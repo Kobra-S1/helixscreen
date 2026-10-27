@@ -52,12 +52,9 @@ struct Provider {
 
 // --- MedusaHC ---------------------------------------------------------------
 //
-// A budget hotend changer (Irbis3D/MedusaHC). klipper-toolchanger performs the
-// swap; MedusaHC's own pin_watch.py extra reads the dock sensors. Both signals
-// are required to claim the machine: pin_watch alone is just the extra, and
-// [toolchanger] alone is any of the many klipper-toolchanger builds.
-//
-// There are three shipping configurations and this has to serve all of them:
+// A budget hotend changer (Irbis3D/MedusaHC). MedusaHC's own pin_watch.py
+// extra reads the dock sensors; the swap is klipper-toolchanger's or the
+// Python controller's own. The configurations this serves:
 //
 //   (a) Irbis3D stock - [pin_watch io] + toolchanger.cfg, OPEN/CLOSE macros,
 //       no [medusahc] object. pin_watch.get_status() is {"current_tool": int}.
@@ -65,25 +62,15 @@ struct Provider {
 //       carries operation / current_tool / target_tool / last_error /
 //       feeder_open / layer / sensor_error / tool_count / sensors. Registers
 //       MHC_* commands and ships legacy OPEN/CLOSE aliases forwarding to them.
-//   (c) third-party forks - also register [medusahc], but with a DIFFERENT
-//       schema: state instead of operation, error instead of last_error, flat
-//       toolN_docked keys instead of a sensors dict.
-//
-// Object presence cannot separate (b) from (c), so read_medusahc() discriminates
-// on FIELD NAMES and reads the Irbis3D names first. The fork's names are a
-// fallback, never a default.
+//       Runs with klipper-toolchanger (sync_toolchanger: 1) or without it, when
+//       T<n> macros drive the swap.
 
 bool medusa_detect(const PrinterDiscovery& hw) {
-    // The reference shape is klipper-toolchanger plus the pin_watch extra, and
-    // neither half alone is enough: pin_watch is just the extra, and
-    // [toolchanger] is any of the many klipper-toolchanger builds.
-    //
-    // The second clause is a compatibility path, not a second mainline. It
-    // catches a machine carrying [medusahc] and nothing else, which today means
-    // exactly one fork (bundle 6QWNVZY5) - and, eventually, upstream itself if
-    // Sergei follows through on dropping the klipper-toolchanger dependency.
-    // Nothing else in Klipper registers [medusahc], so it needs no second half.
-    return (hw.has_pin_watch() && hw.has_tool_changer()) || hw.has_medusahc();
+    // pin_watch is required, and alone is just the extra. Beside it,
+    // [toolchanger] (any of the many klipper-toolchanger builds) or [medusahc]
+    // (the Python controller, which owns the swap without klipper-toolchanger)
+    // makes the machine a MedusaHC.
+    return hw.has_pin_watch() && (hw.has_tool_changer() || hw.has_medusahc());
 }
 
 std::vector<std::string> medusa_status_objects(const PrinterDiscovery& hw) {
@@ -176,7 +163,7 @@ std::string zmod_c5_feed_gcode(const PrinterDiscovery& hw, int head) {
 const std::vector<Provider>& providers() {
     static const std::vector<Provider> table = {
         // T<n> and DROP_TOOL swap tools on a MedusaHC without klipper-toolchanger:
-        // the fork, and the Irbis3D controller with sync_toolchanger off. With
+        // the Irbis3D controller with sync_toolchanger off. With
         // klipper-toolchanger present SELECT_TOOL/UNSELECT_TOOL stay in use.
         // DROP_TOOL is a [gcode_macro] in Irbis3D's MHC_macros.cfg and a bare
         // command elsewhere, so it cannot be capability-checked the way the
@@ -228,21 +215,12 @@ std::optional<bool> bool_field(const nlohmann::json& obj, const char* key) {
     return std::nullopt;
 }
 
-/// Tool index out of a dock key: "t3" -> 3, "tool3_docked" -> 3. nullopt when
-/// the key is not one.
+/// Tool index out of a dock key: "t3" -> 3. nullopt when the key is not one.
 std::optional<int> dock_index(const std::string& key) {
-    std::string digits;
-    if (key.size() > 1 && key[0] == 't' && key.rfind("tool", 0) != 0) {
-        digits = key.substr(1);
-    } else if (key.rfind("tool", 0) == 0 && key.size() > 4) {
-        const auto suffix = key.find("_docked");
-        if (suffix == std::string::npos || suffix <= 4) {
-            return std::nullopt;
-        }
-        digits = key.substr(4, suffix - 4);
-    } else {
+    if (key.size() < 2 || key[0] != 't') {
         return std::nullopt;
     }
+    const std::string digits = key.substr(1);
     if (digits.empty() || !std::all_of(digits.begin(), digits.end(),
                                        [](unsigned char c) { return std::isdigit(c); })) {
         return std::nullopt;
@@ -273,7 +251,7 @@ void set_dock(std::vector<std::optional<bool>>& docks, int index, bool seated) {
     docks[static_cast<size_t>(index)] = seated;
 }
 
-/// Read the [medusahc] object. Irbis3D field names first, fork names as fallback.
+/// Read the [medusahc] object.
 std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
     ToolReading r;
     bool saw_anything = false;
@@ -287,18 +265,11 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
         saw_anything = true;
     }
 
-    // Irbis3D: "operation" (idle/picking/dropping). topi314: "state"
-    // (uninitialized/ready/changing/error). Read in that order, upstream first.
-    // These are NOT interchangeable spellings - only `operation` names the swap
-    // direction - so which key answered is recorded alongside the value.
-    for (const char* key : {"operation", "state"}) {
-        auto it = obj.find(key);
-        if (it != obj.end() && it->is_string()) {
-            r.operation = it->get<std::string>();
-            r.phase_names_direction = (std::string_view(key) == "operation");
-            saw_anything = true;
-            break;
-        }
+    // idle / changing / dropping / picking: the words name the swap direction.
+    if (auto it = obj.find("operation"); it != obj.end() && it->is_string()) {
+        r.operation = it->get<std::string>();
+        r.phase_names_direction = true;
+        saw_anything = true;
     }
 
     if (auto it = obj.find("last_error"); it != obj.end() && it->is_string()) {
@@ -306,13 +277,7 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
         saw_anything = true;
     }
 
-    // The fork's operation-failed flag, where Irbis3D sends a last_error string.
-    if (auto flag = bool_field(obj, "error")) {
-        r.controller_error = *flag;
-        saw_anything = true;
-    }
-
-    // Irbis3D publishes sensor_error outright; both schemas encode it as -2.
+    // sensor_error is published outright, and current_tool encodes it as -2.
     if (auto flag = bool_field(obj, "sensor_error")) {
         r.sensor_error = *flag;
         r.sensor_error_reported = *flag;
@@ -323,9 +288,8 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
         r.sensor_error = true;
     }
 
-    // Per-dock occupancy. Irbis3D publishes a sensors dict keyed "e" for the
-    // toolhead and "t<n>" per dock; the fork flattens it to tool<n>_docked plus
-    // head_loaded. Sergei, 2026-08-24: "e: 1 means that a tool is installed on
+    // Per-dock occupancy: a sensors dict keyed "e" for the toolhead and "t<n>"
+    // per dock. Sergei, 2026-08-24: "e: 1 means that a tool is installed on
     // the toolhead ... tN: 1 means that the corresponding tool is seated in its
     // dock."
     auto sensors = obj.find("sensors");
@@ -344,24 +308,8 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
             }
         }
     }
-    for (const auto& [key, value] : obj.items()) {
-        if (key.rfind("tool", 0) != 0) {
-            continue;
-        }
-        if (auto index = dock_index(key)) {
-            if (auto flag = as_bool(value)) {
-                set_dock(r.docks, *index, *flag);
-                saw_anything = true;
-            }
-        }
-    }
-    if (auto loaded = bool_field(obj, "head_loaded")) {
-        r.head_loaded = *loaded;
-        saw_anything = true;
-    }
-    // Published by both controllers, under the same name. Left nullopt when
-    // absent on purpose: a machine that never reports the gripper is not a
-    // machine whose gripper is closed.
+    // Left nullopt when absent on purpose: a machine that never reports the
+    // gripper is not a machine whose gripper is closed.
     if (auto feeder = bool_field(obj, "feeder_open")) {
         r.feeder_open = *feeder;
         saw_anything = true;
