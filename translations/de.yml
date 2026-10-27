@@ -630,6 +630,7 @@ translations:
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'Beim Abbrechen wird das Kammerziel ausgeschaltet, damit das Warten endet; dann wird der Druck gestoppt.'
   'Cannot add to queue: internal error': 'Zur Warteschlange hinzufügen nicht möglich: interner Fehler'
   Cannot be changed from here on a multi-unit MMU: Bei einer MMU mit mehreren Einheiten hier nicht änderbar
+  Cannot calibrate while printing: 'Kalibrierung während des Drucks nicht möglich'
   Cannot change the HelixPrint plugin while printing: Das HelixPrint-Plugin kann während des Drucks nicht geändert werden
   'Cannot control timelapse: printer not connected': 'Timelapse nicht steuerbar: Drucker
     nicht verbunden'
@@ -676,6 +677,7 @@ translations:
   Chamber Heater Fan: Kammer-Heizlüfter
   Chamber Sensor: Kammersensor
   Chamber Temperature: Kammertemperatur
+  Chamber air: 'Kammerluft'
   Chamber and dryer humidity monitoring: Kammer- und Trockner-Feuchtigkeitsüberwachung
   Chamber at %d°C: Kammer bei %d°C
   Chamber heater didn't start: 'Kammerheizung ist nicht gestartet'
@@ -2021,6 +2023,7 @@ translations:
   It has not reported its slots yet. Try again in a moment.: Es hat seine Slots noch nicht gemeldet. Versuchen Sie es gleich noch einmal.
   It homes and heats on its own (no start macro found).: Er fährt die Referenz an und heizt selbst (kein Startmakro gefunden).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Es klemmt zwischen Hub-Sensor und Hub-Antriebsrad. CFS öffnen, den Hub frei machen und erneut versuchen
+  It saves the result and restarts Klipper when it finishes.: 'Am Ende wird das Ergebnis gespeichert und Klipper neu gestartet.'
   It starts with your {} macro.: Er startet mit deinem Makro {}.
   It's a new spool: Es ist eine neue Spule
   Its home tile: 'Seine Startseiten-Kachel'
@@ -3200,6 +3203,7 @@ translations:
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Zu große Daten vom Drucker empfangen ({} Bytes). Das kann auf einen Kommunikationsfehler hinweisen.
   Recent Prints: Letzte Drucke
   Recently Printed: Zuletzt gedruckt
+  Recirculate: 'Umwälzen'
   Reconnect: Erneut verbinden
   Record Timelapse: Zeitraffer aufnehmen
   Record timelapses of your prints: Zeitraffer Ihrer Drucke aufnehmen
@@ -4134,6 +4138,7 @@ translations:
   The printer lost power while printing {}. Resume where it left off?: Der Drucker hatte
     einen Stromausfall während des Drucks von {}. Dort fortsetzen, wo er aufgehört hat?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: Der Drucker hatte einen Stromausfall während des Drucks von {}. Die fortgesetzte Schicht passt möglicherweise nicht exakt.
+  The printer moves the toolhead and measures its motors.: 'Der Drucker bewegt den Druckkopf und vermisst seine Motoren.'
   The printer no longer has a print to resume.: Der Drucker hat keinen Druck mehr zum Fortsetzen.
   The printer reads the file up to the last saved position. A large file can take a minute.: Der Drucker liest die Datei bis zur letzten gespeicherten Position. Eine große Datei kann eine Minute dauern.
   The printer records lane {} in the toolhead, not this one: 'Der Drucker verzeichnet Spur {} im Druckkopf, nicht diese'
@@ -4402,6 +4407,7 @@ translations:
   Trying again...: 'Erneuter Versuch...'
   Tune: Abstimmen
   Tune Belts: "Einstellen"
+  Tune the motors to remove fine vertical lines: 'Motoren abstimmen, um feine vertikale Linien zu entfernen'
   Tuner: Tuner
   Tuning tower enabled - start a print to test: Tuning-Tower aktiviert - starten Sie
     einen Druck zum Testen
@@ -4552,6 +4558,7 @@ translations:
   Version and what the plugin runs: 'Version und was das Plugin ausführt'
   Version {}: Version {}
   Vertical: Vertikal
+  Vertical Artifact Compensation: 'Kompensation vertikaler Artefakte'
   Vibration: Vibration
   Vibration compensation active: Vibrationskompensation aktiv
   Video playback speed: Videowiedergabegeschwindigkeit

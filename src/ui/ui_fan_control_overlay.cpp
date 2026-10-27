@@ -3,6 +3,7 @@
 
 #include "ui_fan_control_overlay.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_fan_arc_resize.h"
 #include "ui_modal.h"
@@ -12,6 +13,7 @@
 
 #include "app_constants.h"
 #include "app_globals.h"
+#include "chamber_air_modes.h"
 #include "config.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
@@ -125,6 +127,31 @@ void attach_long_press_rename(lv_obj_t* widget, const std::string& object_name,
     lv_obj_add_event_cb(widget, on_fan_rename_data_delete, LV_EVENT_DELETE, data);
 }
 
+/// A chamber air mode button: user_data names the mode (chamber_air::mode_id).
+void on_chamber_air_mode_clicked(lv_event_t* e) {
+    const char* id = static_cast<const char*>(lv_event_get_user_data(e));
+    const auto mode = helix::chamber_air::parse_mode_id(id ? id : "");
+    if (!mode) {
+        spdlog::warn("[FanControlOverlay] Unknown chamber air mode '{}'", id ? id : "");
+        return;
+    }
+    const std::string gcode =
+        helix::chamber_air::mode_gcode(get_printer_state().get_discovery(), *mode);
+    if (gcode.empty()) {
+        spdlog::warn("[FanControlOverlay] This printer does not offer chamber air mode '{}'", id);
+        return;
+    }
+    auto* api = get_moonraker_api();
+    if (!api) {
+        NOTIFY_WARNING(lv_tr("No printer connection"));
+        return;
+    }
+    spdlog::info("[FanControlOverlay] Chamber air mode {}: {}", id, gcode);
+    api->execute_gcode(gcode, nullptr, [](const MoonrakerError& err) {
+        helix::ui::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
+    });
+}
+
 } // namespace
 
 namespace helix {
@@ -160,6 +187,7 @@ FanControlOverlay::~FanControlOverlay() {
 // ============================================================================
 
 lv_obj_t* FanControlOverlay::create(lv_obj_t* parent) {
+    register_xml_callbacks({{"on_chamber_air_mode_clicked", on_chamber_air_mode_clicked}});
     if (!OverlayBase::create(parent)) {
         return nullptr;
     }

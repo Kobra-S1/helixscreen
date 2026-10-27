@@ -624,6 +624,7 @@ translations:
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'Cancelar desliga o alvo da câmara para que a espera termine e depois para a impressão.'
   'Cannot add to queue: internal error': 'Não foi possível adicionar à fila: erro interno'
   Cannot be changed from here on a multi-unit MMU: Não pode ser alterado aqui em um MMU de várias unidades
+  Cannot calibrate while printing: 'Não é possível calibrar durante a impressão'
   Cannot change the HelixPrint plugin while printing: Não é possível alterar o plugin HelixPrint durante a impressão
   'Cannot control timelapse: printer not connected': 'Não é possível controlar timelapse:
     impressora não conectada'
@@ -669,6 +670,7 @@ translations:
   Chamber Heater Fan: Ventoinha do Aquecedor da Câmara
   Chamber Sensor: Sensor da Câmara
   Chamber Temperature: Temperatura da câmara
+  Chamber air: 'Ar da câmara'
   Chamber and dryer humidity monitoring: Monitoramento de umidade da câmara e secador
   Chamber at %d°C: Câmara a %d°C
   Chamber heater didn't start: 'O aquecedor da câmara não ligou'
@@ -2015,6 +2017,7 @@ translations:
   It has not reported its slots yet. Try again in a moment.: Ainda não informou seus slots. Tente novamente em instantes.
   It homes and heats on its own (no start macro found).: Ela faz o homing e aquece sozinha (nenhuma macro de início encontrada).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Está preso entre o sensor do hub e a engrenagem do hub. Abra o CFS e desobstrua o hub antes de tentar novamente
+  It saves the result and restarts Klipper when it finishes.: 'Ao terminar, salva o resultado e reinicia o Klipper.'
   It starts with your {} macro.: Ela começa com a sua macro {}.
   It's a new spool: É um carretel novo
   Its home tile: 'Seu bloco da tela inicial'
@@ -3194,6 +3197,7 @@ translations:
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Dados grandes demais recebidos da impressora ({} bytes). Isso pode indicar um erro de comunicação.
   Recent Prints: Impressões recentes
   Recently Printed: Impressas recentemente
+  Recirculate: 'Recircular'
   Reconnect: Reconectar
   Record Timelapse: Gravar Timelapse
   Record timelapses of your prints: Gravar timelapses das suas impressões
@@ -4130,6 +4134,7 @@ translations:
   The printer lost power while printing {}. Resume where it left off?: A impressora perdeu
     energia ao imprimir {}. Retomar de onde parou?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: A impressora perdeu energia ao imprimir {}. A camada retomada pode não se alinhar exatamente.
+  The printer moves the toolhead and measures its motors.: 'A impressora move o cabeçote e mede seus motores.'
   The printer no longer has a print to resume.: A impressora não tem mais uma impressão para retomar.
   The printer reads the file up to the last saved position. A large file can take a minute.: A impressora lê o arquivo até a última posição salva. Um arquivo grande pode levar um minuto.
   The printer records lane {} in the toolhead, not this one: 'A impressora registra a lane {} no cabeçote, não esta'
@@ -4398,6 +4403,7 @@ translations:
   Trying again...: 'Tentando novamente...'
   Tune: Ajustar
   Tune Belts: "Ajustar"
+  Tune the motors to remove fine vertical lines: 'Ajustar os motores para remover linhas verticais finas'
   Tuner: Ajuste
   Tuning tower enabled - start a print to test: Torre de ajuste habilitada - inicie
     uma impressão para testar
@@ -4548,6 +4554,7 @@ translations:
   Version and what the plugin runs: 'Versão e o que o plugin executa'
   Version {}: Versão {}
   Vertical: Vertical
+  Vertical Artifact Compensation: 'Compensação de artefatos verticais'
   Vibration: Vibração
   Vibration compensation active: Compensação de vibração ativa
   Video playback speed: Velocidade de reprodução do vídeo

@@ -623,6 +623,7 @@ translations:
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'L''annullamento spegne il target della camera per terminare l''attesa, poi ferma la stampa.'
   'Cannot add to queue: internal error': 'Impossibile aggiungere alla coda: errore interno'
   Cannot be changed from here on a multi-unit MMU: Non modificabile da qui su un MMU multi-unità
+  Cannot calibrate while printing: 'Impossibile calibrare durante la stampa'
   Cannot change the HelixPrint plugin while printing: Impossibile modificare il plugin HelixPrint durante la stampa
   'Cannot control timelapse: printer not connected': 'Impossibile controllare timelapse:
     stampante non connessa'
@@ -667,6 +668,7 @@ translations:
   Chamber Heater Fan: Ventola riscaldatore camera
   Chamber Sensor: Sensore camera
   Chamber Temperature: Temperatura camera
+  Chamber air: 'Aria camera'
   Chamber and dryer humidity monitoring: Monitoraggio umidità camera ed essiccatore
   Chamber at %d°C: Camera a %d°C
   Chamber heater didn't start: 'Il riscaldatore della camera non si è avviato'
@@ -2011,6 +2013,7 @@ translations:
   It has not reported its slots yet. Try again in a moment.: Non ha ancora segnalato i suoi slot. Riprova tra un momento.
   It homes and heats on its own (no start macro found).: Esegue l'homing e scalda da sola (nessuna macro di avvio trovata).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: È inceppato tra il sensore dell'hub e il relativo ingranaggio. Aprire il CFS e liberare l'hub prima di riprovare
+  It saves the result and restarts Klipper when it finishes.: 'Al termine salva il risultato e riavvia Klipper.'
   It starts with your {} macro.: Inizia con la tua macro {}.
   It's a new spool: È una nuova bobina
   Its home tile: 'Il suo riquadro della home'
@@ -3190,6 +3193,7 @@ translations:
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Ricevuti dati troppo grandi dalla stampante ({} byte). Potrebbe indicare un errore di comunicazione.
   Recent Prints: Stampe recenti
   Recently Printed: Stampate di recente
+  Recirculate: 'Ricircolo'
   Reconnect: Riconnetti
   Record Timelapse: Registra timelapse
   Record timelapses of your prints: Registra timelapse delle tue stampe
@@ -4124,6 +4128,7 @@ translations:
   The printer lost power while printing {}. Resume where it left off?: La stampante ha
     perso l'alimentazione durante la stampa di {}. Riprendere da dove si è interrotta?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: La stampante ha perso l'alimentazione durante la stampa di {}. Il layer ripreso potrebbe non allinearsi perfettamente.
+  The printer moves the toolhead and measures its motors.: 'La stampante muove la testina e misura i suoi motori.'
   The printer no longer has a print to resume.: La stampante non ha più una stampa da riprendere.
   The printer reads the file up to the last saved position. A large file can take a minute.: La stampante legge il file fino all'ultima posizione salvata. Un file grande può richiedere un minuto.
   The printer records lane {} in the toolhead, not this one: 'La stampante registra la corsia {} nella testina, non questa'
@@ -4394,6 +4399,7 @@ translations:
   Trying again...: 'Nuovo tentativo...'
   Tune: Regola
   Tune Belts: "Regola"
+  Tune the motors to remove fine vertical lines: 'Regola i motori per eliminare le sottili linee verticali'
   Tuner: Taratura
   Tuning tower enabled - start a print to test: Torre di regolazione abilitata - avvia
     una stampa per testare
@@ -4544,6 +4550,7 @@ translations:
   Version and what the plugin runs: 'Versione e cosa esegue il plugin'
   Version {}: Versione {}
   Vertical: Verticale
+  Vertical Artifact Compensation: 'Compensazione artefatti verticali'
   Vibration: Vibrazione
   Vibration compensation active: Compensazione vibrazione attiva
   Video playback speed: Velocità riproduzione video

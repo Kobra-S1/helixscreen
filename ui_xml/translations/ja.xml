@@ -579,6 +579,7 @@
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." ja="キャンセルするとチャンバーの目標温度をオフにして待機を終了し、その後印刷を停止します。"/>
   <translation tag="Cannot add to queue: internal error" ja="キューに追加できません: 内部エラー"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" ja="マルチユニット MMU ではここから変更できません"/>
+  <translation tag="Cannot calibrate while printing" ja="印刷中はキャリブレーションできません"/>
   <translation tag="Cannot change the HelixPrint plugin while printing" ja="印刷中はHelixPrintプラグインを変更できません"/>
   <translation tag="Cannot control timelapse: printer not connected" ja="タイムラプスを制御できません: プリンター未接続"/>
   <translation tag="Cannot delete file: printer not connected" ja="ファイルを削除できません: プリンター未接続"/>
@@ -616,6 +617,7 @@
   <translation tag="Chamber Heater Fan" ja="チャンバーヒーターファン"/>
   <translation tag="Chamber Sensor" ja="チャンバーセンサー"/>
   <translation tag="Chamber Temperature" ja="チャンバー温度"/>
+  <translation tag="Chamber air" ja="チャンバー空気"/>
   <translation tag="Chamber and dryer humidity monitoring" ja="チャンバーとドライヤーの湿度監視"/>
   <translation tag="Chamber at %d°C" ja="チャンバー温度：%d°C"/>
   <translation tag="Chamber heater didn&apos;t start" ja="チャンバーヒーターが起動しませんでした"/>
@@ -1831,6 +1833,7 @@
   <translation tag="It has not reported its slots yet. Try again in a moment." ja="スロットがまだ報告されていません。しばらくしてからもう一度お試しください。"/>
   <translation tag="It homes and heats on its own (no start macro found)." ja="ホーミングと加熱を自分で行います(開始マクロが見つかりません)。"/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" ja="ハブセンサーとハブギアの間で詰まっています。CFS を開けてハブを取り除いてから再試行してください"/>
+  <translation tag="It saves the result and restarts Klipper when it finishes." ja="完了すると結果を保存し、Klipperを再起動します。"/>
   <translation tag="It starts with your {} macro." ja="{}マクロで開始します。"/>
   <translation tag="It&apos;s a new spool" ja="新しいスプールです"/>
   <translation tag="Its home tile" ja="ホームのタイル"/>
@@ -2926,6 +2929,7 @@
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." ja="プリンターからサイズ超過のデータを受信しました ({} バイト)。通信エラーの可能性があります。"/>
   <translation tag="Recent Prints" ja="最近の印刷"/>
   <translation tag="Recently Printed" ja="最近印刷されたもの"/>
+  <translation tag="Recirculate" ja="循環"/>
   <translation tag="Reconnect" ja="再接続"/>
   <translation tag="Record Timelapse" ja="タイムラプスを録画"/>
   <translation tag="Record timelapses of your prints" ja="印刷のタイムラプスを録画"/>
@@ -3754,6 +3758,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." ja="印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ja="{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ja="{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
+  <translation tag="The printer moves the toolhead and measures its motors." ja="プリンターがツールヘッドを動かし、モーターを測定します。"/>
   <translation tag="The printer no longer has a print to resume." ja="プリンターに再開できる印刷がありません。"/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." ja="プリンターは最後に保存された位置までファイルを読み込みます。大きなファイルでは1分かかることがあります。"/>
   <translation tag="The printer records lane {} in the toolhead, not this one" ja="プリンターの記録ではツールヘッドにあるのはレーン{}で、このレーンではありません"/>
@@ -3974,6 +3979,7 @@
   <translation tag="Trying again..." ja="再試行中..."/>
   <translation tag="Tune" ja="チューニング"/>
   <translation tag="Tune Belts" ja="ベルト調整"/>
+  <translation tag="Tune the motors to remove fine vertical lines" ja="モーターを調整して細かい垂直の線を除去"/>
   <translation tag="Tuner" ja="調整"/>
   <translation tag="Tuning tower enabled - start a print to test" ja="チューニングタワー有効 - 印刷を開始してテストしてください"/>
   <translation tag="Turbo" ja="ターボ"/>
@@ -4124,6 +4130,7 @@
   <translation tag="Version and what the plugin runs" ja="バージョンとプラグインが実行する機能"/>
   <translation tag="Version {}" ja="バージョン {}"/>
   <translation tag="Vertical" ja="垂直"/>
+  <translation tag="Vertical Artifact Compensation" ja="垂直アーティファクト補正"/>
   <translation tag="Vibration" ja="振動"/>
   <translation tag="Vibration compensation active" ja="振動補正が有効です"/>
   <translation tag="Video playback speed" ja="動画再生速度"/>

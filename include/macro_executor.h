@@ -7,6 +7,7 @@
 #include "macro_param_cache.h"
 #include "macro_params.h"
 
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <string>
@@ -226,5 +227,26 @@ enum class MacroFailureReport {
 /// @param err     The error the RPC came back with.
 [[nodiscard]] MacroFailureReport classify_macro_rpc_failure(MacroHostEffect effect,
                                                             const MoonrakerError& err);
+
+/// One gcode send whose failure is reported the macro way: a host that
+/// restarts or halts mid-command is absorbed per classify_macro_rpc_failure(),
+/// and anything else toasts "<display_name> failed".
+struct MachineGcode {
+    std::string gcode;
+    std::string log_name;     ///< For logs: the macro or routine sent
+    std::string display_name; ///< Shown in the "<name> sent" / "<name> failed" toasts
+    MacroHostEffect host_effect = MacroHostEffect::None;
+    /// 0 means IMoonrakerAPI::kMacroTimeoutMs.
+    uint32_t timeout_ms = 0;
+};
+
+/// Send @p cmd and report its outcome. A null @p api logs and sends nothing.
+void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const char* caller_tag);
+
+/// Start a calibration routine from a UI entry: refused with a toast while a
+/// print holds the machine, homed first (ensure_homed_then, no prompt) when
+/// @p needs_home, then execute_machine_gcode(). Main thread only.
+void start_calibration_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, bool needs_home,
+                             const char* caller_tag);
 
 } // namespace helix

@@ -324,6 +324,7 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/chamber_dryer_modal.xml", 1},
     {"ui_xml/cfs_chute_calibration_overlay.xml", 6},
     {"ui_xml/snapmaker_nozzle_offset_overlay.xml", 3},
+    {"ui_xml/stepper_resonance_cal_modal.xml", 1},
     {"ui_xml/components/ams_sidebar.xml", 3},
     {"ui_xml/components/chamber_dryer_row.xml", 1},
     {"ui_xml/components/panel_widget_bed_mesh_tile.xml", 1},
@@ -521,6 +522,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/estop_confirmation_dialog.xml",
     "ui_xml/exclude_object_modal.xml",
     "ui_xml/factory_reset_modal.xml",
+    // Chamber air modes only set fan speeds.
+    "ui_xml/fan_control_overlay.xml",
     "ui_xml/fan_dial.xml",
     "ui_xml/fan_rename_modal.xml",
     "ui_xml/favorite_macro_config_modal.xml",

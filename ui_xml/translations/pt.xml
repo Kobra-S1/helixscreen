@@ -579,6 +579,7 @@
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." pt="Cancelar desliga o alvo da câmara para que a espera termine e depois para a impressão."/>
   <translation tag="Cannot add to queue: internal error" pt="Não foi possível adicionar à fila: erro interno"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" pt="Não pode ser alterado aqui em um MMU de várias unidades"/>
+  <translation tag="Cannot calibrate while printing" pt="Não é possível calibrar durante a impressão"/>
   <translation tag="Cannot change the HelixPrint plugin while printing" pt="Não é possível alterar o plugin HelixPrint durante a impressão"/>
   <translation tag="Cannot control timelapse: printer not connected" pt="Não é possível controlar timelapse: impressora não conectada"/>
   <translation tag="Cannot delete file: printer not connected" pt="Não é possível excluir arquivo: impressora não conectada"/>
@@ -616,6 +617,7 @@
   <translation tag="Chamber Heater Fan" pt="Ventoinha do Aquecedor da Câmara"/>
   <translation tag="Chamber Sensor" pt="Sensor da Câmara"/>
   <translation tag="Chamber Temperature" pt="Temperatura da câmara"/>
+  <translation tag="Chamber air" pt="Ar da câmara"/>
   <translation tag="Chamber and dryer humidity monitoring" pt="Monitoramento de umidade da câmara e secador"/>
   <translation tag="Chamber at %d°C" pt="Câmara a %d°C"/>
   <translation tag="Chamber heater didn&apos;t start" pt="O aquecedor da câmara não ligou"/>
@@ -1831,6 +1833,7 @@
   <translation tag="It has not reported its slots yet. Try again in a moment." pt="Ainda não informou seus slots. Tente novamente em instantes."/>
   <translation tag="It homes and heats on its own (no start macro found)." pt="Ela faz o homing e aquece sozinha (nenhuma macro de início encontrada)."/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" pt="Está preso entre o sensor do hub e a engrenagem do hub. Abra o CFS e desobstrua o hub antes de tentar novamente"/>
+  <translation tag="It saves the result and restarts Klipper when it finishes." pt="Ao terminar, salva o resultado e reinicia o Klipper."/>
   <translation tag="It starts with your {} macro." pt="Ela começa com a sua macro {}."/>
   <translation tag="It&apos;s a new spool" pt="É um carretel novo"/>
   <translation tag="Its home tile" pt="Seu bloco da tela inicial"/>
@@ -2926,6 +2929,7 @@
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." pt="Dados grandes demais recebidos da impressora ({} bytes). Isso pode indicar um erro de comunicação."/>
   <translation tag="Recent Prints" pt="Impressões recentes"/>
   <translation tag="Recently Printed" pt="Impressas recentemente"/>
+  <translation tag="Recirculate" pt="Recircular"/>
   <translation tag="Reconnect" pt="Reconectar"/>
   <translation tag="Record Timelapse" pt="Gravar Timelapse"/>
   <translation tag="Record timelapses of your prints" pt="Gravar timelapses das suas impressões"/>
@@ -3754,6 +3758,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." pt="A impressora perdeu energia durante uma impressão. A camada retomada pode não se alinhar exatamente."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" pt="A impressora perdeu energia ao imprimir {}. Retomar de onde parou?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." pt="A impressora perdeu energia ao imprimir {}. A camada retomada pode não se alinhar exatamente."/>
+  <translation tag="The printer moves the toolhead and measures its motors." pt="A impressora move o cabeçote e mede seus motores."/>
   <translation tag="The printer no longer has a print to resume." pt="A impressora não tem mais uma impressão para retomar."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." pt="A impressora lê o arquivo até a última posição salva. Um arquivo grande pode levar um minuto."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" pt="A impressora registra a lane {} no cabeçote, não esta"/>
@@ -3974,6 +3979,7 @@
   <translation tag="Trying again..." pt="Tentando novamente..."/>
   <translation tag="Tune" pt="Ajustar"/>
   <translation tag="Tune Belts" pt="Ajustar"/>
+  <translation tag="Tune the motors to remove fine vertical lines" pt="Ajustar os motores para remover linhas verticais finas"/>
   <translation tag="Tuner" pt="Ajuste"/>
   <translation tag="Tuning tower enabled - start a print to test" pt="Torre de ajuste habilitada - inicie uma impressão para testar"/>
   <translation tag="Turbo" pt="Turbo"/>
@@ -4124,6 +4130,7 @@
   <translation tag="Version and what the plugin runs" pt="Versão e o que o plugin executa"/>
   <translation tag="Version {}" pt="Versão {}"/>
   <translation tag="Vertical" pt="Vertical"/>
+  <translation tag="Vertical Artifact Compensation" pt="Compensação de artefatos verticais"/>
   <translation tag="Vibration" pt="Vibração"/>
   <translation tag="Vibration compensation active" pt="Compensação de vibração ativa"/>
   <translation tag="Video playback speed" pt="Velocidade de reprodução do vídeo"/>

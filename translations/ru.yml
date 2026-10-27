@@ -670,6 +670,7 @@ translations:
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'Отмена выключит целевую температуру камеры, чтобы ожидание закончилось, затем остановит печать.'
   'Cannot add to queue: internal error': 'Не удалось добавить в очередь: внутренняя ошибка'
   Cannot be changed from here on a multi-unit MMU: Нельзя изменить здесь на MMU с несколькими блоками
+  Cannot calibrate while printing: 'Нельзя калибровать во время печати'
   Cannot change the HelixPrint plugin while printing: Нельзя изменить плагин HelixPrint во время печати
   'Cannot control timelapse: printer not connected': 'Невозможно управлять таймлапсом:
     принтер не подключён'
@@ -714,6 +715,7 @@ translations:
   Chamber Heater Fan: Вентилятор нагревателя камеры
   Chamber Sensor: Датчик камеры
   Chamber Temperature: Температура камеры
+  Chamber air: 'Воздух камеры'
   Chamber and dryer humidity monitoring: Мониторинг влажности камеры и сушилки
   Chamber at %d°C: Камера при %d°C
   Chamber heater didn't start: 'Нагреватель камеры не запустился'
@@ -2054,6 +2056,7 @@ translations:
   It has not reported its slots yet. Try again in a moment.: Она ещё не сообщила о своих слотах. Повторите попытку через минуту.
   It homes and heats on its own (no start macro found).: Парковка и нагрев выполняются самостоятельно (стартовый макрос не найден).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Он зажат между датчиком хаба и его шестернёй. Откройте CFS, освободите хаб и повторите
+  It saves the result and restarts Klipper when it finishes.: 'По завершении результат сохраняется, и Klipper перезапускается.'
   It starts with your {} macro.: Начинается с вашего макроса {}.
   It's a new spool: Это новая катушка
   Its home tile: 'Его плитка на главном экране'
@@ -3239,6 +3242,7 @@ translations:
   Received oversized data from printer ({} bytes). This may indicate a communication error.: От принтера получены слишком большие данные ({} байт). Возможна ошибка связи.
   Recent Prints: Недавние печати
   Recently Printed: Недавно напечатано
+  Recirculate: 'Рециркуляция'
   Reconnect: Переподключиться
   Record Timelapse: Записать таймлапс
   Record timelapses of your prints: Записывайте таймлапсы ваших печатей
@@ -4171,6 +4175,7 @@ translations:
   The printer lost power during a print. The resumed layer may not line up exactly.: Принтер потерял питание во время печати. Возобновлённый слой может не совпасть точно.
   The printer lost power while printing {}. Resume where it left off?: Принтер потерял питание при печати {}. Продолжить с места остановки?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: Принтер потерял питание при печати {}. Возобновлённый слой может не совпасть точно.
+  The printer moves the toolhead and measures its motors.: 'Принтер перемещает печатающую головку и измеряет моторы.'
   The printer no longer has a print to resume.: У принтера больше нет печати для продолжения.
   The printer reads the file up to the last saved position. A large file can take a minute.: Принтер читает файл до последней сохранённой позиции. Большой файл может занять минуту.
   The printer records lane {} in the toolhead, not this one: 'По записи принтера в печатающей головке канал {}, а не этот'
@@ -4434,6 +4439,7 @@ translations:
   Trying again...: 'Повторная попытка...'
   Tune: Настройка
   Tune Belts: "Настроить"
+  Tune the motors to remove fine vertical lines: 'Настроить моторы, чтобы убрать тонкие вертикальные полосы'
   Tuner: Настройка
   Tuning tower enabled - start a print to test: Башня настройки включена — начните
     печать для теста
@@ -4583,6 +4589,7 @@ translations:
   Version and what the plugin runs: 'Версия и что выполняет плагин'
   Version {}: Версия {}
   Vertical: Вертикально
+  Vertical Artifact Compensation: 'Компенсация вертикальных артефактов'
   Vibration: Вибрация
   Vibration compensation active: Компенсация вибраций активна
   Video playback speed: Скорость воспроизведения видео

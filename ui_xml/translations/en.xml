@@ -579,6 +579,7 @@
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." en="Canceling turns the chamber target off so the wait ends, then stops the print."/>
   <translation tag="Cannot add to queue: internal error" en="Cannot add to queue: internal error"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" en="Cannot be changed from here on a multi-unit MMU"/>
+  <translation tag="Cannot calibrate while printing" en="Cannot calibrate while printing"/>
   <translation tag="Cannot change the HelixPrint plugin while printing" en="Cannot change the HelixPrint plugin while printing"/>
   <translation tag="Cannot control timelapse: printer not connected" en="Cannot control timelapse: printer not connected"/>
   <translation tag="Cannot delete file: printer not connected" en="Cannot delete file: printer not connected"/>
@@ -616,6 +617,7 @@
   <translation tag="Chamber Heater Fan" en="Chamber Heater Fan"/>
   <translation tag="Chamber Sensor" en="Chamber Sensor"/>
   <translation tag="Chamber Temperature" en="Chamber Temperature"/>
+  <translation tag="Chamber air" en="Chamber air"/>
   <translation tag="Chamber and dryer humidity monitoring" en="Chamber and dryer humidity monitoring"/>
   <translation tag="Chamber at %d°C" en="Chamber at %d°C"/>
   <translation tag="Chamber heater didn&apos;t start" en="Chamber heater didn&apos;t start"/>
@@ -1831,6 +1833,7 @@
   <translation tag="It has not reported its slots yet. Try again in a moment." en="It has not reported its slots yet. Try again in a moment."/>
   <translation tag="It homes and heats on its own (no start macro found)." en="It homes and heats on its own (no start macro found)."/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" en="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying"/>
+  <translation tag="It saves the result and restarts Klipper when it finishes." en="It saves the result and restarts Klipper when it finishes."/>
   <translation tag="It starts with your {} macro." en="It starts with your {} macro."/>
   <translation tag="It&apos;s a new spool" en="It&apos;s a new spool"/>
   <translation tag="Its home tile" en="Its home tile"/>
@@ -2926,6 +2929,7 @@
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." en="Received oversized data from printer ({} bytes). This may indicate a communication error."/>
   <translation tag="Recent Prints" en="Recent Prints"/>
   <translation tag="Recently Printed" en="Recently Printed"/>
+  <translation tag="Recirculate" en="Recirculate"/>
   <translation tag="Reconnect" en="Reconnect"/>
   <translation tag="Record Timelapse" en="Record Timelapse"/>
   <translation tag="Record timelapses of your prints" en="Record timelapses of your prints"/>
@@ -3754,6 +3758,7 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." en="The printer lost power during a print. The resumed layer may not line up exactly."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" en="The printer lost power while printing {}. Resume where it left off?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." en="The printer lost power while printing {}. The resumed layer may not line up exactly."/>
+  <translation tag="The printer moves the toolhead and measures its motors." en="The printer moves the toolhead and measures its motors."/>
   <translation tag="The printer no longer has a print to resume." en="The printer no longer has a print to resume."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." en="The printer reads the file up to the last saved position. A large file can take a minute."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" en="The printer records lane {} in the toolhead, not this one"/>
@@ -3974,6 +3979,7 @@
   <translation tag="Trying again..." en="Trying again..."/>
   <translation tag="Tune" en="Tune"/>
   <translation tag="Tune Belts" en="Tune Belts"/>
+  <translation tag="Tune the motors to remove fine vertical lines" en="Tune the motors to remove fine vertical lines"/>
   <translation tag="Tuner" en="Tuner"/>
   <translation tag="Tuning tower enabled - start a print to test" en="Tuning tower enabled - start a print to test"/>
   <translation tag="Turbo" en="Turbo"/>
@@ -4124,6 +4130,7 @@
   <translation tag="Version and what the plugin runs" en="Version and what the plugin runs"/>
   <translation tag="Version {}" en="Version {}"/>
   <translation tag="Vertical" en="Vertical"/>
+  <translation tag="Vertical Artifact Compensation" en="Vertical Artifact Compensation"/>
   <translation tag="Vibration" en="Vibration"/>
   <translation tag="Vibration compensation active" en="Vibration compensation active"/>
   <translation tag="Video playback speed" en="Video playback speed"/>

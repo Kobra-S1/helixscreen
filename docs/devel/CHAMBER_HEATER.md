@@ -329,6 +329,27 @@ Per-file: `test_chamber_heater_backend.cpp` (match/parse), `test_chamber_heater_
 
 ---
 
+## Chamber Air Modes
+
+Separate from heating: some enclosed printers route chamber air one of two ways with a set
+of fans the firmware drives together. HelixScreen names the mode and sends the firmware's
+macro; which fans run at which speed is the firmware's.
+
+| Piece | Where |
+|-------|-------|
+| Capability | `include/chamber_air_modes.h` (`helix::chamber_air`): `enum class AirMode { Recirculate, Exhaust, Off }`, `bool supported(hw)`, `std::vector<AirMode> modes(hw)`, `bool offers(hw, AirMode)`, `std::string mode_gcode(hw, AirMode)`, `const char* mode_id(AirMode)`, `std::optional<AirMode> parse_mode_id(std::string_view)`, `std::string provider_name(hw)` |
+| Providers | `kProviders` in `src/printer/chamber_air_modes.cpp`: a detection predicate and one macro per mode. A mode is offered only while its macro is defined. Z-Mod on the Creator 5 is the first row (`AIR_CIRCULATION_INTERNAL` / `_EXTERNAL` / `_STOP`) |
+| Subjects | `printer_has_chamber_air_recirculate`, `printer_has_chamber_air_exhaust`, `printer_has_chamber_air_off` (`PrinterCapabilitiesState`) |
+| UI | the **Chamber air** row in `ui_xml/fan_control_overlay.xml`; one callback, `on_chamber_air_mode_clicked`, whose `user_data` is the `mode_id` (`src/ui/ui_fan_control_overlay.cpp`) |
+| Tests | `[chamber_air]` in `tests/unit/test_chamber_air_modes.cpp` |
+
+**No active mode.** A mode macro sets several fans once, and every fan stays individually
+adjustable afterwards, so the fan speeds cannot be read back as a mode. The buttons are
+actions, never a selection. A firmware that publishes its mode would add a reader to its
+row and a subject, not a speed heuristic.
+
+Adding a second firmware is one row in `chamber_air_modes.cpp`.
+
 ## Verification Log
 
 ### DragonBreath on the U1 rig (2026-08, live)

@@ -222,6 +222,41 @@ A tool that has never been calibrated shows `--` on each axis instead of a numbe
 
 Tapping **Stop** during a run performs an emergency stop, since the calibration macro can't be paused partway through, only canceled outright.
 
+### FlashForge Creator 5 Pro (Z-Mod)
+
+On a Creator 5 Pro running Z-Mod, the printer runs its own tool offset calibration, and the Tool Offsets screen above does not open. Instead:
+
+1. Navigate to **Advanced > Tool Offsets**, or tap **Tool Offsets** on the Controls panel.
+2. The printer shows its own dialog, **CALIBRATE EXTRUDERS**, asking you to remove the build plate first.
+3. Remove the build plate, then tap **OK** to start, or **Cancel** to back out.
+
+The printer measures all four heads and keeps the results itself. HelixScreen does not show per-tool progress or results for this run; follow it on the printer and in the console. The entry appears only when Z-Mod's `CALIBRATE_EXTRUDERS` macro is present, and it is refused while a print is running.
+
+---
+
+## Vertical Artifact Compensation
+
+Some printers can tune their X and Y motors to remove the fine, evenly spaced vertical lines a motor's own vibration leaves on walls printed at constant speed. This is different from [Input Shaper](#input-shaper), which removes ringing after corners.
+
+### Requirements
+
+The **Vertical Artifact Compensation** row appears only on printers whose firmware provides this calibration:
+
+- **FlashForge Creator 5 / 5 Pro running Z-Mod**: uses Z-Mod's `CALIBRATE_VFA` macro and runs with one head you choose.
+- **FlashForge printers on their stock Klipper with the motor resonance tester** (the `[stepper_resonance_tester]` section FlashForge ships in `printer.vibration.cfg`): calibrates the whole machine at once.
+
+The printer measures with its own built-in accelerometer; you do not need to add one.
+
+### Running It
+
+1. Make sure no print is running.
+2. Navigate to **Advanced > Vertical Artifact Compensation**.
+3. On a Creator 5 with several heads, choose the **Tool** to run it with, then tap **Start**. Otherwise, confirm the dialog.
+4. If the printer is not homed, it homes first. It then measures its X and Y motors.
+5. When it finishes, the printer saves the result and restarts Klipper. The screen briefly shows the printer reconnecting; this is expected.
+
+There is nothing to turn off: on printers without the calibration, the row never appears.
+
 ---
 
 ## Belt Tension
