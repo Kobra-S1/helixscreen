@@ -257,6 +257,12 @@ void PrintSelectDetailView::init_subjects() {
         AmsState::instance().get_tool_map_version_subject(), this,
         [](PrintSelectDetailView* self, int /*version*/) { self->on_ams_state_changed(); },
         AmsState::instance().get_subjects_lifetime());
+    // The loaded chips of a printer with no filament system compare against the
+    // external spool, which every spool edit notifies through its colour.
+    external_spool_observer_ = observe<int>(
+        AmsState::instance().get_external_spool_color_subject(), this,
+        [](PrintSelectDetailView* self, int /*rgb*/) { self->on_ams_state_changed(); },
+        AmsState::instance().get_subjects_lifetime());
     // The auto-color-map setting picks the seed, so the un-picked rows follow it
     // as soon as it flips (the remap modal's toggle writes it, and its Cancel
     // writes it back).
@@ -1895,7 +1901,8 @@ void PrintSelectDetailView::show_remap_help_modal() {
 
 helix::printer::RemapBlock PrintSelectDetailView::current_remap_block() const {
     auto* backend = AmsState::instance().get_backend();
-    if (backend == nullptr) {
+    // A card showing what is loaded has no lane to route a tool to.
+    if (backend == nullptr || filament_mapping_card_.shows_loaded()) {
         return helix::printer::RemapBlock::NoStrategy;
     }
     return helix::printer::remap_block(*backend, rewrite_block(),

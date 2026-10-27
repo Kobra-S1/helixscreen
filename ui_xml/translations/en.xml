@@ -3538,6 +3538,7 @@
   <translation tag="Suppress periodic temperature status lines" en="Suppress periodic temperature status lines"/>
   <translation tag="Suppress raw debug output from printer firmware modules" en="Suppress raw debug output from printer firmware modules"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." en="Surfaces inherit app background tokens for light and dark modes."/>
+  <translation tag="Swap" en="Swap"/>
   <translation tag="Swap to another slot automatically when one runs out" en="Swap to another slot automatically when one runs out"/>
   <translation tag="Sweep" en="Sweep"/>
   <translation tag="Switch Printer" en="Switch Printer"/>

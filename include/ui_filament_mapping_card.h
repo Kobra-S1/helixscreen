@@ -32,7 +32,9 @@ namespace helix::ui {
  * `filament_mapping_visible` binding. Card visible iff AMS/toolchanger is
  * detected AND bypass is not suppressing a single-lane print AND the file
  * uses enough tools to be worth showing (any tool on a multi-tool printer,
- * 2+ on a single extruder) — see should_show(). Whether tapping the card
+ * 2+ on a single extruder), or, on a single extruder with no filament system,
+ * when a used tool names a material (shows_loaded_for()) — see should_show().
+ * Whether tapping the card
  * opens anything is a separate question, editable or not: see
  * PrintSelectDetailView::current_remap_block().
  */
@@ -240,17 +242,29 @@ class FilamentMappingCard {
      * True iff AMS is available, bypass is not suppressing a single-lane
      * print, the file declares at least one tool, and the tool count clears
      * the multi-tool-printer-aware floor (any tool on a multi-tool printer,
-     * 2+ tools on a single extruder). No longer gated on any backend's tool
-     * mapping being editable — a second surface used to draw the chips on
-     * non-editable backends (Snapmaker U1, ACE); it is gone, so hiding here
-     * would show the user nothing. Whether a tap does anything is a separate
-     * question, answered by PrintSelectDetailView::current_remap_block().
+     * 2+ tools on a single extruder); or, with no filament system and one
+     * extruder, a used tool names a material (shows_loaded()). Not gated on any
+     * backend's tool mapping being editable: whether a tap does anything is a
+     * separate question, answered by PrintSelectDetailView::current_remap_block().
      */
     [[nodiscard]] bool should_show() const {
         return should_show_;
     }
 
-    /// The visibility rule should_show() answers, without the card's widgets:
+    /// Whether the card shows the loaded filament against the file instead of a
+    /// lane mapping: a single extruder with no filament system. Its chips read
+    /// "Loaded", "Swap" or "?" and offer no remap.
+    [[nodiscard]] bool shows_loaded() const {
+        return shows_loaded_;
+    }
+
+    /// The visibility rule for a single extruder with no filament system: true
+    /// when a used tool (every tool, for an empty or nullopt set) names a
+    /// material. Reads AmsState and ToolState.
+    [[nodiscard]] static bool shows_loaded_for(const std::vector<std::string>& materials,
+                                               const std::optional<std::set<int>>& used_tools);
+
+    /// The lane-mapping visibility rule, without the card's widgets:
     /// AMS availability, the bypass single-lane rule and the lane count. A
     /// start with no file view asks it to know whether the view's card would
     /// hold a mapping for the same file.
@@ -387,7 +401,8 @@ class FilamentMappingCard {
     lv_obj_t* rows_container_ = nullptr;
     lv_obj_t* warning_container_ = nullptr;
 
-    bool should_show_ = false; ///< Cached visibility intent — see should_show()
+    bool should_show_ = false;  ///< Cached visibility intent — see should_show()
+    bool shows_loaded_ = false; ///< should_show_ by shows_loaded_for(), not a mapping
     /// Palette sizes from the last update(), kept so set_used_tools() can re-run
     /// the visibility rule without a palette in hand. Deliberately NOT read off
     /// tool_info_, whose size apply_used_tools_filter() shrinks. The two differ

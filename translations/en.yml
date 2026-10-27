@@ -3783,6 +3783,7 @@ translations:
     from printer firmware modules
   Surfaces inherit app background tokens for light and dark modes.: Surfaces inherit
     app background tokens for light and dark modes.
+  Swap: Swap
   Swap to another slot automatically when one runs out: Swap to another slot automatically when one runs out
   Sweep: Sweep
   Switch Printer: Switch Printer

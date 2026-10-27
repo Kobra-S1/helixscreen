@@ -61,6 +61,7 @@
 #include "printer_state.h"
 #include "test_helpers/pre_print_option_sets.h"
 #include "theme_manager.h"
+#include "tool_state.h"
 #include "tools_used_cache.h"
 
 #include <chrono>
@@ -946,9 +947,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AMS slots landing after show() reveal the m
         }
     } closer{view};
 
-    // No backend yet: a single-tool file on what looks like a single extruder.
+    // No backend yet: a single-tool file on what looks like a single extruder
+    // with no filament system, so the card shows what is loaded, not a mapping.
     view.show("late_slots.gcode", "sub", "PLA", palette, materials, kSize, kMtime);
-    REQUIRE(lv_subject_get_int(visible) == 0);
+    REQUIRE(lv_subject_get_int(visible) == 1);
+    REQUIRE(view.get_filament_mappings().empty());
 
     // A four-lane backend comes up: one used tool is now worth mapping.
     ams.emplace(4);
@@ -1351,6 +1354,108 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A chip tap runs the card's remap gate",
         CHECK(ModalStack::instance().top_dialog() == nullptr);
         CHECK(opens == 0);
     }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "No filament system: the loaded chip shows and a tap opens nothing",
+                 "[print_select][detail_view][filament_mapping][chip_tap][loaded]") {
+    CacheDirGuard guard;
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_select_more_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
+    });
+    auto& ams = helix::AmsState::instance();
+    ams.init_subjects(true);
+    ams.clear_backends();
+    helix::ToolState::instance().deinit_subjects();
+    helix::ToolState::instance().init_subjects(false);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"extruder", "heater_bed", "gcode_move"}));
+    helix::ToolState::instance().init_tools(hw);
+    helix::SlotInfo spool;
+    spool.material = "PLA";
+    spool.color_rgb = 0xFF0000;
+    ams.set_external_spool_info_in_memory(spool);
+    get_printer_state().set_helix_plugin_installed(true);
+
+    // A backend that presents no filament system (a K2 with no CFS) still has
+    // a remap strategy of its own; the loaded chips must not offer it.
+    struct ExternalSpoolOnlyMock : helix::AmsBackendMock {
+        ExternalSpoolOnlyMock() : helix::AmsBackendMock(4) {}
+        [[nodiscard]] helix::AmsSystemInfo get_system_info() const override {
+            helix::AmsSystemInfo info = helix::AmsBackendMock::get_system_info();
+            info.external_spool_only = true;
+            return info;
+        }
+    };
+    SECTION("no backend") {}
+    SECTION("a backend presenting no filament system") {
+        auto owned = std::make_unique<ExternalSpoolOnlyMock>();
+        owned->set_operation_delay(0);
+        owned->set_remap_strategy(helix::AmsBackend::RemapStrategy::GcodeRewrite);
+        auto* backend = owned.get();
+        ams.set_backend(std::move(owned));
+        backend->start();
+        ams.sync_from_backend();
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(ams.get_backend() != nullptr);
+    }
+    REQUIRE_FALSE(ams.is_available());
+
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
+    REQUIRE(root != nullptr);
+    struct CloseOnExit {
+        helix::ui::PrintSelectDetailView& v;
+        ~CloseOnExit() {
+            v.hide();
+            helix::ui::UpdateQueue::instance().drain();
+            lv_timer_handler();
+            helix::AmsState::instance().clear_external_spool_info();
+            if (auto* backend = helix::AmsState::instance().get_backend()) {
+                backend->stop();
+            }
+            helix::AmsState::instance().clear_backends();
+            helix::ToolState::instance().deinit_subjects();
+        }
+    } closer{view};
+
+    int opens = 0;
+    view.set_on_remap_requested([&opens]() { ++opens; });
+    constexpr size_t kSize = 1124;
+    constexpr time_t kMtime = 3346;
+    helix::tools_used_cache().store("sub/loaded.gcode", {kSize, kMtime}, {0});
+    view.show("loaded.gcode", "sub", "PETG", {"#FF0000"}, {"PETG"}, kSize, kMtime);
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_mapping_visible")) == 1);
+    // No caret: the chip offers no remap.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "color_card_remappable")) == 0);
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "filament_chip_0_slot"))) ==
+          "Loaded");
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_chip_0_severity")) == 2);
+
+    lv_obj_t* const chip = lv_obj_find_by_name(root, "filament_chip_0");
+    REQUIRE(chip != nullptr);
+    lv_obj_send_event(chip, LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(lv_obj_find_by_name(root, "filament_mapping_card"), LV_EVENT_CLICKED,
+                      nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(lv_obj_find_by_name(lv_screen_active(), "filament_picker_card") == nullptr);
+    CHECK(ModalStack::instance().top_dialog() == nullptr);
+    CHECK(opens == 0);
+
+    // A spool edit re-judges the chip while the view is open.
+    spool.material = "PETG";
+    ams.set_external_spool_info_in_memory(spool);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_chip_0_severity")) == 0);
 }
 
 // ============================================================================

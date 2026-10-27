@@ -12,7 +12,10 @@
            colour that reads on the fill.
          - body: the mapped slot's spool (its colour, split and finish), a ring
            for an empty slot, the slot label ("3", "2·1", or "Pick" when no slot
-           is chosen) and a caret while a tap can remap. A tap reports the
+           is chosen) and a caret while a tap can remap. On a printer with no
+           filament system (filament_chip_loaded) the body is what is loaded:
+           its spool and "Loaded", "?" when nothing says, or "Swap" for a later
+           tool, in a smaller font; no caret and no remap. A tap reports the
            chip index through filament_chip_clicked_cb.
          - outline: the one signal. Grey when matched, amber when only the
            colour differs, red when the material differs or the slot is empty or
@@ -28,6 +31,8 @@
     <style name="chip_block" border_color="#danger"/>
     <style name="theme_ink" text_color="#text"/>
     <style name="slot_block" text_color="#danger"/>
+    <style name="slot_number" text_font="#font_small"/>
+    <style name="slot_word" text_font="#font_xs"/>
     <style name="ink_dark" text_color="0x000000"/>
     <style name="ink_light" text_color="0xFFFFFF"/>
   </styles>
@@ -71,9 +76,10 @@
         <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="2"/>
       </lv_obj>
       <lv_label name="chip_slot"
-                bind_text="filament_chip_${index}_slot" long_mode="clip" style_text_font="#font_small" clickable="false"
-                event_bubble="true">
+                bind_text="filament_chip_${index}_slot" long_mode="clip" clickable="false" event_bubble="true">
         <style name="theme_ink"/>
+        <style name="slot_number"/>
+        <bind_style_if_eq name="slot_word" subject="filament_chip_loaded" ref_value="1"/>
         <bind_style_if_eq name="slot_block" subject="filament_chip_${index}_severity" ref_value="2"/>
       </lv_label>
       <icon name="chip_caret" src="chevron_down" size="xs" variant="secondary" clickable="false" event_bubble="true">

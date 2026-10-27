@@ -38,6 +38,7 @@ using helix::xml::IndexedSubjectPool;
 
 HELIX_PSRAM_BSS lv_subject_t s_chip_count{};
 HELIX_PSRAM_BSS lv_subject_t s_more_count{};
+HELIX_PSRAM_BSS lv_subject_t s_loaded_mode{};
 HELIX_PSRAM_BSS lv_subject_t s_more_text{};
 HELIX_PSRAM_BSS char s_more_text_buf[16];
 helix::WidgetSubjects s_chip_subjects{"FilamentChipSubjects"};
@@ -80,6 +81,7 @@ void init_chip_subjects() {
         [] {
             UI_MANAGED_SUBJECT_INT(s_chip_count, 0, "filament_chip_count", s_chip_subjects);
             UI_MANAGED_SUBJECT_INT(s_more_count, 0, "filament_chip_more_count", s_chip_subjects);
+            UI_MANAGED_SUBJECT_INT(s_loaded_mode, 0, "filament_chip_loaded", s_chip_subjects);
             UI_MANAGED_SUBJECT_STRING(s_more_text, s_more_text_buf, "", "filament_chip_more_text",
                                       s_chip_subjects);
             for (IndexedSubjectPool* pool : s_chip_pools) {
@@ -97,8 +99,8 @@ void init_chip_subjects() {
                              FilamentMappingCard::chip_clicked_cb);
 }
 
-void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::AvailableSlot* slot,
-                  const std::vector<helix::AvailableSlot>& all_slots) {
+/// The chip's header: the file's material (or the G-code tool) on the file's colour.
+void publish_chip_header(size_t i, const helix::GcodeToolInfo& tool) {
     // The file names the tool by its material; the G-code tool is the fallback.
     s_chip_material.set_string(i, tool.material.empty() ? helix::ui::tool_label(tool.tool_index)
                                                         : tool.material);
@@ -112,7 +114,11 @@ void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::Avail
                   : kLightInk;
     }
     s_chip_ink.set_int(i, ink);
+}
 
+void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::AvailableSlot* slot,
+                  const std::vector<helix::AvailableSlot>& all_slots) {
+    publish_chip_header(i, tool);
     s_chip_slot.set_string(i, slot ? helix::chip_slot_label(*slot, all_slots)
                                    : std::string(lv_tr("Pick")));
     s_chip_slot_color.set_color(i, slot ? slot->color_rgb : 0);
@@ -121,6 +127,40 @@ void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::Avail
                                           : std::string{});
     s_chip_slot_state.set_int(i, !slot ? kNoSlot : (slot->is_empty ? kEmptySlot : kLoadedSlot));
     s_chip_severity.set_int(i, static_cast<int>(helix::chip_severity(tool, slot)));
+}
+
+/// What the extruder holds on a printer with no filament system: known only when the
+/// external spool record names a material or a colour.
+helix::LoadedFilament loaded_filament_from(const std::optional<helix::SlotInfo>& spool) {
+    helix::LoadedFilament loaded;
+    if (!spool || !spool->has_filament_info()) {
+        return loaded;
+    }
+    loaded.known = true;
+    loaded.material = spool->material;
+    loaded.color_rgb = spool->color_rgb;
+    loaded.color_known = spool->color_rgb != helix::kAmsDefaultSlotColor;
+    return loaded;
+}
+
+/// A no-filament-system chip: the file's tool over what is loaded ("Loaded", "?" when
+/// nothing says) or over the swap the print asks for ("Swap").
+void publish_loaded_chip(size_t i, const helix::GcodeToolInfo& tool,
+                         const std::optional<helix::SlotInfo>& spool,
+                         const helix::LoadedFilament& loaded, helix::LoadedRole role) {
+    publish_chip_header(i, tool);
+    const bool shows_spool = role == helix::LoadedRole::Loaded && loaded.known;
+    if (role == helix::LoadedRole::Swap) {
+        s_chip_slot.set_string(i, lv_tr("Swap"));
+    } else {
+        s_chip_slot.set_string(i, loaded.known ? lv_tr("Loaded") : "?");
+    }
+    s_chip_slot_color.set_color(i, shows_spool ? loaded.color_rgb : 0);
+    s_chip_slot_colors.set_string(i, shows_spool ? spool->multi_color_hexes : std::string{});
+    s_chip_slot_finish.set_string(
+        i, shows_spool ? std::string(helix::filament_finish_name(spool->finish())) : std::string{});
+    s_chip_slot_state.set_int(i, shows_spool ? kLoadedSlot : kNoSlot);
+    s_chip_severity.set_int(i, static_cast<int>(helix::loaded_severity(tool, loaded, role)));
 }
 
 } // namespace
@@ -169,9 +209,28 @@ bool FilamentMappingCard::recompute_visibility() {
     // had already trimmed.
     // Visibility is published via the `filament_mapping_visible` subject by the
     // detail view — see PrintSelectDetailView::publish_card_visibility().
-    should_show_ = card_ && rows_container_ &&
-                   shows_mapping_for(palette_colour_count_, palette_tool_count_, used_tools_);
+    const bool maps = shows_mapping_for(palette_colour_count_, palette_tool_count_, used_tools_);
+    shows_loaded_ = !maps && shows_loaded_for(palette_materials_, used_tools_);
+    should_show_ = card_ && rows_container_ && (maps || shows_loaded_);
     return should_show_;
+}
+
+bool FilamentMappingCard::shows_loaded_for(const std::vector<std::string>& materials,
+                                           const std::optional<std::set<int>>& used_tools) {
+    // One extruder fed by hand: a printer with a filament system or several toolheads
+    // has lanes or toolheads to map, which shows_mapping_for() decides.
+    if (AmsState::instance().is_available() ||
+        helix::ToolState::instance().has_multiple_toolheads()) {
+        return false;
+    }
+    for (size_t i = 0; i < materials.size(); ++i) {
+        const bool used =
+            !used_tools || used_tools->empty() || used_tools->count(static_cast<int>(i)) > 0;
+        if (used && !materials[i].empty()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool FilamentMappingCard::shows_mapping_for(size_t palette_colour_count, size_t palette_tool_count,
@@ -332,6 +391,11 @@ void FilamentMappingCard::refresh_slot_data() {
         publish_chips();
         return;
     }
+    if (shows_loaded_) {
+        // What is loaded is read afresh on every publish.
+        publish_chips();
+        return;
+    }
     if (!AmsState::instance().is_available()) {
         return;
     }
@@ -427,15 +491,25 @@ void FilamentMappingCard::publish_chips() {
     const bool overflow = tool_count > capacity;
     const size_t visible = overflow ? capacity - 1 : tool_count;
 
-    for (size_t i = 0; i < visible; ++i) {
-        // mappings_ is built parallel to tool_info_ and compacted in lockstep by
-        // apply_used_tools_filter, so index i is this tool's mapping.
-        const ToolMapping mapping = (i < mappings_.size()) ? mappings_[i] : ToolMapping{};
-        // Judged against the slots as they are now, never a cached verdict:
-        // refresh_slot_data() replaces available_slots_ while a pick stays put.
-        publish_chip(i, tool_info_[i],
-                     helix::FilamentMapper::resolve_mapped_slot(mapping, available_slots_),
-                     available_slots_);
+    lv_subject_set_int(&s_loaded_mode, shows_loaded_ ? 1 : 0);
+    if (shows_loaded_) {
+        const std::optional<helix::SlotInfo> spool = AmsState::instance().get_external_spool_info();
+        const helix::LoadedFilament loaded = loaded_filament_from(spool);
+        for (size_t i = 0; i < visible; ++i) {
+            publish_loaded_chip(i, tool_info_[i], spool, loaded,
+                                i == 0 ? helix::LoadedRole::Loaded : helix::LoadedRole::Swap);
+        }
+    } else {
+        for (size_t i = 0; i < visible; ++i) {
+            // mappings_ is built parallel to tool_info_ and compacted in lockstep by
+            // apply_used_tools_filter, so index i is this tool's mapping.
+            const ToolMapping mapping = (i < mappings_.size()) ? mappings_[i] : ToolMapping{};
+            // Judged against the slots as they are now, never a cached verdict:
+            // refresh_slot_data() replaces available_slots_ while a pick stays put.
+            publish_chip(i, tool_info_[i],
+                         helix::FilamentMapper::resolve_mapped_slot(mapping, available_slots_),
+                         available_slots_);
+        }
     }
 
     const size_t hidden = tool_count - visible;
