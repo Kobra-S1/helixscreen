@@ -2365,6 +2365,7 @@ translations:
   Minimum: Mínimo
   Minutes: Minutos
   Missing value: 'Valor ausente'
+  Mixed-Temperature Materials: 'Materiais de temperaturas mistas'
   Mode: Modo
   Modified: Modificado
   'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 'Monitore impressões em andamento — tempo restante, camada atual e progresso. Toque para pausar, retomar ou cancelar o trabalho ativo.'
@@ -2839,7 +2840,6 @@ translations:
 
   Placed: Colocado
   Plate {}: 'Placa {}'
-  Plate {} ({} of {}): 'Placa {} ({} de {})'
   Platform: Plataforma
   'Platform: ': 'Plataforma: '
   Play / stop Crockett's Theme: Reproduzir / parar Crockett's Theme
@@ -4196,6 +4196,8 @@ translations:
   This feature requires different hardware or configuration: Este recurso requer hardware ou configuração diferentes
   This feature stopped. Restart Moonraker to start it again.: "Este recurso parou. Reinicie o Moonraker para iniciá-lo de novo."
   This filament system does not report buffer or flow data.: Este sistema de filamento não reporta dados de buffer ou de fluxo.
+  This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: 'Este arquivo imprime {0} e {1} por um único bico. {0} pode queimar e entupir o bico nas temperaturas de {1}.'
+  This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Este arquivo imprime {0} e {1} juntos. O calor da câmara e da mesa de que {1} precisa pode amolecer {0} e entupir seu bico.'
   This file was sliced for {} but {} is loaded.: Este arquivo foi fatiado para {}
     mas {} está carregado.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Este arquivo foi fatiado para {}, mas {} está carregado. A impressão será mais lenta e mais quente do que o carretel carregado precisa.

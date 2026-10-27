@@ -2152,6 +2152,7 @@
   <translation tag="Minimum" fr="Minimum"/>
   <translation tag="Minutes" fr="Minutes"/>
   <translation tag="Missing value" fr="Valeur manquante"/>
+  <translation tag="Mixed-Temperature Materials" fr="Matériaux à températures mixtes"/>
   <translation tag="Mode" fr="Mode"/>
   <translation tag="Modified" fr="Modifié"/>
   <translation tag="Modifying G-code is not available on this device. Printing original file." fr="La modification du G-Code n&apos;est pas disponible sur cet appareil. Le fichier original sera imprimé."/>
@@ -2593,7 +2594,6 @@
   <translation tag="Place the spools" fr="Posez les bobines"/>
   <translation tag="Placed" fr="Placé"/>
   <translation tag="Plate {}" fr="Plateau {}"/>
-  <translation tag="Plate {} ({} of {})" fr="Plateau {} ({} sur {})"/>
   <translation tag="Platform" fr="Plateforme"/>
   <translation tag="Platform: " fr="Plateforme : "/>
   <translation tag="Play / stop Crockett&apos;s Theme" fr="Jouer / arrêter Crockett&apos;s Theme"/>
@@ -3806,6 +3806,8 @@
   <translation tag="This feature requires different hardware or configuration" fr="Cette fonctionnalité requiert un autre matériel ou une autre configuration"/>
   <translation tag="This feature stopped. Restart Moonraker to start it again." fr="Cette fonction s&apos;est arrêtée. Redémarrez Moonraker pour la relancer."/>
   <translation tag="This filament system does not report buffer or flow data." fr="Ce système de filament ne fournit ni données de tampon ni données de débit."/>
+  <translation tag="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures." fr="Ce fichier imprime {0} et {1} avec une seule buse. {0} peut brûler et boucher la buse aux températures de {1}."/>
+  <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." fr="Ce fichier imprime {0} et {1} ensemble. La chaleur de l&apos;enceinte et du plateau requise par {1} peut ramollir {0} et boucher sa buse."/>
   <translation tag="This file was sliced for {} but {} is loaded." fr="Ce fichier a été tranché pour {} mais {} est chargé."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." fr="Ce fichier a été tranché pour {}, mais {} est chargé. L&apos;impression sera plus lente et plus chaude que ce qu&apos;exige la bobine chargée."/>
   <translation tag="This firmware can only switch slots by loading them" fr="Ce firmware ne peut changer de slot qu&apos;en le chargeant"/>

@@ -6,6 +6,7 @@
 #include "../test_helpers/print_select_panel_fixture.h"
 #include "../test_helpers/print_select_panel_test_access.h"
 #include "../test_helpers/scoped_env.h"
+#include "../test_helpers/stored_zip.h"
 #include "three_mf_reader.h"
 #include "thumbnail_cache.h"
 #include "thumbnail_load_context.h"
@@ -108,7 +109,8 @@ TEST_CASE_METHOD(ArchivePanel,
     drain();
 
     CHECK(PrintSelectPanelTestAccess::plate_count(*panel_) == 2);
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2 (1 of 2)");
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2");
+    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "1/2");
     const std::string first_time = PrintSelectPanelTestAccess::selected_print_time(*panel_);
 
     auto* prep = PrintSelectPanelTestAccess::prep_manager(*panel_);
@@ -124,7 +126,8 @@ TEST_CASE_METHOD(ArchivePanel,
 
     PrintSelectPanelTestAccess::step_plate(*panel_, 1);
     drain();
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5 (2 of 2)");
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
+    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "2/2");
     row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
     REQUIRE(row);
     CHECK(row->print_time_minutes == (5238 + 1800) / 60);
@@ -139,9 +142,11 @@ TEST_CASE_METHOD(ArchivePanel,
 
     // Both ways round, wrapping.
     PrintSelectPanelTestAccess::step_plate(*panel_, 1);
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2 (1 of 2)");
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2");
+    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "1/2");
     PrintSelectPanelTestAccess::step_plate(*panel_, -1);
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5 (2 of 2)");
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
+    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "2/2");
 }
 
 TEST_CASE_METHOD(ArchivePanel, "a reprint of a plate opens the archive already read on that plate",
@@ -150,13 +155,15 @@ TEST_CASE_METHOD(ArchivePanel, "a reprint of a plate opens the archive already r
     load(file.name());
     PrintSelectPanelTestAccess::select_file(*panel_, file.name());
     drain();
-    REQUIRE(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2 (1 of 2)");
+    REQUIRE(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2");
+    REQUIRE(PrintSelectPanelTestAccess::plate_position(*panel_) == "1/2");
     REQUIRE(PrintSelectPanelTestAccess::selected_colors(*panel_) !=
             std::vector<std::string>{"#000000", "#FF0000"});
 
     REQUIRE(panel_->select_file_by_name(file.name(), 5));
     drain();
-    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5 (2 of 2)");
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 5");
+    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "2/2");
     CHECK(PrintSelectPanelTestAccess::selected_colors(*panel_) ==
           std::vector<std::string>{"#000000", "#FF0000"});
     const PrintFileData* row = PrintSelectPanelTestAccess::find_file(*panel_, file.name());
@@ -169,6 +176,27 @@ TEST_CASE_METHOD(ArchivePanel, "a reprint of a plate opens the archive already r
     CHECK(prep->archive_plate_for(file.name()) == 5);
 }
 
+TEST_CASE_METHOD(ArchivePanel, "the plate stepper shows a plate's name from model_settings",
+                 "[print_select][three_mf][model_settings]") {
+    const std::string settings = R"(<config>
+  <plate><metadata key="plater_id" value="1"/><metadata key="plater_name" value="Hull"/></plate>
+  <plate><metadata key="plater_id" value="2"/><metadata key="plater_name" value=""/></plate>
+</config>)";
+    PlantedGcode file("Named.gcode.3mf", "",
+                      helix::test::stored_zip({{"Metadata/plate_1.gcode", "G28\n"},
+                                               {"Metadata/plate_2.gcode", "G28\n"},
+                                               {"Metadata/model_settings.config", settings}}));
+    load(file.name());
+    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
+    drain();
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Hull");
+    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "1/2");
+    // A plate with an empty name keeps its number.
+    PrintSelectPanelTestAccess::step_plate(*panel_, 1);
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2");
+    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_) == "2/2");
+}
+
 TEST_CASE_METHOD(ArchivePanel, "one sliced plate shows its number and no arrows",
                  "[print_select][three_mf]") {
     PlantedGcode file("Door.gcode.3mf", "", fixture_bytes("single_plate.gcode.3mf"));
@@ -176,6 +204,7 @@ TEST_CASE_METHOD(ArchivePanel, "one sliced plate shows its number and no arrows"
     PrintSelectPanelTestAccess::select_file(*panel_, file.name());
     CHECK(PrintSelectPanelTestAccess::plate_count(*panel_) == 1);
     CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 9");
+    CHECK(PrintSelectPanelTestAccess::plate_position(*panel_).empty());
     REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
     CHECK(PrintSelectPanelTestAccess::prep_manager(*panel_)->archive_plate_for(file.name()) == 9);
 }

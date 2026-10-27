@@ -2152,6 +2152,7 @@
   <translation tag="Minimum" es="Mínimo"/>
   <translation tag="Minutes" es="Minutos"/>
   <translation tag="Missing value" es="Falta un valor"/>
+  <translation tag="Mixed-Temperature Materials" es="Materiales de temperaturas mixtas"/>
   <translation tag="Mode" es="Modo"/>
   <translation tag="Modified" es="Modificado"/>
   <translation tag="Modifying G-code is not available on this device. Printing original file." es="Modificar G-code no está disponible en este dispositivo. Se imprimirá el archivo original."/>
@@ -2593,7 +2594,6 @@
   <translation tag="Place the spools" es="Coloca las bobinas"/>
   <translation tag="Placed" es="En cola"/>
   <translation tag="Plate {}" es="Placa {}"/>
-  <translation tag="Plate {} ({} of {})" es="Placa {} ({} de {})"/>
   <translation tag="Platform" es="Plataforma"/>
   <translation tag="Platform: " es="Plataforma: "/>
   <translation tag="Play / stop Crockett&apos;s Theme" es="Reproducir / detener Crockett&apos;s Theme"/>
@@ -3806,6 +3806,8 @@
   <translation tag="This feature requires different hardware or configuration" es="Esta función requiere otro hardware u otra configuración"/>
   <translation tag="This feature stopped. Restart Moonraker to start it again." es="Esta función se detuvo. Reinicia Moonraker para iniciarla de nuevo."/>
   <translation tag="This filament system does not report buffer or flow data." es="Este sistema de filamento no informa datos de búfer ni de flujo."/>
+  <translation tag="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures." es="Este archivo imprime {0} y {1} por una sola boquilla. {0} puede quemarse y obstruir la boquilla a las temperaturas de {1}."/>
+  <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." es="Este archivo imprime {0} y {1} juntos. El calor de cámara y cama que necesita {1} puede ablandar {0} y atascar su boquilla."/>
   <translation tag="This file was sliced for {} but {} is loaded." es="Este archivo fue laminado para {} pero se ha cargado {}."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." es="Este archivo se laminó para {}, pero hay {} cargado. Se imprimirá más lento y a una temperatura más alta de lo que necesita la bobina cargada."/>
   <translation tag="This firmware can only switch slots by loading them" es="Este firmware solo puede cambiar de ranura cargándola"/>

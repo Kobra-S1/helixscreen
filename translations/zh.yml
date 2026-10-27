@@ -2233,6 +2233,7 @@ translations:
   Minimum: 最小值
   Minutes: 分钟
   Missing value: '缺少值'
+  Mixed-Temperature Materials: '温度不同的材料'
   Mode: 模式
   Modified: 已修改
   'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 监控正在进行的打印 — 剩余时间、当前层和进度。点击可暂停、恢复或取消当前任务。
@@ -2692,7 +2693,6 @@ translations:
 
   Placed: 已放置
   Plate {}: '第 {} 号板'
-  Plate {} ({} of {}): '第 {} 号板（{}/{}）'
   Platform: 平台
   'Platform: ': '平台: '
   Play / stop Crockett's Theme: 播放/停止 Crockett's Theme
@@ -3960,6 +3960,8 @@ translations:
   This feature requires different hardware or configuration: 此功能需要不同的硬件或配置
   This feature stopped. Restart Moonraker to start it again.: "此功能已停止。重启 Moonraker 即可重新启动。"
   This filament system does not report buffer or flow data.: 此耗材系统不报告缓冲区或流量数据。
+  This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: '此文件通过同一个喷嘴打印 {0} 和 {1}。在 {1} 的温度下，{0} 可能过热并堵塞喷嘴。'
+  This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: '此文件同时打印 {0} 和 {1}。{1} 所需的腔体和热床温度可能使 {0} 软化并堵塞其喷嘴。'
   This file was sliced for {} but {} is loaded.: 此文件为 {} 切片，但当前加载的是 {}。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: 此文件为 {} 切片，但当前加载的是 {}。打印会比当前装载的料盘所需更慢、更热。
   This firmware can only switch slots by loading them: '此固件只能通过装载来切换槽位'

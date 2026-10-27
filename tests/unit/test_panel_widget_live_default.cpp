@@ -59,6 +59,22 @@ using helix::test::ScopedIntSubject;
 
 namespace {
 
+#if defined(__APPLE__)
+timespec stat_atime(const struct stat& st) {
+    return st.st_atimespec;
+}
+timespec stat_mtime(const struct stat& st) {
+    return st.st_mtimespec;
+}
+#else
+timespec stat_atime(const struct stat& st) {
+    return st.st_atim;
+}
+timespec stat_mtime(const struct stat& st) {
+    return st.st_mtim;
+}
+#endif
+
 constexpr int kConnected = static_cast<int>(ConnectionState::CONNECTED);
 constexpr int kDisconnected = static_cast<int>(ConnectionState::DISCONNECTED);
 constexpr int kReady = static_cast<int>(KlippyState::READY);

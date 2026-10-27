@@ -318,6 +318,8 @@ void PrintSelectPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(selected_plate_count_subject_, 0, "selected_plate_count", subjects_);
     UI_MANAGED_SUBJECT_STRING(selected_plate_text_subject_, selected_plate_text_buffer_, "",
                               "selected_plate_text", subjects_);
+    UI_MANAGED_SUBJECT_STRING(selected_plate_position_subject_, selected_plate_position_buffer_, "",
+                              "selected_plate_position", subjects_);
     // Initialize detail view visibility subject (0 = hidden, 1 = visible)
     UI_MANAGED_SUBJECT_INT(detail_view_visible_subject_, 0, "detail_view_visible", subjects_);
 

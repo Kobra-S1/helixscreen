@@ -2986,7 +2986,8 @@ gate pipeline: `PrintStartController::run_gates_from()` iterates
 `gather_print_start_context()` snapshot, in order. The file's own questions come first: a
 command this printer treats as an emergency stop (`printer_stopping_command`), then whether the
 file fits the printer at all (`fit_check`: travel, heater limits, tools, nozzle and model;
-`include/fit_check.h`, documented with the HelixPrint plugin's `fit_check_blocks_autostart`).
+`include/fit_check.h`, documented with the HelixPrint plugin's `fit_check_blocks_autostart`),
+then whether the file's materials can share one print (`mixed_temperature_materials`, below).
 The filament gates follow:
 
 1. `insufficient_spool_weight` — spoolman remaining weight vs. the file's need; its lane-fed
@@ -3020,6 +3021,45 @@ The filament gates follow:
    notes it will run slower and hotter than needed. Both are click-through warnings, and
    neither changes what the mapper ROUTES: `materials_match()` still treats the two grades as
    interchangeable when picking a lane
+
+#### The mixed-temperature materials gate
+
+`mixed_temperature_materials` warns before a print whose materials cannot share one machine:
+a high-temperature material printed beside one that softens at the conditions it needs. It is
+generic: no printer, firmware or backend name appears in it.
+
+```cpp
+// include/print_start_checks.h
+[[nodiscard]] bool materials_conflict_in_temperature(std::string_view a, std::string_view b);
+struct MixedTemperatureMaterials { std::string cooler; std::string hotter; };
+std::optional<MixedTemperatureMaterials> mixed_temperature_materials_in(const PrintStartContext& ctx);
+```
+
+- **The rule** (`src/printer/print_start_checks.cpp#materials_conflict_in_temperature`): two
+  materials conflict when the hotter one (higher `MaterialInfo::nozzle_recommended()`) needs a
+  heated chamber (`MaterialInfo::needs_enclosure()`) and their nozzle ranges are disjoint
+  (`cooler.nozzle_max < hotter.nozzle_min`). The chamber term is the multi-nozzle risk and keeps
+  open-frame pairs (PLA + PETG, PLA + TPU, PLA + PVA) quiet; the disjoint-range term is the
+  single-nozzle risk and keeps overlapping pairs (PETG + ABS, ABS + PC) quiet. There is no tunable
+  constant: the filament database's ranges are the threshold, so a material edited in the user
+  overlay moves its own verdicts. A single nozzle-gap constant cannot fit the database: PLA + PETG
+  and PLA+ + ABS have the same 40°C gap between recommended temperatures and need opposite answers.
+- **Resolution**: `filament::find_material()` (aliases included), else
+  `find_material(filament::extract_base_material(name))`, so "PLA SnapSpeed" reads as PLA. A name
+  that resolves to nothing never conflicts.
+- **Which materials**: only tools the file extrudes from, `ctx.tools_used` from the G-code scan,
+  else `FileMetadata::filament_weights > 0`. With neither, nothing is reported: a slicer palette
+  lists every profile tool, used or not (`print_lane_requirement()` explains the same trap). A
+  tool's material is the mapping card's `GcodeToolInfo::material`, else the palette entry.
+- **The message** picks its wording from `PrintStartContext::multiple_toolheads`, filled from
+  `ToolState::has_multiple_toolheads()`: separate nozzles share the bed and chamber, one nozzle
+  runs both materials through the same hotend. Lanes feeding one hotend count as one toolhead.
+- **Tests**: `[mixed-temp]` in `tests/unit/test_print_start_gates.cpp` pins the verdict for each
+  material pair, base-polymer resolution, the used-tool rule, the cooler-first ordering and both
+  message variants.
+
+A printer whose toolhead topology is not reflected in `ToolState` gets the single-nozzle wording;
+fixing that belongs in the backend that publishes the topology, not in this gate.
 
 The two bypass suppressions this section describes are entries in that list: gate 4
 (`required_filament_present`) and gate 5 (`unresolved_tools`, whose `unresolved_tools_in()`

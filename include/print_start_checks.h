@@ -136,6 +136,9 @@ struct PrintStartContext {
     std::vector<std::pair<int, int>> empty_required_lanes;
     std::optional<SlotInfo> external_spool; ///< AmsState::get_external_spool_info()
     float filament_diameter_mm = filament::kDefaultDiameterMm; ///< [extruder] filament_diameter
+    /// ToolState::has_multiple_toolheads(): the file's materials print through
+    /// separate nozzles rather than taking turns in one.
+    bool multiple_toolheads = false;
 
     // ---- non-AMS aggregate runout fallback ----
     bool runout_enabled = false;
@@ -238,6 +241,35 @@ std::vector<LaneWeightShortfall> insufficient_lane_weights_in(const PrintStartCo
 /// Material mismatches, AMS path (ToolMapping::material_mismatch) and non-AMS
 /// path (gcode material vs external spool), with filament-database temps.
 std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartContext& ctx);
+
+/**
+ * @brief Can these two materials not share one print?
+ *
+ * True when the hotter one needs a heated chamber and the two have no nozzle
+ * temperature in common, both read from the filament database. The cooler
+ * material then softens in the chamber and bed the hotter one needs, or chars
+ * in a nozzle set for it. A name the database cannot resolve, directly or
+ * through its base polymer, never conflicts.
+ */
+[[nodiscard]] bool materials_conflict_in_temperature(std::string_view a, std::string_view b);
+
+/// The first pair of materials the file uses that cannot share a print, the
+/// cooler one first.
+struct MixedTemperatureMaterials {
+    std::string cooler;
+    std::string hotter;
+};
+
+/**
+ * @brief Two materials the file prints with that cannot share a print.
+ *
+ * Only tools the file extrudes from count: the scan's tools_used, else the
+ * slicer's per-tool weights. With neither, the palette alone cannot say which
+ * tools print (a single-tool file sliced on a multi-tool profile lists them
+ * all), so nothing is reported.
+ */
+std::optional<MixedTemperatureMaterials>
+mixed_temperature_materials_in(const PrintStartContext& ctx);
 
 /// The ordered production gate list. Order is behavior-critical.
 const std::vector<PrintStartGate>& default_print_start_gates();

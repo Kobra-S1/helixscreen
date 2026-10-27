@@ -2152,6 +2152,7 @@
   <translation tag="Minimum" ja="最小"/>
   <translation tag="Minutes" ja="分"/>
   <translation tag="Missing value" ja="値が入力されていません"/>
+  <translation tag="Mixed-Temperature Materials" ja="温度の異なる素材"/>
   <translation tag="Mode" ja="モード"/>
   <translation tag="Modified" ja="変更日時"/>
   <translation tag="Modifying G-code is not available on this device. Printing original file." ja="このデバイスでは G-code を変更できません。元のファイルを印刷します。"/>
@@ -2593,7 +2594,6 @@
   <translation tag="Place the spools" ja="スプールを置く"/>
   <translation tag="Placed" ja="配置済み"/>
   <translation tag="Plate {}" ja="プレート {}"/>
-  <translation tag="Plate {} ({} of {})" ja="プレート {} ({} / {})"/>
   <translation tag="Platform" ja="プラットフォーム"/>
   <translation tag="Platform: " ja="プラットフォーム: "/>
   <translation tag="Play / stop Crockett&apos;s Theme" ja="Crockett&apos;s Theme を再生/停止"/>
@@ -3806,6 +3806,8 @@
   <translation tag="This feature requires different hardware or configuration" ja="この機能には別のハードウェアまたは設定が必要です"/>
   <translation tag="This feature stopped. Restart Moonraker to start it again." ja="この機能は停止しました。Moonrakerを再起動すると再開します。"/>
   <translation tag="This filament system does not report buffer or flow data." ja="このフィラメントシステムはバッファーやフローのデータを報告しません。"/>
+  <translation tag="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures." ja="このファイルは {0} と {1} を1つのノズルで印刷します。{1} の温度では {0} が過熱してノズルが詰まる可能性があります。"/>
+  <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." ja="このファイルは {0} と {1} を同時に印刷します。{1} に必要なチャンバーとベッドの熱で {0} が柔らかくなり、ノズルが詰まる可能性があります。"/>
   <translation tag="This file was sliced for {} but {} is loaded." ja="このファイルは {} 用にスライスされていますが、{} がロードされています。"/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." ja="このファイルは {} 用にスライスされていますが、{} がロードされています。装填中のスプールが必要とするより遅く高温で印刷されます。"/>
   <translation tag="This firmware can only switch slots by loading them" ja="このファームウェアはスロットを装填して切り替えることしかできません"/>

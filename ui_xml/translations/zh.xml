@@ -2152,6 +2152,7 @@
   <translation tag="Minimum" zh="最小值"/>
   <translation tag="Minutes" zh="分钟"/>
   <translation tag="Missing value" zh="缺少值"/>
+  <translation tag="Mixed-Temperature Materials" zh="温度不同的材料"/>
   <translation tag="Mode" zh="模式"/>
   <translation tag="Modified" zh="已修改"/>
   <translation tag="Modifying G-code is not available on this device. Printing original file." zh="此设备不支持修改 G-code。将打印原始文件。"/>
@@ -2593,7 +2594,6 @@
   <translation tag="Place the spools" zh="放置料盘"/>
   <translation tag="Placed" zh="已放置"/>
   <translation tag="Plate {}" zh="第 {} 号板"/>
-  <translation tag="Plate {} ({} of {})" zh="第 {} 号板（{}/{}）"/>
   <translation tag="Platform" zh="平台"/>
   <translation tag="Platform: " zh="平台: "/>
   <translation tag="Play / stop Crockett&apos;s Theme" zh="播放/停止 Crockett&apos;s Theme"/>
@@ -3806,6 +3806,8 @@
   <translation tag="This feature requires different hardware or configuration" zh="此功能需要不同的硬件或配置"/>
   <translation tag="This feature stopped. Restart Moonraker to start it again." zh="此功能已停止。重启 Moonraker 即可重新启动。"/>
   <translation tag="This filament system does not report buffer or flow data." zh="此耗材系统不报告缓冲区或流量数据。"/>
+  <translation tag="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures." zh="此文件通过同一个喷嘴打印 {0} 和 {1}。在 {1} 的温度下，{0} 可能过热并堵塞喷嘴。"/>
+  <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." zh="此文件同时打印 {0} 和 {1}。{1} 所需的腔体和热床温度可能使 {0} 软化并堵塞其喷嘴。"/>
   <translation tag="This file was sliced for {} but {} is loaded." zh="此文件为 {} 切片，但当前加载的是 {}。"/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." zh="此文件为 {} 切片，但当前加载的是 {}。打印会比当前装载的料盘所需更慢、更热。"/>
   <translation tag="This firmware can only switch slots by loading them" zh="此固件只能通过装载来切换槽位"/>
