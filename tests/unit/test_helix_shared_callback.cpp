@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -118,4 +119,13 @@ TEST_CASE("SharedCallback: empty states", "[helix_callback]") {
 
     SharedCallback<void()> empty;
     REQUIRE_THROWS_AS(empty(), std::bad_function_call);
+}
+
+TEST_CASE("SharedCallback and Callback: an empty one converts to an empty one",
+          "[helix_callback][1874]") {
+    REQUIRE_FALSE(helix::Callback<void()>{SharedCallback<void()>{}});
+    REQUIRE_FALSE(SharedCallback<void()>{helix::Callback<void()>{}});
+    // An empty one would become a non-empty std::function, so neither converts to one.
+    static_assert(!std::is_convertible_v<SharedCallback<void()>, std::function<void()>>);
+    static_assert(!std::is_convertible_v<helix::Callback<void()>, std::function<void()>>);
 }

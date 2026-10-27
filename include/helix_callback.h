@@ -75,6 +75,7 @@ template <typename F> constexpr CallbackStorage callback_storage() {
 }
 
 template <typename Sig> class Callback;
+template <typename Sig> class SharedCallback;
 
 template <typename R, typename... Args> class Callback<R(Args...)> {
     template <typename F>
@@ -84,6 +85,9 @@ template <typename R, typename... Args> class Callback<R(Args...)> {
   public:
     Callback() noexcept = default;
     Callback(std::nullptr_t) noexcept {}
+    /// Never converts into a std::function: an empty one would become a non-empty
+    /// std::function, and calling that aborts. Wrap it in a lambda that tests it.
+    template <typename S> operator std::function<S>() const = delete;
 
     template <typename F, typename = EnableIfCallable<F>> Callback(F&& f) {
         using D = std::decay_t<F>;
@@ -155,6 +159,7 @@ template <typename R, typename... Args> class Callback<R(Args...)> {
     template <typename T> struct is_callback_like : std::false_type {};
     template <typename S> struct is_callback_like<std::function<S>> : std::true_type {};
     template <typename S> struct is_callback_like<Callback<S>> : std::true_type {};
+    template <typename S> struct is_callback_like<SharedCallback<S>> : std::true_type {};
 
     template <typename D> static R invoke_inline(void* storage, Args&&... args) {
         return std::invoke(*std::launder(static_cast<D*>(storage)), std::forward<Args>(args)...);

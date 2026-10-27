@@ -86,7 +86,7 @@ class FeedChanger : public helix::test::ToolChangerHelper {
     std::optional<bool> cancellable_;
 
   private:
-    std::vector<std::function<void()>> acks_;
+    std::vector<helix::SharedCallback<void()>> acks_;
 };
 
 struct BatchStepsFixture : public XMLTestFixture {

@@ -34,6 +34,7 @@ struct IsNullableForShared
     : std::bool_constant<std::is_pointer_v<T> || std::is_member_pointer_v<T>> {};
 template <typename S> struct IsNullableForShared<std::function<S>> : std::true_type {};
 template <typename S> struct IsNullableForShared<SharedCallback<S>> : std::true_type {};
+template <typename S> struct IsNullableForShared<Callback<S>> : std::true_type {};
 
 /// Reference-count header of a SharedCallback heap block.
 struct SharedBlock {
@@ -140,6 +141,9 @@ class SharedCallback<R(Args...)> : public callback_detail::SharedCallbackBase {
 
   public:
     SharedCallback() noexcept = default;
+    /// Never converts into a std::function: an empty one would become a non-empty
+    /// std::function, and calling that aborts. Wrap it in a lambda that tests it.
+    template <typename S> operator std::function<S>() const = delete;
     SharedCallback(std::nullptr_t) noexcept {}
     SharedCallback(const SharedCallback& other) noexcept = default;
     SharedCallback(SharedCallback&& other) noexcept = default;

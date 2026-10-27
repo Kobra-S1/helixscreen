@@ -4,6 +4,7 @@
 #pragma once
 
 #include "calibration_types.h"
+#include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
 
 #include <functional>
@@ -150,7 +151,7 @@ void reconcile_on_connect(IMoonrakerClient& client, const nlohmann::json& initia
  * Every terminal path releases the firmware calibration state.
  */
 void start_sequence(IMoonrakerClient& client, IMoonrakerAPI& api, ScrewTiltCallback on_success,
-                    std::function<void(const MoonrakerError&)> on_error);
+                    helix::SharedCallback<void(const MoonrakerError&)> on_error);
 
 } // namespace screws_tilt
 } // namespace snapmaker
