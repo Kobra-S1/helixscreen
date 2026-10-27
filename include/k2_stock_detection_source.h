@@ -64,8 +64,6 @@ class K2StockDetectionSource : public DetectionSource {
 
     K2StockDetectionSource(helix::PrinterState* state);
 
-    /// Unique registration key. Exposed so DetectionManager can match on id()
-    /// and static_cast instead of dynamic_cast; the firmware builds -fno-rtti.
     static constexpr const char* kSourceId = "k2_stock";
 
     std::string id() const override {

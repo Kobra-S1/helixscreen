@@ -34,6 +34,7 @@
 #include "config.h"
 #include "demo_overlays.h"
 #include "detection_manager.h"
+#include "detection_source_table.h"
 #include "discovery_steps.h"
 #include "display_manager.h"
 #include "filament_consumption_tracker.h"
@@ -41,7 +42,6 @@
 #include "helix_version.h"
 #include "job_queue_state.h"
 #include "json_utils.h"
-#include "k2_stock_detection_source.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "light_button_config.h"
@@ -78,7 +78,6 @@
 #include "system/update_checker.h"
 #include "temperature_history_manager.h"
 #include "timelapse_state.h"
-#include "u1_stock_detection_source.h"
 #include "ui/ui_widget_helpers.h"
 #include "upgrade_banner.h"
 #include "xml_registration.h"
@@ -178,22 +177,12 @@ bool PrinterSession::init_panel_subjects() {
     // subjects, before the shell.
     helix::init_session_services(m_moonraker->api(), m_screen);
 
-    // Spaghetti / failed-print detection
-    // (see docs/devel/printers/SNAPMAKER_U1_SUPPORT.md, defect_detection)
+    // Spaghetti / failed-print detection.
     // Must happen after MoonrakerClient + PrinterState exist (above).
     {
-        auto u1 = std::make_unique<helix::detection::U1StockSource>(&get_printer_state());
-        u1->start();
-        // K2: replaces the stock camera loop the installer disables. Probes
-        // capability itself (K2 + /usr/bin/detection) and stays inert elsewhere.
-        auto k2 = std::make_unique<helix::detection::K2StockDetectionSource>(&get_printer_state());
-        k2->start();
         auto& dm = helix::detection::DetectionManager::instance();
-        dm.register_source(std::move(u1));
-        dm.register_source(std::move(k2));
+        helix::detection::register_builtin_sources(dm, &get_printer_state());
         dm.init(get_moonraker_client(), &get_printer_state());
-        dm.set_policy("u1_stock", static_cast<helix::detection::DetectionPolicy>(
-                                      SettingsManager::instance().get_detection_policy_u1()));
         dm.set_presenter(
             [](const helix::detection::DetectionEvent& e, helix::detection::DetectionPolicy p) {
                 helix::detection::present_detection(e, p);

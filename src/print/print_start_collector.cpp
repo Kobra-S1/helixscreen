@@ -1232,12 +1232,10 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
         return; // Signal handled
     }
 
-    // Check for K2/CFS-specific gcode tag stream (purge percent, box filament
-    // load). These tags are emitted by Creality firmware and carry per-step
-    // progress that universal heuristics can't infer. Only profiles that
-    // declare cfs_signals get the matchers — the vocabulary is vendor-specific
-    // and must not fire on another printer's coincidental "percent"+"num:".
-    if (profile_ && profile_->cfs_signals() && check_k2_cfs_signal(line)) {
+    // Profile tag patterns: lines a firmware prints to announce a step
+    // outright, often with progress no heuristic could infer. They live in
+    // the profile, so another printer's coincidental vocabulary never matches.
+    if (profile_ && check_tag_signal(line)) {
         return; // Signal handled
     }
 
@@ -1907,48 +1905,19 @@ bool PrintStartCollector::check_helix_phase_signal(const std::string& line) {
     return false;
 }
 
-bool PrintStartCollector::check_k2_cfs_signal(const std::string& line) {
-    // ---- K2 purge percent --------------------------------------------------
-    // Real K2 firmware emits: "// num: 0, velocity: 575.000000, percent 1.000000"
-    //   - "percent" with no colon, value is a 0..1 fraction (not 0..100)
-    // Earlier/integer form may appear as "percent: 50" with 0..100. Tolerate both.
-    if (auto p = line.find("percent");
-        p != std::string::npos &&
-        (line.find("num:") != std::string::npos || line.find("velocity:") != std::string::npos)) {
-        const char* cursor = line.c_str() + p + 7; // past "percent"
-        while (*cursor == ':' || *cursor == ' ')
-            cursor++;
-
-        float frac = -1.0f;
-        if (std::sscanf(cursor, "%f", &frac) == 1 && frac >= 0.0f) {
-            // Accept both 0..1 (K2 fraction) and 0..100 (legacy/integer).
-            int percent = (frac <= 1.5f) ? static_cast<int>(frac * 100.0f + 0.5f)
-                                         : static_cast<int>(frac + 0.5f);
-            percent = std::max(0, std::min(100, percent));
-
-            char msg[32];
-            std::snprintf(msg, sizeof(msg), "%s — %d%%", lv_tr("Purging"), percent);
-            real_signal_seen_.store(true, std::memory_order_relaxed);
-            update_phase(PrintStartPhase::PURGING, std::string(msg), percent);
-            return true;
-        }
+bool PrintStartCollector::check_tag_signal(const std::string& line) {
+    PrintStartProfile::MatchResult match;
+    if (!profile_->try_match_tag(line, match)) {
+        return false;
     }
-
-    // ---- CFS filament-load events ------------------------------------------
-    // The box (CFS unit) emits these distinct lines during a load sequence.
-    // Stock Klipper / AFC / ERCF use different vocabulary (LOAD_FILAMENT,
-    // RESPOND MSG="Loading...", etc.) — those are handled elsewhere.
-    if (line.find("[box] cut sensor detected") != std::string::npos ||
-        line.find("[box] cut to return") != std::string::npos ||
-        line.find("BOX_LOAD_MATERIAL") != std::string::npos) {
-        // No dedicated PrintStartPhase value — INITIALIZING is the closest
-        // non-terminal neighbor; the message carries the human-facing label.
-        real_signal_seen_.store(true, std::memory_order_relaxed);
-        update_phase(PrintStartPhase::INITIALIZING, lv_tr("Loading Filament..."));
-        return true;
+    real_signal_seen_.store(true, std::memory_order_relaxed);
+    if (match.reported_percent >= 0) {
+        update_phase(match.phase, fmt::format("{} — {}%", match.message, match.reported_percent),
+                     match.reported_percent);
+    } else {
+        update_phase(match.phase, match.message.c_str());
     }
-
-    return false;
+    return true;
 }
 
 /// Reset mesh probe counters when entering BED_MESH or when the BED_MESH
