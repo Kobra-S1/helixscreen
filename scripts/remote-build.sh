@@ -151,6 +151,13 @@ git rev-parse --verify --quiet $BASE >/dev/null || {
 git reset --quiet --hard $BASE
 git clean -qfd -e build -e .ccache -e $MARKER || true
 
+# A submodule added after this clone was made is registered but never checked
+# out. Initialize only those ('-' in status): an initialized one carries the
+# previous run's patches, and updating it here would fight reapply-patches.
+git submodule status | awk '/^-/ {print \$2}' | while read -r sub; do
+    git submodule update --init --quiet -- "\$sub"
+done
+
 while read -r path sha; do
     [ -n "\$path" ] || continue
     git -C "\$path" fetch --quiet origin 2>/dev/null || true
