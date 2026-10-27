@@ -25,7 +25,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <initializer_list>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -169,11 +168,11 @@ class PrinterDiscovery {
 
     /// Objects from printer.objects.list whose class is one of @p kinds, in discovery order.
     [[nodiscard]] std::vector<std::string>
-    objects_of(std::initializer_list<hw::ObjectKind> kinds) const;
+    objects_of(const std::vector<hw::ObjectKind>& kinds) const;
 
     /// Config sections (configfile.config keys) whose class is one of @p kinds, in config order.
     [[nodiscard]] std::vector<std::string>
-    sections_of(std::initializer_list<hw::ObjectKind> kinds) const;
+    sections_of(const std::vector<hw::ObjectKind>& kinds) const;
 
     /// Body of a classified config section recorded by parse_config_keys(), or nullptr.
     [[nodiscard]] const nlohmann::json* section(std::string_view name) const;
