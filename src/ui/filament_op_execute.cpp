@@ -16,14 +16,12 @@
 #include "filament_op_dispatch.h"
 #include "filament_op_heater.h"
 #include "filament_op_router.h"
-#include "guided_load_flow.h"
 #include "i_moonraker_client.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"
 #include "standard_macros.h"
-#include "text_io.h"
 #include "tool_state.h"
 
 #include <spdlog/spdlog.h>
@@ -551,12 +549,8 @@ void send_restore_after(const std::string& macro_name) {
 /// Called from a Moonraker reply thread; the modal opens on the main thread.
 void start_guided_load(const std::string& macro_name,
                        const std::map<std::string, std::string>& params) {
-    int temp_c = 0;
-    if (const auto it = params.find("S"); it != params.end()) {
-        temp_c = helix::text_io::parse_leading<int>(it->second).value_or(0);
-    }
     std::optional<filament_macros::GuidedLoad> steps =
-        filament_macros::guided_load(macro_name, temp_c);
+        filament_macros::guided_load(macro_name, params);
     if (!steps) {
         return;
     }
@@ -565,8 +559,7 @@ void start_guided_load(const std::string& macro_name,
         return;
     }
     auto shared = std::make_shared<const filament_macros::GuidedLoad>(std::move(*steps));
-    const nlohmann::json query = {
-        {"objects", {{shared->waiting_object, nlohmann::json::array({shared->waiting_field})}}}};
+    const nlohmann::json query = filament_macros::guided_load_status_query(*shared);
     const auto open = [shared](bool waits) {
         queue_update("GuidedLoad::open", [shared, waits]() {
             spdlog::info("[GuidedLoad] {} the hand push", waits ? "Waiting for" : "No wait for");
@@ -575,8 +568,10 @@ void start_guided_load(const std::string& macro_name,
     };
     api->get_client().send_jsonrpc(
         "printer.objects.query", query,
-        [shared, open](const nlohmann::json& resp) { open(guided_load_waits(resp, *shared)); },
-        // An unanswered query is read as the older firmware, whose question still applies.
+        [shared, open](const nlohmann::json& resp) {
+            open(filament_macros::guided_load_waits(resp, *shared));
+        },
+        // Unanswered, open on the question: every form of the wizard asks it.
         [open](const MoonrakerError& err) {
             spdlog::warn("[GuidedLoad] Wait state not read: {}", err.message);
             open(false);

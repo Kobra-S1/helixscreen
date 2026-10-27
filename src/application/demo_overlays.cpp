@@ -352,7 +352,7 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
         // Only a load on firmware whose stock macro is a wizard reaches this, and
         // no mock persona ships one. "guided-load" opens on the hand-push step,
         // "guided-load-confirm" on the question the older firmware opens with.
-        auto steps = helix::filament_macros::guided_load("M604", 220);
+        auto steps = helix::filament_macros::guided_load_example();
         if (!steps) {
             return false;
         }

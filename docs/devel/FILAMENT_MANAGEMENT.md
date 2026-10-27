@@ -2061,12 +2061,15 @@ slot's `mapped_tool`. Every other call takes the slot.
 ### Stock load macros that are one step of a wizard
 
 Some firmware's own screen treats its load macro as the first step of a wizard and sends
-the rest itself. `filament_macros::guided_load()` (`include/filament_macro_profiles.h`) is
-the one place that names those macros and what follows them; today that is QIDI's `M604`.
-When the macro tier's load succeeds and the macro has one, `start_guided_load()` in
-`src/ui/filament_op_execute.cpp` queries the profile's waiting field once
-(`print_stats_manager.sub_status` for `M604`) and opens `GuidedLoadModal`
-(`src/ui/ui_guided_load_modal.cpp`):
+the rest itself. Each such macro is a row in `kMacroProfiles`
+(`src/printer/filament_macro_profiles.cpp`) carrying a `GuidedLoadProfile`: its temperature
+parameter and default, the status that reports the wait, and the step scripts as `{temp}`
+templates. Today that is QIDI's `M604`. Generic code never sees those pieces: it asks
+`guided_load(macro, sent_params)` for rendered scripts (the profile picks its own temperature
+out of the params), sends `guided_load_status_query()`, and reads the reply with
+`guided_load_waits()`. When the macro tier's load succeeds and the macro has a wizard,
+`start_guided_load()` in `src/ui/filament_op_execute.cpp` does exactly that and opens
+`GuidedLoadModal` (`src/ui/ui_guided_load_modal.cpp`). For `M604`:
 
 | The printer reports | The modal opens on | Steps |
 |---|---|---|
@@ -2079,11 +2082,14 @@ the printer's load state (`SET_PRINT_MAIN_STATUS MAIN_STATUS=ready`). Commands o
 waiting generation knows are never sent to the other: an unknown command aborts the whole
 script it sits in. `GuidedLoadFlow` (`include/guided_load_flow.h`) makes every decision
 without UI or I/O, so `[guided_load]` tests it directly; `helix-screen ctl demo guided-load`
-and `guided-load-confirm` open the two starting views.
+and `guided-load-confirm` open the two starting views on `guided_load_example()`.
+
+A second firmware with a wizard of the same shape is one more row in that file. One whose
+steps differ grows `GuidedLoad` and the flow, never the callers.
 
 The unload side has the matching question: `filament_macros::restore_after()` names what a
-stock unload leaves undone (`M603`: `ENABLE_ALL_SENSOR`), sent after the macro tier's unload
-and appended by `AmsBackendQidi` to its own `M603`.
+stock unload leaves undone (a column of the same table; `M603`: `ENABLE_ALL_SENSOR`), sent
+after the macro tier's unload and appended by `AmsBackendQidi` to its own `M603`.
 
 ### One deliberate asymmetry between load and unload
 

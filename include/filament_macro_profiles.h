@@ -25,8 +25,11 @@
 
 #pragma once
 
+#include <map>
 #include <optional>
 #include <string>
+
+#include "hv/json.hpp"
 
 namespace helix::filament_macros {
 
@@ -71,18 +74,16 @@ namespace helix::filament_macros {
 /**
  * @brief The steps a stock screen runs around a load macro that is one step of a wizard.
  *
- * Every script is rendered for one temperature. The waiting-generation scripts
- * (feed, flush, release) exist only on firmware where the load macro stops for a
- * hand push, and are sent only after the printer reported that wait: older
- * firmware does not know their commands, and an unknown command aborts the
- * whole script it sits in.
+ * Every script is rendered for the temperature the macro ran at. The
+ * waiting-generation scripts (feed, flush, release) exist only on firmware where
+ * the load macro stops for a hand push, and are sent only after the printer
+ * reported that wait: older firmware does not know their commands, and an
+ * unknown command aborts the whole script it sits in.
+ *
+ * Callers send the scripts and ask the functions below; the status probe fields
+ * are this module's to read.
  */
 struct GuidedLoad {
-    /// Printer object and field to query once the load macro returns, and the
-    /// value meaning the macro stopped and waits for the user to push filament in.
-    std::string waiting_object;
-    std::string waiting_field;
-    std::string waiting_value;
     /// Grip the pushed filament and extrude it to the nozzle.
     std::string feed;
     /// Extrude again because nothing came out of the nozzle yet.
@@ -93,14 +94,37 @@ struct GuidedLoad {
     std::string release;
     /// What every ending sends: the nozzle off and the filament sensor back on.
     std::string cleanup;
+
+    /// Read by guided_load_status_query() / guided_load_waits() only.
+    std::string waiting_object;
+    std::string waiting_field;
+    std::string waiting_value;
 };
 
 /**
- * @brief The wizard behind @p macro_name at @p temp_c, or nullopt for a macro with none.
+ * @brief The wizard behind @p macro_name, or nullopt for a macro with none.
+ *
+ * @param sent_params The parameters the macro was sent with. The profile picks
+ *        out its own temperature parameter and falls back to the macro's default.
  *
  * Case-insensitive, like the other questions here.
  */
-[[nodiscard]] std::optional<GuidedLoad> guided_load(const std::string& macro_name, int temp_c);
+[[nodiscard]] std::optional<GuidedLoad>
+guided_load(const std::string& macro_name, const std::map<std::string, std::string>& sent_params);
+
+/// A wizard to show without a printer behind it (previews, `ctl demo`), or nullopt.
+[[nodiscard]] std::optional<GuidedLoad> guided_load_example();
+
+/// The `printer.objects.query` params that read whether the macro is waiting.
+[[nodiscard]] nlohmann::json guided_load_status_query(const GuidedLoad& steps);
+
+/**
+ * @brief Whether a reply to guided_load_status_query() reports the hand-push wait.
+ *
+ * Any missing piece answers false: firmware without the object is firmware
+ * whose load macro already extruded.
+ */
+[[nodiscard]] bool guided_load_waits(const nlohmann::json& query_response, const GuidedLoad& steps);
 
 /**
  * @brief What @p macro_name leaves undone that the caller must send after it.

@@ -14,17 +14,19 @@
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
-using helix::guided_load_waits;
 using helix::GuidedLoadFlow;
 using helix::GuidedLoadStage;
 using helix::filament_macros::guided_load;
+using helix::filament_macros::guided_load_example;
+using helix::filament_macros::guided_load_status_query;
+using helix::filament_macros::guided_load_waits;
 using helix::filament_macros::GuidedLoad;
 using helix::filament_macros::restore_after;
 
 namespace {
 
 GuidedLoad steps() {
-    auto g = guided_load("M604", 230);
+    auto g = guided_load("M604", {{"S", "230"}});
     REQUIRE(g.has_value());
     return *g;
 }
@@ -48,17 +50,45 @@ TEST_CASE("guided_load: QIDI's M604 is a wizard, rendered for the temperature", 
 }
 
 TEST_CASE("guided_load: case-insensitive, and nothing for a macro without one", "[guided_load]") {
-    CHECK(guided_load("m604", 200).has_value());
-    CHECK_FALSE(guided_load("LOAD_FILAMENT", 200).has_value());
-    CHECK_FALSE(guided_load("M603", 200).has_value());
-    CHECK_FALSE(guided_load("", 200).has_value());
+    CHECK(guided_load("m604", {}).has_value());
+    CHECK_FALSE(guided_load("LOAD_FILAMENT", {}).has_value());
+    CHECK_FALSE(guided_load("M603", {}).has_value());
+    CHECK_FALSE(guided_load("", {}).has_value());
 }
 
-TEST_CASE("guided_load: no temperature means the macro's own default", "[guided_load]") {
-    auto g = guided_load("M604", 0);
+TEST_CASE("guided_load: the profile picks its own temperature out of what was sent",
+          "[guided_load]") {
+    SECTION("nothing sent: the macro's default") {
+        auto g = guided_load("M604", {});
+        REQUIRE(g.has_value());
+        CHECK(g->retry == "M604 T1 S250");
+        CHECK(g->flush == "M604 T2 S250");
+    }
+    SECTION("its parameter, in any case") {
+        auto g = guided_load("M604", {{"s", "215"}});
+        REQUIRE(g.has_value());
+        CHECK(g->retry == "M604 T1 S215");
+    }
+    SECTION("another macro's temperature parameter is not its own") {
+        auto g = guided_load("M604", {{"EXTRUDER_TEMP", "215"}, {"NOZZLE_TEMP", "215"}});
+        REQUIRE(g.has_value());
+        CHECK(g->retry == "M604 T1 S250");
+    }
+    SECTION("an unreadable or zero value keeps the default") {
+        CHECK(guided_load("M604", {{"S", "hot"}})->retry == "M604 T1 S250");
+        CHECK(guided_load("M604", {{"S", "0"}})->retry == "M604 T1 S250");
+    }
+}
+
+TEST_CASE("guided_load_example: a known wizard at its default", "[guided_load]") {
+    auto g = guided_load_example();
     REQUIRE(g.has_value());
-    CHECK(g->retry == "M604 T1 S250");
     CHECK(g->flush == "M604 T2 S250");
+}
+
+TEST_CASE("guided_load_status_query: asks for the waiting field only", "[guided_load]") {
+    CHECK(guided_load_status_query(steps()) ==
+          nlohmann::json{{"objects", {{"print_stats_manager", {"sub_status"}}}}});
 }
 
 TEST_CASE("guided_load_waits: reads the reported field from a query reply", "[guided_load]") {

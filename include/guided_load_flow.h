@@ -20,8 +20,6 @@
 
 #include <string>
 
-#include "hv/json.hpp"
-
 namespace helix {
 
 enum class GuidedLoadStage {
@@ -32,12 +30,6 @@ enum class GuidedLoadStage {
     Finished,      ///< Done; nothing more is sent.
     Cancelled,     ///< Stopped by the user or by a failed step; cleanup sent.
 };
-
-/// Whether a printer.objects.query reply for @p steps' waiting field reports
-/// the hand-push wait. Any missing piece answers false: firmware without the
-/// object is firmware whose load macro already extruded.
-[[nodiscard]] bool guided_load_waits(const nlohmann::json& query_response,
-                                     const filament_macros::GuidedLoad& steps);
 
 class GuidedLoadFlow {
   public:

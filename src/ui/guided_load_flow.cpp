@@ -3,22 +3,9 @@
 
 #include "guided_load_flow.h"
 
-#include "json_utils.h"
-
 #include <utility>
 
 namespace helix {
-
-bool guided_load_waits(const nlohmann::json& query_response,
-                       const filament_macros::GuidedLoad& steps) {
-    const nlohmann::json* result = json_util::find_member(query_response, "result");
-    const nlohmann::json* status = result ? json_util::find_member(*result, "status") : nullptr;
-    const nlohmann::json* object =
-        status ? json_util::find_member(*status, steps.waiting_object.c_str()) : nullptr;
-    const nlohmann::json* field =
-        object ? json_util::find_member(*object, steps.waiting_field.c_str()) : nullptr;
-    return field && field->is_string() && json_util::as_string(*field) == steps.waiting_value;
-}
 
 GuidedLoadFlow::GuidedLoadFlow(filament_macros::GuidedLoad steps, bool waits_for_push)
     : steps_(std::move(steps)), waits_for_push_(waits_for_push),
