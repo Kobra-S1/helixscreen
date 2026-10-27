@@ -613,6 +613,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/screws_tilt_panel.xml",
     "ui_xml/screws_tilt_share_modal.xml",
     "ui_xml/security_settings_overlay.xml",
+    "ui_xml/sensor_row.xml",
     "ui_xml/sensors_overlay.xml",
     "ui_xml/setting_action_row.xml",
     "ui_xml/setting_dropdown_row.xml",
