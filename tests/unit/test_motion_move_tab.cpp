@@ -23,6 +23,7 @@
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/holding_motion_api.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -60,43 +61,7 @@ nlohmann::json ready_status(const char* homed_axes) {
     };
 }
 
-/// Holds every absolute move instead of acking it, so a test decides when
-/// (and whether) each one lands: the mock client acks synchronously, which
-/// keeps the coalescer from ever holding anything pending.
-class HoldingMotionAPI : public MoonrakerMotionAPI {
-  public:
-    using MoonrakerMotionAPI::MoonrakerMotionAPI;
-    struct Held {
-        helix::AxisTarget target;
-        SuccessCallback on_success;
-        ErrorCallback on_error;
-    };
-    void move_to(const helix::AxisTarget& target, double, double, SuccessCallback on_success,
-                 ErrorCallback on_error, std::optional<double>) override {
-        held.push_back({target, std::move(on_success), std::move(on_error)});
-    }
-    void move_relative(double, double, double dz, double, double, SuccessCallback on_success,
-                       ErrorCallback on_error) override {
-        held_relative.push_back({dz, std::move(on_success), std::move(on_error)});
-    }
-    struct HeldRelative {
-        double dz;
-        SuccessCallback on_success;
-        ErrorCallback on_error;
-    };
-    std::vector<Held> held;
-    std::vector<HeldRelative> held_relative;
-};
-
-class HoldingAPI : public MoonrakerAPI {
-  public:
-    HoldingAPI(helix::IMoonrakerClient& client, helix::PrinterState& state)
-        : MoonrakerAPI(client, state), holding_(client, state, get_safety_limits()) {}
-    MoonrakerMotionAPI& motion() override {
-        return holding_;
-    }
-    HoldingMotionAPI holding_;
-};
+using helix::HoldingAPI;
 
 class MoveTabFixture : public LVGLUITestFixture {
   public:

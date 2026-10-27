@@ -8,12 +8,12 @@
 
 #include "axis.h"
 #include "hold_repeat_timer.h"
-#include "jog_coalescer.h"
 #include "motion_presets.h"
 #include "overlay_base.h"
 #include "settings_manager.h"
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"
+#include "toolhead_move_sender.h"
 #include "ui/ui_modal_guard.h"
 
 #include <optional>
@@ -372,15 +372,12 @@ class MotionPanel : public OverlayBase {
 
     lv_obj_t* jog_pad_ = nullptr;
 
-    helix::JogCoalescer jog_coalescer_;
+    /// One move in flight, the newest coalesced behind it, for jogs and targets alike.
+    helix::ToolheadMoveSender move_sender_;
 
     /// The Move tab's Disable Motors confirmation. The guard hides the dialog
     /// if the panel is destroyed while it is open.
     helix::ui::ModalGuard motors_off_dialog_;
-    /// Z the toolhead will sit at when the latest target's script starts,
-    /// captured at enqueue time. Feeds move_to's travel-before-descend
-    /// ordering; delta moves ignore it.
-    double target_start_z_ = 0.0;
 
     /// Whether a repeat tick has fired for the current jog-button hold: the
     /// first tick is that press's initial jog, later ones are repeats.
@@ -452,14 +449,11 @@ class MotionPanel : public OverlayBase {
     /// subjects.
     void sync_motion_tab_subjects();
 
-    // Route a tap/flush through the coalescer and send if idle. Returns
-    // whether the move was dispatched or accepted as pending.
+    // Route a jog delta through move_sender_. Returns whether the move was
+    // dispatched or accepted as pending.
     bool dispatch_jog(const helix::AxisMove& delta);
-    // Route an absolute target through the coalescer and send if idle.
+    // Route an absolute target through move_sender_, clamped to clamp_bounds().
     bool dispatch_target(const helix::AxisTarget& target);
-    // Send one coalesced move (delta or target); ack/error callbacks re-enter
-    // the coalescer. Returns false when there is no API to send through.
-    bool send_jog_move(const helix::JogCoalescer::CoalescedMove& move);
 
     ObserverGuard position_x_observer_;
     ObserverGuard position_y_observer_;

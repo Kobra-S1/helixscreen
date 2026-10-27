@@ -21,7 +21,6 @@
 #include "config.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
-#include "jog_coalescer.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_error.h"
 #include "observe_language.h"
@@ -255,27 +254,6 @@ bool helix::z_direction_blocked(bool z_homed, bool bounds_known, double z, doubl
     return z <= z_min + tolerance;
 }
 
-// Strip Klipper error prefixes and firmware JSON error envelopes, and truncate
-// for toast display.
-static std::string clean_gcode_error(const std::string& msg) {
-    std::string cleaned = MoonrakerError::friendly_error_line(msg);
-
-    // Provide friendly messages for common error patterns
-    if (cleaned.find("Must home axis") != std::string::npos ||
-        cleaned.find("must home") != std::string::npos) {
-        return lv_tr("Must home axes first");
-    }
-    // "Move out of range" — let through with truncation so user sees the limits
-
-    // Truncate long messages for toast display
-    constexpr size_t kMaxLen = 80;
-    if (cleaned.size() > kMaxLen) {
-        cleaned = cleaned.substr(0, kMaxLen - 3) + "...";
-    }
-
-    return cleaned;
-}
-
 /// Bed-grid preset keys as they appear in motion_panel.xml user_data, in
 /// MotionPreset declaration order (rear row first, front row last).
 static std::optional<helix::MotionPreset> preset_from_key(const char* key) {
@@ -301,7 +279,20 @@ static std::optional<helix::MotionPreset> preset_from_key(const char* key) {
 // Constructor
 // ============================================================================
 
-MotionPanel::MotionPanel() {
+MotionPanel::MotionPanel()
+    : move_sender_(lifetime_, "MotionPanel",
+                   {[this]() {
+                        // An ack changes where the next target starts (target_start_z), and
+                        // with it the lift the Bed tab announces.
+                        refresh_bed_readout();
+                    },
+                    [this](const MoonrakerError&) {
+                        // A Bed-tab drag would send the next sample into the same refusal.
+                        bed_gesture_failed_ = true;
+                        // A hold-to-repeat still ticking would re-send the refused move
+                        // every interval and raise one error toast per tick.
+                        stop_hold_repeat();
+                    }}) {
     // Initialize buffer contents (axis labels are in XML, values only here)
     std::strcpy(pos_x_buf_, "—");
     std::strcpy(pos_y_buf_, "—");
@@ -671,7 +662,7 @@ void MotionPanel::on_deactivating(DeactivateReason reason) {
     // The base invalidates lifetime_ on the way out of this hook, dropping any
     // in-flight ack callback — fully reset the coalescer so it can't get stuck
     // in_flight forever.
-    jog_coalescer_.reset();
+    move_sender_.reset();
     stop_hold_repeat();
     // A release arriving after the panel comes back belongs to no gesture.
     end_bed_gesture();
@@ -684,7 +675,7 @@ void MotionPanel::on_ui_destroyed() {
     // overlay widget tree is ever destroyed (destroy-on-close, parent screen
     // teardown). Peers do the same — see BedMeshPanel::on_ui_destroyed.
     jog_pad_ = nullptr;
-    jog_coalescer_.reset();
+    move_sender_.reset();
     stop_hold_repeat();
     end_bed_gesture();
 }
@@ -1121,9 +1112,10 @@ bool MotionPanel::handle_jog_button(const char* name, bool is_repeat) {
     // Bounds are in gcode space, so this must follow the inversion above.
     const auto bounds = clamp_bounds();
     if (bounds.has_z && helix::axis_is_homed(get_printer_state(), helix::Axis::Z)) {
-        distance = clamp_axis_delta(helix::Axis::Z, current_z_,
-                                    jog_coalescer_.predicted_z(current_z_) - current_z_, distance,
-                                    bounds.z_min, bounds.z_max, /*fresh_press=*/!is_repeat);
+        distance =
+            clamp_axis_delta(helix::Axis::Z, current_z_,
+                             move_sender_.coalescer().predicted_z(current_z_) - current_z_,
+                             distance, bounds.z_min, bounds.z_max, /*fresh_press=*/!is_repeat);
         if (distance == 0.0) {
             return false;
         }
@@ -1224,12 +1216,12 @@ bool MotionPanel::jog(JogDirection direction, float distance_mm, bool is_repeat)
 
     if (ddx != 0.0 && bounds.has_x && helix::axis_is_homed(get_printer_state(), helix::Axis::X)) {
         ddx = clamp_axis_delta(helix::Axis::X, current_x_,
-                               jog_coalescer_.predicted_x(current_x_) - current_x_, ddx,
+                               move_sender_.coalescer().predicted_x(current_x_) - current_x_, ddx,
                                bounds.x_min, bounds.x_max, /*fresh_press=*/false);
     }
     if (ddy != 0.0 && bounds.has_y && helix::axis_is_homed(get_printer_state(), helix::Axis::Y)) {
         ddy = clamp_axis_delta(helix::Axis::Y, current_y_,
-                               jog_coalescer_.predicted_y(current_y_) - current_y_, ddy,
+                               move_sender_.coalescer().predicted_y(current_y_) - current_y_, ddy,
                                bounds.y_min, bounds.y_max, /*fresh_press=*/false);
     }
 
@@ -1291,84 +1283,11 @@ void MotionPanel::warn_axis_limit(helix::Axis axis, float clamp_bound, bool at_m
 }
 
 bool MotionPanel::dispatch_jog(const helix::AxisMove& delta) {
-    if (auto immediate = jog_coalescer_.on_tap(delta)) {
-        return send_jog_move(*immediate);
-    }
-    spdlog::debug("[{}] Jog coalesced: predicted x={:+.2f} y={:+.2f} z={:+.2f}", get_name(),
-                  jog_coalescer_.predicted_x(current_x_), jog_coalescer_.predicted_y(current_y_),
-                  jog_coalescer_.predicted_z(current_z_));
-    return true;
+    return move_sender_.send_delta(get_moonraker_api(), delta);
 }
 
 bool MotionPanel::dispatch_target(const helix::AxisTarget& target) {
-    // Soft-stop for absolute moves, same bounds source the jog clamp uses: a
-    // set axis without a known envelope cannot be clamped, and sending it
-    // unclamped would trust exactly the value that is missing.
-    const auto bounds = clamp_bounds();
-    if ((target.x && !bounds.has_x) || (target.y && !bounds.has_y) || (target.z && !bounds.has_z)) {
-        NOTIFY_INFO(lv_tr("Axis limits unknown"));
-        return false;
-    }
-    std::optional<std::pair<double, double>> z_range;
-    if (bounds.has_z) {
-        z_range =
-            std::make_pair(static_cast<double>(bounds.z_min), static_cast<double>(bounds.z_max));
-    }
-    const helix::AxisTarget clamped = helix::clamp_target_to_bounds(
-        target, static_cast<double>(bounds.x_min), static_cast<double>(bounds.x_max),
-        static_cast<double>(bounds.y_min), static_cast<double>(bounds.y_max), z_range);
-
-    target_start_z_ = jog_coalescer_.target_start_z(current_z_);
-    if (auto immediate = jog_coalescer_.on_target(clamped)) {
-        return send_jog_move(*immediate);
-    }
-    spdlog::debug("[{}] Target coalesced: predicted x={:+.2f} y={:+.2f} z={:+.2f}", get_name(),
-                  jog_coalescer_.predicted_x(current_x_), jog_coalescer_.predicted_y(current_y_),
-                  jog_coalescer_.predicted_z(current_z_));
-    return true;
-}
-
-bool MotionPanel::send_jog_move(const helix::JogCoalescer::CoalescedMove& move) {
-    IMoonrakerAPI* api = get_moonraker_api();
-    if (!api) {
-        jog_coalescer_.on_error();
-        return false;
-    }
-    auto& settings = SettingsManager::instance();
-    // Storage keeps the user's choice; emission is clamped to what the printer
-    // currently permits, or move_relative/move_to would reject the move outright.
-    const SafetyLimits& limits = api->get_safety_limits();
-    const double xy_feedrate = static_cast<double>(helix::effective_jog_speed_mm_min(
-        settings.get_jog_speed_xy(), limits.min_feedrate_mm_min, limits.max_feedrate_mm_min));
-    const double z_feedrate = static_cast<double>(helix::effective_jog_speed_mm_min(
-        settings.get_jog_speed_z(), limits.min_feedrate_mm_min, limits.max_feedrate_mm_min));
-
-    auto on_ack = lifetime_.bg_cb("MotionPanel::on_jog_ack", [this]() {
-        if (auto flush = jog_coalescer_.on_ack()) {
-            send_jog_move(*flush);
-        }
-        // An ack changes where the next target starts (target_start_z), and
-        // with it the lift the Bed tab announces.
-        refresh_bed_readout();
-    });
-    auto on_error = lifetime_.bg_cb("MotionPanel::on_jog_error", [this](const MoonrakerError& err) {
-        jog_coalescer_.on_error();
-        // A Bed-tab drag would send the next sample into the same refusal.
-        bed_gesture_failed_ = true;
-        // The printer refused the move: a hold-to-repeat still ticking would
-        // re-send it every interval and raise one error toast per tick.
-        stop_hold_repeat();
-        NOTIFY_ERROR(lv_tr("Jog failed: {}"), clean_gcode_error(err.localized_message()));
-    });
-
-    if (const auto* delta = std::get_if<helix::AxisMove>(&move)) {
-        api->motion().move_relative(delta->dx, delta->dy, delta->dz, xy_feedrate, z_feedrate,
-                                    std::move(on_ack), std::move(on_error));
-    } else if (const auto* target = std::get_if<helix::AxisTarget>(&move)) {
-        api->motion().move_to(*target, xy_feedrate, z_feedrate, std::move(on_ack),
-                              std::move(on_error), target_start_z_);
-    }
-    return true;
+    return move_sender_.send_target(get_moonraker_api(), target, clamp_bounds(), current_z_);
 }
 
 void MotionPanel::home(char axis) {
@@ -1686,7 +1605,7 @@ std::optional<double> MotionPanel::bed_lift_z() {
         return std::nullopt;
     }
     const auto lift = helix::plate_lift(
-        jog_coalescer_.target_start_z(current_z_),
+        move_sender_.target_start_z(current_z_),
         static_cast<double>(SettingsManager::instance().get_bed_map_clearance_mm()),
         static_cast<double>(bounds.z_max), std::nullopt);
     if (lift.kind != helix::PlateLift::Kind::Lift) {

@@ -17,10 +17,15 @@
 #include "printer_motion_state.h"
 
 #include <functional>
+#include <string>
 
 namespace helix {
 
 class IMoonrakerAPI;
+
+/// A Klipper error made fit for a toast: prefixes and firmware JSON envelopes stripped, a
+/// homing refusal reworded, and long text truncated.
+[[nodiscard]] std::string clean_gcode_error(const std::string& msg);
 
 class ToolheadMoveSender {
   public:
@@ -44,8 +49,8 @@ class ToolheadMoveSender {
     /// Send or coalesce a relative jog. Returns false when there is no API.
     bool send_delta(IMoonrakerAPI* api, const AxisMove& delta);
 
-    /// Where the next target starts in Z: the in-flight or pending target's Z when it set
-    /// one, @p current_z otherwise.
+    /// Where the next target starts in Z: the in-flight move's Z when it set or changed
+    /// one, @p current_z otherwise. Pending travel does not count: a new target replaces it.
     [[nodiscard]] double target_start_z(double current_z) const;
 
     [[nodiscard]] const JogCoalescer& coalescer() const {
