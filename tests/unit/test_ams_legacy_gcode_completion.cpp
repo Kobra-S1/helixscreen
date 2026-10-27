@@ -76,10 +76,10 @@ struct Witness {
     bool ran = false;
     std::string ran_from;
 
-    std::function<void()> on_complete() {
+    helix::SharedCallback<void()> on_complete() {
         return [this]() { record(); };
     }
-    std::function<void(const MoonrakerError&)> on_error() {
+    helix::SharedCallback<void(const MoonrakerError&)> on_error() {
         return [this](const MoonrakerError&) { record(); };
     }
 
@@ -94,8 +94,8 @@ struct Witness {
 void refuse_every_script(MockPrinter& p) {
     helix::MoonrakerClientMockTestAccess::set_method_handler(
         p.client, "printer.gcode.script",
-        [](MoonrakerClientMock*, const json&, std::function<void(const json&)>,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+        [](MoonrakerClientMock*, const json&, helix::SharedCallback<void(const json&)>,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
             if (error_cb) {
                 error_cb(MoonrakerError::unknown("Unknown command", "printer.gcode.script"));
             }

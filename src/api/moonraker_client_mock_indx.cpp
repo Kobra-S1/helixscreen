@@ -382,8 +382,8 @@ void MoonrakerClientMock::run_indx_change(int tool, double target_c) {
 }
 
 bool MoonrakerClientMock::simulate_indx_blocking(
-    const std::string& script, std::function<void(const nlohmann::json&)> success_cb,
-    std::function<void(const MoonrakerError&)> error_cb) {
+    const std::string& script, helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+    helix::SharedCallback<void(const MoonrakerError&)> error_cb) {
     if (!is_mock_indx()) {
         return false;
     }

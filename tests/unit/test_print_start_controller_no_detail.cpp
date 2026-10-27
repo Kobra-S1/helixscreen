@@ -78,8 +78,9 @@ class NoDetailFixture : private helix::PrintSelectGlobalStateReset, public LVGLU
     void answer_print_start(bool ok) {
         helix::MoonrakerClientMockTestAccess::set_method_handler(
             client, "printer.print.start",
-            [ok](MoonrakerClientMock*, const json&, std::function<void(const json&)> success_cb,
-                 std::function<void(const MoonrakerError&)> error_cb) -> bool {
+            [ok](MoonrakerClientMock*, const json&,
+                 helix::SharedCallback<void(const json&)> success_cb,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
                 if (ok) {
                     success_cb(json{{"result", "ok"}});
                 } else {

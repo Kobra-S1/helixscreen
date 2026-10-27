@@ -69,7 +69,8 @@ class SlotMemoryHelper : public helix::AmsBackendToolChanger {
         sent_.push_back(gcode);
         return helix::AmsErrorHelper::success();
     }
-    helix::AmsError execute_gcode(const std::string& gcode, std::function<void()>) override {
+    helix::AmsError execute_gcode(const std::string& gcode,
+                                  helix::SharedCallback<void()>) override {
         sent_.push_back(gcode);
         return helix::AmsErrorHelper::success();
     }
@@ -477,7 +478,7 @@ class StoreBackedHelper : public helix::AmsBackendToolChanger {
     helix::AmsError execute_gcode(const std::string&) override {
         return helix::AmsErrorHelper::success();
     }
-    helix::AmsError execute_gcode(const std::string&, std::function<void()>) override {
+    helix::AmsError execute_gcode(const std::string&, helix::SharedCallback<void()>) override {
         return helix::AmsErrorHelper::success();
     }
 };

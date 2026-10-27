@@ -378,8 +378,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // server.files.list - List files in a directory
     registry["server.files.list"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
         (void)error_cb;
         if (!success_cb) {
@@ -404,8 +404,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // server.files.get_directory - Get directory contents (same format as list)
     registry["server.files.get_directory"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
         (void)error_cb;
         if (!success_cb) {
@@ -445,8 +445,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // server.files.metadata - Get file metadata
     registry["server.files.metadata"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
         std::string filename;
         if (params.contains("filename")) {
@@ -474,8 +474,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // Same as metadata but forces re-parse (in mock, behaves identically)
     registry["server.files.metascan"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
         std::string filename;
         if (params.contains("filename")) {
@@ -504,8 +504,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // HELIX_MOCK_3MF_CONVERSIONS=<file> serves that JSON file as the result.
     registry["server.helix.3mf_conversions"] =
         [](MoonrakerClientMock* /*self*/, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         const char* path = std::getenv("HELIX_MOCK_3MF_CONVERSIONS");
         json result = json::object();
         if (path && *path) {
@@ -528,8 +528,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // server.files.get_file - Download file content (used for accelerometer CSV data)
     registry["server.files.get_file"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
         if (!success_cb) {
             return true;
@@ -577,8 +577,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // server.files.delete - Delete a file
     registry["server.files.delete"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
         std::string path;
         if (params.contains("path")) {
@@ -607,8 +607,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // on disk is an error, like real Moonraker's 404.
     registry["server.files.delete_file"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
         std::string path;
         if (params.contains("path")) {
@@ -649,8 +649,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // server.files.move - Move/rename a file
     registry["server.files.move"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
         std::string source, dest;
         if (params.contains("source")) {
@@ -676,8 +676,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // server.files.copy - Copy a file
     registry["server.files.copy"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
         std::string source, dest;
         if (params.contains("source")) {
@@ -703,8 +703,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // server.files.post_directory - Create a directory
     registry["server.files.post_directory"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
         std::string path;
         if (params.contains("path")) {
@@ -727,8 +727,8 @@ void register_file_handlers(std::unordered_map<std::string, MethodHandler>& regi
     // server.files.delete_directory - Delete a directory
     registry["server.files.delete_directory"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)self;
         std::string path;
         if (params.contains("path")) {

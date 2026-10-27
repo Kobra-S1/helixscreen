@@ -1005,7 +1005,7 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode) {
 }
 
 AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
-                                               std::function<void()> on_complete) {
+                                               helix::SharedCallback<void()> on_complete) {
     // silent=true: completion is owned by the phase tracker + IFS_STATUS, not
     // the RPC return, so the advisory 300s timeout must not surface a false
     // "timed out" toast for a legitimately-long macro (bundle 77TDH9N6),
@@ -1014,10 +1014,9 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
                                                  /*silent=*/true);
 }
 
-AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
-                                               std::function<void()> on_complete,
-                                               std::function<void(const MoonrakerError&)> on_error,
-                                               bool silent) {
+AmsError AmsSubscriptionBackend::execute_gcode(
+    const std::string& gcode, helix::SharedCallback<void()> on_complete,
+    helix::SharedCallback<void(const MoonrakerError&)> on_error, bool silent) {
     if (!api_) {
         // The send never went out, but on_error still owes the caller its
         // unwind: an optimistic AmsAction set before this dispatch stays set

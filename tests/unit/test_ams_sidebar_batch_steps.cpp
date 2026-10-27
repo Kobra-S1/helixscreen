@@ -47,8 +47,9 @@ class FeedChanger : public helix::test::ToolChangerHelper {
         set_mounts_to_feed(true);
     }
 
-    helix::AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                                  std::function<void(const MoonrakerError&)> /*on_error*/,
+    helix::AmsError execute_gcode(const std::string& gcode,
+                                  helix::SharedCallback<void()> on_complete,
+                                  helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
                                   bool /*silent*/) override {
         sent_.push_back(gcode);
         acks_.push_back(std::move(on_complete));

@@ -119,8 +119,9 @@ namespace {
 class FallbackScriptedClient : public helix::MoonrakerClient {
   public:
     helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
-        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
+        const std::string& method, const json& params,
+        helix::SharedCallback<void(const json&)> success_cb,
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
         bool silent = false,
         std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
         (void)silent;
@@ -168,9 +169,9 @@ class PluginStatusScriptedClient : public helix::MoonrakerClient {
 
     helix::RequestId send_jsonrpc(
         const std::string& method, const json& /*params*/,
-        std::function<void(const json&)> success_cb,
-        std::function<void(const MoonrakerError&)> /*error_cb*/, uint32_t /*timeout_ms*/ = 0,
-        bool /*silent*/ = false,
+        helix::SharedCallback<void(const json&)> success_cb,
+        helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/,
+        uint32_t /*timeout_ms*/ = 0, bool /*silent*/ = false,
         std::optional<helix::rpc_error_policy::CallerIntent> /*intent*/ = std::nullopt) override {
         if (method == "server.helix.status" && success_cb) {
             success_cb(json{{"jsonrpc", "2.0"}, {"result", result_}});

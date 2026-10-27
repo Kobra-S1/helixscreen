@@ -197,13 +197,14 @@ class AfcStatusDispatchHelper : public AmsBackendAfc {
     // (dispatch_operation -> ensure_homed_then -> execute_gcode(gcode, cb)).
     // Overriding only the 1-arg form captures nothing and the dispatch fails
     // with "MoonrakerAPI not available".
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete) override {
+    AmsError execute_gcode(const std::string& gcode,
+                           helix::SharedCallback<void()> on_complete) override {
         captured.push_back(gcode);
         pending_macro_ack = std::move(on_complete);
         return AmsErrorHelper::success();
     }
 
-    std::function<void()> pending_macro_ack;
+    helix::SharedCallback<void()> pending_macro_ack;
 
     [[nodiscard]] bool sent(const std::string& gcode) const {
         return std::find(captured.begin(), captured.end(), gcode) != captured.end();

@@ -41,7 +41,7 @@ class WebcamListClient : public MoonrakerClientMock {
     }
 
     helix::RequestId send_jsonrpc(const std::string& method, const json& params,
-                                  std::function<void(const json&)> cb) override {
+                                  helix::SharedCallback<void(const json&)> cb) override {
         if (auto scripted = scripted_reply(method)) {
             if (cb) {
                 cb(*scripted);
@@ -52,8 +52,9 @@ class WebcamListClient : public MoonrakerClientMock {
     }
 
     helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
-        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
+        const std::string& method, const json& params,
+        helix::SharedCallback<void(const json&)> success_cb,
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
         bool silent = false,
         std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
         if (auto scripted = scripted_reply(method)) {

@@ -550,10 +550,12 @@ class ScriptRecordingClient : public MoonrakerClientMock {
     using MoonrakerClientMock::MoonrakerClientMock;
     using MoonrakerClientMock::send_jsonrpc;
 
-    helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
-        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms, bool silent,
-        std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
+    helix::RequestId
+    send_jsonrpc(const std::string& method, const json& params,
+                 helix::SharedCallback<void(const json&)> success_cb,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms,
+                 bool silent,
+                 std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
         if (method == "printer.gcode.script") {
             scripts.push_back(params.value("script", std::string()));
         }

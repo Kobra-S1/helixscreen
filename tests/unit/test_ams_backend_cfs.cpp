@@ -116,8 +116,8 @@ class CfsRemapHelper : public AmsBackendCfs {
     }
 
     // The completion form (the Endless Spool switch) captures into the same list.
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                           std::function<void(const MoonrakerError&)> /*on_error*/,
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                           helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
                            bool /*silent*/) override {
         captured.push_back(gcode);
         if (on_complete) {
@@ -192,7 +192,8 @@ class CfsCalibHelper : public CfsLifecycleHelper {
     // Keep the 1-arg capture visible beside these overrides.
     using CfsRemapHelper::execute_gcode;
 
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete) override {
+    AmsError execute_gcode(const std::string& gcode,
+                           helix::SharedCallback<void()> on_complete) override {
         captured.push_back(gcode);
         if (hold.count(gcode)) {
             held.push_back(std::move(on_complete));
@@ -204,8 +205,9 @@ class CfsCalibHelper : public CfsLifecycleHelper {
         return AmsErrorHelper::success();
     }
 
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                           std::function<void(const MoonrakerError&)> on_error, bool) override {
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
+                           bool) override {
         captured.push_back(gcode);
         if (fail.count(gcode)) {
             MoonrakerError err;
@@ -232,7 +234,7 @@ class CfsCalibHelper : public CfsLifecycleHelper {
     /// Commands that answer on_error instead of on_complete, modelling the
     /// macro failing after the RPC acked.
     std::set<std::string> fail;
-    std::vector<std::function<void()>> held;
+    std::vector<helix::SharedCallback<void()>> held;
 
     void release_held() {
         auto pending = std::move(held);
@@ -453,8 +455,8 @@ class CfsAutoRefillHelper : public CfsRemapHelper {
   public:
     using CfsRemapHelper::execute_gcode;
 
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                           std::function<void(const MoonrakerError&)> on_error,
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
                            bool /*silent*/) override {
         captured.push_back(gcode);
         if (reject) {

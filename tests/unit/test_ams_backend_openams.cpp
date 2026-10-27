@@ -96,8 +96,8 @@ class OpenAmsHarness : public AmsBackendOpenAms {
 
   protected:
     helix::AmsError
-    send_operation_gcode(const std::string& gcode, std::function<void()> complete,
-                         std::function<void(const MoonrakerError&)> error) override {
+    send_operation_gcode(const std::string& gcode, helix::SharedCallback<void()> complete,
+                         helix::SharedCallback<void(const MoonrakerError&)> error) override {
         operations.push_back(gcode);
         on_complete = std::move(complete);
         on_error = std::move(error);
@@ -106,8 +106,8 @@ class OpenAmsHarness : public AmsBackendOpenAms {
     }
 
   private:
-    std::function<void()> on_complete;
-    std::function<void(const MoonrakerError&)> on_error;
+    helix::SharedCallback<void()> on_complete;
+    helix::SharedCallback<void(const MoonrakerError&)> on_error;
 };
 
 json all_commands() {

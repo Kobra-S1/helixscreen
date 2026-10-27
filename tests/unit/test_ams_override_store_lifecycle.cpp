@@ -117,7 +117,7 @@ class StoreBackedHappyHare : public helix::AmsBackendHappyHare {
     helix::AmsError execute_gcode(const std::string&) override {
         return helix::AmsErrorHelper::success();
     }
-    helix::AmsError execute_gcode(const std::string&, std::function<void()>) override {
+    helix::AmsError execute_gcode(const std::string&, helix::SharedCallback<void()>) override {
         return helix::AmsErrorHelper::success();
     }
 
@@ -177,7 +177,7 @@ class StoreBackedAfc : public helix::AmsBackendAfc {
     helix::AmsError execute_gcode(const std::string&) override {
         return helix::AmsErrorHelper::success();
     }
-    helix::AmsError execute_gcode(const std::string&, std::function<void()>) override {
+    helix::AmsError execute_gcode(const std::string&, helix::SharedCallback<void()>) override {
         return helix::AmsErrorHelper::success();
     }
 
@@ -221,7 +221,7 @@ class StoreBackedAce : public helix::AmsBackendAce {
     helix::AmsError execute_gcode(const std::string&) override {
         return helix::AmsErrorHelper::success();
     }
-    helix::AmsError execute_gcode(const std::string&, std::function<void()>) override {
+    helix::AmsError execute_gcode(const std::string&, helix::SharedCallback<void()>) override {
         return helix::AmsErrorHelper::success();
     }
 

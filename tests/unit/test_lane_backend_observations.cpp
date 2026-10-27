@@ -134,8 +134,8 @@ class RefusedGcodeAfc : public AmsBackendAfc {
     bool refuse_set_color = false;
     bool refuse_set_material = false;
 
-    helix::AmsError execute_gcode(const std::string& gcode, std::function<void()>,
-                                  std::function<void(const MoonrakerError&)> on_error,
+    helix::AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()>,
+                                  helix::SharedCallback<void(const MoonrakerError&)> on_error,
                                   bool /*silent*/ = true) override {
         const bool refused = (refuse_set_color && gcode.rfind("SET_COLOR ", 0) == 0) ||
                              (refuse_set_material && gcode.rfind("SET_MATERIAL ", 0) == 0);

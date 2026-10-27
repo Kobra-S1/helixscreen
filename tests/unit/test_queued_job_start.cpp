@@ -435,8 +435,9 @@ class OneManagerFixture : private helix::PrintSelectGlobalStateReset, public LVG
         helix::test::wait_out_print_start_grace();
         helix::MoonrakerClientMockTestAccess::set_method_handler(
             client, "printer.print.start",
-            [](MoonrakerClientMock*, const json&, std::function<void(const json&)> success_cb,
-               std::function<void(const MoonrakerError&)>) -> bool {
+            [](MoonrakerClientMock*, const json&,
+               helix::SharedCallback<void(const json&)> success_cb,
+               helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
                 success_cb(json{{"result", "ok"}});
                 return true;
             });
