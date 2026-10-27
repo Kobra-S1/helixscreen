@@ -299,9 +299,15 @@ TEST_CASE("plate_lift decides the lift floor", "[motion][presets][lift]") {
 }
 
 TEST_CASE("clamp_z_down_to_floor keeps a lowered nozzle above a part", "[motion][presets][lift]") {
-    CHECK(helix::clamp_z_down_to_floor(20.0, 5.0, 38.0) == Catch::Approx(43.0));
-    CHECK(helix::clamp_z_down_to_floor(50.0, 5.0, 38.0) == Catch::Approx(50.0));
-    CHECK(helix::clamp_z_down_to_floor(0.0, 5.0, std::nullopt) == Catch::Approx(0.0));
+    CHECK(helix::clamp_z_down_to_floor(20.0, 5.0, true, 38.0) == Catch::Approx(43.0));
+    CHECK(helix::clamp_z_down_to_floor(50.0, 5.0, true, 38.0) == Catch::Approx(50.0));
+    CHECK(helix::clamp_z_down_to_floor(0.0, 5.0, false, std::nullopt) == Catch::Approx(0.0));
+}
+
+TEST_CASE("clamp_z_down_to_floor floors an occupied bed of unknown height at the clearance",
+          "[motion][presets][lift]") {
+    CHECK(helix::clamp_z_down_to_floor(0.0, 5.0, true, std::nullopt) == Catch::Approx(5.0));
+    CHECK(helix::clamp_z_down_to_floor(12.0, 5.0, true, std::nullopt) == Catch::Approx(12.0));
     CHECK(helix::plate_z_floor(5.0, std::nullopt) == Catch::Approx(5.0));
     CHECK(helix::plate_z_floor(5.0, 38.0) == Catch::Approx(43.0));
 }

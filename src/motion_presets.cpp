@@ -186,9 +186,9 @@ PlateLift plate_lift(double current_z, double clearance_mm, double z_max,
     return {PlateLift::Kind::Lift, lift};
 }
 
-double clamp_z_down_to_floor(double target_z, double clearance_mm,
+double clamp_z_down_to_floor(double target_z, double clearance_mm, bool occupied,
                              std::optional<double> part_height_mm) {
-    if (!part_height_mm) {
+    if (!occupied) {
         return target_z;
     }
     return std::max(target_z, plate_z_floor(clearance_mm, part_height_mm));

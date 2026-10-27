@@ -46,6 +46,11 @@ bool plate_moves_allowed(PrinterState& ps) {
            !ps.is_external_blocking_operation_active();
 }
 
+bool bed_may_be_occupied() {
+    const BedOccupancyState* state = get_bed_occupancy_state();
+    return state && state->current().occupied;
+}
+
 std::optional<double> bed_part_height() {
     const BedOccupancyState* state = get_bed_occupancy_state();
     if (!state || !state->current().occupied) {
@@ -57,6 +62,9 @@ std::optional<double> bed_part_height() {
 PlateLift current_plate_lift(const PrinterState& ps, double start_z) {
     const AxisBounds bounds = move_clamp_bounds(ps);
     if (!bounds.has_z) {
+        if (bed_may_be_occupied()) {
+            return {PlateLift::Kind::Refuse, 0.0};
+        }
         return {};
     }
     return plate_lift(start_z,
@@ -125,7 +133,7 @@ bool run_park_toolhead_macro(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime, c
 double clamp_z_down_to_current_floor(double target_z) {
     return clamp_z_down_to_floor(
         target_z, static_cast<double>(SettingsManager::instance().get_bed_map_clearance_mm()),
-        bed_part_height());
+        bed_may_be_occupied(), bed_part_height());
 }
 
 namespace {

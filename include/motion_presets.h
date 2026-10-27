@@ -136,10 +136,11 @@ PlateLift plate_lift(double current_z, double clearance_mm, double z_max,
 /**
  * @brief Clamp a downward Z target so it never goes below the floor while a part is on the bed
  *
- * Returns @p target_z unchanged when @p part_height_mm is nullopt or the target is at or
- * above plate_z_floor(); the floor otherwise. Never raises a target that is above it.
+ * Returns @p target_z unchanged when the bed is not @p occupied or the target is at or above
+ * plate_z_floor(); the floor otherwise. An occupied bed of unknown height (@p part_height_mm
+ * nullopt) floors at the clearance. Never raises a target that is above the floor.
  */
-double clamp_z_down_to_floor(double target_z, double clearance_mm,
+double clamp_z_down_to_floor(double target_z, double clearance_mm, bool occupied,
                              std::optional<double> part_height_mm);
 
 /**

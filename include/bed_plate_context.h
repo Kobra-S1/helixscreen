@@ -35,12 +35,17 @@ struct BedPlateArea {
 /// operation: the plate and the position presets may move the head.
 [[nodiscard]] bool plate_moves_allowed(PrinterState& ps);
 
+/// Whether a part may still be on the bed, from get_bed_occupancy_state(); false with no state.
+[[nodiscard]] bool bed_may_be_occupied();
+
 /// The height of a part that may still be on the bed, from get_bed_occupancy_state():
-/// nullopt with no state, a clear bed, or an occupying job of unknown height.
+/// nullopt with no state, a clear bed, or an occupying job of unknown height. Pair it with
+/// bed_may_be_occupied() to tell the last two apart.
 [[nodiscard]] std::optional<double> bed_part_height();
 
 /// plate_lift() for a move starting at @p start_z, with the clearance setting, the clamp
-/// envelope's z_max and the bed-occupancy part height. Kind::None when Z bounds are unknown.
+/// envelope's z_max and the bed-occupancy part height. With Z bounds unknown no lift can be
+/// sized: Kind::Refuse while a part may be on the bed, Kind::None otherwise.
 [[nodiscard]] PlateLift current_plate_lift(const PrinterState& ps, double start_z);
 
 /// How far Park raises the nozzle before it travels.
@@ -48,8 +53,9 @@ inline constexpr double kParkZLiftMm = 10.0;
 
 /// Park's lift from @p current_z: the higher of current_z + kParkZLiftMm and the plate
 /// floor, capped at the clamp envelope's z_max. Refuse when current_plate_lift() refuses
-/// (a part too tall to clear); Kind::None when Z bounds are unknown or the cap leaves no
-/// rise. Shared by the Move tab's Park and the home Toolhead widget's Park slot.
+/// (a part too tall to clear, or unknown Z bounds over a part); Kind::None when Z bounds are
+/// unknown over a clear bed or the cap leaves no rise. Shared by the Move tab's Park and the home
+/// Toolhead widget's Park slot.
 [[nodiscard]] PlateLift park_plate_lift(const PrinterState& ps, double current_z);
 
 /// Park with no ParkToolhead macro: plate_rear_park() with park_plate_lift() applied.
@@ -73,8 +79,9 @@ struct ParkOverPlate {
 /// plate instead. @p lifetime guards the failure callback.
 bool run_park_toolhead_macro(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime, const char* tag);
 
-/// clamp_z_down_to_floor() with the clearance setting and the bed-occupancy part height:
-/// a downward Z step never ends below the floor while a part may be on the bed.
+/// clamp_z_down_to_floor() with the clearance setting and the bed occupancy: a downward Z
+/// step never ends below the floor while a part may be on the bed, whether or not its
+/// height is known.
 [[nodiscard]] double clamp_z_down_to_current_floor(double target_z);
 
 /// The sentence announcing @p lift before a move made at @p shown_z: "Z 0.20, will lift to
