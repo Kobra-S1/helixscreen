@@ -187,6 +187,15 @@ class FilamentMapper {
     static void apply_picks(std::vector<ToolMapping>& current,
                             const std::vector<ToolMapping>& picks);
 
+    /// Record the user's pick for one tool: lane @p slot_index on @p backend_index, or
+    /// Auto when @p is_auto. Marks it user_picked, and re-classifies the pairing against
+    /// @p slots (a pick of Auto, or of a lane no longer present, leaves no warnings). The
+    /// mapping modal's row picker and the FILAMENTS card's chip dropdown both record a
+    /// pick through here.
+    static void pick_slot(ToolMapping& mapping, const GcodeToolInfo& tool,
+                          const std::vector<AvailableSlot>& slots, int slot_index,
+                          int backend_index, bool is_auto);
+
     /// Check if two colors are within matching tolerance.
     /// Uses weighted RGB distance (luminance-weighted) with tolerance of
     /// kColorMatchTolerance (50) units.

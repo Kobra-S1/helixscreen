@@ -66,6 +66,13 @@ class FilamentSlotPicker {
         /// Text of a last row that closes the picker like a backdrop tap,
         /// answering nothing; empty adds none.
         std::string cancel_choice;
+        /// Row order and a muted reason per slot row: when non-empty, the slot rows are
+        /// drawn in this order (indices into the slots shown) with each reason on the
+        /// right; empty keeps the slots' own order with no reasons.
+        std::vector<std::size_t> order;
+        std::vector<std::string> reasons; ///< parallel to order
+        /// Offer an Auto row first (Selection::is_auto).
+        bool offer_auto = false;
     };
 
     /// @copydoc show(lv_obj_t*, lv_obj_t*, int, const std::string&, const
