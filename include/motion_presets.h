@@ -109,6 +109,48 @@ std::optional<AxisTarget> bed_map_target(float x_px, float y_px, const BedCoordM
  */
 std::optional<double> bed_map_lift_z(double current_z, double clearance_mm, double z_max);
 
+/// The least clearance, in millimetres, the top of z_max must leave above a part on the
+/// bed for a lift to count as clearing it.
+inline constexpr double kPartClearanceMinMm = 1.0;
+
+/// What an XY move from the plate or a position preset does with Z first.
+struct PlateLift {
+    enum class Kind {
+        None,   ///< already at or above the floor: travel at the current Z
+        Lift,   ///< rise to `z`, then travel
+        Refuse, ///< z_max cannot clear the part on the bed: do not move
+    };
+    Kind kind = Kind::None;
+    double z = 0.0; ///< the height to rise to; meaningful for Lift only
+};
+
+/**
+ * @brief The lowest Z an XY move may travel at
+ *
+ * @p clearance_mm with nothing on the bed; @p part_height_mm + @p clearance_mm while a
+ * part may still be on it. Not capped: plate_lift() decides what z_max does to it.
+ */
+double plate_z_floor(double clearance_mm, std::optional<double> part_height_mm);
+
+/**
+ * @brief Decide the lift before an XY move from the plate or a position preset
+ *
+ * Lift to plate_z_floor() capped at @p z_max when below it; None when @p current_z is
+ * already within AxisMove::kEpsilonMm of that height or above. Refuse when a part is on
+ * the bed and @p z_max is less than kPartClearanceMinMm above its height.
+ */
+PlateLift plate_lift(double current_z, double clearance_mm, double z_max,
+                     std::optional<double> part_height_mm);
+
+/**
+ * @brief Clamp a downward Z target so it never goes below the floor while a part is on the bed
+ *
+ * Returns @p target_z unchanged when @p part_height_mm is nullopt or the target is at or
+ * above plate_z_floor(); the floor otherwise. Never raises a target that is above it.
+ */
+double clamp_z_down_to_floor(double target_z, double clearance_mm,
+                             std::optional<double> part_height_mm);
+
 /**
  * @brief Half the length of a Bed-tab crosshair guide
  *

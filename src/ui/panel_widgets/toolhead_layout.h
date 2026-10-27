@@ -25,6 +25,9 @@ struct ToolheadInput {
     /// rung, and Full is measured for the tallest footer (caption and Home All), so
     /// the rung does not change when homing finishes or a print starts.
     RungNeeds needs;
+    /// Height the preset row adds below the Full rung's content. The row shows only when
+    /// the box holds Full plus this much, so a 2x2 keeps its plate and a 2x3 gains the row.
+    int presets_extra_h = 0;
 };
 
 /// The published verdict. `rung` is SizeRung's int; the flags are 0/1 subjects.
@@ -38,6 +41,7 @@ struct ToolheadVerdict {
     bool show_plate = false;       ///< Wide and up: plate, crosshair, Z bar, values
     bool show_home_button = false; ///< Full, idle, and an axis is not homed
     bool show_status_row = false;  ///< Full while printing: active tool and live speed
+    bool show_presets = false;     ///< Full with presets_extra_h to spare, printing or not
 };
 
 [[nodiscard]] constexpr ToolheadVerdict decide_toolhead_layout(const ToolheadInput& in) {
@@ -52,6 +56,8 @@ struct ToolheadVerdict {
     v.show_plate = static_cast<int>(v.rung) >= static_cast<int>(SizeRung::Wide);
     v.show_home_button = v.rung == SizeRung::Full && !in.printing && !in.homed;
     v.show_status_row = v.rung == SizeRung::Full && in.printing;
+    v.show_presets = v.rung == SizeRung::Full && in.presets_extra_h > 0 &&
+                     in.content_h >= in.needs.full.h + in.presets_extra_h;
     return v;
 }
 
