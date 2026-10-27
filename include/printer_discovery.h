@@ -1225,13 +1225,6 @@ void reload_sensor_roles_after_preset();
 void remember_printer_hostname(const std::string& hostname);
 
 /**
- * @brief The objects TemperatureSensorManager tracks: temperature_sensor /
- *        temperature_fan / tmc objects plus every heater_generic (filament
- *        dryers, auxiliary heaters). Extruders and the bed are PrinterState's.
- */
-std::vector<std::string> temperature_sensor_objects(const PrinterDiscovery& hardware);
-
-/**
  * @brief Case-insensitive search of Klipper object names
  *
  * A leading '^' pins the pattern to the start of a name and a trailing '$'

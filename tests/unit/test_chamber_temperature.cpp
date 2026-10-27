@@ -6,6 +6,7 @@
 #include "../../include/heater_limits.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/log_capture.h"
 #include "chamber_heater_assignment.h"
 #include "lvgl.h"
@@ -349,7 +350,7 @@ TEST_CASE("Manual chamber assignment updates sensor role", "[chamber][role]") {
     std::vector<std::string> objects = {"temperature_sensor chamber_temp",
                                         "temperature_sensor enclosure_bme",
                                         "temperature_sensor mcu_temp"};
-    mgr.discover(objects);
+    mgr.discover(helix::test::discovery_of(objects));
 
     auto sensors = mgr.get_sensors_sorted();
     auto it = std::find_if(sensors.begin(), sensors.end(), [](const auto& s) {
@@ -383,7 +384,7 @@ TEST_CASE("apply_chamber_sensor_override(\"\") demotes existing CHAMBER", "[cham
 
     std::vector<std::string> objects = {"temperature_sensor chamber",
                                         "temperature_sensor mcu_temp"};
-    mgr.discover(objects);
+    mgr.discover(helix::test::discovery_of(objects));
 
     // Auto-categorizer should promote the "chamber"-named sensor.
     auto sensors = mgr.get_sensors_sorted();
@@ -417,7 +418,7 @@ TEST_CASE("apply_chamber_sensor_override promotes non-chamber-named sensor",
     mgr.init_subjects();
 
     std::vector<std::string> objects = {"temperature_sensor cavity", "temperature_sensor mcu_temp"};
-    mgr.discover(objects);
+    mgr.discover(helix::test::discovery_of(objects));
 
     // Auto-categorizer doesn't match "cavity" against the "chamber" substring.
     auto sensors = mgr.get_sensors_sorted();
@@ -449,7 +450,7 @@ TEST_CASE("apply_chamber_sensor_override on already-CHAMBER sensor is a no-op",
 
     std::vector<std::string> objects = {"temperature_sensor chamber",
                                         "temperature_sensor mcu_temp"};
-    mgr.discover(objects);
+    mgr.discover(helix::test::discovery_of(objects));
 
     auto sensors = mgr.get_sensors_sorted();
     auto chamber = std::find_if(sensors.begin(), sensors.end(), [](const auto& s) {
@@ -484,7 +485,7 @@ TEST_CASE("apply_chamber_sensor_override with an absent name keeps the auto-cate
     SECTION("a chamber-named temperature_fan keeps the CHAMBER role") {
         std::vector<std::string> objects = {"temperature_fan chamber_exhaust_fans",
                                             "temperature_sensor mcu_temp"};
-        mgr.discover(objects);
+        mgr.discover(helix::test::discovery_of(objects));
         auto sensors = mgr.get_sensors_sorted();
         auto fan = std::find_if(sensors.begin(), sensors.end(), [](const auto& s) {
             return s.klipper_name == "temperature_fan chamber_exhaust_fans";
@@ -515,7 +516,7 @@ TEST_CASE("apply_chamber_sensor_override with an absent name keeps the auto-cate
 
     SECTION("no discovered chamber candidate keeps every role untouched") {
         std::vector<std::string> objects = {"temperature_sensor mcu_temp"};
-        mgr.discover(objects);
+        mgr.discover(helix::test::discovery_of(objects));
 
         helix::LogCapture capture;
         mgr.apply_chamber_sensor_override("temperature_sensor chamber_temp");

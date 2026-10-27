@@ -7,6 +7,7 @@
 #include "../../include/temp_graph_controller.h"
 #include "../../include/temp_graph_internal.h"
 #include "../../include/ui_temp_graph.h"
+#include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/temp_graph_controller_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -282,7 +283,8 @@ TEST_CASE_METHOD(TempGraphControllerFixture,
     auto& tsm = sensors::TemperatureSensorManager::instance();
     tsm.init_subjects();
     tsm.set_sync_mode(true);
-    tsm.discover({"heater_generic filament_dryer", "temperature_fan exhaust"});
+    tsm.discover(
+        helix::test::discovery_of({"heater_generic filament_dryer", "temperature_fan exhaust"}));
     tsm.update_from_status(
         {{"heater_generic filament_dryer", {{"temperature", 48.5}, {"target", 55.0}}},
          {"temperature_fan exhaust", {{"temperature", 31.0}, {"target", 40.0}}}});

@@ -1923,7 +1923,7 @@ SubjectLifetime gate_subject_lifetime(const char* name) {
         return sensors::HumiditySensorManager::instance().subjects_lifetime();
     }
     if (std::strcmp(name, "temp_sensor_count") == 0) {
-        return sensors::TemperatureSensorManager::instance().get_subjects_lifetime();
+        return sensors::TemperatureSensorManager::instance().subjects_lifetime();
     }
     if (std::strcmp(name, "width_sensor_count") == 0) {
         return sensors::WidthSensorManager::instance().subjects_lifetime();

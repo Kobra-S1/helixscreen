@@ -6,6 +6,7 @@
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/thermistor_test_access.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_api.h"
@@ -41,7 +42,8 @@ class ThermistorTargetFixture : public LVGLUITestFixture {
         PanelWidgetManager::instance().register_shared_resource<TemperatureController>(controller);
         auto& tsm = sensors::TemperatureSensorManager::instance();
         tsm.init_subjects();
-        tsm.discover({"heater_generic filament_dryer", "temperature_sensor mcu_temp"});
+        tsm.discover(helix::test::discovery_of(
+            {"heater_generic filament_dryer", "temperature_sensor mcu_temp"}));
         std::array<lv_obj_t*, kUiPanelCount> panels{};
         for (auto& p : panels)
             p = lv_obj_create(lv_screen_active());

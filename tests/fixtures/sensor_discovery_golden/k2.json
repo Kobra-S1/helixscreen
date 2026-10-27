@@ -125,8 +125,15 @@
       "entries": []
     },
     "temperature": {
-      "count": 5,
+      "count": 4,
       "entries": [
+        {
+          "enabled": true,
+          "klipper_name": "heater_generic chamber_heater",
+          "role": "chamber",
+          "sensor_name": "chamber_heater",
+          "type": "heater_generic"
+        },
         {
           "enabled": true,
           "klipper_name": "temperature_fan chamber_fan",
@@ -143,24 +150,10 @@
         },
         {
           "enabled": true,
-          "klipper_name": "temperature_fan chamber_fan",
-          "role": "chamber",
-          "sensor_name": "chamber_fan",
-          "type": "temperature_fan"
-        },
-        {
-          "enabled": true,
           "klipper_name": "temperature_sensor mcu_temp",
           "role": "mcu",
           "sensor_name": "mcu_temp",
           "type": "temperature_sensor"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "heater_generic chamber_heater",
-          "role": "chamber",
-          "sensor_name": "chamber_heater",
-          "type": "heater_generic"
         }
       ]
     },

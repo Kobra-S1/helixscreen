@@ -12,6 +12,7 @@
 #include "probe_sensor_manager.h"
 #include "spdlog/spdlog.h"
 #include "static_subject_registry.h"
+#include "temperature_sensor_manager.h"
 #include "width_sensor_manager.h"
 
 #include <algorithm>
@@ -49,7 +50,10 @@ void SensorManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(count_, 0, options_.count_subject, subjects_);
     UI_MANAGED_SUBJECT_INT(revision_, 0, options_.revision_subject, subjects_);
     register_subjects(subjects_);
-    subjects_initialized_ = true;
+    {
+        std::lock_guard<std::recursive_mutex> lock(mutex_);
+        subjects_initialized_ = true;
+    }
 
     // Deinit runs before lv_deinit() and before a printer switch rebuilds state.
     StaticSubjectRegistry::instance().register_deinit(options_.name,
@@ -178,9 +182,15 @@ nlohmann::json SensorManager::extra_subscriptions(const PrinterDiscovery& /*hw*/
 
 void SensorManager::publish() {
     bool sync = false;
+    bool initialized = false;
     {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
         sync = sync_mode_;
+        initialized = subjects_initialized_;
+    }
+    // Without subjects there is nothing to refresh, and init_subjects() publishes.
+    if (!sync && !initialized) {
+        return;
     }
     if (sync) {
         refresh_on_main_thread();
@@ -485,9 +495,10 @@ std::vector<SensorManager*>& detail::mutable_sensor_managers() {
     // Migrated managers join in this order: filament, humidity, width, probe,
     // accel, temperature, load cell, input, SensorState.
     static std::vector<SensorManager*> managers = {
-        &WidthSensorManager::instance(), &HumiditySensorManager::instance(),
-        &ProbeSensorManager::instance(), &LoadCellManager::instance(),
-        &AccelSensorManager::instance(), &InputSensorManager::instance()};
+        &WidthSensorManager::instance(),      &HumiditySensorManager::instance(),
+        &ProbeSensorManager::instance(),      &LoadCellManager::instance(),
+        &AccelSensorManager::instance(),      &InputSensorManager::instance(),
+        &TemperatureSensorManager::instance()};
     return managers;
 }
 

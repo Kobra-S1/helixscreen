@@ -22,6 +22,7 @@
 #include "ui_update_queue.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/one_line_label.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "src/ui/panel_widgets/thermistor_widget.h"
@@ -81,7 +82,8 @@ class ThermistorPickerFixture : public XMLTestFixture {
     ThermistorPickerFixture() {
         helix::ui::ContextMenu::register_shared_callbacks();
         REQUIRE(register_component("thermistor_configure_picker"));
-        helix::sensors::TemperatureSensorManager::instance().discover({kSensorA, kSensorB});
+        helix::sensors::TemperatureSensorManager::instance().discover(
+            helix::test::discovery_of({kSensorA, kSensorB}));
         REQUIRE(row_index_of(kSensorA) >= 0);
         REQUIRE(row_index_of(kSensorB) >= 0);
     }
