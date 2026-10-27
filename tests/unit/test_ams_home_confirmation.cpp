@@ -144,6 +144,12 @@ class ToolChangerHomingProbeBackend : public helix::AmsBackendToolChanger {
         }
         return helix::AmsErrorHelper::success();
     }
+    // A dispatch that unwinds on a rejection sends through this form.
+    helix::AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
+                                  std::function<void(const MoonrakerError&)> /*on_error*/,
+                                  bool /*silent*/) override {
+        return execute_gcode(gcode, std::move(on_complete));
+    }
     bool toolhead_homed() const override {
         return homed;
     }

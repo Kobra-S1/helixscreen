@@ -94,6 +94,9 @@ struct ToolReading {
     /// Verified against both sources, not inferred: `state` is a COARSER
     /// vocabulary than `operation`, not another spelling of it.
     std::string operation;
+    /// topi314's `error` flag: the last operation failed. nullopt when the frame
+    /// did not name it.
+    std::optional<bool> controller_error;
     /// Irbis3D's `last_error`: the message its last failed operation latched,
     /// empty once the next operation begins. nullopt when the frame did not
     /// name it.

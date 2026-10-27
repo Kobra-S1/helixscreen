@@ -87,6 +87,8 @@ void AmsDeviceOperationsOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(can_reset_endless_spool_subject_, 0,
                                "ams_device_ops_can_reset_endless_spool", subjects_);
         UI_MANAGED_SUBJECT_INT(can_abort_subject_, 0, "ams_device_ops_can_abort", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_home_subject_, 0, "ams_device_ops_can_home", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_recover_subject_, 0, "ams_device_ops_can_recover", subjects_);
         UI_MANAGED_SUBJECT_STRING(details_subject_, details_buf_, "", "ams_device_ops_details",
                                   subjects_);
         UI_MANAGED_SUBJECT_INT(has_details_subject_, 0, "ams_device_ops_has_details", subjects_);
@@ -336,6 +338,8 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         lv_subject_set_int(&printer_retains_spool_info_subject_, 0);
         lv_subject_set_int(&can_reset_endless_spool_subject_, 0);
         lv_subject_set_int(&can_abort_subject_, 0);
+        lv_subject_set_int(&can_home_subject_, 0);
+        lv_subject_set_int(&can_recover_subject_, 0);
         details_buf_[0] = '\0';
         lv_subject_copy_string(&details_subject_, details_buf_);
         lv_subject_set_int(&has_details_subject_, 0);
@@ -422,6 +426,11 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
     // stale button that won the race just reports the refusal.
     lv_subject_set_int(&can_reset_endless_spool_subject_,
                        backend->get_endless_spool_capabilities().editable() ? 1 : 0);
+
+    // Home sends reset() and Recover recover(); a machine with no command
+    // behind either shows the button disabled rather than toasting a refusal.
+    lv_subject_set_int(&can_home_subject_, backend->reset_available() ? 1 : 0);
+    lv_subject_set_int(&can_recover_subject_, backend->recover_available() ? 1 : 0);
 
     // Populate section rows
     populate_section_list();

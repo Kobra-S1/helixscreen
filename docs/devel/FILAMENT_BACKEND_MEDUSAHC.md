@@ -34,8 +34,16 @@ The physical answer comes off dock sensors through MedusaHC's own pin_watch Klip
 136 files in Klipper3d/klipper's klippy/extras - so the object name is a real signature.
 The official controller agrees: its `_current_tool()` returns `pin_watch.current_tool`.
 
-`AmsBackendToolChanger::apply_tool_sensor_locked()` therefore runs **after**
-`parse_toolchanger_state()` in the same frame, so the sensor answer wins.
+So once a dock sensor is present, `parse_toolchanger_state()` never takes the carriage from
+`toolchanger.tool_number` at all: Moonraker sends it in deltas of its own, so it cannot be
+outranked only within one frame. `apply_tool_sensor_locked()` alone sets `current_tool` and
+`current_slot`. A dock reading is a **physical** dock index, so it maps to the slot of the same
+index, never through the G-code tool map that `ASSIGN_TOOL` writes, and a reading past the
+discovered tools is ignored (the last known tool stands). `toolchanger.status: ready` does not
+clear a dock-sensor fault either: klipper-toolchanger knows nothing of the docks.
+
+While the fault is latched, a tool change and an unmount are refused with "Dock sensors cannot
+tell which tool is mounted": a swap plans its moves from what is on the carriage.
 
 `current_tool == -2` is a third state, distinct from "no tool": the sensors cannot tell.
 Reporting it as `-1` would invite a tool change against an unknown carriage state, so the
@@ -115,10 +123,20 @@ klipper-toolchanger's own `status`: a swap is one undifferentiated `changing`.
 tell them apart *before* a swap starts - the phase words themselves only appear once one is
 already running.
 
-`changing` must be handled explicitly. It matched none of the branches in
-`apply_tool_sensor_locked()` until it was added, and since the fork also drops `[toolchanger]`
-there was nothing else setting the action either: a swap on that fork ran with only
-HelixScreen's own optimistic dispatch driving the UI.
+Every `state` word must be handled explicitly, because the fork also drops `[toolchanger]` and
+nothing else sets the action there:
+
+- `changing` is the swap (`SELECTING`).
+- `uninitialized` is busy (`RESETTING`), as klipper-toolchanger's is: a tap is refused until
+  the controller reports `ready`.
+- `error` ends the swap in `AmsAction::ERROR`, with `current_error()` reporting "Tool Change
+  Failed". It is the controller's own failure, not a dock-sensor fault, so a retry is not
+  refused; the next phase word clears it. The fork's `error` flag raised outside that state
+  toasts once instead, like Irbis3D's `last_error`.
+
+A swap command Klipper rejects with a gcode error (the controller's own "MedusaHC is busy", a
+failed swap raised as an error) ends the optimistic `SELECTING` too. A reply timeout does not:
+the macro may still be running.
 
 **`feeder_open` is published by BOTH controllers** (`medusahc.py` in the fork,
 `get_status()` in Irbis3D's), so the gripper phases are drivable on every MedusaHC.
@@ -154,7 +172,7 @@ operation whose step bar is the stage list:
 
 | Load | Gcode | Unload | Gcode |
 |------|-------|--------|-------|
-| Insert filament | an action prompt: "Insert filament into the hot end of Tool N while it is docked, then tap Continue", with Continue and Cancel. It comes first, while the tool is still in its dock: once the hot end is on the carriage, the extruder's gears stand between the operator and the nozzle. A tool already on the carriage gets "Insert filament into Tool N, then tap Continue", and a Load of several with the first one mounted names both cases in one sentence | Mount tool | `SELECT_TOOL T=<n>` (or the machine's own `T<n>`); skipped when already mounted |
+| Insert filament | an action prompt: "Insert filament into the hot end of Tool N while it is docked, then tap Continue", with Continue and Cancel. It comes first, while the tool is still in its dock: once the hot end is on the carriage, the extruder's gears stand between the operator and the nozzle. A tool already on the carriage gets "Insert filament into Tool N, then tap Continue", and a Load of several with the first one mounted names both cases in one sentence | Mount tool | `SELECT_TOOL TOOL="tool T<n>"` (or the machine's own `T<n>`); skipped when already mounted |
 | Mount tool | same as Unload's; it closes the prompt | Heat nozzle | `SET_HEATER_TEMPERATURE HEATER=<tool's extruder> TARGET=<t>`, then `TEMPERATURE_WAIT SENSOR=<tool's extruder> MINIMUM=<t-2>` (`t` is the target slot's material temperature, else 220) |
 | Heat nozzle | same as Unload's | Retract filament | `M83`, `G1 E-25 F1800`, `G1 E-150 F1200` (until the strand is fully out), `SET_HEATER_TEMPERATURE HEATER=<tool's extruder> TARGET=0` |
 | Purge | `M83`, `G1 E5 F60` (slow draw), `G1 E50 F300` (tip to the nozzle), `G1 E<purge> F300` (the `purge_length` device action, 0-200mm, default 50, omitted at 0; persisted per printer as `toolchanger/purge_length_mm`), `G1 E-10 F1800`, `SET_HEATER_TEMPERATURE HEATER=<tool's extruder> TARGET=0` | Restore tool | remount the tool that was on the carriage, or park if none was |
@@ -392,6 +410,11 @@ klipper-toolchanger supplies both:
   unlike the feeder macros it cannot be capability-checked - naming it in the provider table
   is the point of the table.
 
+The backend owes one more: there is no `INITIALIZE_TOOLCHANGER`. `reset()` and `recover()`
+send it only beside klipper-toolchanger; without it they answer NOT_SUPPORTED, and
+`reset_available()` / `recover_available()` disable the Device Operations Home and Recover
+buttons.
+
 **It deliberately does not touch `has_mmu_` / `mmu_type_`.** Those pick which AMS backend
 gets built. An unguarded write there replaces a working backend on any printer that
 happens to run `pin_watch`, and the same applies to detecting on `T<n>` macros - every
@@ -410,7 +433,7 @@ whether `[toolchanger]` is there.
 
 | Configuration | `[toolchanger]` | Route | How a remap lands |
 |---------------|-----------------|-------|-------------------|
-| (a) Irbis3D Python controller | Yes | `RemapStrategy::Native` | `ASSIGN_TOOL TOOL=T{n} N={tool}`; the file is untouched |
+| (a) Irbis3D Python controller | Yes | `RemapStrategy::Native` | `ASSIGN_TOOL TOOL="tool T{n}" N={tool}`; the file is untouched |
 | (b) topi314's fork | No | `RemapStrategy::GcodeRewrite` | The job file is rewritten and printed through the HelixPrint plugin |
 
 `AmsBackendToolChanger::get_remap_strategy()` asks `tool_commands_.present`, which

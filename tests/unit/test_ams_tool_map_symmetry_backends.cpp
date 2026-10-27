@@ -23,8 +23,8 @@
  *
  * ToolChanger carries an extra rule these tests also pin: a tool NUMBER and a
  * slot INDEX are deliberately not interchangeable there. change_tool() takes a
- * slot and emits `SELECT_TOOL T={n}` specifically to bypass ASSIGN_TOOL
- * remapping — a tap on lane 2 mounts lane 2's toolhead — while
+ * slot and emits `SELECT_TOOL TOOL="tool <name>"`, naming the physical tool, to
+ * bypass ASSIGN_TOOL remapping — a tap on lane 2 mounts lane 2's toolhead — while
  * `toolchanger.tool_number` reports the ASSIGNED number of whatever is on the
  * carriage. Anything crossing between the two must go through the map.
  */
@@ -197,6 +197,12 @@ class ToolChangerMapProbe : public helix::AmsBackendToolChanger {
             on_complete();
         }
         return helix::AmsErrorHelper::success();
+    }
+    // A dispatch that unwinds on a rejection sends through this form.
+    helix::AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
+                                  std::function<void(const MoonrakerError&)> /*on_error*/,
+                                  bool /*silent*/) override {
+        return execute_gcode(gcode, std::move(on_complete));
     }
 
     std::vector<std::string> captured;
@@ -425,7 +431,7 @@ TEST_CASE("ToolChanger set_tool_mapping moves the lane badge with the map",
     require_symmetric(info);
 
     REQUIRE_FALSE(backend.captured.empty());
-    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=T2 N=0");
+    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=\"tool T2\" N=0");
 }
 
 TEST_CASE("ToolChanger apply_user_edit remap moves the lane badge with the map",
@@ -448,7 +454,7 @@ TEST_CASE("ToolChanger apply_user_edit remap moves the lane badge with the map",
     require_symmetric(info);
 
     REQUIRE_FALSE(backend.captured.empty());
-    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=T1 N=3");
+    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=\"tool T1\" N=3");
 }
 
 TEST_CASE("ToolChanger reset_tool_mappings restores identity in both directions",
@@ -513,7 +519,7 @@ TEST_CASE("ToolChanger with klipper-toolchanger keeps its remap route",
 
     backend.captured.clear();
     REQUIRE(backend.set_tool_mapping(/*tool_number=*/2, /*slot_index=*/4).success());
-    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=T4 N=2");
+    CHECK(backend.captured.back() == "ASSIGN_TOOL TOOL=\"tool T4\" N=2");
 }
 
 TEST_CASE("ToolChanger change_tool takes a SLOT and bypasses the remap",
@@ -530,7 +536,7 @@ TEST_CASE("ToolChanger change_tool takes a SLOT and bypasses the remap",
 
     REQUIRE(backend.change_tool(2).success());
     REQUIRE_FALSE(backend.captured.empty());
-    CHECK(backend.captured.back() == "SELECT_TOOL T=2");
+    CHECK(backend.captured.back() == "SELECT_TOOL TOOL=\"tool T2\"");
 }
 
 TEST_CASE("ToolChanger resolves the carriage lane through the map",

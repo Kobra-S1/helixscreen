@@ -11,7 +11,7 @@
  * the same hole for the same reason.
  *
  * change_tool() stamps AmsAction::SELECTING optimistically and sends
- * `SELECT_TOOL T=<n>` through the ack-discarding 1-arg execute_gcode(). The
+ * `SELECT_TOOL TOOL="tool T<n>"` through the ack-discarding 1-arg execute_gcode(). The
  * only code that can move the action off SELECTING is parse_toolchanger_state()
  * receiving a frame carrying `toolchanger.status`. Moonraker only pushes fields
  * whose VALUE CHANGED, and klipper-toolchanger short-circuits a SELECT_TOOL on
@@ -94,6 +94,12 @@ class ToolChangerDispatchHelper : public helix::AmsBackendToolChanger {
         pending_acks_.push_back(std::move(on_complete));
         return helix::AmsErrorHelper::success();
     }
+    // A dispatch that unwinds on a rejection sends through this form.
+    helix::AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
+                                  std::function<void(const MoonrakerError&)> /*on_error*/,
+                                  bool /*silent*/) override {
+        return execute_gcode(gcode, std::move(on_complete));
+    }
 
     /// Fire the ack for the Nth dispatched gcode, then drain — the production
     /// callback arrives on a background thread and hops to the main thread via
@@ -151,11 +157,11 @@ bool trace_contains(const std::vector<helix::AmsAction>& trace, helix::AmsAction
 TEST_CASE("Toolchanger mount of the already-mounted tool resolves on the macro ack",
           "[ams][toolchanger][dispatch][1183]") {
     ToolChangerDispatchHelper h(5);
-    h.seat_tool(4); // T4 already on the carriage — SELECT_TOOL T=4 is a firmware no-op
+    h.seat_tool(4); // T4 already on the carriage — SELECT_TOOL of T4 is a firmware no-op
 
     REQUIRE(h.change_tool(4).success());
     REQUIRE(h.sent().size() == 1);
-    CHECK(h.sent()[0] == "SELECT_TOOL T=4");
+    CHECK(h.sent()[0] == "SELECT_TOOL TOOL=\"tool T4\"");
 
     // The optimistic busy leg is what the filament panel's completion observer
     // needs to see START before it can ever see one end.
@@ -229,9 +235,9 @@ TEST_CASE("Toolchanger never takes the swap arm, so a remap cannot mount the wro
     //
     // That matters because the swap arm dispatches change_tool(mapped_tool),
     // while change_tool() validates its argument as a SLOT and emits
-    // `SELECT_TOOL T={n}` specifically to bypass ASSIGN_TOOL remapping — its own
-    // comment: "mount the physical tool the user tapped, not whatever the
-    // slicer's T{n} command was remapped to." Feeding it a remapped number would
+    // `SELECT_TOOL TOOL="tool <name>"`, naming the physical tool, to bypass
+    // ASSIGN_TOOL remapping: a tap mounts the tool the user tapped, not whatever
+    // the slicer's T{n} command was remapped to. Feeding it a remapped number would
     // mount the wrong toolhead. Answering false keeps loads on the plain arm,
     // where the argument is the slot the user actually tapped.
     ToolChangerDispatchHelper h(5);
@@ -243,7 +249,7 @@ TEST_CASE("Toolchanger never takes the swap arm, so a remap cannot mount the wro
 
     REQUIRE(h.change_tool(3).success());
     REQUIRE(h.sent().size() == 1);
-    CHECK(h.sent()[0] == "SELECT_TOOL T=3"); // the tapped tool, whatever the map says
+    CHECK(h.sent()[0] == "SELECT_TOOL TOOL=\"tool T3\""); // the tapped tool, whatever the map says
 }
 
 TEST_CASE("Toolchanger dispatch failure reverts the optimistic action",

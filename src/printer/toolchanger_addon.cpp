@@ -306,6 +306,12 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
         saw_anything = true;
     }
 
+    // The fork's operation-failed flag, where Irbis3D sends a last_error string.
+    if (auto flag = bool_field(obj, "error")) {
+        r.controller_error = *flag;
+        saw_anything = true;
+    }
+
     // Irbis3D publishes sensor_error outright; both schemas encode it as -2.
     if (auto flag = bool_field(obj, "sensor_error")) {
         r.sensor_error = *flag;
