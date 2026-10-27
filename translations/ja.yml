@@ -2689,7 +2689,6 @@ translations:
 
   Placed: 配置済み
   Plate {}: 'プレート {}'
-  Plate {} ({} of {}): 'プレート {} ({} / {})'
   Platform: プラットフォーム
   'Platform: ': 'プラットフォーム: '
   Play / stop Crockett's Theme: Crockett's Theme を再生/停止
@@ -4561,7 +4560,6 @@ translations:
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0}は{2:.0f} Hzで{1}よりはるかに強く共振しています。張力ではなく機械的な違い(プーリーのイモネジ、アイドラーのベアリング、ベルトの走行)を示しています。"
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 約{}分'
-  '{} ({} of {})': '{} ({} / {})'
   '{} ({})': '{}（{}）'
   '{} Extruders': '{} エクストルーダー'
   '{} Hardware Issues': 'ハードウェアの問題 {} 件'

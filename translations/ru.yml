@@ -2865,7 +2865,6 @@ translations:
 
   Placed: Добавлено
   Plate {}: 'Пластина {}'
-  Plate {} ({} of {}): 'Пластина {} ({} из {})'
   Platform: Платформа
   'Platform: ': 'Платформа: '
   Play / stop Crockett's Theme: Воспроизвести / остановить «Crockett's Theme»
@@ -4857,7 +4856,6 @@ translations:
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} резонирует на {2:.0f} Гц намного сильнее, чем {1}. Это указывает на механическое различие (установочные винты шкивов, подшипники роликов, ход ремня), а не на натяжение."
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Гц · примерно {} мин'
-  '{} ({} of {})': '{} ({} из {})'
   '{} ({})': '{} ({})'
   '{} Extruders': 'Экструдеров: {}'
   '{} Hardware Issues': 'Проблем с оборудованием: {}'

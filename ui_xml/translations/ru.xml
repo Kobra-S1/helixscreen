@@ -2628,7 +2628,6 @@
   <translation tag="Place the spools" ru="Положите катушки"/>
   <translation tag="Placed" ru="Добавлено"/>
   <translation tag="Plate {}" ru="Пластина {}"/>
-  <translation tag="Plate {} ({} of {})" ru="Пластина {} ({} из {})"/>
   <translation tag="Platform" ru="Платформа"/>
   <translation tag="Platform: " ru="Платформа: "/>
   <translation tag="Play / stop Crockett&apos;s Theme" ru="Воспроизвести / остановить «Crockett&apos;s Theme»"/>
@@ -4438,7 +4437,6 @@
   <translation tag="you have" ru="у вас"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." ru="{0} резонирует на {2:.0f} Гц намного сильнее, чем {1}. Это указывает на механическое различие (установочные винты шкивов, подшипники роликов, ход ремня), а не на натяжение."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ru="{:.0f}-{:.0f} Гц · примерно {} мин"/>
-  <translation tag="{} ({} of {})" ru="{} ({} из {})"/>
   <translation tag="{} ({})" ru="{} ({})"/>
   <translation tag="{} Extruders" ru="Экструдеров: {}"/>
   <translation tag="{} Hardware Issues" ru="Проблем с оборудованием: {}"/>

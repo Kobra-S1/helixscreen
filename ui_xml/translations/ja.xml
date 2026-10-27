@@ -2583,7 +2583,6 @@
   <translation tag="Place the spools" ja="スプールを置く"/>
   <translation tag="Placed" ja="配置済み"/>
   <translation tag="Plate {}" ja="プレート {}"/>
-  <translation tag="Plate {} ({} of {})" ja="プレート {} ({} / {})"/>
   <translation tag="Platform" ja="プラットフォーム"/>
   <translation tag="Platform: " ja="プラットフォーム: "/>
   <translation tag="Play / stop Crockett&apos;s Theme" ja="Crockett&apos;s Theme を再生/停止"/>
@@ -4375,7 +4374,6 @@
   <translation tag="you have" ja="現在は"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." ja="{0}は{2:.0f} Hzで{1}よりはるかに強く共振しています。張力ではなく機械的な違い(プーリーのイモネジ、アイドラーのベアリング、ベルトの走行)を示しています。"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ja="{:.0f}-{:.0f} Hz · 約{}分"/>
-  <translation tag="{} ({} of {})" ja="{} ({} / {})"/>
   <translation tag="{} ({})" ja="{}（{}）"/>
   <translation tag="{} Extruders" ja="{} エクストルーダー"/>
   <translation tag="{} Hardware Issues" ja="ハードウェアの問題 {} 件"/>

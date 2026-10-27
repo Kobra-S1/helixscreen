@@ -2583,7 +2583,6 @@
   <translation tag="Place the spools" es="Coloca las bobinas"/>
   <translation tag="Placed" es="En cola"/>
   <translation tag="Plate {}" es="Placa {}"/>
-  <translation tag="Plate {} ({} of {})" es="Placa {} ({} de {})"/>
   <translation tag="Platform" es="Plataforma"/>
   <translation tag="Platform: " es="Plataforma: "/>
   <translation tag="Play / stop Crockett&apos;s Theme" es="Reproducir / detener Crockett&apos;s Theme"/>
@@ -4375,7 +4374,6 @@
   <translation tag="you have" es="tienes"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." es="{0} resuena mucho más que {1} a {2:.0f} Hz. Eso apunta a una diferencia mecánica (prisioneros de la polea, rodamientos de las poleas locas, alineación de la correa), no a la tensión."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" es="{:.0f}-{:.0f} Hz · unos {} min"/>
-  <translation tag="{} ({} of {})" es="{} ({} de {})"/>
   <translation tag="{} ({})" es="{} ({})"/>
   <translation tag="{} Extruders" es="{} extrusores"/>
   <translation tag="{} Hardware Issues" es="{} problemas de hardware"/>

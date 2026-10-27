@@ -2828,7 +2828,6 @@ translations:
 
   Placed: En cola
   Plate {}: 'Placa {}'
-  Plate {} ({} of {}): 'Placa {} ({} de {})'
   Platform: Plataforma
   'Platform: ': 'Plataforma: '
   Play / stop Crockett's Theme: Reproducir / detener Crockett's Theme
@@ -4816,7 +4815,6 @@ translations:
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} resuena mucho más que {1} a {2:.0f} Hz. Eso apunta a una diferencia mecánica (prisioneros de la polea, rodamientos de las poleas locas, alineación de la correa), no a la tensión."
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · unos {} min'
-  '{} ({} of {})': '{} ({} de {})'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} extrusores'
   '{} Hardware Issues': '{} problemas de hardware'

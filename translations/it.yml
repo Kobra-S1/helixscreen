@@ -2828,7 +2828,6 @@ translations:
 
   Placed: Inserito
   Plate {}: 'Piatto {}'
-  Plate {} ({} of {}): 'Piatto {} ({} di {})'
   Platform: Piattaforma
   'Platform: ': 'Piattaforma: '
   Play / stop Crockett's Theme: Riproduci / ferma Crockett's Theme
@@ -4817,7 +4816,6 @@ translations:
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} risuona molto più di {1} a {2:.0f} Hz. Indica una differenza meccanica (grani della puleggia, cuscinetti dei rinvii, scorrimento della cinghia), non la tensione."
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · circa {} min'
-  '{} ({} of {})': '{} ({} di {})'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} estrusori'
   '{} Hardware Issues': '{} problemi hardware'

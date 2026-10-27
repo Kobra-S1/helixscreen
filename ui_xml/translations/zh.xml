@@ -2583,7 +2583,6 @@
   <translation tag="Place the spools" zh="放置料盘"/>
   <translation tag="Placed" zh="已放置"/>
   <translation tag="Plate {}" zh="第 {} 号板"/>
-  <translation tag="Plate {} ({} of {})" zh="第 {} 号板（{}/{}）"/>
   <translation tag="Platform" zh="平台"/>
   <translation tag="Platform: " zh="平台: "/>
   <translation tag="Play / stop Crockett&apos;s Theme" zh="播放/停止 Crockett&apos;s Theme"/>
@@ -4375,7 +4374,6 @@
   <translation tag="you have" zh="您有"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." zh="{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" zh="{:.0f}-{:.0f} Hz · 约 {} 分钟"/>
-  <translation tag="{} ({} of {})" zh="{}（{}/{}）"/>
   <translation tag="{} ({})" zh="{}（{}）"/>
   <translation tag="{} Extruders" zh="{} 个挤出机"/>
   <translation tag="{} Hardware Issues" zh="{} 个硬件问题"/>
