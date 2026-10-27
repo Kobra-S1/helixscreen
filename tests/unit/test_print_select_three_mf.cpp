@@ -6,6 +6,7 @@
 #include "../test_helpers/print_select_panel_fixture.h"
 #include "../test_helpers/print_select_panel_test_access.h"
 #include "../test_helpers/scoped_env.h"
+#include "../test_helpers/stored_zip.h"
 #include "three_mf_reader.h"
 #include "thumbnail_cache.h"
 #include "thumbnail_load_context.h"
@@ -167,6 +168,25 @@ TEST_CASE_METHOD(ArchivePanel, "a reprint of a plate opens the archive already r
     REQUIRE(prep);
     REQUIRE(PrintSelectPanelTestAccess::prepare_archive_start(*panel_));
     CHECK(prep->archive_plate_for(file.name()) == 5);
+}
+
+TEST_CASE_METHOD(ArchivePanel, "the plate stepper shows a plate's name from model_settings",
+                 "[print_select][three_mf][model_settings]") {
+    const std::string settings = R"(<config>
+  <plate><metadata key="plater_id" value="1"/><metadata key="plater_name" value="Hull"/></plate>
+  <plate><metadata key="plater_id" value="2"/><metadata key="plater_name" value=""/></plate>
+</config>)";
+    PlantedGcode file("Named.gcode.3mf", "",
+                      helix::test::stored_zip({{"Metadata/plate_1.gcode", "G28\n"},
+                                               {"Metadata/plate_2.gcode", "G28\n"},
+                                               {"Metadata/model_settings.config", settings}}));
+    load(file.name());
+    PrintSelectPanelTestAccess::select_file(*panel_, file.name());
+    drain();
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Hull (1 of 2)");
+    // A plate with an empty name keeps its number.
+    PrintSelectPanelTestAccess::step_plate(*panel_, 1);
+    CHECK(PrintSelectPanelTestAccess::plate_text(*panel_) == "Plate 2 (2 of 2)");
 }
 
 TEST_CASE_METHOD(ArchivePanel, "one sliced plate shows its number and no arrows",

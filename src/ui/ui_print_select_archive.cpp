@@ -217,13 +217,15 @@ void PrintSelectPanel::update_plate_stepper() {
     if (it != file_list_.end() && it->archive && it->archive_extract) {
         const auto* plate = three_mf::find_plate(*it->archive, it->archive_plate);
         count = static_cast<int>(it->archive->plates.size());
-        // The slicer's own plate number, so it matches the project; with
-        // several, where it sits among them.
-        if (plate && count > 1) {
-            text = fmt::format(fmt::runtime(lv_tr("Plate {} ({} of {})")), plate->index,
-                               plate_position(*it->archive, plate->index) + 1, count);
-        } else if (plate) {
-            text = fmt::format(fmt::runtime(lv_tr("Plate {}")), plate->index);
+        // The plate's name in the project, else the slicer's own plate number,
+        // so it matches the project; with several, where it sits among them.
+        if (plate) {
+            const std::string label =
+                plate->name.empty() ? fmt::format(fmt::runtime(lv_tr("Plate {}")), plate->index)
+                                    : plate->name;
+            text = count > 1 ? fmt::format(fmt::runtime(lv_tr("{} ({} of {})")), label,
+                                           plate_position(*it->archive, plate->index) + 1, count)
+                             : label;
         }
     }
     lv_subject_copy_string(&selected_plate_text_subject_, text.c_str());

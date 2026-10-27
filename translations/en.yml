@@ -4712,6 +4712,7 @@ translations:
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · about {} min'
+  '{} ({} of {})': '{} ({} of {})'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} Extruders'
   '{} Hardware Issues': '{} Hardware Issues'

@@ -4820,6 +4820,7 @@ translations:
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} ressoa muito mais que {1} a {2:.0f} Hz. Isso indica uma diferença mecânica (parafusos da polia, rolamentos das polias livres, alinhamento da correia), não a tensão."
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · cerca de {} min'
+  '{} ({} of {})': '{} ({} de {})'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} extrusoras'
   '{} Hardware Issues': '{} problemas de hardware'

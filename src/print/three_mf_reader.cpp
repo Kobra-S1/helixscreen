@@ -73,32 +73,71 @@ void fail(const std::shared_ptr<SummaryJob>& job, const std::string& message) {
     }
 }
 
-void apply_slice_info(const std::shared_ptr<SummaryJob>& job, const zip::ZipEntry& entry,
-                      const uint8_t* lh, size_t n) {
-    zip::ZipError err = zip::ZipError::None;
-    const std::string_view data = zip::entry_bytes(lh, n, entry, err);
-    std::string xml;
-    if (err == zip::ZipError::None) {
-        zip::inflate_entry_to_string<RawInflate>(entry, data, kSliceInfoMaxBytes, xml, err);
+/// Hands @p done a small config entry's text: from the tail read when it holds
+/// the entry, else from one ranged read. No text (nullopt) for an entry too
+/// large or unreadable; @p done's second argument is false only when a read
+/// failed, which the next summary may not repeat.
+void read_config_entry(const std::shared_ptr<SummaryJob>& job, const zip::ZipEntry& entry,
+                       size_t max_bytes,
+                       std::function<void(std::optional<std::string>, bool)> done) {
+    auto inflate = [job, entry, max_bytes](const uint8_t* lh,
+                                           size_t n) -> std::optional<std::string> {
+        zip::ZipError err = zip::ZipError::None;
+        const std::string_view data = zip::entry_bytes(lh, n, entry, err);
+        std::string xml;
+        if (err == zip::ZipError::None) {
+            zip::inflate_entry_to_string<RawInflate>(entry, data, max_bytes, xml, err);
+        }
+        if (err != zip::ZipError::None) {
+            spdlog::warn("[ThreeMfReader] {} unreadable in {}: {}", entry.name, job->path,
+                         zip::zip_error_name(err));
+            return std::nullopt;
+        }
+        return xml;
+    };
+    // The config entries sit near the end of a slicer's archive, so the tail
+    // read usually holds them already.
+    if (entry.lh_offset >= job->tail_offset) {
+        const size_t at = static_cast<size_t>(entry.lh_offset - job->tail_offset);
+        zip::ZipError err = zip::ZipError::None;
+        zip::entry_bytes(bytes_of(job->tail) + at, job->tail.size() - at, entry, err);
+        if (err == zip::ZipError::None) {
+            done(inflate(bytes_of(job->tail) + at, job->tail.size() - at), true);
+            return;
+        }
     }
-    if (err != zip::ZipError::None) {
-        // The plates still print; only their time and filament go unknown.
-        spdlog::warn("[ThreeMfReader] slice_info unreadable in {}: {}", job->path,
-                     zip::zip_error_name(err));
+    if (!zip::entry_fits(entry, max_bytes)) {
+        spdlog::warn("[ThreeMfReader] {} in {} is too large to read", entry.name, job->path);
+        done(std::nullopt, true);
         return;
     }
-    for (auto& plate : job->summary.plates) {
-        plate.has_info = parse_slice_info(xml, plate.index, plate.info);
-    }
+    job->transfers->download_file_range(
+        ROOT, job->path, entry.lh_offset, static_cast<size_t>(zip::entry_read_span(entry)),
+        [job, inflate, done](const std::string& bytes) {
+            if (abandoned(job)) {
+                return;
+            }
+            done(inflate(bytes_of(bytes), bytes.size()), true);
+        },
+        [job, entry, done](const MoonrakerError& error) {
+            if (abandoned(job)) {
+                return;
+            }
+            spdlog::warn("[ThreeMfReader] {} read failed for {}: {}", entry.name, job->path,
+                         error.message);
+            done(std::nullopt, false);
+        },
+        job->cancelled);
 }
 
-void read_plates(const std::shared_ptr<SummaryJob>& job) {
-    if (abandoned(job)) {
-        return;
-    }
-    for (const auto& p : sliced_plates(job->entries)) {
+/// Lists the plates @p settings and the entry names give, then reads their
+/// time and filament out of slice_info.config.
+void read_slice_info(const std::shared_ptr<SummaryJob>& job,
+                     const std::vector<PlateSettings>& settings, bool keep) {
+    for (const auto& p : sliced_plates(job->entries, settings)) {
         PlateSummary plate;
         plate.index = p.index;
+        plate.name = p.name;
         plate.gcode = *p.gcode;
         if (p.thumb) {
             plate.thumb = *p.thumb;
@@ -110,45 +149,36 @@ void read_plates(const std::shared_ptr<SummaryJob>& job) {
     }
     const zip::ZipEntry* info = find_archive_entry(job->entries, kSliceInfoEntry);
     if (job->summary.plates.empty() || !info) {
-        finish(job);
+        finish(job, keep);
         return;
     }
-    // slice_info.config sits near the end of a slicer's archive, so the tail
-    // read usually holds it already.
-    if (info->lh_offset >= job->tail_offset) {
-        const size_t at = static_cast<size_t>(info->lh_offset - job->tail_offset);
-        zip::ZipError err = zip::ZipError::None;
-        zip::entry_bytes(bytes_of(job->tail) + at, job->tail.size() - at, *info, err);
-        if (err == zip::ZipError::None) {
-            apply_slice_info(job, *info, bytes_of(job->tail) + at, job->tail.size() - at);
-            finish(job);
-            return;
-        }
-    }
-    if (!zip::entry_fits(*info, kSliceInfoMaxBytes)) {
-        spdlog::warn("[ThreeMfReader] slice_info in {} is too large to read", job->path);
-        finish(job);
+    // The plates still print without it; only their time and filament go unknown.
+    read_config_entry(job, *info, kSliceInfoMaxBytes,
+                      [job, keep](std::optional<std::string> xml, bool read_ok) {
+                          if (xml) {
+                              for (auto& plate : job->summary.plates) {
+                                  plate.has_info = parse_slice_info(*xml, plate.index, plate.info);
+                              }
+                          }
+                          finish(job, keep && read_ok);
+                      });
+}
+
+void read_plates(const std::shared_ptr<SummaryJob>& job) {
+    if (abandoned(job)) {
         return;
     }
-    const zip::ZipEntry entry = *info;
-    job->transfers->download_file_range(
-        ROOT, job->path, entry.lh_offset, static_cast<size_t>(zip::entry_read_span(entry)),
-        [job, entry](const std::string& bytes) {
-            if (abandoned(job)) {
-                return;
-            }
-            apply_slice_info(job, entry, bytes_of(bytes), bytes.size());
-            finish(job);
-        },
-        [job](const MoonrakerError& error) {
-            if (abandoned(job)) {
-                return;
-            }
-            spdlog::warn("[ThreeMfReader] slice_info read failed for {}: {}", job->path,
-                         error.message);
-            finish(job, false);
-        },
-        job->cancelled);
+    const zip::ZipEntry* settings = find_archive_entry(job->entries, kModelSettingsEntry);
+    if (!settings) {
+        read_slice_info(job, {}, true);
+        return;
+    }
+    read_config_entry(job, *settings, kModelSettingsMaxBytes,
+                      [job](std::optional<std::string> xml, bool read_ok) {
+                          read_slice_info(
+                              job, xml ? parse_model_settings(*xml) : std::vector<PlateSettings>{},
+                              read_ok);
+                      });
 }
 
 void parse_tail(const std::shared_ptr<SummaryJob>& job, uint64_t len, bool may_grow);
@@ -266,7 +296,21 @@ zip::ZipError extract_from(FILE* in, uint64_t size, int plate_index, FILE* out) 
         }
     }
 
-    const auto plates = sliced_plates(entries);
+    std::vector<PlateSettings> settings;
+    if (const auto* config = find_archive_entry(entries, kModelSettingsEntry)) {
+        std::string read;
+        std::string xml;
+        zip::ZipError config_err = zip::ZipError::None;
+        if (zip::entry_fits(*config, kModelSettingsMaxBytes) &&
+            read_at(in, config->lh_offset,
+                    static_cast<size_t>(std::min<uint64_t>(zip::entry_read_span(*config),
+                                                           size - config->lh_offset)),
+                    read) &&
+            entry_payload(read, *config, kModelSettingsMaxBytes, xml, config_err)) {
+            settings = parse_model_settings(xml);
+        }
+    }
+    const auto plates = sliced_plates(entries, settings);
     const auto plate = std::find_if(plates.begin(), plates.end(), [plate_index](const auto& p) {
         return p.index == plate_index;
     });

@@ -793,7 +793,7 @@ class PrintSelectPanel : public PanelBase {
     /// Sliced plates of the selected .3mf (the plate stepper shows from 2), and its label.
     lv_subject_t selected_plate_count_subject_{};
     lv_subject_t selected_plate_text_subject_{};
-    char selected_plate_text_buffer_[48];
+    char selected_plate_text_buffer_[80];
 
     lv_subject_t detail_view_visible_subject_{};
 
