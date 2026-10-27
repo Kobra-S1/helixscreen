@@ -105,10 +105,15 @@ bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool_index, do
         static_cast<int>(std::lround(ts.tool_offset_mm(tool_index, Axis::Z) * 1000.0));
     const int new_microns = base_microns + static_cast<int>(std::lround(delta_mm * 1000.0));
 
-    const std::string gcode =
+    std::string gcode =
         tool_offsets::set_tool_offset_gcode(ps->get_discovery(), Axis::Z, tool_index, new_microns);
     if (gcode.empty()) {
         return false;
+    }
+    const std::string activate = tool_offsets::activate_mounted_offset_gcode(
+        ps->get_discovery(), tool_index, ts.active_tool_index());
+    if (!activate.empty()) {
+        gcode += "\n" + activate;
     }
     api->execute_gcode(gcode, nullptr, nullptr);
 
@@ -627,6 +632,7 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
     // runtime-only and SAVE_CONFIG restarts Klipper, so a Z-only save here
     // would silently throw away an unsaved X or Y on the way through.
     for (int tool : dirty_tools) {
+        bool wrote = false;
         for (helix::Axis axis : helix::kAllAxes) {
             if (!ts.tool_offset_dirty(tool, axis)) {
                 continue;
@@ -639,6 +645,13 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
                 continue;
             }
             api->execute_gcode(gcode, nullptr, nullptr);
+            wrote = true;
+        }
+        // Once per tool, after every axis has landed in the store it reads.
+        const std::string activate =
+            helix::tool_offsets::activate_mounted_offset_gcode(hw, tool, ts.active_tool_index());
+        if (wrote && !activate.empty()) {
+            api->execute_gcode(activate, nullptr, nullptr);
         }
     }
 

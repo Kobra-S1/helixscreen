@@ -132,6 +132,16 @@ std::string set_tool_offset_gcode(const PrinterDiscovery& hw, Axis axis, int too
 std::string save_tool_offset_gcode(const PrinterDiscovery& hw, Axis axis, int tool_index,
                                    int microns);
 
+/// Gcode that applies tool @p tool_index's stored offset to the head now, sent
+/// after a set or save of that tool's offset. Empty unless @p tool_index is the
+/// tool on the carriage (@p mounted_tool, -1 for none) and the model needs it:
+/// on most models a write takes effect on the next move, but a model that
+/// applies the offset only when the tool is picked up leaves a write to the
+/// mounted tool idle until the next swap. Applying an unmounted tool's offset
+/// would shift the head by the wrong tool's correction, hence the gate.
+std::string activate_mounted_offset_gcode(const PrinterDiscovery& hw, int tool_index,
+                                          int mounted_tool);
+
 /// Whether save_tool_offset_gcode() only stages the change and needs a
 /// SAVE_CONFIG to commit it - which restarts Klipper, so the caller must drive
 /// it through the same save-and-restart handling a probe calibration uses.
