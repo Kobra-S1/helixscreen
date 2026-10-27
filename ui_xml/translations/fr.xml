@@ -410,7 +410,6 @@
   <translation tag="Bed mesh operation timed out" fr="Maillage du plateau — délai dépassé"/>
   <translation tag="Bed mesh..." fr="Maillage du plateau..."/>
   <translation tag="Bed size unknown" fr="Taille du plateau inconnue"/>
-  <translation tag="Bed tab moves lift to this height first" fr="Les déplacements de l&apos;onglet Plateau montent d&apos;abord à cette hauteur"/>
   <translation tag="Bed target set to {}°C" fr="Cible plateau réglée à {}°C"/>
   <translation tag="Bed temp must be 0-%d°C" fr="La température du plateau doit être entre 0 et %d°C"/>
   <translation tag="Bed warming timed out" fr="Préchauffage du plateau — délai dépassé"/>
@@ -2594,6 +2593,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." fr="Remettez la plaque PEI sur le plateau chauffant."/>
   <translation tag="Place the spools" fr="Posez les bobines"/>
   <translation tag="Placed" fr="Placé"/>
+  <translation tag="Plate moves and presets lift to this height first" fr="Les déplacements sur le plateau et les préréglages montent d&apos;abord à cette hauteur"/>
   <translation tag="Plate {}" fr="Plateau {}"/>
   <translation tag="Plate {} ({} of {})" fr="Plateau {} ({} sur {})"/>
   <translation tag="Platform" fr="Plateforme"/>

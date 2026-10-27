@@ -449,7 +449,6 @@
   <translation tag="Bed mesh operation timed out" ru="Сетка стола — время ожидания истекло"/>
   <translation tag="Bed mesh..." ru="Сетка стола..."/>
   <translation tag="Bed size unknown" ru="Размер стола неизвестен"/>
-  <translation tag="Bed tab moves lift to this height first" ru="Перемещения на вкладке «Стол» сначала поднимают до этой высоты"/>
   <translation tag="Bed target set to {}°C" ru="Целевая температура стола {}°C"/>
   <translation tag="Bed temp must be 0-%d°C" ru="Температура стола должна быть 0-%d°C"/>
   <translation tag="Bed warming timed out" ru="Нагрев стола — время ожидания истекло"/>
@@ -2639,6 +2638,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." ru="Верните лист PEI на подогреваемый стол."/>
   <translation tag="Place the spools" ru="Положите катушки"/>
   <translation tag="Placed" ru="Добавлено"/>
+  <translation tag="Plate moves and presets lift to this height first" ru="Перемещения над столом и пресеты сначала поднимают до этой высоты"/>
   <translation tag="Plate {}" ru="Пластина {}"/>
   <translation tag="Plate {} ({} of {})" ru="Пластина {} ({} из {})"/>
   <translation tag="Platform" ru="Платформа"/>

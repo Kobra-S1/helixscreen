@@ -410,7 +410,6 @@
   <translation tag="Bed mesh operation timed out" es="Malla de cama — tiempo de espera agotado"/>
   <translation tag="Bed mesh..." es="Malla de cama..."/>
   <translation tag="Bed size unknown" es="Tamaño de cama desconocido"/>
-  <translation tag="Bed tab moves lift to this height first" es="Los movimientos de la pestaña Cama suben primero a esta altura"/>
   <translation tag="Bed target set to {}°C" es="Cama configurada a {}°C"/>
   <translation tag="Bed temp must be 0-%d°C" es="La temperatura de la cama debe ser 0-%d°C"/>
   <translation tag="Bed warming timed out" es="Calentamiento de cama — tiempo de espera agotado"/>
@@ -2594,6 +2593,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." es="Vuelve a colocar la lámina PEI sobre la cama caliente."/>
   <translation tag="Place the spools" es="Coloca las bobinas"/>
   <translation tag="Placed" es="En cola"/>
+  <translation tag="Plate moves and presets lift to this height first" es="Los movimientos sobre la cama y los preajustes suben primero a esta altura"/>
   <translation tag="Plate {}" es="Placa {}"/>
   <translation tag="Plate {} ({} of {})" es="Placa {} ({} de {})"/>
   <translation tag="Platform" es="Plataforma"/>

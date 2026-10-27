@@ -416,7 +416,6 @@ translations:
   Bed mesh operation timed out: ベッドメッシュ操作がタイムアウトしました
   Bed mesh...: ベッドメッシュ...
   Bed size unknown: 'ベッドサイズが不明です'
-  Bed tab moves lift to this height first: ベッドタブの移動はまずこの高さまで上昇します
   Bed target set to {}°C: ベッド目標温度を {}°C に設定しました
   Bed temp must be 0-%d°C: ベッド温度は 0〜%d°C にしてください
   Bed warming timed out: ベッド加熱がタイムアウトしました
@@ -2700,6 +2699,7 @@ translations:
   Place the spools: スプールを置く
 
   Placed: 配置済み
+  Plate moves and presets lift to this height first: ベッド上の移動とプリセットはまずこの高さまで上昇します
   Plate {}: 'プレート {}'
   Plate {} ({} of {}): 'プレート {} ({} / {})'
   Platform: プラットフォーム

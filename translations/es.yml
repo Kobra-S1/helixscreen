@@ -440,7 +440,6 @@ translations:
   Bed mesh operation timed out: Malla de cama — tiempo de espera agotado
   Bed mesh...: Malla de cama...
   Bed size unknown: 'Tamaño de cama desconocido'
-  Bed tab moves lift to this height first: Los movimientos de la pestaña Cama suben primero a esta altura
   Bed target set to {}°C: Cama configurada a {}°C
   Bed temp must be 0-%d°C: La temperatura de la cama debe ser 0-%d°C
   Bed warming timed out: Calentamiento de cama — tiempo de espera agotado
@@ -2839,6 +2838,7 @@ translations:
   Place the spools: Coloca las bobinas
 
   Placed: En cola
+  Plate moves and presets lift to this height first: Los movimientos sobre la cama y los preajustes suben primero a esta altura
   Plate {}: 'Placa {}'
   Plate {} ({} of {}): 'Placa {} ({} de {})'
   Platform: Plataforma

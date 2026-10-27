@@ -410,7 +410,6 @@
   <translation tag="Bed mesh operation timed out" de="Bettnetz-Vorgang Zeitüberschreitung"/>
   <translation tag="Bed mesh..." de="Bettnetz..."/>
   <translation tag="Bed size unknown" de="Bettgröße unbekannt"/>
-  <translation tag="Bed tab moves lift to this height first" de="Bewegungen im Heizbett-Tab heben zuerst auf diese Höhe an"/>
   <translation tag="Bed target set to {}°C" de="Bett-Zieltemperatur auf {}°C gesetzt"/>
   <translation tag="Bed temp must be 0-%d°C" de="Betttemperatur muss 0-%d°C betragen"/>
   <translation tag="Bed warming timed out" de="Bettaufheizung Zeitüberschreitung"/>
@@ -2594,6 +2593,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." de="Lege die PEI-Platte wieder auf das Heizbett."/>
   <translation tag="Place the spools" de="Spulen einlegen"/>
   <translation tag="Placed" de="Platziert"/>
+  <translation tag="Plate moves and presets lift to this height first" de="Bewegungen über das Heizbett und Voreinstellungen heben zuerst auf diese Höhe an"/>
   <translation tag="Plate {}" de="Platte {}"/>
   <translation tag="Plate {} ({} of {})" de="Platte {} ({} von {})"/>
   <translation tag="Platform" de="Plattform"/>

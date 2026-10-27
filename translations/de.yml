@@ -446,7 +446,6 @@ translations:
   Bed mesh operation timed out: Bettnetz-Vorgang Zeitüberschreitung
   Bed mesh...: Bettnetz...
   Bed size unknown: 'Bettgröße unbekannt'
-  Bed tab moves lift to this height first: Bewegungen im Heizbett-Tab heben zuerst auf diese Höhe an
   Bed target set to {}°C: Bett-Zieltemperatur auf {}°C gesetzt
   Bed temp must be 0-%d°C: Betttemperatur muss 0-%d°C betragen
   Bed warming timed out: Bettaufheizung Zeitüberschreitung
@@ -2847,6 +2846,7 @@ translations:
   Place the spools: Spulen einlegen
 
   Placed: Platziert
+  Plate moves and presets lift to this height first: Bewegungen über das Heizbett und Voreinstellungen heben zuerst auf diese Höhe an
   Plate {}: 'Platte {}'
   Plate {} ({} of {}): 'Platte {} ({} von {})'
   Platform: Plattform

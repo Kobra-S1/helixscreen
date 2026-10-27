@@ -410,7 +410,6 @@
   <translation tag="Bed mesh operation timed out" pt="Malha da mesa — tempo esgotado"/>
   <translation tag="Bed mesh..." pt="Malha da mesa..."/>
   <translation tag="Bed size unknown" pt="Tamanho da mesa desconhecido"/>
-  <translation tag="Bed tab moves lift to this height first" pt="Os movimentos da aba Mesa sobem primeiro até esta altura"/>
   <translation tag="Bed target set to {}°C" pt="Mesa configurada para {}°C"/>
   <translation tag="Bed temp must be 0-%d°C" pt="A temperatura da mesa deve ser 0-%d°C"/>
   <translation tag="Bed warming timed out" pt="Aquecimento da mesa — tempo esgotado"/>
@@ -2594,6 +2593,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." pt="Coloque a folha PEI de volta na mesa aquecida."/>
   <translation tag="Place the spools" pt="Coloque os carretéis"/>
   <translation tag="Placed" pt="Colocado"/>
+  <translation tag="Plate moves and presets lift to this height first" pt="Os movimentos sobre a mesa e as predefinições sobem primeiro até esta altura"/>
   <translation tag="Plate {}" pt="Placa {}"/>
   <translation tag="Plate {} ({} of {})" pt="Placa {} ({} de {})"/>
   <translation tag="Platform" pt="Plataforma"/>

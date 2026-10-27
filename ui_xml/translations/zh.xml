@@ -410,7 +410,6 @@
   <translation tag="Bed mesh operation timed out" zh="热床网格操作超时"/>
   <translation tag="Bed mesh..." zh="热床网格..."/>
   <translation tag="Bed size unknown" zh="热床尺寸未知"/>
-  <translation tag="Bed tab moves lift to this height first" zh="热床标签页的移动会先抬升到此高度"/>
   <translation tag="Bed target set to {}°C" zh="热床目标已设为 {}°C"/>
   <translation tag="Bed temp must be 0-%d°C" zh="热床温度必须为 0-%d°C"/>
   <translation tag="Bed warming timed out" zh="热床加热超时"/>
@@ -2594,6 +2593,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." zh="请将 PEI 板放回加热床。"/>
   <translation tag="Place the spools" zh="放置料盘"/>
   <translation tag="Placed" zh="已放置"/>
+  <translation tag="Plate moves and presets lift to this height first" zh="热床上的移动和预设会先抬升到此高度"/>
   <translation tag="Plate {}" zh="第 {} 号板"/>
   <translation tag="Plate {} ({} of {})" zh="第 {} 号板（{}/{}）"/>
   <translation tag="Platform" zh="平台"/>

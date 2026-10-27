@@ -441,7 +441,6 @@ translations:
   Bed mesh operation timed out: Mesh piano — tempo scaduto
   Bed mesh...: Mesh piano...
   Bed size unknown: 'Dimensione del piatto sconosciuta'
-  Bed tab moves lift to this height first: I movimenti della scheda Piano salgono prima a questa altezza
   Bed target set to {}°C: Obiettivo piano impostato a {}°C
   Bed temp must be 0-%d°C: La temperatura del piano deve essere 0-%d°C
   Bed warming timed out: Riscaldamento piano — tempo scaduto
@@ -2839,6 +2838,7 @@ translations:
   Place the spools: Appoggia le bobine
 
   Placed: Inserito
+  Plate moves and presets lift to this height first: I movimenti sul piano e i preset salgono prima a questa altezza
   Plate {}: 'Piatto {}'
   Plate {} ({} of {}): 'Piatto {} ({} di {})'
   Platform: Piattaforma

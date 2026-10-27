@@ -487,7 +487,6 @@ translations:
   Bed mesh operation timed out: Сетка стола — время ожидания истекло
   Bed mesh...: Сетка стола...
   Bed size unknown: 'Размер стола неизвестен'
-  Bed tab moves lift to this height first: Перемещения на вкладке «Стол» сначала поднимают до этой высоты
   Bed target set to {}°C: Целевая температура стола {}°C
   Bed temp must be 0-%d°C: Температура стола должна быть 0-%d°C
   Bed warming timed out: Нагрев стола — время ожидания истекло
@@ -2876,6 +2875,7 @@ translations:
   Place the spools: Положите катушки
 
   Placed: Добавлено
+  Plate moves and presets lift to this height first: Перемещения над столом и пресеты сначала поднимают до этой высоты
   Plate {}: 'Пластина {}'
   Plate {} ({} of {}): 'Пластина {} ({} из {})'
   Platform: Платформа

@@ -445,7 +445,6 @@ translations:
   Bed mesh operation timed out: Maillage du plateau — délai dépassé
   Bed mesh...: Maillage du plateau...
   Bed size unknown: 'Taille du plateau inconnue'
-  Bed tab moves lift to this height first: 'Les déplacements de l''onglet Plateau montent d''abord à cette hauteur'
   Bed target set to {}°C: Cible plateau réglée à {}°C
   Bed temp must be 0-%d°C: La température du plateau doit être entre 0 et %d°C
   Bed warming timed out: Préchauffage du plateau — délai dépassé
@@ -2854,6 +2853,7 @@ translations:
   Place the spools: Posez les bobines
 
   Placed: Placé
+  Plate moves and presets lift to this height first: 'Les déplacements sur le plateau et les préréglages montent d''abord à cette hauteur'
   Plate {}: 'Plateau {}'
   Plate {} ({} of {}): 'Plateau {} ({} sur {})'
   Platform: Plateforme

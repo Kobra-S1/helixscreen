@@ -440,7 +440,6 @@ translations:
   Bed mesh operation timed out: Malha da mesa — tempo esgotado
   Bed mesh...: Malha da mesa...
   Bed size unknown: 'Tamanho da mesa desconhecido'
-  Bed tab moves lift to this height first: Os movimentos da aba Mesa sobem primeiro até esta altura
   Bed target set to {}°C: Mesa configurada para {}°C
   Bed temp must be 0-%d°C: A temperatura da mesa deve ser 0-%d°C
   Bed warming timed out: Aquecimento da mesa — tempo esgotado
@@ -2840,6 +2839,7 @@ translations:
   Place the spools: Coloque os carretéis
 
   Placed: Colocado
+  Plate moves and presets lift to this height first: Os movimentos sobre a mesa e as predefinições sobem primeiro até esta altura
   Plate {}: 'Placa {}'
   Plate {} ({} of {}): 'Placa {} ({} de {})'
   Platform: Plataforma

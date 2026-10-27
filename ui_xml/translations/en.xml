@@ -410,7 +410,6 @@
   <translation tag="Bed mesh operation timed out" en="Bed mesh operation timed out"/>
   <translation tag="Bed mesh..." en="Bed mesh..."/>
   <translation tag="Bed size unknown" en="Bed size unknown"/>
-  <translation tag="Bed tab moves lift to this height first" en="Bed tab moves lift to this height first"/>
   <translation tag="Bed target set to {}°C" en="Bed target set to {}°C"/>
   <translation tag="Bed temp must be 0-%d°C" en="Bed temp must be 0-%d°C"/>
   <translation tag="Bed warming timed out" en="Bed warming timed out"/>
@@ -2594,6 +2593,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." en="Place the PEI sheet back onto the heated bed."/>
   <translation tag="Place the spools" en="Place the spools"/>
   <translation tag="Placed" en="Placed"/>
+  <translation tag="Plate moves and presets lift to this height first" en="Plate moves and presets lift to this height first"/>
   <translation tag="Plate {}" en="Plate {}"/>
   <translation tag="Plate {} ({} of {})" en="Plate {} ({} of {})"/>
   <translation tag="Platform" en="Platform"/>

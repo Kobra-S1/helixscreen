@@ -410,7 +410,6 @@
   <translation tag="Bed mesh operation timed out" ja="ベッドメッシュ操作がタイムアウトしました"/>
   <translation tag="Bed mesh..." ja="ベッドメッシュ..."/>
   <translation tag="Bed size unknown" ja="ベッドサイズが不明です"/>
-  <translation tag="Bed tab moves lift to this height first" ja="ベッドタブの移動はまずこの高さまで上昇します"/>
   <translation tag="Bed target set to {}°C" ja="ベッド目標温度を {}°C に設定しました"/>
   <translation tag="Bed temp must be 0-%d°C" ja="ベッド温度は 0〜%d°C にしてください"/>
   <translation tag="Bed warming timed out" ja="ベッド加熱がタイムアウトしました"/>
@@ -2594,6 +2593,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." ja="PEIシートを加熱ベッドに戻してください。"/>
   <translation tag="Place the spools" ja="スプールを置く"/>
   <translation tag="Placed" ja="配置済み"/>
+  <translation tag="Plate moves and presets lift to this height first" ja="ベッド上の移動とプリセットはまずこの高さまで上昇します"/>
   <translation tag="Plate {}" ja="プレート {}"/>
   <translation tag="Plate {} ({} of {})" ja="プレート {} ({} / {})"/>
   <translation tag="Platform" ja="プラットフォーム"/>

@@ -429,7 +429,6 @@ translations:
   Bed mesh operation timed out: Bed mesh operation timed out
   'Bed mesh...': 'Bed mesh...'
   Bed size unknown: Bed size unknown
-  Bed tab moves lift to this height first: Bed tab moves lift to this height first
   Bed target set to {}°C: Bed target set to {}°C
   Bed temp must be 0-%d°C: Bed temp must be 0-%d°C
   Bed warming timed out: Bed warming timed out
@@ -2774,6 +2773,7 @@ translations:
   Place the PEI sheet back onto the heated bed.: Place the PEI sheet back onto the heated bed.
   Place the spools: Place the spools
   Placed: Placed
+  Plate moves and presets lift to this height first: Plate moves and presets lift to this height first
   Plate {}: Plate {}
   Plate {} ({} of {}): Plate {} ({} of {})
   Platform: Platform

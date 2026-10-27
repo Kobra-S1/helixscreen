@@ -415,7 +415,6 @@ translations:
   Bed mesh operation timed out: 热床网格操作超时
   Bed mesh...: 热床网格...
   Bed size unknown: '热床尺寸未知'
-  Bed tab moves lift to this height first: 热床标签页的移动会先抬升到此高度
   Bed target set to {}°C: 热床目标已设为 {}°C
   Bed temp must be 0-%d°C: 热床温度必须为 0-%d°C
   Bed warming timed out: 热床加热超时
@@ -2693,6 +2692,7 @@ translations:
   Place the spools: 放置料盘
 
   Placed: 已放置
+  Plate moves and presets lift to this height first: 热床上的移动和预设会先抬升到此高度
   Plate {}: '第 {} 号板'
   Plate {} ({} of {}): '第 {} 号板（{}/{}）'
   Platform: 平台
