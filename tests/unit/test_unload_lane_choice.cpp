@@ -303,11 +303,9 @@ TEST_CASE_METHOD(UnloadLaneSidebarFixture,
     }
     SECTION("a picked lane is unloaded by number") {
         helix::FilamentSensorWidgetTestAccess::dispatch_unload(tile);
-        lv_obj_t* extra = find_on_screen("extra_choice");
-        REQUIRE(extra != nullptr);
-        // The lane rows come first; the first is slot 1.
-        lv_obj_t* first_row = lv_obj_get_child(lv_obj_get_parent(extra), 1);
-        tap(first_row);
+        REQUIRE(find_on_screen("extra_choice") != nullptr);
+        // The lane rows come in slot order; the first is slot 1.
+        tap(find_on_screen("filament_picker_row_0"));
         CHECK(backend_->sent == std::vector<std::string>{"IFS_UNLOAD SLOT=1"});
     }
     SECTION("no lane holding filament asks to confirm the clear, which then runs") {

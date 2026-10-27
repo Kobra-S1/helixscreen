@@ -3,6 +3,7 @@
 
 #include "filament_mapper.h"
 
+#include <cstddef>
 #include <functional>
 #include <lvgl.h>
 #include <string>
@@ -18,7 +19,11 @@ namespace helix::ui {
  * Tap a slot to select it immediately (no OK/Cancel).
  * Tap the backdrop to dismiss without changing the selection.
  *
- * Built entirely in C++ (no XML component) since all content is dynamic.
+ * The picker is the XML component filament_slot_picker.xml bound to the
+ * filament_picker_* subjects this class publishes; one row per slot through
+ * <repeat count="filament_picker_row_count">. C++ fills the subjects and
+ * measures where the card goes. One picker shows at a time: showing one hides
+ * any other.
  */
 class FilamentSlotPicker {
   public:
@@ -31,6 +36,10 @@ class FilamentSlotPicker {
     };
 
     using SelectCallback = std::function<void(const Selection&)>;
+
+    /// Slot rows the picker has subjects for. Above any backend's lane count;
+    /// slots past it are not listed.
+    static constexpr std::size_t kMaxPickerRows = 32;
 
     FilamentSlotPicker() = default;
     ~FilamentSlotPicker();
@@ -86,10 +95,19 @@ class FilamentSlotPicker {
         return backdrop_ != nullptr;
     }
 
+    /// Row callbacks from filament_slot_picker.xml, routed to the shown picker.
+    static void row_cb(lv_event_t* e);
+    static void backdrop_cb(lv_event_t* e);
+
   private:
-    void create_slot_row(lv_obj_t* list, int index, const helix::AvailableSlot& slot);
-    void create_extra_row(lv_obj_t* list, const std::string& text);
-    void create_cancel_row(lv_obj_t* list, const std::string& text);
+    void show_impl(lv_obj_t* parent, lv_obj_t* trigger,
+                   const std::vector<helix::AvailableSlot>& slots, const Selection& current,
+                   SelectCallback on_select, const Options& options,
+                   const std::string& expected_material);
+    /// Publish every filament_picker_* subject for @p options and the rows shown;
+    /// @p reasons is parallel to rows_.
+    void publish(const Options& options, const std::vector<std::string>& reasons);
+    void on_row(const char* choice);
     void select(const Selection& sel);
     /// Size the card to its widest row, capped at the screen width.
     void fit_card_width(lv_obj_t* card);
@@ -101,6 +119,8 @@ class FilamentSlotPicker {
     bool trigger_highlighted_ = false;
     SelectCallback on_select_;
     std::vector<helix::AvailableSlot> slots_;
+    /// Row k shows slots_[rows_[k]].
+    std::vector<std::size_t> rows_;
     std::string expected_material_;
     Selection current_selection_;
 };

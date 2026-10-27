@@ -425,6 +425,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/filament_mapping_tool_row.xml",
     "ui_xml/components/filament_material_group.xml",
     "ui_xml/components/filament_operations_group.xml",
+    "ui_xml/components/filament_slot_picker.xml",
+    "ui_xml/components/filament_slot_picker_choice.xml",
     "ui_xml/components/filament_slot_picker_row.xml",
     "ui_xml/components/filament_source_row.xml",
     "ui_xml/components/filament_spool_card.xml",
