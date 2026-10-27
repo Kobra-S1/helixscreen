@@ -582,6 +582,8 @@ TEST_CASE_METHOD(ControlLaneFixture, "calls after the lane has closed are not ru
     }
 }
 
+// The wpa_supplicant backend is Linux-only (wifi_backend_wpa_supplicant.h).
+#ifndef __APPLE__
 TEST_CASE_METHOD(ControlLaneFixture,
                  "the wpa_supplicant fallback does not hold the UI thread for the lane",
                  "[wifi][wifi_control_lane]") {
@@ -625,6 +627,7 @@ TEST_CASE_METHOD(ControlLaneFixture,
     CHECK_FALSE(*forgot);
     CHECK(g_forget_calls == 0);
 }
+#endif
 
 TEST_CASE_METHOD(ControlLaneFixture,
                  "a CONNECTED event does not leave another network's name in the cache",
@@ -725,6 +728,8 @@ TEST_CASE_METHOD(ControlLaneFixture,
     CHECK(cached.ssid.empty());
 }
 
+// The wpa_supplicant backend is Linux-only (wifi_backend_wpa_supplicant.h).
+#ifndef __APPLE__
 TEST_CASE_METHOD(ControlLaneFixture, "the wpa_supplicant fallback starts with the breaker closed",
                  "[wifi][wifi_control_lane][wifi_breaker]") {
     WiFiManagerTestAccess::set_breaker_config(*wm, {50, 3, 400, 2000});
@@ -743,6 +748,7 @@ TEST_CASE_METHOD(ControlLaneFixture, "the wpa_supplicant fallback starts with th
     backend = nullptr; // freed by the swap
     CHECK_FALSE(WiFiManagerTestAccess::breaker_open(*wm));
 }
+#endif
 
 TEST_CASE_METHOD(ControlLaneFixture,
                  "a user op that finishes after its deadline still refreshes the UI",
