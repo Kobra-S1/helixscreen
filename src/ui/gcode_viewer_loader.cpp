@@ -586,7 +586,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 // PHASE 2: Budget-aware 3D geometry build.
                 // Built at load time only when 3D is the active render mode. The 2D path
                 // skips this (saves CPU + memory); if the user later switches to 3D the
-                // build runs on demand from ui_gcode_viewer_set_render_mode().
+                // build runs on demand from helix::ui::gcode_viewer_set_render_mode().
                 // Segments are deliberately retained even after the build so the 2D
                 // renderer can walk them when the user switches back.
                 if (!st->is_using_2d_mode()) {
@@ -737,12 +737,12 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     });
 }
 
-void ui_gcode_viewer_load_file(lv_obj_t* obj, const char* file_path) {
+void helix::ui::gcode_viewer_load_file(lv_obj_t* obj, const char* file_path) {
     // Use async version by default
     ui_gcode_viewer_load_file_async(obj, file_path);
 }
 
-bool helix::ui_gcode_viewer_would_stream(lv_obj_t* obj, const std::string& file_path) {
+bool helix::ui::gcode_viewer_would_stream(lv_obj_t* obj, const std::string& file_path) {
     const gcode_viewer_state_t* st = get_state(obj);
     if (st == nullptr) {
         return false;
@@ -750,7 +750,7 @@ bool helix::ui_gcode_viewer_would_stream(lv_obj_t* obj, const std::string& file_
     return load_streams(st, helix::text_io::file_size(file_path).value_or(0));
 }
 
-void helix::ui_gcode_viewer_set_layer_index_sidecar(lv_obj_t* obj, std::string sidecar) {
+void helix::ui::gcode_viewer_set_layer_index_sidecar(lv_obj_t* obj, std::string sidecar) {
     if (gcode_viewer_state_t* st = get_state(obj)) {
         st->layer_index_sidecar_ = std::move(sidecar);
     }

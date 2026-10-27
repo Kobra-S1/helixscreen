@@ -49,7 +49,7 @@ class PrintStatusPreviewFixture : public LVGLTestFixture {
 
         // The streaming completion path sizes its 2D renderer from the widget's
         // coords, so the viewer gets a real size.
-        viewer_ = ui_gcode_viewer_create(test_screen());
+        viewer_ = helix::ui::gcode_viewer_create(test_screen());
         REQUIRE(viewer_ != nullptr);
         lv_obj_set_size(viewer_, 240, 240);
         lv_obj_update_layout(viewer_);
@@ -59,7 +59,7 @@ class PrintStatusPreviewFixture : public LVGLTestFixture {
     ~PrintStatusPreviewFixture() override {
         // The viewer's load callback points at the panel, so the viewer goes first.
         PrintStatusPanelTestAccess::set_gcode_viewer(*panel_, nullptr);
-        ui_gcode_viewer_clear(viewer_);
+        helix::ui::gcode_viewer_clear(viewer_);
         lv_obj_delete(viewer_);
         process_lvgl(50);
         panel_.reset();

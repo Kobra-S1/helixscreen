@@ -44,7 +44,7 @@ bool apply_preview_render_mode(lv_obj_t* viewer, const char* log_tag) {
     const auto decision = live_preview_mode();
 
     if (decision.apply) {
-        ui_gcode_viewer_set_render_mode(viewer, decision.mode);
+        helix::ui::gcode_viewer_set_render_mode(viewer, decision.mode);
     }
 
     switch (decision.source) {
@@ -55,7 +55,7 @@ bool apply_preview_render_mode(lv_obj_t* viewer, const char* log_tag) {
     case PreviewModeSource::Environment:
         // decide_render_mode() already applied this at widget creation.
         spdlog::debug("[{}]   ✓ G-code render mode: {} (env var)", log_tag,
-                      ui_gcode_viewer_is_using_2d_mode(viewer) ? "2D" : "3D");
+                      helix::ui::gcode_viewer_is_using_2d_mode(viewer) ? "2D" : "3D");
         break;
     case PreviewModeSource::Settings:
         spdlog::debug("[{}]   ✓ Set G-code render mode: {} (settings)", log_tag,
@@ -83,7 +83,7 @@ void set_preview_bottom_occluder(lv_obj_t* viewer, lv_obj_t* occluder) {
     if (!viewer) {
         return;
     }
-    ui_gcode_viewer_set_bottom_occluder(viewer, occluder);
+    helix::ui::gcode_viewer_set_bottom_occluder(viewer, occluder);
 }
 
 } // namespace helix::ui

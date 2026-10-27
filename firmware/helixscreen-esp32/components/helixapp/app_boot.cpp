@@ -210,7 +210,7 @@ HostPort parse_moonraker_kconfig_url(const std::string& url) {
 
 // Register the custom C++ widgets the XML components extend. Same set as the
 // desktop register_widgets() phase (application.cpp:1517) minus the subsystems
-// gated off for v1 (camera/gcode-3D/etc.). ui_gcode_viewer_register() resolves
+// gated off for v1 (camera/gcode-3D/etc.). helix::ui::gcode_viewer_register() resolves
 // to the no-op #else branch in ui_gcode_viewer.cpp on ESP (HELIX_HAS_GCODE_
 // VIEWER=0) — it still registers a stub <gcode_viewer> widget so XML that names
 // it parses.
@@ -226,7 +226,7 @@ void register_widgets() {
     ui_severity_card_register();
     ui_dialog_register();
     ui_bed_mesh_register();
-    ui_gcode_viewer_register();
+    helix::ui::gcode_viewer_register();
     ui_gradient_canvas_register();
     helix::ui::register_helix_sparkline_widget();
     helix::ui::register_humidity_drop_widget();

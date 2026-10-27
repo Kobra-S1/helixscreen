@@ -1042,7 +1042,7 @@ int Application::run(int argc, char** argv) {
                 if (level >= helix::MemoryPressureLevel::critical) {
                     helix::ui::queue_update("Application::run", []() {
                         crash_handler::breadcrumb::note("gcode_viewer", "pressure_clear");
-                        ui_gcode_viewer_clear_all_active();
+                        helix::ui::gcode_viewer_clear_all_active();
                     });
                 }
             });
@@ -1743,7 +1743,7 @@ bool Application::register_widgets() {
     ui_severity_card_register();
     ui_dialog_register();
     ui_bed_mesh_register();
-    ui_gcode_viewer_register();
+    helix::ui::gcode_viewer_register();
     ui_gradient_canvas_register();
     helix::ui::register_helix_sparkline_widget();
     helix::ui::register_humidity_drop_widget();

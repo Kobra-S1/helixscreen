@@ -326,7 +326,7 @@ void ExcludeObjectSideList::on_row_clicked(lv_event_t* e) {
     // has no modal to follow, so it leaves the viewer alone.
     if (self->gcode_viewer_ && self->tap_mode_ == ExcludeTapMode::ExcludeOnly) {
         std::unordered_set<std::string> highlight = {std::string(name)};
-        ui_gcode_viewer_set_highlighted_objects(self->gcode_viewer_, highlight);
+        helix::ui::gcode_viewer_set_highlighted_objects(self->gcode_viewer_, highlight);
     }
 
     self->on_object_tapped_(std::string(name));

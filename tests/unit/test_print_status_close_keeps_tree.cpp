@@ -272,7 +272,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture,
     lv_obj_t* viewer = PrintStatusPanelTestAccess::gcode_viewer(panel());
     REQUIRE(viewer != nullptr);
     // A print on screen has its viewer rendering.
-    ui_gcode_viewer_set_paused(viewer, false);
+    helix::ui::gcode_viewer_set_paused(viewer, false);
 
     NavigationManagerTestAccess::switch_to_panel(NavigationManager::instance(), PanelId::Home);
     settle();
@@ -282,7 +282,7 @@ TEST_CASE_METHOD(PrintStatusCloseFixture,
     // A hidden viewer left rendering stalls its 2D catch-up, and the stall
     // watchdog then reports a failed preview load on whatever screen is showing.
     CHECK_FALSE(PrintStatusPanelTestAccess::is_active(panel()));
-    CHECK(ui_gcode_viewer_is_paused(viewer));
+    CHECK(helix::ui::gcode_viewer_is_paused(viewer));
 }
 
 TEST_CASE_METHOD(PrintStatusCloseFixture, "A connection-loss close decides like any other close",

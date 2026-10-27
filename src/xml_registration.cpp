@@ -425,7 +425,7 @@ void register_xml_components() {
                                                       StaticSubjectRegistry::Lifetime::Process);
 
     // Register custom widgets (BEFORE components that use them)
-    ui_gcode_viewer_register();
+    helix::ui::gcode_viewer_register();
     ui_spool_canvas_register();       // Needed by Spoolman panel (and AMS panel)
     ui_hsv_picker_register();         // HSV color picker for edit filament modal
     ui_z_offset_indicator_register(); // Z-offset nozzle indicator

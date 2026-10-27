@@ -68,7 +68,7 @@ static void long_press_timer_cb(lv_timer_t* timer) {
         // Highlight the object to provide visual feedback
         st->selected_objects.clear();
         st->selected_objects.insert(picked);
-        ui_gcode_viewer_set_highlighted_objects(obj, st->selected_objects);
+        helix::ui::gcode_viewer_set_highlighted_objects(obj, st->selected_objects);
 
         spdlog::info("[GCode Viewer] Long-press on object '{}'", picked);
 
@@ -307,7 +307,7 @@ static void gcode_viewer_release_cb(lv_event_t* e) {
             }
 
             // Update highlighting to show all selected objects
-            ui_gcode_viewer_set_highlighted_objects(obj, st->selected_objects);
+            helix::ui::gcode_viewer_set_highlighted_objects(obj, st->selected_objects);
 
             // Invoke tap callback if registered (for exclude object UI)
             if (st->object_tap_callback) {

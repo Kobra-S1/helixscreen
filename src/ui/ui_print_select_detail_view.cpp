@@ -346,7 +346,7 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
     gcode_viewer_ = lv_obj_find_by_name(overlay_root_, "detail_gcode_viewer");
     if (gcode_viewer_) {
         spdlog::debug("[DetailView] G-code viewer widget found");
-        ui_gcode_viewer_disable_streaming(gcode_viewer_);
+        helix::ui::gcode_viewer_disable_streaming(gcode_viewer_);
 
         helix::ui::apply_preview_render_mode(gcode_viewer_, "DetailView");
 
@@ -361,15 +361,15 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
         // not a jump in size or position. Parity mode ignores the occluder for
         // the fit; the occluder stays set because its measurement still drives
         // the content-offset refresh plumbing.
-        ui_gcode_viewer_set_thumbnail_parity(gcode_viewer_, true);
+        helix::ui::gcode_viewer_set_thumbnail_parity(gcode_viewer_, true);
 
         // Start paused — will resume in on_activate()
-        ui_gcode_viewer_set_paused(gcode_viewer_, true);
+        helix::ui::gcode_viewer_set_paused(gcode_viewer_, true);
 
-        // Memory-pressure responder calls ui_gcode_viewer_clear_all_active();
+        // Memory-pressure responder calls helix::ui::gcode_viewer_clear_all_active();
         // flip the mode subject back to thumbnail so the user sees the slicer
         // preview rather than a transparent rectangle.
-        ui_gcode_viewer_set_clear_callback(
+        helix::ui::gcode_viewer_set_clear_callback(
             gcode_viewer_,
             [](lv_obj_t*, void* ud) {
                 auto* self = static_cast<PrintSelectDetailView*>(ud);
@@ -990,8 +990,8 @@ void PrintSelectDetailView::on_deactivating(DeactivateReason reason) {
     // Clear and pause gcode viewer immediately so the old model doesn't
     // linger when the user selects a different file
     if (gcode_viewer_) {
-        ui_gcode_viewer_clear(gcode_viewer_);
-        ui_gcode_viewer_set_paused(gcode_viewer_, true);
+        helix::ui::gcode_viewer_clear(gcode_viewer_);
+        helix::ui::gcode_viewer_set_paused(gcode_viewer_, true);
     }
 
     // Reset viewer mode to thumbnail so next open starts clean
@@ -1044,9 +1044,9 @@ void PrintSelectDetailView::disarm_viewer_callbacks() {
     if (!gcode_viewer_) {
         return;
     }
-    ui_gcode_viewer_set_first_frame_callback(gcode_viewer_, nullptr, nullptr);
-    ui_gcode_viewer_set_load_callback(gcode_viewer_, nullptr, nullptr);
-    ui_gcode_viewer_set_clear_callback(gcode_viewer_, nullptr, nullptr);
+    helix::ui::gcode_viewer_set_first_frame_callback(gcode_viewer_, nullptr, nullptr);
+    helix::ui::gcode_viewer_set_load_callback(gcode_viewer_, nullptr, nullptr);
+    helix::ui::gcode_viewer_set_clear_callback(gcode_viewer_, nullptr, nullptr);
 }
 
 void PrintSelectDetailView::cleanup() {
@@ -1055,7 +1055,7 @@ void PrintSelectDetailView::cleanup() {
 
     // Pause viewer before subject cleanup to avoid rendering with freed subjects.
     if (gcode_viewer_) {
-        ui_gcode_viewer_set_paused(gcode_viewer_, true);
+        helix::ui::gcode_viewer_set_paused(gcode_viewer_, true);
     }
     disarm_viewer_callbacks();
     // The prep manager outlives cleanup() and keeps scanning; its callbacks
@@ -1399,7 +1399,7 @@ void PrintSelectDetailView::poll_load_progress() {
     // it here and reveal on readiness. 3D is untouched: it stays visible under
     // the thumbnail because it uploads during the draw pass, and reveals from
     // its own first-frame callback.
-    if (is_2d && !revealed && ui_gcode_viewer_pump_offscreen_2d(gcode_viewer_)) {
+    if (is_2d && !revealed && helix::ui::gcode_viewer_pump_offscreen_2d(gcode_viewer_)) {
         spdlog::debug("[DetailView] Preview has content - revealing viewer");
         lv_subject_set_int(&detail_viewer_first_frame_, 1);
         refresh_viewer_visibility();
@@ -1416,7 +1416,7 @@ void PrintSelectDetailView::poll_load_progress() {
         return;
     }
 
-    const float fraction = ui_gcode_viewer_get_load_progress(gcode_viewer_);
+    const float fraction = helix::ui::gcode_viewer_get_load_progress(gcode_viewer_);
     // 0 is the XML's cue to keep showing the indeterminate spinner: the
     // full-load path reports nothing, and a streaming scan that has not reached
     // its first checkpoint has nothing honest to show either. Clamp the low end
@@ -1453,7 +1453,7 @@ void PrintSelectDetailView::show_gcode_viewer(bool show) {
     // real toolpath preview instead of falling back to the thumbnail.
     int mode = 0;
     if (show) {
-        const bool is_2d = gcode_viewer_ && ui_gcode_viewer_is_using_2d_mode(gcode_viewer_);
+        const bool is_2d = gcode_viewer_ && helix::ui::gcode_viewer_is_using_2d_mode(gcode_viewer_);
         mode = is_2d ? 2 : 1;
     }
     lv_subject_set_int(&detail_gcode_viewer_mode_, mode);
@@ -1522,7 +1522,7 @@ void PrintSelectDetailView::apply_preview_colors() {
 
     const auto colors = helix::FilamentMapper::effective_tool_colors(tools, mappings, slots);
     if (!colors.empty()) {
-        ui_gcode_viewer_set_tool_colors(gcode_viewer_, colors);
+        helix::ui::gcode_viewer_set_tool_colors(gcode_viewer_, colors);
         lv_obj_invalidate(gcode_viewer_);
     }
 }
@@ -1576,7 +1576,7 @@ void PrintSelectDetailView::try_extract_gcode_colors(lv_obj_t* viewer) {
     // PrintStatusPanel, which needs the identical backfill for its cached-file
     // fast path — one helper so the two print surfaces cannot recover different
     // palettes for the same file.
-    if (ui_gcode_viewer_adopt_palette_if_empty(viewer, current_filament_colors_)) {
+    if (helix::ui::gcode_viewer_adopt_palette_if_empty(viewer, current_filament_colors_)) {
         // Rebuild the mapping card's internal tool/slot/mapping state with the
         // newly-extracted colors (the card uses them when AMS is present). The
         // filament_mismatch_ / empty_tools_warning_ subjects are NOT published
@@ -1620,7 +1620,7 @@ void PrintSelectDetailView::try_extract_gcode_colors(lv_obj_t* viewer) {
     // set poison from the other direction. The headless scan's settle flag stays
     // the one signal that a streamed file's answer is done.
     const bool set_is_authoritative =
-        ui_gcode_viewer_get_parsed_file(viewer) != nullptr || headless_scan_settled_;
+        helix::ui::gcode_viewer_get_parsed_file(viewer) != nullptr || headless_scan_settled_;
     if (set_is_authoritative) {
         helix::tools_used_cache().store(current_file_key(), current_file_version_,
                                         tools_used_effective());
@@ -1769,7 +1769,7 @@ void PrintSelectDetailView::recompute_preflight() {
 }
 
 std::set<int> PrintSelectDetailView::tools_used_effective() const {
-    // Prefer whatever the viewer read off the file. ui_gcode_viewer_get_tools_used()
+    // Prefer whatever the viewer read off the file. helix::ui::gcode_viewer_get_tools_used()
     // owns that source choice for BOTH print surfaces — parsed file on a full
     // load, layer-index scan when streaming — including the single-extruder {0}
     // convention, so a file answers identically here and in the live render
@@ -1780,7 +1780,7 @@ std::set<int> PrintSelectDetailView::tools_used_effective() const {
     // Fall back to the headless scan: it is the only source on a 2D-only build
     // where no viewer exists at all, and it lands first on a cache hit.
     if (gcode_viewer_) {
-        const std::set<int> from_viewer = ui_gcode_viewer_get_tools_used(gcode_viewer_);
+        const std::set<int> from_viewer = helix::ui::gcode_viewer_get_tools_used(gcode_viewer_);
         if (!from_viewer.empty()) {
             return from_viewer;
         }
@@ -2065,7 +2065,7 @@ void PrintSelectDetailView::refresh_exclude_objects() {
     }
     // An open view shown for another file still holds the previous file's parse.
     const auto* parsed = gcode_viewer_ && viewer_file_ == current_filename_
-                             ? ui_gcode_viewer_get_parsed_file(gcode_viewer_)
+                             ? helix::ui::gcode_viewer_get_parsed_file(gcode_viewer_)
                              : nullptr;
     exclude_objects_.set_defined_objects_with_geometry(
         helix::ui::object_infos_from(helix::ui::merge_defined_objects(scanned, parsed)));
@@ -2083,7 +2083,7 @@ helix::FitFile PrintSelectDetailView::get_fit_file() const {
     // An open view shown for another file still holds the previous file's parse.
     std::optional<helix::FitBox> preview;
     if (gcode_viewer_ && viewer_file_ == current_filename_) {
-        preview = ui_gcode_viewer_get_model_bounds(gcode_viewer_);
+        preview = helix::ui::gcode_viewer_get_model_bounds(gcode_viewer_);
     }
     return helix::fit_file_from_sources(fit_record_, scan ? &scan->fit_head : nullptr,
                                         cached_file_metadata_, preview, tools_used_effective());
@@ -2211,7 +2211,7 @@ void PrintSelectDetailView::publish_exclude_picks() {
                   "%d", count);
     lv_subject_copy_string(&detail_exclude_pick_count_text_, detail_exclude_pick_count_text_buf_);
     if (gcode_viewer_) {
-        ui_gcode_viewer_set_excluded_objects(gcode_viewer_, {picks.begin(), picks.end()});
+        helix::ui::gcode_viewer_set_excluded_objects(gcode_viewer_, {picks.begin(), picks.end()});
     }
 }
 
@@ -2432,7 +2432,7 @@ void PrintSelectDetailView::load_gcode_for_preview() {
     }
 
     // Clear previous model so stale frames don't flash when viewer becomes visible
-    ui_gcode_viewer_clear(gcode_viewer_);
+    helix::ui::gcode_viewer_clear(gcode_viewer_);
 
     // Reset first-frame flag: the thumbnail stays on top until the viewer
     // renders, then the first-frame callback flips this to reveal it.
@@ -2441,7 +2441,7 @@ void PrintSelectDetailView::load_gcode_for_preview() {
 
     // Register one-shot callback: fires after the viewer's first complete
     // render, at which point we hide the thumbnail (revealing the viewer).
-    ui_gcode_viewer_set_first_frame_callback(
+    helix::ui::gcode_viewer_set_first_frame_callback(
         gcode_viewer_,
         [](lv_obj_t* /*viewer*/, void* user_data, bool /*success*/) {
             auto* self = static_cast<PrintSelectDetailView*>(user_data);
@@ -2588,7 +2588,7 @@ void PrintSelectDetailView::load_gcode_for_preview() {
                                  helix::kFileAnalysisFeature, helix::kFileAnalysisMinVersion)
                            : helix::PluginFeatureState::Absent,
             helix::gcode::join_gcode_path(current_path_, current_filename_),
-            helix::ui_gcode_viewer_would_stream(gcode_viewer_, path), tok,
+            helix::ui::gcode_viewer_would_stream(gcode_viewer_, path), tok,
             [this, key, path](std::string sidecar) {
                 if (key == current_file_key()) {
                     begin_viewer_load(path, std::move(sidecar));
@@ -2606,7 +2606,7 @@ void PrintSelectDetailView::begin_viewer_load(const std::string& path,
     viewer_file_ = current_filename_;
     // Set up the (single) load callback, then load the file. The body was
     // identical in the former cached-file and post-download paths.
-    ui_gcode_viewer_set_load_callback(
+    helix::ui::gcode_viewer_set_load_callback(
         gcode_viewer_,
         [](lv_obj_t* viewer, void* user_data, bool success) {
             auto* self = static_cast<PrintSelectDetailView*>(user_data);
@@ -2627,7 +2627,7 @@ void PrintSelectDetailView::begin_viewer_load(const std::string& path,
             self->publish_mapping_ready();
 
             // Show all layers, no ghost (preview = full model)
-            ui_gcode_viewer_set_print_progress(viewer, -1);
+            helix::ui::gcode_viewer_set_print_progress(viewer, -1);
 
             // Apply preview colors respecting the sliced/actual toggle
             // (default actual: AMS/slicer base then mapped overrides).
@@ -2650,23 +2650,23 @@ void PrintSelectDetailView::begin_viewer_load(const std::string& path,
 
             // A parse that found no layers has nothing to draw, and revealing
             // it would hide the thumbnail behind an empty viewer.
-            if (ui_gcode_viewer_get_layer_count(viewer) == 0) {
+            if (helix::ui::gcode_viewer_get_layer_count(viewer) == 0) {
                 spdlog::debug("[DetailView] G-code has no layers - keeping thumbnail");
                 self->show_gcode_viewer(false);
                 return;
             }
 
             // Unpause, show, then reset camera (must be visible for layout)
-            ui_gcode_viewer_set_paused(viewer, false);
+            helix::ui::gcode_viewer_set_paused(viewer, false);
             self->show_gcode_viewer(true);
             lv_obj_update_layout(viewer);
-            ui_gcode_viewer_reset_camera(viewer);
+            helix::ui::gcode_viewer_reset_camera(viewer);
 
             spdlog::debug("[DetailView] G-code preview loaded successfully");
         },
         this);
-    ui_gcode_viewer_set_layer_index_sidecar(gcode_viewer_, std::move(layer_index_sidecar));
-    ui_gcode_viewer_load_file(gcode_viewer_, path.c_str());
+    helix::ui::gcode_viewer_set_layer_index_sidecar(gcode_viewer_, std::move(layer_index_sidecar));
+    helix::ui::gcode_viewer_load_file(gcode_viewer_, path.c_str());
 }
 
 // ============================================================================

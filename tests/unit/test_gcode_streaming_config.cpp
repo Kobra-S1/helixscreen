@@ -200,7 +200,7 @@ TEST_CASE("threshold_mb streams files above it even when RAM would allow a full 
 // ============================================================================
 
 /**
- * PrintSelectDetailView calls ui_gcode_viewer_disable_streaming() so a
+ * PrintSelectDetailView calls helix::ui::gcode_viewer_disable_streaming() so a
  * 3D-preferred screen gets the full-load path. That opt-out was unconditional,
  * and on a build with no 3D renderer it forced the same full-load path with
  * nothing to render into and no budget of its own.
