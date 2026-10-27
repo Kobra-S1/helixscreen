@@ -895,20 +895,16 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
 
                                 // Seed probe sensor z_offset from configfile (some probe
                                 // modules like flashforge_loadcell return null in status).
-                                // Accelerometers have no get_status(), so configfile.config
-                                // is the ONLY place they appear — this is the sole caller
-                                // that fills AccelSensorManager, which Settings > Sensors,
-                                // telemetry and detect_belt_hardware() all read.
-                                // Both must run on main thread: they set LVGL subjects
-                                // (probe_z_offset, accel_count). discover_from_config() rebuilds
-                                // its list from scratch, so a reconnect re-run cannot duplicate.
+                                // Accelerometers have no get_status(); their config sections
+                                // reach AccelSensorManager through hardware_.parse_config_keys()
+                                // above and the registry's discover() pass.
+                                // This must run on the main thread: it sets LVGL subjects
+                                // (probe_z_offset).
                                 nlohmann::json cfg_for_sensors = cfg;
                                 helix::ui::queue_update(
                                     "MoonrakerDiscoverySequence::continue_discovery_objects",
                                     [cfg_for_sensors]() {
                                         helix::sensors::ProbeSensorManager::instance()
-                                            .discover_from_config(cfg_for_sensors);
-                                        helix::sensors::AccelSensorManager::instance()
                                             .discover_from_config(cfg_for_sensors);
                                         helix::sensors::InputSensorManager::instance()
                                             .discover_from_config(cfg_for_sensors);

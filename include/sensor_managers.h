@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "accel_sensor_manager.h"
 #include "filament_sensor_manager.h"
 #include "humidity_sensor_manager.h"
 #include "input_sensor_manager.h"
@@ -21,7 +20,6 @@ template <typename Fn> void for_each_sensor_manager(Fn&& fn) {
     fn(FilamentSensorManager::instance());
     fn(HumiditySensorManager::instance());
     fn(ProbeSensorManager::instance());
-    fn(AccelSensorManager::instance());
     fn(TemperatureSensorManager::instance());
     fn(LoadCellManager::instance());
     fn(InputSensorManager::instance());
