@@ -108,7 +108,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
 
     // Empty inputs clear whatever the previous persona left behind.
     tsm.discover({});
-    lcm.discover({});
+    lcm.discover(PrinterDiscovery{});
     psm.discover({});
     hsm.discover({});
     wsm.discover(PrinterDiscovery{});
@@ -118,7 +118,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
 
     fsm.discover_sensors(hw.filament_sensor_names());
     tsm.discover(helix::temperature_sensor_objects(hw));
-    lcm.discover(hw.load_cells());
+    lcm.discover(hw);
     psm.discover(hw.printer_objects());
     hsm.discover(hw.printer_objects());
     wsm.discover(hw);
@@ -136,8 +136,19 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     m["temperature"] = manager_entry(entries_of(
         tsm.get_sensors(), [](const auto& s) { return temp_role_to_string(s.role); },
         [](const auto& s) { return temp_type_to_string(s.type); }));
+    struct LoadCellRow {
+        std::string klipper_name;
+        std::string sensor_name;
+        helix::sensors::LoadCellRole role;
+    };
+    std::vector<LoadCellRow> load_cell_rows;
+    for (const auto& e : lcm.get_sensors_sorted()) {
+        load_cell_rows.push_back({e.klipper_name,
+                                  helix::hw::classify_object(e.klipper_name).instance,
+                                  static_cast<LoadCellRole>(e.role)});
+    }
     m["load_cell"] = manager_entry(entries_of(
-        lcm.get_sensors_sorted(), [](const auto& s) { return load_cell_role_to_string(s.role); },
+        load_cell_rows, [](const auto& s) { return load_cell_role_to_string(s.role); },
         [](const auto&) { return std::string(); }));
     m["probe"] = manager_entry(entries_of(
         psm.get_sensors(), [](const auto& s) { return probe_role_to_string(s.role); },
@@ -172,7 +183,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     // Leave nothing behind for the next test in this process.
     fsm.discover_sensors({});
     tsm.discover({});
-    lcm.discover({});
+    lcm.discover(PrinterDiscovery{});
     psm.discover({});
     hsm.discover({});
     wsm.discover(PrinterDiscovery{});

@@ -23,7 +23,6 @@ template <typename Fn> void for_each_sensor_manager(Fn&& fn) {
     fn(ProbeSensorManager::instance());
     fn(AccelSensorManager::instance());
     fn(TemperatureSensorManager::instance());
-    fn(LoadCellManager::instance());
     fn(InputSensorManager::instance());
 }
 

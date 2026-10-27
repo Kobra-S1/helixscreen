@@ -16,6 +16,7 @@
 #include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "chamber_assignment_options.h"
+#include "device_display_name.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "humidity_sensor_manager.h"
@@ -683,15 +684,17 @@ void SensorSettingsOverlay::populate_load_cells() {
     // Create a row for each load cell using XML component
     for (const auto& sensor : sensors) {
         // Create sensor row from XML component
-        const char* attrs[] = {"sensor_name", sensor.display_name.c_str(), nullptr};
+        const std::string shown =
+            helix::get_display_name(sensor.klipper_name, DeviceType::LOAD_CELL);
+        const char* attrs[] = {"sensor_name", shown.c_str(), nullptr};
         auto* row = static_cast<lv_obj_t*>(lv_xml_create(sensors_list, "load_cell_row", attrs));
         if (!row) {
             spdlog::error("[{}] Failed to create sensor row for {}", get_name(),
-                          sensor.sensor_name);
+                          sensor.klipper_name);
             continue;
         }
 
-        spdlog::debug("[{}]   Created row for load_cell: {}", get_name(), sensor.sensor_name);
+        spdlog::debug("[{}]   Created row for load_cell: {}", get_name(), sensor.klipper_name);
     }
 }
 

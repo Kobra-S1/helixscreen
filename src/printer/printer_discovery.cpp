@@ -12,7 +12,6 @@
 #include "input_sensor_manager.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
-#include "load_cell_manager.h"
 #include "moonraker_api.h"
 #include "printer_name_sync.h"
 #include "probe_sensor_manager.h"
@@ -73,11 +72,6 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
 
     auto& tsm = helix::sensors::TemperatureSensorManager::instance();
     tsm.discover(temperature_sensor_objects(hardware));
-
-    // Initialize load cell manager
-    // hardware.load_cells() returns load_cell objects
-    auto& lcm = helix::sensors::LoadCellManager::instance();
-    lcm.discover(hardware.load_cells());
 
     // Initialize probe sensor manager
     // Probe sensors (bltouch, cartographer, beacon, etc.) are discovered from the full objects list
