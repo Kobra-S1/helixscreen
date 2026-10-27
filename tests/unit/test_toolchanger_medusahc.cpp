@@ -325,7 +325,7 @@ TEST_CASE("A plain tool changer selects with SELECT_TOOL", "[ams][toolchanger][c
     auto err = tc.change_tool(2);
     REQUIRE(err.success());
     REQUIRE_FALSE(tc.sent().empty());
-    CHECK(tc.sent().back() == "SELECT_TOOL T=2");
+    CHECK(tc.sent().back() == "SELECT_TOOL TOOL=\"tool T2\"");
 }
 
 TEST_CASE("A changer without klipper-toolchanger selects with its own macro",
@@ -1396,7 +1396,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Beside klipper-toolchanger, tool_number follo
     MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
     REQUIRE(mock.sync_medusa_toolchanger_tool() == 0);
 
-    REQUIRE(mock.gcode_script("SELECT_TOOL T=2") == 0);
+    REQUIRE(mock.gcode_script("SELECT_TOOL TOOL=\"tool T2\"") == 0);
     run_medusa_to_rest(mock);
     CHECK(mock.sync_medusa_toolchanger_tool() == 2);
     json response;

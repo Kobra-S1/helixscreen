@@ -5,6 +5,7 @@
 #include "gcode_parser.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
+#include "text_io.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -134,7 +135,12 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_medusa(const std::st
         return swap(tool, /*close_after=*/true);
     }
     if (cmd == "SELECT_TOOL") {
-        if (const int tool = tool_param(); tool >= 0) {
+        // TOOL="tool T<n>" names the tool object; T=<n> is a tool number.
+        int tool = tool_param();
+        if (const size_t named = gcode.find("TOOL=\"tool T"); named != std::string::npos) {
+            tool = helix::text_io::parse_leading<int>(gcode.substr(named + 12)).value_or(-1);
+        }
+        if (tool >= 0) {
             return swap(tool, /*close_after=*/true);
         }
         return 0;

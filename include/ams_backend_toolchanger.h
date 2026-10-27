@@ -290,10 +290,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
      * @brief Mount a physical toolhead. The argument is a SLOT INDEX.
      *
      * Named `tool_number` only because the base signature is, and validated as a
-     * slot: the implementation emits `SELECT_TOOL T={n}`, which resolves through
-     * the toolchanger's own list and therefore BYPASSES ASSIGN_TOOL remapping.
-     * That is deliberate — a tap on lane 2 must mount the toolhead the user
-     * tapped, not whichever physical tool the slicer's T2 was reassigned to.
+     * slot: the implementation emits `SELECT_TOOL TOOL="tool <name>"`, which
+     * names the physical tool and therefore BYPASSES ASSIGN_TOOL remapping
+     * (`SELECT_TOOL T=<n>` would not: T= is a tool number, looked up in the
+     * table ASSIGN_TOOL writes). That is deliberate — a tap on lane 2 must mount the toolhead the
+     * user tapped, not whichever physical tool the slicer's T2 was reassigned to.
      *
      * So on this backend a tool number and a slot index are NOT
      * interchangeable, and anything that has to cross between them goes through
@@ -434,6 +435,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     // Recovery
     AmsError recover() override;
     AmsError reset() override;
+    /// Both send INITIALIZE_TOOLCHANGER, which exists only with klipper-toolchanger.
+    [[nodiscard]] bool reset_available() const override;
+    [[nodiscard]] bool recover_available() const override;
     AmsError cancel() override;
     /// Also drops the optimistic dispatch, which would otherwise read the
     /// first idle frame after the restart as the middle of an operation, and
@@ -655,6 +659,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     void unregister_mount_feed_listener();
     /// The command that mounts @p slot_index, and the one that parks.
     [[nodiscard]] std::string mount_gcode(int slot_index) const;
+    /// The TOOL= argument naming the [tool @p tool_name] object, for
+    /// klipper-toolchanger's SELECT_TOOL and ASSIGN_TOOL.
+    [[nodiscard]] static std::string tool_object_arg(const std::string& tool_name);
+    /// The refusal a swap gets while the dock sensors cannot identify the tool.
+    [[nodiscard]] static AmsError sensor_fault_refusal(const char* operation);
     [[nodiscard]] std::string park_gcode() const;
 
     bool mounts_to_feed_ = false;
@@ -714,6 +723,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// of it: set only by a failed operation, so a last_error beside a clear
     /// latch (a failed initialization) is no tool change failure.
     bool controller_failure_latched_ = false;
+    /// topi314's fork reported `state: error`: its own failure, not a dock
+    /// sensor's, so a retry is the controller's to accept. Cleared by the next
+    /// phase word.
+    bool controller_fault_ = false;
+    /// The fork's `error` flag as last published (Moonraker sends deltas).
+    bool controller_error_flag_ = false;
     /// The failure already put in front of the user, by this toast or by a
     /// mount-to-feed run's own, so one failure is told once.
     std::string controller_failure_noticed_;

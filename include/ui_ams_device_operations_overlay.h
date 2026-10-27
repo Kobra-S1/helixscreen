@@ -210,6 +210,11 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// change, since what the backend can cancel follows what it is running.
     lv_subject_t can_abort_subject_{};
 
+    /// Subjects enabling Home and Recover (0=disabled, 1=enabled), from
+    /// AmsBackend::reset_available() / recover_available() on refresh.
+    lv_subject_t can_home_subject_{};
+    lv_subject_t can_recover_subject_{};
+
     /// ams_device_detail_rows() as "Label: value" lines, "" when there are none.
     lv_subject_t details_subject_{};
     char details_buf_[512] = {};

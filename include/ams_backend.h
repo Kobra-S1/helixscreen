@@ -1302,9 +1302,9 @@ class AmsBackend {
      *     carriage and feeds nothing. load_filament() names that as its first
      *     wrong answer; AUTO_FEEDING already targets any extruder directly.
      *   - Toolchanger: the swap arm dispatches change_tool(mapped_tool), but
-     *     change_tool() validates its argument as a SLOT and emits
-     *     `SELECT_TOOL T={n}` precisely to bypass ASSIGN_TOOL remapping — so a
-     *     remapped tool would mount the wrong physical toolhead.
+     *     change_tool() validates its argument as a SLOT and names that slot's
+     *     physical tool, bypassing ASSIGN_TOOL remapping — so a remapped tool
+     *     number would mount the wrong physical toolhead.
      * This is the PARALLEL-appropriate rule deferred in #1199.
      *
      * @param info        Backend system info snapshot.
@@ -1692,6 +1692,23 @@ class AmsBackend {
      */
     [[nodiscard]] bool supports_reset() const {
         return traits().supports_reset;
+    }
+
+    /**
+     * @brief Whether reset() has a command to send on this machine.
+     *
+     * A runtime answer, unlike supports_reset(): one backend can drive machines
+     * where the command exists and machines where it does not. The device
+     * operations overlay's Home button follows it.
+     */
+    [[nodiscard]] virtual bool reset_available() const {
+        return true;
+    }
+
+    /// Whether recover() has a command to send on this machine. The device
+    /// operations overlay's Recover button follows it.
+    [[nodiscard]] virtual bool recover_available() const {
+        return true;
     }
 
     /**

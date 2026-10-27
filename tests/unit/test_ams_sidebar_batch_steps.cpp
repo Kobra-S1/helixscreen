@@ -232,7 +232,7 @@ TEST_CASE_METHOD(BatchStepsFixture,
     CHECK(AmsState::instance().get_active_step_operation() == StepOperationType::LOAD_FRESH);
     const auto shown = labels();
     REQUIRE(shown.size() == helix::mount_feed::bar_rows(/*load=*/true, 3).size());
-    CHECK(shown.front() == "Tool 1 of 3: Insert filament");
+    CHECK(shown.front() == "Tool 2 (1/3): Insert filament");
 }
 
 TEST_CASE_METHOD(BatchStepsFixture,
@@ -245,8 +245,8 @@ TEST_CASE_METHOD(BatchStepsFixture,
     CHECK(AmsState::instance().get_active_step_operation() == StepOperationType::UNLOAD);
     const auto shown = labels();
     REQUIRE(shown.size() == helix::mount_feed::bar_rows(/*load=*/false, 3).size());
-    CHECK(shown.front() == "Tool 1 of 3: Mount tool");
-    CHECK(shown[2] == "Tool 1 of 3: Retract filament");
+    CHECK(shown.front() == "Tool 1 (1/3): Mount tool");
+    CHECK(shown[2] == "Tool 1 (1/3): Retract filament");
 }
 
 TEST_CASE_METHOD(BatchStepsFixture, "The heat row reads the heater of the tool it heats",
@@ -263,7 +263,7 @@ TEST_CASE_METHOD(BatchStepsFixture, "The heat row reads the heater of the tool i
     pick(HeadPickOp::Unload, {2, 3});
     changer_->ack(); // Tool 3 mounted: Tool 3 heats
     auto shown = labels();
-    REQUIRE(shown[1].rfind("Tool 1 of 2: Heat nozzle ", 0) == 0);
+    REQUIRE(shown[1].rfind("Tool 3 (1/2): Heat nozzle ", 0) == 0);
     CHECK(shown[1].find("123") != std::string::npos);
     CHECK(shown[1].find("240") != std::string::npos);
     CHECK(shown[1].find("200") == std::string::npos);

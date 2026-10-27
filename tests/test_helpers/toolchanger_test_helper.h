@@ -8,6 +8,7 @@
 
 #include "ams_backend_toolchanger.h"
 #include "ams_types.h"
+#include "moonraker_error.h"
 
 #include <functional>
 #include <string>
@@ -51,6 +52,32 @@ template <typename Base> class GcodeCaptureBackend : public Base {
         return AmsErrorHelper::success();
     }
 
+    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
+                           std::function<void(const MoonrakerError&)> on_error,
+                           bool silent) override {
+        sent_.push_back(gcode);
+        (void)on_complete;
+        (void)silent;
+        last_on_error_ = std::move(on_error);
+        if (fail_gcode_) {
+            return AmsErrorHelper::command_failed(gcode, "simulated send failure");
+        }
+        return AmsErrorHelper::success();
+    }
+
+    /// Answer the last send that asked for an error callback with Klipper's
+    /// rejection, then run what the backend queued for the main thread.
+    void reject_last_send(MoonrakerErrorType type, const std::string& message) {
+        if (!last_on_error_) {
+            return;
+        }
+        MoonrakerError err;
+        err.type = type;
+        err.message = message;
+        last_on_error_(err);
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
     /// Make every subsequent execute_gcode() fail, to exercise the error legs.
     void set_fail_gcode(bool fail) {
         fail_gcode_ = fail;
@@ -71,6 +98,7 @@ template <typename Base> class GcodeCaptureBackend : public Base {
     /// read an empty history of everything else.
     std::vector<std::string> sent_;
     bool fail_gcode_ = false;
+    std::function<void(const MoonrakerError&)> last_on_error_;
 };
 
 class ToolChangerHelper : public GcodeCaptureBackend<AmsBackendToolChanger> {

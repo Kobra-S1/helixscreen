@@ -31,10 +31,12 @@
                 scrollable="false">
           <!-- Home Button -->
           <ui_button name="btn_home" icon="home" text="Home" flex_grow="1">
+            <bind_state_if_eq subject="ams_device_ops_can_home" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_ams_device_ops_home"/>
           </ui_button>
           <!-- Recover Button -->
           <ui_button name="btn_recover" icon="refresh" text="Recover" flex_grow="1">
+            <bind_state_if_eq subject="ams_device_ops_can_recover" state="disabled" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_ams_device_ops_recover"/>
           </ui_button>
           <!-- Abort Button -->

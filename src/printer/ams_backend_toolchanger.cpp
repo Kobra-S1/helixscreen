@@ -713,6 +713,12 @@ std::optional<helix::ErrorEvent> AmsBackendToolChanger::current_error() const {
                                            lv_tr("Dock sensors disagree"), detail,
                                            build_recovery_actions());
     }
+    if (controller_fault_) {
+        // The fork's `error` state carries no message of its own.
+        return helix::make_ams_fault_event(
+            helix::ErrorSource::TOOLCHANGER, lv_tr("Tool Change Failed"),
+            lv_tr("The filament system reported an error"), build_recovery_actions());
+    }
     if (!afclite_fault_message_.empty()) {
         // The shim's own fault, with the firmware's own wording: a message the
         // printer wrote is the most accurate text the dialog can show. Title is
@@ -861,13 +867,13 @@ void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
 }
 
 int AmsBackendToolChanger::slot_for_tool_locked(int tool) const {
-    if (tool < 0) {
+    // A dock reading counts physical docks, and slot i is physical tool i. The
+    // G-code tool map does not apply: ASSIGN_TOOL moves a T<n> number, never a
+    // hot end.
+    if (tool < 0 || tool >= static_cast<int>(tool_names_.size())) {
         return -1;
     }
-    const int mapped = tool < static_cast<int>(system_info_.tool_to_slot_map.size())
-                           ? system_info_.tool_to_slot_map[static_cast<size_t>(tool)]
-                           : -1;
-    return mapped < 0 ? tool : mapped;
+    return tool;
 }
 
 bool AmsBackendToolChanger::raw_sensor_fault_locked() const {
@@ -875,7 +881,16 @@ bool AmsBackendToolChanger::raw_sensor_fault_locked() const {
 }
 
 void AmsBackendToolChanger::apply_tool_sensor_locked(
-    const helix::toolchanger_addon::ToolReading& reading) {
+    const helix::toolchanger_addon::ToolReading& raw_reading) {
+    // A tool past the discovered set names no slot. It is read as a frame that
+    // did not name the carriage, so the last known tool stands.
+    helix::toolchanger_addon::ToolReading reading = raw_reading;
+    if (reading.current_tool && *reading.current_tool >= 0 && !tool_names_.empty() &&
+        *reading.current_tool >= static_cast<int>(tool_names_.size())) {
+        spdlog::warn("{} Dock sensors report tool {}, outside the {} discovered; ignored",
+                     backend_log_tag(), *reading.current_tool, tool_names_.size());
+        reading.current_tool.reset();
+    }
     // Captured BEFORE the phase branches below overwrite the action. The closing
     // grip of a swap and the resting closed gripper are the same wire state, and
     // the only thing separating them is whether an operation was running.
@@ -906,6 +921,13 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         if (controller_failure_.empty()) {
             controller_failure_noticed_.clear();
         }
+    }
+    // The fork's `error` flag: an operation failed. A raised flag the screen is
+    // not showing as a fault toasts once, like Irbis3D's last_error.
+    bool controller_error_raised = false;
+    if (reading.controller_error.has_value()) {
+        controller_error_raised = *reading.controller_error && !controller_error_flag_;
+        controller_error_flag_ = *reading.controller_error;
     }
     if (reading.sensor_error_named) {
         controller_failure_latched_ = reading.sensor_error_reported;
@@ -958,6 +980,9 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
         !failure_already_noticed(controller_failure_, controller_failure_noticed_)) {
         controller_failure_noticed_ = controller_failure_;
         pending_failure_toast_ = controller_failure_;
+    }
+    if (!sensor_error_ && controller_error_raised && reading.operation != "error") {
+        pending_failure_toast_ = lv_tr("The filament system reported an error");
     }
 
     // Only when the frame named the carriage. A delta carrying just the gripper
@@ -1014,7 +1039,25 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
     bool operation_ended = false;
 
     const std::string& op = reading.operation;
-    if (op == "picking") {
+    // The fork's `error` state is a fault of the controller's own; any other
+    // phase word means it has left it.
+    if (!op.empty()) {
+        controller_fault_ = (op == "error");
+    }
+    if (op == "error") {
+        // The swap is over: nothing will end the optimistic action otherwise.
+        system_info_.action = AmsAction::ERROR;
+        system_info_.operation_detail = op;
+        pending_dispatch_action_.reset();
+        operation_confirmed_ = false;
+        operation_ended = true;
+    } else if (op == "uninitialized") {
+        // The same state klipper-toolchanger reports before INITIALIZE_TOOLCHANGER:
+        // a swap would be refused, so a tap is refused here first.
+        system_info_.action = status_to_action(op);
+        system_info_.operation_detail = op;
+        operation_confirmed_ = false;
+    } else if (op == "picking") {
         system_info_.action = AmsAction::SELECTING;
         system_info_.operation_detail = op;
         operation_confirmed_ = true;
@@ -1219,8 +1262,13 @@ void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_dat
     // Values: "ready", "changing", "error", "uninitialized"
     if (tc_data.contains("status") && tc_data["status"].is_string()) {
         std::string status_str = tc_data["status"].get<std::string>();
-        system_info_.action = status_to_action(status_str);
-        system_info_.operation_detail = status_str;
+        const AmsAction status_action = status_to_action(status_str);
+        // klipper-toolchanger knows nothing of the docks, so its "ready" says
+        // nothing about a dock-sensor fault: only the sensors agreeing ends it.
+        if (!(sensor_error_ && status_action == AmsAction::IDLE)) {
+            system_info_.action = status_action;
+            system_info_.operation_detail = status_str;
+        }
         spdlog::trace("[AMS ToolChanger] Status: {} -> {}", status_str,
                       ams_action_to_string(system_info_.action));
 
@@ -1243,7 +1291,12 @@ void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_dat
 
     // Parse current tool: toolchanger.tool_number
     // -1 = no tool selected
-    if (tc_data.contains("tool_number") && tc_data["tool_number"].is_number_integer()) {
+    //
+    // With dock sensors this is only what SELECT_TOOL last set, and Moonraker
+    // sends it in deltas of its own, so it never names the carriage: the
+    // sensors do (apply_tool_sensor_locked()).
+    if (!tool_sensor_.present && tc_data.contains("tool_number") &&
+        tc_data["tool_number"].is_number_integer()) {
         int tool_num = tc_data["tool_number"].get<int>();
         system_info_.current_tool = tool_num;
         // toolchanger.tool_number is the ASSIGNED G-code number of the carriage
@@ -1535,8 +1588,11 @@ void AmsBackendToolChanger::abandon_dispatch(uint64_t generation) {
             return;
         }
         pending_dispatch_action_.reset();
-        system_info_.action = AmsAction::IDLE;
-        system_info_.operation_detail.clear();
+        // A fault a frame raised meanwhile is the machine's answer and stays.
+        if (ams_action_holds_system(system_info_.action)) {
+            system_info_.action = AmsAction::IDLE;
+            system_info_.operation_detail.clear();
+        }
     }
     emit_event(EVENT_STATE_CHANGED);
 }
@@ -1593,9 +1649,21 @@ AmsError AmsBackendToolChanger::dispatch_operation(std::string gcode, AmsAction 
     // state (get_current_action() takes mutex_).
     emit_event(EVENT_STATE_CHANGED);
 
+    // A rejected command (the controller's "MedusaHC is busy", a failed swap
+    // raised as a gcode error) ends the operation it was meant to start. A reply
+    // timeout does not: the macro may still be running, and its frames end it.
+    // The `!!` line Klipper broadcasts is what the user sees, so this callback
+    // only unwinds.
     AmsError result = ensure_homed_then(
         std::move(gcode), [this, generation]() { finalize_dispatch_after_macro(generation); },
-        nullptr, timeout_ms);
+        [this, generation](const MoonrakerError& err) {
+            if (err.type == MoonrakerErrorType::TIMEOUT) {
+                return;
+            }
+            spdlog::warn("[AMS ToolChanger] Dispatch #{} rejected: {}", generation, err.message);
+            abandon_dispatch(generation);
+        },
+        timeout_ms, /*skip_homing=*/false, /*silent=*/true, /*caller_surfaces_errors=*/false);
 
     if (!result) {
         // The gcode never left: no IMoonrakerAPI, or the send was refused. No ack
@@ -2399,6 +2467,9 @@ AmsError AmsBackendToolChanger::do_filament_batch(const std::vector<int>& slots,
 AmsError AmsBackendToolChanger::do_park_active_tool() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (sensor_error_) {
+            return sensor_fault_refusal("Unmount");
+        }
         if (system_info_.current_tool < 0) {
             return AmsErrorHelper::not_loaded();
         }
@@ -2421,6 +2492,7 @@ AmsError AmsBackendToolChanger::do_select_slot(int slot_index) {
 }
 
 AmsError AmsBackendToolChanger::do_change_tool(int tool_number) {
+    std::string cmd;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2428,12 +2500,15 @@ AmsError AmsBackendToolChanger::do_change_tool(int tool_number) {
         if (!slot_valid) {
             return slot_valid;
         }
+        // A swap plans its moves from what is on the carriage.
+        if (sensor_error_) {
+            return sensor_fault_refusal("Tool change");
+        }
+        cmd = mount_gcode(tool_number);
     }
 
-    // Use SELECT_TOOL T={n} to select by tool number via the toolchanger's
-    // internal lookup, bypassing any ASSIGN_TOOL T-command remapping.
-    // This ensures we mount the physical tool the user tapped, not whatever
-    // the slicer's T{n} command was remapped to.
+    // mount_gcode() names the physical tool, so the swap mounts the tool the
+    // user tapped whatever the slicer's T<n> was assigned to.
     //
     // dispatch_operation() sets SELECTING before the send — which also closes
     // the race window where a second tap could arrive before Klipper's status
@@ -2442,14 +2517,32 @@ AmsError AmsBackendToolChanger::do_change_tool(int tool_number) {
     // Without klipper-toolchanger there is no SELECT_TOOL: the extra registers
     // its own T<n> commands and those ARE the swap. ASSIGN_TOOL does not exist
     // on such a machine either, so the remap concern above cannot arise.
-    std::string cmd = mount_gcode(tool_number);
     spdlog::info("[AMS ToolChanger] Mounting tool {}: {}", tool_number, cmd);
     return dispatch_operation(std::move(cmd), AmsAction::SELECTING);
 }
 
 std::string AmsBackendToolChanger::mount_gcode(int slot_index) const {
-    return tool_commands_.present ? tool_commands_.select_prefix + std::to_string(slot_index)
-                                  : "SELECT_TOOL T=" + std::to_string(slot_index);
+    if (tool_commands_.present) {
+        return tool_commands_.select_prefix + std::to_string(slot_index);
+    }
+    // TOOL= names the [tool ...] object, a physical tool. T= is a tool NUMBER,
+    // which ASSIGN_TOOL can point at any other hot end.
+    if (slot_index >= 0 && slot_index < static_cast<int>(tool_names_.size())) {
+        return "SELECT_TOOL TOOL=" + tool_object_arg(tool_names_[static_cast<size_t>(slot_index)]);
+    }
+    return "SELECT_TOOL T=" + std::to_string(slot_index);
+}
+
+std::string AmsBackendToolChanger::tool_object_arg(const std::string& tool_name) {
+    // klipper-toolchanger looks a TOOL= argument up by the tool's full object
+    // name, which has a space in it; Klipper reads quoted parameter values.
+    return fmt::format("\"tool {}\"", tool_name);
+}
+
+AmsError AmsBackendToolChanger::sensor_fault_refusal(const char* operation) {
+    return AmsError(AmsResult::WRONG_STATE,
+                    std::string(operation) + " refused: dock sensors cannot identify the tool",
+                    lv_tr("Dock sensors cannot tell which tool is mounted"), "");
 }
 
 std::string AmsBackendToolChanger::park_gcode() const {
@@ -2463,7 +2556,20 @@ std::string AmsBackendToolChanger::park_gcode() const {
 // Recovery Operations
 // ============================================================================
 
+bool AmsBackendToolChanger::reset_available() const {
+    // INITIALIZE_TOOLCHANGER is klipper-toolchanger's; a changer driving its
+    // own T<n> has nothing to reinitialize from here.
+    return !tool_commands_.present;
+}
+
+bool AmsBackendToolChanger::recover_available() const {
+    return !tool_commands_.present;
+}
+
 AmsError AmsBackendToolChanger::recover() {
+    if (!recover_available()) {
+        return AmsErrorHelper::not_supported("Recover");
+    }
     spdlog::info("[AMS ToolChanger] Attempting recovery");
     // klipper-toolchanger doesn't have a dedicated recovery command
     // Try to reinitialize the toolchanger
@@ -2471,6 +2577,9 @@ AmsError AmsBackendToolChanger::recover() {
 }
 
 AmsError AmsBackendToolChanger::reset() {
+    if (!reset_available()) {
+        return AmsErrorHelper::not_supported("Reset");
+    }
     spdlog::info("[AMS ToolChanger] Resetting toolchanger");
     return execute_gcode("INITIALIZE_TOOLCHANGER");
 }
@@ -2548,6 +2657,7 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
     std::vector<std::pair<int, std::uint32_t>> palette;
     std::string (*write_gcode)(int, const std::string&, std::uint32_t) = nullptr;
     std::string firmware_type;
+    bool remap_refused = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2600,9 +2710,13 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
             // Tool mapping change: persist via ASSIGN_TOOL outside the lock.
             // slot.mapped_tool stores "which G-code tool number activates this physical
             // tool"; the gcode says "T<info.mapped_tool> now activates tool_names_[slot]".
-            if (info.mapped_tool != old_mapped_tool && info.mapped_tool >= 0 &&
-                info.mapped_tool < static_cast<int>(system_info_.tool_to_slot_map.size()) &&
-                slot_index < static_cast<int>(tool_names_.size())) {
+            if (info.mapped_tool != old_mapped_tool && tool_commands_.present) {
+                // No ASSIGN_TOOL on this machine: the filament half of the edit
+                // lands and the tool number stays where the firmware has it.
+                remap_refused = true;
+            } else if (info.mapped_tool != old_mapped_tool && info.mapped_tool >= 0 &&
+                       info.mapped_tool < static_cast<int>(system_info_.tool_to_slot_map.size()) &&
+                       slot_index < static_cast<int>(tool_names_.size())) {
                 // One pass for both directions, and it EVICTS: the tool being
                 // moved leaves its old lane unmapped, and whatever tool this
                 // lane previously answered to gives it up. Writing the two
@@ -2651,6 +2765,12 @@ AmsError AmsBackendToolChanger::apply_user_edit(int slot_index, const SlotInfo& 
             sent.partially_applied = true;
             return sent;
         }
+    }
+
+    if (remap_refused) {
+        AmsError refused = AmsErrorHelper::not_supported("Tool remapping");
+        refused.partially_applied = true;
+        return refused;
     }
 
     if (!physical_tool_name.empty()) {
@@ -2727,7 +2847,8 @@ AmsError AmsBackendToolChanger::assign_tool(const std::string& physical_tool_nam
                      tool_commands_.provider_name, tool_number, physical_tool_name);
         return AmsErrorHelper::not_supported("Tool remapping");
     }
-    return execute_gcode(fmt::format("ASSIGN_TOOL TOOL={} N={}", physical_tool_name, tool_number));
+    return execute_gcode(
+        fmt::format("ASSIGN_TOOL TOOL={} N={}", tool_object_arg(physical_tool_name), tool_number));
 }
 
 AmsError AmsBackendToolChanger::can_set_tool_mapping(int tool_number, int slot_index) const {
@@ -2751,7 +2872,7 @@ AmsError AmsBackendToolChanger::set_tool_mapping_impl(int tool_number, int slot_
     // ASSIGN_TOOL command. This makes Klipper's T<tool_number> command activate the
     // physical tool at slot_index instead of tool_number.
     //
-    // Example: set_tool_mapping(0, 2) sends "ASSIGN_TOOL TOOL=T2 N=0"
+    // Example: set_tool_mapping(0, 2) sends ASSIGN_TOOL TOOL="tool T2" N=0
     //   → G-code "T0" now activates physical tool T2
     std::string physical_tool_name;
     {
@@ -2759,6 +2880,10 @@ AmsError AmsBackendToolChanger::set_tool_mapping_impl(int tool_number, int slot_
 
         if (auto err = can_set_tool_mapping_locked(tool_number, slot_index); !err.success()) {
             return err;
+        }
+        // No ASSIGN_TOOL to send, so the table stays as the firmware has it.
+        if (tool_commands_.present) {
+            return AmsErrorHelper::not_supported("Tool remapping");
         }
 
         // The physical tool to assign (slot_index maps to tool_names_[slot_index])
