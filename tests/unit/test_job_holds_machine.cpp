@@ -333,6 +333,7 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/components/panel_widget_z_offset.xml", 2},
     {"ui_xml/calibration_pa_panel.xml", 2},
     {"ui_xml/controls_panel.xml", 17},
+    {"ui_xml/guided_load_modal.xml", 2},
     {"ui_xml/header_bar.xml", 1},
     {"ui_xml/pa_tuning_overlay.xml", 1},
     {"ui_xml/plr_wizard_overlay.xml", 4},

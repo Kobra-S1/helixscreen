@@ -1228,6 +1228,7 @@
   <translation tag="Extrude Speed" zh="挤出速度"/>
   <translation tag="Extrude failed: {}" zh="挤出失败: {}"/>
   <translation tag="Extrude may still be running — response timed out" zh="挤出可能仍在运行 — 响应超时"/>
+  <translation tag="Extrude more" zh="继续挤出"/>
   <translation tag="Extrude/retract feedrate (Saved)" zh="挤出/回抽速度（已保存）"/>
   <translation tag="Extruded past the nozzle after each load" zh="每次装载后从喷嘴挤出的长度"/>
   <translation tag="Extruder" zh="挤出机"/>
@@ -1243,6 +1244,7 @@
   <translation tag="Extruder to Nozzle" zh="挤出机至喷嘴"/>
   <translation tag="Extruder too cold" zh="挤出机温度过低"/>
   <translation tag="Extruding prime line..." zh="正在挤出引导线..."/>
+  <translation tag="Extruding..." zh="正在挤出..."/>
   <translation tag="FAILED" zh="失败"/>
   <translation tag="FILAMENT" zh="耗材"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" zh="耗材与工具头"/>
@@ -1810,6 +1812,7 @@
   <translation tag="Invalid tool/slot" zh="无效的工具/槽位"/>
   <translation tag="Invalid value" zh="值无效"/>
   <translation tag="Invalid value type" zh="值类型无效"/>
+  <translation tag="Is new filament coming out of the nozzle?" zh="喷嘴是否有新耗材挤出？"/>
   <translation tag="Issue description" zh="问题描述"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." zh="可以在 Spoolman 的网页界面中取消归档。"/>
   <translation tag="It has not reported its slots yet. Try again in a moment." zh="尚未报告其料槽。请稍后再试。"/>
@@ -2832,6 +2835,7 @@
   <translation tag="Purging" zh="正在清料"/>
   <translation tag="Purging nozzle" zh="正在清洗喷嘴"/>
   <translation tag="Purging..." zh="正在清料..."/>
+  <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." zh="将耗材推入挤出机直到推不动为止。挤出机会自动咬入，或点击“挤出”。"/>
   <translation tag="QGL" zh="QGL"/>
   <translation tag="QGL failed: {}" zh="QGL 失败: {}"/>
   <translation tag="QGL may still be running — response timed out" zh="QGL 可能仍在运行 — 响应超时"/>

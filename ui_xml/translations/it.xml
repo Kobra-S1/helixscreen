@@ -1228,6 +1228,7 @@
   <translation tag="Extrude Speed" it="Velocità di estrusione"/>
   <translation tag="Extrude failed: {}" it="Estrusione fallita: {}"/>
   <translation tag="Extrude may still be running — response timed out" it="Estrusione potrebbe essere ancora in corso — tempo scaduto"/>
+  <translation tag="Extrude more" it="Estrudi ancora"/>
   <translation tag="Extrude/retract feedrate (Saved)" it="Velocità estrusione/retrazione (Salvata)"/>
   <translation tag="Extruded past the nozzle after each load" it="Estruso dall&apos;ugello dopo ogni caricamento"/>
   <translation tag="Extruder" it="Estrusore"/>
@@ -1243,6 +1244,7 @@
   <translation tag="Extruder to Nozzle" it="Estrusore all&apos;ugello"/>
   <translation tag="Extruder too cold" it="Estrusore troppo freddo"/>
   <translation tag="Extruding prime line..." it="Estrusione linea di priming..."/>
+  <translation tag="Extruding..." it="Estrusione..."/>
   <translation tag="FAILED" it="FALLITO"/>
   <translation tag="FILAMENT" it="FILAMENTO"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" it="FILAMENTO E TESTINA"/>
@@ -1810,6 +1812,7 @@
   <translation tag="Invalid tool/slot" it="Strumento/slot non valido"/>
   <translation tag="Invalid value" it="Valore non valido"/>
   <translation tag="Invalid value type" it="Tipo di valore non valido"/>
+  <translation tag="Is new filament coming out of the nozzle?" it="Il nuovo filamento esce dall&apos;ugello?"/>
   <translation tag="Issue description" it="Descrizione problema"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." it="Può essere ripristinata dall&apos;interfaccia web di Spoolman."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." it="Non ha ancora segnalato i suoi slot. Riprova tra un momento."/>
@@ -2832,6 +2835,7 @@
   <translation tag="Purging" it="Spurgo"/>
   <translation tag="Purging nozzle" it="Spurgo ugello"/>
   <translation tag="Purging..." it="Spurgo..."/>
+  <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." it="Spingi il filamento nell&apos;estrusore fino in fondo. Viene afferrato automaticamente, oppure tocca Estrusione."/>
   <translation tag="QGL" it="QGL"/>
   <translation tag="QGL failed: {}" it="QGL fallito: {}"/>
   <translation tag="QGL may still be running — response timed out" it="QGL potrebbe essere ancora in corso — tempo scaduto"/>

@@ -1352,6 +1352,7 @@ translations:
   'Extrude failed: {}': 'Estrusione fallita: {}'
   Extrude may still be running — response timed out: Estrusione potrebbe essere ancora
     in corso — tempo scaduto
+  Extrude more: "Estrudi ancora"
   Extrude/retract feedrate (Saved): Velocità estrusione/retrazione (Salvata)
   Extruded past the nozzle after each load: 'Estruso dall''ugello dopo ogni caricamento'
   Extruder: Estrusore
@@ -1368,6 +1369,7 @@ translations:
   Extruder to Nozzle: 'Estrusore all''ugello'
   Extruder too cold: Estrusore troppo freddo
   Extruding prime line...: Estrusione linea di priming...
+  Extruding...: "Estrusione..."
   FAILED: FALLITO
   FILAMENT: FILAMENTO
   FILAMENT & TOOLHEAD: 'FILAMENTO E TESTINA'
@@ -1990,6 +1992,7 @@ translations:
   Invalid tool/slot: 'Strumento/slot non valido'
   Invalid value: 'Valore non valido'
   Invalid value type: 'Tipo di valore non valido'
+  Is new filament coming out of the nozzle?: "Il nuovo filamento esce dall'ugello?"
   Issue description: Descrizione problema
   It can be un-archived in Spoolman's web UI.: Può essere ripristinata dall'interfaccia web di Spoolman.
   It has not reported its slots yet. Try again in a moment.: Non ha ancora segnalato i suoi slot. Riprova tra un momento.
@@ -3091,6 +3094,7 @@ translations:
   Purging: Spurgo
   Purging nozzle: Spurgo ugello
   Purging...: Spurgo...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Spingi il filamento nell'estrusore fino in fondo. Viene afferrato automaticamente, oppure tocca Estrusione."
   QGL: QGL
   'QGL failed: {}': 'QGL fallito: {}'
   QGL may still be running — response timed out: QGL potrebbe essere ancora in corso

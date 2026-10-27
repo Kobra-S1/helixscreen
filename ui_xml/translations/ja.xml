@@ -1228,6 +1228,7 @@
   <translation tag="Extrude Speed" ja="押し出し速度"/>
   <translation tag="Extrude failed: {}" ja="押出に失敗しました: {}"/>
   <translation tag="Extrude may still be running — response timed out" ja="押出がまだ実行中の可能性があります — 応答タイムアウト"/>
+  <translation tag="Extrude more" ja="さらに押し出し"/>
   <translation tag="Extrude/retract feedrate (Saved)" ja="押し出し/引き戻し速度（保存済み）"/>
   <translation tag="Extruded past the nozzle after each load" ja="ロードのたびにノズルから押し出す量"/>
   <translation tag="Extruder" ja="エクストルーダー"/>
@@ -1243,6 +1244,7 @@
   <translation tag="Extruder to Nozzle" ja="エクストルーダーからノズルまで"/>
   <translation tag="Extruder too cold" ja="エクストルーダーが冷えています"/>
   <translation tag="Extruding prime line..." ja="プライムラインを押し出し中..."/>
+  <translation tag="Extruding..." ja="押し出し中..."/>
   <translation tag="FAILED" ja="失敗"/>
   <translation tag="FILAMENT" ja="フィラメント"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" ja="フィラメントとツールヘッド"/>
@@ -1810,6 +1812,7 @@
   <translation tag="Invalid tool/slot" ja="無効なツール/スロットです"/>
   <translation tag="Invalid value" ja="無効な値です"/>
   <translation tag="Invalid value type" ja="値の型が無効です"/>
+  <translation tag="Is new filament coming out of the nozzle?" ja="ノズルから新しいフィラメントが出ていますか？"/>
   <translation tag="Issue description" ja="問題の説明"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." ja="Spoolman の Web 画面でアーカイブを解除できます。"/>
   <translation tag="It has not reported its slots yet. Try again in a moment." ja="スロットがまだ報告されていません。しばらくしてからもう一度お試しください。"/>
@@ -2832,6 +2835,7 @@
   <translation tag="Purging" ja="パージ中"/>
   <translation tag="Purging nozzle" ja="ノズルをパージ中"/>
   <translation tag="Purging..." ja="パージ中..."/>
+  <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ja="フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"/>
   <translation tag="QGL" ja="QGL"/>
   <translation tag="QGL failed: {}" ja="QGL に失敗しました: {}"/>
   <translation tag="QGL may still be running — response timed out" ja="QGL がまだ実行中の可能性があります — 応答タイムアウト"/>

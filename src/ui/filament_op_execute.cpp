@@ -4,6 +4,7 @@
 #include "filament_op_execute.h"
 
 #include "ui_error_reporting.h"
+#include "ui_guided_load_modal.h"
 #include "ui_manual_pull_prompt.h"
 #include "ui_temperature_utils.h"
 #include "ui_update_queue.h"
@@ -15,6 +16,7 @@
 #include "filament_op_dispatch.h"
 #include "filament_op_heater.h"
 #include "filament_op_router.h"
+#include "i_moonraker_client.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_api.h"
 #include "printer_state.h"
@@ -530,6 +532,52 @@ void execute_filament_load(AmsBackend* backend, int slot, const char* log_tag) {
 
 namespace {
 
+/// Send what @p macro_name leaves undone, if anything.
+void send_restore_after(const std::string& macro_name) {
+    const std::string restore = filament_macros::restore_after(macro_name);
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (restore.empty() || !api) {
+        return;
+    }
+    spdlog::info("[FilamentOp] After {}: {}", macro_name, restore);
+    api->execute_gcode(
+        restore, []() {}, [](const MoonrakerError&) {}, /*timeout_ms=*/0, /*silent=*/false,
+        /*on_queued=*/nullptr, /*caller_surfaces_errors=*/false);
+}
+
+/// Hand the rest of a stock load wizard to the user once its first macro ran.
+/// Called from a Moonraker reply thread; the modal opens on the main thread.
+void start_guided_load(const std::string& macro_name,
+                       const std::map<std::string, std::string>& params) {
+    std::optional<filament_macros::GuidedLoad> steps =
+        filament_macros::guided_load(macro_name, params);
+    if (!steps) {
+        return;
+    }
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        return;
+    }
+    auto shared = std::make_shared<const filament_macros::GuidedLoad>(std::move(*steps));
+    const nlohmann::json query = filament_macros::guided_load_status_query(*shared);
+    const auto open = [shared](bool waits) {
+        queue_update("GuidedLoad::open", [shared, waits]() {
+            spdlog::info("[GuidedLoad] {} the hand push", waits ? "Waiting for" : "No wait for");
+            GuidedLoadModal::show_owned(*shared, waits);
+        });
+    };
+    api->get_client().send_jsonrpc(
+        "printer.objects.query", query,
+        [shared, open](const nlohmann::json& resp) {
+            open(filament_macros::guided_load_waits(resp, *shared));
+        },
+        // Unanswered, open on the question: every form of the wizard asks it.
+        [open](const MoonrakerError& err) {
+            spdlog::warn("[GuidedLoad] Wait state not read: {}", err.message);
+            open(false);
+        });
+}
+
 void dispatch_load(AmsBackend* backend, int slot, const FilamentOpSurface& surface,
                    const FilamentOpPlan& plan, FilamentOpTicket ticket) {
     const char* log_tag = surface.log_tag;
@@ -579,20 +627,21 @@ void dispatch_load(AmsBackend* backend, int slot, const FilamentOpSurface& surfa
         const FilamentOpSurface s = surface;
         helix::ui::dispatch_filament_macro(
             macro_name, surface.param_policy,
-            [api, s, plan, ticket](const helix::MacroParamResult& result) {
+            [api, s, plan, ticket, macro_name](const helix::MacroParamResult& result) {
                 // Under ParamPolicy::Prompt this lands whenever the user presses
                 // Run, which can be after the asking surface is gone.
-                guarded(s, [api, s, plan, ticket, params = result.params]() {
+                guarded(s, [api, s, plan, ticket, macro_name, params = result.params]() {
                     begin(s, plan);
                     send_after_before_macro(
-                        s, plan, "load", ticket, [api, s, plan, ticket, params]() {
+                        s, plan, "load", ticket, [api, s, plan, ticket, macro_name, params]() {
                             // execute_macro()'s reply lands when the script has RUN, so
                             // these are completion callbacks, not "started" ones.
                             const bool dispatched = StandardMacros::instance().execute(
                                 StandardMacroSlot::LoadFilament, api, params,
-                                [s, ticket]() {
+                                [s, ticket, macro_name, params]() {
                                     spdlog::info("{} Load filament finished", s.log_tag);
                                     finished(s, s.on_async_success, ticket);
+                                    start_guided_load(macro_name, params);
                                 },
                                 [s, plan, ticket](const MoonrakerError& err) {
                                     spdlog::error("{} Failed to load filament: {}", s.log_tag,
@@ -748,16 +797,17 @@ void dispatch_unload(AmsBackend* backend, int slot, const FilamentOpSurface& sur
         const FilamentOpSurface s = surface;
         helix::ui::dispatch_filament_macro(
             macro_name, surface.param_policy,
-            [api, s, plan, ticket](const helix::MacroParamResult& result) {
-                guarded(s, [api, s, plan, ticket, params = result.params]() {
+            [api, s, plan, ticket, macro_name](const helix::MacroParamResult& result) {
+                guarded(s, [api, s, plan, ticket, macro_name, params = result.params]() {
                     begin(s, plan);
                     send_after_before_macro(
-                        s, plan, "unload", ticket, [api, s, plan, ticket, params]() {
+                        s, plan, "unload", ticket, [api, s, plan, ticket, macro_name, params]() {
                             const bool dispatched = StandardMacros::instance().execute(
                                 StandardMacroSlot::UnloadFilament, api, params,
-                                [s, ticket]() {
+                                [s, ticket, macro_name]() {
                                     spdlog::info("{} Unload filament finished", s.log_tag);
                                     finished(s, s.on_async_success, ticket);
+                                    send_restore_after(macro_name);
                                 },
                                 [s, plan, ticket](const MoonrakerError& err) {
                                     spdlog::error("{} Failed to unload filament: {}", s.log_tag,
