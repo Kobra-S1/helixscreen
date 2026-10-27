@@ -874,15 +874,13 @@ TEST_CASE("close during async indexing cancels the build", "[gcode][streaming][c
     REQUIRE_FALSE(result.load());
 }
 
-TEST_CASE("open_file measures how fast this board scans the index",
-          "[gcode][streaming][index_rate]") {
+TEST_CASE("a small file's scan reports no index rate", "[gcode][streaming][index_rate]") {
+    // A 1KB scan is all fixed overhead: on a desktop that read as 6 MB/cpu-s
+    // against a true ~280, and a board taught that would refuse its own previews.
     TempGCodeFile file(kSimple3LayerGcode);
     GCodeStreamingController controller;
-    CHECK(controller.index_throughput_mb_per_cpu_s() == 0.0);
     REQUIRE(controller.open_file(file.path()));
-    const double rate = controller.index_throughput_mb_per_cpu_s();
-    CHECK(rate > 0.0);
-    CHECK(std::isfinite(rate));
+    CHECK(controller.index_throughput_mb_per_cpu_s() == 0.0);
 }
 
 namespace {
@@ -1019,4 +1017,16 @@ TEST_CASE("close in the async launch window still cancels the build",
     // A build that ran to completion under the close would report success.
     REQUIRE(completed.load());
     REQUIRE_FALSE(result.load());
+}
+
+TEST_CASE("open_file measures how fast this board scans the index",
+          "[gcode][streaming][index_rate]") {
+    // Big enough for the rate to be the scan's, not its fixed start-up cost.
+    BigGCodeFile file(GCodeStreamingController::kMinRateSampleBytes + 1024 * 1024);
+    GCodeStreamingController controller;
+    CHECK(controller.index_throughput_mb_per_cpu_s() == 0.0);
+    REQUIRE(controller.open_file(file.path()));
+    const double rate = controller.index_throughput_mb_per_cpu_s();
+    CHECK(rate > 0.0);
+    CHECK(std::isfinite(rate));
 }

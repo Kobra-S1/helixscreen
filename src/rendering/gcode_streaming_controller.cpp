@@ -871,8 +871,9 @@ bool GCodeStreamingController::build_index() {
             return !index_cancel_requested_.load(std::memory_order_relaxed);
         });
         const int64_t cpu_ns = helix::thread_cpu_ns() - cpu_start;
-        if (built && cpu_ns > 0) {
-            const double mb = static_cast<double>(data_source_->file_size()) / (1024.0 * 1024.0);
+        const uint64_t scanned = data_source_->file_size();
+        if (built && cpu_ns > 0 && scanned >= kMinRateSampleBytes) {
+            const double mb = static_cast<double>(scanned) / (1024.0 * 1024.0);
             index_mb_per_cpu_s_.store(mb / (static_cast<double>(cpu_ns) / 1e9),
                                       std::memory_order_relaxed);
         }

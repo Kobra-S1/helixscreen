@@ -432,8 +432,11 @@ class GCodeStreamingController {
      *        G-code per CPU second of the scanning thread.
      *
      * A direct measure of the CPU the preview runs on. 0 until a scan has
-     * finished, and for an index read from the plugin's sidecar (no scan ran).
+     * finished, for an index read from the plugin's sidecar (no scan ran), and
+     * for a file under kMinRateSampleBytes, whose scan is mostly fixed cost.
      */
+    static constexpr uint64_t kMinRateSampleBytes = 8ull * 1024 * 1024;
+
     double index_throughput_mb_per_cpu_s() const {
         return index_mb_per_cpu_s_.load(std::memory_order_relaxed);
     }
