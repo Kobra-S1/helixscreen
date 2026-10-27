@@ -176,7 +176,7 @@
                taps this once the part is removed. -->
           <ui_button name="toolhead_bed_cleared"
                      width="content" height="#button_height_sm" text="Cleared" icon="check" variant="outline"
-                     align="top_right">
+                     align="top_right" label_hidden_subject="toolhead_chip_icon_only" label_hidden_if_eq="1">
             <bind_flag_if cond="bed_occupied eq 0 or toolhead_ghost_active eq 1" flag="hidden"/>
             <event_cb trigger="clicked" callback="toolhead_bed_cleared_cb"/>
           </ui_button>
