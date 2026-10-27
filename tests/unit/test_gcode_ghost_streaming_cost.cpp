@@ -177,6 +177,70 @@ std::string make_tall_narrow_gcode(int layers) {
     return out.str();
 }
 
+/// Which ghost-buffer rows carry ink. In the FRONT view a layer's Z is its row,
+/// so a stride too coarse for the model shows as a gap between first and last.
+struct InkRows {
+    int first = -1;
+    int last = -1;
+    int inked = 0;
+    int largest_gap = 0;
+};
+
+InkRows scan_ghost_rows(GCodeLayerRenderer& renderer) {
+    const uint8_t* px = GCodeLayerRendererTestAccess::ghost_pixels(renderer);
+    REQUIRE(px != nullptr);
+    const int gw = GCodeLayerRendererTestAccess::ghost_width(renderer);
+    const int gh = GCodeLayerRendererTestAccess::ghost_height(renderer);
+    const size_t stride = GCodeLayerRendererTestAccess::ghost_stride(renderer);
+
+    auto row_has_ink = [&](int y) {
+        const uint8_t* row = px + static_cast<size_t>(y) * stride;
+        for (int x = 0; x < gw; ++x) {
+            if (row[x * 4 + 3] != 0) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    InkRows r;
+    for (int y = 0; y < gh; ++y) {
+        if (row_has_ink(y)) {
+            if (r.first < 0) {
+                r.first = y;
+            }
+            r.last = y;
+            ++r.inked;
+        }
+    }
+    int run = 0;
+    for (int y = r.first; r.first >= 0 && y <= r.last; ++y) {
+        run = row_has_ink(y) ? 0 : run + 1;
+        r.largest_gap = std::max(r.largest_gap, run);
+    }
+    return r;
+}
+
+/// A wide, flat plate: a large footprint and little height, the multiboard
+/// shape whose big files the CC1 chokes on. Hundreds of layers, but the model's
+/// Z extent spans only a few dozen canvas rows.
+std::string make_flat_wide_gcode(int layers, double layer_height) {
+    std::ostringstream out;
+    out << "; synthetic flat-wide ghost fixture\nG28\nG90\nM82\n";
+    double e = 0.0;
+    for (int layer = 0; layer < layers; ++layer) {
+        out << "G1 Z" << (layer_height * (layer + 1)) << " F1200\n";
+        for (int move = 0; move < 16; ++move) {
+            const double x = 20.0 + (move % 4) * 60.0;
+            const double y = 20.0 + ((move / 4) % 4) * 60.0;
+            e += 0.05;
+            out << "G1 X" << x << " Y" << y << " E" << e << " F1800\n";
+        }
+    }
+    out << "; end\n";
+    return out.str();
+}
+
 } // namespace
 
 TEST_CASE("ghost pass over a streamed file does not read one layer per layer",
@@ -291,32 +355,8 @@ TEST_CASE("a streamed ghost leaves no empty row inside the model",
     GCodeLayerRendererTestAccess::run_ghost_pass(renderer);
     REQUIRE(GCodeLayerRendererTestAccess::ghost_completed(renderer));
 
-    const uint8_t* px = GCodeLayerRendererTestAccess::ghost_pixels(renderer);
-    REQUIRE(px != nullptr);
-    const int gw = GCodeLayerRendererTestAccess::ghost_width(renderer);
-    const int gh = GCodeLayerRendererTestAccess::ghost_height(renderer);
-    const size_t stride = GCodeLayerRendererTestAccess::ghost_stride(renderer);
-
-    auto row_has_ink = [&](int y) {
-        const uint8_t* row = px + static_cast<size_t>(y) * stride;
-        for (int x = 0; x < gw; ++x) {
-            if (row[x * 4 + 3] != 0) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    int first = -1, last = -1, inked = 0;
-    for (int y = 0; y < gh; ++y) {
-        if (row_has_ink(y)) {
-            if (first < 0) {
-                first = y;
-            }
-            last = y;
-            ++inked;
-        }
-    }
+    const InkRows ink = scan_ghost_rows(renderer);
+    const int first = ink.first, last = ink.last, inked = ink.inked;
     REQUIRE(first >= 0);
     // The model must occupy enough of the canvas for a gap to be meaningful.
     // It does not fill it: auto-fit sizes against the bed, so even 200mm of Z
@@ -328,12 +368,43 @@ TEST_CASE("a streamed ghost leaves no empty row inside the model",
     // contiguous silhouette rather than a comb.
     REQUIRE(last - first > 50);
 
-    int largest_gap = 0, run = 0;
-    for (int y = first; y <= last; ++y) {
-        run = row_has_ink(y) ? 0 : run + 1;
-        largest_gap = std::max(largest_gap, run);
-    }
+    const int largest_gap = ink.largest_gap;
     INFO("layers=" << controller.get_layer_count() << " rows " << first << ".." << last
                    << " inked=" << inked << " largest_gap=" << largest_gap);
     CHECK(largest_gap == 0);
+}
+
+TEST_CASE("a streamed flat plate's ghost reads layers for the rows it spans, not the canvas",
+          "[gcode][ghost][streaming][cost]") {
+    // 400 layers of 0.05mm is a 20mm plate across ~180mm of bed: auto-fit makes
+    // it width-constrained, so its Z spans a small slice of the canvas, and the
+    // canvas rule alone would visit every one of its 400 layers.
+    const int layers = 400;
+    TempFile file(make_flat_wide_gcode(layers, 0.05));
+    auto source = std::make_unique<CountingDataSource>(file.path());
+    CountingDataSource* counter = source.get();
+    GCodeStreamingController controller;
+    REQUIRE(controller.open_source(std::move(source)));
+    REQUIRE(controller.get_layer_count() >= static_cast<size_t>(layers - 1));
+
+    GCodeLayerRenderer renderer;
+    renderer.set_canvas_size(kCanvasW, kCanvasH);
+    renderer.set_streaming_controller(&controller);
+    controller.wait_for_prefetch_idle();
+    counter->reset();
+
+    GCodeLayerRendererTestAccess::run_ghost_pass(renderer);
+    REQUIRE(GCodeLayerRendererTestAccess::ghost_completed(renderer));
+
+    const auto canvas_plan = plan_ghost_sampling(layers, /*streaming=*/true, kCanvasH);
+    REQUIRE(canvas_plan.count == layers);
+    INFO("reads=" << counter->reads() << " canvas_plan=" << canvas_plan.count);
+    CHECK(counter->reads() <= static_cast<size_t>(layers) / 3);
+    CHECK(counter->reads() >= static_cast<size_t>(kGhostMinModelSamples));
+
+    // Fewer layers, and still no banding across the plate's front face.
+    const InkRows ink = scan_ghost_rows(renderer);
+    REQUIRE(ink.first >= 0);
+    INFO("rows " << ink.first << ".." << ink.last << " largest_gap=" << ink.largest_gap);
+    CHECK(ink.largest_gap == 0);
 }

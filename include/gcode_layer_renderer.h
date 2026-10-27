@@ -958,6 +958,11 @@ class GCodeLayerRenderer {
         int line_width = 1;
         int layer_count = 0;
 
+        /// Screen rows the model's Z extent spans in this transform
+        /// (front_view_z_rows()), or 0 when unknown or not a FRONT view. Sets the
+        /// streamed ghost's sampling budget.
+        float model_z_rows = 0.0f;
+
         /// Selection colors. Captured like everything else here because reading
         /// the tokens walks LVGL's const registry, which the worker must not do.
         selection::Palette palette{};

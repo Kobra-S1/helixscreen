@@ -1825,6 +1825,9 @@ GCodeLayerRenderer::GhostSnapshot GCodeLayerRenderer::capture_ghost_snapshot() c
 
     snap.line_width = get_extrusion_pixel_width();
     snap.layer_count = get_layer_count();
+    if (bounds_valid_ && snap.transform.view_mode == ViewMode::FRONT) {
+        snap.model_z_rows = front_view_z_rows(bounds_max_z_ - bounds_min_z_, snap.transform.scale);
+    }
 
     snap.gcode = gcode_;
     snap.streaming = streaming_controller_;
@@ -1839,6 +1842,13 @@ void GCodeLayerRenderer::start_background_ghost_render() {
     int layer_count = get_layer_count();
     if (layer_count == 0) {
         return;
+    }
+
+    // The snapshot below projects with the current fit. pump_offscreen_build()
+    // reaches here straight after set_canvas_size() dropped it, without the
+    // render() that would otherwise re-fit first.
+    if (!bounds_valid_) {
+        auto_fit();
     }
 
     // Allocate raw buffer if dimensions changed or not allocated
@@ -2071,11 +2081,12 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
     // core for minutes on a 133MB file once large files moved onto streaming.
     // There the pass is bounded to an even sample that still spans the model.
     // See gcode_ghost_sampling.h.
-    // transform.canvas_height is the ghost buffer's height, captured above - the
-    // most layers this projection can draw as distinct rows in the default FRONT
-    // view, and so the most worth visiting.
+    // The budget is the rows the model's own Z extent spans on this canvas,
+    // capped by the ghost buffer's height: between two samples a row apart,
+    // every layer is painted over by the next.
     const GhostSamplePlan ghost_plan =
-        plan_ghost_sampling(total_layers, local_streaming != nullptr, transform.canvas_height);
+        plan_ghost_sampling_budget(total_layers, local_streaming != nullptr,
+                                   ghost_model_budget(transform.canvas_height, snap.model_z_rows));
     if (local_streaming && ghost_plan.step > 1) {
         spdlog::debug("[GCodeLayerRenderer] Ghost sampling {} of {} layers (every {})",
                       ghost_plan.count, total_layers, ghost_plan.step);
