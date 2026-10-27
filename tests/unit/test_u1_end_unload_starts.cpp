@@ -93,8 +93,8 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint withdrawn during the pre-print send ne
     MoonrakerClientMockTestAccess::set_method_handler(
         client, "printer.print.start",
         [&starts](MoonrakerClientMock*, const nlohmann::json&,
-                  std::function<void(const nlohmann::json&)> ok,
-                  std::function<void(const MoonrakerError&)>) -> bool {
+                  helix::SharedCallback<void(const nlohmann::json&)> ok,
+                  helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
             ++starts;
             ok(nlohmann::json{{"result", "ok"}});
             return true;
@@ -130,8 +130,9 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint whose start times out while Stop waits
                  "[preparing_cancel][preprint]") {
     MoonrakerClientMockTestAccess::set_method_handler(
         client, "printer.print.start",
-        [](MoonrakerClientMock*, const nlohmann::json&, std::function<void(const nlohmann::json&)>,
-           std::function<void(const MoonrakerError&)> err) -> bool {
+        [](MoonrakerClientMock*, const nlohmann::json&,
+           helix::SharedCallback<void(const nlohmann::json&)>,
+           helix::SharedCallback<void(const MoonrakerError&)> err) -> bool {
             err(MoonrakerError::timeout("printer.print.start", 600000));
             return true;
         });

@@ -13,6 +13,7 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "helix_shared_callback.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -647,7 +648,7 @@ void modal_register_keyboard(lv_obj_t* modal, lv_obj_t* textarea);
  */
 struct ConfirmOptions {
     /// Cancel-button callback; unset for a close-only cancel
-    std::function<void()> on_cancel;
+    helix::SharedCallback<void()> on_cancel;
 
     /// Cancel-button text; nullptr defaults to "Cancel"
     const char* cancel_text = nullptr;
@@ -659,7 +660,7 @@ struct ConfirmOptions {
     /// holds state the buttons are meant to resolve (a re-entry guard, a
     /// pending flag, a stored handle); without it that state leaks on a
     /// dismissal.
-    std::function<void()> on_dismiss;
+    helix::SharedCallback<void()> on_dismiss;
 
     /// Gates ALL THREE callbacks, not just the dismissal: none of them runs
     /// once the token has expired. Pass it whenever a callback captures
@@ -679,7 +680,7 @@ struct ConfirmOptions {
  */
 struct AlertOptions {
     /// See ConfirmOptions::on_dismiss
-    std::function<void()> on_dismiss;
+    helix::SharedCallback<void()> on_dismiss;
 
     /// See ConfirmOptions::owner_token
     std::optional<helix::LifetimeToken> owner_token;
@@ -688,7 +689,7 @@ struct AlertOptions {
 /**
  * @brief Confirmation dialog whose callbacks never touch a widget
  *
- * The callbacks are std::function, invoked from the modal's own button
+ * The callbacks are SharedCallbacks, invoked from the modal's own button
  * handlers, so nothing of the caller's is attached to a widget and there is
  * no user_data to outlive the dialog (prestonbrown/helixscreen#1383). The
  * dialog closes itself when a button is pressed.
@@ -698,7 +699,7 @@ struct AlertOptions {
  * @return The created dialog widget, or nullptr on failure
  */
 lv_obj_t* modal_confirm(const char* title, const char* message, ModalSeverity severity,
-                        const char* confirm_text, std::function<void()> on_confirm,
+                        const char* confirm_text, helix::SharedCallback<void()> on_confirm,
                         const ConfirmOptions& options = {});
 
 /**
@@ -725,7 +726,7 @@ std::string config_rewrite_message(std::string_view what);
  *        whenever a callback captures something that can outlive the caller
  */
 lv_obj_t* confirm_config_rewrite(const char* title, std::string_view what, const char* confirm_text,
-                                 std::function<void()> on_confirm,
+                                 helix::SharedCallback<void()> on_confirm,
                                  const ConfirmOptions& options = {});
 
 /**
@@ -735,7 +736,8 @@ lv_obj_t* confirm_config_rewrite(const char* title, std::string_view what, const
  */
 lv_obj_t* modal_alert(const char* title, const char* message,
                       ModalSeverity severity = ModalSeverity::Info, const char* ok_text = "OK",
-                      std::function<void()> on_ok = nullptr, const AlertOptions& options = {});
+                      helix::SharedCallback<void()> on_ok = nullptr,
+                      const AlertOptions& options = {});
 
 /**
  * @brief Show the "low RAM before resonance calibration" warning modal.
@@ -753,7 +755,7 @@ lv_obj_t* modal_alert(const char* title, const char* message,
  * prestonbrown/helixscreen#1380 reverted.
  */
 lv_obj_t* show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** dialog_handle,
-                                         std::function<void()> on_confirm,
+                                         helix::SharedCallback<void()> on_confirm,
                                          const ConfirmOptions& options = {});
 
 /**
@@ -762,7 +764,8 @@ lv_obj_t* show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** dialog_hand
  * Shown instead of starting when resonance_memory_check() says REFUSE.
  * @p on_close runs on OK and on dismissal alike.
  */
-lv_obj_t* show_resonance_memory_refusal(size_t headroom_mb, std::function<void()> on_close = {},
+lv_obj_t* show_resonance_memory_refusal(size_t headroom_mb,
+                                        helix::SharedCallback<void()> on_close = {},
                                         const AlertOptions& options = {});
 
 } // namespace helix::ui

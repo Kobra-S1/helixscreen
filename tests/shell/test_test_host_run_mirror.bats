@@ -407,6 +407,20 @@ make_mirror() { # <name> <age in days>
     contains "estimated sync" "$output"
 }
 
+@test "--probe: measures the link where date has no nanoseconds (BSD date)" {
+    mock_command ping "64 bytes from testhost: icmp_seq=1 ttl=64 time=40.5 ms"
+    # BSD date prints %N literally.
+    mock_command_script date 'echo "1793107829N"'
+    unset HELIX_TEST_PROBE_BYTES_PER_SEC
+    local t
+    t=$(make_tree tree-a)
+    cd "$t"
+    run "$TEST_HOST_RUN" --probe
+    lacks "value too great" "$output"
+    lacks "unknown job" "$output"
+    contains "estimated sync" "$output"
+}
+
 # --- the orphan wait, and what may happen before it --------------------------
 
 @test "mirror mode waits out an orphaned build before syncing or deleting anything" {

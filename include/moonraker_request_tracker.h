@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "json_fwd.h"
 #include "moonraker_error.h"
 #include "moonraker_events.h"
@@ -71,9 +72,9 @@ class MoonrakerRequestTracker {
      * @return Request ID, or kInvalidRequestId on error
      */
     RequestId send(hv::WebSocketClient& ws, const std::string& method, const json& params,
-                   std::function<void(const json&)> success_cb,
-                   std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
-                   bool silent = false,
+                   helix::SharedCallback<void(const json&)> success_cb,
+                   helix::SharedCallback<void(const MoonrakerError&)> error_cb,
+                   uint32_t timeout_ms = 0, bool silent = false,
                    std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt);
 
     /**

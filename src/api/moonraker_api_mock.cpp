@@ -120,7 +120,7 @@ MoonrakerTimelapseAPIMock& MoonrakerAPIMock::timelapse_mock() {
 // ============================================================================
 
 SubscriptionId
-MoonrakerAPIMock::subscribe_notifications(std::function<void(const json&)> callback) {
+MoonrakerAPIMock::subscribe_notifications(helix::SharedCallback<void(const json&)> callback) {
     // The mock client fans every status update out to the notification callbacks, so a
     // listener such as BedMeshState follows the mock printer as it would a real one.
     return MoonrakerAPI::subscribe_notifications(std::move(callback));
@@ -131,7 +131,7 @@ bool MoonrakerAPIMock::unsubscribe_notifications(SubscriptionId id) {
 }
 
 void MoonrakerAPIMock::register_method_callback(const std::string& method, const std::string& name,
-                                                std::function<void(const json&)> callback) {
+                                                helix::SharedCallback<void(const json&)> callback) {
     // The mock client dispatches notifications itself, so listeners reach them.
     MoonrakerAPI::register_method_callback(method, name, std::move(callback));
 }
@@ -149,7 +149,7 @@ void MoonrakerAPIMock::suppress_disconnect_modal(uint32_t duration_ms) {
 
 void MoonrakerAPIMock::get_gcode_store(
     int /*count*/, std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
-    std::function<void(const MoonrakerError&)> /*on_error*/) {
+    helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/) {
     if (on_success) {
         double now = static_cast<double>(std::time(nullptr));
         std::vector<GcodeStoreEntry> entries = {

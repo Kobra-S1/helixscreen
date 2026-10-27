@@ -156,7 +156,8 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// queued behind any status frame that arrived before the answer, and is
     /// dropped if the backend is destroyed first. Use this when a macro's
     /// completion is the reliable terminal signal for an operation.
-    virtual AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete);
+    virtual AmsError execute_gcode(const std::string& gcode,
+                                   helix::SharedCallback<void()> on_complete);
     /// Same as execute_gcode(gcode, on_complete), plus @p on_error for callers
     /// that hold state the failure has to unwind — an optimistic AmsAction set
     /// before the send stays set forever if nothing runs on the error path.
@@ -167,8 +168,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// @p silent suppresses the advisory RPC timeout's toast. Leave it true for
     /// a long macro whose completion is owned by a status signal rather than the
     /// RPC return; pass false when the RPC return is the operation's own answer.
-    virtual AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                                   std::function<void(const MoonrakerError&)> on_error,
+    virtual AmsError execute_gcode(const std::string& gcode,
+                                   helix::SharedCallback<void()> on_complete,
+                                   helix::SharedCallback<void(const MoonrakerError&)> on_error,
                                    bool silent = true);
 
     /// Whether the toolhead is homed. Virtual purely as a test seam: fixtures
@@ -216,14 +218,13 @@ class AmsSubscriptionBackend : public AmsBackend {
     ///
     /// @warning Call from the main thread only — checks toolhead_homed(),
     /// which (in the production override) reads an LVGL subject.
-    AmsError
-    ensure_homed_then(std::string gcode, std::function<void()> on_complete = nullptr,
-                      std::function<void(const MoonrakerError&)> on_error = nullptr,
-                      uint32_t timeout_ms = IMoonrakerAPI::kAmsOperationTimeoutMs,
-                      bool skip_homing = false, bool silent = true,
-                      std::optional<bool> caller_surfaces_errors = std::nullopt,
-                      std::function<void(const MoonrakerError&)> on_predispatch_error = nullptr,
-                      bool bypass_busy_gate = false);
+    AmsError ensure_homed_then(
+        std::string gcode, helix::SharedCallback<void()> on_complete = nullptr,
+        helix::SharedCallback<void(const MoonrakerError&)> on_error = nullptr,
+        uint32_t timeout_ms = IMoonrakerAPI::kAmsOperationTimeoutMs, bool skip_homing = false,
+        bool silent = true, std::optional<bool> caller_surfaces_errors = std::nullopt,
+        helix::SharedCallback<void(const MoonrakerError&)> on_predispatch_error = nullptr,
+        bool bypass_busy_gate = false);
 
     /// Repaints the SlotInfo cached_slot_locked() names from its lane, under
     /// mutex_. Call without holding mutex_.
@@ -708,8 +709,8 @@ class AmsSubscriptionBackend : public AmsBackend {
     ///        unwinds state — see include/rpc_error_policy.h.
     /// @param bypass_busy_gate See ensure_homed_then(). With a live @p api_ it
     ///        takes the direct path, since the virtuals carry no such flag.
-    AmsError dispatch_payload(std::string gcode, std::function<void()> on_complete,
-                              std::function<void(const MoonrakerError&)> on_error = nullptr,
+    AmsError dispatch_payload(std::string gcode, helix::SharedCallback<void()> on_complete,
+                              helix::SharedCallback<void(const MoonrakerError&)> on_error = nullptr,
                               uint32_t timeout_ms = IMoonrakerAPI::kAmsOperationTimeoutMs,
                               bool silent = true,
                               std::optional<bool> caller_surfaces_errors = std::nullopt,
@@ -721,7 +722,7 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// main (see dispatch_payload()/ensure_homed_then()'s token.defer() calls)
     /// before reaching this -- it touches system_info_ under mutex_ directly.
     void handle_dispatch_error(const MoonrakerError& err,
-                               const std::function<void(const MoonrakerError&)>& on_error);
+                               const helix::SharedCallback<void(const MoonrakerError&)>& on_error);
 
     /// The dispatch leg every sender shares when there is no IMoonrakerAPI to
     /// send through: deliver the same CONNECTION_LOST the wire would have
@@ -729,7 +730,8 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// caller that set an optimistic AmsAction before dispatching unwinds it
     /// in on_error, so skipping the callback strands the action forever
     /// (prestonbrown/helixscreen#1720).
-    AmsError refuse_dispatch_no_api(const std::function<void(const MoonrakerError&)>& on_error);
+    AmsError
+    refuse_dispatch_no_api(const helix::SharedCallback<void(const MoonrakerError&)>& on_error);
 };
 
 } // namespace helix

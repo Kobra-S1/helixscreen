@@ -3,6 +3,7 @@
 
 #include "ui_fan_control_overlay.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_drag_surface.h"
 #include "ui_error_reporting.h"
 #include "ui_fan_arc_resize.h"
@@ -13,12 +14,14 @@
 
 #include "app_constants.h"
 #include "app_globals.h"
+#include "chamber_air_modes.h"
 #include "config.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "macro_executor.h"
 #include "observer_factory.h"
 #include "ui/fan_spin_animation.h"
 #include "ui/ui_widget_helpers.h"
@@ -118,6 +121,27 @@ void attach_long_press_rename(lv_obj_t* widget, const std::string& object_name,
     lv_obj_add_event_cb(widget, on_fan_rename_data_delete, LV_EVENT_DELETE, data);
 }
 
+/// A chamber air mode button: user_data names the mode (chamber_air::mode_id).
+void on_chamber_air_mode_clicked(lv_event_t* e) {
+    const char* id = static_cast<const char*>(lv_event_get_user_data(e));
+    const auto mode = helix::chamber_air::parse_mode_id(id ? id : "");
+    if (!mode) {
+        spdlog::warn("[FanControlOverlay] Unknown chamber air mode '{}'", id ? id : "");
+        return;
+    }
+    const std::string gcode =
+        helix::chamber_air::mode_gcode(get_printer_state().get_discovery(), *mode);
+    if (gcode.empty()) {
+        spdlog::warn("[FanControlOverlay] This printer does not offer chamber air mode '{}'", id);
+        return;
+    }
+    helix::MachineGcode cmd;
+    cmd.gcode = gcode;
+    cmd.log_name = gcode;
+    cmd.display_name = lv_tr("Chamber air");
+    helix::execute_machine_gcode(get_moonraker_api(), cmd, "[FanControlOverlay]");
+}
+
 } // namespace
 
 namespace helix {
@@ -153,6 +177,7 @@ FanControlOverlay::~FanControlOverlay() {
 // ============================================================================
 
 lv_obj_t* FanControlOverlay::create(lv_obj_t* parent) {
+    register_xml_callbacks({{"on_chamber_air_mode_clicked", on_chamber_air_mode_clicked}});
     if (!OverlayBase::create(parent)) {
         return nullptr;
     }

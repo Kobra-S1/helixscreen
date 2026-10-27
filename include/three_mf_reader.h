@@ -26,10 +26,11 @@ namespace helix::three_mf {
 /// What a card or the detail view shows for one sliced plate.
 struct PlateSummary {
     int index = 0;
+    std::string name;      ///< the plate's name in the project; empty when it has none
     bool has_info = false; ///< slice_info.config carried a block for this plate
     SliceInfo info;
-    std::optional<zip::ZipEntry> gcode;       ///< Metadata/plate_<N>.gcode
-    std::optional<zip::ZipEntry> thumb;       ///< Metadata/plate_<N>.png
+    std::optional<zip::ZipEntry> gcode;       ///< the plate's G-code (three_mf::sliced_plates())
+    std::optional<zip::ZipEntry> thumb;       ///< the plate's render
     std::optional<zip::ZipEntry> thumb_small; ///< Metadata/plate_<N>_small.png
 };
 

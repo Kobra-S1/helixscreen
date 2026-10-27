@@ -27,6 +27,7 @@
 #include "axis_move.h"
 #include "belt_tension_types.h"
 #include "calibration_types.h"
+#include "helix_shared_callback.h"
 #include "json_fwd.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
@@ -75,8 +76,8 @@ struct JobQueueStatus {
  */
 class IMotionAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
 
     virtual ~IMotionAPI() = default;
 
@@ -113,8 +114,8 @@ class IMotionAPI {
  */
 class IJobAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
     using BoolCallback = std::function<void(bool)>;
     using ModifiedPrintCallback = std::function<void(const ModifiedPrintResult&)>;
 
@@ -154,8 +155,8 @@ class IJobAPI {
  */
 class IFilesAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
     using FileListCallback = std::function<void(const std::vector<FileInfo>&)>;
     using FileMetadataCallback = std::function<void(const FileMetadata&)>;
     using FileRootsCallback = std::function<void(const std::vector<FileRoot>&)>;
@@ -217,8 +218,8 @@ class IFilesAPI {
 class IQueueAPI {
   public:
     using StatusCallback = std::function<void(const JobQueueStatus&)>;
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
 
     virtual ~IQueueAPI() = default;
 
@@ -245,8 +246,8 @@ class IQueueAPI {
  */
 class IHistoryAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
     using HistoryListCallback =
         std::function<void(const std::vector<PrintHistoryJob>&, uint64_t total_count)>;
     using HistoryTotalsCallback = std::function<void(const PrintHistoryTotals&)>;
@@ -296,12 +297,12 @@ class IAdvancedAPI {
     static constexpr uint32_t kProbingTimeoutMs =
         180000; // 3 min - PROBE_CALIBRATE, Z_ENDSTOP_CALIBRATE
 
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
     using BedMeshProgressCallback = std::function<void(int current, int total)>;
     using NoiseCheckCallback = std::function<void(float noise_level)>;
     using InputShaperConfigCallback = std::function<void(const InputShaperConfig&)>;
-    using HeaterControlTypeCallback = std::function<void(const std::string& control_type)>;
+    using HeaterControlTypeCallback = helix::SharedCallback<void(const std::string& control_type)>;
     using PIDProgressCallback = std::function<void(int sample, float tolerance)>;
     using PIDCalibrateCallback = std::function<void(float kp, float ki, float kd)>;
 
@@ -330,7 +331,7 @@ class IAdvancedAPI {
     using BeltResponseCallback =
         std::function<void(const helix::calibration::BeltResponse& response)>;
     /// Stops listening and suppresses every later callback. Idempotent.
-    using BeltRunCancel = std::function<void()>;
+    using BeltRunCancel = helix::SharedCallback<void()>;
     using BeltHardwareCallback =
         std::function<void(const helix::calibration::BeltTensionHardware&)>;
 
@@ -426,10 +427,9 @@ class IAdvancedAPI {
     /// layer stays firmware-agnostic: it sends, it watches, it reports.
     /// Returns a cancel handle that stops listening; no callback fires after
     /// it. The firmware still finishes the run it is in.
-    virtual std::function<void()> start_pa_calibrate(const helix::pacal::Procedure& proc,
-                                                     PACalibrateCallback on_complete,
-                                                     ErrorCallback on_error,
-                                                     PAProgressCallback on_progress = nullptr) = 0;
+    virtual helix::SharedCallback<void()>
+    start_pa_calibrate(const helix::pacal::Procedure& proc, PACalibrateCallback on_complete,
+                       ErrorCallback on_error, PAProgressCallback on_progress = nullptr) = 0;
 
     virtual void get_machine_limits(helix::MachineLimitsCallback on_success,
                                     ErrorCallback on_error) = 0;
@@ -468,8 +468,8 @@ class IAdvancedAPI {
  */
 class IRestAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
     using RestCallback = std::function<void(const RestResponse&)>;
 
     virtual ~IRestAPI() = default;
@@ -496,9 +496,9 @@ class IRestAPI {
  */
 class ITransfersAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
-    using StringCallback = std::function<void(const std::string&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
+    using StringCallback = helix::SharedCallback<void(const std::string&)>;
     using ProgressCallback = std::function<void(size_t current, size_t total)>;
     /// Set by the requester when it no longer wants the result: a request still
     /// queued is dropped unsent and reports an error instead.
@@ -592,8 +592,8 @@ class ITransfersAPI {
  */
 class ISpoolmanAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
 
     virtual ~ISpoolmanAPI() = default;
 
@@ -682,8 +682,8 @@ class ISpoolmanAPI {
  */
 class ITimelapseAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
     using TimelapseSettingsCallback = std::function<void(const TimelapseSettings&)>;
     using WebcamListCallback = std::function<void(const std::vector<WebcamInfo>&)>;
     using WebcamCallback = std::function<void(const WebcamInfo&)>;

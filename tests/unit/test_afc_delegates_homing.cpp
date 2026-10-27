@@ -104,7 +104,8 @@ class AfcDispatchHelper : public AmsBackendAfc {
 
     // Both forms, as in HomingProbeBackend: the test passes on_complete, so
     // dispatch_payload() reaches THIS 2-arg virtual, not the 1-arg one.
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete) override {
+    AmsError execute_gcode(const std::string& gcode,
+                           helix::SharedCallback<void()> on_complete) override {
         captured.push_back(gcode);
         if (on_complete) {
             on_complete();

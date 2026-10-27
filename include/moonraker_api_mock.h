@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
 
@@ -268,7 +269,7 @@ class MoonrakerRestAPIMock : public MoonrakerRestAPI {
 
   private:
     bool hold_wled_strips_ = false;
-    std::vector<std::function<void()>> held_wled_strips_;
+    std::vector<helix::SharedCallback<void()>> held_wled_strips_;
 
     /// Mock WLED strip on/off states (strip_id -> is_on)
     std::map<std::string, bool> mock_wled_states_;
@@ -445,8 +446,8 @@ class MoonrakerFileTransferAPIMock : public MoonrakerFileTransferAPI {
     /// the order they were asked.
     void release_held_range_reads(size_t n = SIZE_MAX) {
         n = std::min(n, held_range_reads_.size());
-        std::vector<std::function<void()>> reads(held_range_reads_.begin(),
-                                                 held_range_reads_.begin() + n);
+        std::vector<helix::SharedCallback<void()>> reads(held_range_reads_.begin(),
+                                                         held_range_reads_.begin() + n);
         held_range_reads_.erase(held_range_reads_.begin(), held_range_reads_.begin() + n);
         for (auto& read : reads) {
             read();
@@ -520,7 +521,7 @@ class MoonrakerFileTransferAPIMock : public MoonrakerFileTransferAPI {
     bool no_local_copies_ = false;
     std::vector<SuccessCallback> held_path_uploads_;
     bool hold_range_reads_ = false;
-    std::vector<std::function<void()>> held_range_reads_;
+    std::vector<helix::SharedCallback<void()>> held_range_reads_;
     std::atomic<int> range_reads_{0};
 };
 
@@ -682,10 +683,10 @@ class MoonrakerAPIMock : public MoonrakerAPI {
     // ========================================================================
 
     helix::SubscriptionId
-    subscribe_notifications(std::function<void(const json&)> callback) override;
+    subscribe_notifications(helix::SharedCallback<void(const json&)> callback) override;
     bool unsubscribe_notifications(helix::SubscriptionId id) override;
     void register_method_callback(const std::string& method, const std::string& name,
-                                  std::function<void(const json&)> callback) override;
+                                  helix::SharedCallback<void(const json&)> callback) override;
     bool unregister_method_callback(const std::string& method, const std::string& name) override;
     void suppress_disconnect_modal(uint32_t duration_ms) override;
 
@@ -700,7 +701,7 @@ class MoonrakerAPIMock : public MoonrakerAPI {
     }
     void get_gcode_store(int count,
                          std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
-                         std::function<void(const MoonrakerError&)> on_error) override;
+                         helix::SharedCallback<void(const MoonrakerError&)> on_error) override;
 
     // ========================================================================
     // Overridden Power Device Methods (return mock data)

@@ -13,6 +13,7 @@
 #include "gcode_parser.h"
 #include "helix_thread.h"
 #include "home_layout_share.h"
+#include "input_sensor_manager.h"
 #include "macro_param_cache.h"
 #include "mock_persona.h"
 #include "mock_planted_gcodes.h"
@@ -988,8 +989,8 @@ MoonrakerClientMock::~MoonrakerClientMock() {
     calibration_timers_.clear();
 }
 
-int MoonrakerClientMock::connect(const char* url, std::function<void()> on_connected,
-                                 [[maybe_unused]] std::function<void()> on_disconnected) {
+int MoonrakerClientMock::connect(const char* url, helix::SharedCallback<void()> on_connected,
+                                 [[maybe_unused]] helix::SharedCallback<void()> on_disconnected) {
     spdlog::debug("[MoonrakerClientMock] Simulating connection to: {}", url ? url : "(null)");
 
     // Record the URL exactly as the real connect() does. Without this,
@@ -1128,10 +1129,11 @@ void MoonrakerClientMock::populate_capabilities() {
             // Accumulate tokens: "temperature_fan" + "chamber" → "temperature_fan chamber"
             if (!current_obj.empty()) {
                 // A type prefix always starts a new object...
-                bool is_prefix = (token.rfind("heater_generic", 0) == 0 ||
-                                  token.rfind("temperature_fan", 0) == 0 ||
-                                  token.rfind("temperature_sensor", 0) == 0 ||
-                                  token.rfind("output_pin", 0) == 0);
+                bool is_prefix =
+                    (token.rfind("heater_generic", 0) == 0 ||
+                     token.rfind("temperature_fan", 0) == 0 ||
+                     token.rfind("temperature_sensor", 0) == 0 ||
+                     token.rfind("output_pin", 0) == 0 || token.rfind("gcode_button", 0) == 0);
                 // ...and so does a bare backend diagnostics object
                 // ("dragonbreath") following a COMPLETED chamber heater —
                 // without this the second "dragonbreath" would append to
@@ -1182,6 +1184,17 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back(obj);
     }
 
+    // HELIX_MOCK_STEPPER_RESONANCE: the stepper_resonance_tester extra on any
+    // persona, with the stock STEPPER_RESONANCE_FACTORY_CALIBRATE wrapper ("1")
+    // or the bare extra alone ("bare").
+    if (const char* resonance = std::getenv("HELIX_MOCK_STEPPER_RESONANCE");
+        resonance && *resonance && std::string_view(resonance) != "0") {
+        mock_objects.push_back("stepper_resonance_tester");
+        if (std::string_view(resonance) != "bare") {
+            mock_objects.push_back("gcode_macro STEPPER_RESONANCE_FACTORY_CALIBRATE");
+        }
+    }
+
     // Add printer-specific objects
     switch (printer_type_) {
     case PrinterType::VORON_24:
@@ -1209,6 +1222,9 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("heater_generic chamber_heater");
         mock_objects.push_back("gcode_macro TOOLCHANGE_PARK");
         mock_objects.push_back("gcode_macro BED_MESH_CALIBRATE");
+        // The enclosure's door and top-cover switches.
+        mock_objects.push_back("gcode_button frontDoor");
+        mock_objects.push_back("gcode_button topDoor");
         break;
     case PrinterType::FLASHFORGE_CREATOR5_ZMOD:
         // Z-Mod's own objects. Its carriage buttons are 1-based, unlike the
@@ -1235,6 +1251,14 @@ void MoonrakerClientMock::populate_capabilities() {
         }
         // Same Pro-separating chamber heater as the Reforge persona above.
         mock_objects.push_back("heater_generic chamber_heater");
+        mock_objects.push_back("gcode_button frontDoor");
+        mock_objects.push_back("gcode_button topDoor");
+        // c5pro_generic.cfg's calibration macros.
+        mock_objects.push_back("gcode_macro CALIBRATE_EXTRUDERS");
+        mock_objects.push_back("gcode_macro CALIBRATE_VFA");
+        mock_objects.push_back("gcode_macro AIR_CIRCULATION_INTERNAL");
+        mock_objects.push_back("gcode_macro AIR_CIRCULATION_EXTERNAL");
+        mock_objects.push_back("gcode_macro AIR_CIRCULATION_STOP");
         break;
     case PrinterType::ELEGOO_CC1:
         // The CC1 capture's own objects. _COSMOS_SETTINGS and ELEGOO_PURGE are
@@ -1750,7 +1774,8 @@ void MoonrakerClientMock::rebuild_hardware_from_lists() {
 }
 
 void MoonrakerClientMock::discover_printer(
-    std::function<void()> on_complete, std::function<void(const std::string& reason)> on_error) {
+    helix::SharedCallback<void()> on_complete,
+    helix::SharedCallback<void(const std::string& reason)> on_error) {
     // The sequence finishes inside the locked call, but its outcome is
     // delivered after the lock is released: a caller's callback may read or
     // rebuild the very lists the lock protects. The base class keeps the
@@ -2673,6 +2698,48 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_zmod(const std::stri
         dispatch_status_update({{"zmod_color", {{"active_tool_id", -1}}}});
         return 0;
     }
+    if (cmd == "CALIBRATE_EXTRUDERS") {
+        // The real macro only opens this prompt; its OK starts the measurement.
+        dispatch_gcode_response("// action:prompt_end");
+        dispatch_gcode_response("// action:prompt_begin CALIBRATE EXTRUDERS");
+        dispatch_gcode_response("// action:prompt_text Please remove the build plate first!");
+        dispatch_gcode_response("// action:prompt_text T0=1, T1=1, T2=1, T3=1");
+        dispatch_gcode_response("// action:prompt_footer_button OK|_T_CALIBRATE_EXTRUDERS|primary");
+        dispatch_gcode_response("// action:prompt_footer_button Cancel|RESPOND TYPE=command "
+                                "MSG=action:prompt_end|secondary");
+        dispatch_gcode_response("// action:prompt_show");
+        return 0;
+    }
+    if (cmd == "_T_CALIBRATE_EXTRUDERS") {
+        dispatch_gcode_response("// action:prompt_end");
+        dispatch_gcode_response("// Extruder calibration finished");
+        return 0;
+    }
+    if (cmd == "AIR_CIRCULATION_INTERNAL" || cmd == "AIR_CIRCULATION_EXTERNAL" ||
+        cmd == "AIR_CIRCULATION_STOP") {
+        // c5pro_generic.cfg's fan speeds per mode: chamber_fan, chamber_cool_fan,
+        // chamber_heat_fan, chamber_loop_fan.
+        static const char* const kFans[] = {"chamber_fan", "chamber_cool_fan", "chamber_heat_fan",
+                                            "chamber_loop_fan"};
+        const double internal[] = {0.0, 0.0, 0.9, 0.3};
+        const double external[] = {0.5, 0.7, 0.0, 0.0};
+        const double stop[] = {0.0, 0.0, 0.0, 0.0};
+        const double* speeds = cmd == "AIR_CIRCULATION_INTERNAL"   ? internal
+                               : cmd == "AIR_CIRCULATION_EXTERNAL" ? external
+                                                                   : stop;
+        for (size_t i = 0; i < std::size(kFans); ++i) {
+            gcode_set_fan_speed(fmt::format("SET_FAN_SPEED FAN={} SPEED={}", kFans[i], speeds[i]));
+        }
+        return 0;
+    }
+    if (cmd == "CALIBRATE_VFA") {
+        // Mounts the head, calibrates and parks it; the real macro then ends
+        // in SAVE_CONFIG, which the mock does not restart for.
+        const std::string tool = param("T").empty() ? "0" : param("T");
+        dispatch_gcode_response("// Grab attempt for T" + tool + ": 1 of 5...");
+        dispatch_gcode_response("// VFA calibration finished");
+        return 0;
+    }
     if (cmd == "CHANGE_ZCOLOR") {
         const std::string type = param("TYPE");
         if (std::find(kZmodValidTypes.begin(), kZmodValidTypes.end(), type) ==
@@ -3063,10 +3130,10 @@ void MoonrakerClientMock::advance_medusa_swap() {
     }
 }
 
-void MoonrakerClientMock::hold_medusa_reply(std::string script, size_t resume_at,
-                                            helix::rpc_error_policy::CallerIntent intent,
-                                            std::function<void(const nlohmann::json&)> success_cb,
-                                            std::function<void(const MoonrakerError&)> error_cb) {
+void MoonrakerClientMock::hold_medusa_reply(
+    std::string script, size_t resume_at, helix::rpc_error_policy::CallerIntent intent,
+    helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+    helix::SharedCallback<void(const MoonrakerError&)> error_cb) {
     MedusaReply reply{std::move(script), resume_at, intent, std::move(success_cb),
                       std::move(error_cb)};
     bool failed = false;
@@ -3991,7 +4058,7 @@ int MoonrakerClientMock::send_jsonrpc(const std::string& method,
 }
 
 RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
-                                            std::function<void(const json&)> cb) {
+                                            helix::SharedCallback<void(const json&)> cb) {
     spdlog::trace("[MoonrakerClientMock] Mock send_jsonrpc: {} (with callback)", method);
 
     // Dispatch to handler registry (wrap callback to match error_cb signature)
@@ -3999,11 +4066,12 @@ RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const jso
     return send_jsonrpc(method, params, cb, noop_error_cb);
 }
 
-RequestId MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
-                                            std::function<void(const json&)> success_cb,
-                                            std::function<void(const MoonrakerError&)> error_cb,
-                                            uint32_t timeout_ms, bool silent,
-                                            std::optional<rpc_error_policy::CallerIntent> intent) {
+RequestId
+MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
+                                  helix::SharedCallback<void(const json&)> success_cb,
+                                  helix::SharedCallback<void(const MoonrakerError&)> error_cb,
+                                  uint32_t timeout_ms, bool silent,
+                                  std::optional<rpc_error_policy::CallerIntent> intent) {
     spdlog::trace("[MoonrakerClientMock] Mock send_jsonrpc: {} (with success/error callbacks)",
                   method);
 
@@ -4964,6 +5032,18 @@ void MoonrakerClientMock::dispatch_initial_state() {
                                   {"enabled", env.enabled}};
     }
 
+    // On/off inputs: a door switch reads PRESSED (closed) unless
+    // HELIX_MOCK_DOOR_OPEN is set; every other button reads RELEASED.
+    {
+        const bool doors_open = std::getenv("HELIX_MOCK_DOOR_OPEN") != nullptr;
+        for (const auto& input : helix::sensors::InputSensorManager::inputs_in(
+                 discovery_.hardware().printer_objects())) {
+            const bool is_door = input.role == helix::sensors::InputSensorRole::DOOR;
+            initial_status[input.klipper_name] = {
+                {"state", is_door && !doors_open ? "PRESSED" : "RELEASED"}};
+        }
+    }
+
     // The chamber and width sensors carry status only where the persona reports them.
     using helix::mock::inherits_default;
     namespace default_object = helix::mock::default_object;
@@ -5151,7 +5231,7 @@ void MoonrakerClientMock::dispatch_historical_temperatures() {
     // Cooling phase = remaining samples (~70s, cools extruder ~20°C to ~40°C)
 
     // Copy callbacks to avoid holding lock during dispatch
-    std::vector<std::function<void(const json&)>> callbacks_copy;
+    std::vector<helix::SharedCallback<void(const json&)>> callbacks_copy;
     {
         std::lock_guard<std::mutex> lock(callbacks_mutex_);
         callbacks_copy.reserve(notify_callbacks_.size());
@@ -5344,7 +5424,7 @@ json MoonrakerClientMock::chamber_route_set_target(double target) {
 }
 
 void MoonrakerClientMock::dispatch_method_callback(const std::string& method, const json& msg) {
-    std::vector<std::function<void(const json&)>> callbacks_to_invoke;
+    std::vector<helix::SharedCallback<void(const json&)>> callbacks_to_invoke;
 
     {
         std::lock_guard<std::mutex> lock(callbacks_mutex_);
@@ -6108,7 +6188,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
 
         // Push notification through all registered callbacks
         // Two-phase: copy under lock, invoke outside to avoid deadlock
-        std::vector<std::function<void(const json&)>> callbacks_copy;
+        std::vector<helix::SharedCallback<void(const json&)>> callbacks_copy;
         {
             std::lock_guard<std::mutex> lock(callbacks_mutex_);
             callbacks_copy.reserve(notify_callbacks_.size());
@@ -6240,8 +6320,8 @@ void MoonrakerClientMock::apply_calibrated_tool_offset(int tool, double x, doubl
 }
 
 bool MoonrakerClientMock::simulate_tool_offset_calibration(
-    const std::string& script, std::function<void(const nlohmann::json&)> success_cb,
-    std::function<void(const MoonrakerError&)> error_cb) {
+    const std::string& script, helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+    helix::SharedCallback<void(const MoonrakerError&)> error_cb) {
     // Whole-line match: the macro takes no parameters worth modelling.
     std::string cmd = script;
     while (!cmd.empty() && (cmd.back() == '\n' || cmd.back() == '\r' || cmd.back() == ' ')) {
@@ -6308,7 +6388,7 @@ bool MoonrakerClientMock::simulate_tool_offset_calibration(
 
     const bool fails = fail_tool >= 0 && fail_tool < tool_count;
     const int last_tool = fails ? fail_tool : tool_count - 1;
-    std::vector<std::function<void()>> steps;
+    std::vector<helix::SharedCallback<void()>> steps;
     for (int tool = 0; tool <= last_tool; ++tool) {
         steps.emplace_back([select, tool] { select(tool); });
         if (tool != fail_tool) {
@@ -6316,7 +6396,7 @@ bool MoonrakerClientMock::simulate_tool_offset_calibration(
         }
     }
 
-    std::function<void()> on_done;
+    helix::SharedCallback<void()> on_done;
     if (fails) {
         on_done = [this, probe, fail_tool, error_cb = std::move(error_cb)] {
             probe(fail_tool);
@@ -6356,8 +6436,8 @@ bool MoonrakerClientMock::nozzle_calibration_active() const {
 }
 
 bool MoonrakerClientMock::simulate_nozzle_offset_calibration(
-    const std::string& script, std::function<void(const nlohmann::json&)> success_cb,
-    std::function<void(const MoonrakerError&)> error_cb) {
+    const std::string& script, helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+    helix::SharedCallback<void(const MoonrakerError&)> error_cb) {
     constexpr const char* kPrefix = "EXTRUDER_OFFSET_ACTION_";
     if (printer_type_ != PrinterType::SNAPMAKER_U1 || script.rfind(kPrefix, 0) != 0) {
         return false;
@@ -6406,7 +6486,7 @@ bool MoonrakerClientMock::simulate_nozzle_offset_calibration(
     spdlog::info("[MoonrakerClientMock] {}{}", script,
                  error.empty() ? "" : fmt::format(" -> refused: {}", error));
 
-    std::vector<std::function<void()>> steps;
+    std::vector<helix::SharedCallback<void()>> steps;
     if (error.empty() && step == "PROBE_CALIBRATE" && head >= 0) {
         steps.emplace_back([this, head] {
             const auto o = nozzle_offset(head);
@@ -6415,7 +6495,7 @@ bool MoonrakerClientMock::simulate_nozzle_offset_calibration(
                                                 o[2]));
         });
     }
-    std::function<void()> on_done;
+    helix::SharedCallback<void()> on_done;
     if (error.empty()) {
         on_done = [success_cb = std::move(success_cb)] {
             if (success_cb) {
@@ -6597,8 +6677,8 @@ void MoonrakerClientMock::dispatch_manual_probe_update() {
 // ============================================================================
 
 bool MoonrakerClientMock::simulate_pa_calibration(
-    const std::string& script, std::function<void(const nlohmann::json&)> success_cb,
-    std::function<void(const MoonrakerError&)> error_cb) {
+    const std::string& script, helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+    helix::SharedCallback<void(const MoonrakerError&)> error_cb) {
     if (script.rfind("FLOW_CALIBRATE", 0) != 0) {
         return false;
     }
@@ -6689,7 +6769,7 @@ void MoonrakerClientMock::dispatch_gcode_response(const std::string& line) {
     json notification = {{"method", "notify_gcode_response"}, {"params", json::array({line})}};
 
     // Collect callbacks while holding lock, invoke outside
-    std::vector<std::function<void(const json&)>> callbacks_to_invoke;
+    std::vector<helix::SharedCallback<void(const json&)>> callbacks_to_invoke;
     {
         std::lock_guard<std::mutex> lock(callbacks_mutex_);
         auto method_it = method_callbacks_.find("notify_gcode_response");
@@ -6999,8 +7079,8 @@ MoonrakerClientMock::make_accel_batch_source(const helix::calibration::SweepPlan
 }
 
 void MoonrakerClientMock::play_console_lines(std::vector<std::string> lines, uint32_t interval_ms,
-                                             std::function<void()> on_done) {
-    std::vector<std::function<void()>> steps;
+                                             helix::SharedCallback<void()> on_done) {
+    std::vector<helix::SharedCallback<void()>> steps;
     steps.reserve(lines.size());
     for (auto& line : lines) {
         steps.emplace_back([this, line = std::move(line)] { dispatch_gcode_response(line); });
@@ -7008,12 +7088,13 @@ void MoonrakerClientMock::play_console_lines(std::vector<std::string> lines, uin
     play_console_steps(std::move(steps), interval_ms, std::move(on_done));
 }
 
-void MoonrakerClientMock::play_console_steps(std::vector<std::function<void()>> steps,
-                                             uint32_t interval_ms, std::function<void()> on_done) {
+void MoonrakerClientMock::play_console_steps(std::vector<helix::SharedCallback<void()>> steps,
+                                             uint32_t interval_ms,
+                                             helix::SharedCallback<void()> on_done) {
     struct PlaybackState {
         MoonrakerClientMock* mock;
-        std::vector<std::function<void()>> steps;
-        std::function<void()> on_done;
+        std::vector<helix::SharedCallback<void()>> steps;
+        helix::SharedCallback<void()> on_done;
         size_t index;
     };
     auto* sim = new PlaybackState{this, std::move(steps), std::move(on_done), 0};

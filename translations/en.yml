@@ -610,6 +610,7 @@ translations:
   Canceling turns the chamber target off so the wait ends, then stops the print.: Canceling turns the chamber target off so the wait ends, then stops the print.
   'Cannot add to queue: internal error': 'Cannot add to queue: internal error'
   Cannot be changed from here on a multi-unit MMU: Cannot be changed from here on a multi-unit MMU
+  Cannot calibrate while printing: Cannot calibrate while printing
   Cannot change the HelixPrint plugin while printing: Cannot change the HelixPrint plugin while printing
   'Cannot control timelapse: printer not connected': 'Cannot control timelapse: printer
     not connected'
@@ -652,6 +653,7 @@ translations:
   Chamber Heater Fan: Chamber Heater Fan
   Chamber Sensor: Chamber Sensor
   Chamber Temperature: Chamber Temperature
+  Chamber air: Chamber air
   Chamber and dryer humidity monitoring: Chamber and dryer humidity monitoring
   Chamber at %d°C: Chamber at %d°C
   Chamber heater didn't start: Chamber heater didn't start
@@ -773,6 +775,7 @@ translations:
   Close: Close
   Close feeder: Close feeder
   Close feeder macro: Close feeder macro
+  Closed: Closed
   Closer: Closer
   Closer = more squish | Farther = less squish: Closer = more squish | Farther = less
     squish
@@ -1131,6 +1134,10 @@ translations:
   Don't Save: Don't Save
   Don't ask again: Don't ask again
   Done: Done
+  Door: Door
+  Door Open: Door Open
+  'Door opened during print: {}': 'Door opened during print: {}'
+  Door switches, buttons, and other on/off inputs: Door switches, buttons, and other on/off inputs
   Download update?: Download update?
   Download v{}?: Download v{}?
   Downloading...: Downloading...
@@ -1606,6 +1613,7 @@ translations:
   Follow active tool: Follow active tool
   Follow graph screen: Follow graph screen
   'For a first Z home: claim the tool you put on the head': 'For a first Z home: claim the tool you put on the head'
+  For materials that need a warm enclosure, like ABS or ASA: For materials that need a warm enclosure, like ABS or ASA
   Force/weight sensors: Force/weight sensors
   Forget: Forget
   Forget Network?: Forget Network?
@@ -1853,6 +1861,7 @@ translations:
   IMPORT FROM USB: IMPORT FROM USB
   INDX dock positions are not calibrated: INDX dock positions are not calibrated
   INDX macros not recognized: INDX macros not recognized
+  INPUTS: INPUTS
   IP Address / Hostname: IP Address / Hostname
   'IP:': 'IP:'
   'IPP error: {}': 'IPP error: {}'
@@ -1950,12 +1959,14 @@ translations:
   Invalid value: Invalid value
   Invalid value type: Invalid value type
   Is new filament coming out of the nozzle?: Is new filament coming out of the nozzle?
+  Invert: Invert
   Is the bed clear?: Is the bed clear?
   Issue description: Issue description
   It can be un-archived in Spoolman's web UI.: It can be un-archived in Spoolman's web UI.
   It has not reported its slots yet. Try again in a moment.: It has not reported its slots yet. Try again in a moment.
   It homes and heats on its own (no start macro found).: It homes and heats on its own (no start macro found).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying
+  It saves the result and restarts Klipper when it finishes.: It saves the result and restarts Klipper when it finishes.
   It starts with your {} macro.: It starts with your {} macro.
   It's a new spool: It's a new spool
   Its home tile: Its home tile
@@ -2304,6 +2315,7 @@ translations:
   Minimum: Minimum
   Minutes: Minutes
   Missing value: Missing value
+  Mixed-Temperature Materials: Mixed-Temperature Materials
   Mode: Mode
   Modified: Modified
   Modifying G-code is not available on this device. Printing original file.: Modifying G-code is not available on this device. Printing original file.
@@ -2657,6 +2669,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: Open the .3mf in Print Files to print this plate again.
   Open the CFS unit and remove the broken filament from the slot: Open the CFS unit and remove the broken filament from the slot
   Open the slot editor when you load a new spool: Open the slot editor when you load a new spool
+  Opened: Opened
   Operation already in progress: Operation already in progress
   Operation timed out: Operation timed out
   Operations: Operations
@@ -2670,6 +2683,7 @@ translations:
   Or instead of turning the others: Or instead of turning the others
   Original file location unknown: Original file location unknown
   Oscillating... cycle %d/%d: Oscillating... cycle %d/%d
+  Other: Other
   Outcome: Outcome
   Output Device: Output Device
   Output Mode: Output Mode
@@ -2777,7 +2791,6 @@ translations:
   Placed: Placed
   Plate moves and presets lift to this height first: Plate moves and presets lift to this height first
   Plate {}: Plate {}
-  Plate {} ({} of {}): Plate {} ({} of {})
   Platform: Platform
   'Platform: ': 'Platform: '
   Play / stop Crockett's Theme: Play / stop Crockett's Theme
@@ -2854,6 +2867,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   'Pressure:': 'Pressure:'
+  Pressed: Pressed
   Pressure Adv.: Pressure Adv.
   Pressure Advance: Pressure Advance
   Pressure Advance Calibration: Pressure Advance Calibration
@@ -3115,6 +3129,7 @@ translations:
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Received oversized data from printer ({} bytes). This may indicate a communication error.
   Recent Prints: Recent Prints
   Recently Printed: Recently Printed
+  Recirculate: Recirculate
   Reconnect: Reconnect
   Record Timelapse: Record Timelapse
   Record timelapses of your prints: Record timelapses of your prints
@@ -3148,6 +3163,7 @@ translations:
   Release or grip the filament by hand: Release or grip the filament by hand
   Release the filament: Release the filament
   Release {}'s tensioner, let the spring settle, lock it: Release {}'s tensioner, let the spring settle, lock it
+  Released: Released
   Reload the saved bed mesh?: Reload the saved bed mesh?
   Remaining: Remaining
   Remaining (g): Remaining (g)
@@ -4023,6 +4039,7 @@ translations:
   The printer lost power during a print. The resumed layer may not line up exactly.: The printer lost power during a print. The resumed layer may not line up exactly.
   The printer lost power while printing {}. Resume where it left off?: The printer lost power while printing {}. Resume where it left off?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: The printer lost power while printing {}. The resumed layer may not line up exactly.
+  The printer moves the toolhead and measures its motors.: The printer moves the toolhead and measures its motors.
   The printer no longer has a print to resume.: The printer no longer has a print to resume.
   The printer reads the file up to the last saved position. A large file can take a minute.: The printer reads the file up to the last saved position. A large file can take a minute.
   The printer records lane {} in the toolhead, not this one: The printer records lane {} in the toolhead, not this one
@@ -4099,6 +4116,8 @@ translations:
   This feature requires different hardware or configuration: This feature requires different hardware or configuration
   This feature stopped. Restart Moonraker to start it again.: This feature stopped. Restart Moonraker to start it again.
   This filament system does not report buffer or flow data.: This filament system does not report buffer or flow data.
+  This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.
+  This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.
   This file was sliced for {} but {} is loaded.: This file was sliced for {} but {}
     is loaded.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.
@@ -4285,6 +4304,7 @@ translations:
   Trying again...: Trying again...
   Tune: Tune
   Tune Belts: Tune Belts
+  Tune the motors to remove fine vertical lines: Tune the motors to remove fine vertical lines
   Tuner: Tuner
   Tuning tower enabled - start a print to test: Tuning tower enabled - start a print
     to test
@@ -4438,6 +4458,7 @@ translations:
   Version and what the plugin runs: Version and what the plugin runs
   Version {}: Version {}
   Vertical: Vertical
+  Vertical Artifact Compensation: Vertical Artifact Compensation
   Vibration: Vibration
   Vibration compensation active: Vibration compensation active
   Video playback speed: Video playback speed
@@ -4484,6 +4505,7 @@ translations:
   Warm up for a material in one tap: Warm up for a material in one tap
   Warming Bed...: Warming Bed...
   Warn: Warn
+  Warn if a door is open: Warn if a door is open
   Warning: Warning
   Warnings & errors: Warnings & errors
   Watch the camera during a print for failed prints: Watch the camera during a print for failed prints
@@ -4732,6 +4754,10 @@ translations:
   within one bin: within one bin
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant is not running. WiFi features unavailable.
   you have: you have
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · about {} min'
@@ -4742,6 +4768,7 @@ translations:
   '{} LED strips available': '{} LED strips available'
   '{} MCUs': '{} MCUs'
   '{} Tools': '{} Tools'
+  '{} and {}': '{} and {}'
   '{} and {} are both mapped here': '{} and {} are both mapped here'
   '{} available': '{} available'
   '{} axes homed': '{} axes homed'
@@ -4821,6 +4848,7 @@ translations:
   '{} — response timed out': '{} — response timed out'
   '{} → {}: no filament loaded.': '{} → {}: no filament loaded.'
   "{}'s nozzle is still heating": "{}'s nozzle is still heating"
+  '{}, {}': '{}, {}'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": "{}: the tag names Spoolman spool #{}, which doesn't exist"
   '{}:{:02} elapsed': '{}:{:02} elapsed'
   '{}% left': '{}% left'

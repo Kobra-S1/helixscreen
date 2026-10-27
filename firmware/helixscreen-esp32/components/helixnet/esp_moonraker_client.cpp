@@ -43,7 +43,7 @@ std::atomic<EspMoonrakerClient::LinkDropObserver> s_link_drop_observer{nullptr};
 std::atomic<const EspMoonrakerClient::KlippyStateSink*> s_klippy_state_sink{nullptr};
 
 std::function<bool()> s_before_transport_start;
-std::function<void()> s_transport_stall_handler;
+helix::SharedCallback<void()> s_transport_stall_handler;
 } // namespace
 
 void EspMoonrakerClient::set_link_drop_observer(LinkDropObserver observer) {
@@ -55,7 +55,7 @@ void EspMoonrakerClient::set_klippy_state_sink(const KlippyStateSink* sink) {
 }
 
 EspMoonrakerClient::EspMoonrakerClient()
-    : transport_({[this](const char* what, std::function<void()> job) {
+    : transport_({[this](const char* what, helix::SharedCallback<void()> job) {
                       post_transport_job(what, std::move(job));
                   },
                   [this](const std::string& url) { return create_transport(url); },
@@ -152,8 +152,8 @@ EspMoonrakerClient::~EspMoonrakerClient() {
 // Connection lifecycle
 // ---------------------------------------------------------------------------
 
-int EspMoonrakerClient::connect(const char* url, std::function<void()> on_connected,
-                                std::function<void()> on_disconnected) {
+int EspMoonrakerClient::connect(const char* url, helix::SharedCallback<void()> on_connected,
+                                helix::SharedCallback<void()> on_disconnected) {
     if (!url) {
         ESP_LOGE(TAG, "connect: null url");
         return -1;
@@ -225,7 +225,7 @@ esp_websocket_client_handle_t EspMoonrakerClient::create_transport(const std::st
     return ws;
 }
 
-void EspMoonrakerClient::post_transport_job(const char* what, std::function<void()> job) {
+void EspMoonrakerClient::post_transport_job(const char* what, helix::SharedCallback<void()> job) {
     std::unique_lock<std::mutex> lock(transport_mutex_);
     // With no transport there is nothing to stop, so a job cannot block the caller: run it
     // here. The boot connect then allocates the websocket task in the same order, and on
@@ -271,7 +271,7 @@ void* EspMoonrakerClient::transport_worker_main(void* self) {
 
 void EspMoonrakerClient::transport_worker_loop() {
     for (;;) {
-        std::pair<const char*, std::function<void()>> job;
+        std::pair<const char*, helix::SharedCallback<void()>> job;
         {
             std::unique_lock<std::mutex> lock(transport_mutex_);
             transport_cv_.wait(lock,
@@ -303,7 +303,7 @@ void EspMoonrakerClient::set_before_transport_start(std::function<bool()> check)
     s_before_transport_start = std::move(check);
 }
 
-void EspMoonrakerClient::set_transport_stall_handler(std::function<void()> handler) {
+void EspMoonrakerClient::set_transport_stall_handler(helix::SharedCallback<void()> handler) {
     s_transport_stall_handler = std::move(handler);
 }
 
@@ -516,7 +516,7 @@ void EspMoonrakerClient::invoke_connected_callbacks() {
         on_connected_();
     }
 
-    std::vector<std::pair<std::string, std::function<void()>>> observers;
+    std::vector<std::pair<std::string, helix::SharedCallback<void()>>> observers;
     {
         std::lock_guard<std::mutex> lock(observers_mutex_);
         observers.reserve(connected_observers_.size());
@@ -673,8 +673,8 @@ void EspMoonrakerClient::dispatch_message(const char* buf, size_t len) {
     // Response (has "id") → request tracker.
     if (msg.contains("id") && msg["id"].is_number_integer()) {
         uint64_t id = msg["id"].get<uint64_t>();
-        std::function<void(const json&)> success_cb;
-        std::function<void(const MoonrakerError&)> error_cb;
+        helix::SharedCallback<void(const json&)> success_cb;
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb;
         std::string method;
         bool silent = false;
         bool found = false;
@@ -747,8 +747,8 @@ void EspMoonrakerClient::dispatch_notification(const json& msg, bool include_met
     }
     std::string method = msg["method"].get<std::string>();
 
-    std::vector<std::function<void(const json&)>> to_invoke;
-    std::function<void(const json&)> bed_mesh_cb;
+    std::vector<helix::SharedCallback<void(const json&)>> to_invoke;
+    helix::SharedCallback<void(const json&)> bed_mesh_cb;
     {
         std::lock_guard<std::mutex> lock(callbacks_mutex_);
         if (method == "notify_status_update" || method == "notify_filelist_changed") {
@@ -830,11 +830,11 @@ void EspMoonrakerClient::process_timeouts() {
         std::string method;
         uint32_t timeout_ms;
         bool silent;
-        std::function<void(const MoonrakerError&)> cb;
+        helix::SharedCallback<void(const MoonrakerError&)> cb;
         MoonrakerError err;
     };
     std::vector<TimedOut> timed_out;
-    std::vector<std::function<void()>> failed;
+    std::vector<helix::SharedCallback<void()>> failed;
     const int64_t now = now_us();
     size_t pending_n = 0;
     int64_t oldest_age_us = 0;
@@ -996,15 +996,16 @@ int EspMoonrakerClient::send_jsonrpc(const std::string& method, const json& para
 }
 
 RequestId EspMoonrakerClient::send_jsonrpc(const std::string& method, const json& params,
-                                           std::function<void(const json&)> cb) {
+                                           helix::SharedCallback<void(const json&)> cb) {
     return send_jsonrpc(method, params, std::move(cb), nullptr, 0, false);
 }
 
-RequestId EspMoonrakerClient::send_jsonrpc(const std::string& method, const json& params,
-                                           std::function<void(const json&)> success_cb,
-                                           std::function<void(const MoonrakerError&)> error_cb,
-                                           uint32_t timeout_ms, bool silent,
-                                           std::optional<rpc_error_policy::CallerIntent> intent) {
+RequestId
+EspMoonrakerClient::send_jsonrpc(const std::string& method, const json& params,
+                                 helix::SharedCallback<void(const json&)> success_cb,
+                                 helix::SharedCallback<void(const MoonrakerError&)> error_cb,
+                                 uint32_t timeout_ms, bool silent,
+                                 std::optional<rpc_error_policy::CallerIntent> intent) {
     // CallerIntent governs who surfaces a failed request's error (caller
     // callback vs the tracker's generic toast) on the desktop client, where
     // both surfaces exist. The shim has exactly one surface — error_cb — so
@@ -1024,10 +1025,11 @@ RequestId EspMoonrakerClient::send_jsonrpc(const std::string& method, const json
                           silent);
 }
 
-RequestId EspMoonrakerClient::track_and_send(const std::string& method, const json& params,
-                                             std::function<void(const json&)> success_cb,
-                                             std::function<void(const MoonrakerError&)> error_cb,
-                                             uint32_t timeout_ms, bool silent) {
+RequestId
+EspMoonrakerClient::track_and_send(const std::string& method, const json& params,
+                                   helix::SharedCallback<void(const json&)> success_cb,
+                                   helix::SharedCallback<void(const MoonrakerError&)> error_cb,
+                                   uint32_t timeout_ms, bool silent) {
     RequestId id = next_request_id_.fetch_add(1) + 1;
 
     bool queue_full = false;
@@ -1071,7 +1073,7 @@ RequestId EspMoonrakerClient::track_and_send(const std::string& method, const js
     int result = send_envelope(rpc);
     if (result < 0) {
         // Send failed — drop the pending entry and report connection_lost.
-        std::function<void(const MoonrakerError&)> cb_copy;
+        helix::SharedCallback<void(const MoonrakerError&)> cb_copy;
         {
             std::lock_guard<std::mutex> lock(requests_mutex_);
             auto it = pending_.find(id);
@@ -1096,7 +1098,7 @@ int EspMoonrakerClient::gcode_script(const std::string& gcode) {
 
 void EspMoonrakerClient::get_gcode_store(
     int count, std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
-    std::function<void(const MoonrakerError&)> on_error) {
+    helix::SharedCallback<void(const MoonrakerError&)> on_error) {
     json params = {{"count", count}};
     send_jsonrpc(
         "server.gcode_store", params,
@@ -1122,7 +1124,7 @@ void EspMoonrakerClient::get_gcode_store(
 
 void EspMoonrakerClient::get_temperature_store(
     std::function<void(const TemperatureStore&)> on_success,
-    std::function<void(const MoonrakerError&)> on_error) {
+    helix::SharedCallback<void(const MoonrakerError&)> on_error) {
     json params = {{"include_monitors", false}};
     send_jsonrpc(
         "server.temperature_store", params,
@@ -1428,8 +1430,9 @@ json build_subscription_objects(const PrinterDiscovery& hw) {
 
 } // namespace
 
-void EspMoonrakerClient::discover_printer(std::function<void()> on_complete,
-                                          std::function<void(const std::string&)> on_error) {
+void EspMoonrakerClient::discover_printer(
+    helix::SharedCallback<void()> on_complete,
+    helix::SharedCallback<void(const std::string&)> on_error) {
     if (!is_connected()) {
         if (on_error) {
             on_error("not connected");
@@ -1458,8 +1461,9 @@ void EspMoonrakerClient::discover_printer(std::function<void()> on_complete,
 
     // Share the user callbacks across the nested chain; every terminal path clears
     // discovery_in_flight_ exactly once (discovery_fail, or the subscribe success).
-    auto done = std::make_shared<std::function<void()>>(std::move(on_complete));
-    auto fail = std::make_shared<std::function<void(const std::string&)>>(std::move(on_error));
+    auto done = std::make_shared<helix::SharedCallback<void()>>(std::move(on_complete));
+    auto fail =
+        std::make_shared<helix::SharedCallback<void(const std::string&)>>(std::move(on_error));
 
     json identify_params = {{"client_name", "HelixScreen"},
                             {"version", HELIX_VERSION},
@@ -1769,7 +1773,7 @@ void EspMoonrakerClient::set_on_discovery_complete(
     on_discovery_complete_ = std::move(cb);
 }
 
-void EspMoonrakerClient::set_bed_mesh_callback(std::function<void(const json&)> callback) {
+void EspMoonrakerClient::set_bed_mesh_callback(helix::SharedCallback<void(const json&)> callback) {
     std::lock_guard<std::mutex> lock(callbacks_mutex_);
     bed_mesh_callback_ = std::move(callback);
 }
@@ -1778,7 +1782,8 @@ void EspMoonrakerClient::set_bed_mesh_callback(std::function<void(const json&)> 
 // Subscriptions & method callbacks
 // ---------------------------------------------------------------------------
 
-SubscriptionId EspMoonrakerClient::register_notify_update(std::function<void(const json&)> cb) {
+SubscriptionId
+EspMoonrakerClient::register_notify_update(helix::SharedCallback<void(const json&)> cb) {
     if (!cb) {
         return kInvalidSubscriptionId;
     }
@@ -1795,7 +1800,7 @@ bool EspMoonrakerClient::unsubscribe_notify_update(SubscriptionId id) {
 
 void EspMoonrakerClient::register_method_callback(const std::string& method,
                                                   const std::string& handler_name,
-                                                  std::function<void(const json&)> cb) {
+                                                  helix::SharedCallback<void(const json&)> cb) {
     std::lock_guard<std::mutex> lock(callbacks_mutex_);
     method_callbacks_[method][handler_name] = std::move(cb);
 }
@@ -1828,9 +1833,9 @@ void EspMoonrakerClient::dispatch_status_update(const json& status, bool from_ca
 // ---------------------------------------------------------------------------
 
 void EspMoonrakerClient::add_connected_observer(const std::string& handler_name,
-                                                std::function<void()> cb) {
+                                                helix::SharedCallback<void()> cb) {
     bool fire_now = false;
-    std::function<void()> immediate;
+    helix::SharedCallback<void()> immediate;
     {
         std::lock_guard<std::mutex> lock(observers_mutex_);
         connected_observers_[handler_name] = cb;

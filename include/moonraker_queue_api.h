@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "i_moonraker_sub_apis.h" // for JobQueueEntry, JobQueueStatus, IQueueAPI
 #include "moonraker_error.h"
 
@@ -41,8 +42,8 @@ class PrinterState;
 class MoonrakerQueueAPI : public helix::IQueueAPI {
   public:
     using StatusCallback = std::function<void(const helix::JobQueueStatus&)>;
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
 
     /**
      * @brief Constructor

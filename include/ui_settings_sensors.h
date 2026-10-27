@@ -11,6 +11,7 @@
  * - Width sensors (filament diameter)
  * - Humidity sensors (chamber/dryer)
  * - Accelerometer sensors (input shaper)
+ * - On/off inputs (door switches, buttons) with role and door-check toggle
  *
  * Each sensor type has its own section, hidden when no sensors of that type exist.
  *

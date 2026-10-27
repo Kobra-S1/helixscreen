@@ -174,7 +174,7 @@ class SwitchFlowFixture : public XMLTestFixture {
     int flushes_at_teardown_ = 0;
     static inline int s_flushes = 0;
     std::string card_at_rebuild_;
-    std::function<void()> on_rebuild_;
+    helix::SharedCallback<void()> on_rebuild_;
     bool rebuild_connects_ = true;
     helix::PrinterSwitchFlow flow_;
 

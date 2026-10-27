@@ -152,6 +152,7 @@ src/printer/bed_occupancy_state.cpp
 src/printer/afc_config_manager.cpp
 src/printer/afc_defaults.cpp
 src/printer/afc_fault_position.cpp
+src/printer/ams_device_action_rows.cpp
 src/printer/fault_path_position.cpp
 src/printer/ace_slot_parse.cpp
 src/printer/ams_backend.cpp
@@ -293,6 +294,8 @@ src/printer/toolchanger_addon.cpp
 src/printer/zmod_color_status.cpp
 src/printer/toolhead_homing.cpp
 src/printer/tool_offset_calibration.cpp
+src/printer/stepper_resonance_calibration.cpp
+src/printer/chamber_air_modes.cpp
 src/printer/pa_calibration.cpp
 src/printer/pa_tuning.cpp
 src/printer/tool_offsets.cpp
@@ -300,6 +303,7 @@ src/printer/tool_state.cpp
 src/printer/tool_offsets.cpp
 src/sensors/accel_sensor_manager.cpp
 src/sensors/humidity_sensor_manager.cpp
+src/sensors/input_sensor_manager.cpp
 src/sensors/load_cell_manager.cpp
 src/sensors/probe_sensor_manager.cpp
 src/sensors/temperature_sensor_manager.cpp
@@ -607,7 +611,6 @@ src/ui/ui_overlay_console_settings.cpp
 src/ui/ui_overlay_network_settings.cpp
 src/ui/ui_overlay_performance.cpp
 src/ui/ui_overlay_printer_image.cpp
-src/ui/ui_overlay_printer_image_tagger.cpp
 src/ui/ui_overlay_printer_type.cpp
 src/ui/ui_overlay_retraction_settings.cpp
 src/ui/ui_overlay_temp_graph.cpp

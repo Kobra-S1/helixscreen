@@ -28,6 +28,7 @@ Two things share the word "sensor" and are unrelated. The managers below consume
 | `AccelSensorManager` | `include/accel_sensor_manager.h`, `src/sensors/accel_sensor_manager.cpp` | config sections for ADXL345, LIS2DW, LIS3DH, MPU9250, ICM20948, plus Beacon's onboard accelerometer | `helix::sensors` |
 | `WidthSensorManager` | `include/width_sensor_manager.h`, `src/sensors/width_sensor_manager.cpp` | `tsl1401cl_filament_width_sensor`, `hall_filament_width_sensor` | `helix::sensors` |
 | `LoadCellManager` | `include/load_cell_manager.h`, `src/sensors/load_cell_manager.cpp` | `load_cell`, `load_cell <name>` | `helix::sensors` |
+| `InputSensorManager` | `include/input_sensor_manager.h`, `src/sensors/input_sensor_manager.cpp` | `gcode_button <name>` (door switches, buttons, tool dock/carriage sensors) | `helix::sensors` |
 
 Each manager has a matching `*_types.h` header (`filament_sensor_types.h`, `humidity_sensor_types.h`, `load_cell_types.h`, ...) holding its role and type enums, the `*Config` and `*State` structs, and the string conversions used for persistence and display.
 
@@ -288,6 +289,44 @@ static const std::vector<HumiditySensorChip> chips = {
 Prefixes carry the trailing space so `aht20 ` never matches `aht20_f heater_box1`. Only BME280 reports pressure.
 
 Roles are CHAMBER and DRYER, auto-assigned at discovery to the first sensor whose name contains `chamber` or `dryer`. The humidity home widget turns `chamber_humidity` into the `chamber_humidity_text` string subject it binds. Happy Hare's dryer and the QIDI box read these chips' status directly through their AMS backends; see the backend docs.
+
+## On/off Inputs
+
+`InputSensorManager` lists every `gcode_button` and reads its `state` (`PRESSED` / `RELEASED`). Each input has a role: Door, or Other. A name containing `door`, `lid` or `cover` (any case) starts as Door; the user can change it in Settings > Sensors > Inputs, and the choice persists under `input_sensors` with the per-input `inverted` flag. A Door input reads closed while pressed, or while released when inverted, and an input with no reported state never reads open. Pressed-means-closed matches the hardware we have evidence for: Z-Mod's `c5pro_display_off.cfg` (ghzserg/z_c5pro) defines `[gcode_button frontDoor]` and `[gcode_button topDoor]` with a `release_gcode` that prompts "Front Door is Open!" and a `press_gcode` that clears it.
+
+The one generic consumer is the door-open print-start gate (`src/printer/print_start_checks.cpp#gate_door_open`, documented with the gate pipeline in `FILAMENT_MANAGEMENT.md`), which warns when the door check is on, a Door input reads open, and the print has a material that needs a warm enclosure (`door_warning_material()`). The door check defaults on exactly when the printer has a Door input; an explicit choice persists as `input_sensors/door_check`. While printing, a Door input that opens also raises one warning toast per opening (`InputSensorManager::mid_print_door_warnings()`), by the same material rule applied to the active job: `ActivePrintMediaManager` sets `PrinterPrintState::print_materials()` from the job's file metadata through `materials_in_print()`, and while those materials are unknown the toast stays quiet. It also stays quiet when the printer's own config already reacts to that edge: `discover_from_config()` reads each `gcode_button` section of `configfile.config`, and a door whose `release_gcode` (its `press_gcode` when inverted) holds anything but whitespace is announced by the printer, so the toast skips it (`firmware_reacts_to_opening()`). Z-Mod's Creator 5 config is one such printer. The print-start gate does not apply this rule: a printer that prompts on the open edge does not check the door before a print.
+
+Inputs whose meaning belongs to a subsystem, like a tool changer's dock and carriage buttons, show here as plain inputs; that subsystem keeps reading them its own way. The overlay draws its rows declaratively from indexed subjects (`input_sensor_{name,state,alert,role,inverted}_<i>` under a `<repeat count="input_sensor_count">`), capped at `InputSensorManager::kMaxRows`.
+
+What generic code asks (`include/input_sensor_manager.h`, `include/input_sensor_types.h`):
+
+```cpp
+InputSensorRole default_input_role(std::string_view sensor_name);
+bool input_reads_open(const InputSensorConfig& config, const InputSensorState& state);
+std::vector<std::string> doors_newly_open(const std::vector<std::string>& before,
+                                          const std::vector<std::string>& now);
+InputConfigReaction input_config_reaction(const nlohmann::json& section); // {on_press, on_release}
+bool firmware_reacts_to_opening(const InputConfigReaction& reaction, bool inverted);
+
+static std::vector<InputSensorConfig> InputSensorManager::inputs_in(const std::vector<std::string>& objects);
+static nlohmann::json InputSensorManager::required_status_objects(const std::vector<std::string>& objects);
+bool InputSensorManager::has_door_input() const;
+std::vector<std::string> InputSensorManager::open_doors() const;
+bool InputSensorManager::door_check_enabled() const;
+void InputSensorManager::discover_from_config(const nlohmann::json& config_keys);
+bool InputSensorManager::firmware_reacts_to_opening(const std::string& klipper_name) const;
+std::vector<std::string> InputSensorManager::mid_print_door_warnings(
+    const std::vector<std::string>& newly_open, const std::vector<std::string>& print_materials) const;
+void InputSensorManager::set_sensor_role(const std::string& klipper_name, InputSensorRole role);
+void InputSensorManager::set_sensor_inverted(const std::string& klipper_name, bool inverted);
+void InputSensorManager::set_door_check_enabled(bool enabled);
+```
+
+Door is not an exclusive role: a front door and a top cover can both hold it. The persisted form is `{"sensors": [{klipper_name, role, enabled, type, inverted}], "door_check": bool}`, with `door_check` absent until the user sets it.
+
+**Another kind of on/off input** (a Klipper object other than `gcode_button`) is one file: add an `InputSensorType` value and teach `src/sensors/input_sensor_manager.cpp#inputs_in` to recognise its name, then read its field in `update_from_status` and `required_status_objects`. Discovery, the subscription, roles, persistence, the overlay rows and the door gate all follow from `inputs_in()`. **Another consumer** of a role asks `open_doors()` or adds a role to `kInputSensorRoles` and a matching query; it never names a printer.
+
+Tests: `[input_sensors]` in `tests/unit/test_input_sensor_manager.cpp` (default roles, polarity, discovery and subscription, state parsing, door-check default, persistence, overlay row subjects, the mid-print edge rule, the printer-announces-it rule both ways). Mock: the Creator 5 personas publish `gcode_button frontDoor` / `topDoor`, and `creator5_zmod` also serves Z-Mod-style `press_gcode` / `release_gcode` for them; `HELIX_MOCK_DOOR_OPEN` opens them (`MOCK_ENVIRONMENT_VARIABLES.md`).
 
 ## Probe, Accelerometer, Width and Load Cell
 

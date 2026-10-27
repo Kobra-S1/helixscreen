@@ -19,6 +19,7 @@
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "humidity_sensor_manager.h"
+#include "input_sensor_manager.h"
 #include "load_cell_manager.h"
 #include "printer_hardware.h"
 #include "printer_state.h"
@@ -38,8 +39,48 @@ using helix::ui::event_selected;
 using helix::ui::find_optional;
 using helix::ui::find_required;
 
+namespace {
+
+/// The input an input_sensor_row event belongs to: its user_data carries the
+/// row index as a string.
+std::string input_sensor_for_event(lv_event_t* e) {
+    const char* arg = static_cast<const char*>(lv_event_get_user_data(e));
+    if (!arg || !*arg) {
+        return {};
+    }
+    return helix::sensors::InputSensorManager::instance().klipper_name_at(
+        static_cast<size_t>(std::atoi(arg)));
+}
+
+} // namespace
+
 void SensorSettingsOverlay::register_callbacks() {
     register_xml_callbacks({
+        {"on_input_sensor_role_changed",
+         [](lv_event_t* e) {
+             const auto name = input_sensor_for_event(e);
+             if (!name.empty()) {
+                 auto& mgr = helix::sensors::InputSensorManager::instance();
+                 mgr.set_sensor_role(
+                     name, static_cast<helix::sensors::InputSensorRole>(event_selected(e)));
+                 mgr.save_config_to_file();
+             }
+         }},
+        {"on_input_sensor_invert_changed",
+         [](lv_event_t* e) {
+             const auto name = input_sensor_for_event(e);
+             if (!name.empty()) {
+                 auto& mgr = helix::sensors::InputSensorManager::instance();
+                 mgr.set_sensor_inverted(name, event_checked(e));
+                 mgr.save_config_to_file();
+             }
+         }},
+        {"on_input_door_check_changed",
+         [](lv_event_t* e) {
+             auto& mgr = helix::sensors::InputSensorManager::instance();
+             mgr.set_door_check_enabled(event_checked(e));
+             mgr.save_config_to_file();
+         }},
         {"on_switch_master_toggle_changed",
          [](lv_event_t* e) {
              get_sensor_settings_overlay().handle_switch_master_toggle_changed(event_checked(e));

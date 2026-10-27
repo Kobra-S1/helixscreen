@@ -103,6 +103,22 @@ static json toolchanger_configfile_sections(const MoonrakerClientMock* self) {
     return sections;
 }
 
+// configfile sections of the Z-Mod persona's door buttons. Z-Mod's own config
+// prompts on release ("Front Door is Open!") and clears the prompt on press, so
+// the printer announces a door opening itself.
+static json input_button_configfile_sections(const MoonrakerClientMock* self) {
+    json sections = json::object();
+    if (self->get_printer_type() == helix::mock::PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        for (const char* door : {"frontDoor", "topDoor"}) {
+            sections[std::string("gcode_button ") + door] = {
+                {"pin", "!PB0"},
+                {"press_gcode", "\nRESPOND TYPE=command MSG=action:prompt_end"},
+                {"release_gcode", "\nRESPOND TYPE=command MSG=action:prompt_begin Door is Open!"}};
+        }
+    }
+    return sections;
+}
+
 // configfile sections of the led_effect objects populate_capabilities()
 // lists; empty for a persona that omits them.
 static json led_effect_configfile_sections(const MoonrakerClientMock* self) {
@@ -264,8 +280,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
     // When Klippy is in STARTUP or ERROR state, Klipper returns JSON-RPC error -32601
     registry["printer.objects.list"] =
         [](MoonrakerClientMock* self, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         auto klippy = self->get_klippy_state();
 
         // When Klippy is not ready (STARTUP/ERROR), Klipper returns Method not found
@@ -303,8 +319,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
     // printer.objects.query - Query printer object state
     registry["printer.objects.query"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)error_cb;
         json status_obj = json::object();
         // Volume the persona reports through configfile settings and toolhead.
@@ -474,6 +490,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 const json toolchanger_sections = toolchanger_configfile_sections(self);
                 status_obj["configfile"]["settings"].merge_patch(toolchanger_sections);
                 status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
+                status_obj["configfile"]["config"].merge_patch(
+                    input_button_configfile_sections(self));
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
@@ -692,8 +710,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
     // Returns initial state with eventtime (subsequent updates come via notify_status_update)
     registry["printer.objects.subscribe"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         (void)error_cb;
 
         // Get current time as eventtime (seconds since epoch with microsecond precision)
@@ -1145,6 +1163,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 const json toolchanger_sections = toolchanger_configfile_sections(self);
                 status_obj["configfile"]["settings"].merge_patch(toolchanger_sections);
                 status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
+                status_obj["configfile"]["config"].merge_patch(
+                    input_button_configfile_sections(self));
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and

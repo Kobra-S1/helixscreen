@@ -8,6 +8,7 @@
 #include "ams_types.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "helix_shared_callback.h"
 #include "test_helpers/seeded_override.h"
 
 #include <functional>
@@ -181,7 +182,7 @@ class CfsTestAccess {
     /// one CFS takes: an on_error, silent=false) with a caller-chosen
     /// on_complete, so a test can watch where and when completion runs.
     static AmsError dispatch_with_completion(helix::printer::AmsBackendCfs& b, std::string gcode,
-                                             std::function<void()> on_complete) {
+                                             helix::SharedCallback<void()> on_complete) {
         return b.ensure_homed_then(
             std::move(gcode), std::move(on_complete), [](const MoonrakerError&) {},
             IMoonrakerAPI::kAmsOperationTimeoutMs,

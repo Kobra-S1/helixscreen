@@ -3,6 +3,7 @@
 
 #include "afc_defaults.h"
 
+#include "ams_device_action_rows.h"
 #include "ams_device_sections.h"
 
 #include <algorithm>
@@ -22,85 +23,63 @@ std::vector<DeviceSection> afc_default_sections() {
     };
 }
 
+namespace {
+
+using V = DeviceActionRow::Value;
+
+// clang-format off
+constexpr DeviceActionRow kAfcActions[] = {
+    // Setup section (calibration + LED)
+    {.id = "calibration_wizard", .label = TR_NOOP("Run Calibration Wizard"), .section = "setup", .type = ActionType::BUTTON, .moves_machine = true, .icon = "play", .description = TR_NOOP("Interactive calibration for all lanes")},
+    {.id = "bowden_length", .label = TR_NOOP("Bowden Length"), .section = "setup", .type = ActionType::SLIDER, .value = V::Float, .number = 450.0, .min_value = 100.0f, .max_value = 2000.0f, .unit = "mm", .icon = "ruler", .description = TR_NOOP("Distance from hub to toolhead")},
+
+    // Speed section
+    {.id = "speed_fwd", .label = TR_NOOP("Forward Multiplier"), .section = "speed", .type = ActionType::SLIDER, .value = V::Float, .number = 1.0, .min_value = 0.5f, .max_value = 2.0f, .step = 0.05f, .unit = "x", .icon = "speed_up", .description = TR_NOOP("Speed multiplier for forward moves")},
+    {.id = "speed_rev", .label = TR_NOOP("Reverse Multiplier"), .section = "speed", .type = ActionType::SLIDER, .value = V::Float, .number = 1.0, .min_value = 0.5f, .max_value = 2.0f, .step = 0.05f, .unit = "x", .icon = "speed_down", .description = TR_NOOP("Speed multiplier for reverse moves")},
+
+    // Toolhead section (extruder distances)
+    {.id = "tool_stn", .label = TR_NOOP("Sensor to Nozzle"), .section = "toolhead", .type = ActionType::SLIDER, .value = V::Float, .number = 72.0, .min_value = 0.0f, .max_value = 200.0f, .unit = "mm", .icon = "ruler", .description = TR_NOOP("Distance from toolhead sensor to nozzle tip")},
+    {.id = "tool_stn_unload", .label = TR_NOOP("Unload Distance"), .section = "toolhead", .type = ActionType::SLIDER, .value = V::Float, .number = 100.0, .min_value = 0.0f, .max_value = 200.0f, .unit = "mm", .icon = "ruler", .description = TR_NOOP("Retraction distance to clear extruder gears")},
+    {.id = "tool_sensor_after_extruder", .label = TR_NOOP("Post-Sensor Clear"), .section = "toolhead", .type = ActionType::SLIDER, .value = V::Float, .number = 0.0, .min_value = 0.0f, .max_value = 100.0f, .unit = "mm", .icon = "ruler", .description = TR_NOOP("Extra distance to move once sensors clear")},
+
+    // Maintenance section
+    {.id = "test_lanes", .label = TR_NOOP("Test All Lanes"), .section = "maintenance", .type = ActionType::BUTTON, .moves_machine = true, .icon = "play_circle", .description = TR_NOOP("Run test sequence on all lanes")},
+    {.id = "change_blade", .label = TR_NOOP("Change Blade"), .section = "maintenance", .type = ActionType::BUTTON, .moves_machine = true, .icon = "wrench", .description = TR_NOOP("Initiate blade change procedure")},
+    {.id = "park", .label = TR_NOOP("Park"), .section = "maintenance", .type = ActionType::BUTTON, .moves_machine = true, .icon = "home_import", .description = TR_NOOP("Park the AFC system")},
+    {.id = "brush", .label = TR_NOOP("Clean Brush"), .section = "maintenance", .type = ActionType::BUTTON, .moves_machine = true, .icon = "sync", .description = TR_NOOP("Run brush cleaning sequence")},
+    {.id = "reset_motor", .label = TR_NOOP("Reset Motor Timer"), .section = "maintenance", .type = ActionType::BUTTON, .icon = "progress_clock", .description = TR_NOOP("Reset motor run-time counter")},
+
+    // Setup section (LED & Modes)
+    {.id = "led_toggle", .label = TR_NOOP("Turn On LEDs"), .section = "setup", .type = ActionType::BUTTON, .icon = "lightbulb_on", .description = TR_NOOP("Toggle AFC LED strip")},
+    {.id = "led_extruder", .label = TR_NOOP("Toolhead LED"), .section = "setup", .type = ActionType::BUTTON, .icon = "lightbulb_on", .description = TR_NOOP("Toggle toolhead LED for an extruder")},
+    {.id = "quiet_mode", .label = TR_NOOP("Toggle Quiet Mode"), .section = "setup", .type = ActionType::BUTTON, .icon = "volume_off", .description = TR_NOOP("Enable/disable quiet operation mode")},
+
+    // Hub & Cutter section
+    {.id = "hub_cut_enabled", .label = TR_NOOP("Cutter Enabled"), .section = "hub", .type = ActionType::TOGGLE, .value = V::Bool, .number = 0, .icon = "tune", .description = TR_NOOP("Enable or disable the hub cutter")},
+    {.id = "hub_cut_dist", .label = TR_NOOP("Cut Distance"), .section = "hub", .type = ActionType::SLIDER, .value = V::Float, .number = 50.0, .min_value = 0.0f, .max_value = 100.0f, .unit = "mm", .icon = "ruler", .description = TR_NOOP("Distance for hub cutter operation")},
+    {.id = "hub_bowden_length", .label = TR_NOOP("Hub Bowden Length"), .section = "hub", .type = ActionType::SLIDER, .value = V::Float, .number = 450.0, .min_value = 100.0f, .max_value = 2000.0f, .unit = "mm", .icon = "ruler", .description = TR_NOOP("Bowden tube length from hub to toolhead")},
+    {.id = "assisted_retract", .label = TR_NOOP("Assisted Retract"), .section = "hub", .type = ActionType::TOGGLE, .value = V::Bool, .number = 0, .icon = "undo", .description = TR_NOOP("Enable assisted retraction at hub")},
+
+    // Tip Forming section
+    {.id = "ramming_volume", .label = TR_NOOP("Ramming Volume"), .section = "tip_forming", .type = ActionType::SLIDER, .value = V::Float, .number = 0.0, .min_value = 0.0f, .max_value = 100.0f, .unit = "mm³", .icon = "water", .description = TR_NOOP("Volume of filament used during ramming")},
+    {.id = "unloading_speed_start", .label = TR_NOOP("Unloading Start Speed"), .section = "tip_forming", .type = ActionType::SLIDER, .value = V::Float, .number = 80.0, .min_value = 0.0f, .max_value = 200.0f, .unit = "mm/s", .icon = "speed", .description = TR_NOOP("Initial speed for filament unloading")},
+    {.id = "cooling_tube_length", .label = TR_NOOP("Cooling Tube Length"), .section = "tip_forming", .type = ActionType::SLIDER, .value = V::Float, .number = 15.0, .min_value = 0.0f, .max_value = 100.0f, .unit = "mm", .icon = "thermometer_minus", .description = TR_NOOP("Length of the cooling tube section")},
+    {.id = "cooling_tube_retraction", .label = TR_NOOP("Cooling Tube Retraction"), .section = "tip_forming", .type = ActionType::SLIDER, .value = V::Float, .number = 0.0, .min_value = 0.0f, .max_value = 100.0f, .unit = "mm", .icon = "thermometer_minus", .description = TR_NOOP("Retraction distance in the cooling tube")},
+
+    // Purge & Wipe section
+    {.id = "purge_enabled", .label = TR_NOOP("Enable Purge"), .section = "purge", .type = ActionType::TOGGLE, .value = V::Bool, .number = 0, .icon = "water", .description = TR_NOOP("Enable purging during tool changes")},
+    {.id = "purge_length", .label = TR_NOOP("Purge Length"), .section = "purge", .type = ActionType::SLIDER, .value = V::Float, .number = 50.0, .min_value = 0.0f, .max_value = 200.0f, .unit = "mm", .icon = "ruler", .description = TR_NOOP("Length of filament to purge")},
+    {.id = "brush_enabled", .label = TR_NOOP("Enable Brush Wipe"), .section = "purge", .type = ActionType::TOGGLE, .value = V::Bool, .number = 0, .icon = "sync", .description = TR_NOOP("Enable brush wipe after purging")},
+
+    // Print Behavior section
+    {.id = "unload_at_end", .label = TR_NOOP("Unload at end"), .section = "print_prefs", .type = ActionType::TOGGLE, .value = V::Bool, .number = 0, .icon = "filament", .description = TR_NOOP("Unload the toolhead when a print ends")},
+};
+// clang-format on
+
+} // namespace
+
 std::vector<DeviceAction> afc_default_actions() {
-    using DA = DeviceAction;
-    return {
-        // Setup section (calibration + LED)
-        DA::button("calibration_wizard", "Run Calibration Wizard", "setup", "play",
-                   "Interactive calibration for all lanes")
-            .with_machine_motion(),
-        DA::slider("bowden_length", "Bowden Length", "setup", 450.0f, 100, 2000, "mm", "ruler",
-                   "Distance from hub to toolhead"),
-
-        // Speed section
-        DA::slider("speed_fwd", "Forward Multiplier", "speed", 1.0f, 0.5f, 2.0f, "x", "speed_up",
-                   "Speed multiplier for forward moves")
-            .with_step(0.05f),
-        DA::slider("speed_rev", "Reverse Multiplier", "speed", 1.0f, 0.5f, 2.0f, "x", "speed_down",
-                   "Speed multiplier for reverse moves")
-            .with_step(0.05f),
-
-        // Toolhead section (extruder distances)
-        DA::slider("tool_stn", "Sensor to Nozzle", "toolhead", 72.0f, 0.0f, 200.0f, "mm", "ruler",
-                   "Distance from toolhead sensor to nozzle tip"),
-        DA::slider("tool_stn_unload", "Unload Distance", "toolhead", 100.0f, 0.0f, 200.0f, "mm",
-                   "ruler", "Retraction distance to clear extruder gears"),
-        DA::slider("tool_sensor_after_extruder", "Post-Sensor Clear", "toolhead", 0.0f, 0.0f,
-                   100.0f, "mm", "ruler", "Extra distance to move once sensors clear"),
-
-        // Maintenance section
-        DA::button("test_lanes", "Test All Lanes", "maintenance", "play_circle",
-                   "Run test sequence on all lanes")
-            .with_machine_motion(),
-        DA::button("change_blade", "Change Blade", "maintenance", "wrench",
-                   "Initiate blade change procedure")
-            .with_machine_motion(),
-        DA::button("park", "Park", "maintenance", "home_import", "Park the AFC system")
-            .with_machine_motion(),
-        DA::button("brush", "Clean Brush", "maintenance", "sync", "Run brush cleaning sequence")
-            .with_machine_motion(),
-        DA::button("reset_motor", "Reset Motor Timer", "maintenance", "progress_clock",
-                   "Reset motor run-time counter"),
-
-        // Setup section (LED & Modes)
-        DA::button("led_toggle", "Turn On LEDs", "setup", "lightbulb_on", "Toggle AFC LED strip"),
-        DA::button("led_extruder", "Toolhead LED", "setup", "lightbulb_on",
-                   "Toggle toolhead LED for an extruder"),
-        DA::button("quiet_mode", "Toggle Quiet Mode", "setup", "volume_off",
-                   "Enable/disable quiet operation mode"),
-
-        // Hub & Cutter section
-        DA::toggle("hub_cut_enabled", "Cutter Enabled", "hub", false, "tune",
-                   "Enable or disable the hub cutter"),
-        DA::slider("hub_cut_dist", "Cut Distance", "hub", 50.0f, 0.0f, 100.0f, "mm", "ruler",
-                   "Distance for hub cutter operation"),
-        DA::slider("hub_bowden_length", "Hub Bowden Length", "hub", 450.0f, 100.0f, 2000.0f, "mm",
-                   "ruler", "Bowden tube length from hub to toolhead"),
-        DA::toggle("assisted_retract", "Assisted Retract", "hub", false, "undo",
-                   "Enable assisted retraction at hub"),
-
-        // Tip Forming section
-        DA::slider("ramming_volume", "Ramming Volume", "tip_forming", 0.0f, 0.0f, 100.0f, "mm³",
-                   "water", "Volume of filament used during ramming"),
-        DA::slider("unloading_speed_start", "Unloading Start Speed", "tip_forming", 80.0f, 0.0f,
-                   200.0f, "mm/s", "speed", "Initial speed for filament unloading"),
-        DA::slider("cooling_tube_length", "Cooling Tube Length", "tip_forming", 15.0f, 0.0f, 100.0f,
-                   "mm", "thermometer_minus", "Length of the cooling tube section"),
-        DA::slider("cooling_tube_retraction", "Cooling Tube Retraction", "tip_forming", 0.0f, 0.0f,
-                   100.0f, "mm", "thermometer_minus", "Retraction distance in the cooling tube"),
-
-        // Purge & Wipe section
-        DA::toggle("purge_enabled", "Enable Purge", "purge", false, "water",
-                   "Enable purging during tool changes"),
-        DA::slider("purge_length", "Purge Length", "purge", 50.0f, 0.0f, 200.0f, "mm", "ruler",
-                   "Length of filament to purge"),
-        DA::toggle("brush_enabled", "Enable Brush Wipe", "purge", false, "sync",
-                   "Enable brush wipe after purging"),
-
-        // Print Behavior section
-        DA::toggle("unload_at_end", "Unload at end", "print_prefs", false, "filament",
-                   "Unload the toolhead when a print ends"),
-    };
+    return make_device_actions(kAfcActions);
 }
 
 void afc_add_toolhead_calibration_action(std::vector<DeviceAction>& actions) {

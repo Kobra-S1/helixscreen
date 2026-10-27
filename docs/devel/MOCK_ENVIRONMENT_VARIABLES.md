@@ -27,6 +27,21 @@ HELIX_AMS_GATES=8 ./build/bin/helix-screen --test
 HELIX_AMS_GATES=16 ./build/bin/helix-screen --test
 ```
 
+### `HELIX_MOCK_DOOR_OPEN`
+
+Makes every door-named `gcode_button` (`frontDoor`, `topDoor` on the Creator 5 personas, or one added with `HELIX_MOCK_OBJECTS="gcode_button door"`) report `RELEASED`, which a Door input reads as open. Without it door buttons report `PRESSED` (closed); every other button reports `RELEASED`.
+
+| Property | Value |
+|----------|-------|
+| **Values** | any value (presence is what counts) |
+| **Default** | unset (doors closed) |
+| **File** | `src/api/moonraker_client_mock.cpp` |
+
+```bash
+# Exercise the door-open print-start warning and the Inputs section of Settings > Sensors
+HELIX_MOCK_PRINTER=creator5_zmod HELIX_MOCK_DOOR_OPEN=1 ./build/bin/helix-screen --test
+```
+
 ### `HELIX_MOCK_WIFI_COUNTRY`
 
 The regulatory country the mock WiFi radio reports at startup, standing in for one the device's own configuration set. With it unset the mock radio is in the world domain, so Network Settings shows the 5 GHz hint.
@@ -1422,6 +1437,13 @@ stores the slot's Material/HEX: upper-cased when the HEX is one of Z-Mod's 24
 palette colours, snapped to white (`FFFFFF`, palette index 0) when it is not,
 exactly as the firmware does. An unknown `TYPE` is refused with a gcode error.
 
+It also publishes Z-Mod's calibration and chamber air macros. `CALIBRATE_EXTRUDERS`
+answers with the firmware's action:prompt (plate warning, OK/Cancel) and its OK
+(`_T_CALIBRATE_EXTRUDERS`) closes it; `CALIBRATE_VFA T=<n>` narrates a grab and a
+finish line but does not restart (the real macro ends in `SAVE_CONFIG`);
+`AIR_CIRCULATION_INTERNAL` / `_EXTERNAL` / `_STOP` set the four chamber fans to the
+firmware's speeds through the mock's own `SET_FAN_SPEED`.
+
 **Unrecognized values fall back to Voron 2.4** with a warning listing the valid set — they are not fatal. K2 and CC1 have no dedicated mock type yet and hit that fallback.
 
 **Side effect on `settings.json`:** when this variable is set *at all* (even to an invalid value), `MoonrakerManager::init()` clears the saved printer type before detection runs, so a stale "Voron 2.4" from a previous launch cannot win over the env var. `PrinterDetector::auto_detect_and_save()` then re-resolves from the mock's reported identity on every launch. This writes to your config file — expect the persisted printer type to change.
@@ -1478,6 +1500,25 @@ HELIX_MOCK_KINEMATICS=cartesian ./build/bin/helix-screen --test -vv
 The value is passed through verbatim — no validation. A nonsense string simply produces a printer whose kinematics match nothing.
 
 Read once, when the mock is constructed: the simulation thread reports kinematics every tick, and reading the environment there would race a `setenv()` on another thread. Set it before the mock exists.
+
+### `HELIX_MOCK_STEPPER_RESONANCE`
+
+Expose the `stepper_resonance_tester` klippy extra on any persona, so the generic
+Vertical Artifact Compensation row (`helix::stepper_resonance_cal`) can be exercised on a
+printer that is not a Z-Mod Creator 5.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` (the extra plus the stock `STEPPER_RESONANCE_FACTORY_CALIBRATE` macro), `bare` (the extra only, so the two `STEPPER_RESONANCE_SEARCH_CALIBRATE` lines are sent), `0` or unset (neither) |
+| **Default** | unset |
+| **File** | `src/api/moonraker_client_mock.cpp` |
+
+The mock accepts the calibration commands without simulating a sweep; the closing
+`SAVE_CONFIG` takes the mock's usual restart path.
+
+```bash
+HELIX_MOCK_STEPPER_RESONANCE=1 ./build/bin/helix-screen --test -vv
+```
 
 ### `HELIX_MOCK_OBJECTS`
 

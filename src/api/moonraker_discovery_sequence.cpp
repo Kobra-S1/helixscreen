@@ -20,6 +20,7 @@
 #include "hv/hssl.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
+#include "input_sensor_manager.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "layer_pause.h"
@@ -140,8 +141,9 @@ bool MoonrakerDiscoverySequence::is_current_sequence(uint64_t seq) const {
     return seq == discovery_sequence_;
 }
 
-void MoonrakerDiscoverySequence::start(std::function<void()> on_complete,
-                                       std::function<void(const std::string& reason)> on_error) {
+void MoonrakerDiscoverySequence::start(
+    helix::SharedCallback<void()> on_complete,
+    helix::SharedCallback<void(const std::string& reason)> on_error) {
     spdlog::debug("[Moonraker Client] Starting printer auto-discovery");
 
     // Store callbacks and snapshot the connection generation for stale detection.
@@ -923,6 +925,8 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                             .discover_from_config(cfg_for_sensors);
                                         helix::sensors::AccelSensorManager::instance()
                                             .discover_from_config(cfg_for_sensors);
+                                        helix::sensors::InputSensorManager::instance()
+                                            .discover_from_config(cfg_for_sensors);
                                     });
 
                                 // Update LED controller with configfile data (effect targets +
@@ -1501,6 +1505,13 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
     const json probe_objects =
         helix::sensors::ProbeSensorManager::required_status_objects(hw.printer_objects());
     for (auto it = probe_objects.begin(); it != probe_objects.end(); ++it) {
+        subscription_objects[it.key()] = it.value();
+    }
+
+    // On/off inputs. InputSensorManager owns which objects are inputs.
+    const json input_objects =
+        helix::sensors::InputSensorManager::required_status_objects(hw.printer_objects());
+    for (auto it = input_objects.begin(); it != input_objects.end(); ++it) {
         subscription_objects[it.key()] = it.value();
     }
 
@@ -2094,7 +2105,7 @@ void MoonrakerDiscoverySequence::parse_objects(const json& objects) {
 void MoonrakerDiscoverySequence::parse_bed_mesh(const json& bed_mesh) {
     // Invoke bed mesh callback for API layer
     // The API layer (MoonrakerAPI) owns the bed mesh data; Client is just the transport
-    std::function<void(const json&)> callback_copy;
+    helix::SharedCallback<void(const json&)> callback_copy;
     {
         std::lock_guard<std::mutex> lock(callbacks_mutex_);
         callback_copy = bed_mesh_callback_;

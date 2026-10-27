@@ -560,6 +560,17 @@ LOCK
     return 1
 }
 
+# Nanoseconds since the epoch. BSD date (a Mac) has no %N and prints it
+# literally, which is not a number.
+now_ns() {
+    local t
+    t=$(date +%s%N)
+    case "$t" in
+    *[!0-9]*) python3 -c 'import time; print(time.time_ns())' ;;
+    *) echo "$t" ;;
+    esac
+}
+
 probe() {
     if ! ssh "${SSH_OPTS[@]}" "$HOST" true 2>/dev/null; then
         echo "→ $HOST unreachable: sweep runs here"
@@ -581,9 +592,9 @@ probe() {
     rm -f "$list"
     rate=${HELIX_TEST_PROBE_BYTES_PER_SEC:-}
     if [ -z "$rate" ]; then
-        t0=$(date +%s%N)
+        t0=$(now_ns)
         head -c "$PROBE_PAYLOAD_BYTES" /dev/urandom | ssh "${SSH_OPTS[@]}" "$HOST" 'cat > /dev/null'
-        ns=$(( $(date +%s%N) - t0 ))
+        ns=$(( $(now_ns) - t0 ))
         rate=$(( PROBE_PAYLOAD_BYTES * 1000000000 / (ns > 0 ? ns : 1) ))
     fi
     est=$(( ${bytes:-0} / (rate > 0 ? rate : 1) ))

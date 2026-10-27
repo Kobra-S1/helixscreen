@@ -154,6 +154,43 @@ Steps 2 and 3 are the same `GcodePreviewFetcher::ensure_local()` the print-statu
 
 Every deletion of a downloaded copy goes through the single gate `is_reclaimable_download()` (`include/gcode_temp_reclaim.h#is_reclaimable_download`): only files we created under `gcode_temp` are reclaimable, so a mis-routed path can never delete a print file.
 
+### Sliced 3MF archives: plates and model_settings.config
+
+A sliced `.gcode.3mf` is read in place from the printer by `three_mf::ThreeMfReader`
+(`include/three_mf_reader.h`): one ranged read of the archive's tail for the central directory,
+and one more only for a config entry that tail missed. `read_summary()` reads
+`Metadata/model_settings.config` first, then lists the plates with `three_mf::sliced_plates()`
+(`include/three_mf.h`), then fills each plate's time and filament from
+`Metadata/slice_info.config`. A failed read still answers, but the summary is not cached.
+
+```cpp
+// include/three_mf.h
+struct PlateSettings { int plate; std::string name; std::string gcode_file; std::string thumbnail_file; };
+std::vector<PlateSettings> parse_model_settings(std::string_view xml);
+std::vector<ThreeMfPlate> sliced_plates(const std::vector<zip::ZipEntry>& entries,
+                                        const std::vector<PlateSettings>& settings = {});
+```
+
+`sliced_plates()` is the one rule for which entry is a plate's G-code and render. A
+`gcode_file` or `thumbnail_file` pointer wins when the entry it names exists (a leading `/` is
+tolerated), otherwise the plate falls back to `Metadata/plate_<N>.gcode` and `.png`. An entry one
+plate points at belongs to that plate alone. The checksum is `<gcode entry>.md5`, so a pointed
+G-code is never checked against another plate's `.md5`. `plater_name` becomes
+`PlateSummary::name` (entities decoded, cut to `three_mf::kMaxPlateNameBytes` at a character
+boundary), which the print-select plate stepper shows in place of the plate number
+(`src/ui/ui_print_select_archive.cpp#update_plate_stepper`).
+`ThreeMfReader::extract_plate()` parses the local copy's `model_settings.config` and calls the
+same `sliced_plates()`, so the G-code extracted is the plate the panel showed.
+
+`filament_maps` (filament index to extruder number, for multi-extruder Orca profiles) is not
+read. Every 3MF consumer takes slicer filament N as tool N-1 (`three_mf::plate_file_metadata`
+slot-aligns by filament id), which holds for the identity map that single-extruder and
+one-filament-per-tool profiles write.
+
+Tests: `[model_settings]` in `tests/unit/test_zip_reader.cpp`, `tests/unit/test_three_mf_reader.cpp`
+and `tests/unit/test_print_select_three_mf.cpp`. Archives are built in the test with
+`tests/test_helpers/stored_zip.h`.
+
 ### Thumbnails: one selection rule, one cache key
 
 When no geometry is drawn (Thumbnail Only, a file still downloading, a streamed `.3mf`, every 2D-less surface such as the print-select cards and history), the slicer's embedded thumbnail is the preview. Two rules keep every consumer agreeing on which image that is:

@@ -91,8 +91,9 @@ class CapturingMultiAce : public AmsBackendMultiAce {
         sent.push_back(gcode);
         return AmsErrorHelper::success();
     }
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                           std::function<void(const MoonrakerError&)> on_error, bool) override {
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
+                           bool) override {
         sent.push_back(gcode);
         last_ok = std::move(on_complete);
         last_error = std::move(on_error);
@@ -115,8 +116,8 @@ class CapturingMultiAce : public AmsBackendMultiAce {
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     }
 
-    std::function<void()> last_ok;
-    std::function<void(const MoonrakerError&)> last_error;
+    helix::SharedCallback<void()> last_ok;
+    helix::SharedCallback<void(const MoonrakerError&)> last_error;
 
     void close_pending_window() {
         pending_load_grace_ = std::chrono::milliseconds{0};

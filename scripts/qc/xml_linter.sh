@@ -129,7 +129,7 @@ else
     SCHEMA_BEFORE_REGEN=$(mktemp "${TMPDIR:-/tmp}/helix_schema_before.XXXXXX")
     cp "$XML_LINTER_SCHEMA_PATH" "$SCHEMA_BEFORE_REGEN"
 
-    if make regen-xml-schema >/tmp/regen_xml_schema.out 2>&1; then
+    if "$(qc_make)" regen-xml-schema >/tmp/regen_xml_schema.out 2>&1; then
       SCHEMA_WAS_STALE=false
       cmp -s "$SCHEMA_BEFORE_REGEN" "$XML_LINTER_SCHEMA_PATH" || SCHEMA_WAS_STALE=true
       rm -f "$SCHEMA_BEFORE_REGEN"

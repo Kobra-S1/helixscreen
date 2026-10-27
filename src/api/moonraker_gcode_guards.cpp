@@ -27,10 +27,9 @@ const char* spool_latch_restart_message() {
 
 namespace helix::api {
 
-bool reject_homing_during_active_print(const std::string& gcode, helix::PrinterState& state,
-                                       bool silent,
-                                       const std::function<void(const MoonrakerError&)>& on_error,
-                                       const char* log_tag) {
+bool reject_homing_during_active_print(
+    const std::string& gcode, helix::PrinterState& state, bool silent,
+    const helix::SharedCallback<void(const MoonrakerError&)>& on_error, const char* log_tag) {
     if (!helix::is_homing_gcode(gcode)) {
         return false;
     }
@@ -64,10 +63,9 @@ bool reject_homing_during_active_print(const std::string& gcode, helix::PrinterS
     return true;
 }
 
-bool reject_motion_while_spools_on_bed(const std::string& gcode, helix::PrinterState& state,
-                                       bool silent,
-                                       const std::function<void(const MoonrakerError&)>& on_error,
-                                       const char* log_tag) {
+bool reject_motion_while_spools_on_bed(
+    const std::string& gcode, helix::PrinterState& state, bool silent,
+    const helix::SharedCallback<void(const MoonrakerError&)>& on_error, const char* log_tag) {
     if (!state.print_state().spool_latch_active() ||
         helix::spool_latch_allows(gcode, state.print_state().spool_latch_extra_tokens())) {
         return false;
@@ -82,8 +80,9 @@ bool reject_motion_while_spools_on_bed(const std::string& gcode, helix::PrinterS
     return true;
 }
 
-bool reject_job_while_spools_on_bed(const helix::PrinterState* state, const char* method,
-                                    const std::function<void(const MoonrakerError&)>& on_error) {
+bool reject_job_while_spools_on_bed(
+    const helix::PrinterState* state, const char* method,
+    const helix::SharedCallback<void(const MoonrakerError&)>& on_error) {
     if (!state || !state->print_state().spool_latch_active()) {
         return false;
     }
@@ -96,7 +95,7 @@ bool reject_job_while_spools_on_bed(const helix::PrinterState* state, const char
 
 bool reject_restart_while_spools_on_bed(
     const helix::PrinterState* state, const char* method,
-    const std::function<void(const MoonrakerError&)>& on_error) {
+    const helix::SharedCallback<void(const MoonrakerError&)>& on_error) {
     if (!state || !state->print_state().spool_latch_active()) {
         return false;
     }
@@ -110,7 +109,7 @@ bool reject_restart_while_spools_on_bed(
 #if HELIX_HAS_PLUGINS
 bool reject_plugin_rpc(helix::PrinterState& state, const std::string& method,
                        const nlohmann::json& params,
-                       const std::function<void(const MoonrakerError&)>& on_error) {
+                       const helix::SharedCallback<void(const MoonrakerError&)>& on_error) {
     static constexpr const char* kTag = "[Plugin]";
     const auto str = [&params](const char* key) {
         return helix::json_util::safe_string(params, key, "");

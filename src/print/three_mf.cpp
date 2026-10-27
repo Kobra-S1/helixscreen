@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <utility>
 
 namespace helix::three_mf {
 
@@ -89,6 +90,42 @@ template <class Fn> void for_each_tag(std::string_view xml, std::string_view ele
     }
 }
 
+/// @p text with XML's five predefined entities decoded. Any other '&' stays as written.
+std::string decode_entities(std::string_view text) {
+    static constexpr std::pair<std::string_view, char> kEntities[] = {
+        {"&amp;", '&'}, {"&lt;", '<'}, {"&gt;", '>'}, {"&quot;", '"'}, {"&apos;", '\''},
+    };
+    std::string out;
+    out.reserve(text.size());
+    for (size_t i = 0; i < text.size();) {
+        bool decoded = false;
+        if (text[i] == '&') {
+            for (const auto& [entity, c] : kEntities) {
+                if (text.substr(i, entity.size()) == entity) {
+                    out += c;
+                    i += entity.size();
+                    decoded = true;
+                    break;
+                }
+            }
+        }
+        if (!decoded) {
+            out += text[i++];
+        }
+    }
+    return out;
+}
+
+/// The entry a model_settings pointer names, or nullptr. Pointers are archive
+/// paths, sometimes written from the archive root with a leading '/'.
+const zip::ZipEntry* pointed_entry(const std::vector<zip::ZipEntry>& entries,
+                                   std::string_view pointer) {
+    if (!pointer.empty() && pointer.front() == '/') {
+        pointer.remove_prefix(1);
+    }
+    return pointer.empty() ? nullptr : find_archive_entry(entries, pointer);
+}
+
 /// N from "Metadata/plate_<N><suffix>", or 0.
 int plate_number(std::string_view name, std::string_view suffix) {
     if (name.size() <= kPlatePrefix.size() + suffix.size() ||
@@ -122,41 +159,107 @@ const zip::ZipEntry* find_archive_entry(const std::vector<zip::ZipEntry>& entrie
     return nullptr;
 }
 
-std::vector<ThreeMfPlate> sliced_plates(const std::vector<zip::ZipEntry>& entries) {
+std::vector<ThreeMfPlate> sliced_plates(const std::vector<zip::ZipEntry>& entries,
+                                        const std::vector<PlateSettings>& settings) {
     std::vector<ThreeMfPlate> plates;
-    for (const auto& e : entries) {
-        if (const int n = plate_of_gcode_entry(e.name); n > 0) {
-            ThreeMfPlate plate;
-            plate.index = n;
-            plate.gcode = &e;
-            plates.push_back(plate);
+    auto plate_numbered = [&plates](int n) -> ThreeMfPlate* {
+        for (auto& p : plates) {
+            if (p.index == n) {
+                return &p;
+            }
         }
+        return nullptr;
+    };
+    auto add_plate = [&plates, &plate_numbered](int n) -> ThreeMfPlate& {
+        if (auto* p = plate_numbered(n)) {
+            return *p;
+        }
+        ThreeMfPlate plate;
+        plate.index = n;
+        plates.push_back(plate);
+        return plates.back();
+    };
+
+    std::vector<const zip::ZipEntry*> pointed;
+    for (const auto& s : settings) {
+        if (const auto* e = pointed_entry(entries, s.gcode_file)) {
+            add_plate(s.plate).gcode = e;
+            pointed.push_back(e);
+        }
+    }
+    for (const auto& e : entries) {
+        const int n = plate_of_gcode_entry(e.name);
+        if (n <= 0 || std::find(pointed.begin(), pointed.end(), &e) != pointed.end()) {
+            continue;
+        }
+        if (const auto* p = plate_numbered(n); p && p->gcode) {
+            continue; // its own pointer was followed
+        }
+        add_plate(n).gcode = &e;
     }
     std::sort(plates.begin(), plates.end(),
               [](const ThreeMfPlate& a, const ThreeMfPlate& b) { return a.index < b.index; });
+
     for (const auto& e : entries) {
         int n = 0;
-        if ((n = plate_number(e.name, ".gcode.md5")) > 0) {
-            for (auto& p : plates) {
-                if (p.index == n) {
-                    p.md5 = &e;
-                }
-            }
-        } else if ((n = plate_number(e.name, "_small.png")) > 0) {
-            for (auto& p : plates) {
-                if (p.index == n) {
-                    p.thumb_small = &e;
-                }
+        if ((n = plate_number(e.name, "_small.png")) > 0) {
+            if (auto* p = plate_numbered(n)) {
+                p->thumb_small = &e;
             }
         } else if ((n = plate_number(e.name, ".png")) > 0) {
-            for (auto& p : plates) {
-                if (p.index == n) {
-                    p.thumb = &e;
-                }
+            if (auto* p = plate_numbered(n)) {
+                p->thumb = &e;
+            }
+        }
+    }
+    for (auto& p : plates) {
+        // The checksum sits beside whichever entry the G-code was taken from.
+        p.md5 = find_archive_entry(entries, p.gcode->name + ".md5");
+        for (const auto& s : settings) {
+            if (s.plate != p.index) {
+                continue;
+            }
+            p.name = s.name;
+            if (const auto* thumb = pointed_entry(entries, s.thumbnail_file)) {
+                p.thumb = thumb;
             }
         }
     }
     return plates;
+}
+
+std::vector<PlateSettings> parse_model_settings(std::string_view xml) {
+    std::vector<PlateSettings> out;
+    size_t at = 0;
+    while ((at = xml.find("<plate>", at)) != std::string_view::npos) {
+        const size_t end = xml.find("</plate>", at);
+        const std::string_view block =
+            xml.substr(at, end == std::string_view::npos ? std::string_view::npos : end - at);
+        at += 7;
+
+        PlateSettings plate;
+        for_each_tag(block, "metadata", [&plate](std::string_view tag) {
+            const auto key = tag_attribute(tag, "key");
+            if (!key) {
+                return;
+            }
+            if (*key == "plater_id") {
+                plate.plate = attr_index(tag, "value", 1, kMaxPlates);
+            } else if (*key == "plater_name") {
+                const std::string name =
+                    decode_entities(text_io::trim(tag_attribute(tag, "value").value_or("")));
+                plate.name = std::string(text_io::utf8_prefix(name, kMaxPlateNameBytes));
+            } else if (*key == "gcode_file") {
+                plate.gcode_file = decode_entities(tag_attribute(tag, "value").value_or(""));
+            } else if (*key == "thumbnail_file") {
+                plate.thumbnail_file = decode_entities(tag_attribute(tag, "value").value_or(""));
+            }
+        });
+        if (plate.plate > 0) {
+            out.push_back(std::move(plate));
+        }
+    }
+    return out;
 }
 
 bool parse_slice_info(std::string_view xml, int plate, SliceInfo& out) {

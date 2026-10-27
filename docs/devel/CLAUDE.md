@@ -95,7 +95,7 @@ All developer documentation lives here. When working on features, look up the re
 | `ACTION_PROMPTS.md` | Klipper `action:prompt_*` / `action:notify` macros: parser and state machine, the ActionPromptModal layout and colors, how button gcode reaches the printer, unsupported directives, mock/demo knobs, adding a directive |
 | `BLUETOOTH_SYSTEM.md` | Bluetooth plugin internals: dlopen loader and C ABI versioning, BusThread and which thread each call runs on, context ownership, discovery filtering, pairing/bonding, RFCOMM/SDP and BLE GATT data paths, failure modes, adding an ABI function |
 | `USB_MANAGEMENT.md` | USB drives (mount-table detection, classification, the root-only fallback automounter), the print-select USB source and its subjects, USB label printer detection/transport, HID scanner choice, the `--test` mock drive |
-| `CHAMBER_HEATER.md` | Chamber heaters: backend registry (generic/dragonbreath/panda_breath), discovery, diagnostics subjects + card, ceiling rules, arbitration, verification logs |
+| `CHAMBER_HEATER.md` | Chamber heaters: backend registry (generic/dragonbreath/panda_breath), discovery, diagnostics subjects + card, ceiling rules, arbitration, verification logs, chamber air modes |
 | `BED_DRYING.md` | Drying filament on the heated bed: the enclosure capability, the flow, the spools-on-the-bed latch and its five send-layer choke points, persistence across restarts and power loss |
 | `PRINTER_MANAGER.md` | Printer overlay, custom images, inline name editing |
 | `MULTI_PRINTER.md` | Multi-printer management: config v4, soft restart, printer switching |
@@ -141,6 +141,7 @@ All developer documentation lives here. When working on features, look up the re
 | `plans/` | The single tracked home for in-flight plans and specs — **point-in-time, not current truth.** Scaffolding, deleted in the same change that ships the work (lifecycle convention: `../CLAUDE.md`). A plan records what was intended when it was written and reads as instructions; several prescribe approaches the shipped code has since diverged from. Verify every predicate against the code before following one. |
 | `printer-research/README.md` | Printer research index, plus the overview matrix of every printer's SoC, panel, firmware, target and support status |
 | `printer-research/FLASHFORGE_AD5X_IFS_ANALYSIS.md` | AD5X IFS protocol reverse engineering |
+| `printer-research/FLASHFORGE_CREATOR5_FIRMWARE.md` | Creator 5 stock firmware RE: package decryption, the 2.0.0 full-image layout, the stock UI's 2.0.0 features as decoded from `firmwareExe`, 2.0.0 Klipper deltas, and stock features against HelixScreen |
 | `printer-research/ANYCUBIC_ACE_KOBRA_S1_LOG_ANALYSIS.md` | Kobra S1 + ACE Pro real-log analysis: the ACEPRO driver on the `klipper-kobra-s1` firmware (`[ace_status]`), command surface, inventory model |
 
 ## Reference

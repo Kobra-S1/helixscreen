@@ -101,8 +101,9 @@ class PickStartFixture : private helix::PrintSelectGlobalStateReset,
     void hold_print_start() {
         helix::MoonrakerClientMockTestAccess::set_method_handler(
             mock_client_, "printer.print.start",
-            [this](MoonrakerClientMock*, const json&, std::function<void(const json&)> success_cb,
-                   std::function<void(const MoonrakerError&)> error_cb) -> bool {
+            [this](MoonrakerClientMock*, const json&,
+                   helix::SharedCallback<void(const json&)> success_cb,
+                   helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
                 held_start = std::move(success_cb);
                 held_error = std::move(error_cb);
                 return true;
@@ -158,8 +159,8 @@ class PickStartFixture : private helix::PrintSelectGlobalStateReset,
 
     helix::PlantedGcode file_{"pick_start.gcode", "", kPlate};
     helix::ui::PrintSelectDetailView* detail = nullptr;
-    std::function<void(const json&)> held_start;
-    std::function<void(const MoonrakerError&)> held_error;
+    helix::SharedCallback<void(const json&)> held_start;
+    helix::SharedCallback<void(const MoonrakerError&)> held_error;
     std::vector<std::string> infos;
     std::vector<std::string> warnings;
 };
@@ -313,8 +314,8 @@ TEST_CASE_METHOD(PickStartFixture, "A refused queue add keeps the picks",
     bool asked = false;
     helix::MoonrakerClientMockTestAccess::set_method_handler(
         mock_client_, "server.job_queue.post_job",
-        [&asked](MoonrakerClientMock*, const json&, std::function<void(const json&)>,
-                 std::function<void(const MoonrakerError&)> error_cb) -> bool {
+        [&asked](MoonrakerClientMock*, const json&, helix::SharedCallback<void(const json&)>,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
             asked = true;
             error_cb(MoonrakerError::unknown("refused", "server.job_queue.post_job"));
             return true;
@@ -331,11 +332,12 @@ TEST_CASE_METHOD(PickStartFixture, "A refused queue add keeps the picks",
 TEST_CASE_METHOD(PickStartFixture, "A queue add answered after another file opened keeps its picks",
                  "[print_select][pre_start_exclude][start][job_queue]") {
     QueueMode queue(*this, api_.get(), mock_client_);
-    std::function<void(const json&)> held_add;
+    helix::SharedCallback<void(const json&)> held_add;
     helix::MoonrakerClientMockTestAccess::set_method_handler(
         mock_client_, "server.job_queue.post_job",
-        [&held_add](MoonrakerClientMock*, const json&, std::function<void(const json&)> success_cb,
-                    std::function<void(const MoonrakerError&)>) -> bool {
+        [&held_add](MoonrakerClientMock*, const json&,
+                    helix::SharedCallback<void(const json&)> success_cb,
+                    helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
             held_add = std::move(success_cb);
             return true;
         });

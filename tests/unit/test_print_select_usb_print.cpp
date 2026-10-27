@@ -114,9 +114,10 @@ class UsbPrintFixture : private helix::PrintSelectGlobalStateReset,
                            int error_code = 0) {
         helix::MoonrakerClientMockTestAccess::set_method_handler(
             mock_client_, "server.files.list",
-            [entries, error_code](MoonrakerClientMock*, const json&,
-                                  std::function<void(const json&)> success_cb,
-                                  std::function<void(const MoonrakerError&)> error_cb) -> bool {
+            [entries,
+             error_code](MoonrakerClientMock*, const json&,
+                         helix::SharedCallback<void(const json&)> success_cb,
+                         helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
                 if (error_code != 0) {
                     MoonrakerError err =
                         MoonrakerError::unknown("listing refused", "server.files.list");
@@ -199,8 +200,8 @@ TEST_CASE_METHOD(UsbPrintFixture, "a USB copy the printer has no room for is not
     // The refusal releases the in-flight guard: with room, a retry copies.
     helix::MoonrakerClientMockTestAccess::set_method_handler(
         mock_client_, "server.files.get_directory",
-        [](MoonrakerClientMock*, const json&, std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)>) -> bool {
+        [](MoonrakerClientMock*, const json&, helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
             success_cb(json{{"result",
                              {{"dirs", json::array()},
                               {"files", json::array()},

@@ -97,7 +97,7 @@ Discovered fans grouped by controllable vs. automatic, fan types, live speed con
 Getting a BIGTREETECH Panda Breath working with Klipper so HelixScreen can see it — putting it on the network, choosing between stock and DragonBreath firmware, the module and config each one needs, the Snapmaker U1 one-menu shortcut, and what to do when it goes offline.
 
 ### [Sensors](guide/sensors.md)
-Filament switch and motion sensors with per-sensor role assignment (None, Runout, Toolhead, Entry), read-only probe/width/humidity/accelerometer/color/temperature sensors, and chamber heater/sensor assignment.
+Filament switch and motion sensors with per-sensor role assignment (None, Runout, Toolhead, Entry), door and button inputs with the door-open warning, read-only probe/width/humidity/accelerometer/color/temperature sensors, and chamber heater/sensor assignment.
 
 ### [Security & Screen Lock](guide/security.md)
 Set, change, or remove a PIN screen lock, auto-lock tied to the display sleep timeout, the lock-screen keypad with emergency-stop access, and what a factory reset clears.

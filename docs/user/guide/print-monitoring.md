@@ -91,6 +91,27 @@ The wording depends on which way round it is, because the risk isn't symmetric:
 
 Your Filament Mapping is unaffected either way. HelixScreen still routes the tool to that lane, exactly as it did before — the grade difference changes what you're told, not where the filament comes from.
 
+### The Mixed-Temperature Materials dialog
+
+Some plastics print far hotter than others. ABS, ASA, PC and nylon want a nozzle above 240°C and a warm enclosure; PLA, PVA and TPU soften not far above 60°C and print below 230°C. When one file uses a material from each end, the cooler one can be damaged by the conditions the hotter one needs.
+
+Before a print that uses two or more materials, HelixScreen checks every pair the file actually prints with. It warns when the hotter material needs a heated enclosure and the two have no nozzle temperature in common. The temperatures come from HelixScreen's filament list, the same one the Material Mismatch dialog uses.
+
+| Pair | Warns? |
+|------|--------|
+| PLA + ABS, PLA + PC, PLA + nylon (PA, PA-CF) | Yes |
+| PLA + PETG, PLA + TPU, PLA + PVA | No: none of them needs an enclosure |
+| PETG + ABS, ABS + PC | No: their nozzle temperatures overlap |
+
+What the dialog says depends on your printer:
+
+- **One nozzle** (a filament system feeding a single hotend): the cooler material goes through the same nozzle at the hotter material's temperature, where it can burn and clog the nozzle.
+- **Several nozzles** (a tool changer or a printer with two or more hotends): each material has its own nozzle, but they share the bed and the enclosure, and the heat the hotter material needs can soften the cooler one and jam its nozzle.
+
+Only the materials the file prints with count. A slicer profile often lists a material for every tool, even for a file that uses one, and those unused tools are ignored. A material name HelixScreen does not recognize never triggers the warning.
+
+**Buttons:** **Start Anyway** prints as-is; **Cancel** backs out so you can re-slice with compatible materials. The check runs on every print that mixes materials and has no setting to turn it off: choosing **Start Anyway** is how you print a combination you know works on your printer.
+
 ### The Filament In The Toolhead dialog
 
 The dialogs above compare what the *file* needs against what your slots hold. This one looks at the toolhead itself: filament is sitting in it, but no lane in your filament system reports having loaded it. That usually means leftovers — filament that was on its way in or out when an earlier job was canceled or aborted, and never got seated in a lane. Rather than silently print on top of unknown material, HelixScreen asks first:

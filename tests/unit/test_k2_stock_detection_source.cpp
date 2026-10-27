@@ -91,7 +91,7 @@ struct PollHarness {
             out = runner_stdout;
             return runner_exit;
         });
-        src.set_submitter([](std::function<void()> work) { work(); });
+        src.set_submitter([](helix::SharedCallback<void()> work) { work(); });
         src.set_callback([this](const DetectionEvent& e) { events.push_back(e); });
         if (!config_path.empty())
             src.set_config_path_for_test(config_path);

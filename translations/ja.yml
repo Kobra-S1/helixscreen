@@ -587,6 +587,7 @@ translations:
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'キャンセルするとチャンバーの目標温度をオフにして待機を終了し、その後印刷を停止します。'
   'Cannot add to queue: internal error': 'キューに追加できません: 内部エラー'
   Cannot be changed from here on a multi-unit MMU: マルチユニット MMU ではここから変更できません
+  Cannot calibrate while printing: '印刷中はキャリブレーションできません'
   Cannot change the HelixPrint plugin while printing: 印刷中はHelixPrintプラグインを変更できません
   'Cannot control timelapse: printer not connected': 'タイムラプスを制御できません: プリンター未接続'
   'Cannot delete file: printer not connected': 'ファイルを削除できません: プリンター未接続'
@@ -625,6 +626,7 @@ translations:
   Chamber Heater Fan: チャンバーヒーターファン
   Chamber Sensor: チャンバーセンサー
   Chamber Temperature: チャンバー温度
+  Chamber air: 'チャンバー空気'
   Chamber and dryer humidity monitoring: チャンバーとドライヤーの湿度監視
   Chamber at %d°C: チャンバー温度：%d°C
   Chamber heater didn't start: 'チャンバーヒーターが起動しませんでした'
@@ -741,6 +743,7 @@ translations:
   Close: 閉じる
   Close feeder: フィーダーを閉じる
   Close feeder macro: フィーダーを閉じるマクロ
+  Closed: 閉
   Closer: 近く
   Closer = more squish | Farther = less squish: 近い = より圧縮 | 遠い = 圧縮少なめ
   Coarse: 粗動
@@ -1094,6 +1097,10 @@ translations:
   Don't Save: 保存しない
   Don't ask again: 今後表示しない
   Done: 完了
+  Door: ドア
+  Door Open: ドアが開いています
+  'Door opened during print: {}': '印刷中にドアが開きました: {}'
+  Door switches, buttons, and other on/off inputs: ドアスイッチ、ボタン、その他のオン/オフ入力
   Download update?: アップデートをダウンロードしますか？
   Download v{}?: v{}をダウンロードしますか？
   Downloading...: ダウンロード中...
@@ -1565,6 +1572,7 @@ translations:
   Follow active tool: アクティブツールに追従
   Follow graph screen: グラフ画面に追従
   'For a first Z home: claim the tool you put on the head': 初回のZホーミング用：ヘッドに取り付けたツールを登録
+  For materials that need a warm enclosure, like ABS or ASA: 'ABSやASAなど、暖かいエンクロージャーが必要な材料向け'
   Force/weight sensors: '力/重量センサー'
   Forget: 登録解除
   Forget Network?: ネットワークを登録解除しますか？
@@ -1806,6 +1814,7 @@ translations:
   IMPORT FROM USB: USBからインポート
   INDX dock positions are not calibrated: "INDXのドック位置がキャリブレーションされていません"
   INDX macros not recognized: "INDXマクロを認識できません"
+  INPUTS: 入力
   IP Address / Hostname: IPアドレス / ホスト名
   'IP:': 'IP:'
   'IPP error: {}': 'IPP エラー: {}'
@@ -1892,12 +1901,14 @@ translations:
   Invalid value: '無効な値です'
   Invalid value type: '値の型が無効です'
   Is new filament coming out of the nozzle?: "ノズルから新しいフィラメントが出ていますか？"
+  Invert: 反転
   Is the bed clear?: "ベッドは空いていますか？"
   Issue description: 問題の説明
   It can be un-archived in Spoolman's web UI.: Spoolman の Web 画面でアーカイブを解除できます。
   It has not reported its slots yet. Try again in a moment.: スロットがまだ報告されていません。しばらくしてからもう一度お試しください。
   It homes and heats on its own (no start macro found).: ホーミングと加熱を自分で行います(開始マクロが見つかりません)。
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: ハブセンサーとハブギアの間で詰まっています。CFS を開けてハブを取り除いてから再試行してください
+  It saves the result and restarts Klipper when it finishes.: '完了すると結果を保存し、Klipperを再起動します。'
   It starts with your {} macro.: '{}マクロで開始します。'
   It's a new spool: 新しいスプールです
   Its home tile: 'ホームのタイル'
@@ -2241,6 +2252,7 @@ translations:
   Minimum: 最小
   Minutes: 分
   Missing value: '値が入力されていません'
+  Mixed-Temperature Materials: '温度の異なる素材'
   Mode: モード
   Modified: 変更日時
   'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 印刷の進行状況を監視します — 残り時間、現在のレイヤー、進捗。タップすれば進行中のジョブを一時停止、再開、キャンセルできます。
@@ -2586,6 +2598,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'このプレートを再印刷するには、印刷ファイルで .3mf を開いてください。'
   Open the CFS unit and remove the broken filament from the slot: CFS ユニットを開け、スロットから折れたフィラメントを取り除いてください
   Open the slot editor when you load a new spool: '新しいスプールを装填したときにスロットエディタを開く'
+  Opened: 開
   Operation already in progress: 操作がすでに進行中です
   Operation timed out: 操作がタイムアウトしました
   Operations: 操作
@@ -2598,6 +2611,7 @@ translations:
   Or instead of turning the others: 他のネジを回す代わりに
   Original file location unknown: 元のファイルの場所が不明です
   Oscillating... cycle %d/%d: 振動中... サイクル %d/%d
+  Other: その他
   Outcome: 結果
   Output Device: 出力デバイス
   Output Mode: 出力モード
@@ -2703,7 +2717,6 @@ translations:
   Placed: 配置済み
   Plate moves and presets lift to this height first: ベッド上の移動とプリセットはまずこの高さまで上昇します
   Plate {}: 'プレート {}'
-  Plate {} ({} of {}): 'プレート {} ({} / {})'
   Platform: プラットフォーム
   'Platform: ': 'プラットフォーム: '
   Play / stop Crockett's Theme: Crockett's Theme を再生/停止
@@ -2778,6 +2791,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。'
   'Pressure:': '圧力:'
+  Pressed: 押下
   Pressure Adv.: 'Pressure Adv.'
   Pressure Advance: 'Pressure Advance'
   Pressure Advance Calibration: 'プレッシャーアドバンスキャリブレーション'
@@ -3030,6 +3044,7 @@ translations:
   Received oversized data from printer ({} bytes). This may indicate a communication error.: プリンターからサイズ超過のデータを受信しました ({} バイト)。通信エラーの可能性があります。
   Recent Prints: 最近の印刷
   Recently Printed: 最近印刷されたもの
+  Recirculate: '循環'
   Reconnect: 再接続
   Record Timelapse: タイムラプスを録画
   Record timelapses of your prints: 印刷のタイムラプスを録画
@@ -3060,6 +3075,7 @@ translations:
   Release or grip the filament by hand: 手でフィラメントを解放または把持
   Release the filament: フィラメントを解放
   Release {}'s tensioner, let the spring settle, lock it: "{}のテンショナーを緩め、バネをなじませてから固定"
+  Released: 解放
   Reload the saved bed mesh?: 保存されたベッドメッシュを再読み込みしますか？
   Remaining: '残り'
   Remaining (g): 残量 (g)
@@ -3905,6 +3921,7 @@ translations:
   The printer lost power during a print. The resumed layer may not line up exactly.: 印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。
   The printer lost power while printing {}. Resume where it left off?: '{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？'
   The printer lost power while printing {}. The resumed layer may not line up exactly.: '{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。'
+  The printer moves the toolhead and measures its motors.: 'プリンターがツールヘッドを動かし、モーターを測定します。'
   The printer no longer has a print to resume.: プリンターに再開できる印刷がありません。
   The printer reads the file up to the last saved position. A large file can take a minute.: プリンターは最後に保存された位置までファイルを読み込みます。大きなファイルでは1分かかることがあります。
   The printer records lane {} in the toolhead, not this one: 'プリンターの記録ではツールヘッドにあるのはレーン{}で、このレーンではありません'
@@ -3974,6 +3991,8 @@ translations:
   This feature requires different hardware or configuration: この機能には別のハードウェアまたは設定が必要です
   This feature stopped. Restart Moonraker to start it again.: "この機能は停止しました。Moonrakerを再起動すると再開します。"
   This filament system does not report buffer or flow data.: このフィラメントシステムはバッファーやフローのデータを報告しません。
+  This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: 'このファイルは {0} と {1} を1つのノズルで印刷します。{1} の温度では {0} が過熱してノズルが詰まる可能性があります。'
+  This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'このファイルは {0} と {1} を同時に印刷します。{1} に必要なチャンバーとベッドの熱で {0} が柔らかくなり、ノズルが詰まる可能性があります。'
   This file was sliced for {} but {} is loaded.: このファイルは {} 用にスライスされていますが、{} がロードされています。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: このファイルは {} 用にスライスされていますが、{} がロードされています。装填中のスプールが必要とするより遅く高温で印刷されます。
   This firmware can only switch slots by loading them: 'このファームウェアはスロットを装填して切り替えることしかできません'
@@ -4147,6 +4166,7 @@ translations:
   Trying again...: '再試行中...'
   Tune: チューニング
   Tune Belts: "ベルト調整"
+  Tune the motors to remove fine vertical lines: 'モーターを調整して細かい垂直の線を除去'
   Tuner: 調整
   Tuning tower enabled - start a print to test: チューニングタワー有効 - 印刷を開始してテストしてください
   Turbo: ターボ
@@ -4291,6 +4311,7 @@ translations:
   Version and what the plugin runs: 'バージョンとプラグインが実行する機能'
   Version {}: バージョン {}
   Vertical: 垂直
+  Vertical Artifact Compensation: '垂直アーティファクト補正'
   Vibration: 振動
   Vibration compensation active: 振動補正が有効です
   Video playback speed: 動画再生速度
@@ -4335,6 +4356,7 @@ translations:
   Warm up for a material in one tap: 素材に合わせてワンタップで予熱
   Warming Bed...: ベッド予熱中...
   Warn: 警告
+  Warn if a door is open: ドアが開いていたら警告
   Warning: 警告
   Warnings & errors: '警告とエラー'
   Watch the camera during a print for failed prints: 印刷中にカメラで印刷失敗を監視します
@@ -4581,6 +4603,10 @@ translations:
   within one bin: "1ビン以内"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant が動作していません。WiFi 機能は利用できません。
   you have: 現在は
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0}が開いています。{1}は暖かく閉じたエンクロージャーで最もよく印刷できます。ドアが開いているとチャンバーが冷え、反りやレイヤーの分離の原因になります。閉じるか、このまま開始してください。'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0}が開いています。{1}は暖かく閉じたエンクロージャーで最もよく印刷できます。ドアが開いているとチャンバーが冷え、反りやレイヤーの分離の原因になります。閉じるか、このまま開始してください。'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0}は{2:.0f} Hzで{1}よりはるかに強く共振しています。張力ではなく機械的な違い(プーリーのイモネジ、アイドラーのベアリング、ベルトの走行)を示しています。"
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 約{}分'
@@ -4591,6 +4617,7 @@ translations:
   '{} LED strips available': '{} 個の LED ストリップが利用可能です'
   '{} MCUs': '{} MCU'
   '{} Tools': '{} ツール'
+  '{} and {}': '{}と{}'
   '{} and {} are both mapped here': '{} と {} の両方がここに割り当てられています'
   '{} available': '{} が利用可能'
   '{} axes homed': '{} 軸がホーミング済み'
@@ -4669,6 +4696,7 @@ translations:
   '{} — response timed out': '{} — 応答タイムアウト'
   '{} → {}: no filament loaded.': '{} → {}: フィラメントが装填されていません。'
   "{}'s nozzle is still heating": '{}のノズルはまだ加熱中です'
+  '{}, {}': '{}、{}'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: タグが示す Spoolman スプール #{} は存在しません'
   '{}:{:02} elapsed': 経過 {}:{:02}
   '{}% left': '残り {}%'

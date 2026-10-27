@@ -121,6 +121,7 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     # never has. Both are set explicitly - an undefined HELIX_HAS_X is 0 and
     # would vanish silently rather than being a decision.
     HELIX_HAS_BELT_TUNER=0
+    HELIX_HAS_IMAGE_TAGGER=0
     HELIX_HAS_HIDPI_FONTS=0
     HELIX_PLATFORM_ESP32=1
     HELIX_HAS_PLUGINS=0

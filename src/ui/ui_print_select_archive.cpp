@@ -211,22 +211,26 @@ void PrintSelectPanel::show_archive_plate(size_t i, int plate_index) {
 void PrintSelectPanel::update_plate_stepper() {
     int count = 0;
     std::string text;
+    std::string position;
     const auto it = std::find_if(file_list_.begin(), file_list_.end(), [this](const auto& f) {
         return !f.is_dir && f.filename == selected_filename_buffer_;
     });
     if (it != file_list_.end() && it->archive && it->archive_extract) {
         const auto* plate = three_mf::find_plate(*it->archive, it->archive_plate);
         count = static_cast<int>(it->archive->plates.size());
-        // The slicer's own plate number, so it matches the project; with
-        // several, where it sits among them.
-        if (plate && count > 1) {
-            text = fmt::format(fmt::runtime(lv_tr("Plate {} ({} of {})")), plate->index,
-                               plate_position(*it->archive, plate->index) + 1, count);
-        } else if (plate) {
-            text = fmt::format(fmt::runtime(lv_tr("Plate {}")), plate->index);
+        // The plate's name in the project, else the slicer's own plate number,
+        // so it matches the project; with several, where it sits among them.
+        if (plate) {
+            text = plate->name.empty() ? fmt::format(fmt::runtime(lv_tr("Plate {}")), plate->index)
+                                       : plate->name;
+            if (count > 1) {
+                position =
+                    fmt::format("{}/{}", plate_position(*it->archive, plate->index) + 1, count);
+            }
         }
     }
     lv_subject_copy_string(&selected_plate_text_subject_, text.c_str());
+    lv_subject_copy_string(&selected_plate_position_subject_, position.c_str());
     lv_subject_set_int(&selected_plate_count_subject_, count);
     sync_archive_scan_source();
 }

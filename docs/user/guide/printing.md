@@ -74,6 +74,15 @@ Tap a file to see the preview panel:
 - **Pre-print steps**: Shows which calibration steps will run before printing (e.g., bed mesh)
 - **Timelapse toggle**: Enable recording if you have the timelapse plugin installed
 
+### Sliced 3MF files
+
+A sliced 3MF (a `.gcode.3mf` file, as Bambu Studio, OrcaSlicer and FlashForge's slicer upload it) can hold several plates. The preview shows one plate at a time, with a plate label at the bottom of the preview:
+
+- With one plate, the label shows that plate.
+- With several, arrows appear either side of the label. Tap them to step through the plates. The preview, time and filament follow the plate shown, and **Print** prints that plate.
+
+The label uses the name you gave the plate in the slicer, such as **Hull (1 of 2)**. A plate without a name shows its plate number instead, such as **Plate 2 (2 of 2)**. Very long names are shortened.
+
 ### With the HelixPrint plugin
 
 When the [HelixPrint plugin](helixprint-plugin.md) is installed on your printer (the **Install** row on the **Advanced** screen; on a screen that is not attached to the printer it shows a command to run on the printer instead), it reads every G-code file once, in the background, right after you upload it. You don't need to do anything, and the file prints exactly as it would without it. What you get:
@@ -131,6 +140,8 @@ The line appears once the file's details have loaded. It is not shown for files 
 
 The UI switches to the Print Status panel automatically.
 
+Before the print starts, HelixScreen may ask about the file and your filament. A file that mixes high- and low-temperature materials, such as PLA with ABS, shows **Mixed-Temperature Materials**; see [Print Monitoring](print-monitoring.md#the-mixed-temperature-materials-dialog) for what each dialog means.
+
 ### Does the file fit this printer?
 
 When you open a file, HelixScreen compares it with your printer's own limits and shows anything it finds in a card above the filament card:
@@ -153,6 +164,16 @@ How much HelixScreen can see depends on whether the [HelixPrint plugin](helixpri
 - **Without it**, the screen reads the start of the file and its slicer details for temperatures, nozzle and printer model, and takes the travel from the 3D or 2D preview once that has loaded. The preview covers the part itself, not the purge line or wipe tower, and a file whose preview hasn't loaded (or a screen that shows thumbnails only) is not checked for travel.
 
 Files you start from the print queue get the same check. To have a slicer's own upload-and-print held as well, see [Hold slicer prints that do not fit](settings/safety.md#hold-slicer-prints-that-do-not-fit).
+
+### Door-open warning
+
+If your printer has a door or lid switch, HelixScreen checks it when you tap **Start Print**, but only for materials that print best in a warm, closed enclosure, such as ABS, ASA, PC and nylon. For those, an open door cools the chamber and can cause warping or layers splitting apart. With a door open you see **Door Open**, naming each open door and the material. Close the door and tap **Start Print** again, or tap **Start Anyway** to print with it open.
+
+PLA, PETG and other materials that like fresh air never trigger it, and neither does a file whose materials HelixScreen can't tell.
+
+This comes after the other pre-print checks, so you may see a filament warning first.
+
+Which inputs count as doors, and whether the check runs at all, is set in **Settings > Devices > Sensors > Inputs**. See [Inputs (Doors and Buttons)](sensors.md#inputs-doors-and-buttons). The check is on by default for any printer with a door switch. Printers with no door switch never show this warning.
 
 ### Before the print actually begins
 
