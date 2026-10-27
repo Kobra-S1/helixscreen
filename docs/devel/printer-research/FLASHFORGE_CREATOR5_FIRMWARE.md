@@ -149,13 +149,13 @@ Creator 5 macros (`ghzserg/z_c5pro`, `translate/en/c5pro_generic.cfg`).
 
 | Stock feature | Printer-side hook | HelixScreen |
 |---------------|-------------------|-------------|
-| Extruder offset calibration | Z-Mod `CALIBRATE_EXTRUDERS` | In progress (`feat/c5-calibration`) |
-| VFA vertical stripe compensation | Z-Mod `CALIBRATE_VFA T=<n>` (`STEPPER_RESONANCE_FACTORY_CALIBRATE`) | In progress (`feat/c5-calibration`) |
-| Chamber air circulation | Z-Mod `AIR_CIRCULATION_INTERNAL` / `EXTERNAL` / `STOP` | In progress (`feat/c5-calibration`) |
-| Door open warning, "Door Switch" toggle | `gcode_button topDoor`, `frontDoor` | In progress (`feat/c5-sensors`) |
-| Device status page (dock, pickup, door, limits, eddy) | `gcode_button extruder_pos1-4`, `extruder_grab1-4`, endstops | In progress (`feat/c5-sensors`) |
-| Mixed-temperature warning | none (UI logic) | In progress (`feat/c5-print-flow`) |
-| Multi-plate 3MF | none (file format) | Supported; `model_settings.config` in progress |
+| Extruder offset calibration | Z-Mod `CALIBRATE_EXTRUDERS` | Supported: Tool Offsets sends it and Z-Mod's own prompt runs it |
+| VFA vertical stripe compensation | Z-Mod `CALIBRATE_VFA T=<n>`, or stock `[stepper_resonance_tester]` | Supported: Vertical Artifact Compensation (Advanced > Calibration) |
+| Chamber air circulation | Z-Mod `AIR_CIRCULATION_INTERNAL` / `EXTERNAL` / `STOP` | Supported: Chamber air row in the fan overlay |
+| Door open warning, "Door Switch" toggle | `gcode_button topDoor`, `frontDoor` | Supported: Settings > Sensors > Inputs; warns for warm-enclosure materials only |
+| Device status page (dock, pickup, door, limits, eddy) | `gcode_button extruder_pos1-4`, `extruder_grab1-4`, endstops | Inputs shown live in Settings > Sensors; endstops not yet |
+| Mixed-temperature warning | none (UI logic) | Supported, classified from the filament database |
+| Multi-plate 3MF | none (file format) | Supported, with slicer plate names from `model_settings.config` |
 | Static IP | OS network config | prestonbrown/helixscreen#1900 |
 | Seven maintenance reminders | none | prestonbrown/helixscreen#1901 (HelixScreen tracks three) |
 | Speed modes (50 / 100 / 140 %), mute mode | `M220`, `MUTE_MODE_ENABLE` | Speed slider only |
