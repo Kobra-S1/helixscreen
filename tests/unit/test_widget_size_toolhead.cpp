@@ -1174,6 +1174,19 @@ TEST_CASE_METHOD(PresetFixture, "toolhead presets: the gear's picker changes a s
     drain();
 }
 
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: detaching the widget closes its picker",
+                 "[widget_size][toolhead][presets]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    h.widget().on_edit_configure();
+    REQUIRE(h.widget().preset_config_modal() != nullptr);
+    REQUIRE(h.widget().preset_config_modal()->is_visible());
+
+    h.widget().detach();
+    drain();
+    CHECK(h.widget().preset_config_modal() == nullptr);
+}
+
 TEST_CASE_METHOD(PresetFixture, "toolhead plate: the Move-here chip fits the plate at every rung",
                  "[widget_size][toolhead][interactive]") {
     PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());

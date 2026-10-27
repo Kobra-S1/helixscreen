@@ -739,6 +739,8 @@ void ToolheadWidget::detach() {
     clear_ghost();
     lifetime_.invalidate();
     move_sender_.reset();
+    // Its pick callback saves into this instance, which a recycled tile no longer shows.
+    config_modal_.reset();
     refresh_timer_.cancel();
     ghost_timer_.cancel();
     nav_enabled_observer_.reset();
