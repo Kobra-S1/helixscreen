@@ -699,6 +699,7 @@ TEST_CASE("gate bypass_engaged_lane_print: fires only on bypass + multi-color",
           "[print-start][gate-pipeline]") {
     auto make = [](bool bypass, size_t colors) {
         return ctx_with([&](PrintStartContext& c) {
+            c.ams_available = true;
             c.any_bypass_active = bypass;
             c.filament_color_count = colors;
         });
@@ -727,6 +728,7 @@ TEST_CASE("gate bypass_engaged_lane_print: used-tool count beats palette size",
     CHECK(g.evaluate(single_used_tool).verdict == CheckResult::Verdict::Pass);
 
     auto two_used_tools = ctx_with([](PrintStartContext& c) {
+        c.ams_available = true;
         c.any_bypass_active = true;
         c.filament_color_count = 4;
         c.tools_used = {0, 2};
@@ -735,6 +737,7 @@ TEST_CASE("gate bypass_engaged_lane_print: used-tool count beats palette size",
 
     // No scan result (empty tools_used) falls back to the palette count.
     auto no_scan = ctx_with([](PrintStartContext& c) {
+        c.ams_available = true;
         c.any_bypass_active = true;
         c.filament_color_count = 4;
     });
@@ -854,6 +857,7 @@ TEST_CASE("gate required_filament_present: single-tool bypass ignores empty lane
     auto ctx = ctx_with([](PrintStartContext& c) {
         c.ams_manages_filament = true;
         c.has_active_backend = true;
+        c.ams_available = true;
         c.any_bypass_active = true;
         c.tools_used = {1};
         c.empty_required_lanes = {{1, 2}}; // would warn without bypass
@@ -865,6 +869,7 @@ TEST_CASE("gate required_filament_present: single-tool bypass ignores empty lane
     auto multi = ctx_with([](PrintStartContext& c) {
         c.ams_manages_filament = true;
         c.has_active_backend = true;
+        c.ams_available = true;
         c.any_bypass_active = true;
         c.tools_used = {0, 2};
         c.empty_required_lanes = {{2, 3}};
@@ -1631,4 +1636,41 @@ TEST_CASE_METHOD(LVGLTestFixture, "gate door_open: a locale's own list separator
         gate_named("door_open").evaluate(door_file({"ABS"}, {"frontDoor", "topDoor", "lid"})).body;
     INFO(body);
     CHECK(body.rfind("frontDoor\xe3\x80\x81topDoor\xe3\x81\xa8lid", 0) == 0); // 、 and と
+}
+
+TEST_CASE("gate bypass_engaged_lane_print: a printer with one spool path has no bypass to turn off",
+          "[print-start][gate-pipeline][1904]") {
+    // The backend presents no filament system, so its bypass is always on and
+    // there is no toggle; a multi-tool file is the fit check's question.
+    auto ctx = ctx_with([](PrintStartContext& c) {
+        c.ams_available = false;
+        c.any_bypass_active = true;
+        c.filament_color_count = 4;
+        c.tools_used = {0, 2};
+    });
+    CHECK(gate_named("bypass_engaged_lane_print").evaluate(ctx).verdict ==
+          CheckResult::Verdict::Pass);
+}
+
+TEST_CASE("gate required_filament_present: a printer with one spool path asks its runout sensor",
+          "[print-start][gate-pipeline][1904]") {
+    // An always-on bypass proves nothing about the toolhead, so an empty
+    // runout sensor still warns.
+    auto ctx = ctx_with([](PrintStartContext& c) {
+        c.ams_available = false;
+        c.any_bypass_active = true;
+        c.has_active_backend = true;
+        c.tools_used = {0};
+        c.runout_enabled = true;
+        c.runout_available = true;
+        c.runout_detected = false;
+    });
+    auto r = gate_named("required_filament_present").evaluate(ctx);
+    REQUIRE(r.verdict == CheckResult::Verdict::Warn);
+    CHECK(r.title == "No Filament Detected");
+
+    // With an engaged AMS bypass the same reading stays silent.
+    ctx.ams_available = true;
+    CHECK(gate_named("required_filament_present").evaluate(ctx).verdict ==
+          CheckResult::Verdict::Pass);
 }

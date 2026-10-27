@@ -2115,6 +2115,28 @@ void AmsBackendCfs::apply_box_units_locked(BoxFrame& f) {
         endless_spool_enable_reported_ = true;
     }
 
+    // Stock K2 firmware publishes `box` whether or not a CFS is attached; with
+    // none, every address reads "None" and the toolhead takes only the
+    // external spool (#1904). A unit seen this session keeps its place in the
+    // list below even when a later frame drops it, so the verdict cannot flip
+    // back on a unit that went briefly quiet. The flat schema is a module
+    // reporting its own slots, never this case.
+    const bool external_spool_only =
+        !is_flat && new_info.units.empty() && system_info_.units.empty();
+    if (system_info_.external_spool_only != external_spool_only) {
+        spdlog::info("[AMS CFS] external_spool_only {} -> {} ({})",
+                     system_info_.external_spool_only, external_spool_only,
+                     external_spool_only ? "no CFS unit on the bus" : "a CFS unit is connected");
+        system_info_.external_spool_only = external_spool_only;
+        // The sentinel stood for "the only path is loaded"; with a unit up it
+        // is the declaration's to claim, and nothing has declared it.
+        if (!external_spool_only && !bypass_declared_ &&
+            system_info_.current_slot == helix::ui::kExternalSpoolSlot) {
+            system_info_.current_slot = -1;
+            system_info_.current_tool = -1;
+        }
+    }
+
     if (!new_info.units.empty()) {
         system_info_.units = std::move(new_info.units);
         system_info_.total_slots = new_info.total_slots;
@@ -2212,10 +2234,14 @@ void AmsBackendCfs::converge_box_bypass_locked(BoxFrame& f) {
                          macro_variant_ == CfsMacroVariant::Fork, external_slot_index_);
             system_info_.supports_bypass = fork_bypass;
         }
-    } else if (!system_info_.supports_bypass) {
-        spdlog::info("[AMS CFS] supports_bypass -> true (stock: external holder + "
-                     "toolhead sensor rule)");
-        system_info_.supports_bypass = true;
+    } else if (system_info_.supports_bypass == system_info_.external_spool_only) {
+        // With no unit there is nothing to bypass: the external spool is the
+        // only path, so the toggle would have no other side.
+        const bool stock_bypass = !system_info_.external_spool_only;
+        spdlog::info("[AMS CFS] supports_bypass -> {} (stock: {})", stock_bypass,
+                     stock_bypass ? "external holder + toolhead sensor rule"
+                                  : "external spool only, no unit");
+        system_info_.supports_bypass = stock_bypass;
     }
 
     // Cross-UI drift guard: has the CFS taken the feed back? The box
@@ -3361,8 +3387,12 @@ void AmsBackendCfs::derive_stock_bypass_locked() {
     // via loaded_slot, and this derivation would race it. The action guard
     // keeps a mid-load sensor rise (feed reaches the toolhead before the box
     // frame naming the bay) from reading as a bypass engage.
-    if (!bypass_declared_ || schema_ == CfsSchema::Flat || !system_info_.supports_bypass ||
-        system_info_.action != AmsAction::IDLE) {
+    //
+    // With no unit on the bus no bay can claim the filament, so the sensor
+    // alone is unambiguous and needs no declaration.
+    const bool armed =
+        system_info_.external_spool_only || (bypass_declared_ && system_info_.supports_bypass);
+    if (!armed || schema_ == CfsSchema::Flat || system_info_.action != AmsAction::IDLE) {
         return;
     }
     if (system_info_.filament_loaded && system_info_.current_slot == -1) {
@@ -3380,6 +3410,16 @@ AmsError AmsBackendCfs::enable_bypass() {
     auto err = check_preconditions();
     if (err.result != AmsResult::SUCCESS) {
         return err;
+    }
+
+    // With no unit on the bus the external spool is the only path: there is
+    // nothing to stand down or re-arm, and a BOX_ENABLE_CFS_PRINT would reach
+    // an empty bus. Reachable only through the force override.
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (system_info_.external_spool_only) {
+            return AmsErrorHelper::not_supported("Bypass with no CFS unit");
+        }
     }
 
     // Same policy as the other capability questions: the user's force override
@@ -3456,6 +3496,16 @@ AmsError AmsBackendCfs::disable_bypass() {
         return err;
     }
 
+    // With no unit on the bus the external spool is the only path: there is
+    // nothing to stand down or re-arm, and a BOX_ENABLE_CFS_PRINT would reach
+    // an empty bus. Reachable only through the force override.
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (system_info_.external_spool_only) {
+            return AmsErrorHelper::not_supported("Bypass with no CFS unit");
+        }
+    }
+
     if (schema_ == CfsSchema::Flat) {
         // BOX_UNLOAD's external branch heats, retracts, cuts, pulls the
         // filament clear and waits for the user to remove it — the same
@@ -3503,8 +3553,9 @@ bool AmsBackendCfs::is_bypass_active() const {
     std::lock_guard<std::mutex> lock(mutex_);
     // Fork: purely firmware-reported (loaded_slot named the external entry).
     // Stock: the declaration OR the sensor-derived sentinel — either half
-    // keeps the sidebar toggle and the pre-print gates honest.
-    return system_info_.current_slot == -2 || bypass_declared_;
+    // keeps the sidebar toggle and the pre-print gates honest. With no unit
+    // the external spool is the only path, loaded or not.
+    return system_info_.current_slot == -2 || bypass_declared_ || system_info_.external_spool_only;
 }
 
 // --- GCode helpers ---

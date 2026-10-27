@@ -59,6 +59,12 @@ class AmsStateTestAccess {
         return RunoutGrace::kWindow;
     }
 
+    /// Drop the cached system_info() readings, as a backend event does, for a
+    /// test backend whose answer changes without raising one.
+    static void invalidate_system_info(AmsState& ams) {
+        ams.invalidate_system_info();
+    }
+
     /// Drive the clog-meter subject sync with a hand-built AmsSystemInfo, so
     /// tests about what lands in the meter's text buffers need no live backend.
     static void sync_clog_meter(AmsState& ams, const AmsSystemInfo& info) {

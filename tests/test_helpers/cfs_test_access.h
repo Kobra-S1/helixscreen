@@ -143,6 +143,9 @@ class CfsTestAccess {
     // Fork dialect, and the external spool entry's slots[] index (-1 = no
     // external entry in the payload). Lets enable_bypass's Fork branch be
     // exercised without a live box frame.
+    static helix::printer::CfsSchema schema(const helix::printer::AmsBackendCfs& b) {
+        return b.schema_;
+    }
     static void set_flat_fork(helix::printer::AmsBackendCfs& b, int external_index) {
         std::lock_guard<std::mutex> lock(b.mutex_);
         b.schema_ = helix::printer::CfsSchema::Flat;

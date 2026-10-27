@@ -344,7 +344,7 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: part_fan_slider binding update
 }
 
 // =============================================================================
-// PRINT STATUS PANEL BINDING TESTS (SKIP - complex dependencies)
+// PRINT STATUS PANEL BINDING TESTS (.xml_required: need ui_xml/ on the relative path)
 // =============================================================================
 
 TEST_CASE_METHOD(XMLTestFixture,
@@ -367,6 +367,8 @@ TEST_CASE_METHOD(XMLTestFixture,
 TEST_CASE_METHOD(XMLTestFixture,
                  "print_status_strip: the progress bar gives way to the estimate while preparing",
                  "[ui][print_status_panel][bind_flag][.xml_required]") {
+    // Pre-print progress is an estimate that can stall through a long phase,
+    // so it has its own bar; the two never show together.
     PrintStatusSubjects owner(state());
     REQUIRE(register_component("components/print_status_strip"));
     set_xml_subject("preparing_visible", 0);
@@ -473,9 +475,10 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: all_homed drives btn_home_all 
     check_homing_button_tracks_subject(panel, "btn_home_all", "all_homed");
 }
 
-TEST_CASE_METHOD(XMLTestFixture, "print_status_more_menu: Timelapse hidden without the capability",
+TEST_CASE_METHOD(XMLTestFixture,
+                 "print_status_more_menu: the timelapse entry is hidden without the capability",
                  "[ui][print_status_panel][bind_flag][.xml_required]") {
-    // A printer with no timelapse component must not be offered the row;
+    // A printer with no timelapse component must not be offered the entry;
     // an inverted ref_value here offers an action that cannot work.
     PrintStatusSubjects owner(state());
     REQUIRE(register_component("print_status_more_menu"));

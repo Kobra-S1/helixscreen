@@ -3121,6 +3121,30 @@ PLA + ASA warn; the warmest material is named). Drive it under `--test` with
 `HELIX_MOCK_DOOR_OPEN=1` on the `creator5` / `creator5_zmod` personas, or any persona with
 `HELIX_MOCK_OBJECTS="gcode_button door"`, and an ABS or ASA file.
 
+### A backend that presents no filament system
+
+A backend can exist and still present nothing to the user: a CFS-ready K2 with no box on the
+bus runs `AmsBackendCfs` for the external spool alone
+(`FILAMENT_BACKEND_CFS.md` § No CFS on the bus). Its bypass is always active, so every
+"bypass engaged" rule above would read it as an AMS user who switched to the external spool,
+and every "a backend exists" rule would show AMS UI for hardware that is not there.
+
+The question is `AmsSystemInfo::presents_filament_system()`; `AmsState::is_available()` asks it
+of the primary backend. Ask it, not `get_backend() != nullptr`, `backend_count() > 0` or
+`get_type() != AmsType::NONE`, whenever the answer decides what the user sees or is told:
+
+| Surface | What reads it |
+|---------|---------------|
+| Type, slot count, bypass toggle, device ops | `AmsState::sync_system_subjects()` / `sync_from_backend()` / `sync_bypass()` |
+| Bypass gate before a print | `gate_bypass_engaged_lane_print()` on `ams_available` |
+| No-filament gate | `gate_required_filament_present()`: the sensor path, through `ams_manages_filament` |
+| Too many tools | `current_fit_machine()` passes `is_available()` |
+| First-run wizard and expected hardware | `WizardAmsIdentifyStep::should_skip()` |
+| Tour | `tour::hardware_has_ams()` |
+
+Load and Unload are the exception: they still route through the backend, because it owns the
+external-spool scripts.
+
 ### Bypass companions: runout arming and the external lane
 
 Two cross-cutting behaviors ride the same `any_bypass_active()` edge in

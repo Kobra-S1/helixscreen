@@ -40,6 +40,7 @@
 #include <optional>
 #include <random>
 #include <sstream>
+#include <string_view>
 #include <unistd.h>
 #include <unordered_set>
 
@@ -2204,8 +2205,22 @@ nlohmann::json MoonrakerClientMock::cfs_box_status_json() const {
                "material_type": ["000003", "-1", "-1", "-1"]}
     })");
     // HELIX_MOCK_CFS_BOXES lists the box addresses on the bus ("1,2,4"); box 1
-    // is always present, every other listed box is empty.
+    // is always present, every other listed box is empty. "none" is a K2 with
+    // no CFS: the firmware still publishes `box`, every address reading "None".
     const char* boxes = std::getenv("HELIX_MOCK_CFS_BOXES");
+    if (boxes && std::string_view(boxes) == "none") {
+        box["map"] = nlohmann::json::object();
+        for (const char* unit : {"T1", "T2", "T3", "T4"}) {
+            box[unit] = {{"state", "None"},
+                         {"filament", "None"},
+                         {"version", "-1"},
+                         {"vender", {"-1", "-1", "-1", "-1"}},
+                         {"remain_len", {"-1", "-1", "-1", "-1"}},
+                         {"color_value", {"-1", "-1", "-1", "-1"}},
+                         {"material_type", {"-1", "-1", "-1", "-1"}}};
+        }
+        return box;
+    }
     for (const char* c = boxes; c && *c; ++c) {
         if (*c < '2' || *c > '4') {
             continue;

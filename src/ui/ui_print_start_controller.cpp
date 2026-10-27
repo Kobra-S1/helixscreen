@@ -758,7 +758,11 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
     ctx.multiple_toolheads = helix::ToolState::instance().has_multiple_toolheads();
     for (int i = 0; i < ams.backend_count(); ++i) {
         if (auto* backend = ams.get_backend(i)) {
-            ctx.ams_manages_filament = true;
+            // One presenting no filament system feeds the external spool alone,
+            // so the printer's own sensors answer for it, not its lanes.
+            if (backend->get_system_info().presents_filament_system()) {
+                ctx.ams_manages_filament = true;
+            }
             if (backend->auto_unloads_after_print()) {
                 ctx.any_auto_unload_backend = true;
             }
