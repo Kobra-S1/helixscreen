@@ -1879,8 +1879,8 @@ void GCodeLayerRenderer::start_background_ghost_render() {
         // Snapshot on THIS thread, then hand it over. std::thread copies the
         // argument on the spawning side, so everything the worker reads was
         // sampled while the main thread still owned it.
-        ghost_thread_ = helix::make_thread(&GCodeLayerRenderer::background_ghost_render_thread,
-                                           this, capture_ghost_snapshot());
+        ghost_thread_ = helix::make_background_thread(
+            &GCodeLayerRenderer::background_ghost_render_thread, this, capture_ghost_snapshot());
     } catch (const std::system_error& e) {
         // No worker exists to clear the claim above, so unwind it here.
         ghost_thread_running_.store(false);

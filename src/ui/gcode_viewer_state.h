@@ -200,7 +200,7 @@ class GCodeViewerState {
         // frame and abort via std::terminate ([L083]). This is the exact
         // hot path for L081-family crashes (RPHAV9T7).
         try {
-            build_thread_ = helix::make_thread([this, func = std::move(build_func)]() {
+            build_thread_ = helix::make_background_thread([this, func = std::move(build_func)]() {
                 func();
                 building_.store(false);
             });

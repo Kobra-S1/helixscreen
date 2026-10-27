@@ -3,7 +3,9 @@
 
 #include "gcode_layer_index.h"
 #include "gcode_streaming_controller.h"
+#include "helix_thread.h"
 
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <fstream>
@@ -11,6 +13,10 @@
 #include <string>
 #include <thread>
 #include <unistd.h>
+#ifdef __linux__
+#include <sys/resource.h>
+#include <sys/syscall.h>
+#endif
 
 #include "../catch_amalgamated.hpp"
 
@@ -866,6 +872,34 @@ TEST_CASE("close during async indexing cancels the build", "[gcode][streaming][c
     REQUIRE(completed.load());
     REQUIRE_FALSE(result.load());
 }
+
+#ifdef __linux__
+TEST_CASE("the index scan runs below the UI thread's priority",
+          "[gcode][streaming][thread_priority]") {
+    // Indexing a large print is a full pass over the file. On a printer's own
+    // board it must yield to the UI and to Klipper whatever the launcher did.
+    TempGCodeFile file(kSimple3LayerGcode);
+    GCodeStreamingController controller;
+
+    struct GateGuard {
+        ~GateGuard() {
+            GCodeStreamingController::index_worker_gate = nullptr;
+        }
+    } gate_guard;
+    std::atomic<int> worker_nice{-100};
+    GCodeStreamingController::index_worker_gate = [&] {
+        worker_nice = ::getpriority(PRIO_PROCESS, static_cast<id_t>(::syscall(SYS_gettid)));
+    };
+
+    std::promise<bool> done;
+    auto done_future = done.get_future();
+    controller.open_file_async(file.path(), [&](bool ok) { done.set_value(ok); });
+    REQUIRE(done_future.wait_for(std::chrono::seconds(10)) == std::future_status::ready);
+    REQUIRE(done_future.get());
+
+    CHECK(worker_nice.load() == helix::kBackgroundThreadNice);
+}
+#endif
 
 TEST_CASE("close in the async launch window still cancels the build",
           "[gcode][streaming][cancel]") {
