@@ -523,7 +523,7 @@ void TempGraphController::setup_observers() {
 
         if (sensor_series > 0) {
             auto& sensor_mgr = sensors::TemperatureSensorManager::instance();
-            if (auto* sensor_count = sensor_mgr.get_sensor_count_subject()) {
+            if (auto* sensor_count = sensor_mgr.count_subject()) {
                 sensor_discovery_observer_ = observe<int>(
                     sensor_count, this,
                     [token = lifetime_.token(), gen = generation_](TempGraphController* self, int) {
@@ -531,7 +531,7 @@ void TempGraphController::setup_observers() {
                             return;
                         self->resolve_pending_series();
                     },
-                    sensor_mgr.get_subjects_lifetime());
+                    sensor_mgr.subjects_lifetime());
             }
         }
     }

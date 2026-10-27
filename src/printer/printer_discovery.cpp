@@ -17,22 +17,12 @@
 #include "sensor_manager.h"
 #include "spdlog/spdlog.h"
 #include "standard_macros.h"
-#include "temperature_sensor_manager.h"
 #include "tool_state.h"
 #include "wizard_config_paths.h"
 
 #include <vector>
 
 namespace helix {
-
-std::vector<std::string> temperature_sensor_objects(const PrinterDiscovery& hardware) {
-    std::vector<std::string> objects = hardware.sensors();
-    for (const auto& heater : hardware.heaters()) {
-        if (heater.rfind("heater_generic ", 0) == 0)
-            objects.push_back(heater);
-    }
-    return objects;
-}
 
 void remember_printer_hostname(const std::string& hostname) {
     if (hostname.empty() || hostname == "unknown") {
@@ -66,9 +56,6 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     auto& fsm = FilamentSensorManager::instance();
     fsm.discover_sensors(hardware.filament_sensor_names());
     fsm.load_config_from_file();
-
-    auto& tsm = helix::sensors::TemperatureSensorManager::instance();
-    tsm.discover(temperature_sensor_objects(hardware));
 
     for (auto* m : helix::sensors::sensor_managers()) {
         m->discover(hardware);

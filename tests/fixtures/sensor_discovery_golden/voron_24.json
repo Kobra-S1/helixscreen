@@ -166,7 +166,7 @@
       ]
     },
     "temperature": {
-      "count": 7,
+      "count": 8,
       "entries": [
         {
           "enabled": true,
@@ -177,10 +177,10 @@
         },
         {
           "enabled": true,
-          "klipper_name": "temperature_sensor chamber",
+          "klipper_name": "heater_generic chamber",
           "role": "chamber",
           "sensor_name": "chamber",
-          "type": "temperature_sensor"
+          "type": "heater_generic"
         },
         {
           "enabled": true,
@@ -212,10 +212,17 @@
         },
         {
           "enabled": true,
-          "klipper_name": "heater_generic chamber",
+          "klipper_name": "bme280 chamber",
           "role": "chamber",
           "sensor_name": "chamber",
-          "type": "heater_generic"
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "htu21d dryer",
+          "role": "auxiliary",
+          "sensor_name": "dryer",
+          "type": "temperature_sensor"
         }
       ]
     },

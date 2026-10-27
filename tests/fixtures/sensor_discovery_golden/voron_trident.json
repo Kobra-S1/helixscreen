@@ -162,15 +162,8 @@
       ]
     },
     "temperature": {
-      "count": 7,
+      "count": 8,
       "entries": [
-        {
-          "enabled": true,
-          "klipper_name": "temperature_sensor chamber",
-          "role": "chamber",
-          "sensor_name": "chamber",
-          "type": "temperature_sensor"
-        },
         {
           "enabled": true,
           "klipper_name": "temperature_sensor chamber",
@@ -211,6 +204,20 @@
           "klipper_name": "tmc2240 stepper_y",
           "role": "stepper_driver",
           "sensor_name": "stepper_y",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "bme280 chamber",
+          "role": "chamber",
+          "sensor_name": "chamber",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "htu21d dryer",
+          "role": "auxiliary",
+          "sensor_name": "dryer",
           "type": "temperature_sensor"
         }
       ]

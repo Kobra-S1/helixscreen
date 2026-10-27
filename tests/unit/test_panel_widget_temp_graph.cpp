@@ -9,6 +9,7 @@
 #include "../../include/ui_temp_graph.h"
 #include "../../src/ui/panel_widgets/temp_graph_widget.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/discovery_of_objects.h"
 #include "../ui_test_utils.h"
 #include "grid_layout.h"
 #include "lvgl/lvgl.h"
@@ -1033,7 +1034,8 @@ TEST_CASE("TempGraphWidget: default config lists aux heaters but not the chamber
     // The chamber is the "chamber" row; its own sensor listed again would plot
     // the chamber twice.
     auto& tsm = sensors::TemperatureSensorManager::instance();
-    tsm.discover({"temperature_sensor chamber", "heater_generic filament_dryer"});
+    tsm.discover(
+        helix::test::discovery_of({"temperature_sensor chamber", "heater_generic filament_dryer"}));
 
     TempGraphWidget widget("test_default_chamber_skip");
     const auto& config = TempGraphWidgetTestAccess::build_default_config(widget);

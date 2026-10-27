@@ -2112,23 +2112,6 @@ TEST_CASE("PrinterDiscovery: build volume rejects unusable payloads",
     }
 }
 
-TEST_CASE("temperature_sensor_objects adds every heater_generic to the sensors",
-          "[printer_discovery][heater_generic]") {
-    helix::PrinterDiscovery hw;
-    hw.parse_objects(json{"extruder", "heater_bed", "heater_generic chamber",
-                          "heater_generic filament_dryer", "temperature_sensor mcu_temp"});
-
-    const auto objects = helix::temperature_sensor_objects(hw);
-    auto has = [&](const char* name) {
-        return std::find(objects.begin(), objects.end(), name) != objects.end();
-    };
-    CHECK(has("temperature_sensor mcu_temp"));
-    CHECK(has("heater_generic chamber"));
-    CHECK(has("heater_generic filament_dryer"));
-    CHECK_FALSE(has("extruder"));
-    CHECK_FALSE(has("heater_bed"));
-}
-
 // ============================================================================
 // Stored classes: objects_of / sections_of / section / mcus
 // ============================================================================

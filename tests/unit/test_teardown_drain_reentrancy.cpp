@@ -25,6 +25,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/grid_edit_mode_test_access.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/thermistor_test_access.h"
@@ -258,8 +259,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "home widget carousel bind and detach run no
 
     SECTION("thermistor carousel") {
         helix::sensors::TemperatureSensorManager::instance().init_subjects();
-        helix::sensors::TemperatureSensorManager::instance().discover(
-            {"temperature_sensor helix_drain_a", "temperature_sensor helix_drain_b"});
+        helix::sensors::TemperatureSensorManager::instance().discover(helix::test::discovery_of(
+            {"temperature_sensor helix_drain_a", "temperature_sensor helix_drain_b"}));
         std::optional<PanelWidgetHarness<ThermistorWidget>> h;
         lv_obj_t* temp_label = nullptr;
         check_runs_no_queued_callback("attach binds the carousel", [&] {
@@ -322,7 +323,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     SECTION("thermistor carousel") {
         auto& tsm = helix::sensors::TemperatureSensorManager::instance();
         tsm.init_subjects();
-        tsm.discover({"temperature_sensor helix_drain_a", "temperature_sensor helix_drain_b"});
+        tsm.discover(helix::test::discovery_of(
+            {"temperature_sensor helix_drain_a", "temperature_sensor helix_drain_b"}));
         std::optional<PanelWidgetHarness<ThermistorWidget>> h;
         h.emplace(test_screen(),
                   HarnessConfig{
@@ -378,7 +380,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "home widget carousels rebind on a later cha
     SECTION("thermistor: a sensor change") {
         auto& tsm = helix::sensors::TemperatureSensorManager::instance();
         tsm.init_subjects();
-        tsm.discover({"temperature_sensor helix_drain_a", "temperature_sensor helix_drain_b"});
+        tsm.discover(helix::test::discovery_of(
+            {"temperature_sensor helix_drain_a", "temperature_sensor helix_drain_b"}));
         PanelWidgetHarness<ThermistorWidget> h(
             test_screen(),
             HarnessConfig{
@@ -390,8 +393,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "home widget carousels rebind on a later cha
         lv_obj_t* label = ThermistorTestAccess::carousel_temp_label(h.widget(), 0);
         REQUIRE(label != nullptr);
 
-        tsm.discover({"temperature_sensor helix_drain_a", "temperature_sensor helix_drain_b",
-                      "temperature_sensor helix_drain_c"});
+        tsm.discover(helix::test::discovery_of({"temperature_sensor helix_drain_a",
+                                                "temperature_sensor helix_drain_b",
+                                                "temperature_sensor helix_drain_c"}));
         process_lvgl(30);
         CHECK(ThermistorTestAccess::carousel_temp_label(h.widget(), 0) != label);
     }

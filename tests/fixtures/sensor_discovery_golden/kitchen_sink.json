@@ -176,8 +176,36 @@
       ]
     },
     "temperature": {
-      "count": 3,
+      "count": 6,
       "entries": [
+        {
+          "enabled": true,
+          "klipper_name": "aht20_f heater_box1",
+          "role": "auxiliary",
+          "sensor_name": "heater_box1",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "bme280 enclosure",
+          "role": "auxiliary",
+          "sensor_name": "enclosure",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "temperature_sensor extruder_board",
+          "role": "auxiliary",
+          "sensor_name": "extruder_board",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "heater_generic chamber_heater",
+          "role": "chamber",
+          "sensor_name": "chamber_heater",
+          "type": "heater_generic"
+        },
         {
           "enabled": true,
           "klipper_name": "temperature_fan exhaust",
@@ -191,13 +219,6 @@
           "role": "stepper_driver",
           "sensor_name": "stepper_x",
           "type": "temperature_sensor"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "heater_generic chamber_heater",
-          "role": "chamber",
-          "sensor_name": "chamber_heater",
-          "type": "heater_generic"
         }
       ]
     },

@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_update_queue.h"
+
 #include "../helix_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
@@ -1827,6 +1829,7 @@ int has_chamber_sensor(PrinterState& state) {
 struct SensorsForget {
     ~SensorsForget() {
         helix::sensors::TemperatureSensorManager::instance().discover({});
+        helix::ui::UpdateQueue::instance().drain();
     }
 };
 
@@ -2104,7 +2107,7 @@ TEST_CASE("PrinterState::set_hardware: a stale chamber sensor name leaves the re
     // Hardware discovery hands the manager the printer's sensors before discovery
     // completes and PrinterState resolves the chamber.
     PrinterDiscovery hw = centauri_carbon_objects();
-    sensors.discover(hw.sensors());
+    sensors.discover(hw);
     REQUIRE(role_of(sensors, "temperature_sensor chamber") == TemperatureSensorRole::CHAMBER);
 
     state.set_hardware(std::move(hw));
@@ -2131,7 +2134,7 @@ TEST_CASE("PrinterState::set_hardware: a stale chamber sensor override leaves th
     PrinterDiscovery hw =
         discovered_objects({"heater_generic chamber_heater", "temperature_fan chamber_exhaust_fans",
                             "temperature_sensor mcu_temp", "extruder", "heater_bed"});
-    sensors.discover(hw.sensors());
+    sensors.discover(hw);
     REQUIRE(role_of(sensors, "temperature_fan chamber_exhaust_fans") ==
             TemperatureSensorRole::CHAMBER);
 
@@ -2160,7 +2163,7 @@ TEST_CASE("PrinterState::set_hardware: auto leaves a chamber-named fan its own s
     PrinterDiscovery hw =
         discovered_objects({"heater_generic chamber_heater", "temperature_fan chamber_exhaust_fans",
                             "temperature_sensor mcu_temp", "extruder", "heater_bed"});
-    sensors.discover(hw.sensors());
+    sensors.discover(hw);
     REQUIRE(role_of(sensors, "temperature_fan chamber_exhaust_fans") ==
             TemperatureSensorRole::CHAMBER);
 
@@ -2188,7 +2191,7 @@ TEST_CASE("PrinterState::set_hardware: a chamber sensor override the printer rep
     PrinterDiscovery hw =
         discovered_objects({"temperature_fan chamber_exhaust_fans",
                             "temperature_sensor external_bme", "extruder", "heater_bed"});
-    sensors.discover(hw.sensors());
+    sensors.discover(hw);
     // Discovery classified the fan CHAMBER on its own; the reported override must
     // take the role from it.
     REQUIRE(role_of(sensors, "temperature_fan chamber_exhaust_fans") ==

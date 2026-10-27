@@ -706,6 +706,8 @@ void HelixTestFixture::reset_all() {
     // observer-lifetime trap that keeps PrinterStateTestAccess::reset() out of
     // this function. discover({}) clears the sensor list and touches no subject.
     helix::sensors::TemperatureSensorManager::instance().discover({});
+    // discover() publishes through the UpdateQueue; nothing may stay queued past the fixture.
+    helix::ui::UpdateQueue::instance().drain();
 
     // FilamentSensorManager's sensor list has the same lack of a lifetime hook,
     // and discover({}) keeps missing sensors for a reconnect, so it cannot

@@ -26,6 +26,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/nozzle_temps_test_access.h"
 #include "../test_helpers/thermistor_test_access.h"
 #include "app_globals.h"
@@ -359,7 +360,8 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
 TEST_CASE_METHOD(HomeWidgetTeardownFixture,
                  "thermistor drops cached labels when the page tree is deleted raw",
                  "[thermistor][teardown][uaf]") {
-    helix::sensors::TemperatureSensorManager::instance().discover({kThermistorSensorA});
+    helix::sensors::TemperatureSensorManager::instance().discover(
+        helix::test::discovery_of({kThermistorSensorA}));
 
     auto widget = std::make_unique<ThermistorWidget>("thermistor");
     widget->set_config({{"sensors", std::vector<std::string>{kThermistorSensorA}}});
@@ -377,7 +379,8 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
 TEST_CASE_METHOD(HomeWidgetTeardownFixture,
                  "thermistor queued temp apply survives a drain after the tree dies",
                  "[thermistor][teardown][uaf]") {
-    helix::sensors::TemperatureSensorManager::instance().discover({kThermistorSensorA});
+    helix::sensors::TemperatureSensorManager::instance().discover(
+        helix::test::discovery_of({kThermistorSensorA}));
 
     auto widget = std::make_unique<ThermistorWidget>("thermistor");
     widget->set_config({{"sensors", std::vector<std::string>{kThermistorSensorA}}});
@@ -404,7 +407,8 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
 TEST_CASE_METHOD(HomeWidgetTeardownFixture,
                  "thermistor uninstalls its delete hook when destroyed before its tree",
                  "[thermistor][teardown][uaf]") {
-    helix::sensors::TemperatureSensorManager::instance().discover({kThermistorSensorA});
+    helix::sensors::TemperatureSensorManager::instance().discover(
+        helix::test::discovery_of({kThermistorSensorA}));
 
     auto widget = std::make_unique<ThermistorWidget>("thermistor");
     widget->set_config({{"sensors", std::vector<std::string>{kThermistorSensorA}}});
@@ -432,7 +436,7 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
                  "thermistor drops carousel page labels when the page tree is deleted raw",
                  "[thermistor][teardown][uaf][carousel]") {
     helix::sensors::TemperatureSensorManager::instance().discover(
-        {kThermistorSensorA, kThermistorSensorB});
+        helix::test::discovery_of({kThermistorSensorA, kThermistorSensorB}));
 
     auto widget = std::make_unique<ThermistorWidget>("thermistor");
     widget->set_config(

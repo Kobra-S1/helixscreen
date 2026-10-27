@@ -144,7 +144,7 @@
       ]
     },
     "temperature": {
-      "count": 2,
+      "count": 4,
       "entries": [
         {
           "enabled": true,
@@ -158,6 +158,20 @@
           "klipper_name": "temperature_sensor raspberry_pi",
           "role": "host",
           "sensor_name": "raspberry_pi",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "bme280 chamber",
+          "role": "chamber",
+          "sensor_name": "chamber",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "htu21d dryer",
+          "role": "auxiliary",
+          "sensor_name": "dryer",
           "type": "temperature_sensor"
         }
       ]

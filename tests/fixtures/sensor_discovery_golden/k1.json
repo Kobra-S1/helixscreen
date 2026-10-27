@@ -148,7 +148,7 @@
       ]
     },
     "temperature": {
-      "count": 3,
+      "count": 5,
       "entries": [
         {
           "enabled": true,
@@ -169,6 +169,20 @@
           "klipper_name": "temperature_sensor host_temp",
           "role": "host",
           "sensor_name": "host_temp",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "bme280 chamber",
+          "role": "chamber",
+          "sensor_name": "chamber",
+          "type": "temperature_sensor"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "htu21d dryer",
+          "role": "auxiliary",
+          "sensor_name": "dryer",
           "type": "temperature_sensor"
         }
       ]
