@@ -75,6 +75,8 @@ Lists your printer's sensors and lets you give each filament sensor a job:
 | **Toolhead** | Watches for filament at the toolhead |
 | **Entry** | Watches for filament where it enters the extruder path |
 
+Door switches and other on/off inputs are listed under **Inputs**, where you mark each as **Door** or **Other** and turn the door-open warning on or off; see [Inputs (Doors and Buttons)](../sensors.md#inputs-doors-and-buttons).
+
 HelixScreen tells switch sensors and motion sensors apart on its own; you don't choose. Other sensors (accelerometers, probes, humidity, filament width, color) are listed for information only.
 
 The roles only decide what HelixScreen watches, with one exception. When you turn on bypass on a filament system, HelixScreen turns the toolhead runout sensor on at the printer if the filament system's software had left it off (common on Creality printers), and turns it off again when you leave bypass. That way a bypass print is still protected from running out. It happens automatically and doesn't change your settings here.

@@ -344,6 +344,7 @@ One singleton manager per sensor category, called directly (`Manager::instance()
 - `ProbeSensorManager` - Z-probe tracking
 - `WidthSensorManager` - Filament diameter
 - `HumiditySensorManager` - Chamber humidity
+- `InputSensorManager` - `gcode_button` on/off inputs (doors, buttons) with Door/Other roles
 - `TemperatureSensorManager` - `temperature_sensor` / `temperature_fan` objects
 
 **Wiring:** discovery calls each manager's `discover()` / `discover_from_config()` from `src/printer/printer_discovery.cpp#init_subsystems_from_hardware` and the configfile discovery step; status frames reach every manager from `dispatch_status_frame()` (`src/application/moonraker_manager.cpp`).

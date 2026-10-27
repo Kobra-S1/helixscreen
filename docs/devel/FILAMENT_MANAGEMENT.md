@@ -3044,6 +3044,26 @@ engaged, any backend answering `true` produces the "Filament In The Toolhead" wa
 pull the stray filament or confirm to start anyway. Drive the scenario against the mock
 with `HELIX_MOCK_AMS_STATE=unaccounted` under `--test`.
 
+#### The door-open gate
+
+`door_open` (`src/printer/print_start_checks.cpp#gate_door_open`) is the last entry: a door
+closes in a second, so it is asked after every question about the file and the filament. It
+reads two context fields that `PrintStartController::gather_print_start_context()` fills from
+`helix::sensors::InputSensorManager`:
+
+```cpp
+bool door_check_enabled = false;     // InputSensorManager::door_check_enabled()
+std::vector<std::string> open_doors; // InputSensorManager::open_doors()
+```
+
+It passes when the check is off or `open_doors` is empty, and otherwise warns "Door Open",
+naming every open door, with "Start Anyway". Which inputs are doors, how a door reads open,
+and the check's default (on exactly when the printer has a Door input) are the input
+manager's: see "On/off Inputs" in `SENSOR_MANAGEMENT.md`. The gate names no printer. Tests:
+`[print-start][gate-pipeline][door]` in `tests/unit/test_print_start_gates.cpp`; drive it
+under `--test` with `HELIX_MOCK_DOOR_OPEN=1` on the `creator5` / `creator5_zmod` personas, or
+any persona with `HELIX_MOCK_OBJECTS="gcode_button door"`.
+
 ### Bypass companions: runout arming and the external lane
 
 Two cross-cutting behaviors ride the same `any_bypass_active()` edge in
