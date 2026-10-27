@@ -78,7 +78,8 @@ void PrintExcludeObjectManager::init() {
 
     // Register long-press callback on gcode viewer
     if (gcode_viewer_) {
-        ui_gcode_viewer_set_object_long_press_callback(gcode_viewer_, on_object_long_pressed, this);
+        helix::ui::gcode_viewer_set_object_long_press_callback(gcode_viewer_,
+                                                               on_object_long_pressed, this);
         spdlog::debug("[PrintExcludeObjectManager] Registered long-press callback");
     }
 
@@ -99,7 +100,7 @@ void PrintExcludeObjectManager::deinit() {
 
     // Unregister long-press callback
     if (gcode_viewer_ && lv_is_initialized()) {
-        ui_gcode_viewer_set_object_long_press_callback(gcode_viewer_, nullptr, nullptr);
+        helix::ui::gcode_viewer_set_object_long_press_callback(gcode_viewer_, nullptr, nullptr);
     }
 
     // Observer cleanup happens automatically via ObserverGuard destructor
@@ -111,14 +112,15 @@ void PrintExcludeObjectManager::deinit() {
 void PrintExcludeObjectManager::set_gcode_viewer(lv_obj_t* gcode_viewer) {
     // Unregister from old viewer
     if (gcode_viewer_ && initialized_ && lv_is_initialized()) {
-        ui_gcode_viewer_set_object_long_press_callback(gcode_viewer_, nullptr, nullptr);
+        helix::ui::gcode_viewer_set_object_long_press_callback(gcode_viewer_, nullptr, nullptr);
     }
 
     gcode_viewer_ = gcode_viewer;
 
     // Register on new viewer
     if (gcode_viewer_ && initialized_) {
-        ui_gcode_viewer_set_object_long_press_callback(gcode_viewer_, on_object_long_pressed, this);
+        helix::ui::gcode_viewer_set_object_long_press_callback(gcode_viewer_,
+                                                               on_object_long_pressed, this);
         spdlog::debug(
             "[PrintExcludeObjectManager] Re-registered long-press callback on new viewer");
     }
@@ -222,7 +224,7 @@ void PrintExcludeObjectManager::handle_exclude_confirmed() {
     if (gcode_viewer_) {
         std::unordered_set<std::string> visual_excluded = excluded_objects_;
         visual_excluded.insert(pending_exclude_object_);
-        ui_gcode_viewer_set_excluded_objects(gcode_viewer_, visual_excluded);
+        helix::ui::gcode_viewer_set_excluded_objects(gcode_viewer_, visual_excluded);
         spdlog::debug("[PrintExcludeObjectManager] Updated viewer with visual exclusion");
     }
 
@@ -262,7 +264,7 @@ void PrintExcludeObjectManager::handle_exclude_cancelled() {
     // Clear selection in viewer
     if (gcode_viewer_) {
         std::unordered_set<std::string> empty_set;
-        ui_gcode_viewer_set_highlighted_objects(gcode_viewer_, empty_set);
+        helix::ui::gcode_viewer_set_highlighted_objects(gcode_viewer_, empty_set);
     }
 }
 
@@ -283,7 +285,7 @@ void PrintExcludeObjectManager::handle_exclude_undo() {
 
     // Restore visual state - remove from visual exclusion
     if (gcode_viewer_) {
-        ui_gcode_viewer_set_excluded_objects(gcode_viewer_, excluded_objects_);
+        helix::ui::gcode_viewer_set_excluded_objects(gcode_viewer_, excluded_objects_);
     }
 
     // Clear pending
@@ -401,7 +403,7 @@ void PrintExcludeObjectManager::on_excluded_objects_changed() {
         if (!pending_exclude_object_.empty()) {
             visual_excluded.insert(pending_exclude_object_);
         }
-        ui_gcode_viewer_set_excluded_objects(gcode_viewer_, visual_excluded);
+        helix::ui::gcode_viewer_set_excluded_objects(gcode_viewer_, visual_excluded);
         spdlog::debug("[PrintExcludeObjectManager] Updated viewer with {} excluded objects",
                       visual_excluded.size());
     }
@@ -428,7 +430,7 @@ void PrintExcludeObjectManager::on_print_state_changed(helix::PrintJobState stat
     // Refresh the viewer so any red-ghosted objects that never made it to
     // excluded_objects_ revert to normal rendering.
     if (gcode_viewer_) {
-        ui_gcode_viewer_set_excluded_objects(gcode_viewer_, excluded_objects_);
+        helix::ui::gcode_viewer_set_excluded_objects(gcode_viewer_, excluded_objects_);
     }
 }
 
@@ -463,7 +465,7 @@ void PrintExcludeObjectManager::on_exclude_rpc_error(const std::string& object_n
             err.localized_message());
 
         if (gcode_viewer_) {
-            ui_gcode_viewer_set_excluded_objects(gcode_viewer_, excluded_objects_);
+            helix::ui::gcode_viewer_set_excluded_objects(gcode_viewer_, excluded_objects_);
             spdlog::debug("[PrintExcludeObjectManager] Reverted visual exclusion for '{}'",
                           object_name);
         }

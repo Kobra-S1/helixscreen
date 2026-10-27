@@ -875,7 +875,8 @@ LVGL C event-dispatch frame or a `noexcept` boundary — aborts the process with
 | HTTP: bundles / gcode / large transfers | `helix::http::HttpExecutor::slow().submit(fn)` (1 worker) |
 | sd-bus / BlueZ DBus call | `helix::bluetooth::BusThread::run_sync(fn)` |
 | BT-over-RFCOMM / USB print / QR decode / device discovery | `try { std::thread([...]{}).detach(); } catch (const std::system_error& e) { /* toast + error callback */ }` |
-| Long-lived worker (member variable, joined in dtor) | plain `std::thread` is fine |
+| Long-lived worker (member variable, joined in dtor) | `helix::make_thread` (lint-gated: it installs the thread's signal stack, so an overflow still writes a crash file) |
+| Long-lived worker nobody is waiting on (G-code index scan, ghost pass, prefetch) | `helix::make_background_thread`: `make_thread` plus nice 19 on that thread only. Nice, not `SCHED_IDLE`: the UI thread joins these on cancel, and a `SCHED_IDLE` thread can starve indefinitely while Klipper keeps the CPU busy |
 
 The problem is one-shot **detached** spawns, not threads as such. Lambdas submitted to an
 executor still run on a worker thread, so their callbacks still need `queue_update()` or

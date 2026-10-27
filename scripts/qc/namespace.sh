@@ -71,11 +71,7 @@ echo -n "📛 Checking namespace compliance (declarations outside helix::)..."
 # tree also spells - bare 'G', 'Display', 'Window', 'z_' - exempts our own
 # declarations from the gate rather than a library's. The list carries only
 # spellings a third-party API actually uses, and the 18 symbols that covers
-# are counted here, as are the three spellings of ui_gcode_viewer_pump_offscreen_2d:
-# its declaration, its definition, and the stub for builds without the renderer.
-# It joins the ui_gcode_viewer_* C API, which is global by design because it
-# is the widget's LVGL-facing surface; scoping this one call into helix::
-# would make it the only member of that family that is. 2215 -> 2214 is
+# are counted here. 2215 -> 2214 is
 # plugin_api.h's file-scope `class IMoonrakerAPI;` forward declaration.
 # 2193 -> 2194 nets three sites: ui_panel_controls.cpp's redundant
 # redeclaration of get_global_motion_panel() leaves (its header defines it
@@ -92,10 +88,13 @@ echo -n "📛 Checking namespace compliance (declarations outside helix::)..."
 # helix::ui::set_int_if_changed instead of each keeping a file-local copy.
 # 1962 -> 1960 is the runout-ownership switches leaving runtime_config.cpp for
 # BackendTraits fields.
+# 1957 -> 1880 is the G-code viewer widget's API moving from the global
+# ui_gcode_viewer_* functions into helix::ui as gcode_viewer_*, declarations,
+# definitions and the compiled-out stubs together.
 #
 # tests/shell/test_namespace_gate.bats carries this same number and fails if
 # the two disagree or if the tree drifts under it.
-if python3 scripts/check_namespace_compliance.py --max-allowed 1957 --summary >/tmp/namespace_check.out 2>&1; then
+if python3 scripts/check_namespace_compliance.py --max-allowed 1880 --summary >/tmp/namespace_check.out 2>&1; then
   section_time $SECTION_START
   echo ""
   tail -1 /tmp/namespace_check.out

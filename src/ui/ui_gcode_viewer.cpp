@@ -63,7 +63,7 @@ using namespace helix::gcode_viewer;
 #include <unordered_set>
 
 /// Registry of live gcode viewer widgets. Populated on create, drained on
-/// delete. Used by ui_gcode_viewer_clear_all_active() for the memory-pressure
+/// delete. Used by helix::ui::gcode_viewer_clear_all_active() for the memory-pressure
 /// fallback (print_status + print_select_detail) so we can release every
 /// ParsedGCodeFile + GPU buffer system-wide in one call without having to
 /// know which panels currently hold a viewer. Main-thread-only access (LVGL
@@ -419,7 +419,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
                                         lv_area_get_height(&widget_coords));
         }
 
-        // Use stored print progress layer (set via ui_gcode_viewer_set_print_progress)
+        // Use stored print progress layer (set via helix::ui::gcode_viewer_set_print_progress)
         // Consistent with 3D renderer:
         //   - >= 0: Show layers 0 to current_layer (print progress mode)
         //   - < 0:  Show all layers (preview mode)
@@ -823,7 +823,7 @@ static void gcode_viewer_delete_cb(lv_event_t* e) {
 // Public API Implementation
 // ==============================================
 
-lv_obj_t* ui_gcode_viewer_create(lv_obj_t* parent) {
+lv_obj_t* helix::ui::gcode_viewer_create(lv_obj_t* parent) {
     // Create base object
     lv_obj_t* obj = lv_obj_create(parent);
     if (!obj) {
@@ -890,8 +890,9 @@ lv_obj_t* ui_gcode_viewer_create(lv_obj_t* parent) {
     return obj;
 }
 
-void ui_gcode_viewer_set_load_callback(lv_obj_t* obj, gcode_viewer_load_callback_t callback,
-                                       void* user_data) {
+void helix::ui::gcode_viewer_set_load_callback(lv_obj_t* obj,
+                                               helix::ui::gcode_viewer_load_callback_t callback,
+                                               void* user_data) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st) {
         return;
@@ -902,8 +903,8 @@ void ui_gcode_viewer_set_load_callback(lv_obj_t* obj, gcode_viewer_load_callback
     spdlog::debug("[GCode Viewer] Load callback registered");
 }
 
-void ui_gcode_viewer_set_first_frame_callback(lv_obj_t* obj, gcode_viewer_load_callback_t callback,
-                                              void* user_data) {
+void helix::ui::gcode_viewer_set_first_frame_callback(
+    lv_obj_t* obj, helix::ui::gcode_viewer_load_callback_t callback, void* user_data) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st) {
         return;
@@ -914,7 +915,7 @@ void ui_gcode_viewer_set_first_frame_callback(lv_obj_t* obj, gcode_viewer_load_c
     st->first_frame_fired_ = false;
 }
 
-void ui_gcode_viewer_set_thumbnail_parity(lv_obj_t* obj, bool enabled) {
+void helix::ui::gcode_viewer_set_thumbnail_parity(lv_obj_t* obj, bool enabled) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st) {
         return;
@@ -928,7 +929,7 @@ void ui_gcode_viewer_set_thumbnail_parity(lv_obj_t* obj, bool enabled) {
     spdlog::debug("[GCode Viewer] Thumbnail parity {}", enabled ? "on" : "off");
 }
 
-void ui_gcode_viewer_clear(lv_obj_t* obj) {
+void helix::ui::gcode_viewer_clear(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
@@ -972,8 +973,9 @@ void ui_gcode_viewer_clear(lv_obj_t* obj) {
     }
 }
 
-void ui_gcode_viewer_set_clear_callback(lv_obj_t* obj, ui_gcode_viewer_clear_cb_t cb,
-                                        void* user_data) {
+void helix::ui::gcode_viewer_set_clear_callback(lv_obj_t* obj,
+                                                helix::ui::gcode_viewer_clear_cb_t cb,
+                                                void* user_data) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st) {
         return;
@@ -982,8 +984,8 @@ void ui_gcode_viewer_set_clear_callback(lv_obj_t* obj, ui_gcode_viewer_clear_cb_
     st->clear_callback_user_data = user_data;
 }
 
-void ui_gcode_viewer_clear_all_active() {
-    // Copy the list first — ui_gcode_viewer_clear() doesn't mutate it (only
+void helix::ui::gcode_viewer_clear_all_active() {
+    // Copy the list first — helix::ui::gcode_viewer_clear() doesn't mutate it (only
     // _delete_cb does), so a direct iteration would also be safe, but a copy
     // future-proofs against subtle changes to the clear path.
     auto snapshot = active_viewers();
@@ -993,16 +995,16 @@ void ui_gcode_viewer_clear_all_active() {
     spdlog::warn("[GCode Viewer] Pressure response: clearing {} active viewer(s)", snapshot.size());
     for (lv_obj_t* obj : snapshot) {
         if (obj && lv_obj_is_valid(obj)) {
-            ui_gcode_viewer_clear(obj);
+            helix::ui::gcode_viewer_clear(obj);
         }
     }
 }
 
-bool ui_gcode_viewer_has_content(lv_obj_t* obj) {
+bool helix::ui::gcode_viewer_has_content(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     // Loaded is the authoritative state for "holds renderable geometry": it is
     // set on a successful full-file or streaming load and cleared back to Empty
-    // by ui_gcode_viewer_clear(). Loading/Error/Empty all mean no content.
+    // by helix::ui::gcode_viewer_clear(). Loading/Error/Empty all mean no content.
     return st && st->viewer_state == GcodeViewerState::Loaded;
 }
 
@@ -1010,7 +1012,7 @@ bool ui_gcode_viewer_has_content(lv_obj_t* obj) {
 // Rendering Pause Control
 // ==============================================
 
-void ui_gcode_viewer_set_paused(lv_obj_t* obj, bool paused) {
+void helix::ui::gcode_viewer_set_paused(lv_obj_t* obj, bool paused) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
@@ -1035,12 +1037,12 @@ void ui_gcode_viewer_set_paused(lv_obj_t* obj, bool paused) {
     }
 }
 
-bool ui_gcode_viewer_is_paused(lv_obj_t* obj) {
+bool helix::ui::gcode_viewer_is_paused(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     return st ? st->rendering_paused_ : true;
 }
 
-void ui_gcode_viewer_force_redraw(lv_obj_t* obj) {
+void helix::ui::gcode_viewer_force_redraw(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
@@ -1066,7 +1068,7 @@ void ui_gcode_viewer_force_redraw(lv_obj_t* obj) {
 // Render Mode Control
 // ==============================================
 
-void ui_gcode_viewer_set_render_mode(lv_obj_t* obj, GcodeViewerRenderMode mode) {
+void helix::ui::gcode_viewer_set_render_mode(lv_obj_t* obj, GcodeViewerRenderMode mode) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
@@ -1095,12 +1097,17 @@ void ui_gcode_viewer_set_render_mode(lv_obj_t* obj, GcodeViewerRenderMode mode) 
     lv_obj_invalidate(obj);
 }
 
-bool ui_gcode_viewer_is_using_2d_mode(lv_obj_t* obj) {
+bool helix::ui::gcode_viewer_is_using_2d_mode(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     return st ? st->is_using_2d_mode() : false;
 }
 
-void ui_gcode_viewer_disable_streaming(lv_obj_t* obj) {
+bool helix::ui::gcode_viewer_load_skipped_for_cost(lv_obj_t* obj) {
+    gcode_viewer_state_t* st = get_state(obj);
+    return st && st->load_skipped_for_cost;
+}
+
+void helix::ui::gcode_viewer_disable_streaming(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (st) {
         st->streaming_disabled_ = true;
@@ -1111,7 +1118,7 @@ void ui_gcode_viewer_disable_streaming(lv_obj_t* obj) {
 // Camera Controls
 // ==============================================
 
-void ui_gcode_viewer_reset_camera(lv_obj_t* obj) {
+void helix::ui::gcode_viewer_reset_camera(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
@@ -1130,8 +1137,8 @@ void ui_gcode_viewer_reset_camera(lv_obj_t* obj) {
 // Rendering Options
 // ==============================================
 
-void ui_gcode_viewer_set_highlighted_objects(lv_obj_t* obj,
-                                             const std::unordered_set<std::string>& object_names) {
+void helix::ui::gcode_viewer_set_highlighted_objects(
+    lv_obj_t* obj, const std::unordered_set<std::string>& object_names) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
@@ -1141,8 +1148,8 @@ void ui_gcode_viewer_set_highlighted_objects(lv_obj_t* obj,
     lv_obj_invalidate(obj);
 }
 
-void ui_gcode_viewer_set_excluded_objects(lv_obj_t* obj,
-                                          const std::unordered_set<std::string>& object_names) {
+void helix::ui::gcode_viewer_set_excluded_objects(
+    lv_obj_t* obj, const std::unordered_set<std::string>& object_names) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
@@ -1165,8 +1172,8 @@ void ui_gcode_viewer_set_excluded_objects(lv_obj_t* obj,
     spdlog::debug("[GCode Viewer] Excluded objects updated ({} objects)", object_names.size());
 }
 
-// NAMESPACE_OK: joins this file's global ui_gcode_viewer_* API
-void ui_gcode_viewer_set_object_badges(lv_obj_t* obj, std::vector<helix::ui::ObjectBadge> badges) {
+void helix::ui::gcode_viewer_set_object_badges(lv_obj_t* obj,
+                                               std::vector<helix::ui::ObjectBadge> badges) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st || badges == st->object_badges)
         return;
@@ -1179,8 +1186,7 @@ void ui_gcode_viewer_set_object_badges(lv_obj_t* obj, std::vector<helix::ui::Obj
     lv_obj_invalidate(obj);
 }
 
-// NAMESPACE_OK: joins this file's global ui_gcode_viewer_* API
-void ui_gcode_viewer_set_excluded_badges_pickable(lv_obj_t* obj, bool pickable) {
+void helix::ui::gcode_viewer_set_excluded_badges_pickable(lv_obj_t* obj, bool pickable) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st) {
         return;
@@ -1188,9 +1194,8 @@ void ui_gcode_viewer_set_excluded_badges_pickable(lv_obj_t* obj, bool pickable) 
     st->excluded_badges_pickable = pickable;
 }
 
-void ui_gcode_viewer_set_object_tap_callback(lv_obj_t* obj,
-                                             gcode_viewer_object_tap_callback_t callback,
-                                             void* user_data) {
+void helix::ui::gcode_viewer_set_object_tap_callback(
+    lv_obj_t* obj, helix::ui::gcode_viewer_object_tap_callback_t callback, void* user_data) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
@@ -1199,8 +1204,8 @@ void ui_gcode_viewer_set_object_tap_callback(lv_obj_t* obj,
     st->object_tap_user_data = user_data;
 }
 
-void ui_gcode_viewer_set_object_long_press_callback(
-    lv_obj_t* obj, gcode_viewer_object_long_press_callback_t callback, void* user_data) {
+void helix::ui::gcode_viewer_set_object_long_press_callback(
+    lv_obj_t* obj, helix::ui::gcode_viewer_object_long_press_callback_t callback, void* user_data) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
@@ -1215,7 +1220,7 @@ void ui_gcode_viewer_set_object_long_press_callback(
 // Color & Rendering Control
 // ==============================================
 
-void ui_gcode_viewer_set_tool_colors(lv_obj_t* obj, const std::vector<uint32_t>& colors) {
+void helix::ui::gcode_viewer_set_tool_colors(lv_obj_t* obj, const std::vector<uint32_t>& colors) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st || colors.empty())
         return;
@@ -1227,7 +1232,7 @@ void ui_gcode_viewer_set_tool_colors(lv_obj_t* obj, const std::vector<uint32_t>&
     // all fire together during a toolchange, which is exactly when the preview
     // is on screen. The comparison lives here rather than in a caller because
     // view_options.tool_colors is already the viewer's record of what is applied,
-    // and it is cleared by ui_gcode_viewer_clear() — so a reload correctly
+    // and it is cleared by helix::ui::gcode_viewer_clear() — so a reload correctly
     // re-applies even when the colors are unchanged.
     if (!st->view_options.tool_colors.empty() && st->view_options.tool_colors == colors) {
         return;
@@ -1260,7 +1265,7 @@ static void ui_gcode_viewer_clear_tool_colors(lv_obj_t* obj) {
     spdlog::debug("[GCode Viewer] Retracted per-tool AMS color overrides");
 }
 
-bool ui_gcode_viewer_apply_ams_tool_colors(lv_obj_t* obj) {
+bool helix::ui::gcode_viewer_apply_ams_tool_colors(lv_obj_t* obj) {
     if (!obj) {
         return false;
     }
@@ -1278,7 +1283,7 @@ bool ui_gcode_viewer_apply_ams_tool_colors(lv_obj_t* obj) {
         ui_gcode_viewer_clear_tool_colors(obj);
         return false;
     }
-    ui_gcode_viewer_set_tool_colors(obj, colors);
+    helix::ui::gcode_viewer_set_tool_colors(obj, colors);
     spdlog::debug("[GCode Viewer] Applied {} lane-derived tool colors", colors.size());
     return true;
 }
@@ -1287,7 +1292,7 @@ bool ui_gcode_viewer_apply_ams_tool_colors(lv_obj_t* obj) {
 // Print Progress / Ghost Layer Visualization
 // ==============================================
 
-void ui_gcode_viewer_set_print_progress(lv_obj_t* obj, int current_layer) {
+void helix::ui::gcode_viewer_set_print_progress(lv_obj_t* obj, int current_layer) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
@@ -1335,7 +1340,7 @@ static void gcode_viewer_occluder_delete_cb(lv_event_t* e) {
     }
 }
 
-void ui_gcode_viewer_set_bottom_occluder(lv_obj_t* obj, lv_obj_t* occluder) {
+void helix::ui::gcode_viewer_set_bottom_occluder(lv_obj_t* obj, lv_obj_t* occluder) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return;
@@ -1427,7 +1432,7 @@ static void gcode_viewer_refresh_content_offset(gcode_viewer_state_t* st, lv_obj
 #endif
 }
 
-int ui_gcode_viewer_get_max_layer(lv_obj_t* obj) {
+int helix::ui::gcode_viewer_get_max_layer(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return -1;
@@ -1453,7 +1458,7 @@ int ui_gcode_viewer_get_max_layer(lv_obj_t* obj) {
 // Parsed Data Access
 // ==============================================
 
-const helix::gcode::ParsedGCodeFile* ui_gcode_viewer_get_parsed_file(lv_obj_t* obj) {
+const helix::gcode::ParsedGCodeFile* helix::ui::gcode_viewer_get_parsed_file(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st || !st->gcode_file)
         return nullptr;
@@ -1478,7 +1483,7 @@ static std::vector<std::string> ui_gcode_viewer_get_tool_palette(lv_obj_t* obj) 
     return {};
 }
 
-std::set<int> ui_gcode_viewer_get_tools_used(lv_obj_t* obj) {
+std::set<int> helix::ui::gcode_viewer_get_tools_used(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st) {
         return {};
@@ -1503,8 +1508,7 @@ std::set<int> ui_gcode_viewer_get_tools_used(lv_obj_t* obj) {
     return {};
 }
 
-// NAMESPACE_OK: joins this file's global ui_gcode_viewer_* API
-std::optional<helix::FitBox> ui_gcode_viewer_get_model_bounds(lv_obj_t* obj) {
+std::optional<helix::FitBox> helix::ui::gcode_viewer_get_model_bounds(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st) {
         return std::nullopt;
@@ -1537,7 +1541,8 @@ std::optional<helix::FitBox> ui_gcode_viewer_get_model_bounds(lv_obj_t* obj) {
     return std::nullopt;
 }
 
-bool ui_gcode_viewer_adopt_palette_if_empty(lv_obj_t* obj, std::vector<std::string>& colors) {
+bool helix::ui::gcode_viewer_adopt_palette_if_empty(lv_obj_t* obj,
+                                                    std::vector<std::string>& colors) {
     if (!colors.empty()) {
         return false;
     }
@@ -1552,13 +1557,13 @@ bool ui_gcode_viewer_adopt_palette_if_empty(lv_obj_t* obj, std::vector<std::stri
 }
 
 namespace helix {
-helix::gcode::PauseScanPtr ui_gcode_viewer_get_pause_scan(lv_obj_t* obj) {
+helix::gcode::PauseScanPtr helix::ui::gcode_viewer_get_pause_scan(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     return st ? st->pause_scan : nullptr;
 }
 } // namespace helix
 
-float ui_gcode_viewer_get_load_progress(lv_obj_t* obj) {
+float helix::ui::gcode_viewer_get_load_progress(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st || !st->streaming_controller_) {
         // Full-load mode, or nothing loading. Neither has a checkpoint to
@@ -1568,7 +1573,7 @@ float ui_gcode_viewer_get_load_progress(lv_obj_t* obj) {
     return st->streaming_controller_->get_index_progress();
 }
 
-bool ui_gcode_viewer_pump_offscreen_2d(lv_obj_t* obj) {
+bool helix::ui::gcode_viewer_pump_offscreen_2d(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st) {
         return false;
@@ -1604,7 +1609,7 @@ bool ui_gcode_viewer_pump_offscreen_2d(lv_obj_t* obj) {
 // Statistics
 // ==============================================
 
-const char* ui_gcode_viewer_get_filename(lv_obj_t* obj) {
+const char* helix::ui::gcode_viewer_get_filename(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return nullptr;
@@ -1624,7 +1629,7 @@ const char* ui_gcode_viewer_get_filename(lv_obj_t* obj) {
     return nullptr;
 }
 
-int ui_gcode_viewer_get_layer_count(lv_obj_t* obj) {
+int helix::ui::gcode_viewer_get_layer_count(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (!st)
         return 0;
@@ -1657,7 +1662,7 @@ static void* gcode_viewer_xml_create(lv_xml_parser_state_t* state, const char** 
         return nullptr;
     }
 
-    lv_obj_t* obj = ui_gcode_viewer_create((lv_obj_t*)parent);
+    lv_obj_t* obj = helix::ui::gcode_viewer_create((lv_obj_t*)parent);
     if (!obj) {
         spdlog::error("[GCode Viewer] XML create: failed to create widget");
         return nullptr;
@@ -1692,7 +1697,7 @@ static void gcode_viewer_xml_apply(lv_xml_parser_state_t* state, const char** at
  * Call this during application initialization before loading any XML.
  * Typically called from main() or ui_init().
  */
-extern "C" void ui_gcode_viewer_register(void) {
+void helix::ui::gcode_viewer_register(void) {
     lv_xml_register_widget("gcode_viewer", gcode_viewer_xml_create, gcode_viewer_xml_apply);
     spdlog::trace("[GCode Viewer] Registered <gcode_viewer> widget with LVGL XML system");
 }
@@ -1869,7 +1874,7 @@ static void gcode_viewer_xml_apply(lv_xml_parser_state_t* state, const char** at
     lv_xml_obj_apply(state, attrs);
 }
 
-extern "C" void ui_gcode_viewer_register(void) {
+void helix::ui::gcode_viewer_register(void) {
     lv_xml_register_widget("gcode_viewer", gcode_viewer_xml_create, gcode_viewer_xml_apply);
     spdlog::debug("[GCode Viewer] Compiled out (HELIX_HAS_GCODE_VIEWER=0); registered stub "
                   "<gcode_viewer> widget");
@@ -1877,120 +1882,127 @@ extern "C" void ui_gcode_viewer_register(void) {
 
 // ---- C API stubs ----
 
-lv_obj_t* ui_gcode_viewer_create(lv_obj_t* parent) {
+lv_obj_t* helix::ui::gcode_viewer_create(lv_obj_t* parent) {
     return parent ? lv_obj_create(parent) : nullptr;
 }
 
-void ui_gcode_viewer_load_file(lv_obj_t*, const char*) {}
+void helix::ui::gcode_viewer_load_file(lv_obj_t*, const char*) {}
 
-void helix::ui_gcode_viewer_set_layer_index_sidecar(lv_obj_t*, std::string) {}
+void helix::ui::gcode_viewer_set_layer_index_sidecar(lv_obj_t*, std::string) {}
 
-bool helix::ui_gcode_viewer_would_stream(lv_obj_t*, const std::string&) {
+bool helix::ui::gcode_viewer_would_stream(lv_obj_t*, const std::string&) {
     return false;
 }
 
-void ui_gcode_viewer_set_load_callback(lv_obj_t*, gcode_viewer_load_callback_t, void*) {}
+void helix::ui::gcode_viewer_set_load_callback(lv_obj_t*, helix::ui::gcode_viewer_load_callback_t,
+                                               void*) {}
 
-void ui_gcode_viewer_set_first_frame_callback(lv_obj_t*, gcode_viewer_load_callback_t, void*) {}
+void helix::ui::gcode_viewer_set_first_frame_callback(lv_obj_t*,
+                                                      helix::ui::gcode_viewer_load_callback_t,
+                                                      void*) {}
 
-void ui_gcode_viewer_set_thumbnail_parity(lv_obj_t*, bool) {}
+void helix::ui::gcode_viewer_set_thumbnail_parity(lv_obj_t*, bool) {}
 
-void ui_gcode_viewer_clear(lv_obj_t*) {}
+void helix::ui::gcode_viewer_clear(lv_obj_t*) {}
 
-void ui_gcode_viewer_clear_all_active(void) {}
+void helix::ui::gcode_viewer_clear_all_active(void) {}
 
-void ui_gcode_viewer_set_clear_callback(lv_obj_t*, ui_gcode_viewer_clear_cb_t, void*) {}
+void helix::ui::gcode_viewer_set_clear_callback(lv_obj_t*, helix::ui::gcode_viewer_clear_cb_t,
+                                                void*) {}
 
-bool ui_gcode_viewer_has_content(lv_obj_t*) {
+bool helix::ui::gcode_viewer_has_content(lv_obj_t*) {
     return false;
 }
 
-void ui_gcode_viewer_set_paused(lv_obj_t*, bool) {}
+void helix::ui::gcode_viewer_set_paused(lv_obj_t*, bool) {}
 
-bool ui_gcode_viewer_is_paused(lv_obj_t*) {
+bool helix::ui::gcode_viewer_is_paused(lv_obj_t*) {
     return false;
 }
 
-void ui_gcode_viewer_force_redraw(lv_obj_t*) {}
+void helix::ui::gcode_viewer_force_redraw(lv_obj_t*) {}
 
-void ui_gcode_viewer_set_render_mode(lv_obj_t*, helix::GcodeViewerRenderMode) {}
+void helix::ui::gcode_viewer_set_render_mode(lv_obj_t*, helix::GcodeViewerRenderMode) {}
 
-bool ui_gcode_viewer_is_using_2d_mode(lv_obj_t*) {
+bool helix::ui::gcode_viewer_is_using_2d_mode(lv_obj_t*) {
     return false;
 }
 
-void ui_gcode_viewer_disable_streaming(lv_obj_t*) {}
+bool helix::ui::gcode_viewer_load_skipped_for_cost(lv_obj_t*) {
+    return false;
+}
 
-void ui_gcode_viewer_reset_camera(lv_obj_t*) {}
+void helix::ui::gcode_viewer_disable_streaming(lv_obj_t*) {}
 
-void ui_gcode_viewer_set_print_progress(lv_obj_t*, int) {}
+void helix::ui::gcode_viewer_reset_camera(lv_obj_t*) {}
 
-void ui_gcode_viewer_set_bottom_occluder(lv_obj_t*, lv_obj_t*) {}
+void helix::ui::gcode_viewer_set_print_progress(lv_obj_t*, int) {}
 
-int ui_gcode_viewer_get_max_layer(lv_obj_t*) {
+void helix::ui::gcode_viewer_set_bottom_occluder(lv_obj_t*, lv_obj_t*) {}
+
+int helix::ui::gcode_viewer_get_max_layer(lv_obj_t*) {
     return -1;
 }
 
-const char* ui_gcode_viewer_get_filename(lv_obj_t*) {
+const char* helix::ui::gcode_viewer_get_filename(lv_obj_t*) {
     return nullptr;
 }
 
-int ui_gcode_viewer_get_layer_count(lv_obj_t*) {
+int helix::ui::gcode_viewer_get_layer_count(lv_obj_t*) {
     return 0;
 }
 
 // ---- C++ API stubs ----
 
-void ui_gcode_viewer_set_tool_colors(lv_obj_t*, const std::vector<uint32_t>&) {}
+void helix::ui::gcode_viewer_set_tool_colors(lv_obj_t*, const std::vector<uint32_t>&) {}
 
-bool ui_gcode_viewer_apply_ams_tool_colors(lv_obj_t*) {
+bool helix::ui::gcode_viewer_apply_ams_tool_colors(lv_obj_t*) {
     return false;
 }
 
-void ui_gcode_viewer_set_highlighted_objects(lv_obj_t*, const std::unordered_set<std::string>&) {}
+void helix::ui::gcode_viewer_set_highlighted_objects(lv_obj_t*,
+                                                     const std::unordered_set<std::string>&) {}
 
-void ui_gcode_viewer_set_excluded_objects(lv_obj_t*, const std::unordered_set<std::string>&) {}
+void helix::ui::gcode_viewer_set_excluded_objects(lv_obj_t*,
+                                                  const std::unordered_set<std::string>&) {}
 
-void ui_gcode_viewer_set_object_tap_callback(lv_obj_t*, gcode_viewer_object_tap_callback_t, void*) {
-}
+void helix::ui::gcode_viewer_set_object_tap_callback(lv_obj_t*,
+                                                     helix::ui::gcode_viewer_object_tap_callback_t,
+                                                     void*) {}
 
-// NAMESPACE_OK: joins this file's global ui_gcode_viewer_* API
-void ui_gcode_viewer_set_object_badges(lv_obj_t*, std::vector<helix::ui::ObjectBadge>) {}
+void helix::ui::gcode_viewer_set_object_badges(lv_obj_t*, std::vector<helix::ui::ObjectBadge>) {}
 
-// NAMESPACE_OK: joins this file's global ui_gcode_viewer_* API
-void ui_gcode_viewer_set_excluded_badges_pickable(lv_obj_t*, bool) {}
+void helix::ui::gcode_viewer_set_excluded_badges_pickable(lv_obj_t*, bool) {}
 
-void ui_gcode_viewer_set_object_long_press_callback(lv_obj_t*,
-                                                    gcode_viewer_object_long_press_callback_t,
-                                                    void*) {}
+void helix::ui::gcode_viewer_set_object_long_press_callback(
+    lv_obj_t*, helix::ui::gcode_viewer_object_long_press_callback_t, void*) {}
 
-const helix::gcode::ParsedGCodeFile* ui_gcode_viewer_get_parsed_file(lv_obj_t*) {
+const helix::gcode::ParsedGCodeFile* helix::ui::gcode_viewer_get_parsed_file(lv_obj_t*) {
     return nullptr;
 }
 
-std::set<int> ui_gcode_viewer_get_tools_used(lv_obj_t*) {
+std::set<int> helix::ui::gcode_viewer_get_tools_used(lv_obj_t*) {
     return {};
 }
 
-// NAMESPACE_OK: joins this file's global ui_gcode_viewer_* API
-std::optional<helix::FitBox> ui_gcode_viewer_get_model_bounds(lv_obj_t*) {
+std::optional<helix::FitBox> helix::ui::gcode_viewer_get_model_bounds(lv_obj_t*) {
     return std::nullopt;
 }
 
-bool ui_gcode_viewer_adopt_palette_if_empty(lv_obj_t*, std::vector<std::string>&) {
+bool helix::ui::gcode_viewer_adopt_palette_if_empty(lv_obj_t*, std::vector<std::string>&) {
     return false;
 }
 
 namespace helix {
-helix::gcode::PauseScanPtr ui_gcode_viewer_get_pause_scan(lv_obj_t*) {
+helix::gcode::PauseScanPtr helix::ui::gcode_viewer_get_pause_scan(lv_obj_t*) {
     return nullptr;
 }
 } // namespace helix
-bool ui_gcode_viewer_pump_offscreen_2d(lv_obj_t*) {
+bool helix::ui::gcode_viewer_pump_offscreen_2d(lv_obj_t*) {
     return false;
 }
 
-float ui_gcode_viewer_get_load_progress(lv_obj_t*) {
+float helix::ui::gcode_viewer_get_load_progress(lv_obj_t*) {
     return 0.0f;
 }
 

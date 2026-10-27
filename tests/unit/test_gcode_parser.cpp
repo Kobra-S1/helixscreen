@@ -2217,3 +2217,68 @@ TEST_CASE("GCodeParser keeps a quoted object name whole across DEFINE and START"
     REQUIRE_FALSE(file.layers[0].segments.empty());
     CHECK(file.get_object_name(file.layers[0].segments[0].object_name_index) == "Part 1");
 }
+
+TEST_CASE("GCodeParser - an object's box grows from the extrusions inside it", "[gcode][parser]") {
+    GCodeParser parser;
+    SECTION("defined before it starts") {
+        parser.parse_line("EXCLUDE_OBJECT_DEFINE NAME=part1 CENTER=15,10");
+        parser.parse_line("EXCLUDE_OBJECT_START NAME=part1");
+    }
+    SECTION("defined after it starts") {
+        parser.parse_line("EXCLUDE_OBJECT_START NAME=part1");
+        parser.parse_line("EXCLUDE_OBJECT_DEFINE NAME=part1 CENTER=15,10");
+    }
+    parser.parse_line("G1 X10 Y10 Z0.2 E1");
+    parser.parse_line("G1 X20 Y12 E2");
+    parser.parse_line("EXCLUDE_OBJECT_END NAME=part1");
+    parser.parse_line("G1 X90 Y90 E3"); // outside the object: must not reach its box
+
+    auto file = parser.finalize();
+    REQUIRE(file.objects.count("part1") == 1);
+    const auto& box = file.objects["part1"].bounding_box;
+    CHECK(box.max.x == Approx(20.0f));
+    CHECK(box.max.y == Approx(12.0f));
+    CHECK(box.max.x < 90.0f);
+}
+
+TEST_CASE("GCodeParser - parsing after finalize() leaves the returned file alone",
+          "[gcode][parser]") {
+    GCodeParser parser;
+    parser.parse_line("EXCLUDE_OBJECT_DEFINE NAME=part1 CENTER=15,10");
+    parser.parse_line("EXCLUDE_OBJECT_START NAME=part1");
+    parser.parse_line("G1 X10 Y10 Z0.2 E1");
+    parser.parse_line("G1 X20 Y10 E2");
+    auto file = parser.finalize();
+    REQUIRE(file.objects.count("part1") == 1);
+    const float max_x = file.objects["part1"].bounding_box.max.x;
+
+    // Still inside part1 as far as the parser knows; the file it handed out
+    // owns that object's box now.
+    parser.parse_line("G1 X150 Y150 E3");
+    CHECK(file.objects["part1"].bounding_box.max.x == max_x);
+}
+
+TEST_CASE("GCodeParser - reset() forgets the wipe tower's interned index",
+          "[gcode][parser][multicolor]") {
+    GCodeParser parser;
+    parser.parse_line("; WIPE_TOWER_START");
+    parser.parse_line("G1 X20 Y20 E2");
+    parser.parse_line("; WIPE_TOWER_END");
+    (void)parser.finalize();
+
+    // After reset the name table starts empty: an object takes index 0, so the
+    // wipe tower must be interned afresh rather than reuse the old index.
+    parser.reset();
+    parser.parse_line("EXCLUDE_OBJECT_START NAME=part1");
+    parser.parse_line("G1 X10 Y10 E1");
+    parser.parse_line("EXCLUDE_OBJECT_END NAME=part1");
+    parser.parse_line("; WIPE_TOWER_START");
+    parser.parse_line("G1 X30 Y30 E2");
+    parser.parse_line("; WIPE_TOWER_END");
+    auto file = parser.finalize();
+
+    const auto& segs = file.layers.at(0).segments;
+    REQUIRE(segs.size() >= 2);
+    CHECK(file.get_object_name(segs.front().object_name_index) == "part1");
+    CHECK(file.get_object_name(segs.back().object_name_index) == "__WIPE_TOWER__");
+}

@@ -485,9 +485,9 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
                     self->show_gcode_viewer(false);
                 } else {
                     auto render_mode = static_cast<GcodeViewerRenderMode>(mode);
-                    ui_gcode_viewer_set_render_mode(self->gcode_viewer_, render_mode);
+                    helix::ui::gcode_viewer_set_render_mode(self->gcode_viewer_, render_mode);
                     // Update viewer mode subject to trigger XML visibility bindings
-                    if (ui_gcode_viewer_has_content(self->gcode_viewer_)) {
+                    if (helix::ui::gcode_viewer_has_content(self->gcode_viewer_)) {
                         self->show_gcode_viewer(true);
                     }
                 }
@@ -986,10 +986,10 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
             gcode_viewer_,
             helix::ui::find_required(thumbnail_section, "metadata_clip", get_name()));
 
-        // Memory-pressure responder calls ui_gcode_viewer_clear_all_active().
+        // Memory-pressure responder calls helix::ui::gcode_viewer_clear_all_active().
         // Flip our mode subject back to thumbnail (0) so the user sees the
         // slicer preview rather than a transparent rectangle.
-        ui_gcode_viewer_set_clear_callback(
+        helix::ui::gcode_viewer_set_clear_callback(
             gcode_viewer_,
             [](lv_obj_t*, void* ud) {
                 auto* panel = static_cast<PrintStatusPanel*>(ud);
@@ -1024,8 +1024,8 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
         dm->register_sleep_callback([this, token](bool sleeping) {
             if (token.expired() || sleeping)
                 return;
-            if (gcode_viewer_ && !ui_gcode_viewer_is_paused(gcode_viewer_)) {
-                ui_gcode_viewer_force_redraw(gcode_viewer_);
+            if (gcode_viewer_ && !helix::ui::gcode_viewer_is_paused(gcode_viewer_)) {
+                helix::ui::gcode_viewer_force_redraw(gcode_viewer_);
             }
         });
     }
@@ -1181,7 +1181,7 @@ void PrintStatusPanel::on_activate() {
 
     // Restore G-code viewer state based on current print conditions.
     // Thumbnail Only mode forces the viewer off regardless of gcode state.
-    bool gcode_present = gcode_viewer_ && ui_gcode_viewer_has_content(gcode_viewer_);
+    bool gcode_present = gcode_viewer_ && helix::ui::gcode_viewer_has_content(gcode_viewer_);
     bool show_viewer = !thumbnail_only && lifecycle_.want_viewer() && gcode_present;
     crash_handler::breadcrumb::note("pstat_act", show_viewer ? "viewer_on" : "viewer_off");
     show_gcode_viewer(show_viewer);
@@ -1193,12 +1193,12 @@ void PrintStatusPanel::on_activate() {
             lv_subject_get_int(printer_state_.print_state().get_print_layer_current_subject());
         int total_layers =
             lv_subject_get_int(printer_state_.print_state().get_print_layer_total_subject());
-        int viewer_max_layer = ui_gcode_viewer_get_max_layer(gcode_viewer_);
+        int viewer_max_layer = helix::ui::gcode_viewer_get_max_layer(gcode_viewer_);
         int viewer_layer = current_layer;
         if (total_layers > 0 && viewer_max_layer > 0) {
             viewer_layer = (current_layer * viewer_max_layer) / total_layers;
         }
-        ui_gcode_viewer_set_print_progress(gcode_viewer_, viewer_layer);
+        helix::ui::gcode_viewer_set_print_progress(gcode_viewer_, viewer_layer);
     }
     // Re-resolve which fan owns each chip: classify_primary_fans() is
     // runtime-adaptive (#1124), so the names can be stale, not just the values
@@ -1236,7 +1236,7 @@ void PrintStatusPanel::on_deactivating(DeactivateReason) {
 
     // Pause G-code viewer rendering when panel is hidden (CPU optimization)
     if (gcode_viewer_) {
-        ui_gcode_viewer_set_paused(gcode_viewer_, true);
+        helix::ui::gcode_viewer_set_paused(gcode_viewer_, true);
 
         // Release heavy renderer state when leaving the panel after a print has
         // reached a terminal state. Previously gated on system-wide available
@@ -1250,7 +1250,7 @@ void PrintStatusPanel::on_deactivating(DeactivateReason) {
         auto state = lifecycle_.state();
         if (state != PrintState::Printing && state != PrintState::Paused &&
             state != PrintState::Preparing) {
-            ui_gcode_viewer_clear(gcode_viewer_);
+            helix::ui::gcode_viewer_clear(gcode_viewer_);
             lifecycle_.set_gcode_loaded(false);
             preview_.forget_gcode();
             spdlog::debug("[{}] Cleared gcode viewer on deactivate (terminal state)", get_name());
@@ -1546,7 +1546,7 @@ void PrintStatusPanel::show_gcode_viewer(bool show) {
     int mode = 0; // Default: thumbnail
     if (show) {
         // Check if the viewer is using 2D mode
-        bool is_2d = gcode_viewer_ && ui_gcode_viewer_is_using_2d_mode(gcode_viewer_);
+        bool is_2d = gcode_viewer_ && helix::ui::gcode_viewer_is_using_2d_mode(gcode_viewer_);
         mode = is_2d ? 2 : 1;
     }
     lv_subject_set_int(&gcode_viewer_mode_subject_, mode);
@@ -1587,7 +1587,7 @@ void PrintStatusPanel::apply_gcode_viewer_pause() {
     }
     const bool viewer_layer = lv_subject_get_int(&gcode_viewer_mode_subject_) != 0;
     const bool camera_covers = lv_subject_get_int(&camera_showing_subject_) != 0;
-    ui_gcode_viewer_set_paused(gcode_viewer_, !viewer_layer || camera_covers);
+    helix::ui::gcode_viewer_set_paused(gcode_viewer_, !viewer_layer || camera_covers);
 }
 
 void PrintStatusPanel::update_preview_camera() {
@@ -1855,7 +1855,7 @@ std::set<int> PrintStatusPanel::get_tools_used() const {
     // STREAMED file, which is every file on a memory-constrained printer. That
     // silently disabled both consumers here — the print-scoped runout badge and
     // the Snapmaker reprint's used-extruders preamble.
-    return ui_gcode_viewer_get_tools_used(gcode_viewer_);
+    return helix::ui::gcode_viewer_get_tools_used(gcode_viewer_);
 }
 
 void PrintStatusPanel::recompute_scoped_runout() {
@@ -1918,7 +1918,7 @@ void PrintStatusPanel::handle_resize() {
     if (gcode_viewer_ && !lv_obj_has_flag(gcode_viewer_, LV_OBJ_FLAG_HIDDEN)) {
         // Force layout recalculation so viewer gets correct dimensions
         lv_obj_update_layout(gcode_viewer_);
-        ui_gcode_viewer_reset_camera(gcode_viewer_);
+        helix::ui::gcode_viewer_reset_camera(gcode_viewer_);
         spdlog::debug("[{}] Reset gcode viewer camera after resize", get_name());
     }
 }
@@ -1949,7 +1949,7 @@ void PrintStatusPanel::handle_view_toggle() {
     if (complete_view_mode_) {
         // Complete view: show all layers solid (no ghost)
         if (gcode_viewer_) {
-            ui_gcode_viewer_set_print_progress(gcode_viewer_, -1);
+            helix::ui::gcode_viewer_set_print_progress(gcode_viewer_, -1);
         }
     } else {
         // Progress view: restore current layer with ghost
@@ -1958,12 +1958,12 @@ void PrintStatusPanel::handle_view_toggle() {
                 lv_subject_get_int(printer_state_.print_state().get_print_layer_current_subject());
             int total_layers =
                 lv_subject_get_int(printer_state_.print_state().get_print_layer_total_subject());
-            int viewer_max_layer = ui_gcode_viewer_get_max_layer(gcode_viewer_);
+            int viewer_max_layer = helix::ui::gcode_viewer_get_max_layer(gcode_viewer_);
             int viewer_layer = current_layer;
             if (total_layers > 0 && viewer_max_layer > 0) {
                 viewer_layer = (current_layer * viewer_max_layer) / total_layers;
             }
-            ui_gcode_viewer_set_print_progress(gcode_viewer_, viewer_layer);
+            helix::ui::gcode_viewer_set_print_progress(gcode_viewer_, viewer_layer);
         }
     }
 
@@ -2296,7 +2296,7 @@ void PrintStatusPanel::on_print_state_changed(PrintJobState job_state) {
             // Deferred via queue_update for the same reason as the live update
             // path below — observer callbacks can fire mid-render.
             if (gcode_viewer_) {
-                int viewer_max_layer = ui_gcode_viewer_get_max_layer(gcode_viewer_);
+                int viewer_max_layer = helix::ui::gcode_viewer_get_max_layer(gcode_viewer_);
                 int viewer_layer = lifecycle_.map_current_layer_to_viewer(viewer_max_layer);
                 struct ViewerProgressCtx {
                     lv_obj_t* viewer;
@@ -2307,7 +2307,7 @@ void PrintStatusPanel::on_print_state_changed(PrintJobState job_state) {
                 helix::ui::queue_update<ViewerProgressCtx>(
                     std::move(ctx), [](ViewerProgressCtx* c) {
                         if (c->viewer && lv_obj_is_valid(c->viewer)) {
-                            ui_gcode_viewer_set_print_progress(c->viewer, c->layer);
+                            helix::ui::gcode_viewer_set_print_progress(c->viewer, c->layer);
                         }
                     });
             }
@@ -2454,7 +2454,7 @@ void PrintStatusPanel::on_print_layer_changed(int current_layer) {
         !complete_view_mode_) {
         // Map from Moonraker layer count (e.g., 240) to viewer layer count (e.g., 2912)
         // The slicer metadata and parsed G-code often have different layer counts
-        int viewer_max_layer = ui_gcode_viewer_get_max_layer(gcode_viewer_);
+        int viewer_max_layer = helix::ui::gcode_viewer_get_max_layer(gcode_viewer_);
         int viewer_layer = lifecycle_.map_current_layer_to_viewer(viewer_max_layer);
 
         // CRITICAL: Defer to avoid lv_obj_invalidate() during render phase
@@ -2467,7 +2467,7 @@ void PrintStatusPanel::on_print_layer_changed(int current_layer) {
             std::make_unique<ViewerProgressCtx>(ViewerProgressCtx{gcode_viewer_, viewer_layer});
         helix::ui::queue_update<ViewerProgressCtx>(std::move(ctx), [](ViewerProgressCtx* c) {
             if (c->viewer && lv_obj_is_valid(c->viewer)) {
-                ui_gcode_viewer_set_print_progress(c->viewer, c->layer);
+                helix::ui::gcode_viewer_set_print_progress(c->viewer, c->layer);
             }
         });
 

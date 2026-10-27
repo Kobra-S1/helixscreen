@@ -200,7 +200,7 @@ class GCodeViewerState {
         // frame and abort via std::terminate ([L083]). This is the exact
         // hot path for L081-family crashes (RPHAV9T7).
         try {
-            build_thread_ = helix::make_thread([this, func = std::move(build_func)]() {
+            build_thread_ = helix::make_background_thread([this, func = std::move(build_func)]() {
                 func();
                 building_.store(false);
             });
@@ -240,6 +240,9 @@ class GCodeViewerState {
     // G-code data
     std::unique_ptr<helix::gcode::ParsedGCodeFile> gcode_file;
     GcodeViewerState viewer_state{GcodeViewerState::Empty};
+    /// The last load stopped because the preview would cost too much CPU; set
+    /// with viewer_state Error, cleared when the next load starts.
+    bool load_skipped_for_cost{false};
 
     // Rendering components (exposed for callbacks)
     std::unique_ptr<helix::gcode::GCodeCamera> camera_;
@@ -268,7 +271,7 @@ class GCodeViewerState {
     ViewOptions applied_2d;
 
     // Callbacks
-    gcode_viewer_object_tap_callback_t object_tap_callback{nullptr};
+    helix::ui::gcode_viewer_object_tap_callback_t object_tap_callback{nullptr};
     void* object_tap_user_data{nullptr};
 
     /// Exclude-mode badges drawn over the render; empty when exclude mode is off.
@@ -282,16 +285,16 @@ class GCodeViewerState {
     /// and widget-local centre. A tap on one picks its object.
     std::vector<int> drawn_badge_index;
     std::vector<glm::vec2> drawn_badge_centers;
-    gcode_viewer_object_long_press_callback_t object_long_press_callback{nullptr};
+    helix::ui::gcode_viewer_object_long_press_callback_t object_long_press_callback{nullptr};
     void* object_long_press_user_data{nullptr};
-    gcode_viewer_load_callback_t load_callback{nullptr};
+    helix::ui::gcode_viewer_load_callback_t load_callback{nullptr};
     void* load_callback_user_data{nullptr};
-    gcode_viewer_load_callback_t first_frame_callback{nullptr};
+    helix::ui::gcode_viewer_load_callback_t first_frame_callback{nullptr};
     void* first_frame_callback_user_data{nullptr};
     bool first_frame_fired_{false};
     helix::gcode::FitFraming framing_{
         helix::gcode::FitFraming::STANDARD}; ///< Fit shape every renderer of this viewer uses
-    ui_gcode_viewer_clear_cb_t clear_callback{nullptr};
+    helix::ui::gcode_viewer_clear_cb_t clear_callback{nullptr};
     void* clear_callback_user_data{nullptr};
 
     // Long-press state
@@ -332,7 +335,7 @@ class GCodeViewerState {
     /// belongs to.
     helix::gcode::PauseScanPtr pause_scan; ///< null until a scan ran
 
-    /// Print progress layer (set via ui_gcode_viewer_set_print_progress)
+    /// Print progress layer (set via helix::ui::gcode_viewer_set_print_progress)
     /// -1 means "show all layers" (preview mode), >= 0 means "show up to this layer"
     int print_progress_layer_{-1};
 
@@ -408,7 +411,7 @@ class GCodeViewerState {
     bool streaming_disabled_{false};
 
     /// The plugin's layer index sidecar for the next load's file, or empty
-    /// (ui_gcode_viewer_set_layer_index_sidecar).
+    /// (helix::ui::gcode_viewer_set_layer_index_sidecar).
     std::string layer_index_sidecar_;
 
     /// Helper to check if currently using 2D layer renderer
@@ -426,7 +429,7 @@ class GCodeViewerState {
 #else
         // Without a 3D renderer there is no 3D mode, full stop. A stored
         // display/gcode_render_mode of 3D (copied from a GLES device, or
-        // hand-edited) must still land here: ui_gcode_viewer_set_render_mode()
+        // hand-edited) must still land here: helix::ui::gcode_viewer_set_render_mode()
         // has no availability guard.
         return true;
 #endif

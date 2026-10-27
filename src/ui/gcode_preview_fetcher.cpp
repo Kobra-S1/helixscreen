@@ -8,6 +8,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "firmware_3mf_extract.h"
+#include "gcode_preview_gate.h"
 #include "gcode_preview_setup.h"
 #include "i_moonraker_api.h"
 #include "memory_utils.h"
@@ -206,14 +207,22 @@ void GcodePreviewFetcher::lookup_metadata(const RequestPtr& req, const std::stri
                 const size_t cached_size =
                     static_cast<size_t>(tio::file_size(req->temp_path).value_or(0));
                 if (preview_cache_is_current(cached_size, 0)) {
-                    if (helix::is_gcode_2d_streaming_safe(cached_size)) {
+                    switch (preview_gate(cached_size, log_tag_.c_str())) {
+                    case PreviewGate::Build:
                         spdlog::info("[{}] G-code metadata unavailable for '{}': {} - using "
                                      "cached copy ({} bytes)",
                                      log_tag_, req->filename, err.message, cached_size);
                         hand_over(req, req->temp_path, Source::Cache);
                         return;
+                    case PreviewGate::TooExpensive:
+                        // Affordable again once the print ends: keep the copy.
+                        give_up(req, Unavailable::TooExpensive);
+                        return;
+                    case PreviewGate::TooLarge:
+                        // It will never fit: do not leave it on disk.
+                        std::remove(req->temp_path.c_str());
+                        break;
                     }
-                    std::remove(req->temp_path.c_str());
                 }
                 spdlog::debug(
                     "[{}] Failed to get G-code metadata for '{}': {} - skipping 3D render",
@@ -227,13 +236,15 @@ void GcodePreviewFetcher::lookup_metadata(const RequestPtr& req, const std::stri
 
 void GcodePreviewFetcher::stream_if_safe(const RequestPtr& req, const std::string& root,
                                          const std::string& download_target, uint64_t size) {
-    if (!helix::is_gcode_2d_streaming_safe(size)) {
-        auto mem = helix::get_system_memory_info();
-        spdlog::warn("[{}] G-code too large for 2D streaming: file={} bytes, available RAM={}MB - "
-                     "using thumbnail only",
-                     log_tag_, size, mem.available_mb());
+    switch (preview_gate(size, log_tag_.c_str())) {
+    case PreviewGate::TooLarge:
         give_up(req, Unavailable::TooLarge);
         return;
+    case PreviewGate::TooExpensive:
+        give_up(req, Unavailable::TooExpensive);
+        return;
+    case PreviewGate::Build:
+        break;
     }
 
     ensure_local(req, root, download_target, size);

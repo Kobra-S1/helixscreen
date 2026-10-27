@@ -2038,7 +2038,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clearing the details viewer closes exclude 
     REQUIRE(d.view.is_exclude_mode_open());
 
     // What the memory-pressure responder does to every live viewer.
-    ui_gcode_viewer_clear_all_active();
+    helix::ui::gcode_viewer_clear_all_active();
     OpenDetail::settle();
     CHECK_FALSE(d.view.is_exclude_mode_open());
     CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
@@ -2225,7 +2225,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A parse finishing after cleanup never reach
     d.view.cleanup();
     helix::ui::UpdateQueueTestAccess::drain_all(queue);
     // What was queued was the parse result: the viewer installed it.
-    REQUIRE(ui_gcode_viewer_has_content(viewer));
+    REQUIRE(helix::ui::gcode_viewer_has_content(viewer));
     CHECK(loaded == 0);
     CHECK_FALSE(d.view.is_gcode_loaded());
 }

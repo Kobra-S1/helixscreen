@@ -17,7 +17,9 @@
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/print_status_preview_fixture.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "config.h"
 #include "gcode_preview_fetcher.h"
+#include "gcode_preview_gate.h"
 
 #include <fstream>
 #include <string>
@@ -250,6 +252,37 @@ TEST_CASE_METHOD(FetcherFixture,
     drain();
     CHECK(first_ready.empty());
     CHECK(second_ready.size() == 1);
+}
+
+TEST_CASE_METHOD(FetcherFixture,
+                 "Fetcher: a cached copy too costly to preview now is kept, not handed over",
+                 "[gcode_preview_fetcher][preview_gate]") {
+    const auto cached =
+        cache_.dir / "gcode_temp" / GcodePreviewFetcher::cache_file_name("print_view_", REMOTE);
+    std::filesystem::create_directories(cached.parent_path());
+    {
+        std::ofstream copy(cached, std::ios::binary);
+        copy << "G1 X10 Y10 E1\n";
+    }
+    // A rate this low projects any file far over budget on this board.
+    helix::Config* config = helix::Config::get_instance();
+    helix::ui::save_preview_rate(
+        *config, {1e-6, helix::ui::preview_rate_board(), helix::ui::preview_rate_version()});
+
+    std::vector<std::string> ready;
+    std::vector<GcodePreviewFetcher::Unavailable> why;
+    helix::ScopedEnv metadata_fails("HELIX_MOCK_METADATA_404", "1");
+    fetcher_.fetch(
+        REMOTE, [&](const std::string& path) { ready.push_back(path); },
+        [&](GcodePreviewFetcher::Unavailable reason) { why.push_back(reason); });
+    drain();
+    config->get_json("/display").erase("gcode_preview_rate");
+
+    CHECK(ready.empty());
+    CHECK(why == std::vector<GcodePreviewFetcher::Unavailable>{
+                     GcodePreviewFetcher::Unavailable::TooExpensive});
+    // Affordable again once the print ends, so the copy stays on disk.
+    CHECK(std::filesystem::exists(cached));
 }
 
 TEST_CASE_METHOD(FetcherFixture, "Fetcher: a .temp listing landing after cancel starts nothing",

@@ -36,6 +36,7 @@ class GcodePreviewFetcher {
         Disabled,       ///< Thumbnail Only, or 3D rendering switched off
         NoCacheDir,     ///< nowhere writable to put the copy
         TooLarge,       ///< the file would not fit the device's memory to render
+        TooExpensive,   ///< Auto mode: the preview would cost this board too much CPU now
         MetadataFailed, ///< the size lookup failed and no cached copy could stand in
         NoGcode,        ///< a .3mf whose extracted G-code the printer does not expose
         NoLocalCopies,  ///< the transport cannot write a local copy at all

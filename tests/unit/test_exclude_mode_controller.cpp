@@ -144,7 +144,7 @@ TEST_CASE_METHOD(ExcludeModeFixture, "In exclude-only mode an excluded row takes
 TEST_CASE_METHOD(ExcludeModeFixture,
                  "Render mode routes viewer taps and badges while open, and drops them on hide",
                  "[exclude_mode][pre_start_exclude]") {
-    lv_obj_t* viewer = ui_gcode_viewer_create(card);
+    lv_obj_t* viewer = helix::ui::gcode_viewer_create(card);
     REQUIRE(viewer != nullptr);
     targets.gcode_viewer = viewer;
     targets.thumbnail_mode = false;
@@ -176,7 +176,7 @@ TEST_CASE_METHOD(ExcludeModeFixture,
 TEST_CASE_METHOD(ExcludeModeFixture,
                  "Hiding after the viewer was deleted leaves a widget at its address untouched",
                  "[exclude_mode][pre_start_exclude]") {
-    lv_obj_t* viewer = ui_gcode_viewer_create(card);
+    lv_obj_t* viewer = helix::ui::gcode_viewer_create(card);
     REQUIRE(viewer != nullptr);
     targets.gcode_viewer = viewer;
     targets.thumbnail_mode = false;
@@ -191,12 +191,12 @@ TEST_CASE_METHOD(ExcludeModeFixture,
         SKIP("allocator never reused the deleted viewer's address");
     }
     lv_obj_delete(probe);
-    lv_obj_t* fresh = ui_gcode_viewer_create(card);
+    lv_obj_t* fresh = helix::ui::gcode_viewer_create(card);
     if (fresh != viewer) {
         SKIP("the new viewer did not land at the deleted viewer's address");
     }
-    ui_gcode_viewer_set_excluded_badges_pickable(fresh, true);
-    ui_gcode_viewer_set_object_badges(fresh, compute_object_badges(objects, nullptr));
+    helix::ui::gcode_viewer_set_excluded_badges_pickable(fresh, true);
+    helix::ui::gcode_viewer_set_object_badges(fresh, compute_object_badges(objects, nullptr));
     REQUIRE(helix::test_access::gcode_viewer_object_badges(fresh).size() == 3);
 
     controller.hide();
