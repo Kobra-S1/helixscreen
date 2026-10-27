@@ -890,7 +890,12 @@ void PrintStartController::run_gates_from(size_t index) {
 
 void PrintStartController::on_gate_proceed() {
     print_gate_modal_ = nullptr;
-    run_gates_from(gate_resume_index_ + 1);
+    // The answered dialog hides itself only after this callback returns, and
+    // the next dialog's blurred backdrop captures whatever is on screen when it
+    // opens. Running the next gate on the following tick keeps the answered
+    // dialog out of that capture.
+    lifetime_.defer("PrintStartController::next_gate",
+                    [this]() { run_gates_from(gate_resume_index_ + 1); });
 }
 
 void PrintStartController::on_gate_cancel() {

@@ -1068,6 +1068,7 @@ TEST_CASE("gate runner: proceed resumes at NEXT gate", "[print-start][gate-pipel
 
     PrintStartControllerTestAccess::run_gates(fx.controller);
     PrintStartControllerTestAccess::gate_proceed(fx.controller);
+    helix::ui::UpdateQueue::instance().drain();
     // toy_b passes -> pipeline ran off the end into execute_print_start(),
     // which fails on the missing prep manager: re-enables the button exactly
     // once, shows an error, and ends the start like any other start that
@@ -1091,11 +1092,49 @@ TEST_CASE("gate runner: two chained warns - captions outlive the first gate's fr
 
     PrintStartControllerTestAccess::run_gates(fx.controller);    // gate 0 warns
     PrintStartControllerTestAccess::gate_proceed(fx.controller); // gate 1 warns again
+    helix::ui::UpdateQueue::instance().drain();
     REQUIRE(PrintStartControllerTestAccess::print_gate_modal(fx.controller) != nullptr);
     CHECK(PrintStartControllerTestAccess::gate_resume_index(fx.controller) == 1);
 
     CHECK(UITest::button_text(PrintStartControllerTestAccess::print_gate_modal(fx.controller),
                               "btn_primary") == "Proceed B");
+}
+
+// The next gate's dialog captures what is on screen for its blurred backdrop,
+// so the dialog the user just answered must be gone before the next gate runs.
+namespace {
+lv_obj_t* g_top_dialog_when_second_gate_ran = nullptr;
+bool g_second_gate_ran = false;
+} // namespace
+
+TEST_CASE("gate runner: the answered dialog is closed before the next gate runs",
+          "[print-start][gate-pipeline]") {
+    GateRunnerFixture fx;
+    g_top_dialog_when_second_gate_ran = nullptr;
+    g_second_gate_ran = false;
+    std::vector<PrintStartGate> gates;
+    gates.push_back({"toy_warn_a",
+                     +[](const PrintStartContext&) { return warn_result("Toy A", "Proceed A"); }});
+    gates.push_back({"toy_warn_b", +[](const PrintStartContext&) {
+                         g_second_gate_ran = true;
+                         g_top_dialog_when_second_gate_ran = ModalStack::instance().top_dialog();
+                         return warn_result("Toy B", "Proceed B");
+                     }});
+    PrintStartControllerTestAccess::set_gates(fx.controller, std::move(gates));
+
+    PrintStartControllerTestAccess::run_gates(fx.controller);
+    lv_obj_t* first = PrintStartControllerTestAccess::print_gate_modal(fx.controller);
+    REQUIRE(first != nullptr);
+    lv_obj_t* proceed = lv_obj_find_by_name(first, "btn_primary");
+    REQUIRE(proceed != nullptr);
+
+    lv_obj_send_event(proceed, LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(g_second_gate_ran);
+    CHECK(g_top_dialog_when_second_gate_ran == nullptr);
+    CHECK(PrintStartControllerTestAccess::gate_resume_index(fx.controller) == 1);
+    CHECK(PrintStartControllerTestAccess::print_gate_modal(fx.controller) != nullptr);
 }
 
 TEST_CASE("gate runner: cancel re-enables button and fires on_print_cancelled",
