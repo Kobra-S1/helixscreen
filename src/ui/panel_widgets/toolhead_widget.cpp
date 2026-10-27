@@ -519,7 +519,7 @@ ToolheadWidget::ToolheadWidget(PrinterState& printer_state)
                         publish_lift_text();
                     },
                     [this](const MoonrakerError&) { gesture_.mark_failed(); },
-                    [this]() { return plate_interactive(); }}),
+                    [this](const JogCoalescer::CoalescedMove&) { return plate_interactive(); }}),
       gesture_({[this](int x, int y) { return target_at(x, y); },
                 [this]() { return plate_interactive(); },
                 [this]() {

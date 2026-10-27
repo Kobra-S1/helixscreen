@@ -44,7 +44,7 @@ class SenderFixture : public LVGLTestFixture {
     SenderFixture()
         : sender_(lifetime_, "SenderTest",
                   {[this]() { ++acks_; }, [this](const MoonrakerError&) { ++errors_; },
-                   [this]() { return may_flush_; }}) {}
+                   [this](const helix::JogCoalescer::CoalescedMove&) { return may_flush_; }}) {}
 
     static void drain() {
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());

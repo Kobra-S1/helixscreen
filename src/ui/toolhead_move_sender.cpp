@@ -101,7 +101,7 @@ bool ToolheadMoveSender::send(IMoonrakerAPI* api, const JogCoalescer::CoalescedM
 
     auto on_ack = lifetime_.bg_cb("ToolheadMoveSender::on_ack", [this, api]() {
         if (auto flush = coalescer_.on_ack()) {
-            if (hooks_.may_flush && !hooks_.may_flush()) {
+            if (hooks_.may_flush && !hooks_.may_flush(*flush)) {
                 spdlog::debug("[{}] Moves no longer allowed, dropping the coalesced move", tag_);
                 coalescer_.reset();
             } else {

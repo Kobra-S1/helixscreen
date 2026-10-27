@@ -267,7 +267,14 @@ MotionPanel::MotionPanel()
                         // every interval and raise one error toast per tick.
                         stop_hold_repeat();
                     },
-                    [this]() { return moves_allowed(); }}),
+                    [this](const helix::JogCoalescer::CoalescedMove& move) {
+                        // A target is a plate, preset or coordinate move, held to the plate's
+                        // gate; a jog delta only needs the panel's.
+                        if (std::holds_alternative<helix::AxisTarget>(move)) {
+                            return helix::plate_moves_allowed(get_printer_state());
+                        }
+                        return moves_allowed();
+                    }}),
       bed_gesture_(
           {[this](int x, int y) { return bed_target_at(bed_touch_area_, lv_point_t{x, y}); },
            []() {

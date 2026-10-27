@@ -965,6 +965,36 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: a sample queued behind a move dies wi
     set_moonraker_api(&api_);
 }
 
+TEST_CASE_METHOD(MoveTabFixture,
+                 "bed tab: a queued sample dies when another operation takes the head",
+                 "[motion][bed-tab]") {
+    HoldingAPI held_api{client_, get_printer_state()};
+    set_moonraker_api(&held_api);
+    auto& moves = held_api.holding_.held;
+    auto& panel = get_global_motion_panel();
+    panel.set_motion_tab(2);
+    drain();
+    lv_obj_t* area = panel_widget("bed_map_area");
+
+    panel.handle_bed_touch(helix::BedTouch::Pressed, area, far_point(area, false, false));
+    panel.handle_bed_touch(helix::BedTouch::Pressing, area, far_point(area, true, false));
+    panel.handle_bed_touch(helix::BedTouch::Pressing, area, far_point(area, true, true));
+    REQUIRE(moves.size() == 1);
+
+    // A probe session started elsewhere leaves nav enabled and motion unblocked, so only
+    // the plate's own gate can stop the queued target.
+    lv_subject_t* probe = get_printer_state().calibration_state().get_manual_probe_active_subject();
+    lv_subject_set_int(probe, 1);
+    REQUIRE(get_printer_state().is_external_blocking_operation_active());
+    moves[0].on_success();
+    drain();
+    CHECK(moves.size() == 1);
+
+    lv_subject_set_int(probe, 0);
+    panel.handle_bed_touch(helix::BedTouch::Lost, area, far_point(area, true, true));
+    set_moonraker_api(&api_);
+}
+
 TEST_CASE_METHOD(MoveTabFixture, "bed tab: Z unhomed counts as unhomed, like Park",
                  "[motion][bed-tab]") {
     auto& panel = get_global_motion_panel();
