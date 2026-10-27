@@ -110,9 +110,10 @@
                spinner for that long reads as a hung app). The row itself takes no
                taps, so the gap between button and pill reaches the preview. -->
           <lv_obj name="detail_top_left_row"
-                  width="content" height="content" align="top_left" x="#space_md" y="#space_md" flex_flow="row"
-                  style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
-                  style_border_width="0" scrollable="false" clickable="false">
+                  width="100%" height="content" align="top_left" y="#space_md" flex_flow="row_wrap"
+                  style_flex_cross_place="center" style_pad_top="0" style_pad_bottom="0" style_pad_left="#space_md"
+                  style_pad_right="#space_md" style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0"
+                  scrollable="false" clickable="false">
             <exclude_objects_button name="btn_detail_objects"
                                     callback="on_print_select_detail_objects"
                                     hidden_when="detail_exclude_available eq 0"
@@ -150,11 +151,15 @@
             </lv_obj>
             <!-- Plate of a sliced .3mf: the preview, time and filament follow
                  the plate shown, and Print prints it. The arrows show with
-                 several sliced plates; with one, only its number. -->
+                 several sliced plates; with one, only its name or number. A
+                 long plate name ends in an ellipsis at plate_label_max_width,
+                 which leaves the arrows room on the narrowest preview card of
+                 each size; when the buttons beside it leave too little room,
+                 the row wraps the stepper onto a line of its own. -->
             <lv_obj name="detail_plate_stepper"
-                    width="content" height="#icon_button_size_lg" flex_flow="row" style_flex_cross_place="center"
-                    style_pad_left="0" style_pad_right="0" style_pad_top="0" style_pad_bottom="0" style_border_width="0"
-                    scrollable="false" hidden="true">
+                    width="content" height="#icon_button_size_lg" style_max_width="100%" flex_flow="row"
+                    style_flex_cross_place="center" style_pad_left="0" style_pad_right="0" style_pad_top="0"
+                    style_pad_bottom="0" style_border_width="0" scrollable="false" hidden="true">
               <style name="styles.metadata_strip"/>
               <bind_flag_if_lt subject="selected_plate_count" flag="hidden" ref_value="1"/>
               <lv_obj name="btn_plate_prev"
@@ -166,7 +171,8 @@
                 <icon src="chevron_left" size="sm" variant="text" align="center" clickable="false" event_bubble="true"/>
               </lv_obj>
               <text_small name="detail_plate_label"
-                          bind_text="selected_plate_text" style_pad_left="#space_sm" style_pad_right="#space_sm"/>
+                          bind_text="selected_plate_text" style_max_width="#plate_label_max_width" long_mode="dots"
+                          style_pad_left="#space_sm" style_pad_right="#space_sm"/>
               <lv_obj name="btn_plate_next"
                       width="#icon_button_size_lg" height="100%" clickable="true" scrollable="false" style_pad_all="0"
                       style_bg_opa="0" style_border_width="0" style_radius="#border_radius">
