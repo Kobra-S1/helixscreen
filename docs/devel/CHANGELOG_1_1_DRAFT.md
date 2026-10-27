@@ -229,10 +229,15 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   with a trace of recent load. It turns amber or red at 70% and 90% load, at 70 and 80 C, on CPU
   throttling, on rising MCU retransmits and on under 500 MB free for G-code files. A tap opens
   Settings > System > Performance. Only offered once Moonraker reports performance data.
-- **A Toolhead widget** - X, Y and Z, shown as `--` until each axis is homed, with a plate view
-  and a crosshair for the nozzle from 1.5x1 up. During a print the small sizes show the Z height
-  instead. At 2x2 a Home All button appears while an axis is not homed, and during a print the
-  active tool and live speed take its place. A tap opens Motion.
+- **A Toolhead widget you can move the toolhead from** - X, Y and Z, shown as `--` until each
+  axis is homed, with a plate view and a crosshair for the nozzle from 1.5x1 up. Once the printer
+  is homed and idle, tap the plate to pick a spot and confirm with Move here, or drag to move the
+  toolhead live, just like the Motion screen's Bed tab; while it can move, a hold or drag on the
+  plate never enters edit mode or swipes the page. At 2x2 a Home All button appears while an axis is not homed, and
+  during a print the active tool and live speed take its place while the plate shows the head over
+  the print. A 2x3 tile adds three preset buttons (Front, Center and Park by default; any Move-tab
+  position, Park, Z +10, Z -10 or a macro, set from the gear in edit mode). A tap anywhere else
+  opens Motion.
 - **A Bed Mesh widget** - the active mesh as a heatmap, with a flatness reading tinted green
   below 0.15 mm, amber below 0.30 mm and red above. Wider tiles add the profile name, lowest and
   highest point and grid size, then a color scale and the profile count, and a 3x3 tile draws the
@@ -273,19 +278,35 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   from the `[bed_mesh]` probing area rather than the full axis travel, so no preset aims
   at a purge area or tool dock past the plate; outer positions sit 10% in from the plate
   edges; on a delta the eight outer positions sit
-  on a circle instead. Moves are XY only, homing first when needed, and the whole tab is
-  disabled while a print runs or is paused, or while the printer is not ready. The
+  on a circle instead. A move lifts the nozzle to the Bed Map Clearance first when it is lower,
+  and above your last print while that may still be on the bed. The positions are disabled until
+  every axis is homed, and the whole tab while a print runs or is paused, or while the printer is
+  not ready. The
   positions and Park grey out while the toolhead is moving, so a second tap cannot land
   mid-move. Park and Motors Off sit under the grid.
 - **Park parks the toolhead** - it runs the printer's own parking macro when one is
   detected (`PARK`, `PARK_TOOLHEAD` or `TOOLHEAD_PARK`), otherwise lifts the nozzle 10mm
-  and parks over the rear of the plate, never past it; unhomed axes are homed first. Point it at a different macro in
+  (or enough to clear a print left on the bed) and parks over the rear of the plate, never past
+  it. It is disabled until the printer is homed. Point it at a different macro in
   Settings > Printing > Macro Buttons.
 - **Tap a coordinate in the header to move there** - a number pad opens for that axis, and
   a value outside the printer's range is refused with the allowed range while nothing
-  moves; an unhomed axis is homed first, then moved. A Target / Actual chip beside the
+  moves; a coordinate is disabled while its axis is not homed. A Target / Actual chip beside the
   coordinates names which position is shown and toggles it, lights up for Actual, and is
   remembered per printer.
+- **The Bed tab: tap or drag on a map of the plate to move there** - the plate is drawn from
+  above with a 50 mm grid, and the head follows a drag. A move lifts the nozzle to the Bed Map
+  Clearance (Settings > Printing > Motion) first when it is lower. The plate is disabled until
+  every axis is homed, with a Home button in its middle.
+- **Nothing on the Motion screen homes by itself** - the coordinates, the Move tab's positions,
+  Park and the Bed tab's plate wait until the printer is homed, and only a Home button homes it,
+  so a stray tap on an unhomed printer never starts a homing run.
+- **Moves lift clear of a print left on the bed** - after a print ends (finished, canceled or
+  stopped with an error, from any app), moves across the plate lift above its height plus the
+  clearance, and the readout says why ("will lift to 77.6mm: last print is 72.6mm tall"). The
+  print's objects are outlined on the plate, and a Cleared button there ends it once you have
+  removed the part; the next print ends it too. A part too tall to clear refuses the move with a
+  notice. It survives a restart and is kept per printer. Homing does not clear it.
 - **Hold to repeat on the jog pad and Z buttons** - after about 0.4s the move repeats
   roughly every 0.15s for as long as you hold; a quick tap is still exactly one move.
 - **Jog limits are quiet, and the edge is visible before you press** - holding into a limit

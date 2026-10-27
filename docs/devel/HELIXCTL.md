@@ -585,7 +585,7 @@ pointer. `should_suppress_edit_mode()` (`src/ui/ui_panel_home.cpp#should_suppres
 |-----------|--------------|
 | Home edit mode is off in Touch & Input (#1245) | `ctl get settings_home_edit_mode_enabled` - check this first |
 | The lock screen is up | `ctl ls` shows the PIN pad as the topmost layer |
-| The press target is an arc or slider | those consume drags for value adjustment - aim at a different part of the tile |
+| The press target is a drag surface (an arc, a slider, or an object marked by `helix::ui::mark_drag_surface()`, such as a homed Toolhead plate) | those consume drags - aim at a different part of the tile |
 
 It also refuses while a scroll object is active on the indev, but that never stops a stationary
 long press: LVGL clears the scroll object on every new press and sends LONG_PRESSED only while
