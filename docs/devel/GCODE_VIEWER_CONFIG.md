@@ -130,6 +130,16 @@ Useful when deciding whether a device tier can afford something. Note that
 process RSS cannot answer that question: cross-run RSS carries megabytes of
 noise, and `free()` does not lower it without `malloc_trim`.
 
+## Measuring preview cost on a board
+
+`helix-screen bench-gcode <file> [canvas_rows]` times what a streamed preview of
+that file costs here, without the UI: the layer index scan, the ghost pass's
+layer parses (sampled as a canvas `canvas_rows` tall samples them, default 240),
+and single mid-file layer parses. It prints wall and CPU time for each. It reads
+no config and takes no lock, so it runs beside a live instance; keep the file on
+real storage, since `/tmp` is RAM on most boards. `HELIX_BENCH_REPEAT=N` repeats
+the ghost loop so a profiler can catch it.
+
 ## Example
 
 ```json
