@@ -790,10 +790,14 @@ class PrintSelectPanel : public PanelBase {
     lv_subject_t selected_filament_type_subject_{};
     char selected_filament_type_buffer_[64]; // Longer for full names like "PolyMaker PolyLite ABS"
 
-    /// Sliced plates of the selected .3mf (the plate stepper shows from 2), and its label.
+    /// Sliced plates of the selected .3mf (the plate stepper shows from 2), the
+    /// shown plate's name or number, and where it sits among them ("1/2", empty
+    /// with one plate).
     lv_subject_t selected_plate_count_subject_{};
     lv_subject_t selected_plate_text_subject_{};
-    char selected_plate_text_buffer_[80];
+    char selected_plate_text_buffer_[64];
+    lv_subject_t selected_plate_position_subject_{};
+    char selected_plate_position_buffer_[16];
 
     lv_subject_t detail_view_visible_subject_{};
 

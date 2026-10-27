@@ -776,14 +776,15 @@
     <!-- plate_label_max_width: the widest the print-file detail's plate name
          may grow before it ends in an ellipsis. The preview card's top row on
          the narrowest landscape card of each size, less the two
-         icon_button_size_lg arrows and the strip's two space_xs gaps, so the
-         arrows never leave the preview. -->
-    <px name="plate_label_max_width_micro" value="136"/>
-    <px name="plate_label_max_width_tiny" value="130"/>
-    <px name="plate_label_max_width_small" value="114"/>
-    <px name="plate_label_max_width_medium" value="266"/>
-    <px name="plate_label_max_width_large" value="360"/>
-    <px name="plate_label_max_width_xlarge" value="340"/>
+         icon_button_size_lg arrows, a two-digit "12/12" plate position and the
+         strip's three space_xs gaps, so the position and the arrows never
+         leave the preview. -->
+    <px name="plate_label_max_width_micro" value="102"/>
+    <px name="plate_label_max_width_tiny" value="96"/>
+    <px name="plate_label_max_width_small" value="72"/>
+    <px name="plate_label_max_width_medium" value="212"/>
+    <px name="plate_label_max_width_large" value="300"/>
+    <px name="plate_label_max_width_xlarge" value="270"/>
 
     <!-- icon_badge: the circular container holding a single status icon at the
          top of an overlay or on a home-screen widget. NOT badge_size_* — that
