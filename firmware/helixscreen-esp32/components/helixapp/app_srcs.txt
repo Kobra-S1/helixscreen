@@ -296,6 +296,7 @@ src/printer/tool_state.cpp
 src/printer/tool_offsets.cpp
 src/sensors/accel_sensor_manager.cpp
 src/sensors/humidity_sensor_manager.cpp
+src/sensors/input_sensor_manager.cpp
 src/sensors/load_cell_manager.cpp
 src/sensors/probe_sensor_manager.cpp
 src/sensors/temperature_sensor_manager.cpp

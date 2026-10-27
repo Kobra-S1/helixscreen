@@ -102,6 +102,22 @@ static json toolchanger_configfile_sections(const MoonrakerClientMock* self) {
     return sections;
 }
 
+// configfile sections of the Z-Mod persona's door buttons. Z-Mod's own config
+// prompts on release ("Front Door is Open!") and clears the prompt on press, so
+// the printer announces a door opening itself.
+static json input_button_configfile_sections(const MoonrakerClientMock* self) {
+    json sections = json::object();
+    if (self->get_printer_type() == helix::mock::PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        for (const char* door : {"frontDoor", "topDoor"}) {
+            sections[std::string("gcode_button ") + door] = {
+                {"pin", "!PB0"},
+                {"press_gcode", "\nRESPOND TYPE=command MSG=action:prompt_end"},
+                {"release_gcode", "\nRESPOND TYPE=command MSG=action:prompt_begin Door is Open!"}};
+        }
+    }
+    return sections;
+}
+
 // configfile sections of the led_effect objects populate_capabilities()
 // lists; empty for a persona that omits them.
 static json led_effect_configfile_sections(const MoonrakerClientMock* self) {
@@ -473,6 +489,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 const json toolchanger_sections = toolchanger_configfile_sections(self);
                 status_obj["configfile"]["settings"].merge_patch(toolchanger_sections);
                 status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
+                status_obj["configfile"]["config"].merge_patch(
+                    input_button_configfile_sections(self));
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
@@ -1157,6 +1175,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 const json toolchanger_sections = toolchanger_configfile_sections(self);
                 status_obj["configfile"]["settings"].merge_patch(toolchanger_sections);
                 status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
+                status_obj["configfile"]["config"].merge_patch(
+                    input_button_configfile_sections(self));
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and

@@ -721,6 +721,7 @@
   <translation tag="Close" pt="Fechar"/>
   <translation tag="Close feeder" pt="Fechar alimentador"/>
   <translation tag="Close feeder macro" pt="Macro de fechar alimentador"/>
+  <translation tag="Closed" pt="Fechada"/>
   <translation tag="Closer" pt="Mais Perto"/>
   <translation tag="Closer = more squish | Farther = less squish" pt="Mais perto = mais compressão | Mais longe = menos compressão"/>
   <translation tag="Coarse" pt="Grosso"/>
@@ -1047,6 +1048,10 @@
   <translation tag="Don&apos;t Save" pt="Não Salvar"/>
   <translation tag="Don&apos;t ask again" pt="Não perguntar novamente"/>
   <translation tag="Done" pt="Concluído"/>
+  <translation tag="Door" pt="Porta"/>
+  <translation tag="Door Open" pt="Porta aberta"/>
+  <translation tag="Door opened during print: {}" pt="Porta aberta durante a impressão: {}"/>
+  <translation tag="Door switches, buttons, and other on/off inputs" pt="Interruptores de porta, botões e outras entradas liga/desliga"/>
   <translation tag="Download update?" pt="Baixar atualização?"/>
   <translation tag="Download v{}?" pt="Baixar v{}?"/>
   <translation tag="Downloading..." pt="Baixando..."/>
@@ -1728,6 +1733,7 @@
   <translation tag="IMPORT FROM USB" pt="IMPORTAR DO USB"/>
   <translation tag="INDX dock positions are not calibrated" pt="As posições das docas do INDX não estão calibradas"/>
   <translation tag="INDX macros not recognized" pt="Macros do INDX não reconhecidas"/>
+  <translation tag="INPUTS" pt="ENTRADAS"/>
   <translation tag="IP Address / Hostname" pt="Endereço IP / Hostname"/>
   <translation tag="IP:" pt="IP:"/>
   <translation tag="IPP error: {}" pt="Erro IPP: {}"/>
@@ -1810,6 +1816,7 @@
   <translation tag="Invalid tool/slot" pt="Ferramenta/slot inválido"/>
   <translation tag="Invalid value" pt="Valor inválido"/>
   <translation tag="Invalid value type" pt="Tipo de valor inválido"/>
+  <translation tag="Invert" pt="Inverter"/>
   <translation tag="Issue description" pt="Descrição do problema"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." pt="Pode ser desarquivado na interface web do Spoolman."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." pt="Ainda não informou seus slots. Tente novamente em instantes."/>
@@ -2475,6 +2482,7 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." pt="Abra o .3mf em Arquivos de Impressão para imprimir esta placa novamente."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" pt="Abra a unidade CFS e remova o filamento partido do slot"/>
   <translation tag="Open the slot editor when you load a new spool" pt="Abrir o editor de slot ao carregar um novo carretel"/>
+  <translation tag="Opened" pt="Aberta"/>
   <translation tag="Operation already in progress" pt="Operação já em andamento"/>
   <translation tag="Operation timed out" pt="Tempo limite da operação esgotado"/>
   <translation tag="Operations" pt="Operações"/>
@@ -2486,6 +2494,7 @@
   <translation tag="Or instead of turning the others" pt="Ou, em vez de girar os outros"/>
   <translation tag="Original file location unknown" pt="Local do arquivo original desconhecido"/>
   <translation tag="Oscillating... cycle %d/%d" pt="Oscilando... ciclo %d/%d"/>
+  <translation tag="Other" pt="Outro"/>
   <translation tag="Outcome" pt="Resultado"/>
   <translation tag="Output Device" pt="Dispositivo de Saída"/>
   <translation tag="Output Mode" pt="Modo de Saída"/>
@@ -2651,6 +2660,7 @@
   <translation tag="Presets come from the WLED device. Edit them in the WLED app." pt="As predefinições vêm do dispositivo WLED. Edite-as no app WLED."/>
   <translation tag="Press Abort to stop" pt="Pressione Abortar para parar"/>
   <translation tag="Press Scan to search" pt="Pressione Escanear para buscar"/>
+  <translation tag="Pressed" pt="Pressionado"/>
   <translation tag="Pressure Adv." pt="Pressure Adv."/>
   <translation tag="Pressure Advance" pt="Pressure Advance"/>
   <translation tag="Pressure Advance Calibration" pt="Calibração do pressure advance"/>
@@ -2935,6 +2945,7 @@
   <translation tag="Release or grip the filament by hand" pt="Soltar ou segurar o filamento manualmente"/>
   <translation tag="Release the filament" pt="Soltar o filamento"/>
   <translation tag="Release {}&apos;s tensioner, let the spring settle, lock it" pt="Solte o tensor de {}, deixe a mola assentar, trave-o"/>
+  <translation tag="Released" pt="Liberado"/>
   <translation tag="Reload the saved bed mesh?" pt="Recarregar a malha salva?"/>
   <translation tag="Remaining" pt="Restante"/>
   <translation tag="Remaining (g)" pt="Restante (g)"/>
@@ -4138,6 +4149,7 @@
   <translation tag="Warm up for a material in one tap" pt="Pré-aquecer para um material em um toque"/>
   <translation tag="Warming Bed..." pt="Aquecendo Mesa..."/>
   <translation tag="Warn" pt="Aviso"/>
+  <translation tag="Warn if a door is open" pt="Avisar se uma porta estiver aberta"/>
   <translation tag="Warning" pt="Aviso"/>
   <translation tag="Warnings &amp; errors" pt="Avisos e erros"/>
   <translation tag="Watch the camera during a print for failed prints" pt="Observa a câmera durante a impressão para detectar impressões com falha"/>
@@ -4418,6 +4430,7 @@
   <translation tag="{} is looser" pt="{} está mais frouxa"/>
   <translation tag="{} is not available on this device. Printing original file." pt="{} não está disponível neste dispositivo. O arquivo original será impresso."/>
   <translation tag="{} is not set up on this printer" pt="{} não está configurado nesta impressora"/>
+  <translation tag="{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway." pt="{} está aberta. Um gabinete aberto deixa o calor escapar e pode estragar a impressão. Feche-a ou inicie mesmo assim."/>
   <translation tag="{} is still printing. The print keeps running after you switch." pt="{} ainda está imprimindo. A impressão continua depois da troca."/>
   <translation tag="{} is tighter" pt="{} está mais apertada"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." pt="{} não está carregado. A impressão vai pausar quando precisar dele."/>

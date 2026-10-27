@@ -721,6 +721,7 @@
   <translation tag="Close" ja="閉じる"/>
   <translation tag="Close feeder" ja="フィーダーを閉じる"/>
   <translation tag="Close feeder macro" ja="フィーダーを閉じるマクロ"/>
+  <translation tag="Closed" ja="閉"/>
   <translation tag="Closer" ja="近く"/>
   <translation tag="Closer = more squish | Farther = less squish" ja="近い = より圧縮 | 遠い = 圧縮少なめ"/>
   <translation tag="Coarse" ja="粗動"/>
@@ -1047,6 +1048,10 @@
   <translation tag="Don&apos;t Save" ja="保存しない"/>
   <translation tag="Don&apos;t ask again" ja="今後表示しない"/>
   <translation tag="Done" ja="完了"/>
+  <translation tag="Door" ja="ドア"/>
+  <translation tag="Door Open" ja="ドアが開いています"/>
+  <translation tag="Door opened during print: {}" ja="印刷中にドアが開きました: {}"/>
+  <translation tag="Door switches, buttons, and other on/off inputs" ja="ドアスイッチ、ボタン、その他のオン/オフ入力"/>
   <translation tag="Download update?" ja="アップデートをダウンロードしますか？"/>
   <translation tag="Download v{}?" ja="v{}をダウンロードしますか？"/>
   <translation tag="Downloading..." ja="ダウンロード中..."/>
@@ -1728,6 +1733,7 @@
   <translation tag="IMPORT FROM USB" ja="USBからインポート"/>
   <translation tag="INDX dock positions are not calibrated" ja="INDXのドック位置がキャリブレーションされていません"/>
   <translation tag="INDX macros not recognized" ja="INDXマクロを認識できません"/>
+  <translation tag="INPUTS" ja="入力"/>
   <translation tag="IP Address / Hostname" ja="IPアドレス / ホスト名"/>
   <translation tag="IP:" ja="IP:"/>
   <translation tag="IPP error: {}" ja="IPP エラー: {}"/>
@@ -1810,6 +1816,7 @@
   <translation tag="Invalid tool/slot" ja="無効なツール/スロットです"/>
   <translation tag="Invalid value" ja="無効な値です"/>
   <translation tag="Invalid value type" ja="値の型が無効です"/>
+  <translation tag="Invert" ja="反転"/>
   <translation tag="Issue description" ja="問題の説明"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." ja="Spoolman の Web 画面でアーカイブを解除できます。"/>
   <translation tag="It has not reported its slots yet. Try again in a moment." ja="スロットがまだ報告されていません。しばらくしてからもう一度お試しください。"/>
@@ -2475,6 +2482,7 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." ja="このプレートを再印刷するには、印刷ファイルで .3mf を開いてください。"/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" ja="CFS ユニットを開け、スロットから折れたフィラメントを取り除いてください"/>
   <translation tag="Open the slot editor when you load a new spool" ja="新しいスプールを装填したときにスロットエディタを開く"/>
+  <translation tag="Opened" ja="開"/>
   <translation tag="Operation already in progress" ja="操作がすでに進行中です"/>
   <translation tag="Operation timed out" ja="操作がタイムアウトしました"/>
   <translation tag="Operations" ja="操作"/>
@@ -2486,6 +2494,7 @@
   <translation tag="Or instead of turning the others" ja="他のネジを回す代わりに"/>
   <translation tag="Original file location unknown" ja="元のファイルの場所が不明です"/>
   <translation tag="Oscillating... cycle %d/%d" ja="振動中... サイクル %d/%d"/>
+  <translation tag="Other" ja="その他"/>
   <translation tag="Outcome" ja="結果"/>
   <translation tag="Output Device" ja="出力デバイス"/>
   <translation tag="Output Mode" ja="出力モード"/>
@@ -2651,6 +2660,7 @@
   <translation tag="Presets come from the WLED device. Edit them in the WLED app." ja="プリセットはWLEDデバイスから取得されます。WLEDアプリで編集してください。"/>
   <translation tag="Press Abort to stop" ja="中止するには「中止」を押してください"/>
   <translation tag="Press Scan to search" ja="スキャンを押して検索"/>
+  <translation tag="Pressed" ja="押下"/>
   <translation tag="Pressure Adv." ja="Pressure Adv."/>
   <translation tag="Pressure Advance" ja="Pressure Advance"/>
   <translation tag="Pressure Advance Calibration" ja="プレッシャーアドバンスキャリブレーション"/>
@@ -2935,6 +2945,7 @@
   <translation tag="Release or grip the filament by hand" ja="手でフィラメントを解放または把持"/>
   <translation tag="Release the filament" ja="フィラメントを解放"/>
   <translation tag="Release {}&apos;s tensioner, let the spring settle, lock it" ja="{}のテンショナーを緩め、バネをなじませてから固定"/>
+  <translation tag="Released" ja="解放"/>
   <translation tag="Reload the saved bed mesh?" ja="保存されたベッドメッシュを再読み込みしますか？"/>
   <translation tag="Remaining" ja="残り"/>
   <translation tag="Remaining (g)" ja="残量 (g)"/>
@@ -4138,6 +4149,7 @@
   <translation tag="Warm up for a material in one tap" ja="素材に合わせてワンタップで予熱"/>
   <translation tag="Warming Bed..." ja="ベッド予熱中..."/>
   <translation tag="Warn" ja="警告"/>
+  <translation tag="Warn if a door is open" ja="ドアが開いていたら警告"/>
   <translation tag="Warning" ja="警告"/>
   <translation tag="Warnings &amp; errors" ja="警告とエラー"/>
   <translation tag="Watch the camera during a print for failed prints" ja="印刷中にカメラで印刷失敗を監視します"/>
@@ -4418,6 +4430,7 @@
   <translation tag="{} is looser" ja="{}の方が緩い"/>
   <translation tag="{} is not available on this device. Printing original file." ja="このデバイスでは {} を利用できません。元のファイルを印刷します。"/>
   <translation tag="{} is not set up on this printer" ja="{} はこのプリンターで設定されていません"/>
+  <translation tag="{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway." ja="{}が開いています。エンクロージャーが開いていると熱が外に出て、印刷に失敗することがあります。閉じるか、このまま開始してください。"/>
   <translation tag="{} is still printing. The print keeps running after you switch." ja="{}は印刷中です。切り替えても印刷は続行されます。"/>
   <translation tag="{} is tighter" ja="{}の方が張っている"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." ja="{}はロードされていません。必要になった時点で印刷が一時停止します。"/>

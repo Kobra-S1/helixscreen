@@ -834,6 +834,7 @@ translations:
   Close: Закрыть
   Close feeder: Закрыть фидер
   Close feeder macro: Макрос для закрытия фидера
+  Closed: Закрыта
   Closer: Ближе
   Closer = more squish | Farther = less squish: Ближе = больше сжатие | Дальше = меньше
     сжатие
@@ -1200,6 +1201,10 @@ translations:
   Don't Save: Не сохранять
   Don't ask again: Больше не спрашивать
   Done: Готово
+  Door: Дверь
+  Door Open: Дверь открыта
+  'Door opened during print: {}': 'Дверь открыта во время печати: {}'
+  Door switches, buttons, and other on/off inputs: Датчики дверей, кнопки и другие входы вкл/выкл
   Download update?: Загрузить обновление?
   Download v{}?: Загрузить v{}?
   Downloading...: Загрузка...
@@ -1937,6 +1942,7 @@ translations:
   IMPORT FROM USB: ИМПОРТ С USB
   INDX dock positions are not calibrated: "Позиции доков INDX не откалиброваны"
   INDX macros not recognized: "Макросы INDX не распознаны"
+  INPUTS: ВХОДЫ
   IP Address / Hostname: IP-адрес / Имя хоста
   'IP:': 'IP:'
   'IPP error: {}': 'Ошибка IPP: {}'
@@ -2033,6 +2039,7 @@ translations:
   Invalid tool/slot: 'Неверный инструмент/слот'
   Invalid value: 'Неверное значение'
   Invalid value type: 'Неверный тип значения'
+  Invert: Инвертировать
   Issue description: Описание проблемы
   It can be un-archived in Spoolman's web UI.: Это можно восстановить из архива в веб-интерфейсе Spoolman.
   It has not reported its slots yet. Try again in a moment.: Она ещё не сообщила о своих слотах. Повторите попытку через минуту.
@@ -2747,6 +2754,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Откройте .3mf в разделе «Файлы Gcode», чтобы снова напечатать эту пластину.'
   Open the CFS unit and remove the broken filament from the slot: Откройте блок CFS и извлеките сломанный филамент из слота
   Open the slot editor when you load a new spool: 'Открывать редактор слота при установке новой катушки'
+  Opened: Открыта
   Operation already in progress: Операция уже выполняется
   Operation timed out: Время ожидания операции истекло
   Operations: Операции
@@ -2760,6 +2768,7 @@ translations:
   Or instead of turning the others: Или вместо вращения остальных винтов
   Original file location unknown: Расположение исходного файла неизвестно
   Oscillating... cycle %d/%d: Осцилляция... цикл %d/%d
+  Other: Другое
   Outcome: Результат
   Output Device: Устройство вывода
   Output Mode: Режим вывода
@@ -2946,6 +2955,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение.'
   'Pressure:': 'Давление:'
+  Pressed: Нажата
   Pressure Adv.: 'Pressure Adv.'
   Pressure Advance: 'Pressure Advance'
   Pressure Advance Calibration: 'Калибровка Pressure Advance'
@@ -3250,6 +3260,7 @@ translations:
   Release or grip the filament by hand: Отпустите или зажмите филамент вручную
   Release the filament: Отпустить филамент
   Release {}'s tensioner, let the spring settle, lock it: "Отпустите натяжитель {}, дайте пружине сесть, зафиксируйте"
+  Released: Отпущена
   Reload the saved bed mesh?: Перезагрузить сохранённую сетку?
   Remaining: 'Осталось'
   Remaining (g): Осталось (г)
@@ -4598,6 +4609,7 @@ translations:
   Warm up for a material in one tap: Преднагрев под материал одним нажатием
   Warming Bed...: Прогрев стола...
   Warn: Предупреждение
+  Warn if a door is open: Предупреждать, если дверь открыта
   Warning: Предупреждение
   Warnings & errors: 'Предупреждения и ошибки'
   Watch the camera during a print for failed prints: Следит за камерой во время печати, выявляя неудачные печати
@@ -4904,6 +4916,7 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{}: подаёт филамент для текущей печати. Удалите катушку после завершения печати.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} установлен, но его настройка бесконечной катушки выключена, поэтому при обрыве ничего не переключится.'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} установлен, но прочитать его настройку бесконечной катушки не удалось - не рассчитывайте на бесконечную катушку.'
+  '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.': '{} открыта. Через открытый корпус уходит тепло, и печать может не получиться. Закройте её или начните всё равно.'
   '{} is still printing. The print keeps running after you switch.': '{} ещё печатает. Печать продолжится после переключения.'
   '{} is looser': "{} слабее"
   '{} is not available on this device. Printing original file.': '{} недоступно на этом устройстве. Будет напечатан исходный файл.'

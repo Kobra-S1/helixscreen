@@ -735,6 +735,7 @@ translations:
   Close: 关闭
   Close feeder: 关闭送料器
   Close feeder macro: 关闭送料器宏
+  Closed: 已关闭
   Closer: 更近
   Closer = more squish | Farther = less squish: 更近 = 更多挤压 | 更远 = 更少挤压
   Coarse: 粗调
@@ -1086,6 +1087,10 @@ translations:
   Don't Save: 不保存
   Don't ask again: 不再询问
   Done: 完成
+  Door: 门
+  Door Open: 门已打开
+  'Door opened during print: {}': 打印时门被打开：{}
+  Door switches, buttons, and other on/off inputs: 门开关、按钮及其他开/关输入
   Download update?: 下载更新？
   Download v{}?: 下载 v{}？
   Downloading...: 下载中...
@@ -1793,6 +1798,7 @@ translations:
   IMPORT FROM USB: 从 USB 导入
   INDX dock positions are not calibrated: "INDX 停靠位置未校准"
   INDX macros not recognized: "无法识别 INDX 宏"
+  INPUTS: 输入
   IP Address / Hostname: IP 地址 / 主机名
   'IP:': IP：
   'IPP error: {}': 'IPP 错误: {}'
@@ -1878,6 +1884,7 @@ translations:
   Invalid tool/slot: '无效的工具/槽位'
   Invalid value: '值无效'
   Invalid value type: '值类型无效'
+  Invert: 反转
   Issue description: 问题描述
   It can be un-archived in Spoolman's web UI.: 可以在 Spoolman 的网页界面中取消归档。
   It has not reported its slots yet. Try again in a moment.: 尚未报告其料槽。请稍后再试。
@@ -2567,6 +2574,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: '请在打印文件中打开该 .3mf 以再次打印此板。'
   Open the CFS unit and remove the broken filament from the slot: 请打开 CFS 单元并从槽位中取出断裂的耗材
   Open the slot editor when you load a new spool: '装入新料盘时打开槽位编辑器'
+  Opened: 已打开
   Operation already in progress: 操作正在进行中
   Operation timed out: 操作超时
   Operations: 操作
@@ -2579,6 +2587,7 @@ translations:
   Or instead of turning the others: 或者，无需转动其他螺丝
   Original file location unknown: 原始文件位置未知
   Oscillating... cycle %d/%d: 振荡中... 循环 %d/%d
+  Other: 其他
   Outcome: 结果
   Output Device: 输出设备
   Output Mode: 输出模式
@@ -2756,6 +2765,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : '压力提前随测试塔升高而增加。查看角落: 随时点击-或+,自动步进就会停止,方便你判断自己的数值。'
   'Pressure:': '压力:'
+  Pressed: 按下
   Pressure Adv.: '压力提前'
   Pressure Advance: '压力提前'
   Pressure Advance Calibration: '压力提前校准'
@@ -3036,6 +3046,7 @@ translations:
   Release or grip the filament by hand: 手动松开或夹持耗材
   Release the filament: 松开耗材
   Release {}'s tensioner, let the spring settle, lock it: "松开 {} 的张紧器,让弹簧复位,再锁紧"
+  Released: 释放
   Reload the saved bed mesh?: 重新加载已保存的热床网格？
   Remaining: '剩余'
   Remaining (g): 剩余 (g)
@@ -4305,6 +4316,7 @@ translations:
   Warm up for a material in one tap: 一键为材料预热
   Warming Bed...: 正在预热热床...
   Warn: 警告
+  Warn if a door is open: 门打开时发出警告
   Warning: 警告
   Warnings & errors: '警告与错误'
   Watch the camera during a print for failed prints: 打印期间监视摄像头以发现打印失败
@@ -4590,6 +4602,7 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{} 正在为当前打印供料。请在打印结束后清除。'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} 已安装，但其无限料盘设置已关闭，因此耗材用尽时不会切换。'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} 已安装，但无法读取其无限料盘设置 - 请勿指望无限料盘。'
+  '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.': '{} 已打开。打开的机箱会让热量流失，可能导致打印失败。请关闭，或仍然开始。'
   '{} is still printing. The print keeps running after you switch.': '{} 仍在打印。切换后打印会继续进行。'
   '{} is looser': "{} 更松"
   '{} is not available on this device. Printing original file.': '此设备不支持{}。将打印原始文件。'

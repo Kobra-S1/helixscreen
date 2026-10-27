@@ -790,6 +790,7 @@ translations:
   Close: Fechar
   Close feeder: Fechar alimentador
   Close feeder macro: Macro de fechar alimentador
+  Closed: Fechada
   Closer: Mais Perto
   Closer = more squish | Farther = less squish: Mais perto = mais compressão | Mais
     longe = menos compressão
@@ -1157,6 +1158,10 @@ translations:
   Don't Save: Não Salvar
   Don't ask again: Não perguntar novamente
   Done: Concluído
+  Door: Porta
+  Door Open: Porta aberta
+  'Door opened during print: {}': 'Porta aberta durante a impressão: {}'
+  Door switches, buttons, and other on/off inputs: Interruptores de porta, botões e outras entradas liga/desliga
   Download update?: Baixar atualização?
   Download v{}?: Baixar v{}?
   Downloading...: Baixando...
@@ -1898,6 +1903,7 @@ translations:
   IMPORT FROM USB: IMPORTAR DO USB
   INDX dock positions are not calibrated: "As posições das docas do INDX não estão calibradas"
   INDX macros not recognized: "Macros do INDX não reconhecidas"
+  INPUTS: ENTRADAS
   IP Address / Hostname: Endereço IP / Hostname
   'IP:': 'IP:'
   'IPP error: {}': 'Erro IPP: {}'
@@ -1994,6 +2000,7 @@ translations:
   Invalid tool/slot: 'Ferramenta/slot inválido'
   Invalid value: 'Valor inválido'
   Invalid value type: 'Tipo de valor inválido'
+  Invert: Inverter
   Issue description: Descrição do problema
   It can be un-archived in Spoolman's web UI.: Pode ser desarquivado na interface web do Spoolman.
   It has not reported its slots yet. Try again in a moment.: Ainda não informou seus slots. Tente novamente em instantes.
@@ -2710,6 +2717,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Abra o .3mf em Arquivos de Impressão para imprimir esta placa novamente.'
   Open the CFS unit and remove the broken filament from the slot: Abra a unidade CFS e remova o filamento partido do slot
   Open the slot editor when you load a new spool: 'Abrir o editor de slot ao carregar um novo carretel'
+  Opened: Aberta
   Operation already in progress: Operação já em andamento
   Operation timed out: Tempo limite da operação esgotado
   Operations: Operações
@@ -2724,6 +2732,7 @@ translations:
   Or instead of turning the others: Ou, em vez de girar os outros
   Original file location unknown: Local do arquivo original desconhecido
   Oscillating... cycle %d/%d: Oscilando... ciclo %d/%d
+  Other: Outro
   Outcome: Resultado
   Output Device: Dispositivo de Saída
   Output Mode: Modo de Saída
@@ -2907,6 +2916,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'O Pressure Advance sobe à medida que a torre cresce. Observe os cantos: toque em - ou + quando quiser e a rampa para, para você julgar seu próprio valor.'
   'Pressure:': 'Pressão:'
+  Pressed: Pressionado
   Pressure Adv.: 'Pressure Adv.'
   Pressure Advance: 'Pressure Advance'
   Pressure Advance Calibration: 'Calibração do pressure advance'
@@ -3205,6 +3215,7 @@ translations:
   Release or grip the filament by hand: Soltar ou segurar o filamento manualmente
   Release the filament: Soltar o filamento
   Release {}'s tensioner, let the spring settle, lock it: "Solte o tensor de {}, deixe a mola assentar, trave-o"
+  Released: Liberado
   Reload the saved bed mesh?: Recarregar a malha salva?
   Remaining: 'Restante'
   Remaining (g): Restante (g)
@@ -4564,6 +4575,7 @@ translations:
   Warm up for a material in one tap: Pré-aquecer para um material em um toque
   Warming Bed...: Aquecendo Mesa...
   Warn: Aviso
+  Warn if a door is open: Avisar se uma porta estiver aberta
   Warning: Aviso
   Warnings & errors: 'Avisos e erros'
   Watch the camera during a print for failed prints: Observa a câmera durante a impressão para detectar impressões com falha
@@ -4859,6 +4871,7 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{}: alimenta a impressão atual. Remova a bobina após o fim da impressão.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} está instalado mas sua configuração de carretel infinito está desligada, então nada trocará ao acabar o filamento.'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} está instalado, mas não foi possível ler sua configuração de carretel infinito - não conte com o carretel infinito.'
+  '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.': '{} está aberta. Um gabinete aberto deixa o calor escapar e pode estragar a impressão. Feche-a ou inicie mesmo assim.'
   '{} is still printing. The print keeps running after you switch.': '{} ainda está imprimindo. A impressão continua depois da troca.'
   '{} is looser': "{} está mais frouxa"
   '{} is not available on this device. Printing original file.': '{} não está disponível neste dispositivo. O arquivo original será impresso.'

@@ -721,6 +721,7 @@
   <translation tag="Close" de="Schließen"/>
   <translation tag="Close feeder" de="Zuführung schließen"/>
   <translation tag="Close feeder macro" de="Makro zum Schließen der Zuführung"/>
+  <translation tag="Closed" de="Geschlossen"/>
   <translation tag="Closer" de="Näher"/>
   <translation tag="Closer = more squish | Farther = less squish" de="Näher = mehr Quetschung | Weiter = weniger Quetschung"/>
   <translation tag="Coarse" de="Grob"/>
@@ -1047,6 +1048,10 @@
   <translation tag="Don&apos;t Save" de="Nicht speichern"/>
   <translation tag="Don&apos;t ask again" de="Nicht erneut fragen"/>
   <translation tag="Done" de="Fertig"/>
+  <translation tag="Door" de="Tür"/>
+  <translation tag="Door Open" de="Tür offen"/>
+  <translation tag="Door opened during print: {}" de="Tür während des Drucks geöffnet: {}"/>
+  <translation tag="Door switches, buttons, and other on/off inputs" de="Türschalter, Taster und andere Ein/Aus-Eingänge"/>
   <translation tag="Download update?" de="Update herunterladen?"/>
   <translation tag="Download v{}?" de="v{} herunterladen?"/>
   <translation tag="Downloading..." de="Wird heruntergeladen..."/>
@@ -1728,6 +1733,7 @@
   <translation tag="IMPORT FROM USB" de="VON USB IMPORTIEREN"/>
   <translation tag="INDX dock positions are not calibrated" de="INDX-Dockpositionen sind nicht kalibriert"/>
   <translation tag="INDX macros not recognized" de="INDX-Makros nicht erkannt"/>
+  <translation tag="INPUTS" de="EINGÄNGE"/>
   <translation tag="IP Address / Hostname" de="IP-Adresse / Hostname"/>
   <translation tag="IP:" de="IP:"/>
   <translation tag="IPP error: {}" de="IPP-Fehler: {}"/>
@@ -1810,6 +1816,7 @@
   <translation tag="Invalid tool/slot" de="Ungültiges Werkzeug/Slot"/>
   <translation tag="Invalid value" de="Ungültiger Wert"/>
   <translation tag="Invalid value type" de="Ungültiger Werttyp"/>
+  <translation tag="Invert" de="Invertieren"/>
   <translation tag="Issue description" de="Problembeschreibung"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." de="Sie kann in der Weboberfläche von Spoolman wiederhergestellt werden."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." de="Es hat seine Slots noch nicht gemeldet. Versuchen Sie es gleich noch einmal."/>
@@ -2475,6 +2482,7 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." de="Öffne die .3mf in Druckdateien, um diese Platte erneut zu drucken."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" de="CFS-Einheit öffnen und das gebrochene Filament aus dem Slot entfernen"/>
   <translation tag="Open the slot editor when you load a new spool" de="Slot-Editor öffnen, wenn eine neue Spule eingelegt wird"/>
+  <translation tag="Opened" de="Geöffnet"/>
   <translation tag="Operation already in progress" de="Vorgang läuft bereits"/>
   <translation tag="Operation timed out" de="Zeitüberschreitung beim Vorgang"/>
   <translation tag="Operations" de="Operationen"/>
@@ -2486,6 +2494,7 @@
   <translation tag="Or instead of turning the others" de="Oder statt die anderen zu drehen"/>
   <translation tag="Original file location unknown" de="Speicherort der Originaldatei unbekannt"/>
   <translation tag="Oscillating... cycle %d/%d" de="Oszilliert... Zyklus %d/%d"/>
+  <translation tag="Other" de="Andere"/>
   <translation tag="Outcome" de="Ergebnis"/>
   <translation tag="Output Device" de="Ausgabegerät"/>
   <translation tag="Output Mode" de="Ausgabemodus"/>
@@ -2651,6 +2660,7 @@
   <translation tag="Presets come from the WLED device. Edit them in the WLED app." de="Voreinstellungen kommen vom WLED-Gerät. Bearbeiten Sie sie in der WLED-App."/>
   <translation tag="Press Abort to stop" de="Zum Stoppen Abbrechen drücken"/>
   <translation tag="Press Scan to search" de="Scannen drücken zum Suchen"/>
+  <translation tag="Pressed" de="Gedrückt"/>
   <translation tag="Pressure Adv." de="Pressure Adv."/>
   <translation tag="Pressure Advance" de="Pressure Advance"/>
   <translation tag="Pressure Advance Calibration" de="Pressure-Advance-Kalibrierung"/>
@@ -2935,6 +2945,7 @@
   <translation tag="Release or grip the filament by hand" de="Filament von Hand freigeben oder greifen"/>
   <translation tag="Release the filament" de="Filament freigeben"/>
   <translation tag="Release {}&apos;s tensioner, let the spring settle, lock it" de="Spanner von {} lösen, Feder setzen lassen, feststellen"/>
+  <translation tag="Released" de="Losgelassen"/>
   <translation tag="Reload the saved bed mesh?" de="Gespeichertes Bettnetz neu laden?"/>
   <translation tag="Remaining" de="Verbleibend"/>
   <translation tag="Remaining (g)" de="Verbleibend (g)"/>
@@ -4138,6 +4149,7 @@
   <translation tag="Warm up for a material in one tap" de="Material mit einem Tipp vorheizen"/>
   <translation tag="Warming Bed..." de="Bett wird vorgeheizt..."/>
   <translation tag="Warn" de="Warnung"/>
+  <translation tag="Warn if a door is open" de="Warnen, wenn eine Tür offen ist"/>
   <translation tag="Warning" de="Warnung"/>
   <translation tag="Warnings &amp; errors" de="Warnungen &amp; Fehler"/>
   <translation tag="Watch the camera during a print for failed prints" de="Überwacht die Kamera während des Drucks auf fehlgeschlagene Drucke"/>
@@ -4418,6 +4430,7 @@
   <translation tag="{} is looser" de="{} ist lockerer"/>
   <translation tag="{} is not available on this device. Printing original file." de="{} ist auf diesem Gerät nicht verfügbar. Die Originaldatei wird gedruckt."/>
   <translation tag="{} is not set up on this printer" de="{} ist auf diesem Drucker nicht eingerichtet"/>
+  <translation tag="{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway." de="{} ist offen. Ein offenes Gehäuse lässt Wärme entweichen und kann den Druck verderben. Schließen oder trotzdem starten."/>
   <translation tag="{} is still printing. The print keeps running after you switch." de="{} druckt noch. Der Druck läuft nach dem Wechsel weiter."/>
   <translation tag="{} is tighter" de="{} ist straffer"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." de="{} ist nicht geladen. Der Druck pausiert, wenn er ihn braucht."/>

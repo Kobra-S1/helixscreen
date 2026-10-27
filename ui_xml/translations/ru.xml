@@ -760,6 +760,7 @@
   <translation tag="Close" ru="Закрыть"/>
   <translation tag="Close feeder" ru="Закрыть фидер"/>
   <translation tag="Close feeder macro" ru="Макрос для закрытия фидера"/>
+  <translation tag="Closed" ru="Закрыта"/>
   <translation tag="Closer" ru="Ближе"/>
   <translation tag="Closer = more squish | Farther = less squish" ru="Ближе = больше сжатие | Дальше = меньше сжатие"/>
   <translation tag="Coarse" ru="Грубо"/>
@@ -1089,6 +1090,10 @@
   <translation tag="Don&apos;t Save" ru="Не сохранять"/>
   <translation tag="Don&apos;t ask again" ru="Больше не спрашивать"/>
   <translation tag="Done" ru="Готово"/>
+  <translation tag="Door" ru="Дверь"/>
+  <translation tag="Door Open" ru="Дверь открыта"/>
+  <translation tag="Door opened during print: {}" ru="Дверь открыта во время печати: {}"/>
+  <translation tag="Door switches, buttons, and other on/off inputs" ru="Датчики дверей, кнопки и другие входы вкл/выкл"/>
   <translation tag="Download update?" ru="Загрузить обновление?"/>
   <translation tag="Download v{}?" ru="Загрузить v{}?"/>
   <translation tag="Downloading..." ru="Загрузка..."/>
@@ -1773,6 +1778,7 @@
   <translation tag="IMPORT FROM USB" ru="ИМПОРТ С USB"/>
   <translation tag="INDX dock positions are not calibrated" ru="Позиции доков INDX не откалиброваны"/>
   <translation tag="INDX macros not recognized" ru="Макросы INDX не распознаны"/>
+  <translation tag="INPUTS" ru="ВХОДЫ"/>
   <translation tag="IP Address / Hostname" ru="IP-адрес / Имя хоста"/>
   <translation tag="IP:" ru="IP:"/>
   <translation tag="IPP error: {}" ru="Ошибка IPP: {}"/>
@@ -1855,6 +1861,7 @@
   <translation tag="Invalid tool/slot" ru="Неверный инструмент/слот"/>
   <translation tag="Invalid value" ru="Неверное значение"/>
   <translation tag="Invalid value type" ru="Неверный тип значения"/>
+  <translation tag="Invert" ru="Инвертировать"/>
   <translation tag="Issue description" ru="Описание проблемы"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." ru="Это можно восстановить из архива в веб-интерфейсе Spoolman."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." ru="Она ещё не сообщила о своих слотах. Повторите попытку через минуту."/>
@@ -2520,6 +2527,7 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." ru="Откройте .3mf в разделе «Файлы Gcode», чтобы снова напечатать эту пластину."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" ru="Откройте блок CFS и извлеките сломанный филамент из слота"/>
   <translation tag="Open the slot editor when you load a new spool" ru="Открывать редактор слота при установке новой катушки"/>
+  <translation tag="Opened" ru="Открыта"/>
   <translation tag="Operation already in progress" ru="Операция уже выполняется"/>
   <translation tag="Operation timed out" ru="Время ожидания операции истекло"/>
   <translation tag="Operations" ru="Операции"/>
@@ -2531,6 +2539,7 @@
   <translation tag="Or instead of turning the others" ru="Или вместо вращения остальных винтов"/>
   <translation tag="Original file location unknown" ru="Расположение исходного файла неизвестно"/>
   <translation tag="Oscillating... cycle %d/%d" ru="Осцилляция... цикл %d/%d"/>
+  <translation tag="Other" ru="Другое"/>
   <translation tag="Outcome" ru="Результат"/>
   <translation tag="Output Device" ru="Устройство вывода"/>
   <translation tag="Output Mode" ru="Режим вывода"/>
@@ -2699,6 +2708,7 @@
   <translation tag="Presets come from the WLED device. Edit them in the WLED app." ru="Пресеты берутся с устройства WLED. Изменяйте их в приложении WLED."/>
   <translation tag="Press Abort to stop" ru="Нажмите «Прервать», чтобы остановить"/>
   <translation tag="Press Scan to search" ru="Нажмите «Поиск» для сканирования"/>
+  <translation tag="Pressed" ru="Нажата"/>
   <translation tag="Pressure Adv." ru="Pressure Adv."/>
   <translation tag="Pressure Advance" ru="Pressure Advance"/>
   <translation tag="Pressure Advance Calibration" ru="Калибровка Pressure Advance"/>
@@ -2989,6 +2999,7 @@
   <translation tag="Release or grip the filament by hand" ru="Отпустите или зажмите филамент вручную"/>
   <translation tag="Release the filament" ru="Отпустить филамент"/>
   <translation tag="Release {}&apos;s tensioner, let the spring settle, lock it" ru="Отпустите натяжитель {}, дайте пружине сесть, зафиксируйте"/>
+  <translation tag="Released" ru="Отпущена"/>
   <translation tag="Reload the saved bed mesh?" ru="Перезагрузить сохранённую сетку?"/>
   <translation tag="Remaining" ru="Осталось"/>
   <translation tag="Remaining (g)" ru="Осталось (г)"/>
@@ -4198,6 +4209,7 @@
   <translation tag="Warm up for a material in one tap" ru="Преднагрев под материал одним нажатием"/>
   <translation tag="Warming Bed..." ru="Прогрев стола..."/>
   <translation tag="Warn" ru="Предупреждение"/>
+  <translation tag="Warn if a door is open" ru="Предупреждать, если дверь открыта"/>
   <translation tag="Warning" ru="Предупреждение"/>
   <translation tag="Warnings &amp; errors" ru="Предупреждения и ошибки"/>
   <translation tag="Watch the camera during a print for failed prints" ru="Следит за камерой во время печати, выявляя неудачные печати"/>
@@ -4487,6 +4499,7 @@
   <translation tag="{} is looser" ru="{} слабее"/>
   <translation tag="{} is not available on this device. Printing original file." ru="{} недоступно на этом устройстве. Будет напечатан исходный файл."/>
   <translation tag="{} is not set up on this printer" ru="{} не настроен на этом принтере"/>
+  <translation tag="{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway." ru="{} открыта. Через открытый корпус уходит тепло, и печать может не получиться. Закройте её или начните всё равно."/>
   <translation tag="{} is still printing. The print keeps running after you switch." ru="{} ещё печатает. Печать продолжится после переключения."/>
   <translation tag="{} is tighter" ru="{} туже"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." ru="{}: филамент не загружен. Печать приостановится, когда он понадобится."/>

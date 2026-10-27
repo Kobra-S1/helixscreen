@@ -797,6 +797,7 @@ translations:
   Close: Schließen
   Close feeder: Zuführung schließen
   Close feeder macro: Makro zum Schließen der Zuführung
+  Closed: Geschlossen
   Closer: Näher
   Closer = more squish | Farther = less squish: Näher = mehr Quetschung | Weiter =
     weniger Quetschung
@@ -1162,6 +1163,10 @@ translations:
   Don't Save: Nicht speichern
   Don't ask again: Nicht erneut fragen
   Done: Fertig
+  Door: Tür
+  Door Open: Tür offen
+  'Door opened during print: {}': 'Tür während des Drucks geöffnet: {}'
+  Door switches, buttons, and other on/off inputs: Türschalter, Taster und andere Ein/Aus-Eingänge
   Download update?: Update herunterladen?
   Download v{}?: v{} herunterladen?
   Downloading...: Wird heruntergeladen...
@@ -1904,6 +1909,7 @@ translations:
   IMPORT FROM USB: VON USB IMPORTIEREN
   INDX dock positions are not calibrated: "INDX-Dockpositionen sind nicht kalibriert"
   INDX macros not recognized: "INDX-Makros nicht erkannt"
+  INPUTS: EINGÄNGE
   IP Address / Hostname: IP-Adresse / Hostname
   'IP:': 'IP:'
   'IPP error: {}': 'IPP-Fehler: {}'
@@ -2000,6 +2006,7 @@ translations:
   Invalid tool/slot: 'Ungültiges Werkzeug/Slot'
   Invalid value: 'Ungültiger Wert'
   Invalid value type: 'Ungültiger Werttyp'
+  Invert: Invertieren
   Issue description: Problembeschreibung
   It can be un-archived in Spoolman's web UI.: Sie kann in der Weboberfläche von Spoolman wiederhergestellt werden.
   It has not reported its slots yet. Try again in a moment.: Es hat seine Slots noch nicht gemeldet. Versuchen Sie es gleich noch einmal.
@@ -2717,6 +2724,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Öffne die .3mf in Druckdateien, um diese Platte erneut zu drucken.'
   Open the CFS unit and remove the broken filament from the slot: CFS-Einheit öffnen und das gebrochene Filament aus dem Slot entfernen
   Open the slot editor when you load a new spool: 'Slot-Editor öffnen, wenn eine neue Spule eingelegt wird'
+  Opened: Geöffnet
   Operation already in progress: Vorgang läuft bereits
   Operation timed out: Zeitüberschreitung beim Vorgang
   Operations: Operationen
@@ -2730,6 +2738,7 @@ translations:
   Or instead of turning the others: Oder statt die anderen zu drehen
   Original file location unknown: Speicherort der Originaldatei unbekannt
   Oscillating... cycle %d/%d: Oszilliert... Zyklus %d/%d
+  Other: Andere
   Outcome: Ergebnis
   Output Device: Ausgabegerät
   Output Mode: Ausgabemodus
@@ -2914,6 +2923,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance steigt mit der Turmhöhe. Beobachte die Ecken: Tippe jederzeit - oder +, dann stoppt die Rampe und du kannst deinen eigenen Wert beurteilen.'
   'Pressure:': 'Druck:'
+  Pressed: Gedrückt
   Pressure Adv.: 'Pressure Adv.'
   Pressure Advance: 'Pressure Advance'
   Pressure Advance Calibration: 'Pressure-Advance-Kalibrierung'
@@ -3211,6 +3221,7 @@ translations:
   Release or grip the filament by hand: Filament von Hand freigeben oder greifen
   Release the filament: Filament freigeben
   Release {}'s tensioner, let the spring settle, lock it: "Spanner von {} lösen, Feder setzen lassen, feststellen"
+  Released: Losgelassen
   Reload the saved bed mesh?: Gespeichertes Bettnetz neu laden?
   Remaining: 'Verbleibend'
   Remaining (g): Verbleibend (g)
@@ -4567,6 +4578,7 @@ translations:
   Warm up for a material in one tap: Material mit einem Tipp vorheizen
   Warming Bed...: Bett wird vorgeheizt...
   Warn: Warnung
+  Warn if a door is open: Warnen, wenn eine Tür offen ist
   Warning: Warnung
   Warnings & errors: 'Warnungen & Fehler'
   Watch the camera during a print for failed prints: Überwacht die Kamera während des Drucks auf fehlgeschlagene Drucke
@@ -4864,6 +4876,7 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{}: versorgt den laufenden Druck. Erst nach Druckende löschen.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} ist installiert, aber die Endlosspulen-Einstellung ist ausgeschaltet, daher wird bei Filamentende nichts gewechselt.'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} ist installiert, aber die Endlosspulen-Einstellung konnte nicht gelesen werden - verlasse dich nicht auf die Endlosspule.'
+  '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.': '{} ist offen. Ein offenes Gehäuse lässt Wärme entweichen und kann den Druck verderben. Schließen oder trotzdem starten.'
   '{} is still printing. The print keeps running after you switch.': '{} druckt noch. Der Druck läuft nach dem Wechsel weiter.'
   '{} is looser': "{} ist lockerer"
   '{} is not available on this device. Printing original file.': '{} ist auf diesem Gerät nicht verfügbar. Die Originaldatei wird gedruckt.'

@@ -721,6 +721,7 @@
   <translation tag="Close" en="Close"/>
   <translation tag="Close feeder" en="Close feeder"/>
   <translation tag="Close feeder macro" en="Close feeder macro"/>
+  <translation tag="Closed" en="Closed"/>
   <translation tag="Closer" en="Closer"/>
   <translation tag="Closer = more squish | Farther = less squish" en="Closer = more squish | Farther = less squish"/>
   <translation tag="Coarse" en="Coarse"/>
@@ -1047,6 +1048,10 @@
   <translation tag="Don&apos;t Save" en="Don&apos;t Save"/>
   <translation tag="Don&apos;t ask again" en="Don&apos;t ask again"/>
   <translation tag="Done" en="Done"/>
+  <translation tag="Door" en="Door"/>
+  <translation tag="Door Open" en="Door Open"/>
+  <translation tag="Door opened during print: {}" en="Door opened during print: {}"/>
+  <translation tag="Door switches, buttons, and other on/off inputs" en="Door switches, buttons, and other on/off inputs"/>
   <translation tag="Download update?" en="Download update?"/>
   <translation tag="Download v{}?" en="Download v{}?"/>
   <translation tag="Downloading..." en="Downloading..."/>
@@ -1728,6 +1733,7 @@
   <translation tag="IMPORT FROM USB" en="IMPORT FROM USB"/>
   <translation tag="INDX dock positions are not calibrated" en="INDX dock positions are not calibrated"/>
   <translation tag="INDX macros not recognized" en="INDX macros not recognized"/>
+  <translation tag="INPUTS" en="INPUTS"/>
   <translation tag="IP Address / Hostname" en="IP Address / Hostname"/>
   <translation tag="IP:" en="IP:"/>
   <translation tag="IPP error: {}" en="IPP error: {}"/>
@@ -1810,6 +1816,7 @@
   <translation tag="Invalid tool/slot" en="Invalid tool/slot"/>
   <translation tag="Invalid value" en="Invalid value"/>
   <translation tag="Invalid value type" en="Invalid value type"/>
+  <translation tag="Invert" en="Invert"/>
   <translation tag="Issue description" en="Issue description"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." en="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." en="It has not reported its slots yet. Try again in a moment."/>
@@ -2475,6 +2482,7 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." en="Open the .3mf in Print Files to print this plate again."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" en="Open the CFS unit and remove the broken filament from the slot"/>
   <translation tag="Open the slot editor when you load a new spool" en="Open the slot editor when you load a new spool"/>
+  <translation tag="Opened" en="Opened"/>
   <translation tag="Operation already in progress" en="Operation already in progress"/>
   <translation tag="Operation timed out" en="Operation timed out"/>
   <translation tag="Operations" en="Operations"/>
@@ -2486,6 +2494,7 @@
   <translation tag="Or instead of turning the others" en="Or instead of turning the others"/>
   <translation tag="Original file location unknown" en="Original file location unknown"/>
   <translation tag="Oscillating... cycle %d/%d" en="Oscillating... cycle %d/%d"/>
+  <translation tag="Other" en="Other"/>
   <translation tag="Outcome" en="Outcome"/>
   <translation tag="Output Device" en="Output Device"/>
   <translation tag="Output Mode" en="Output Mode"/>
@@ -2651,6 +2660,7 @@
   <translation tag="Presets come from the WLED device. Edit them in the WLED app." en="Presets come from the WLED device. Edit them in the WLED app."/>
   <translation tag="Press Abort to stop" en="Press Abort to stop"/>
   <translation tag="Press Scan to search" en="Press Scan to search"/>
+  <translation tag="Pressed" en="Pressed"/>
   <translation tag="Pressure Adv." en="Pressure Adv."/>
   <translation tag="Pressure Advance" en="Pressure Advance"/>
   <translation tag="Pressure Advance Calibration" en="Pressure Advance Calibration"/>
@@ -2935,6 +2945,7 @@
   <translation tag="Release or grip the filament by hand" en="Release or grip the filament by hand"/>
   <translation tag="Release the filament" en="Release the filament"/>
   <translation tag="Release {}&apos;s tensioner, let the spring settle, lock it" en="Release {}&apos;s tensioner, let the spring settle, lock it"/>
+  <translation tag="Released" en="Released"/>
   <translation tag="Reload the saved bed mesh?" en="Reload the saved bed mesh?"/>
   <translation tag="Remaining" en="Remaining"/>
   <translation tag="Remaining (g)" en="Remaining (g)"/>
@@ -4138,6 +4149,7 @@
   <translation tag="Warm up for a material in one tap" en="Warm up for a material in one tap"/>
   <translation tag="Warming Bed..." en="Warming Bed..."/>
   <translation tag="Warn" en="Warn"/>
+  <translation tag="Warn if a door is open" en="Warn if a door is open"/>
   <translation tag="Warning" en="Warning"/>
   <translation tag="Warnings &amp; errors" en="Warnings &amp; errors"/>
   <translation tag="Watch the camera during a print for failed prints" en="Watch the camera during a print for failed prints"/>
@@ -4418,6 +4430,7 @@
   <translation tag="{} is looser" en="{} is looser"/>
   <translation tag="{} is not available on this device. Printing original file." en="{} is not available on this device. Printing original file."/>
   <translation tag="{} is not set up on this printer" en="{} is not set up on this printer"/>
+  <translation tag="{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway." en="{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway."/>
   <translation tag="{} is still printing. The print keeps running after you switch." en="{} is still printing. The print keeps running after you switch."/>
   <translation tag="{} is tighter" en="{} is tighter"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." en="{} isn&apos;t loaded. The print will pause when it needs it."/>

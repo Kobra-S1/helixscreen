@@ -13,6 +13,7 @@
 #include "gcode_parser.h"
 #include "helix_thread.h"
 #include "home_layout_share.h"
+#include "input_sensor_manager.h"
 #include "macro_param_cache.h"
 #include "mock_persona.h"
 #include "mock_planted_gcodes.h"
@@ -1127,10 +1128,11 @@ void MoonrakerClientMock::populate_capabilities() {
             // Accumulate tokens: "temperature_fan" + "chamber" → "temperature_fan chamber"
             if (!current_obj.empty()) {
                 // A type prefix always starts a new object...
-                bool is_prefix = (token.rfind("heater_generic", 0) == 0 ||
-                                  token.rfind("temperature_fan", 0) == 0 ||
-                                  token.rfind("temperature_sensor", 0) == 0 ||
-                                  token.rfind("output_pin", 0) == 0);
+                bool is_prefix =
+                    (token.rfind("heater_generic", 0) == 0 ||
+                     token.rfind("temperature_fan", 0) == 0 ||
+                     token.rfind("temperature_sensor", 0) == 0 ||
+                     token.rfind("output_pin", 0) == 0 || token.rfind("gcode_button", 0) == 0);
                 // ...and so does a bare backend diagnostics object
                 // ("dragonbreath") following a COMPLETED chamber heater —
                 // without this the second "dragonbreath" would append to
@@ -1208,6 +1210,9 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("heater_generic chamber_heater");
         mock_objects.push_back("gcode_macro TOOLCHANGE_PARK");
         mock_objects.push_back("gcode_macro BED_MESH_CALIBRATE");
+        // The enclosure's door and top-cover switches.
+        mock_objects.push_back("gcode_button frontDoor");
+        mock_objects.push_back("gcode_button topDoor");
         break;
     case PrinterType::FLASHFORGE_CREATOR5_ZMOD:
         // Z-Mod's own objects. Its carriage buttons are 1-based, unlike the
@@ -1234,6 +1239,8 @@ void MoonrakerClientMock::populate_capabilities() {
         }
         // Same Pro-separating chamber heater as the Reforge persona above.
         mock_objects.push_back("heater_generic chamber_heater");
+        mock_objects.push_back("gcode_button frontDoor");
+        mock_objects.push_back("gcode_button topDoor");
         break;
     case PrinterType::ELEGOO_CC1:
         // The CC1 capture's own objects. _COSMOS_SETTINGS and ELEGOO_PURGE are
@@ -4882,6 +4889,18 @@ void MoonrakerClientMock::dispatch_initial_state() {
         const auto env = helix::sim::mock_filament_sensor_env_state(short_name);
         initial_status[sensor] = {{"filament_detected", env.filament_detected},
                                   {"enabled", env.enabled}};
+    }
+
+    // On/off inputs: a door switch reads PRESSED (closed) unless
+    // HELIX_MOCK_DOOR_OPEN is set; every other button reads RELEASED.
+    {
+        const bool doors_open = std::getenv("HELIX_MOCK_DOOR_OPEN") != nullptr;
+        for (const auto& input : helix::sensors::InputSensorManager::inputs_in(
+                 discovery_.hardware().printer_objects())) {
+            const bool is_door = input.role == helix::sensors::InputSensorRole::DOOR;
+            initial_status[input.klipper_name] = {
+                {"state", is_door && !doors_open ? "PRESSED" : "RELEASED"}};
+        }
     }
 
     // The chamber and width sensors carry status only where the persona reports them.

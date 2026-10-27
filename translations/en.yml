@@ -769,6 +769,7 @@ translations:
   Close: Close
   Close feeder: Close feeder
   Close feeder macro: Close feeder macro
+  Closed: Closed
   Closer: Closer
   Closer = more squish | Farther = less squish: Closer = more squish | Farther = less
     squish
@@ -1126,6 +1127,10 @@ translations:
   Don't Save: Don't Save
   Don't ask again: Don't ask again
   Done: Done
+  Door: Door
+  Door Open: Door Open
+  'Door opened during print: {}': 'Door opened during print: {}'
+  Door switches, buttons, and other on/off inputs: Door switches, buttons, and other on/off inputs
   Download update?: Download update?
   Download v{}?: Download v{}?
   Downloading...: Downloading...
@@ -1845,6 +1850,7 @@ translations:
   IMPORT FROM USB: IMPORT FROM USB
   INDX dock positions are not calibrated: INDX dock positions are not calibrated
   INDX macros not recognized: INDX macros not recognized
+  INPUTS: INPUTS
   IP Address / Hostname: IP Address / Hostname
   'IP:': 'IP:'
   'IPP error: {}': 'IPP error: {}'
@@ -1941,6 +1947,7 @@ translations:
   Invalid tool/slot: Invalid tool/slot
   Invalid value: Invalid value
   Invalid value type: Invalid value type
+  Invert: Invert
   Issue description: Issue description
   It can be un-archived in Spoolman's web UI.: It can be un-archived in Spoolman's web UI.
   It has not reported its slots yet. Try again in a moment.: It has not reported its slots yet. Try again in a moment.
@@ -2645,6 +2652,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: Open the .3mf in Print Files to print this plate again.
   Open the CFS unit and remove the broken filament from the slot: Open the CFS unit and remove the broken filament from the slot
   Open the slot editor when you load a new spool: Open the slot editor when you load a new spool
+  Opened: Opened
   Operation already in progress: Operation already in progress
   Operation timed out: Operation timed out
   Operations: Operations
@@ -2658,6 +2666,7 @@ translations:
   Or instead of turning the others: Or instead of turning the others
   Original file location unknown: Original file location unknown
   Oscillating... cycle %d/%d: Oscillating... cycle %d/%d
+  Other: Other
   Outcome: Outcome
   Output Device: Output Device
   Output Mode: Output Mode
@@ -2840,6 +2849,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   'Pressure:': 'Pressure:'
+  Pressed: Pressed
   Pressure Adv.: Pressure Adv.
   Pressure Advance: Pressure Advance
   Pressure Advance Calibration: Pressure Advance Calibration
@@ -3133,6 +3143,7 @@ translations:
   Release or grip the filament by hand: Release or grip the filament by hand
   Release the filament: Release the filament
   Release {}'s tensioner, let the spring settle, lock it: Release {}'s tensioner, let the spring settle, lock it
+  Released: Released
   Reload the saved bed mesh?: Reload the saved bed mesh?
   Remaining: Remaining
   Remaining (g): Remaining (g)
@@ -4463,6 +4474,7 @@ translations:
   Warm up for a material in one tap: Warm up for a material in one tap
   Warming Bed...: Warming Bed...
   Warn: Warn
+  Warn if a door is open: Warn if a door is open
   Warning: Warning
   Warnings & errors: Warnings & errors
   Watch the camera during a print for failed prints: Watch the camera during a print for failed prints
@@ -4751,6 +4763,7 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{} is feeding the current print. Clear it after the print ends.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.'
+  '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.': '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.'
   '{} is still printing. The print keeps running after you switch.': '{} is still printing. The print keeps running after you switch.'
   '{} is looser': '{} is looser'
   '{} is not available on this device. Printing original file.': '{} is not available on this device. Printing original file.'

@@ -21,6 +21,7 @@
 #include "hv/hssl.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
+#include "input_sensor_manager.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "layer_pause.h"
@@ -924,6 +925,8 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                             .discover_from_config(cfg_for_sensors);
                                         helix::sensors::AccelSensorManager::instance()
                                             .discover_from_config(cfg_for_sensors);
+                                        helix::sensors::InputSensorManager::instance()
+                                            .discover_from_config(cfg_for_sensors);
                                     });
 
                                 // Update LED controller with configfile data (effect targets +
@@ -1512,6 +1515,13 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
     const json probe_objects =
         helix::sensors::ProbeSensorManager::required_status_objects(hw.printer_objects());
     for (auto it = probe_objects.begin(); it != probe_objects.end(); ++it) {
+        subscription_objects[it.key()] = it.value();
+    }
+
+    // On/off inputs. InputSensorManager owns which objects are inputs.
+    const json input_objects =
+        helix::sensors::InputSensorManager::required_status_objects(hw.printer_objects());
+    for (auto it = input_objects.begin(); it != input_objects.end(); ++it) {
         subscription_objects[it.key()] = it.value();
     }
 
