@@ -6,10 +6,13 @@
  * Run with: ./build/bin/helix-tests "[print-start][gate-pipeline]"
  */
 
+#include "../lvgl_test_fixture.h"
 #include "ams_types.h"
 #include "filament_mapper.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_types.h"
 #include "print_start_checks.h"
+#include "translation_loader.h"
 
 #include <algorithm>
 
@@ -1517,4 +1520,23 @@ TEST_CASE("gate door_open: one door is singular, three are a list",
         c.open_doors = {"frontDoor", "topDoor", "lid"};
     });
     CHECK(gate.evaluate(three).body.rfind("frontDoor, topDoor and lid are open.", 0) == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "gate door_open: a locale's own list separator joins the doors",
+                 "[print-start][gate-pipeline][door][i18n]") {
+    struct RestoreLanguage {
+        ~RestoreLanguage() {
+            lv_translation_set_language(helix::ui::kIdentityLocale);
+        }
+    } restore;
+    helix::ui::ensure_translation_loaded("ja");
+    lv_translation_set_language("ja");
+
+    auto three = ctx_with([](PrintStartContext& c) {
+        c.door_check_enabled = true;
+        c.open_doors = {"frontDoor", "topDoor", "lid"};
+    });
+    const auto body = gate_named("door_open").evaluate(three).body;
+    INFO(body);
+    CHECK(body.rfind("frontDoor\xe3\x80\x81topDoor\xe3\x81\xa8lid", 0) == 0); // 、 and と
 }

@@ -511,15 +511,15 @@ CheckResult gate_mixed_temperature_materials(const PrintStartContext& ctx) {
 
 } // namespace
 
-/// "a", "a and b", "a, b and c": the list read as one phrase. The " and " join
-/// is a translated pattern, so a locale orders the last pair its own way.
+/// "a", "a and b", "a, b and c": the list read as one phrase. Both joins are
+/// translated patterns, so a locale uses its own separator and final pair.
 static std::string spoken_list(const std::vector<std::string>& names) {
     if (names.empty()) {
         return {};
     }
     std::string head = names.front();
     for (size_t i = 1; i + 1 < names.size(); ++i) {
-        head += ", " + names[i];
+        head = fmt::format(fmt::runtime(lv_tr("{}, {}")), head, names[i]);
     }
     if (names.size() == 1) {
         return head;
