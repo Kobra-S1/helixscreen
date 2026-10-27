@@ -39,7 +39,13 @@ moment a status frame carries either object (`ifs_module_live_`):
 `loaded_channels` and `active_channel` are folded into the same
 `ZColorSilentResult` the zmod objects and macro responses use, so every seated-
 channel guard, presence corroboration, and external-edit baseline applies
-unchanged. `ifs_loaded` overwrites `seated_chan_` directly.
+unchanged. `ifs_loaded` overwrites `seated_chan_` directly, and once the module has
+published it, it stays the seated lane on every module frame (`active_channel` included),
+unless a lessWaste/bambufy plugin runs beside the module: its swaps need not run
+`IFS_LOAD`, so that rig keeps following `active_channel`.
+The remembered seated lane (the `lane_data` DB `seated` key) mirrors it instead of
+feeding the cold-boot floor: on the module, `active_channel=0` with a loaded head is the
+normal idle state, not a firmware that forgot its lane (#1897).
 
 **Ops and writes route to the module's macros** once live:
 
@@ -47,7 +53,7 @@ unchanged. `ifs_loaded` overwrites `seated_chan_` directly.
 |--------|---------|
 | Load | `IFS_LOAD SLOT={n}` (resolves its own heat from the slot's material; self-unloads the outgoing lane) |
 | Toolhead unload | `IFS_UNLOAD SLOT={n}`, or bare when a live active slot exists (the macro defaults `SLOT=` from `ifs_loaded`). With no active slot the backend names the lane itself or asks the user; see "Unload with no lane named" below |
-| Lane eject | `IFS_EJECT SLOT={n}` (replaces the zmod `IFS_F24`/`F11`/`F39` sequence) |
+| Lane eject | `IFS_EJECT SLOT={n}` (replaces the zmod `IFS_F24`/`F11`/`F39` sequence). Ejecting the lane `ifs_loaded` names also clears the extruder, which needs a temperature: an unlabelled lane gets `TEMP=` (the nozzle target from 150C, else 220C), a labelled one leaves it to the module's material |
 | Tool change | `T{n}` — the module maps T0..T3 to slots 1..4 itself, so the identity tool map is firmware truth |
 | Material/colour edit | `IFS_SET_MATERIAL SLOT={n} TYPE=… COLOR=7EC8E3` (bare hex — klipper's parser eats `#`; the module re-prefixes) |
 | Fault recovery / abort | `IFS_RESET_DRIVER` / `IFS_STOP` |

@@ -19,11 +19,15 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Scanner;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import com.google.android.gms.tasks.Tasks;
@@ -774,6 +778,73 @@ public class HelixActivity extends SDLActivity {
             Log.w("HelixHTTPS", "GET failed: " + errorText(e));
             return "0\n" + errorText(e);
         } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    /** Aborts a request at its deadline by disconnecting it from outside. */
+    private static final ScheduledExecutorService HTTP_DEADLINES =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "HelixHttpDeadline");
+                t.setDaemon(true);
+                return t;
+            });
+
+    /**
+     * HTTP(S) GET returning the raw response bytes, for binary bodies such as a
+     * camera snapshot JPEG that cannot round-trip through a Java String.
+     *
+     * timeoutSec bounds the whole request. Connect and read timeouts apply per
+     * phase and per read, so a disconnect scheduled at the deadline also stops a
+     * slow handshake or a server trickling bytes.
+     *
+     * @return The body of a 2xx response no larger than maxBytes, or null on any
+     *         other status, an oversized body, the deadline, or a failure
+     */
+    public static byte[] httpsGetBytes(String url, String userAgent, int timeoutSec,
+                                       int maxBytes) {
+        final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSec);
+        HttpURLConnection conn = null;
+        ScheduledFuture<?> abort = null;
+        try {
+            conn = (HttpURLConnection) new URL(url).openConnection();
+            abort = HTTP_DEADLINES.schedule(conn::disconnect, timeoutSec, TimeUnit.SECONDS);
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(timeoutSec * 1000);
+            conn.setReadTimeout(timeoutSec * 1000);
+            conn.setRequestProperty("User-Agent", userAgent);
+
+            int status = conn.getResponseCode();
+            if (status < 200 || status >= 300) {
+                Log.w("HelixHTTPS", "GET bytes answered " + status);
+                return null;
+            }
+            if (conn.getContentLengthLong() > maxBytes) {
+                Log.w("HelixHTTPS", "GET bytes body over " + maxBytes + " bytes");
+                return null;
+            }
+            try (InputStream in = conn.getInputStream()) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                byte[] chunk = new byte[16384];
+                int n;
+                while ((n = in.read(chunk)) != -1) {
+                    if (out.size() + n > maxBytes) {
+                        Log.w("HelixHTTPS", "GET bytes body over " + maxBytes + " bytes");
+                        return null;
+                    }
+                    if (System.nanoTime() > deadline) {
+                        Log.w("HelixHTTPS", "GET bytes passed its " + timeoutSec + "s deadline");
+                        return null;
+                    }
+                    out.write(chunk, 0, n);
+                }
+                return out.toByteArray();
+            }
+        } catch (Exception | OutOfMemoryError e) {
+            Log.w("HelixHTTPS", "GET bytes failed: " + e);
+            return null;
+        } finally {
+            if (abort != null) abort.cancel(false);
             if (conn != null) conn.disconnect();
         }
     }

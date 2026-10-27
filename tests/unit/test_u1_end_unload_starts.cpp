@@ -12,6 +12,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/snapmaker_test_access.h"
@@ -84,6 +85,72 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint with no recorded routing still sends t
     CHECK(sent.find(kUnload) != std::string::npos);
     // No routing was recorded, so no map is invented.
     CHECK(sent.find("SET_PRINT_EXTRUDER_MAP") == std::string::npos);
+}
+
+TEST_CASE_METHOD(U1StartFx, "a U1 reprint withdrawn during the pre-print send never starts",
+                 "[preparing_cancel][preprint]") {
+    int starts = 0;
+    MoonrakerClientMockTestAccess::set_method_handler(
+        client, "printer.print.start",
+        [&starts](MoonrakerClientMock*, const nlohmann::json&,
+                  std::function<void(const nlohmann::json&)> ok,
+                  std::function<void(const MoonrakerError&)>) -> bool {
+            ++starts;
+            ok(nlohmann::json{{"result", "ok"}});
+            return true;
+        });
+    MoonrakerAPI api{client, ps};
+    helix::ui::PrintStartController controller{ps, &api};
+    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    report_heads(*backend);
+    REQUIRE(backend->requires_preprint_send());
+
+    const bool withdraw = GENERATE(false, true);
+    CAPTURE(withdraw);
+    bool errored = false;
+    controller.initiate_reprint(
+        "cal.gcode", "cal.gcode", {0}, []() {}, [&errored]() { errored = true; });
+    REQUIRE(ps.print_state().has_preparing_job());
+    if (withdraw) {
+        // Stop while the pre-print config is still on its way.
+        ps.print_state().retire_preparing(PreparingExit::Cancelled);
+    }
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    CHECK(starts == (withdraw ? 0 : 1));
+    CHECK(errored == withdraw);
+    // A start that went out is one only the printer can stop now.
+    CHECK(ps.print_state().preparing_start() ==
+          (withdraw ? PreparingStart::None : PreparingStart::Accepted));
+}
+
+TEST_CASE_METHOD(U1StartFx, "a U1 reprint whose start times out while Stop waits is held",
+                 "[preparing_cancel][preprint]") {
+    MoonrakerClientMockTestAccess::set_method_handler(
+        client, "printer.print.start",
+        [](MoonrakerClientMock*, const nlohmann::json&, std::function<void(const nlohmann::json&)>,
+           std::function<void(const MoonrakerError&)> err) -> bool {
+            err(MoonrakerError::timeout("printer.print.start", 600000));
+            return true;
+        });
+    MoonrakerAPI api{client, ps};
+    helix::ui::PrintStartController controller{ps, &api};
+    test::RegisteredBackend<AmsBackendSnapmaker> backend(nullptr, nullptr);
+    report_heads(*backend);
+
+    bool errored = false;
+    controller.initiate_reprint(
+        "cal.gcode", "cal.gcode", {0}, []() {}, [&errored]() { errored = true; });
+    ps.print_state().note_preparing_cancel_requested();
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+
+    CHECK(ps.print_state().has_preparing_job());
+    CHECK(ps.print_state().preparing_start() == PreparingStart::Unanswered);
+    CHECK_FALSE(errored);
 }
 
 TEST_CASE_METHOD(U1StartFx,

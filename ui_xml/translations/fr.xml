@@ -464,6 +464,7 @@
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." fr="Parcourez les guides, références de configuration et ressources de dépannage pour HelixScreen."/>
   <translation tag="Brush nozzle" fr="Brosser la buse"/>
   <translation tag="Brush the mounted tool&apos;s nozzle clean" fr="Nettoyer à la brosse la buse de l&apos;outil monté"/>
+  <translation tag="Buffer" fr="Tampon"/>
   <translation tag="Buffer Status" fr="État du tampon"/>
   <translation tag="Buffer tube problem" fr="Problème de tube tampon"/>
   <translation tag="Build Volume" fr="Volume d&apos;impression"/>
@@ -573,6 +574,7 @@
   <translation tag="Cancel Scheduled Pause" fr="Annuler la pause prévue"/>
   <translation tag="Cancel macro not configured" fr="Macro d&apos;annulation non configurée"/>
   <translation tag="Cancel print" fr="Annuler l&apos;impression"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." fr="Annulation envoyée. L&apos;imprimante termine sa séquence de démarrage, puis s&apos;arrête avant d&apos;imprimer."/>
   <translation tag="Canceled" fr="Annulé"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." fr="L&apos;annulation coupe la consigne de la chambre pour mettre fin à l&apos;attente, puis arrête l&apos;impression."/>
   <translation tag="Cannot add to queue: internal error" fr="Impossible d&apos;ajouter à la file : erreur interne"/>
@@ -1230,6 +1232,7 @@
   <translation tag="Extrude Speed" fr="Vitesse d&apos;extrusion"/>
   <translation tag="Extrude failed: {}" fr="Échec de l&apos;extrusion : {}"/>
   <translation tag="Extrude may still be running — response timed out" fr="Extrusion peut-être encore en cours — délai dépassé"/>
+  <translation tag="Extrude more" fr="Extruder plus"/>
   <translation tag="Extrude/retract feedrate (Saved)" fr="Vitesse d&apos;extrusion/rétraction (Sauvegardée)"/>
   <translation tag="Extruded past the nozzle after each load" fr="Extrudé par la buse après chaque chargement"/>
   <translation tag="Extruder" fr="Extrudeur"/>
@@ -1245,6 +1248,7 @@
   <translation tag="Extruder to Nozzle" fr="Extrudeur à la buse"/>
   <translation tag="Extruder too cold" fr="Extrudeur trop froid"/>
   <translation tag="Extruding prime line..." fr="Extrusion de la ligne d&apos;amorçage..."/>
+  <translation tag="Extruding..." fr="Extrusion..."/>
   <translation tag="FAILED" fr="ÉCHOUÉ"/>
   <translation tag="FILAMENT" fr="FILAMENT"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" fr="FILAMENT &amp; TÊTE D&apos;OUTIL"/>
@@ -1813,6 +1817,7 @@
   <translation tag="Invalid tool/slot" fr="Outil/slot non valide"/>
   <translation tag="Invalid value" fr="Valeur non valide"/>
   <translation tag="Invalid value type" fr="Type de valeur non valide"/>
+  <translation tag="Is new filament coming out of the nozzle?" fr="Le nouveau filament sort-il de la buse ?"/>
   <translation tag="Issue description" fr="Description du problème"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." fr="Elle peut être désarchivée dans l&apos;interface web de Spoolman."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." fr="Il n&apos;a pas encore signalé ses emplacements. Réessayez dans un instant."/>
@@ -2838,6 +2843,7 @@
   <translation tag="Purging" fr="Purge en cours"/>
   <translation tag="Purging nozzle" fr="Purge de la buse"/>
   <translation tag="Purging..." fr="Purge..."/>
+  <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." fr="Poussez le filament dans l&apos;extrudeur jusqu&apos;en butée. Il est saisi automatiquement, ou appuyez sur Extruder."/>
   <translation tag="QGL" fr="QGL"/>
   <translation tag="QGL failed: {}" fr="Échec du QGL : {}"/>
   <translation tag="QGL may still be running — response timed out" fr="QGL peut-être encore en cours — délai dépassé"/>
@@ -3720,6 +3726,7 @@
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." fr="L&apos;imprimante extrude dans un coin et répète jusqu&apos;à ce que les mesures concordent. Vous ne jugez rien à l&apos;œil."/>
   <translation tag="The printer finishes this measurement on its own." fr="L&apos;imprimante termine cette mesure d&apos;elle-même."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" fr="L&apos;imprimante a arrêté cette impression et ne peut pas la reprendre. Redémarrer depuis le début ?"/>
+  <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." fr="L&apos;imprimante n&apos;a pas encore répondu à l&apos;annulation. Elle s&apos;arrête dès que sa séquence de démarrage est terminée."/>
   <translation tag="The printer has not reported its axis limits yet." fr="L&apos;imprimante n&apos;a pas encore signalé les limites de ses axes."/>
   <translation tag="The printer has not reported its maximum velocity yet." fr="L&apos;imprimante n&apos;a pas encore signalé sa vitesse maximale."/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." fr="L&apos;imprimante chauffe la buse, fait quelques mouvements de test dans un coin du plateau et les mesure elle-même. Elle répète jusqu&apos;à ce que les mesures concordent, puis indique un seul chiffre."/>
@@ -3730,6 +3737,7 @@
   <translation tag="The printer is shut down." fr="L&apos;imprimante est arrêtée."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." fr="L&apos;imprimante attend que la chambre atteigne une température, et seuls un arrêt d&apos;urgence et un redémarrage du firmware mettent fin à cette attente. L&apos;impression s&apos;arrête immédiatement et ne peut pas être reprise."/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" fr="L&apos;imprimante ne détecte aucun filament chargé. Que voulez-vous faire ?"/>
+  <translation tag="The printer kept printing after the cancel." fr="L&apos;imprimante a continué d&apos;imprimer après l&apos;annulation."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." fr="L&apos;imprimante a été mise hors tension pendant une impression. Elle peut reprendre là où elle s&apos;est arrêtée."/>
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." fr="L&apos;imprimante a été mise hors tension pendant une impression. La couche reprise peut ne pas s&apos;aligner exactement."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" fr="L&apos;imprimante a été mise hors tension pendant l&apos;impression de {}. Reprendre là où elle s&apos;est arrêtée ?"/>

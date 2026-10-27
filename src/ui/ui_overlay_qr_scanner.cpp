@@ -303,9 +303,11 @@ void QrScannerOverlay::start_camera() {
                     on_camera_frame(frame);
                 }
             },
-            [tok](const char* msg) {
+            // CameraStream delivers errors on the main thread.
+            [this, tok](const char* msg) {
                 if (!tok.expired()) {
                     spdlog::warn("[QR Scanner] Camera error: {}", msg);
+                    update_status(msg);
                 }
             });
         spdlog::info("[{}] Camera started: stream={}", get_name(), stream_url);

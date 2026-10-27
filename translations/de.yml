@@ -504,6 +504,7 @@ translations:
     Konfigurationsreferenzen und Fehlerbehebungsressourcen für HelixScreen durchsuchen.
   Brush nozzle: 'Düse abbürsten'
   Brush the mounted tool's nozzle clean: 'Düse des montierten Werkzeugs an der Bürste reinigen'
+  Buffer: Puffer
   Buffer Status: Pufferstatus
   Buffer tube problem: Problem mit dem Pufferschlauch
   Build Volume: 'Bauraum'
@@ -624,6 +625,7 @@ translations:
   Cancel Scheduled Pause: 'Geplante Pause abbrechen'
   Cancel macro not configured: Abbruch-Makro nicht konfiguriert
   Cancel print: 'Druck abbrechen'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Abbruch gesendet. Der Drucker beendet seine Startsequenz und hält dann vor dem Drucken an.'
   Canceled: Abgebrochen
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'Beim Abbrechen wird das Kammerziel ausgeschaltet, damit das Warten endet; dann wird der Druck gestoppt.'
   'Cannot add to queue: internal error': 'Zur Warteschlange hinzufügen nicht möglich: interner Fehler'
@@ -1362,6 +1364,7 @@ translations:
   'Extrude failed: {}': 'Extrusion fehlgeschlagen: {}'
   Extrude may still be running — response timed out: Extrusion läuft möglicherweise
     noch — Zeitüberschreitung
+  Extrude more: "Weiter extrudieren"
   Extrude/retract feedrate (Saved): Extrusions-/Rückzugsgeschwindigkeit (Gespeichert)
   Extruded past the nozzle after each load: 'Nach jedem Laden durch die Düse extrudiert'
   Extruder: Extruder
@@ -1378,6 +1381,7 @@ translations:
   Extruder to Nozzle: 'Extruder zur Düse'
   Extruder too cold: Extruder zu kalt
   Extruding prime line...: Prime-Linie extrudieren...
+  Extruding...: "Extrudieren..."
   FAILED: FEHLGESCHLAGEN
   FILAMENT: FILAMENT
   FILAMENT & TOOLHEAD: 'FILAMENT & WERKZEUGKOPF'
@@ -2003,6 +2007,7 @@ translations:
   Invalid tool/slot: 'Ungültiges Werkzeug/Slot'
   Invalid value: 'Ungültiger Wert'
   Invalid value type: 'Ungültiger Werttyp'
+  Is new filament coming out of the nozzle?: "Kommt neues Filament aus der Düse?"
   Issue description: Problembeschreibung
   It can be un-archived in Spoolman's web UI.: Sie kann in der Weboberfläche von Spoolman wiederhergestellt werden.
   It has not reported its slots yet. Try again in a moment.: Es hat seine Slots noch nicht gemeldet. Versuchen Sie es gleich noch einmal.
@@ -3107,6 +3112,7 @@ translations:
   Purging: Spülen
   Purging nozzle: Düse wird gespült
   Purging...: Entlüften...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Schiebe das Filament bis zum Anschlag in den Extruder. Es wird automatisch gegriffen, oder tippe auf Extrudieren."
   QGL: QGL
   'QGL failed: {}': 'QGL fehlgeschlagen: {}'
   QGL may still be running — response timed out: QGL läuft möglicherweise noch — Zeitüberschreitung
@@ -4092,6 +4098,7 @@ translations:
   The printer halted this print and cannot resume it. Restart from the beginning?: Der
     Drucker hat diesen Druck angehalten und kann ihn nicht fortsetzen. Von vorne neu
     starten?
+  The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'Der Drucker hat den Abbruch noch nicht bestätigt. Er hält an, sobald seine Startsequenz beendet ist.'
   The printer has not reported its axis limits yet.: 'Der Drucker hat seine Achsgrenzen noch nicht gemeldet.'
   The printer has not reported its maximum velocity yet.: 'Der Drucker hat seine Höchstgeschwindigkeit noch nicht gemeldet.'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -4107,6 +4114,7 @@ translations:
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'Der Drucker wartet, bis die Kammer eine Temperatur erreicht, und nur ein Notaus mit Firmware-Neustart beendet dieses Warten. Der Druck stoppt sofort und kann nicht fortgesetzt werden.'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: Der Drucker erkennt derzeit kein geladenes Filament. Was möchten Sie tun?
+  The printer kept printing after the cancel.: 'Der Drucker hat nach dem Abbruch weitergedruckt.'
   The printer lost power during a print. It can resume where it left off.: Der Drucker
     hatte während eines Drucks einen Stromausfall. Er kann dort fortsetzen, wo er aufgehört
     hat.

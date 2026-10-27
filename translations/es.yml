@@ -498,6 +498,7 @@ translations:
     guías, referencias de configuración y recursos de solución de problemas para HelixScreen.
   Brush nozzle: 'Cepillar la boquilla'
   Brush the mounted tool's nozzle clean: 'Limpiar con el cepillo la boquilla de la herramienta montada'
+  Buffer: Búfer
   Buffer Status: Estado del búfer
   Buffer tube problem: Problema con el tubo del búfer
   Build Volume: 'Volumen de impresión'
@@ -619,6 +620,7 @@ translations:
   Cancel Scheduled Pause: 'Cancelar pausa programada'
   Cancel macro not configured: Macro de cancelar no configurado
   Cancel print: 'Cancelar impresión'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Cancelación enviada. La impresora termina su secuencia de inicio y se detiene antes de imprimir.'
   Canceled: Cancelado
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'Cancelar apaga el objetivo de la cámara para que termine la espera y luego detiene la impresión.'
   'Cannot add to queue: internal error': 'No se puede añadir a la cola: error interno'
@@ -1357,6 +1359,7 @@ translations:
   'Extrude failed: {}': 'Error al extruir: {}'
   Extrude may still be running — response timed out: La extrusión puede seguir en
     curso — tiempo de espera agotado
+  Extrude more: "Extruir más"
   Extrude/retract feedrate (Saved): Velocidad de extrusión/retracción (Guardada)
   Extruded past the nozzle after each load: 'Extruido por la boquilla tras cada carga'
   Extruder: Extrusor
@@ -1373,6 +1376,7 @@ translations:
   Extruder to Nozzle: 'Extrusor a boquilla'
   Extruder too cold: Extrusor demasiado frío
   Extruding prime line...: Extruyendo línea de cebado...
+  Extruding...: "Extruyendo..."
   FAILED: FALLIDO
   FILAMENT: FILAMENTO
   FILAMENT & TOOLHEAD: 'FILAMENTO Y CABEZAL'
@@ -1995,6 +1999,7 @@ translations:
   Invalid tool/slot: 'Herramienta/ranura no válida'
   Invalid value: 'Valor no válido'
   Invalid value type: 'Tipo de valor no válido'
+  Is new filament coming out of the nozzle?: "¿Sale filamento nuevo por la boquilla?"
   Issue description: Descripción del problema
   It can be un-archived in Spoolman's web UI.: Se puede desarchivar en la interfaz web de Spoolman.
   It has not reported its slots yet. Try again in a moment.: Aún no ha informado de sus ranuras. Inténtelo de nuevo en un momento.
@@ -3099,6 +3104,7 @@ translations:
   Purging: Purgando
   Purging nozzle: Purgando boquilla
   Purging...: Purgando...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Empuja el filamento dentro del extrusor hasta que se detenga. Se sujeta automáticamente, o pulsa Extruir."
   QGL: QGL
   'QGL failed: {}': 'Error en QGL: {}'
   QGL may still be running — response timed out: QGL puede seguir en curso — tiempo
@@ -4084,6 +4090,7 @@ translations:
   The printer finishes this measurement on its own.: 'La impresora termina esta medición por su cuenta.'
   The printer halted this print and cannot resume it. Restart from the beginning?: La
     impresora detuvo esta impresión y no puede reanudarla. ¿Reiniciar desde el principio?
+  The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'La impresora aún no ha respondido a la cancelación. Se detendrá en cuanto termine su secuencia de inicio.'
   The printer has not reported its axis limits yet.: 'La impresora aún no ha informado los límites de sus ejes.'
   The printer has not reported its maximum velocity yet.: 'La impresora aún no ha informado su velocidad máxima.'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -4099,6 +4106,7 @@ translations:
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'La impresora espera a que la cámara alcance una temperatura, y solo una parada de emergencia y un reinicio del firmware terminan esa espera. La impresión se detiene al instante y no se puede reanudar.'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: La impresora no detecta ningún filamento cargado. ¿Qué desea hacer?
+  The printer kept printing after the cancel.: 'La impresora siguió imprimiendo después de la cancelación.'
   The printer lost power during a print. It can resume where it left off.: La impresora
     perdió corriente durante una impresión. Puede reanudar donde se quedó.
   The printer lost power during a print. The resumed layer may not line up exactly.: La impresora perdió corriente durante una impresión. La capa reanudada puede no alinearse con exactitud.

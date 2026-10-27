@@ -65,7 +65,6 @@ src/api/moonraker_client_mock_server.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_client_mock_skips.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_client_mock_spoolman.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_discovery_sequence.cpp  # not in the v1 Core+AMS cut
-src/api/moonraker_subscription_merge.cpp  # only moonraker_discovery_sequence.cpp uses it
 src/api/moonraker_file_transfer_api.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_request_tracker.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_rest_api.cpp  # not in the v1 Core+AMS cut
@@ -150,6 +149,7 @@ src/print/thumbnail_processor.cpp  # not in the v1 Core+AMS cut
 src/print/timelapse_thumbnailer.cpp  # not in the v1 Core+AMS cut
 src/printer/ams_backend_mock.cpp  # NOT the blanket rule: this one IS compiled, but only on the CONFIG_HELIX_MOCK_PRINTER arm (MOCK_SRCS in CMakeLists.txt), never in the default build
 src/printer/detection_manager.cpp  # not in the v1 Core+AMS cut
+src/printer/detection_source_table.cpp  # not in the v1 Core+AMS cut
 src/printer/lan_client_authorization.cpp  # not in the v1 Core+AMS cut
 src/printer/macro_fan_analyzer.cpp  # not in the v1 Core+AMS cut
 src/printer/macro_manager.cpp  # not in the v1 Core+AMS cut

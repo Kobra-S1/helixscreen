@@ -544,6 +544,7 @@ translations:
     справочники по настройке и ресурсы по устранению неполадок для HelixScreen.
   Brush nozzle: 'Очистка сопла щёткой'
   Brush the mounted tool's nozzle clean: 'Очистить сопло установленного инструмента щёткой'
+  Buffer: Буфер
   Buffer Status: Статус буфера
   Buffer tube problem: Проблема с буферной трубкой
   Build Volume: 'Область печати'
@@ -664,6 +665,7 @@ translations:
   Cancel Scheduled Pause: 'Отменить запланированную паузу'
   Cancel macro not configured: Макрос отмены не настроен
   Cancel print: 'Отменить печать'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Отмена отправлена. Принтер завершит стартовую последовательность и остановится до начала печати.'
   Canceled: Отменено
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'Отмена выключит целевую температуру камеры, чтобы ожидание закончилось, затем остановит печать.'
   'Cannot add to queue: internal error': 'Не удалось добавить в очередь: внутренняя ошибка'
@@ -1398,6 +1400,7 @@ translations:
   'Extrude failed: {}': 'Ошибка экструзии: {}'
   Extrude may still be running — response timed out: Экструзия может ещё выполняться
     — время ожидания истекло
+  Extrude more: "Ещё экструзия"
   Extrude/retract feedrate (Saved): Скорость экструзии/ретракции (Сохранено)
   Extruded past the nozzle after each load: 'Выдавливается через сопло после каждой загрузки'
   Extruder: Экструдер
@@ -1414,6 +1417,7 @@ translations:
   Extruder to Nozzle: 'Экструдер до сопла'
   Extruder too cold: Экструдер слишком холодный
   Extruding prime line...: Экструзия линии подготовки...
+  Extruding...: "Экструзия..."
   FAILED: ОШИБКА
   FILAMENT: ФИЛАМЕНТ
   FILAMENT & TOOLHEAD: 'ФИЛАМЕНТ И ГОЛОВКА'
@@ -2036,6 +2040,7 @@ translations:
   Invalid tool/slot: 'Неверный инструмент/слот'
   Invalid value: 'Неверное значение'
   Invalid value type: 'Неверный тип значения'
+  Is new filament coming out of the nozzle?: "Выходит ли новый филамент из сопла?"
   Issue description: Описание проблемы
   It can be un-archived in Spoolman's web UI.: Это можно восстановить из архива в веб-интерфейсе Spoolman.
   It has not reported its slots yet. Try again in a moment.: Она ещё не сообщила о своих слотах. Повторите попытку через минуту.
@@ -3146,6 +3151,7 @@ translations:
   Purging: Продувка
   Purging nozzle: Продувка сопла
   Purging...: Продувка...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."
   QGL: QGL
   'QGL failed: {}': 'Ошибка QGL: {}'
   QGL may still be running — response timed out: QGL может ещё выполняться — время
@@ -4132,6 +4138,7 @@ translations:
   The printer finishes this measurement on its own.: 'Принтер завершит это измерение сам.'
   The printer halted this print and cannot resume it. Restart from the beginning?: Принтер
     остановил эту печать и не может её возобновить. Начать с начала?
+  The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'Принтер ещё не ответил на отмену. Он остановится, как только завершит стартовую последовательность.'
   The printer has not reported its axis limits yet.: 'Принтер ещё не сообщил пределы осей.'
   The printer has not reported its maximum velocity yet.: 'Принтер ещё не сообщил максимальную скорость.'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -4147,6 +4154,7 @@ translations:
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'Принтер ждёт, пока камера достигнет температуры, и прервать это ожидание могут только аварийная остановка и перезапуск прошивки. Печать остановится сразу, продолжить её будет нельзя.'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: Принтер не обнаруживает загруженный филамент. Что вы хотите сделать?
+  The printer kept printing after the cancel.: 'Принтер продолжил печать после отмены.'
   The printer lost power during a print. It can resume where it left off.: Принтер потерял питание во время печати. Он может продолжить с места остановки.
   The printer lost power during a print. The resumed layer may not line up exactly.: Принтер потерял питание во время печати. Возобновлённый слой может не совпасть точно.
   The printer lost power while printing {}. Resume where it left off?: Принтер потерял питание при печати {}. Продолжить с места остановки?

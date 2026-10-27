@@ -8,7 +8,6 @@
 #include "i_moonraker_client.h"
 #include "non_filament_pause.h"
 #include "settings_manager.h"
-#include "u1_stock_detection_source.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -272,28 +271,27 @@ void DetectionManager::on_event(const DetectionEvent& e) {
     }
 }
 
-// Scan a printer.objects.list "objects" array for the U1 "defect_detection" module.
-static bool objects_have_defect_detection(const json& objects) {
+// The object names out of a printer.objects.list "objects" array; anything
+// that is not an array of strings contributes nothing.
+static std::vector<std::string> object_names(const json& objects) {
+    std::vector<std::string> names;
     if (!objects.is_array()) {
-        return false;
+        return names;
     }
+    names.reserve(objects.size());
     for (const auto& obj : objects) {
-        if (obj.is_string() && obj.get<std::string>() == "defect_detection") {
-            return true;
+        if (obj.is_string()) {
+            names.push_back(obj.get<std::string>());
         }
     }
-    return false;
+    return names;
 }
 
-void DetectionManager::apply_capability(bool has_defect_detection) {
-    spdlog::info("DetectionManager: defect_detection capability = {}", has_defect_detection);
+void DetectionManager::apply_objects_list(const json& objects) {
+    const std::vector<std::string> names = object_names(objects);
     for (const auto& src : sources_) {
-        // id() is the source's unique registration key — one id names exactly
-        // one concrete DetectionSource — so the match already establishes the
-        // type and static_cast is equivalent to the dynamic_cast this replaces.
-        // Needed because the firmware builds -fno-rtti.
-        if (src && src->id() == U1StockSource::kSourceId) {
-            static_cast<U1StockSource*>(src.get())->set_capable(has_defect_detection);
+        if (src) {
+            src->on_objects_listed(names);
         }
     }
     update_availability();
@@ -318,15 +316,15 @@ void DetectionManager::refresh_capabilities() {
         "printer.objects.list", json::object(),
         lifetime_.bg_cb("DetectionManager::on_objects_list",
                         [this](const json& resp) {
-                            bool has = false;
+                            json objects = json::array();
                             auto result_it = resp.find("result");
                             if (result_it != resp.end() && result_it->is_object()) {
                                 auto objects_it = result_it->find("objects");
                                 if (objects_it != result_it->end()) {
-                                    has = objects_have_defect_detection(*objects_it);
+                                    objects = *objects_it;
                                 }
                             }
-                            apply_capability(has);
+                            apply_objects_list(objects);
                             refresh_bed_check();
                         }),
         [](const MoonrakerError& err) {
@@ -335,9 +333,8 @@ void DetectionManager::refresh_capabilities() {
 }
 
 bool DetectionManager::apply_objects_list_for_test(const nlohmann::json& objects) {
-    bool has = objects_have_defect_detection(objects);
-    apply_capability(has);
-    return has;
+    apply_objects_list(objects);
+    return any_available();
 }
 
 void DetectionManager::reset_for_test() {

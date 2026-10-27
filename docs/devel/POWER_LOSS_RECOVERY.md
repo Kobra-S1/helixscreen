@@ -12,14 +12,13 @@ Code map:
 
 | File | Role |
 |------|------|
-| `include/plr_backend.h`, `src/printer/plr_backend.cpp` | Pure backend strategy: capability selection, probe-response parsing, resume/discard plan building. No LVGL, no network. |
+| `include/plr_backend.h`, `src/printer/plr_backend.cpp` | The one module that knows which firmware carries which mechanism: a provider table (status fields to subscribe, selection markers, availability and recovery-file rules) with the capability questions as free functions (`plr_required_status_fields`, `plr_parse_*`, `plr_offer_availability`, `plr_build_plan`). No LVGL, no network. |
 | `include/plr_offer.h`, `src/printer/plr_offer.cpp` | Pure offer decision (`plr_should_offer`) and latch re-arm rule (`plr_should_rearm`). |
-| `include/plr_offer_controller.h`, `src/ui/ui_plr_offer_controller.cpp` | App-lifetime controller. Observers, one-shot latch, the Creality probe, normalization of the backends into one "recovery available" signal. |
+| `include/plr_offer_controller.h`, `src/ui/ui_plr_offer_controller.cpp` | App-lifetime controller. Observers, one-shot latches, firing the recovery probe; asks `plr_offer_availability` for the one "recovery available" signal and never names a firmware. |
 | `src/ui/ui_plr_prompt.{h,cpp}` | The modal and its two button actions. Backend-agnostic — it executes a `PlrRecoveryPlan`. |
-| `src/printer/printer_print_state.cpp` | Parses the capability markers out of the status payload. |
-| `src/api/moonraker_api_print.cpp` | `check_continue_print_state()` / `cancel_continue_print()` JSON-RPC calls. |
+| `src/printer/printer_print_state.cpp` | Feeds the status payload through the `plr_parse_*` readers into the capability subjects. |
 | `include/plr_wizard.h`, `src/printer/plr_wizard.cpp` | GENERIC: readers for the plugin's `server.helix.plr.*` replies and the wizard's pure decisions (bed state, confirmations, commit gate, step machine). |
-| `include/plr_plugin_rpc.h`, `src/printer/plr_plugin_rpc.cpp` | GENERIC: the plugin's endpoints as calls. |
+| `include/plr_plugin_rpc.h`, `src/printer/plr_plugin_rpc.cpp` | The endpoints as calls: the plugin's (GENERIC), and the firmware's recovery probe (`request_recovery_probe`) and RPC discard (`discard_with_rpc`). |
 | `include/ui_plr_wizard_overlay.h`, `src/ui/ui_plr_wizard_overlay.cpp`, `ui_xml/plr_wizard_overlay.xml` | GENERIC: the resume wizard. |
 | `include/plr_profile.h`, `src/printer/plr_profile.cpp` | GENERIC: the printer database `plr` block, its resolution with the user's overrides, and the `plr_profile` / `plr_user` records. |
 | `src/api/moonraker_client_mock_plr.cpp` | The mock plugin's endpoints (`HELIX_MOCK_PLR*`, `MOCK_ENVIRONMENT_VARIABLES.md`). |
@@ -103,7 +102,7 @@ capability latch:
    granularity, so a frame without `save_variables`, or a `variables` dict
    without the key, leaves the flag alone. Only a boolean `false` (the
    `CLEAR_LAST_FILE` discard path) or the disconnect edge (the offer controller
-   forces the subjects to 0, like `pl_env_valid`) resets it.
+   forces the subjects to 0, like `plr_snapshot_valid`) resets it.
 
 The flag is ALSO true during every normal print - it stays true from
 `PRINT_START` until the job ends. That is by design of the stock macros, and the
@@ -111,7 +110,7 @@ offer decision's `printer_idle` input is what scopes it to a boot after power
 loss: mid-print the printer is not idle, so no offer fires. The subscription
 (`save_variables` when the macro exists) is added in
 `MoonrakerDiscoverySequence::build_subscription_objects()` via the
-`plr_required_status_objects()` capability question - no vendor name reaches the
+`plr_required_status_fields()` capability question - no vendor name reaches the
 subscription builder.
 
 ### Creality K1 / K1C / K1 Max / K2 Plus / Ender 3 V3 / Hi / i7 — active
@@ -816,8 +815,9 @@ Two traps:
    re-fire the side-effectful probe. Capability is reset only on the disconnect
    edge, by the offer controller.
 
-Subscription: `power_loss` is in the `print_stats` field list in
-`MoonrakerDiscoverySequence::build_subscription_objects()`.
+Subscription: `power_loss` comes from this backend's row in
+`plr_required_status_fields()`. Nothing in discovery marks the fork, so the row
+subscribes it on every printer; the others answer it with `null`.
 
 ---
 
@@ -877,7 +877,7 @@ weaken it to `file_state` alone.
 
 Therefore the probe is issued:
 
-* **at most once per connection** (latched by `creality_probed_this_connect_`,
+* **at most once per connection** (latched by `PlrProbeSession::fired`,
   re-armed only on a CONNECTED → not-CONNECTED edge);
 * **only when `print_stats.state == "standby"`**;
 * **never polled**.
@@ -890,14 +890,15 @@ All four backends collapse into one internal signal so the existing latch /
 re-arm / wizard logic is reused unchanged:
 
 ```
-Snapmaker:  pl_env_valid subject ──────────────────────┐
+Snapmaker:  plr_snapshot_valid subject ────────────────┐
 Qidi:       DETECT_INTERRUPTION macro + was_interrupted ┤
 Creality:   power_loss key ──> one-shot probe ──> both ─┤──> recovery_available ──> plr_should_offer()
                                (standby only)    states │
 Plugin:     plr feature Ready ──> plr.status ──> offer ─┘
 ```
 
-`PlrOfferSignals::recovery_available` is that normalized field.
+`PlrOfferSignals::recovery_available` is that normalized field, and
+`plr_offer_availability()` computes it from the provider table.
 `plr_should_offer()` stays pure — no LVGL, no threading, no singletons — and its
 other three inputs (`printer_idle`, `already_prompted`, `wizard_active`) are
 unchanged.

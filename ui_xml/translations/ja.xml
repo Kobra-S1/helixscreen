@@ -464,6 +464,7 @@
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." ja="HelixScreen のガイド、設定リファレンス、トラブルシューティング資料を参照します。"/>
   <translation tag="Brush nozzle" ja="ノズルをブラシ清掃"/>
   <translation tag="Brush the mounted tool&apos;s nozzle clean" ja="装着中のツールのノズルをブラシで清掃"/>
+  <translation tag="Buffer" ja="バッファー"/>
   <translation tag="Buffer Status" ja="バッファーステータス"/>
   <translation tag="Buffer tube problem" ja="バッファーチューブの問題"/>
   <translation tag="Build Volume" ja="造形ボリューム"/>
@@ -573,6 +574,7 @@
   <translation tag="Cancel Scheduled Pause" ja="予約した一時停止を取り消す"/>
   <translation tag="Cancel macro not configured" ja="キャンセルマクロが未設定です"/>
   <translation tag="Cancel print" ja="印刷をキャンセル"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." ja="キャンセルを送信しました。プリンターは開始シーケンスを終えてから、印刷前に停止します。"/>
   <translation tag="Canceled" ja="キャンセル済み"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." ja="キャンセルするとチャンバーの目標温度をオフにして待機を終了し、その後印刷を停止します。"/>
   <translation tag="Cannot add to queue: internal error" ja="キューに追加できません: 内部エラー"/>
@@ -1230,6 +1232,7 @@
   <translation tag="Extrude Speed" ja="押し出し速度"/>
   <translation tag="Extrude failed: {}" ja="押出に失敗しました: {}"/>
   <translation tag="Extrude may still be running — response timed out" ja="押出がまだ実行中の可能性があります — 応答タイムアウト"/>
+  <translation tag="Extrude more" ja="さらに押し出し"/>
   <translation tag="Extrude/retract feedrate (Saved)" ja="押し出し/引き戻し速度（保存済み）"/>
   <translation tag="Extruded past the nozzle after each load" ja="ロードのたびにノズルから押し出す量"/>
   <translation tag="Extruder" ja="エクストルーダー"/>
@@ -1245,6 +1248,7 @@
   <translation tag="Extruder to Nozzle" ja="エクストルーダーからノズルまで"/>
   <translation tag="Extruder too cold" ja="エクストルーダーが冷えています"/>
   <translation tag="Extruding prime line..." ja="プライムラインを押し出し中..."/>
+  <translation tag="Extruding..." ja="押し出し中..."/>
   <translation tag="FAILED" ja="失敗"/>
   <translation tag="FILAMENT" ja="フィラメント"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" ja="フィラメントとツールヘッド"/>
@@ -1813,6 +1817,7 @@
   <translation tag="Invalid tool/slot" ja="無効なツール/スロットです"/>
   <translation tag="Invalid value" ja="無効な値です"/>
   <translation tag="Invalid value type" ja="値の型が無効です"/>
+  <translation tag="Is new filament coming out of the nozzle?" ja="ノズルから新しいフィラメントが出ていますか？"/>
   <translation tag="Issue description" ja="問題の説明"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." ja="Spoolman の Web 画面でアーカイブを解除できます。"/>
   <translation tag="It has not reported its slots yet. Try again in a moment." ja="スロットがまだ報告されていません。しばらくしてからもう一度お試しください。"/>
@@ -2838,6 +2843,7 @@
   <translation tag="Purging" ja="パージ中"/>
   <translation tag="Purging nozzle" ja="ノズルをパージ中"/>
   <translation tag="Purging..." ja="パージ中..."/>
+  <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ja="フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"/>
   <translation tag="QGL" ja="QGL"/>
   <translation tag="QGL failed: {}" ja="QGL に失敗しました: {}"/>
   <translation tag="QGL may still be running — response timed out" ja="QGL がまだ実行中の可能性があります — 応答タイムアウト"/>
@@ -3720,6 +3726,7 @@
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ja="プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。"/>
   <translation tag="The printer finishes this measurement on its own." ja="この測定はプリンターが最後まで行います。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ja="プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？"/>
+  <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." ja="プリンターからキャンセルの応答がまだありません。開始シーケンスが終わると停止します。"/>
   <translation tag="The printer has not reported its axis limits yet." ja="プリンターがまだ軸の範囲を報告していません。"/>
   <translation tag="The printer has not reported its maximum velocity yet." ja="プリンターがまだ最大速度を報告していません。"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ja="プリンターはノズルを加熱し、プレートの隅で短いテスト移動を数回行って自ら測定します。測定値が一致するまで繰り返し、最後にひとつの数値を報告します。"/>
@@ -3730,6 +3737,7 @@
   <translation tag="The printer is shut down." ja="プリンターはシャットダウンしています。"/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." ja="プリンターはチャンバーが温度に達するのを待っており、この待機を終わらせるには緊急停止とファームウェアの再起動しかありません。印刷はすぐに停止し、再開できません。"/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" ja="プリンターは現在フィラメントが装填されていることを検出していません。どうしますか？"/>
+  <translation tag="The printer kept printing after the cancel." ja="キャンセル後もプリンターは印刷を続けています。"/>
   <translation tag="The printer lost power during a print. It can resume where it left off." ja="印刷中にプリンターの電源が失われました。中断した箇所から再開できます。"/>
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." ja="印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ja="{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？"/>

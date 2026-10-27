@@ -3,7 +3,6 @@
 
 #include "ui_panel_ams.h"
 
-#include "ui_afc_fault_path.h"
 #include "ui_ams_detail.h"
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_environment_overlay.h"
@@ -14,6 +13,7 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_external_spool_menu.h"
+#include "ui_fault_path.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_fonts.h"
 #include "ui_icon.h"
@@ -26,23 +26,19 @@
 #include "ui_utils.h"
 
 #include "ams_backend.h"
-#include "data_root_resolver.h"
-#include "overlay_base.h"
-#include "ui/ui_widget_helpers.h"
-#if HELIX_HAS_CFS
-#include "ams_backend_cfs.h"
-#endif
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
 #include "buffer_status_modal.h"
 #include "color_utils.h"
 #include "config.h"
+#include "data_root_resolver.h"
 #include "display_numbering.h"
 #include "filament_accounting_controller.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
+#include "overlay_base.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "spoolman_manager.h"
@@ -51,6 +47,7 @@
 #include "theme_manager.h"
 #include "tool_change_request.h"
 #include "ui/ams_drawing_utils.h"
+#include "ui/ui_widget_helpers.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -1454,13 +1451,13 @@ void show_ams_error_dialog(AmsLoadingErrorModal& modal, lv_obj_t* parent,
         backend->clear_fault(slot);
     });
 
-    // AFC welds a monospace position diagram onto its lane faults, which our
-    // proportional font renders as noise (#1184). Publish the stop point to the
-    // modal's <afc_fault_path> graphic and drop the art rows from the text. An
-    // unrecognised message sets the subject to 0 (graphic hidden) and comes back
-    // unchanged — including the non-AFC backends, which must clear a previous
-    // AFC fault's marker rather than inherit it.
-    modal.show(parent, afc_fault_path_apply(message), std::move(retry));
+    // Some firmware welds a monospace position diagram onto its lane faults,
+    // which our proportional font renders as noise (#1184). Publish the stop
+    // point to the modal's <fault_path> graphic and drop the art rows from the
+    // text. An unrecognised message sets the subject to 0 (graphic hidden) and
+    // comes back unchanged, so a backend whose faults carry no position clears
+    // a previous fault's marker rather than inheriting it.
+    modal.show(parent, fault_path_apply(message), std::move(retry));
 }
 
 AmsStandingFaultDialog::AmsStandingFaultDialog(PrinterState& printer) : printer_(printer) {

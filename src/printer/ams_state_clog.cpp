@@ -57,9 +57,9 @@ template <size_t N> void copy_utf8(char (&dst)[N], std::string_view src) {
     dst[clipped.size()] = '\0';
 }
 
-/// The clog detector's reading. Priority: flowguard > encoder > afc_buffer >
+/// The clog detector's reading. Priority: flowguard > encoder > buffer_fault >
 /// legacy > motion sensor > none. Source override: 0=auto (use priority),
-/// 1=encoder, 2=flowguard, 3=afc; a forced source is used only if this snapshot
+/// 1=encoder, 2=flowguard, 3=buffer fault; a forced source is used only if this snapshot
 /// has it. The motion sensor is not a pickable source: it stands in only on a
 /// printer with no detector the backend reports, whatever the override says.
 ClogReading detector_reading(const AmsSystemInfo& info, int source_override,
@@ -68,7 +68,7 @@ ClogReading detector_reading(const AmsSystemInfo& info, int source_override,
     //   mode_text   what is measuring, and nothing else. It is drawn beside a
     //               15%-wide swatch in ams_loaded_card, where the column is
     //               content-sized: anything appended here (a detection length,
-    //               an AFC buffer state) steals width from the material name
+    //               a buffer state) steals width from the material name
     //               and clips it. Keep it to the source's name.
     //   center      the one number that matters
     //   left/right  the two ends of the axis the fill moves along, and only
@@ -81,7 +81,7 @@ ClogReading detector_reading(const AmsSystemInfo& info, int source_override,
     const bool forced = source_override >= 1 && source_override <= 3;
     const bool use_encoder = sources.encoder && (!forced || source_override == 1);
     const bool use_flowguard = sources.flowguard && (!forced || source_override == 2);
-    const bool use_afc = sources.afc_buffer && (!forced || source_override == 3);
+    const bool use_buffer_fault = sources.buffer_fault && (!forced || source_override == 3);
 
     if (use_flowguard) {
         // Flowguard mode: bidirectional (-100 to +100)
@@ -139,9 +139,10 @@ ClogReading detector_reading(const AmsSystemInfo& info, int source_override,
         // Linear: the fill grows from nothing, so the ends say nothing.
 
     } else {
-        // Check AFC buffer fault detection (buffer_health is per-unit, not per-slot)
+        // Buffer fault detection (buffer_health is per-unit, not per-slot)
         for (const auto& unit : info.units) {
-            if (use_afc && unit.buffer_health && unit.buffer_health->fault_detection_enabled) {
+            if (use_buffer_fault && unit.buffer_health &&
+                unit.buffer_health->fault_detection_enabled) {
                 r.mode = 3;
                 float dist = unit.buffer_health->distance_to_fault;
 
@@ -157,7 +158,9 @@ ClogReading detector_reading(const AmsSystemInfo& info, int source_override,
                     r.warning = unit.buffer_health->is_warning() ? 1 : 0;
                 }
 
-                snprintf(r.mode_text, sizeof(r.mode_text), "%s", lv_tr("AFC buffer"));
+                const char* label = ams_type_traits(info.type).buffer_fault_label;
+                snprintf(r.mode_text, sizeof(r.mode_text), "%s",
+                         label ? lv_tr(label) : lv_tr("Buffer"));
 
                 r.danger_pct = BufferHealth::kWarningDangerPct;
                 r.peak_pct = r.value;
@@ -191,7 +194,7 @@ ClogReading detector_reading(const AmsSystemInfo& info, int source_override,
         }
     }
 
-    const bool backend_detector = sources.flowguard || sources.encoder || sources.afc_buffer;
+    const bool backend_detector = sources.flowguard || sources.encoder || sources.buffer_fault;
     if (r.mode == 0 && !backend_detector && motion) {
         // A state, not a gauge (#1823): Klipper reports only whether the
         // sensor is armed and whether it has seen filament move.

@@ -7,7 +7,6 @@
 #include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_api_internal.h"
-#include "plr_backend.h"
 #include "spdlog/spdlog.h"
 
 using namespace moonraker_internal;
@@ -49,49 +48,6 @@ void MoonrakerAPI::get_print_state(StringCallback on_result, ErrorCallback on_er
                 state = response["result"]["status"]["print_stats"]["state"].get<std::string>();
             }
             on_result(state);
-        },
-        on_error);
-}
-
-// ============================================================================
-// Power-Loss Recovery — Creality Klipper fork
-// ============================================================================
-
-void MoonrakerAPI::check_continue_print_state(
-    std::function<void(const helix::PlrDetectResult&)> on_result, ErrorCallback on_error) {
-    // Deliberately logged at info: this is a SIDE-EFFECTFUL, at-most-once-per-
-    // connection call, so a second line in a session's log is itself a bug
-    // report. See the header warning and docs/devel/POWER_LOSS_RECOVERY.md.
-    spdlog::info("[Moonraker API] Creality PLR probe -> {}", helix::kCrealityDetectRpc);
-
-    client_.send_jsonrpc(
-        helix::kCrealityDetectRpc, json::object(),
-        [on_result](const json& response) {
-            helix::PlrDetectResult result;
-            if (!helix::plr_parse_check_continue_response(response, result)) {
-                // result.completed stays false, which forbids resume downstream.
-                spdlog::warn("[Moonraker API] Unusable check_continue_print_state response: {}",
-                             helix::json_util::safe_dump(response));
-            } else {
-                spdlog::info("[Moonraker API] Creality PLR probe: file_state={} eeprom_state={}",
-                             result.file_state, result.eeprom_state);
-            }
-            if (on_result) {
-                on_result(result);
-            }
-        },
-        on_error);
-}
-
-void MoonrakerAPI::cancel_continue_print(SuccessCallback on_success, ErrorCallback on_error) {
-    spdlog::info("[Moonraker API] Discarding Creality PLR snapshot -> {}",
-                 helix::kCrealityDiscardRpc);
-    client_.send_jsonrpc(
-        helix::kCrealityDiscardRpc, json::object(),
-        [on_success](const json&) {
-            if (on_success) {
-                on_success();
-            }
         },
         on_error);
 }

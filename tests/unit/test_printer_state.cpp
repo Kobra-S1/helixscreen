@@ -6,6 +6,7 @@
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "moonraker_client.h"
+#include "pause_descriptor.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
@@ -358,6 +359,34 @@ TEST_CASE("PrinterState: print_stats messages decode a firmware error envelope",
     state.update_from_status(json{{"print_stats", {{"message", "Runout Detected"}}}});
     REQUIRE(std::string(lv_subject_get_string(state.print_state().get_print_message_subject())) ==
             "Runout Detected");
+}
+
+TEST_CASE("pause_descriptor::read: silence, an empty descriptor and a populated one",
+          "[state][pause]") {
+    using helix::pause_descriptor::read;
+    CHECK_FALSE(read(json{{"state", "paused"}}).has_value());
+    CHECK_FALSE(read(json{{"exception", nullptr}}).has_value());
+
+    auto cleared = read(json{{"exception", json::object()}});
+    REQUIRE(cleared.has_value());
+    CHECK(cleared->id == -1);
+    CHECK(cleared->code == -1);
+    CHECK(cleared->message.empty());
+    CHECK_FALSE(helix::pause_descriptor::frame_carries_cause(json{{"exception", json::object()}}));
+
+    const json populated = {
+        {"exception", {{"id", 532}, {"code", 1}, {"message", "detected dirty bed"}}}};
+    auto cause = read(populated);
+    REQUIRE(cause.has_value());
+    CHECK(cause->id == 532);
+    CHECK(cause->code == 1);
+    CHECK(cause->message == "detected dirty bed");
+    CHECK(helix::pause_descriptor::frame_carries_cause(populated));
+
+    auto partial = read(json{{"exception", {{"id", "x"}, {"message", 7}}}});
+    REQUIRE(partial.has_value());
+    CHECK(partial->id == -1);
+    CHECK(partial->message.empty());
 }
 
 TEST_CASE("PrinterState: parses print_stats.exception structured object",

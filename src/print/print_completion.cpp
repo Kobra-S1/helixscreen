@@ -171,6 +171,10 @@ PreparingExitAction decide_preparing_exit_action(PreparingExit reason) {
         // A print is running - ours, or the one that superseded ours. Say
         // nothing and leave the heaters alone.
         break;
+    case PreparingExit::EndedByPrinter:
+        // The printer's terminal state reaches the completion observer, which
+        // reports it; the printer's own end gcode owns the heaters.
+        break;
     case PreparingExit::Cancelled:
         action.notify_cancelled = true;
         action.cool_down = true;

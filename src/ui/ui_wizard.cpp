@@ -1056,7 +1056,7 @@ size_t ui_wizard_record_expected_hardware(helix::Config* config) {
         auto& ams = AmsState::instance();
         AmsBackend* backend = ams.get_backend();
         if (backend) {
-            std::string ams_hw_name = backend->get_klipper_object_name();
+            std::string ams_hw_name = ams_type_traits(backend->get_type()).expected_hardware;
             if (!ams_hw_name.empty()) {
                 names.push_back(std::move(ams_hw_name));
             }

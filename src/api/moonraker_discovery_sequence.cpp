@@ -7,7 +7,6 @@
 
 #include "accel_sensor_manager.h"
 #include "ams_backend.h"
-#include "ams_backend_afc.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "batch_feed_reconcile.h"
@@ -18,6 +17,7 @@
 #include "firmware_fault_codes.h"
 #include "helix_version.h"
 #include "humidity_sensor_types.h"
+#include "hv/hssl.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
@@ -31,6 +31,7 @@
 #include "moonraker_api.h"
 #include "moonraker_client.h"
 #include "moonraker_subscription_merge.h"
+#include "pause_descriptor.h"
 #include "platform_info.h"
 #include "plr_backend.h"
 #include "power_device_state.h"
@@ -42,12 +43,17 @@
 #include "probe_sensor_manager.h"
 #include "screws_tilt_dialect.h"
 #include "sensor_state.h"
+#include "system/platform_tls.h"
 #include "text_io.h"
 #include "tool_offsets.h"
 #include "toolchanger_addon.h"
 #include "unit_conversions.h"
 #include "webcam_service_health.h"
 #include "z_offset_persistence.h"
+
+#ifdef __ANDROID__
+#include "system/http_android.h"
+#endif
 
 #include <algorithm>
 #include <cctype>
@@ -70,6 +76,21 @@ bool is_backend_filament_sensor(const std::string& name) {
 } // namespace
 
 bool probe_snapshot_reachable(const std::string& snapshot_url) {
+#ifdef __ANDROID__
+    if (needs_platform_tls(snapshot_url, HV_WITH_SSL)) {
+        // This runs on the WebSocket thread, so the bridge gets the probe's total
+        // budget as one deadline over connect, handshake and response. The
+        // platform bridge has no separate connect budget, and accepts any 2xx.
+        std::string body;
+        const bool ok =
+            android::https_get_bytes(snapshot_url, HELIX_USER_AGENT, kSnapshotProbeTotalTimeoutSec,
+                                     kMaxPlatformSnapshotBytes, body);
+        if (!ok) {
+            spdlog::debug("[Discovery] Snapshot probe of {} via platform TLS failed", snapshot_url);
+        }
+        return ok;
+    }
+#endif
     auto req = std::make_shared<HttpRequest>();
     req->method = HTTP_GET;
     req->url = snapshot_url;
@@ -101,7 +122,6 @@ void MoonrakerDiscoverySequence::clear_cache() {
     fans_.clear();
     leds_.clear();
     steppers_.clear();
-    afc_objects_.clear();
     filament_sensors_.clear();
     mcus_.clear();
     {
@@ -1251,17 +1271,11 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
     // subscribed-field change, and several of these (toolhead, gcode_move,
     // motion_report) update on every motion step (~100Hz during a print) —
     // nullptr would have us receiving every internal field per step.
-    // power_loss: Creality-Klipper-fork-only Power-Loss-Recovery capability
-    // marker. Absent on mainline Klipper — Moonraker answers a subscribed field
-    // the firmware never populates with an explicit null, which the parser
-    // rejects (presence must mean present AND numeric). See
-    // docs/devel/POWER_LOSS_RECOVERY.md.
-    // exception: Snapmaker U1's structured pause cause ({id, code, message}),
-    // which tells a defect-detection pause from a runout. Mainline Klipper has
-    // no such field; Moonraker answers it with null, which the parser ignores.
+    // Power-loss recovery and the structured pause cause add their own
+    // print_stats / virtual_sdcard fields below.
     subscription_objects["print_stats"] =
         json::array({"state", "filename", "filament_used", "print_duration", "total_duration",
-                     "estimated_time", "info", "message", "power_loss", "exception"});
+                     "estimated_time", "info", "message"});
     // virtual_sdcard.progress drives the progress bar. layer / layer_count
     // are the FALLBACK source for layer tracking — preferred source is
     // print_stats.info.{current_layer,total_layer} (slicer-supplied via
@@ -1271,16 +1285,12 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
     // SD playback was deactivated" (Snapmaker U1 dirty-bed exception,
     // level-2 aborts, post-SDCARD_RESET_FILE). prepare_for_resume reads
     // it to decide between RESUME and "Restart from beginning?" UX.
-    // pl_env_valid / file_path: Snapmaker-fork Power-Loss-Recovery fields.
-    // Absent (harmless) on mainline Klipper — Moonraker sends explicit null
-    // for a subscribed field the connected firmware never populates.
     // file_position: the byte the print stands on, which names the start-
     // sequence step running on a printer whose slicer inlines it
     // (PrintStartCollector). It moves exactly when progress does, so it adds
     // no frames.
     subscription_objects["virtual_sdcard"] =
-        json::array({"progress", "layer", "layer_count", "is_active", "pl_env_valid", "file_path",
-                     "file_position"});
+        json::array({"progress", "layer", "layer_count", "is_active", "file_position"});
     subscription_objects["toolhead"] =
         json::array({"position", "homed_axes", "kinematics", "extruder", "max_velocity",
                      "axis_minimum", "axis_maximum"});
@@ -1470,13 +1480,13 @@ json MoonrakerDiscoverySequence::build_subscription_objects(
         subscription_objects[obj] = nullptr;
     }
 
-    // Power-loss recovery: the PLR module owns which status objects its
-    // backends need for the discovered firmware. A printer already carrying
-    // one of these keys from an earlier block just re-assigns the same map
-    // entry, which is idempotent.
-    for (const auto& obj : helix::plr_required_status_objects(hw)) {
-        subscription_objects[obj] = nullptr;
-    }
+    // Power-loss recovery and the structured pause cause: each module owns
+    // which fields its firmwares need, including fields on the core objects
+    // above, so they are merged rather than assigned.
+    subscription_objects =
+        merge_subscription_objects(subscription_objects, helix::plr_required_status_fields(hw));
+    subscription_objects = merge_subscription_objects(
+        subscription_objects, helix::pause_descriptor::required_status_fields(hw));
 
     // All discovered filament sensors (filament_switch_sensor, filament_motion_sensor).
     // FilamentSensorManager reads filament_detected + enabled + detection_count.
@@ -1624,15 +1634,8 @@ void MoonrakerDiscoverySequence::complete_discovery_subscription(uint64_t seq) {
                          names.size(), ams_type_to_string(hw.mmu_type()), json(names).dump());
         }
     }
-    const size_t afc_skipped =
-        afc_objects_.size() - AmsBackendAfc::required_status_objects(afc_objects_).size();
-    if (afc_skipped > 0) {
-        spdlog::debug("[Moonraker Client] Skipped {} unparsed AFC object(s) from subscription",
-                      afc_skipped);
-    }
-    if (!helix::plr_required_status_objects(hw).empty()) {
-        spdlog::info("[Moonraker Client] Subscribing to save_variables (power-loss recovery)");
-    }
+    spdlog::debug("[Moonraker Client] Power-loss recovery fields: {}",
+                  helix::plr_required_status_fields(hw).dump());
     if (helix::zoffset::firmware_persists_z_offset(hw)) {
         spdlog::info("[Moonraker Client] Subscribing persisted z-offset objects ({})",
                      helix::zoffset::persistence_provider_name(hw));
@@ -1948,7 +1951,6 @@ void MoonrakerDiscoverySequence::parse_objects(const json& objects) {
     fans_.clear();
     leds_.clear();
     steppers_.clear();
-    afc_objects_.clear();
     filament_sensors_.clear();
     mcus_.clear();
 
@@ -2031,12 +2033,6 @@ void MoonrakerDiscoverySequence::parse_objects(const json& objects) {
                  name.rfind("dotstar ", 0) == 0) {
             leds_.push_back(name);
         }
-        // AFC MMU objects — all AFC objects share the "AFC_" namespace prefix in Klipper.
-        // Subscribe to all of them for lane state, sensor data, filament info, and
-        // unit-level data (BoxTurtle, OpenAMS, ViViD, NightOwl, etc.)
-        else if (name == "AFC" || name.rfind("AFC_", 0) == 0) {
-            afc_objects_.push_back(name);
-        }
         // Filament sensors (switch or motion type)
         // These provide runout detection and encoder motion data.
         // AD5X native Z-Mod publishes its head/motion sensors under custom module
@@ -2061,9 +2057,9 @@ void MoonrakerDiscoverySequence::parse_objects(const json& objects) {
 
     spdlog::debug("[Moonraker Client] Discovered: {} heaters, {} sensors, {} load cells, {} fans, "
                   "{} LEDs, {} "
-                  "steppers, {} AFC objects, {} filament sensors, {} MCUs",
+                  "steppers, {} filament sensors, {} MCUs",
                   heaters_.size(), sensors_.size(), load_cells_.size(), fans_.size(), leds_.size(),
-                  steppers_.size(), afc_objects_.size(), filament_sensors_.size(), mcus_.size());
+                  steppers_.size(), filament_sensors_.size(), mcus_.size());
 
     // Debug output of discovered objects
     if (!heaters_.empty()) {
@@ -2083,9 +2079,6 @@ void MoonrakerDiscoverySequence::parse_objects(const json& objects) {
     }
     if (!steppers_.empty()) {
         spdlog::debug("[Moonraker Client] Steppers: {}", json(steppers_).dump());
-    }
-    if (!afc_objects_.empty()) {
-        spdlog::info("[Moonraker Client] AFC objects: {}", json(afc_objects_).dump());
     }
     if (!filament_sensors_.empty()) {
         spdlog::info("[Moonraker Client] Filament sensors: {}", json(filament_sensors_).dump());

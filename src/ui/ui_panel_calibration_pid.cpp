@@ -149,7 +149,7 @@ void PIDCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(subj_pid_eta_, buf_pid_eta_, "", "pid_cal_eta", subjects_);
 
     // MPC-related subjects
-    UI_MANAGED_SUBJECT_INT(subj_is_kalico_, 0, "cal_is_kalico", subjects_);
+    UI_MANAGED_SUBJECT_INT(subj_supports_mpc_, 0, "cal_supports_mpc", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_method_is_mpc_, 0, "cal_method_is_mpc", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_show_wattage_, 0, "cal_show_wattage", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_needs_migration_, 0, "cal_needs_migration", subjects_);
@@ -328,7 +328,7 @@ void PIDCalibrationPanel::on_activate() {
     lv_subject_set_int(&subj_method_is_mpc_, 0);
     lv_subject_set_int(&subj_show_wattage_, 0);
     lv_subject_set_int(&subj_needs_migration_, 0);
-    lv_subject_set_int(&subj_is_kalico_, 0);
+    lv_subject_set_int(&subj_supports_mpc_, 0);
     fan_breakpoints_ = kFanBpQuick;
     lv_subject_set_int(&subj_fan_is_quick_, 1);
     lv_subject_set_int(&subj_fan_is_detailed_, 0);
@@ -336,7 +336,7 @@ void PIDCalibrationPanel::on_activate() {
     heater_wattage_ = kWattageDefaultExtruder;
     update_wattage_display();
     needs_migration_ = false;
-    is_kalico_ = false;
+    supports_mpc_ = false;
     current_control_ = ControlType::UNKNOWN;
     lv_subject_copy_string(&subj_migration_notice_, "");
 
@@ -347,12 +347,12 @@ void PIDCalibrationPanel::on_activate() {
 
     // Discovery's capability answer is the primary source; the control-type query refines it
     if (get_printer_state().get_capability_overrides().supports_mpc_calibration()) {
-        is_kalico_ = true;
-        lv_subject_set_int(&subj_is_kalico_, 1);
+        supports_mpc_ = true;
+        lv_subject_set_int(&subj_supports_mpc_, 1);
     }
 
-    // Detect heater control type (only relevant for Kalico/MPC)
-    if (api_ && is_kalico_) {
+    // Detect heater control type (only relevant where MPC is supported)
+    if (api_ && supports_mpc_) {
         detect_heater_control_type();
     }
 
@@ -468,7 +468,7 @@ void PIDCalibrationPanel::set_state(State new_state) {
         // Reset progress
         cal_start_tick_ms_ = lv_tick_get();
         pid_estimated_total_ = 3;
-        has_kalico_progress_ = false;
+        has_sample_progress_ = false;
         lv_subject_set_int(&subj_pid_progress_, 0);
         lv_subject_copy_string(&subj_pid_progress_text_, lv_tr("Starting..."));
         lv_subject_copy_string(&subj_pid_eta_, "");
@@ -784,7 +784,7 @@ void PIDCalibrationPanel::handle_heater_extruder_clicked() {
     fetch_old_pid_values();
 
     // Update MPC defaults for extruder
-    if (is_kalico_) {
+    if (supports_mpc_) {
         heater_wattage_ = kWattageDefaultExtruder;
         update_wattage_display();
         // The new heater's control type is unread until the query answers
@@ -819,7 +819,7 @@ void PIDCalibrationPanel::handle_head_clicked(int head) {
     update_fan_section_visibility();
     fetch_old_pid_values();
 
-    if (is_kalico_) {
+    if (supports_mpc_) {
         // The new heater's control type is unread until the query answers
         current_control_ = ControlType::UNKNOWN;
         update_migration_notice();
@@ -844,7 +844,7 @@ void PIDCalibrationPanel::handle_heater_bed_clicked() {
     fetch_old_pid_values();
 
     // Update MPC defaults for bed (higher wattage, no fan config)
-    if (is_kalico_) {
+    if (supports_mpc_) {
         heater_wattage_ = kWattageDefaultBed;
         update_wattage_display();
         // The new heater's control type is unread until the query answers
@@ -1093,10 +1093,10 @@ void PIDCalibrationPanel::inject_demo_results() {
 // ============================================================================
 
 void PIDCalibrationPanel::on_pid_progress(int sample, float tolerance) {
-    // First sample callback: switch to Kalico mode
-    if (!has_kalico_progress_) {
-        has_kalico_progress_ = true;
-        spdlog::info("[PIDCal] Kalico sample progress detected");
+    // First sample callback: progress is counted in samples from here on
+    if (!has_sample_progress_) {
+        has_sample_progress_ = true;
+        spdlog::info("[PIDCal] Sample progress detected");
     }
 
     // Dynamically adjust estimated total
@@ -1104,7 +1104,7 @@ void PIDCalibrationPanel::on_pid_progress(int sample, float tolerance) {
         pid_estimated_total_ = sample + 1;
     }
 
-    progress_tracker_.on_kalico_sample(sample, pid_estimated_total_);
+    progress_tracker_.on_sample_progress(sample, pid_estimated_total_);
     update_progress_display();
 
     spdlog::debug("[PIDCal] Progress: sample={}/{} tolerance={:.3f} bar={}%", sample,
@@ -1239,8 +1239,8 @@ void PIDCalibrationPanel::update_progress_display() {
                        "C"),
                  target_temp_, progress_tracker_.last_temp());
     } else if (phase == PidProgressTracker::Phase::OSCILLATING) {
-        if (has_kalico_progress_) {
-            snprintf(buf, sizeof(buf), lv_tr("Sample %d/%d"), progress_tracker_.kalico_sample(),
+        if (has_sample_progress_) {
+            snprintf(buf, sizeof(buf), lv_tr("Sample %d/%d"), progress_tracker_.sample_number(),
                      pid_estimated_total_);
         } else {
             snprintf(buf, sizeof(buf), lv_tr("Oscillating... cycle %d/%d"),
@@ -1390,9 +1390,9 @@ void PIDCalibrationPanel::detect_heater_control_type(bool preselect_mpc) {
         heater,
         [this, token, preselect_mpc](const std::string& type) {
             token.defer([this, type, preselect_mpc]() {
-                // Query succeeded, firmware supports control type query (Kalico)
-                is_kalico_ = true;
-                lv_subject_set_int(&subj_is_kalico_, 1);
+                // Query succeeded: the firmware reports a control type, so it supports MPC
+                supports_mpc_ = true;
+                lv_subject_set_int(&subj_supports_mpc_, 1);
 
                 current_control_ = (type == "mpc") ? ControlType::MPC : ControlType::PID;
 
@@ -1407,11 +1407,11 @@ void PIDCalibrationPanel::detect_heater_control_type(bool preselect_mpc) {
             });
         },
         [this, token](const MoonrakerError&) {
-            // Can't determine control type, not Kalico — default to PID
+            // No control type reported: the firmware has no MPC, default to PID
             token.defer([this]() {
-                is_kalico_ = false;
+                supports_mpc_ = false;
                 current_control_ = ControlType::UNKNOWN;
-                lv_subject_set_int(&subj_is_kalico_, 0);
+                lv_subject_set_int(&subj_supports_mpc_, 0);
                 update_migration_notice();
                 spdlog::debug("[PIDCal] Heater control type query failed, defaulting to PID");
             });
@@ -1529,8 +1529,8 @@ void PIDCalibrationPanel::on_mpc_result(const MoonrakerAdvancedAPI::MPCResult& r
 }
 
 void PIDCalibrationPanel::on_mpc_progress(int phase, int total_phases, const std::string& desc) {
-    if (!has_kalico_progress_) {
-        has_kalico_progress_ = true;
+    if (!has_sample_progress_) {
+        has_sample_progress_ = true;
         spdlog::info("[PIDCal] MPC phase progress detected");
     }
 

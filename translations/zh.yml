@@ -469,6 +469,7 @@ translations:
     HelixScreen 的指南、配置参考和故障排除资源。
   Brush nozzle: '刷洗喷嘴'
   Brush the mounted tool's nozzle clean: '用刷子清洁当前安装工具的喷嘴'
+  Buffer: 缓冲区
   Buffer Status: 缓冲区状态
   Buffer tube problem: 缓冲管故障
   Build Volume: '打印尺寸'
@@ -581,6 +582,7 @@ translations:
   Cancel Scheduled Pause: '取消已设置的暂停'
   Cancel macro not configured: 取消宏未配置
   Cancel print: '取消打印'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: '已发送取消。打印机会先完成启动流程，然后在打印前停止。'
   Canceled: 已取消
   Canceling turns the chamber target off so the wait ends, then stops the print.: '取消会关闭腔体目标温度以结束等待，然后停止打印。'
   'Cannot add to queue: internal error': '无法添加到队列：内部错误'
@@ -1275,6 +1277,7 @@ translations:
   Extrude Speed: 挤出速度
   'Extrude failed: {}': '挤出失败: {}'
   Extrude may still be running — response timed out: 挤出可能仍在运行 — 响应超时
+  Extrude more: "继续挤出"
   Extrude/retract feedrate (Saved): 挤出/回抽速度（已保存）
   Extruded past the nozzle after each load: '每次装载后从喷嘴挤出的长度'
   Extruder: 挤出机
@@ -1290,6 +1293,7 @@ translations:
   Extruder to Nozzle: '挤出机至喷嘴'
   Extruder too cold: 挤出机温度过低
   Extruding prime line...: 正在挤出引导线...
+  Extruding...: "正在挤出..."
   FAILED: 失败
   FILAMENT: 耗材
   FILAMENT & TOOLHEAD: '耗材与工具头'
@@ -1881,6 +1885,7 @@ translations:
   Invalid tool/slot: '无效的工具/槽位'
   Invalid value: '值无效'
   Invalid value type: '值类型无效'
+  Is new filament coming out of the nozzle?: "喷嘴是否有新耗材挤出？"
   Issue description: 问题描述
   It can be un-archived in Spoolman's web UI.: 可以在 Spoolman 的网页界面中取消归档。
   It has not reported its slots yet. Try again in a moment.: 尚未报告其料槽。请稍后再试。
@@ -2938,6 +2943,7 @@ translations:
   Purging: 正在清料
   Purging nozzle: 正在清洗喷嘴
   Purging...: 正在清料...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "将耗材推入挤出机直到推不动为止。挤出机会自动咬入，或点击“挤出”。"
   QGL: QGL
   'QGL failed: {}': 'QGL 失败: {}'
   QGL may still be running — response timed out: QGL 可能仍在运行 — 响应超时
@@ -3864,6 +3870,7 @@ translations:
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: '打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。'
   The printer finishes this measurement on its own.: '打印机会自行完成这次测量。'
   The printer halted this print and cannot resume it. Restart from the beginning?: 打印机已停止此打印且无法恢复。从头重新开始？
+  The printer has not answered the cancel yet. It stops once its start sequence finishes.: '打印机尚未响应取消。启动流程完成后会停止。'
   The printer has not reported its axis limits yet.: '打印机尚未报告其轴限位。'
   The printer has not reported its maximum velocity yet.: '打印机尚未报告其最大速度。'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -3879,6 +3886,7 @@ translations:
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : '打印机正在等待腔体达到某个温度，只有紧急停止并重启固件才能结束此等待。打印将立即停止且无法恢复。'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: 打印机未检测到已加载的耗材。请选择下一步操作。
+  The printer kept printing after the cancel.: '取消后打印机仍在继续打印。'
   The printer lost power during a print. It can resume where it left off.: 打印机在打印过程中断电。可以从中断处继续。
   The printer lost power during a print. The resumed layer may not line up exactly.: 打印机在打印过程中断电。恢复后的层可能无法完全对准。
   The printer lost power while printing {}. Resume where it left off?: 打印机在打印 {} 时断电。是否从中断处继续？

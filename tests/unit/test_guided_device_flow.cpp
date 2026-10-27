@@ -24,6 +24,8 @@
 #include "ams_error.h"
 #include "ams_state.h"
 #include "helix-xml/src/xml/lv_xml_expr.h"
+#include "indx_contract.h"
+#include "snapmaker_nozzle_offset.h"
 #include "static_panel_registry.h"
 #include "theme_manager.h"
 
@@ -596,4 +598,29 @@ TEST_CASE_METHOD(GuidedFlowFixture, "a dropdown with no value it lists shows a p
     settle();
     CHECK(lv_dropdown_get_text(d) == nullptr);
     CHECK(last_executed() == "speed");
+}
+
+TEST_CASE("the built-in registrar registers every vendor's flows", "[ams][guided-flow]") {
+    std::vector<std::string> expected = {helix::indx::kSeatByHandFlowId, "indx_cycle_all",
+                                         "indx_heater_calibration", "indx_fan_calibration"};
+#if HELIX_HAS_CFS
+    expected.insert(expected.end(), {"cfs_purge_chute", "cfs_cutter"});
+#endif
+#if HELIX_HAS_SNAPMAKER
+    expected.push_back(helix::snapmaker::nozzle_offset::kGuidedFlowId);
+#endif
+    for (const auto& id : expected) {
+        helix::ui::unregister_guided_device_flow(id);
+    }
+
+    helix::ui::register_builtin_guided_device_flows();
+    for (const auto& id : expected) {
+        INFO(id);
+        CHECK(helix::ui::find_guided_device_flow(id) != nullptr);
+    }
+
+    // Other cases start from an empty registry.
+    for (const auto& id : expected) {
+        helix::ui::unregister_guided_device_flow(id);
+    }
 }

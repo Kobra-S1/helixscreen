@@ -464,6 +464,7 @@
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." zh="浏览 HelixScreen 的指南、配置参考和故障排除资源。"/>
   <translation tag="Brush nozzle" zh="刷洗喷嘴"/>
   <translation tag="Brush the mounted tool&apos;s nozzle clean" zh="用刷子清洁当前安装工具的喷嘴"/>
+  <translation tag="Buffer" zh="缓冲区"/>
   <translation tag="Buffer Status" zh="缓冲区状态"/>
   <translation tag="Buffer tube problem" zh="缓冲管故障"/>
   <translation tag="Build Volume" zh="打印尺寸"/>
@@ -573,6 +574,7 @@
   <translation tag="Cancel Scheduled Pause" zh="取消已设置的暂停"/>
   <translation tag="Cancel macro not configured" zh="取消宏未配置"/>
   <translation tag="Cancel print" zh="取消打印"/>
+  <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." zh="已发送取消。打印机会先完成启动流程，然后在打印前停止。"/>
   <translation tag="Canceled" zh="已取消"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." zh="取消会关闭腔体目标温度以结束等待，然后停止打印。"/>
   <translation tag="Cannot add to queue: internal error" zh="无法添加到队列：内部错误"/>
@@ -1230,6 +1232,7 @@
   <translation tag="Extrude Speed" zh="挤出速度"/>
   <translation tag="Extrude failed: {}" zh="挤出失败: {}"/>
   <translation tag="Extrude may still be running — response timed out" zh="挤出可能仍在运行 — 响应超时"/>
+  <translation tag="Extrude more" zh="继续挤出"/>
   <translation tag="Extrude/retract feedrate (Saved)" zh="挤出/回抽速度（已保存）"/>
   <translation tag="Extruded past the nozzle after each load" zh="每次装载后从喷嘴挤出的长度"/>
   <translation tag="Extruder" zh="挤出机"/>
@@ -1245,6 +1248,7 @@
   <translation tag="Extruder to Nozzle" zh="挤出机至喷嘴"/>
   <translation tag="Extruder too cold" zh="挤出机温度过低"/>
   <translation tag="Extruding prime line..." zh="正在挤出引导线..."/>
+  <translation tag="Extruding..." zh="正在挤出..."/>
   <translation tag="FAILED" zh="失败"/>
   <translation tag="FILAMENT" zh="耗材"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" zh="耗材与工具头"/>
@@ -1813,6 +1817,7 @@
   <translation tag="Invalid tool/slot" zh="无效的工具/槽位"/>
   <translation tag="Invalid value" zh="值无效"/>
   <translation tag="Invalid value type" zh="值类型无效"/>
+  <translation tag="Is new filament coming out of the nozzle?" zh="喷嘴是否有新耗材挤出？"/>
   <translation tag="Issue description" zh="问题描述"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." zh="可以在 Spoolman 的网页界面中取消归档。"/>
   <translation tag="It has not reported its slots yet. Try again in a moment." zh="尚未报告其料槽。请稍后再试。"/>
@@ -2838,6 +2843,7 @@
   <translation tag="Purging" zh="正在清料"/>
   <translation tag="Purging nozzle" zh="正在清洗喷嘴"/>
   <translation tag="Purging..." zh="正在清料..."/>
+  <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." zh="将耗材推入挤出机直到推不动为止。挤出机会自动咬入，或点击“挤出”。"/>
   <translation tag="QGL" zh="QGL"/>
   <translation tag="QGL failed: {}" zh="QGL 失败: {}"/>
   <translation tag="QGL may still be running — response timed out" zh="QGL 可能仍在运行 — 响应超时"/>
@@ -3720,6 +3726,7 @@
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." zh="打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。"/>
   <translation tag="The printer finishes this measurement on its own." zh="打印机会自行完成这次测量。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" zh="打印机已停止此打印且无法恢复。从头重新开始？"/>
+  <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." zh="打印机尚未响应取消。启动流程完成后会停止。"/>
   <translation tag="The printer has not reported its axis limits yet." zh="打印机尚未报告其轴限位。"/>
   <translation tag="The printer has not reported its maximum velocity yet." zh="打印机尚未报告其最大速度。"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." zh="打印机会加热喷嘴，在打印板角落进行几次短促的测试挤出并自行测量。它会重复直到读数一致，然后给出一个数值。"/>
@@ -3730,6 +3737,7 @@
   <translation tag="The printer is shut down." zh="打印机已关机。"/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." zh="打印机正在等待腔体达到某个温度，只有紧急停止并重启固件才能结束此等待。打印将立即停止且无法恢复。"/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" zh="打印机未检测到已加载的耗材。请选择下一步操作。"/>
+  <translation tag="The printer kept printing after the cancel." zh="取消后打印机仍在继续打印。"/>
   <translation tag="The printer lost power during a print. It can resume where it left off." zh="打印机在打印过程中断电。可以从中断处继续。"/>
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." zh="打印机在打印过程中断电。恢复后的层可能无法完全对准。"/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" zh="打印机在打印 {} 时断电。是否从中断处继续？"/>

@@ -1266,7 +1266,7 @@ class AmsState {
 
     /**
      * @brief Get clog meter mode subject
-     * @return Subject holding mode (0=none, 1=encoder, 2=flowguard, 3=afc_buffer)
+     * @return Subject holding mode (0=none, 1=encoder, 2=flowguard, 3=buffer fault)
      */
     lv_subject_t* get_clog_meter_mode_subject() {
         return &clog_meter_mode_;
@@ -2731,8 +2731,9 @@ class AmsState {
     lv_subject_t buffer_target_text_{}; // "target 50%" where a set point is known
     char buffer_target_text_buf_[48]{};
 
-    lv_subject_t clog_meter_mode_{};  // ClogMeterMode: 0=none, 1=encoder, 2=flowguard, 3=afc_buffer
-    lv_subject_t clog_meter_value_{}; // 0-100 (encoder/afc) or -100..+100 (flowguard)
+    lv_subject_t
+        clog_meter_mode_{}; // ClogMeterMode: 0=none, 1=encoder, 2=flowguard, 3=buffer fault
+    lv_subject_t clog_meter_value_{};   // 0-100 (encoder/afc) or -100..+100 (flowguard)
     lv_subject_t clog_meter_warning_{}; // 0=ok, 1=warning
     lv_subject_t clog_meter_status_{};  // ClogMeterStatus: 0=ok, 1=warning, 2=fault
     lv_subject_t clog_meter_mode_text_{};

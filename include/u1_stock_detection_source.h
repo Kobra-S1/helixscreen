@@ -25,8 +25,6 @@ class U1StockSource : public DetectionSource {
   public:
     explicit U1StockSource(helix::PrinterState* state) : state_(state) {}
 
-    /// Unique registration key. Exposed so DetectionManager can match on id()
-    /// and static_cast instead of dynamic_cast — the firmware builds -fno-rtti.
     static constexpr const char* kSourceId = "u1_stock";
 
     std::string id() const override {
@@ -50,6 +48,8 @@ class U1StockSource : public DetectionSource {
     void set_capable(bool v) {
         capable_ = v;
     }
+    /// Capable exactly while the printer lists the defect_detection module.
+    void on_objects_listed(const std::vector<std::string>& objects) override;
 
     /// DEFECT_DETECTION_CONFIG NOODLE_SENSITIVITY=low, the stock firmware's
     /// one-step-down sensitivity command.

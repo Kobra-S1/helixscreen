@@ -83,10 +83,6 @@ class AmsBackendIndx : public AmsBackendToolChanger {
     /// leaves its tool mounted and hot, so the last one stays on the head.
     [[nodiscard]] int max_heads_per_filament_op() const override;
 
-    [[nodiscard]] const char* get_klipper_object_name() const override {
-        return "indx";
-    }
-
     [[nodiscard]] std::optional<helix::ErrorEvent> current_error() const override;
 
     /// Seat or remove the half-seated tool, each behind a confirm. Empty

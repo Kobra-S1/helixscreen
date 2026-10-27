@@ -1097,6 +1097,56 @@ TEST_CASE_METHOD(
     }
 }
 
+TEST_CASE_METHOD(MmuDetectionFixture,
+                 "HardwareValidator - every filament system's expected entry is checked",
+                 "[hardware][validator][mmu]") {
+    client.set_heaters({"extruder", "heater_bed"});
+    client.set_mmu_enabled(false);
+
+    SECTION("INDX present: no warning") {
+        client.set_additional_objects({"indx"});
+        REQUIRE(client.hardware().mmu_type() == AmsType::INDX);
+        setup_config_with_expected({"indx"});
+        auto result = HardwareValidator{}.validate(&config, client.hardware());
+        REQUIRE_FALSE(is_missing_in_result(result, "indx"));
+    }
+
+    SECTION("INDX gone: warning") {
+        setup_config_with_expected({"indx"});
+        auto result = HardwareValidator{}.validate(&config, client.hardware());
+        REQUIRE(is_missing_in_result(result, "indx"));
+    }
+
+    SECTION("CFS present: no warning") {
+        client.set_additional_objects({"box"});
+        REQUIRE(client.hardware().mmu_type() == AmsType::CFS);
+        setup_config_with_expected({"cfs"});
+        auto result = HardwareValidator{}.validate(&config, client.hardware());
+        REQUIRE_FALSE(is_missing_in_result(result, "cfs"));
+    }
+
+    SECTION("CFS gone: warning") {
+        setup_config_with_expected({"cfs"});
+        auto result = HardwareValidator{}.validate(&config, client.hardware());
+        REQUIRE(is_missing_in_result(result, "cfs"));
+    }
+
+    SECTION("a tool changer detected from several tools, without klipper-toolchanger") {
+        client.set_additional_objects({"tool T0", "tool T1"});
+        REQUIRE_FALSE(client.hardware().has_tool_changer());
+        REQUIRE(client.hardware().mmu_type() == AmsType::TOOL_CHANGER);
+        setup_config_with_expected({"toolchanger"});
+        auto result = HardwareValidator{}.validate(&config, client.hardware());
+        REQUIRE_FALSE(is_missing_in_result(result, "toolchanger"));
+    }
+
+    SECTION("a name no filament system records never warns") {
+        setup_config_with_expected({"box"});
+        auto result = HardwareValidator{}.validate(&config, client.hardware());
+        REQUIRE_FALSE(is_missing_in_result(result, "box"));
+    }
+}
+
 // ============================================================================
 // "None" Sentinel Value Tests
 //

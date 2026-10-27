@@ -77,12 +77,6 @@ class AmsBackendAce : public AmsSubscriptionBackend {
         return AmsType::ACE;
     }
 
-    // ACE marker for expected-hardware recording during wizard setup. ACE is
-    // REST-based, not a real Klipper object, but the validator keys on this name.
-    [[nodiscard]] const char* get_klipper_object_name() const override {
-        return "ace";
-    }
-
     // ACE uses ACE_CHANGE_TOOL TOOL=n, not the U1 Tn/SM_PRINT_* families
     // GcodeToolRemapper handles. Remap disabled until that command family is
     // implemented + validated on a real ACE file.

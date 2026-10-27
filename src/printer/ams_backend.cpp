@@ -9,6 +9,7 @@
 #include "ams_backend_openams.h"
 #include "ams_state.h"
 #include "settings_manager.h"
+#include "system/afc_message_dedup.h"
 #ifdef HELIX_ENABLE_MOCKS
 #include "ams_backend_mock.h"
 #include "app_globals.h"
@@ -865,6 +866,19 @@ bool AmsBackend::sensor_belongs_to_backend(AmsType type, const std::string& bare
     }
 }
 
+bool AmsBackend::sensor_name_names_filament_system(std::string_view lower_name) {
+    const auto has_any = [lower_name](const auto& keywords) {
+        for (const char* keyword : keywords) {
+            if (lower_name.find(keyword) != std::string_view::npos) {
+                return true;
+            }
+        }
+        return false;
+    };
+    return has_any(AmsBackendAfc::kSensorNameKeywords) ||
+           has_any(AmsBackendHappyHare::kSensorNameKeywords);
+}
+
 nlohmann::json AmsBackend::required_status_objects(const helix::PrinterDiscovery& hw) {
     nlohmann::json objects = nlohmann::json::object();
     const auto merge = [&objects](const nlohmann::json& from) {
@@ -903,6 +917,14 @@ const std::vector<std::string>& AmsBackend::filament_sensor_object_prefixes() {
     static const std::vector<std::string> prefixes(kAd5xIfsSensorObjectPrefixes.begin(),
                                                    kAd5xIfsSensorObjectPrefixes.end());
     return prefixes;
+}
+
+void AmsBackend::init_persistent_state(const std::string& config_dir) {
+    AfcMessageDedup::instance().init(config_dir);
+}
+
+void AmsBackend::shutdown_persistent_state() {
+    AfcMessageDedup::instance().shutdown();
 }
 
 std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, IMoonrakerAPI* api,

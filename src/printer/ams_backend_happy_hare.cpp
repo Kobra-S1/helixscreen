@@ -76,6 +76,35 @@ int unit_index_for_gate(const AmsSystemInfo& info, int gate) {
     return -1;
 }
 
+/// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
+SpoolMotorAction hh_spool_motor_action(const std::string& state) {
+    if (state.empty()) {
+        return SpoolMotorAction::None;
+    }
+    if (state == "rewind") {
+        return SpoolMotorAction::Rewinding;
+    }
+    if (state == "assist") {
+        return SpoolMotorAction::Assisting;
+    }
+    return SpoolMotorAction::Other;
+}
+
+/// Happy Hare's sync_feedback_state as the system buffer's motion: nullopt
+/// when sync feedback is absent or "disabled"; "compressed" advances,
+/// "tension" trails, anything else ("neutral") has no direction.
+std::optional<BufferMotion> hh_sync_feedback_motion(const std::string& state) {
+    if (state.empty() || state == "disabled") {
+        return std::nullopt;
+    }
+    if (state == "compressed") {
+        return BufferMotion::Advancing;
+    }
+    if (state == "tension") {
+        return BufferMotion::Trailing;
+    }
+    return BufferMotion::Unknown;
+}
 } // namespace
 
 // ============================================================================
@@ -909,9 +938,12 @@ void AmsBackendHappyHare::apply_mmu_telemetry_locked(const happy_hare::MmuTeleme
         espooler_active_ = system_info_.espooler_state;
         spdlog::trace("[AMS HappyHare] eSpooler state: {}", system_info_.espooler_state);
     }
+    system_info_.spool_motor = hh_spool_motor_action(system_info_.espooler_state);
 
     if (t.sync_feedback_state) {
         system_info_.sync_feedback_state = *t.sync_feedback_state;
+        system_info_.system_buffer_motion =
+            hh_sync_feedback_motion(system_info_.sync_feedback_state);
         spdlog::trace("[AMS HappyHare] Sync feedback: {}", system_info_.sync_feedback_state);
     }
 

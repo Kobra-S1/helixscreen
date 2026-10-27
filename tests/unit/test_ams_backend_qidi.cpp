@@ -616,8 +616,9 @@ TEST_CASE("QIDI Box load_filament: unloads a different loaded slot first",
 
     REQUIRE(err.success());
     REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] ==
-            "M603 S250\nM109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0");
+    REQUIRE(
+        backend.sent[0] ==
+        "M603 S250\nENABLE_ALL_SENSOR\nM109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0");
 }
 
 TEST_CASE("QIDI Box load_filament accepts global slots from later boxes",
@@ -652,7 +653,7 @@ TEST_CASE("QIDI Box unload_filament: emits M603 (stock unload)", "[ams][qidi_box
 
     REQUIRE(err.success());
     REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M603 S250");
+    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
 }
 
 TEST_CASE("QIDI Box unload_filament with -1 unloads the active slot via M603",
@@ -665,7 +666,7 @@ TEST_CASE("QIDI Box unload_filament with -1 unloads the active slot via M603",
 
     REQUIRE(err.success());
     REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M603 S250");
+    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
 }
 
 TEST_CASE("QIDI Box unload_filament accepts global slots from later boxes",
@@ -677,7 +678,7 @@ TEST_CASE("QIDI Box unload_filament accepts global slots from later boxes",
 
     REQUIRE(err.success());
     REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M603 S250");
+    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
 }
 
 TEST_CASE("QIDI Box unload_filament with -1 and nothing loaded errors",
@@ -841,9 +842,43 @@ TEST_CASE("QIDI Box eject sliders set the distance and speed lane eject uses",
     CHECK_FALSE(backend.execute_device_action("eject_distance").success());
     CHECK_FALSE(backend.execute_device_action("eject_nonsense", std::any(1.0f)).success());
 
-    // Restore defaults so sibling tests in this shard see the default eject gcode.
-    settings.set_ams_eject_distance(saved_dist > 0 ? saved_dist : 878);
-    settings.set_ams_eject_velocity(saved_vel > 0 ? saved_vel : 100);
+    // Restore so sibling tests in this shard see the default eject gcode.
+    settings.set_ams_eject_distance(saved_dist);
+    settings.set_ams_eject_velocity(saved_vel);
+}
+
+TEST_CASE("QIDI Box supplies its own eject defaults while none is stored",
+          "[ams][qidi_box][write_path][device_actions]") {
+    auto& settings = helix::SettingsManager::instance();
+    settings.init_subjects();
+    const int saved_dist = settings.get_ams_eject_distance();
+    const int saved_vel = settings.get_ams_eject_velocity();
+
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"force_move", {{"enable_force_move", true}}}});
+
+    // The generic setting stores 0 until a value is chosen; the box fills it in.
+    settings.set_ams_eject_distance(0);
+    settings.set_ams_eject_velocity(0);
+    REQUIRE(settings.get_ams_eject_distance() == 0);
+    CHECK(helix::printer::device_action_number(backend.get_device_actions()[0].current_value) ==
+          878.0);
+    CHECK(helix::printer::device_action_number(backend.get_device_actions()[1].current_value) ==
+          100.0);
+    REQUIRE(backend.eject_lane(1).success());
+    REQUIRE(backend.sent.size() == 1);
+    CHECK(backend.sent[0] == "FORCE_MOVE STEPPER=\"box_stepper slot1\" VELOCITY=100 DISTANCE=-878");
+
+    // A stored value below the box's slider range is raised to it.
+    settings.set_ams_eject_distance(50);
+    settings.set_ams_eject_velocity(5);
+    REQUIRE(backend.eject_lane(1).success());
+    REQUIRE(backend.sent.size() == 2);
+    CHECK(backend.sent[1] == "FORCE_MOVE STEPPER=\"box_stepper slot1\" VELOCITY=10 DISTANCE=-100");
+
+    settings.set_ams_eject_distance(saved_dist);
+    settings.set_ams_eject_velocity(saved_vel);
 }
 
 TEST_CASE("QIDI Box [force_move] disabled keeps lane eject off", "[ams][qidi_box][write_path]") {
@@ -855,13 +890,51 @@ TEST_CASE("QIDI Box [force_move] disabled keeps lane eject off", "[ams][qidi_box
 }
 
 // ---------------------------------------------------------------------------
-// Max 4 dialect (multi_color_controller): the Max 4 box rejects the Q2
-// box_stepper FORCE_MOVE with "Invalid pin value" and drives eject/unload
-// through the multi_color_controller command surface instead. Presence of a
-// [multi_color_controller] config section is the dialect discriminator; the
-// Q2/Plus 4 box has box_stepper/box_extras but no multi_color_controller.
+// Controller dialect (multi_color_controller): the Max 4 box rejects the
+// box_stepper FORCE_MOVE with "Invalid pin value" and drives load, unload and
+// eject through the multi_color_controller command surface instead. Presence of
+// a [multi_color_controller] config section is the dialect discriminator: the
+// Max 4 and Q2 firmware 01.01.02.x carry it, Q2 1.1.x and the Plus 4 do not.
 // (prestonbrown/helixscreen#1083)
 // ---------------------------------------------------------------------------
+
+TEST_CASE("QIDI Box multi_color_controller dialect loads through the controller",
+          "[ams][qidi_box][write_path][max4]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"multi_color_controller", json::object()}});
+
+    SECTION("an empty extruder") {
+        REQUIRE(backend.load_filament(2).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_LOAD SLOT=slot2");
+    }
+    SECTION("another slot loaded: the controller swaps it, so no unload goes first") {
+        QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot0"}});
+        REQUIRE(backend.load_filament(2).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_LOAD SLOT=slot2");
+    }
+}
+
+TEST_CASE("QIDI Box multi_color_controller dialect unloads through the controller",
+          "[ams][qidi_box][write_path][max4]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"multi_color_controller", json::object()}});
+
+    SECTION("a named slot") {
+        REQUIRE(backend.unload_filament(1).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_UNLOAD SLOT=slot1");
+    }
+    SECTION("the active slot") {
+        QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot3"}});
+        REQUIRE(backend.unload_filament(-1).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_UNLOAD SLOT=slot3");
+    }
+}
 
 TEST_CASE("QIDI Box Max 4 dialect ejects via MULTI_COLOR_BOX_UNLOAD",
           "[ams][qidi_box][write_path][max4]") {

@@ -14,6 +14,7 @@
 #include "../test_helpers/print_start_profile_test_access.h"
 #include "print_start_profile.h"
 
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 
@@ -1865,4 +1866,125 @@ TEST_CASE("PrintStartProfile: status-signal predicate ops table",
     CHECK(result.phase == PrintStartPhase::HEATING_BED);
     CHECK(result.message == "and holds");
     CHECK(result.progress == 7);
+}
+
+// ============================================================================
+// Tag patterns
+// ============================================================================
+
+TEST_CASE("PrintStartProfile: tag patterns are their own list", "[profile][print][tag]") {
+    auto profile = PrintStartProfileTestAccess::parse(nlohmann::json::parse(
+        R"({"name":"tags",)"
+        R"("tag_patterns":[{"pattern":"LOAD_UNIT","phase":"INITIALIZING","message":"Loading"}],)"
+        R"("response_patterns":[{"pattern":"G28","phase":"HOMING","weight":10}]})"));
+    REQUIRE(profile != nullptr);
+    PrintStartProfile::MatchResult result;
+
+    REQUIRE(profile->try_match_tag("// LOAD_UNIT 2", result));
+    CHECK(result.phase == PrintStartPhase::INITIALIZING);
+    CHECK(result.message == "Loading");
+    CHECK(result.reported_percent == -1);
+
+    CHECK_FALSE(profile->try_match_tag("G28", result));
+    CHECK_FALSE(profile->try_match_pattern("// LOAD_UNIT 2", result));
+}
+
+TEST_CASE("PrintStartProfile: a tag's progress comes from the group it names",
+          "[profile][print][tag]") {
+    auto profile = PrintStartProfileTestAccess::parse(nlohmann::json::parse(
+        R"j({"name":"progress","tag_patterns":[)j"
+        R"j({"pattern":"flush ([0-9.]+)","phase":"PURGING","message":"Purging",)j"
+        R"j("progress_group":1},)j"
+        R"j({"pattern":"wipe ([0-9.]+)","phase":"CLEANING","progress_group":2},)j"
+        R"j({"pattern":"rinse","phase":"PURGING"}]})j"));
+    REQUIRE(profile != nullptr);
+    PrintStartProfile::MatchResult result;
+
+    SECTION("a value at or below 1.5 is a fraction") {
+        REQUIRE(profile->try_match_tag("flush 0.42", result));
+        CHECK(result.reported_percent == 42);
+        REQUIRE(profile->try_match_tag("flush 1.5", result));
+        CHECK(result.reported_percent == 100);
+    }
+
+    SECTION("a larger value is already a percent, clamped") {
+        REQUIRE(profile->try_match_tag("flush 75", result));
+        CHECK(result.reported_percent == 75);
+        REQUIRE(profile->try_match_tag("flush 250", result));
+        CHECK(result.reported_percent == 100);
+    }
+
+    SECTION("a group the pattern does not have reports nothing") {
+        REQUIRE(profile->try_match_tag("wipe 0.5", result));
+        CHECK(result.reported_percent == -1);
+    }
+
+    SECTION("a match without progress clears the last one") {
+        REQUIRE(profile->try_match_tag("flush 0.5", result));
+        REQUIRE(profile->try_match_tag("rinse", result));
+        CHECK(result.reported_percent == -1);
+    }
+}
+
+TEST_CASE("PrintStartProfile: percent_from_report", "[profile][print][tag]") {
+    CHECK(PrintStartProfile::percent_from_report(0.0) == 0);
+    CHECK(PrintStartProfile::percent_from_report(0.005) == 1);
+    CHECK(PrintStartProfile::percent_from_report(1.0) == 100);
+    CHECK(PrintStartProfile::percent_from_report(2.0) == 2);
+    CHECK(PrintStartProfile::percent_from_report(99.6) == 100);
+    CHECK(PrintStartProfile::percent_from_report(1e9) == 100);
+    CHECK(PrintStartProfile::percent_from_report(-0.5) == -1);
+    CHECK(PrintStartProfile::percent_from_report(std::nan("")) == -1);
+}
+
+TEST_CASE("PrintStartProfile: case_sensitive compiles a pattern without ICase",
+          "[profile][print][pattern]") {
+    auto profile = PrintStartProfileTestAccess::parse(nlohmann::json::parse(
+        R"({"name":"case",)"
+        R"("response_patterns":[)"
+        R"({"pattern":"BOX_LOAD","phase":"INITIALIZING","case_sensitive":true},)"
+        R"({"pattern":"g28","phase":"HOMING","case_sensitive":"yes"}]})"));
+    REQUIRE(profile != nullptr);
+    PrintStartProfile::MatchResult result;
+
+    CHECK(profile->try_match_pattern("BOX_LOAD", result));
+    CHECK_FALSE(profile->try_match_pattern("box_load", result));
+    // A non-boolean value is ignored: the pattern stays case-insensitive.
+    CHECK(profile->try_match_pattern("G28", result));
+}
+
+TEST_CASE("PrintStartProfile: the K2 profiles' tag patterns read the K2 tag stream",
+          "[profile][print][tag][k2]") {
+    for (const char* name : {"creality_k2", "k2_improvements"}) {
+        auto profile = PrintStartProfile::load(name);
+        REQUIRE(profile != nullptr);
+        if (profile->is_default()) {
+            SKIP(std::string(name) + ".json not available");
+        }
+        INFO(name);
+        PrintStartProfile::MatchResult result;
+
+        REQUIRE(
+            profile->try_match_tag("// num: 0, velocity: 575.000000, percent 0.500000", result));
+        CHECK(result.phase == PrintStartPhase::PURGING);
+        CHECK(result.reported_percent == 50);
+        REQUIRE(profile->try_match_tag("// num: 0, velocity: 23.0, percent: 75", result));
+        CHECK(result.reported_percent == 75);
+        REQUIRE(profile->try_match_tag("// velocity: 23.0 percent 1.000000", result));
+        CHECK(result.reported_percent == 100);
+
+        // "percent" alone, or with no number after it, is not the purge tag.
+        CHECK_FALSE(profile->try_match_tag("// percent 0.5", result));
+        CHECK_FALSE(profile->try_match_tag("// num: 3, percent done", result));
+
+        for (const char* line :
+             {"// [box] cut sensor detected", "// [box] cut to return", "BOX_LOAD_MATERIAL"}) {
+            REQUIRE(profile->try_match_tag(line, result));
+            CHECK(result.phase == PrintStartPhase::INITIALIZING);
+            CHECK(result.message == "Loading Filament...");
+            CHECK(result.reported_percent == -1);
+        }
+        CHECK_FALSE(profile->try_match_tag("box_load_material", result));
+        CHECK_FALSE(profile->try_match_tag("// probe at 190.000,8.000 is z=-0.580000", result));
+    }
 }

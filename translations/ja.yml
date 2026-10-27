@@ -470,6 +470,7 @@ translations:
     のガイド、設定リファレンス、トラブルシューティング資料を参照します。
   Brush nozzle: 'ノズルをブラシ清掃'
   Brush the mounted tool's nozzle clean: '装着中のツールのノズルをブラシで清掃'
+  Buffer: バッファー
   Buffer Status: バッファーステータス
   Buffer tube problem: バッファーチューブの問題
   Build Volume: '造形ボリューム'
@@ -582,6 +583,7 @@ translations:
   Cancel Scheduled Pause: '予約した一時停止を取り消す'
   Cancel macro not configured: キャンセルマクロが未設定です
   Cancel print: '印刷をキャンセル'
+  Cancel sent. The printer finishes its start sequence, then stops before printing.: 'キャンセルを送信しました。プリンターは開始シーケンスを終えてから、印刷前に停止します。'
   Canceled: キャンセル済み
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'キャンセルするとチャンバーの目標温度をオフにして待機を終了し、その後印刷を停止します。'
   'Cannot add to queue: internal error': 'キューに追加できません: 内部エラー'
@@ -1279,6 +1281,7 @@ translations:
   Extrude Speed: 押し出し速度
   'Extrude failed: {}': '押出に失敗しました: {}'
   Extrude may still be running — response timed out: 押出がまだ実行中の可能性があります — 応答タイムアウト
+  Extrude more: "さらに押し出し"
   Extrude/retract feedrate (Saved): 押し出し/引き戻し速度（保存済み）
   Extruded past the nozzle after each load: 'ロードのたびにノズルから押し出す量'
   Extruder: エクストルーダー
@@ -1294,6 +1297,7 @@ translations:
   Extruder to Nozzle: 'エクストルーダーからノズルまで'
   Extruder too cold: エクストルーダーが冷えています
   Extruding prime line...: プライムラインを押し出し中...
+  Extruding...: "押し出し中..."
   FAILED: 失敗
   FILAMENT: フィラメント
   FILAMENT & TOOLHEAD: 'フィラメントとツールヘッド'
@@ -1886,6 +1890,7 @@ translations:
   Invalid tool/slot: '無効なツール/スロットです'
   Invalid value: '無効な値です'
   Invalid value type: '値の型が無効です'
+  Is new filament coming out of the nozzle?: "ノズルから新しいフィラメントが出ていますか？"
   Issue description: 問題の説明
   It can be un-archived in Spoolman's web UI.: Spoolman の Web 画面でアーカイブを解除できます。
   It has not reported its slots yet. Try again in a moment.: スロットがまだ報告されていません。しばらくしてからもう一度お試しください。
@@ -2947,6 +2952,7 @@ translations:
   Purging: パージ中
   Purging nozzle: ノズルをパージ中
   Purging...: パージ中...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"
   QGL: QGL
   'QGL failed: {}': 'QGL に失敗しました: {}'
   QGL may still be running — response timed out: QGL がまだ実行中の可能性があります — 応答タイムアウト
@@ -3873,6 +3879,7 @@ translations:
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。'
   The printer finishes this measurement on its own.: 'この測定はプリンターが最後まで行います。'
   The printer halted this print and cannot resume it. Restart from the beginning?: プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？
+  The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'プリンターからキャンセルの応答がまだありません。開始シーケンスが終わると停止します。'
   The printer has not reported its axis limits yet.: 'プリンターがまだ軸の範囲を報告していません。'
   The printer has not reported its maximum velocity yet.: 'プリンターがまだ最大速度を報告していません。'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
@@ -3888,6 +3895,7 @@ translations:
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'プリンターはチャンバーが温度に達するのを待っており、この待機を終わらせるには緊急停止とファームウェアの再起動しかありません。印刷はすぐに停止し、再開できません。'
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: プリンターは現在フィラメントが装填されていることを検出していません。どうしますか？
+  The printer kept printing after the cancel.: 'キャンセル後もプリンターは印刷を続けています。'
   The printer lost power during a print. It can resume where it left off.: 印刷中にプリンターの電源が失われました。中断した箇所から再開できます。
   The printer lost power during a print. The resumed layer may not line up exactly.: 印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。
   The printer lost power while printing {}. Resume where it left off?: '{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？'

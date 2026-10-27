@@ -586,11 +586,25 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
     // The reprint path skips the preparation manager, so it records the job
     // identity itself rather than running with the previous print's override.
     printer_state_.print_state().begin_preparing(helix::PrintJobRef{filename, path, ""});
+    const int epoch =
+        lv_subject_get_int(printer_state_.print_state().get_preparing_epoch_subject());
 
     // Lightweight start — the file is already on the printer; no upload/prep.
     // An archive printed as an extracted plate cannot start as itself: it goes
     // the way Print sends it, extracted again through the preparation manager.
-    auto start = [this, filename, on_started, on_error, archive_plate]() {
+    auto start = [this, filename, on_started, on_error, archive_plate, epoch]() {
+        // The pre-print send runs first, and Stop can withdraw the job while it
+        // does; a withdrawn job must not reach the printer.
+        if (lv_subject_get_int(printer_state_.print_state().get_preparing_epoch_subject()) !=
+            epoch) {
+            spdlog::info("[PrintStartController] Reprint of {} abandoned - no longer being "
+                         "prepared",
+                         filename);
+            if (on_error) {
+                on_error();
+            }
+            return;
+        }
         auto tok = lifetime_.token();
         if (archive_plate > 0) {
             auto* prep = active_prep_manager();
@@ -616,17 +630,29 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
                 });
             return;
         }
+        printer_state_.print_state().note_preparing_start_sent();
         api_->job().start_print(
             filename,
-            [tok, on_started]() mutable {
+            [tok, on_started, ps = &printer_state_, epoch]() mutable {
+                // Recorded even if this controller is gone: a pending Stop is
+                // waiting on it to send its cancel.
+                helix::ui::queue_update("PrintStartController::reprint.answered", [ps, epoch]() {
+                    ps->print_state().note_preparing_start_answered(epoch, true);
+                });
                 tok.defer("PrintStartController::reprint.ok", [on_started]() {
                     if (on_started) {
                         on_started();
                     }
                 });
             },
-            [tok, on_error, ps = &printer_state_](const MoonrakerError& err) mutable {
-                tok.defer("PrintStartController::reprint.err", [err, on_error, ps]() {
+            [tok, on_error, ps = &printer_state_, epoch](const MoonrakerError& err) mutable {
+                tok.defer("PrintStartController::reprint.err", [err, on_error, ps, epoch]() {
+                    // Held for a cancel Stop is waiting to send: the printer may
+                    // be running this start, so it is not a failed one.
+                    if (err.is_transport_loss() &&
+                        ps->print_state().hold_for_requested_cancel(epoch)) {
+                        return;
+                    }
                     ps->print_state().retire_preparing(helix::PreparingExit::Failed);
                     NOTIFY_ERROR(lv_tr("Failed to reprint: {}"), err.localized_message());
                     if (on_error) {

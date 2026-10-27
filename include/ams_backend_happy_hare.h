@@ -96,12 +96,14 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
     static bool owns_filament_sensor(const std::string& bare_name,
                                      const helix::PrinterDiscovery& discovery);
 
+    /// Substrings of a lowercased sensor name that mark it as hardware Happy
+    /// Hare drives (ERCF, TradRack, Prusa-style MMUs) whether or not Happy Hare
+    /// was detected. See AmsBackend::sensor_name_names_filament_system.
+    static constexpr const char* kSensorNameKeywords[] = {"mmu", "ercf", "trad", "happy", "hare"};
+
     // State queries
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
     [[nodiscard]] AmsType get_type() const override;
-    [[nodiscard]] const char* get_klipper_object_name() const override {
-        return "mmu"; // Matches the Klipper object name
-    }
     [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
         return helix::ui::LaneNoun::Gate;
     }

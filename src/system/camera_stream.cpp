@@ -8,18 +8,26 @@
 #if HELIX_HAS_CAMERA
 
 #include "app_globals.h"
+#include "helix_version.h"
+#include "hv/hssl.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
 #include "scope_exit.h"
 #include "spdlog/spdlog.h"
 #include "stb_image.h"
+#include "system/platform_tls.h"
 #include "webcam_selection.h"
+
+#ifdef __ANDROID__
+#include "system/http_android.h"
+#endif
 
 #include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <dlfcn.h>
+#include <new>
 #include <string_view>
 
 // TurboJPEG pixel format and flag constants (avoid header dependency)
@@ -157,6 +165,17 @@ bool CameraStream::configure_from_printer(std::string& stream_url, std::string& 
     return true;
 }
 
+CameraStream::FetchMode CameraStream::choose_fetch_mode(const std::string& stream_url,
+                                                        const std::string& snapshot_url,
+                                                        bool http_client_has_tls) {
+    // The platform TLS bridge makes one-shot requests and cannot carry an
+    // endless MJPEG response.
+    if (!stream_url.empty() && !needs_platform_tls(stream_url, http_client_has_tls)) {
+        return FetchMode::Stream;
+    }
+    return snapshot_url.empty() ? FetchMode::None : FetchMode::Snapshot;
+}
+
 void CameraStream::start(const std::string& stream_url, const std::string& snapshot_url,
                          FrameCallback on_frame, ErrorCallback on_error) {
     // A worker that exited on its own leaves running_ false but the std::thread
@@ -171,6 +190,7 @@ void CameraStream::start(const std::string& stream_url, const std::string& snaps
     on_frame_ = std::move(on_frame);
     on_error_ = std::move(on_error);
     stream_fail_count_ = 0;
+    snapshot_fail_count_ = 0;
     running_.store(true);
     {
         std::lock_guard<std::mutex> reg(g_streams_mutex);
@@ -179,15 +199,29 @@ void CameraStream::start(const std::string& stream_url, const std::string& snaps
 
     spdlog::info("[CameraStream] Starting — stream={}, snapshot={}", stream_url_, snapshot_url_);
 
-    if (!stream_url_.empty()) {
+#ifdef __ANDROID__
+    const bool http_client_has_tls = HV_WITH_SSL;
+#else
+    // No platform bridge to fall back to: an https stream goes to libhv as is.
+    const bool http_client_has_tls = true;
+#endif
+    const FetchMode mode = choose_fetch_mode(stream_url_, snapshot_url_, http_client_has_tls);
+    if (mode != FetchMode::Stream && !stream_url_.empty()) {
+        spdlog::info("[CameraStream] {} needs TLS the HTTP client lacks; the platform bridge "
+                     "is one-shot, so snapshots are polled instead",
+                     stream_url_);
+    }
+
+    if (mode == FetchMode::Stream) {
         spdlog::info("[CameraStream] Using MJPEG streaming mode");
         stream_thread_ = helix::make_thread(&CameraStream::stream_thread_func, this);
-    } else if (!snapshot_url_.empty()) {
+    } else if (mode == FetchMode::Snapshot) {
         spdlog::info("[CameraStream] Using snapshot mode (interval={}ms)", kSnapshotIntervalMs);
         stream_thread_ = helix::make_thread(&CameraStream::snapshot_poll_loop, this);
     } else {
-        spdlog::warn("[CameraStream] No stream or snapshot URL provided");
+        spdlog::warn("[CameraStream] No usable stream or snapshot URL provided");
         running_.store(false);
+        report_error(lifetime_.token(), "Camera unavailable");
     }
 }
 
@@ -604,7 +638,16 @@ void CameraStream::snapshot_poll_loop() {
 
     // L081_OK: loop conditions on the thread the owner joins; no LVGL below.
     while (!poll_token.expired_no_lvgl() && running_.load()) {
-        fetch_snapshot();
+        // As the thread entry this loop has no outer handler, and an escaping
+        // throw is std::terminate. An allocation failure is one failed snapshot.
+        try {
+            fetch_snapshot();
+        } catch (const std::bad_alloc& e) {
+            spdlog::error("[CameraStream] Out of memory fetching a snapshot: {}", e.what());
+            if (!poll_token.expired_no_lvgl()) { // L081_OK: guards members, not LVGL
+                note_snapshot_failure(poll_token);
+            }
+        }
         // Sleep in small increments to check running_ flag
         for (int i = 0;
              i < kSnapshotIntervalMs / 100 && !poll_token.expired_no_lvgl() && running_.load();
@@ -641,18 +684,36 @@ void CameraStream::fetch_snapshot() {
 
     spdlog::trace("[CameraStream] Fetching snapshot from {}", snapshot_url_);
 
-    auto req = std::make_shared<HttpRequest>();
-    req->method = HTTP_GET;
-    req->url = snapshot_url_;
-    req->timeout = kStreamTimeoutSec;
-
-    // Store weak reference for cancellation by stop()
+    std::string body;
+    bool fetched = false;
+#ifdef __ANDROID__
+    if (needs_platform_tls(snapshot_url_, HV_WITH_SSL)) {
+        fetched =
+            android::https_get_bytes(snapshot_url_, HELIX_USER_AGENT, kPlatformSnapshotTimeoutSec,
+                                     kMaxPlatformSnapshotBytes, body);
+    } else
+#endif
     {
-        std::lock_guard<std::mutex> lock(req_mutex_);
-        active_req_ = req; // weak_ptr assignment from shared_ptr
-    }
+        auto req = std::make_shared<HttpRequest>();
+        req->method = HTTP_GET;
+        req->url = snapshot_url_;
+        req->timeout = kStreamTimeoutSec;
 
-    auto resp = requests::request(req);
+        // Store weak reference for cancellation by stop()
+        {
+            std::lock_guard<std::mutex> lock(req_mutex_);
+            active_req_ = req; // weak_ptr assignment from shared_ptr
+        }
+
+        auto resp = requests::request(req);
+        if (resp && resp->status_code >= 200 && resp->status_code < 300) {
+            fetched = true;
+            body = std::move(resp->body);
+        } else {
+            spdlog::debug("[CameraStream] Snapshot fetch failed (status={})",
+                          resp ? static_cast<int>(resp->status_code) : -1);
+        }
+    }
 
     // After the blocking HTTP call, stop() may have run and the CameraStream
     // may be destroyed (detached thread). Check lifetime BEFORE touching members.
@@ -665,19 +726,22 @@ void CameraStream::fetch_snapshot() {
         return;
     }
 
-    if (!resp || resp->status_code < 200 || resp->status_code >= 300) {
-        spdlog::debug("[CameraStream] Snapshot fetch failed (status={})",
-                      resp ? static_cast<int>(resp->status_code) : -1);
+    auto* data = reinterpret_cast<const uint8_t*>(body.data());
+    if (!fetched || body.empty() || !decode_jpeg(data, body.size())) {
+        note_snapshot_failure(snap_token);
         return;
     }
+    snapshot_fail_count_ = 0;
+    deliver_frame();
+}
 
-    if (resp->body.empty()) {
-        return;
-    }
-
-    auto* data = reinterpret_cast<const uint8_t*>(resp->body.data());
-    if (decode_jpeg(data, resp->body.size())) {
-        deliver_frame();
+void CameraStream::note_snapshot_failure(const helix::LifetimeToken& token) {
+    // Without a message a view waiting on its first frame spins forever. One
+    // report per run of failures; a decoded frame starts a new run.
+    if (++snapshot_fail_count_ == kMaxSnapshotFailures) {
+        spdlog::warn("[CameraStream] {} snapshots in a row failed from {}", snapshot_fail_count_,
+                     snapshot_url_);
+        report_error(token, "Snapshot unavailable");
     }
 }
 

@@ -3,17 +3,13 @@
 
 #include "xml_registration.h"
 
-#include "ui_afc_fault_path.h"
 #include "ui_ams_current_tool.h"
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_device_section_detail_overlay.h"
+#include "ui_ams_edit_overlay.h"
 #include "ui_bed_drying_modal.h"
 #include "ui_belt_gap_gauge.h"
 #include "ui_belt_path_sketch.h"
-#if HELIX_HAS_CFS
-#include "ui_cfs_chute_calibration_overlay.h"
-#endif
-#include "ui_ams_edit_overlay.h"
 #include "ui_button.h"
 #include "ui_carousel.h"
 #include "ui_color_picker.h"
@@ -21,6 +17,7 @@
 #include "ui_context_menu.h"
 #include "ui_event_safety.h"
 #include "ui_fan_dial.h"
+#include "ui_fault_path.h"
 #include "ui_fonts.h"
 #include "ui_gcode_viewer.h"
 #include "ui_hsv_picker.h"
@@ -433,9 +430,9 @@ void register_xml_components() {
     ui_hsv_picker_register();         // HSV color picker for edit filament modal
     ui_z_offset_indicator_register(); // Z-offset nozzle indicator
     ui_ams_current_tool_init();       // AMS current tool indicator callbacks
-    // <afc_fault_path> + its afc_fault_segment subject, embedded by both modals
-    // that can show an AFC lane fault.
-    helix::ui::afc_fault_path_register();
+    // <fault_path> + its fault_path_segment subject, embedded by the modals
+    // that can show a positioned lane fault.
+    helix::ui::fault_path_register();
     // NOTE: Other AMS widgets (ams_slot, filament_path_canvas) are
     // registered lazily in ui_panel_ams.cpp when the AMS panel is first accessed
 
