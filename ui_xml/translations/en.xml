@@ -4395,7 +4395,9 @@
   <translation tag="{} LED strips available" en="{} LED strips available"/>
   <translation tag="{} MCUs" en="{} MCUs"/>
   <translation tag="{} Tools" en="{} Tools"/>
+  <translation tag="{} and {}" en="{} and {}"/>
   <translation tag="{} and {} are both mapped here" en="{} and {} are both mapped here"/>
+  <translation tag="{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway." en="{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway."/>
   <translation tag="{} available" en="{} available"/>
   <translation tag="{} axes homed" en="{} axes homed"/>
   <translation tag="{} axis homed" en="{} axis homed"/>

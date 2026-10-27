@@ -4395,7 +4395,9 @@
   <translation tag="{} LED strips available" zh="{} 条 LED 灯带可用"/>
   <translation tag="{} MCUs" zh="{} 个 MCU"/>
   <translation tag="{} Tools" zh="{} 个工具"/>
+  <translation tag="{} and {}" zh="{} 和 {}"/>
   <translation tag="{} and {} are both mapped here" zh="{} 和 {} 都映射到这里"/>
+  <translation tag="{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway." zh="{} 已打开。打开的机箱会让热量流失，可能导致打印失败。请关闭，或仍然开始。"/>
   <translation tag="{} available" zh="{} 可用"/>
   <translation tag="{} axes homed" zh="{} 轴已归位"/>
   <translation tag="{} axis homed" zh="{} 轴已归位"/>

@@ -4836,7 +4836,9 @@ translations:
   '{} LED strips available': '{} tiras LED disponibles'
   '{} MCUs': '{} MCU'
   '{} Tools': '{} herramientas'
+  '{} and {}': '{} y {}'
   '{} and {} are both mapped here': '{} y {} están asignados aquí'
+  '{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway.': '{} están abiertas. Un cerramiento abierto deja escapar el calor y puede estropear la impresión. Ciérralas o inicia de todos modos.'
   '{} available': '{} disponible'
   '{} axes homed': 'Ejes {} en origen'
   '{} axis homed': Eje {} en origen

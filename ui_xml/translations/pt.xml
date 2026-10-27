@@ -4395,7 +4395,9 @@
   <translation tag="{} LED strips available" pt="{} fitas de LED disponíveis"/>
   <translation tag="{} MCUs" pt="{} MCUs"/>
   <translation tag="{} Tools" pt="{} ferramentas"/>
+  <translation tag="{} and {}" pt="{} e {}"/>
   <translation tag="{} and {} are both mapped here" pt="{} e {} estão ambos atribuídos aqui"/>
+  <translation tag="{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway." pt="{} estão abertas. Um gabinete aberto deixa o calor escapar e pode estragar a impressão. Feche-as ou inicie mesmo assim."/>
   <translation tag="{} available" pt="{} disponível"/>
   <translation tag="{} axes homed" pt="Eixos {} referenciados"/>
   <translation tag="{} axis homed" pt="Eixo {} referenciado"/>

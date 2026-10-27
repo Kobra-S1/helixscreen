@@ -1497,5 +1497,24 @@ TEST_CASE("gate door_open: an open door warns with Start Anyway and names every 
     CHECK(r.severity == GateSeverity::Warning);
     CHECK(r.proceed_label == "Start Anyway");
     CHECK(r.title == "Door Open");
-    CHECK(r.body.find("frontDoor, topDoor") != std::string::npos);
+    CHECK(r.body.rfind("frontDoor and topDoor are open.", 0) == 0);
+    CHECK(r.body.find("Close them") != std::string::npos);
+}
+
+TEST_CASE("gate door_open: one door is singular, three are a list",
+          "[print-start][gate-pipeline][door]") {
+    const auto& gate = gate_named("door_open");
+    auto one = ctx_with([](PrintStartContext& c) {
+        c.door_check_enabled = true;
+        c.open_doors = {"frontDoor"};
+    });
+    const auto r1 = gate.evaluate(one);
+    CHECK(r1.body.rfind("frontDoor is open.", 0) == 0);
+    CHECK(r1.body.find("Close it,") != std::string::npos);
+
+    auto three = ctx_with([](PrintStartContext& c) {
+        c.door_check_enabled = true;
+        c.open_doors = {"frontDoor", "topDoor", "lid"};
+    });
+    CHECK(gate.evaluate(three).body.rfind("frontDoor, topDoor and lid are open.", 0) == 0);
 }

@@ -511,21 +511,36 @@ CheckResult gate_mixed_temperature_materials(const PrintStartContext& ctx) {
 
 } // namespace
 
+/// "a", "a and b", "a, b and c": the list read as one phrase. The " and " join
+/// is a translated pattern, so a locale orders the last pair its own way.
+static std::string spoken_list(const std::vector<std::string>& names) {
+    if (names.empty()) {
+        return {};
+    }
+    std::string head = names.front();
+    for (size_t i = 1; i + 1 < names.size(); ++i) {
+        head += ", " + names[i];
+    }
+    if (names.size() == 1) {
+        return head;
+    }
+    return fmt::format(fmt::runtime(lv_tr("{} and {}")), head, names.back());
+}
+
 CheckResult gate_door_open(const PrintStartContext& ctx) {
     if (!ctx.door_check_enabled || ctx.open_doors.empty()) {
         return pass_result();
     }
-    std::string names;
-    for (const auto& name : ctx.open_doors) {
-        names += names.empty() ? name : ", " + name;
-    }
+    const std::string names = spoken_list(ctx.open_doors);
     spdlog::info("[PrintStartController] Door open ({}) - showing pre-print warning", names);
-    return warn_result(
-        lv_tr("Door Open"),
-        fmt::format(fmt::runtime(lv_tr("{} is open. An open enclosure lets heat out and can "
-                                       "spoil the print. Close it, or start anyway.")),
-                    names),
-        lv_tr("Start Anyway"));
+    const char* body =
+        ctx.open_doors.size() == 1
+            ? lv_tr("{} is open. An open enclosure lets heat out and can spoil the print. "
+                    "Close it, or start anyway.")
+            : lv_tr("{} are open. An open enclosure lets heat out and can spoil the print. "
+                    "Close them, or start anyway.");
+    return warn_result(lv_tr("Door Open"), fmt::format(fmt::runtime(body), names),
+                       lv_tr("Start Anyway"));
 }
 
 CheckResult gate_printer_stopping_command(const PrintStartContext& ctx) {

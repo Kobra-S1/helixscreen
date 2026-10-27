@@ -4458,7 +4458,9 @@
   <translation tag="{} LED strips available" ru="Доступно светодиодных лент: {}"/>
   <translation tag="{} MCUs" ru="{} MCU"/>
   <translation tag="{} Tools" ru="Инструментов: {}"/>
+  <translation tag="{} and {}" ru="{} и {}"/>
   <translation tag="{} and {} are both mapped here" ru="{} и {} оба назначены сюда"/>
+  <translation tag="{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway." ru="{} открыты. Через открытый корпус уходит тепло, и печать может не получиться. Закройте их или начните всё равно."/>
   <translation tag="{} available" ru="Доступна версия {}"/>
   <translation tag="{} axes homed" ru="Оси {} запаркованы"/>
   <translation tag="{} axis homed" ru="Ось {} запаркована"/>

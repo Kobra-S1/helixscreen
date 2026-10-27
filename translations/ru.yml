@@ -4877,7 +4877,9 @@ translations:
   '{} LED strips available': 'Доступно светодиодных лент: {}'
   '{} MCUs': '{} MCU'
   '{} Tools': 'Инструментов: {}'
+  '{} and {}': '{} и {}'
   '{} and {} are both mapped here': '{} и {} оба назначены сюда'
+  '{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway.': '{} открыты. Через открытый корпус уходит тепло, и печать может не получиться. Закройте их или начните всё равно.'
   '{} available': Доступна версия {}
   '{} axes homed': 'Оси {} запаркованы'
   '{} axis homed': Ось {} запаркована

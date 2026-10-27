@@ -4837,7 +4837,9 @@ translations:
   '{} LED strips available': '{} strisce LED disponibili'
   '{} MCUs': '{} MCU'
   '{} Tools': '{} utensili'
+  '{} and {}': '{} e {}'
   '{} and {} are both mapped here': '{} e {} sono entrambi assegnati qui'
+  '{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway.': '{} sono aperte. Un''enclosure aperta disperde il calore e può rovinare la stampa. Chiudile o avvia comunque.'
   '{} available': '{} disponibile'
   '{} axes homed': 'Assi {} in posizione'
   '{} axis homed': Asse {} in posizione

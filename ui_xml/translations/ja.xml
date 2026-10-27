@@ -4395,7 +4395,9 @@
   <translation tag="{} LED strips available" ja="{} 個の LED ストリップが利用可能です"/>
   <translation tag="{} MCUs" ja="{} MCU"/>
   <translation tag="{} Tools" ja="{} ツール"/>
+  <translation tag="{} and {}" ja="{}と{}"/>
   <translation tag="{} and {} are both mapped here" ja="{} と {} の両方がここに割り当てられています"/>
+  <translation tag="{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway." ja="{}が開いています。エンクロージャーが開いていると熱が外に出て、印刷に失敗することがあります。閉じるか、このまま開始してください。"/>
   <translation tag="{} available" ja="{} が利用可能"/>
   <translation tag="{} axes homed" ja="{} 軸がホーミング済み"/>
   <translation tag="{} axis homed" ja="{} 軸がホーミング済み"/>
