@@ -287,6 +287,20 @@ class PrintSelectDetailView : public OverlayBase {
         visible_subject_ = subject;
     }
 
+    /**
+     * @brief The details row's material subject, written with the materials the
+     * print uses (helix::used_materials_text over the card's used tools).
+     *
+     * Republished whenever the used tools or the palette change; left alone when
+     * the file names no material, so the caller's text stands.
+     */
+    void set_material_text_subject(lv_subject_t* subject) {
+        material_text_subject_ = subject;
+    }
+
+    /// Write the details row's material text now (no-op without a subject).
+    void publish_material_text();
+
     // === Visibility ===
 
     /**
@@ -784,6 +798,10 @@ class PrintSelectDetailView : public OverlayBase {
     IMoonrakerAPI* api_ = nullptr;
     PrinterState* printer_state_ = nullptr;
     lv_subject_t* visible_subject_ = nullptr;
+    lv_subject_t* material_text_subject_ = nullptr; ///< see set_material_text_subject()
+
+    /// The card's used-tools filter, then the details row that follows it.
+    void set_card_used_tools(std::optional<std::set<int>> used);
 
     // === Widget References ===
     // Note: overlay_root_ inherited from OverlayBase holds the main widget

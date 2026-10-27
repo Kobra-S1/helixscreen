@@ -25,6 +25,7 @@
 #include "color_utils.h"
 #include "config.h"
 #include "display_settings_manager.h"
+#include "filament_chip_model.h"
 #include "file_analysis.h"
 #include "gcode_footer_summary.h"
 #include "gcode_parser.h"
@@ -529,6 +530,28 @@ void PrintSelectDetailView::set_file_palette(const std::vector<std::string>& fil
     palette_settled_ = !current_filament_colors_.empty();
     filament_mapping_card_.update(filament_colors, filament_materials);
     publish_card_visibility();
+    publish_material_text();
+}
+
+void PrintSelectDetailView::set_card_used_tools(std::optional<std::set<int>> used) {
+    filament_mapping_card_.set_used_tools(std::move(used));
+    publish_material_text();
+}
+
+void PrintSelectDetailView::publish_material_text() {
+    if (!material_text_subject_) {
+        return;
+    }
+    // The chips' own used-tool set, so the row and the chips name the same tools.
+    // Empty reads as not known yet, as it does for the card.
+    const auto& used = filament_mapping_card_.used_tools();
+    const std::string text =
+        helix::used_materials_text(current_filament_materials_,
+                                   used && !used->empty() ? used : std::optional<std::set<int>>{});
+    // A file naming no material keeps the panel's text (its filament name).
+    if (!text.empty()) {
+        lv_subject_copy_string(material_text_subject_, text.c_str());
+    }
 }
 
 void PrintSelectDetailView::show(const std::string& filename, const std::string& current_path,
@@ -595,7 +618,7 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     // gcode parse pushes its real used set (viewer-parse or headless hook).
     // Without this reset a disjoint prior set would mis-filter — or blank — the
     // new file's card pre-parse.
-    filament_mapping_card_.set_used_tools(std::nullopt);
+    set_card_used_tools(std::nullopt);
 
     // Update filament mapping card (shown when AMS is available)
     filament_mapping_card_.update(filament_colors, filament_materials);
@@ -1666,7 +1689,7 @@ void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tool
     // only DROPS mapping entries whose tool_index is outside tools_used, and the
     // validator only ever looks mappings up by the tool_index of a tool in
     // get_used_tool_info(), which is filtered by the same set.
-    filament_mapping_card_.set_used_tools(tools_used);
+    set_card_used_tools(tools_used);
 
     // One chip surface for every backend: the card renders from its own store,
     // so all this has to decide is whether that surface is on screen. The
@@ -2274,7 +2297,7 @@ void PrintSelectDetailView::apply_scan_result(std::set<int> tools) {
         // filter still refresh from the scan result (a no-op on full
         // platforms, where the parse already populated both).
         recompute_preflight();
-        filament_mapping_card_.set_used_tools(tools_used_effective());
+        set_card_used_tools(tools_used_effective());
         // set_used_tools() re-decides visibility from the new set, so the
         // subject has to follow it here too — this branch skips
         // render_authoritative_chips(), which is where that normally happens.

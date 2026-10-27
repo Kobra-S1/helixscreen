@@ -1356,6 +1356,59 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A chip tap runs the card's remap gate",
     }
 }
 
+// The details row names what the print uses, not T0: an OrcaSlicer file whose
+// palette is ABS;ABS;ABS;ABS;ABS-GF and that prints only with T4
+// (assets/test_gcodes/ssr_heat_sink_orca.gcode).
+TEST_CASE_METHOD(LVGLUITestFixture, "The details row's material follows the used tools",
+                 "[print_select][detail_view][filament_chip]") {
+    CacheDirGuard guard;
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_select_more_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
+    });
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
+    REQUIRE(root != nullptr);
+    struct CloseOnExit {
+        helix::ui::PrintSelectDetailView& v;
+        ~CloseOnExit() {
+            v.hide();
+            helix::ui::UpdateQueue::instance().drain();
+            lv_timer_handler();
+        }
+    } closer{view};
+
+    lv_subject_t material{};
+    char material_buf[64] = "ABS";
+    lv_subject_init_string(&material, material_buf, nullptr, sizeof(material_buf), "ABS");
+    view.set_material_text_subject(&material);
+    const auto text = [&material] { return std::string(lv_subject_get_string(&material)); };
+
+    // No scan answer cached, so the used tools are not known at show().
+    view.show("ssr_heat_sink_orca.gcode", "sub", "ABS",
+              {"#FFFFFF", "#000000", "#00FFFF", "#DFDFDF", "#363636"},
+              {"ABS", "ABS", "ABS", "ABS", "ABS-GF"}, 4242, 5151);
+    CHECK(text() == "ABS, ABS-GF");
+
+    PrintSelectDetailViewTestAccess::render_authoritative_chips(view, {4},
+                                                                /*refresh_card_from_palette=*/true);
+    CHECK(text() == "ABS-GF");
+
+    // The panel's own write (a late metadata fetch) does not outlast the view.
+    lv_subject_copy_string(&material, "ABS");
+    view.publish_material_text();
+    CHECK(text() == "ABS-GF");
+
+    view.set_material_text_subject(nullptr);
+    lv_subject_deinit(&material);
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "No filament system: the loaded chip shows and a tap opens nothing",
                  "[print_select][detail_view][filament_mapping][chip_tap][loaded]") {

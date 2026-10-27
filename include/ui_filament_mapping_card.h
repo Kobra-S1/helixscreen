@@ -130,6 +130,11 @@ class FilamentMappingCard {
      */
     void set_used_tools(std::optional<std::set<int>> used);
 
+    /// The set last given to set_used_tools(); nullopt or empty is not known yet.
+    [[nodiscard]] const std::optional<std::set<int>>& used_tools() const {
+        return used_tools_;
+    }
+
     /**
      * @brief Get current tool-to-slot mappings
      */

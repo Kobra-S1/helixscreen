@@ -2176,6 +2176,10 @@ void PrintSelectPanel::set_selected_file(const char* filename, const char* thumb
     lv_subject_copy_string(&selected_layer_height_subject_, layer_height ? layer_height : "");
     lv_subject_copy_string(&selected_filament_type_subject_, filament_type ? filament_type : "");
     apply_plate_stats_to_detail();
+    // The open detail view knows which tools the print uses; its text wins.
+    if (detail_view_ && detail_view_->is_visible()) {
+        detail_view_->publish_material_text();
+    }
 
     spdlog::info("[{}] Selected file: {}", get_name(), filename);
 }
@@ -2849,6 +2853,7 @@ void PrintSelectPanel::create_detail_view() {
 
     detail_view_->set_dependencies(api_, &printer_state_);
     detail_view_->set_visible_subject(&detail_view_visible_subject_);
+    detail_view_->set_material_text_subject(&selected_filament_type_subject_);
     detail_view_->set_on_delete_confirmed([this]() { delete_file(); });
 
     // The detail view's tappable cards (the visible color-requirements swatch
