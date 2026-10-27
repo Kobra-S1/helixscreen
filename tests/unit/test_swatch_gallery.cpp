@@ -69,7 +69,10 @@ void write_png(const std::string& path, const lv_draw_buf_t* snap, lv_color_t bg
 
 TEST_CASE_METHOD(LVGLUITestFixture, "swatch gallery", "[.][swatch_gallery]") {
     const char* dir = std::getenv("HELIX_SWATCH_GALLERY_DIR");
-    REQUIRE(dir != nullptr);
+    // A generator, not a check: with nowhere to write, there is nothing to run.
+    if (dir == nullptr) {
+        SKIP("HELIX_SWATCH_GALLERY_DIR is unset");
+    }
 
     ScopedThemeMode mode;
     for (const bool dark : {false, true}) {
@@ -118,7 +121,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "swatch gallery", "[.][swatch_gallery]") {
 //   HELIX_SWATCH_GALLERY_DIR=/tmp/out ./build/bin/helix-tests '[swatch_gallery_spools]'
 TEST_CASE_METHOD(LVGLUITestFixture, "swatch gallery spools", "[.][swatch_gallery_spools]") {
     const char* dir = std::getenv("HELIX_SWATCH_GALLERY_DIR");
-    REQUIRE(dir != nullptr);
+    // A generator, not a check: with nowhere to write, there is nothing to run.
+    if (dir == nullptr) {
+        SKIP("HELIX_SWATCH_GALLERY_DIR is unset");
+    }
     const char* size_env = std::getenv("HELIX_SWATCH_GALLERY_SPOOL");
     const int32_t size = size_env ? std::atoi(size_env) : 240;
     REQUIRE(size > 0);

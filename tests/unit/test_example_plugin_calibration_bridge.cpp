@@ -716,7 +716,10 @@ TEST_CASE_METHOD(XMLTestFixture, "the state machine speaks German", "[plugin][ex
 TEST_CASE_METHOD(CalibrationFx, "calibration-bridge result dialog screenshot",
                  "[.][calibration_bridge_shot]") {
     const char* dir = std::getenv("HELIX_SHOT_DIR");
-    REQUIRE(dir != nullptr);
+    // A screenshot for eyes: with nowhere to write, there is nothing to run.
+    if (dir == nullptr) {
+        SKIP("HELIX_SHOT_DIR is unset");
+    }
     HostRig rig(cb_block(json{{"auto_open", true}}));
     REQUIRE(register_component("header_bar"));
     rig.host->load_from("examples/plugins");
