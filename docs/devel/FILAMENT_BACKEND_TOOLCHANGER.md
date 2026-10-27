@@ -355,22 +355,35 @@ macro measures against, how it heats, or where the sensor is — all of that is 
 | Timeout | the rpc ceiling is the panel's own `kCalibrationTimeoutMs` (15 min; ~30 s to measure plus heating from cold, per tool, sequentially). Moonraker never times out `printer.gcode.script`, so an expiry while `idle_timeout` still reads Printing is a macro that is still running: the run completes on the busy→idle edge, with one more ceiling as the backstop - `PrintPreparationManager`'s rule for a pre-start macro that outlives its ceiling |
 | Mock | `HELIX_MOCK_AMS=toolchanger` advertises the macro and simulates the run (see `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`) |
 
-### A changer firmware's own calibration prompt
+### Which procedure the entry runs
 
-A changer firmware without klipper-toolchanger can ship its own calibration that only opens
-an action:prompt and returns. Z-Mod on the Creator 5 is the one today: `CALIBRATE_EXTRUDERS`
-asks the user to remove the build plate, and the prompt's OK runs `_T_CALIBRATE_EXTRUDERS`
-for all four heads. Its rpc answers before anything moves, so the panel above cannot follow
-it: its completion and result rows would claim a finish that has not happened.
+`tool_offset_calibration::resolve_procedure(hw)` is the one question
+(`include/tool_offset_calibration.h`). It walks a table in
+`src/printer/tool_offset_calibration.cpp`, first match wins, and returns
+`Procedure { kind, name, gcode, flow_id, entry_description }`:
 
-| Piece | Where |
-|-------|-------|
-| Which firmware, which macro | the provider row's `offset_calibration_macro` in `src/printer/toolchanger_addon.cpp#providers`; `toolchanger_addon::resolve_offset_calibration(hw)` returns `OffsetCalibration { present, provider_name, prompt_gcode }`, present only when the macro is defined |
-| Capability | `tool_offset_calibration::supported(hw)` is true for it; `tool_offset_calibration::printer_prompt_gcode(hw)` returns the command, empty when a `CALIBRATE_TOOL_OFFSETS` toolchanger or a guided flow owns the entry. `calibrate_all_gcode()` never returns it |
-| Entry | `open_tool_offset_cal_panel()` (`src/ui/ui_panel_calibration_tool_offset.cpp#open_tool_offset_cal_panel`) sends the prompt gcode instead of showing the panel, refused while `machine_motion_blocked` is set. The printer's prompt renders through `ActionPromptManager` |
-| Results | none followed: no progress, no rows. The firmware keeps its own measurements |
-| Tests | `[tool_offset_cal]` in `tests/unit/test_tool_offset_calibration.cpp`: the Z-Mod row, a missing macro, the AD5X (no carriage buttons), precedence of `CALIBRATE_TOOL_OFFSETS`, and a bare printer |
+| Row | Detects | Kind | Runs |
+|-----|---------|------|------|
+| Snapmaker nozzle offset (builds with `HELIX_HAS_SNAPMAKER` only) | `snapmaker::nozzle_offset::supported` | `GuidedFlow` | the U1's guided flow |
+| INDX seat by hand | `indx::supports_seat_by_hand` | `GuidedFlow` | the seat-by-hand flow |
+| klipper-toolchanger | `has_tool_changer()` + `CALIBRATE_TOOL_OFFSETS` | `Panel` | the panel above |
+| Changer firmware prompt | a tool changer in any dialect (`has_tool_changer()` or `toolchanger_addon::present()`) + `CALIBRATE_EXTRUDERS` | `PrinterPrompt` | the macro alone |
 
-Adding a second firmware with a prompt-style calibration is one file: set
-`offset_calibration_macro` on its row in `toolchanger_addon.cpp`.
+`supported(hw)` is `kind != None`; `printer_has_tool_offset_cal` and the Advanced row's
+description come from the same struct. `open_tool_offset_cal_panel()`
+(`src/ui/ui_panel_calibration_tool_offset.cpp#open_tool_offset_cal_panel`) switches on the
+kind: a guided flow starts, the panel shows, and a `PrinterPrompt` goes through
+`start_calibration_gcode()` (`src/printer/macro_executor.cpp#start_calibration_gcode`), which
+refuses while `machine_motion_blocked` is set and reports failure the way every macro send
+does.
+
+**The printer prompt.** Z-Mod on the Creator 5 ships `CALIBRATE_EXTRUDERS`, which only opens
+an action:prompt asking the user to remove the build plate; the prompt's OK runs
+`_T_CALIBRATE_EXTRUDERS` for all four heads. Its rpc answers before anything moves, so the
+panel cannot follow it: its completion and result rows would claim a finish that has not
+happened. HelixScreen sends the macro, `ActionPromptManager` renders the printer's prompt,
+and the firmware keeps its own measurements; no progress or rows are shown.
+
+Tests: `[tool_offset_cal]` in `tests/unit/test_tool_offset_calibration.cpp`, including one
+case that walks every row in precedence order. Adding a firmware is one row in that table.
 

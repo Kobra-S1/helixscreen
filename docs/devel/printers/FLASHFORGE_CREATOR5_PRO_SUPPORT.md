@@ -236,30 +236,42 @@ step-bar markers on a live swap remains open (prestonbrown/helixscreen#1714).
 ### Calibration and chamber air macros
 
 HelixScreen drives three more Z-Mod macro families from `c5pro_generic.cfg`. Each is a row in
-a capability provider table, so the Creator 5 is named in one module per capability.
+a capability provider table; the tool offset and stepper resonance rows detect the macro by
+capability rather than by naming the machine.
 
 | Macro | What it does on the printer | HelixScreen entry | Provider row |
 |-------|-----------------------------|-------------------|--------------|
-| `CALIBRATE_EXTRUDERS` | Opens an action:prompt ("Please remove the build plate first!"); OK runs `_T_CALIBRATE_EXTRUDERS`, measuring all four heads | Tool Offsets (Advanced row, Controls tile) sends it without opening the panel | `src/printer/toolchanger_addon.cpp#providers` (`offset_calibration_macro`); see [`FILAMENT_BACKEND_TOOLCHANGER.md`](../FILAMENT_BACKEND_TOOLCHANGER.md#a-changer-firmwares-own-calibration-prompt) |
-| `CALIBRATE_VFA T=<n>` | Mounts head n, zeroes the gcode offset, moves to X130 Y130, runs `STEPPER_RESONANCE_FACTORY_CALIBRATE`, parks the head, then `SAVE_CONFIG` | Advanced ▸ Vertical Artifact Compensation, with a tool picker | `kProviders` in `src/printer/stepper_resonance_calibration.cpp` |
+| `CALIBRATE_EXTRUDERS` | Opens an action:prompt ("Please remove the build plate first!"); OK runs `_T_CALIBRATE_EXTRUDERS`, measuring all four heads | Tool Offsets (Advanced row, Controls tile) sends it without opening the panel | the procedure table in `src/printer/tool_offset_calibration.cpp`; see [`FILAMENT_BACKEND_TOOLCHANGER.md`](../FILAMENT_BACKEND_TOOLCHANGER.md#which-procedure-the-entry-runs) |
+| `CALIBRATE_VFA T=<n>` | Mounts head n, zeroes the gcode offset, moves to X130 Y130, runs `STEPPER_RESONANCE_FACTORY_CALIBRATE`, parks the head, then `SAVE_CONFIG` | Advanced ▸ Vertical Artifact Compensation, with a tool picker | the procedure table in `src/printer/stepper_resonance_calibration.cpp` |
 | `AIR_CIRCULATION_INTERNAL` / `_EXTERNAL` / `_STOP` | Recirculate (heat 0.9, loop 0.3), exhaust (chamber 0.5, cool 0.7), all four chamber fans off | **Chamber air** row on the fan overlay | `kProviders` in `src/printer/chamber_air_modes.cpp`; see [`CHAMBER_HEATER.md`](../CHAMBER_HEATER.md#chamber-air-modes) |
 
 **Stepper resonance calibration** (`include/stepper_resonance_calibration.h`,
-`helix::stepper_resonance_cal`): `bool supported(hw)`, `bool per_tool(hw)`,
-`std::string calibrate_gcode(hw, int tool)` (empty when unsupported, or for a negative tool
-on a per-tool routine), `bool restarts_klipper(hw)`, `const char* entry_name()`,
-`const char* entry_description()`, `std::string provider_name(hw)`. A row carries the macro,
-the tool parameter name (nullptr for a whole-machine routine) and whether it ends in
-`SAVE_CONFIG`. The subject is `printer_has_stepper_resonance_cal`. The entry
-(`src/ui/ui_stepper_resonance_cal_modal.cpp`) offers a tool dropdown when the routine is
-per-tool and the printer has more than one tool, else a plain confirmation, and refuses
-while `machine_motion_blocked` is set. The send uses `kMacroTimeoutMs` and
-`classify_macro_rpc_failure()`, so the rpc that `SAVE_CONFIG` drops arms
-`begin_expected_klippy_restart()` instead of reporting a failure. Adding a second firmware is
-one row. Tests: `[stepper_resonance_cal]` in `tests/unit/test_stepper_resonance_calibration.cpp`.
+`helix::stepper_resonance_cal`) does not depend on Z-Mod. `Procedure resolve(hw)` returns
+`{name, per_tool, needs_home, restarts_klipper, build}` from a table in
+`src/printer/stepper_resonance_calibration.cpp`, most specific row first:
 
-All three rows detect the machine through `toolchanger_addon::zmod_c5_present(hw)` and
-require the macro itself, so a Creator 5 on an older Z-Mod without a macro shows no entry.
+1. The firmware wrapper, detected by `has_macro("CALIBRATE_VFA")` alone (Z-Mod's): per
+   tool, `CALIBRATE_VFA T=<n>`, which ends in its own `SAVE_CONFIG`.
+2. The stock `stepper_resonance_tester` klippy extra, detected by its printer object:
+   whole machine, `STEPPER_RESONANCE_FACTORY_CALIBRATE` when the stock wrapper macro is
+   defined, otherwise `STEPPER_RESONANCE_SEARCH_CALIBRATE STEPPER=stepper_x` and
+   `STEPPER=stepper_y`, then `SAVE_CONFIG` (the stock macro's own `SAVE_CONFIG` is commented
+   out, so the result is lost on restart unless the caller saves it).
+
+Both rows need a homed toolhead. `calibrate_gcode(hw, tool)` builds the script (empty with
+no row, or for a negative tool on a per-tool row) and never includes the homing. The
+subject is `printer_has_stepper_resonance_cal`. The entry
+(`src/ui/ui_stepper_resonance_cal_modal.cpp`) offers a tool dropdown for a per-tool row on a
+printer with more than one tool, else a plain confirmation, and sends through
+`start_calibration_gcode()` (`src/printer/macro_executor.cpp#start_calibration_gcode`):
+refused while `machine_motion_blocked` is set, `ensure_homed_then()` when `needs_home`, then
+`execute_machine_gcode()`, which absorbs the rpc that `SAVE_CONFIG` drops as an expected
+restart. A third firmware is one row in that table. Tests: `[stepper_resonance_cal]` in
+`tests/unit/test_stepper_resonance_calibration.cpp`; mock: `HELIX_MOCK_STEPPER_RESONANCE`.
+
+Every row requires its macro to be defined, so a Creator 5 on an older Z-Mod without one
+shows no entry. The chamber air row also requires the Z-Mod changer row
+(`toolchanger_addon::zmod_c5_present(hw)`).
 
 ### The `creator5_zmod` mock persona
 

@@ -157,7 +157,7 @@ backend's busy state, though Klipper may still be calibrating.
 
 The Tool Offsets entry (Controls calibration tile, Advanced row, printer manager chip) opens
 the seat-by-hand flow on an INDX with `MANUAL_TOOL_SEAT`
-(`src/printer/tool_offset_calibration.cpp#guided_flow`): pick the tool you are holding, confirm,
+(`src/printer/tool_offset_calibration.cpp#resolve_procedure`): pick the tool you are holding, confirm,
 `MANUAL_TOOL_SEAT`. The Advanced row's description comes from `entry_description()`.
 
 After a material edit on the mounted tool, or with the head empty, a material that names a

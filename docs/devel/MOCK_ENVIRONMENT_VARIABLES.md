@@ -1459,6 +1459,25 @@ The value is passed through verbatim — no validation. A nonsense string simply
 
 Read once, when the mock is constructed: the simulation thread reports kinematics every tick, and reading the environment there would race a `setenv()` on another thread. Set it before the mock exists.
 
+### `HELIX_MOCK_STEPPER_RESONANCE`
+
+Expose the `stepper_resonance_tester` klippy extra on any persona, so the generic
+Vertical Artifact Compensation row (`helix::stepper_resonance_cal`) can be exercised on a
+printer that is not a Z-Mod Creator 5.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` (the extra plus the stock `STEPPER_RESONANCE_FACTORY_CALIBRATE` macro), `bare` (the extra only, so the two `STEPPER_RESONANCE_SEARCH_CALIBRATE` lines are sent), `0` or unset (neither) |
+| **Default** | unset |
+| **File** | `src/api/moonraker_client_mock.cpp` |
+
+The mock accepts the calibration commands without simulating a sweep; the closing
+`SAVE_CONFIG` takes the mock's usual restart path.
+
+```bash
+HELIX_MOCK_STEPPER_RESONANCE=1 ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_OBJECTS`
 
 Append additional Klipper objects to the mock's advertised object list, so capability detection paths that depend on an object being present can be exercised without a matching mock printer type.

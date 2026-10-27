@@ -240,14 +240,19 @@ Some printers can tune their X and Y motors to remove the fine, evenly spaced ve
 
 ### Requirements
 
-The **Vertical Artifact Compensation** row appears only on printers whose firmware provides this calibration. Today that is the FlashForge Creator 5 Pro running Z-Mod (its `CALIBRATE_VFA` macro). No accelerometer is needed.
+The **Vertical Artifact Compensation** row appears only on printers whose firmware provides this calibration:
+
+- **FlashForge Creator 5 / 5 Pro running Z-Mod**: uses Z-Mod's `CALIBRATE_VFA` macro and runs with one head you choose.
+- **FlashForge printers on their stock Klipper with the motor resonance tester** (the `[stepper_resonance_tester]` section FlashForge ships in `printer.vibration.cfg`): calibrates the whole machine at once.
+
+The printer measures with its own built-in accelerometer; you do not need to add one.
 
 ### Running It
 
 1. Make sure no print is running.
 2. Navigate to **Advanced > Vertical Artifact Compensation**.
-3. On a printer with several heads, choose the **Tool** to run it with, then tap **Start**. On a single-head printer, confirm the dialog.
-4. The printer picks up the tool, moves to the middle of the bed and measures its motors, then parks the tool.
+3. On a Creator 5 with several heads, choose the **Tool** to run it with, then tap **Start**. Otherwise, confirm the dialog.
+4. If the printer is not homed, it homes first. It then measures its X and Y motors.
 5. When it finishes, the printer saves the result and restarts Klipper. The screen briefly shows the printer reconnecting; this is expected.
 
 There is nothing to turn off: on printers without the calibration, the row never appears.
