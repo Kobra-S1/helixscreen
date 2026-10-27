@@ -511,6 +511,23 @@ CheckResult gate_mixed_temperature_materials(const PrintStartContext& ctx) {
 
 } // namespace
 
+CheckResult gate_door_open(const PrintStartContext& ctx) {
+    if (!ctx.door_check_enabled || ctx.open_doors.empty()) {
+        return pass_result();
+    }
+    std::string names;
+    for (const auto& name : ctx.open_doors) {
+        names += names.empty() ? name : ", " + name;
+    }
+    spdlog::info("[PrintStartController] Door open ({}) - showing pre-print warning", names);
+    return warn_result(
+        lv_tr("Door Open"),
+        fmt::format(fmt::runtime(lv_tr("{} is open. An open enclosure lets heat out and can "
+                                       "spoil the print. Close it, or start anyway.")),
+                    names),
+        lv_tr("Start Anyway"));
+}
+
 CheckResult gate_printer_stopping_command(const PrintStartContext& ctx) {
     const PrinterStopCheck& stop = ctx.printer_stop;
     if (stop.state != PrinterStopCheck::State::Stops) {
@@ -996,6 +1013,9 @@ const std::vector<PrintStartGate>& default_print_start_gates() {
         {"required_filament_present", gate_required_filament_present},
         {"unresolved_tools", gate_unresolved_tools},
         {"material_compatibility", gate_material_compatibility},
+        // Last: a door is closed in a second, so it is asked after anything
+        // that needs the user to think about the file or the filament.
+        {"door_open", gate_door_open},
     };
     return gates;
 }

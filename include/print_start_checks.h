@@ -144,6 +144,10 @@ struct PrintStartContext {
     bool runout_enabled = false;
     bool runout_available = false;
     bool runout_detected = false;
+
+    // ---- enclosure doors (InputSensorManager) ----
+    bool door_check_enabled = false;     ///< the user's door check, default on with a Door input
+    std::vector<std::string> open_doors; ///< names of Door inputs reading open
 };
 
 struct CheckResult {
@@ -169,6 +173,10 @@ struct PrintStartGate {
 /// blocking finding (out of bounds, over a heater limit, a missing tool), a
 /// warning with Start Anyway for a nozzle or model mismatch alone.
 [[nodiscard]] CheckResult gate_fit_check(const PrintStartContext& ctx);
+
+/// The dialog for a door or cover that reads open while the door check is on:
+/// a warning with Start Anyway. Pass with the check off or every door closed.
+[[nodiscard]] CheckResult gate_door_open(const PrintStartContext& ctx);
 
 /// Per-tool material mismatch detail (ported verbatim from
 /// PrintStartController::MaterialMismatchDetail).

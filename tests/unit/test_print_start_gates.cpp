@@ -551,7 +551,7 @@ TEST_CASE("material_mismatches_in: bypass falls back to palette materials",
 
 TEST_CASE("default gate list: names in behavior-preserving order", "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 10);
+    REQUIRE(gates.size() == 11);
     CHECK(gates[0].name == "printer_stopping_command");
     CHECK(gates[1].name == "fit_check");
     CHECK(gates[2].name == "mixed_temperature_materials");
@@ -564,12 +564,13 @@ TEST_CASE("default gate list: names in behavior-preserving order", "[print-start
     CHECK(gates[7].name == "required_filament_present");
     CHECK(gates[8].name == "unresolved_tools");
     CHECK(gates[9].name == "material_compatibility");
+    CHECK(gates[10].name == "door_open");
 }
 
 TEST_CASE("default gate list: the two new gates keep their relative order",
           "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 10);
+    REQUIRE(gates.size() == 11);
     CHECK(gates[5].name == "bypass_engaged_lane_print");
     CHECK(gates[6].name == "unaccounted_toolhead_filament");
     CHECK(gates[7].name == "required_filament_present");
@@ -1460,4 +1461,41 @@ TEST_CASE("gate runner: a block shows a dialog and never starts the print",
     CHECK(PrintStartControllerTestAccess::print_gate_modal(fx.controller) == nullptr);
     CHECK(fx.button_updates == 1);
     CHECK(fx.cancelled == 1);
+}
+
+// ---------------------------------------------------------------------------
+// door_open
+// ---------------------------------------------------------------------------
+
+TEST_CASE("gate door_open: passes with no door, closed doors, or the check off",
+          "[print-start][gate-pipeline][door]") {
+    const auto& gate = gate_named("door_open");
+
+    // No Door input at all: the check defaults off and nothing is open.
+    CHECK(gate.evaluate(PrintStartContext{}).verdict == CheckResult::Verdict::Pass);
+
+    // Every door closed.
+    auto closed = ctx_with([](PrintStartContext& c) { c.door_check_enabled = true; });
+    CHECK(gate.evaluate(closed).verdict == CheckResult::Verdict::Pass);
+
+    // A door open, but the user turned the check off.
+    auto off = ctx_with([](PrintStartContext& c) {
+        c.door_check_enabled = false;
+        c.open_doors = {"frontDoor"};
+    });
+    CHECK(gate.evaluate(off).verdict == CheckResult::Verdict::Pass);
+}
+
+TEST_CASE("gate door_open: an open door warns with Start Anyway and names every door",
+          "[print-start][gate-pipeline][door]") {
+    auto ctx = ctx_with([](PrintStartContext& c) {
+        c.door_check_enabled = true;
+        c.open_doors = {"frontDoor", "topDoor"};
+    });
+    const auto r = gate_named("door_open").evaluate(ctx);
+    CHECK(r.verdict == CheckResult::Verdict::Warn);
+    CHECK(r.severity == GateSeverity::Warning);
+    CHECK(r.proceed_label == "Start Anyway");
+    CHECK(r.title == "Door Open");
+    CHECK(r.body.find("frontDoor, topDoor") != std::string::npos);
 }
