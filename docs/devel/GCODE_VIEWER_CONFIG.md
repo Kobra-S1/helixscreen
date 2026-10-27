@@ -138,8 +138,10 @@ ghost pass (fit, sampling, parse and raster) on a canvas of that size (default
 320x240, about a CC1's print-status preview), and single mid-file layer parses.
 It prints wall and CPU time for each. It reads no config and takes no lock, so it
 runs beside a live instance; keep the file on real storage, since `/tmp` is RAM
-on most boards. `HELIX_BENCH_REPEAT=N` repeats the ghost pass so a profiler can
-catch it.
+on most boards. `HELIX_BENCH_REPEAT=N` repeats the ghost pass, cold each time,
+so a profiler can catch it; `HELIX_BENCH_VERBOSE=1` adds the renderer's debug
+lines (fit, sampled layer count); `HELIX_BENCH_GHOST_PNG=<path>` writes the ghost
+as the print-status screen blends it, for comparing sampling changes by eye.
 
 ## Example
 

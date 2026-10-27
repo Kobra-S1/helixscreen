@@ -837,6 +837,7 @@ bool GCodeStreamingController::build_index() {
     // FileDataSource returns its original filepath; sources that stage data on
     // disk return the staged path once ensure_indexable() has materialized it
     std::string file_path = data_source_->indexable_file_path();
+    index_mb_per_cpu_s_.store(0.0, std::memory_order_relaxed);
 
     if (!layer_index_sidecar_.empty() && !file_path.empty()) {
         const std::string sidecar = std::move(layer_index_sidecar_);
@@ -851,15 +852,23 @@ bool GCodeStreamingController::build_index() {
     }
 
     if (!file_path.empty()) {
+        const int64_t cpu_start = helix::thread_cpu_ns();
         // Publish real indexing progress. Before this the atomic went 0.0 to
         // 1.0 with nothing in between, so get_index_progress() could only ever
         // drive an indeterminate spinner — on a 133MB print that is 69 seconds
         // of a UI that looks hung. Storing an atomic from the scan thread is
         // the whole cost; the UI polls it on its own clock.
-        return index_.build_from_file(file_path, [this](float fraction) {
+        const bool built = index_.build_from_file(file_path, [this](float fraction) {
             index_progress_.store(fraction);
             return !index_cancel_requested_.load(std::memory_order_relaxed);
         });
+        const int64_t cpu_ns = helix::thread_cpu_ns() - cpu_start;
+        if (built && cpu_ns > 0) {
+            const double mb = static_cast<double>(data_source_->file_size()) / (1024.0 * 1024.0);
+            index_mb_per_cpu_s_.store(mb / (static_cast<double>(cpu_ns) / 1e9),
+                                      std::memory_order_relaxed);
+        }
+        return built;
     }
 
     // Sources without file path (e.g., MemoryDataSource) cannot be indexed

@@ -5,6 +5,8 @@
 
 #include <cerrno>
 #include <cstddef>
+#include <cstdint>
+#include <ctime>
 #include <functional>
 #include <thread>
 #include <utility>
@@ -100,6 +102,17 @@ template <typename F, typename... Args> std::thread make_thread(F&& f, Args&&...
             std::invoke(std::move(fn), std::move(a)...);
         },
         std::forward<F>(f), std::forward<Args>(args)...);
+}
+
+/// CPU time the calling thread has used, in nanoseconds; 0 where the clock is
+/// unavailable. Measures work done rather than time waited, so a thread
+/// preempted by Klipper is not charged for it.
+inline int64_t thread_cpu_ns() noexcept {
+    timespec ts{};
+    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) != 0) {
+        return 0;
+    }
+    return static_cast<int64_t>(ts.tv_sec) * 1000000000LL + ts.tv_nsec;
 }
 
 /// Nice value for work nobody is waiting on: G-code indexing, preview ghosts,

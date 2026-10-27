@@ -192,8 +192,9 @@ TEST_CASE("plan_ghost_sampling: an unsized canvas still yields a usable stride",
 
 using helix::gcode::front_view_z_rows;
 using helix::gcode::ghost_model_budget;
+using helix::gcode::ghost_samples_per_z_row;
 using helix::gcode::kGhostMinModelSamples;
-using helix::gcode::kGhostSamplesPerZRow;
+using helix::gcode::kWeakIndexRateMbPerCpuS;
 using helix::gcode::plan_ghost_sampling_budget;
 
 TEST_CASE("front_view_z_rows: a layer's Z rises cos(45deg) * scale rows",
@@ -204,32 +205,41 @@ TEST_CASE("front_view_z_rows: a layer's Z rises cos(45deg) * scale rows",
     CHECK(front_view_z_rows(-5.0f, 2.0f) == 0.0f);
 }
 
-TEST_CASE("ghost_model_budget: two samples per row the model's Z spans",
+TEST_CASE("ghost_model_budget: samples per row the model's Z spans", "[gcode][ghost][sampling]") {
+    // A 33mm plate on a CC1-sized canvas: ~22 rows, where the canvas rule alone
+    // would allow 240.
+    CHECK(ghost_model_budget(240, 21.93f, 2) == 44);
+    CHECK(ghost_model_budget(240, 21.93f, 1) == 22);
+    CHECK(ghost_model_budget(240, 21.93f, 0) == 22);
+}
+
+TEST_CASE("ghost_samples_per_z_row: a CPU-poor board takes one sample a row",
           "[gcode][ghost][sampling]") {
-    // A 33mm plate on a CC1-sized canvas: ~22 rows, so 44 samples, where the
-    // canvas rule alone would allow 240.
-    CHECK(ghost_model_budget(240, 21.93f) == 44);
-    CHECK(kGhostSamplesPerZRow == 2);
+    CHECK(ghost_samples_per_z_row(10.0) == 1); // CC1 / K2 class
+    CHECK(ghost_samples_per_z_row(0.0) == 1);  // not measured
+    CHECK(ghost_samples_per_z_row(kWeakIndexRateMbPerCpuS - 0.1) == 1);
+    CHECK(ghost_samples_per_z_row(kWeakIndexRateMbPerCpuS) == 2);
+    CHECK(ghost_samples_per_z_row(280.0) == 2); // desktop
 }
 
 TEST_CASE("ghost_model_budget: never more than the canvas rule allows",
           "[gcode][ghost][sampling]") {
     // A tall model fills the canvas; the canvas budget stays the ceiling.
-    CHECK(ghost_model_budget(240, 400.0f) == ghost_sample_budget(240));
-    CHECK(ghost_model_budget(4000, 4000.0f) == kGhostMaxSampledLayers);
+    CHECK(ghost_model_budget(240, 400.0f, 2) == ghost_sample_budget(240));
+    CHECK(ghost_model_budget(4000, 4000.0f, 2) == kGhostMaxSampledLayers);
 }
 
 TEST_CASE("ghost_model_budget: a sliver of a model still gets a usable silhouette",
           "[gcode][ghost][sampling]") {
-    CHECK(ghost_model_budget(240, 0.5f) == kGhostMinModelSamples);
+    CHECK(ghost_model_budget(240, 0.5f, 2) == kGhostMinModelSamples);
     CHECK(kGhostMinModelSamples < kGhostMinSampledLayers);
 }
 
 TEST_CASE("ghost_model_budget: an unknown Z extent falls back to the canvas rule",
           "[gcode][ghost][sampling]") {
-    CHECK(ghost_model_budget(240, 0.0f) == ghost_sample_budget(240));
-    CHECK(ghost_model_budget(240, -1.0f) == ghost_sample_budget(240));
-    CHECK(ghost_model_budget(0, 0.0f) == kGhostMinSampledLayers);
+    CHECK(ghost_model_budget(240, 0.0f, 2) == ghost_sample_budget(240));
+    CHECK(ghost_model_budget(240, -1.0f, 2) == ghost_sample_budget(240));
+    CHECK(ghost_model_budget(0, 0.0f, 2) == kGhostMinSampledLayers);
 }
 
 TEST_CASE("plan_ghost_sampling_budget: a flat plate visits a third of its layers",
@@ -238,7 +248,7 @@ TEST_CASE("plan_ghost_sampling_budget: a flat plate visits a third of its layers
     const auto canvas = plan_ghost_sampling(165, true, 240);
     CHECK(canvas.count == 165);
 
-    const auto model = plan_ghost_sampling_budget(165, true, ghost_model_budget(240, 21.93f));
+    const auto model = plan_ghost_sampling_budget(165, true, ghost_model_budget(240, 21.93f, 2));
     CHECK(model.step == 3);
     CHECK(model.count == 55);
     // Still spans the model's full height.

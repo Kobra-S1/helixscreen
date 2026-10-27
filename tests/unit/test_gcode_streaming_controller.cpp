@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <future>
@@ -871,6 +872,17 @@ TEST_CASE("close during async indexing cancels the build", "[gcode][streaming][c
     controller.close();
     REQUIRE(completed.load());
     REQUIRE_FALSE(result.load());
+}
+
+TEST_CASE("open_file measures how fast this board scans the index",
+          "[gcode][streaming][index_rate]") {
+    TempGCodeFile file(kSimple3LayerGcode);
+    GCodeStreamingController controller;
+    CHECK(controller.index_throughput_mb_per_cpu_s() == 0.0);
+    REQUIRE(controller.open_file(file.path()));
+    const double rate = controller.index_throughput_mb_per_cpu_s();
+    CHECK(rate > 0.0);
+    CHECK(std::isfinite(rate));
 }
 
 #ifdef __linux__

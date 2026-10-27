@@ -427,6 +427,22 @@ class GCodeStreamingController {
      */
     size_t get_file_size() const;
 
+    /**
+     * @brief How fast this board scanned the open file's layer index, in MB of
+     *        G-code per CPU second of the scanning thread.
+     *
+     * A direct measure of the CPU the preview runs on. 0 until a scan has
+     * finished, and for an index read from the plugin's sidecar (no scan ran).
+     */
+    double index_throughput_mb_per_cpu_s() const {
+        return index_mb_per_cpu_s_.load(std::memory_order_relaxed);
+    }
+
+    /// Test seam: stand in for a measured index throughput.
+    void set_index_throughput_for_test(double mb_per_cpu_s) {
+        index_mb_per_cpu_s_.store(mb_per_cpu_s, std::memory_order_relaxed);
+    }
+
     // =========================================================================
     // Cache Management
     // =========================================================================
@@ -572,6 +588,7 @@ class GCodeStreamingController {
     std::future<bool> index_future_;
     std::atomic<bool> indexing_{false};
     std::atomic<float> index_progress_{0.0f};
+    std::atomic<double> index_mb_per_cpu_s_{0.0}; ///< See index_throughput_mb_per_cpu_s()
     // Set by close()/destructor before joining index_future_: the progress
     // callback withdraws consent and the scan unwinds, so the join costs one
     // progress interval instead of the rest of the build. Cleared when a new

@@ -5,6 +5,7 @@
 
 #include "gcode_layer_renderer.h"
 #include "gcode_streaming_controller.h"
+#include "stb_image_write.h"
 
 #include <spdlog/spdlog.h>
 
@@ -51,6 +52,41 @@ void print_row(const char* name, const Clock& c, double mb) {
                 mb_per_cpu_s);
 }
 
+/// The ghost as the print-status screen shows it: blitted at 30% over a dark
+/// card, so sampling choices can be compared by eye.
+void write_ghost_png(const gcode::GCodeLayerRenderer& renderer, const char* path) {
+    int w = 0;
+    int h = 0;
+    const std::vector<uint8_t> argb = renderer.copy_ghost_pixels(w, h);
+    if (argb.empty()) {
+        std::fprintf(stderr, "bench-gcode: no ghost to write\n");
+        return;
+    }
+    constexpr int kBackground = 0x1e;
+    constexpr int kGhostOpa = 77; // LV_OPA_30
+    std::vector<uint8_t> rgb(static_cast<size_t>(w) * h * 3);
+    for (size_t i = 0; i < static_cast<size_t>(w) * h; ++i) {
+        const uint8_t* px = &argb[i * 4]; // B, G, R, A in memory
+        const int a = px[3] * kGhostOpa / 255;
+        for (int c = 0; c < 3; ++c) {
+            rgb[i * 3 + c] = static_cast<uint8_t>((px[2 - c] * a + kBackground * (255 - a)) / 255);
+        }
+    }
+    std::FILE* f = std::fopen(path, "wb");
+    if (!f) {
+        std::fprintf(stderr, "bench-gcode: could not open %s\n", path);
+        return;
+    }
+    // The app's stb build has no stdio entry points; stream the PNG instead.
+    auto sink = [](void* ctx, void* data, int size) {
+        std::fwrite(data, 1, static_cast<size_t>(size), static_cast<std::FILE*>(ctx));
+    };
+    if (stbi_write_png_to_func(sink, f, w, h, 3, rgb.data(), w * 3) == 0) {
+        std::fprintf(stderr, "bench-gcode: could not encode %s\n", path);
+    }
+    std::fclose(f);
+}
+
 } // namespace
 
 int run_bench_gcode(int argc, char** argv) {
@@ -61,7 +97,8 @@ int run_bench_gcode(int argc, char** argv) {
     const std::string path = argv[2];
     const int width = argc >= 5 ? std::atoi(argv[3]) : kDefaultCanvasWidth;
     const int height = argc >= 5 ? std::atoi(argv[4]) : kDefaultCanvasHeight;
-    spdlog::set_level(spdlog::level::warn);
+    spdlog::set_level(std::getenv("HELIX_BENCH_VERBOSE") ? spdlog::level::debug
+                                                         : spdlog::level::warn);
 
     gcode::GCodeStreamingController controller;
     const Clock index_start = now();
@@ -85,12 +122,22 @@ int run_bench_gcode(int argc, char** argv) {
                            : 1;
     gcode::GCodeLayerRenderer renderer;
     renderer.set_canvas_size(width, height);
+    // A filament orange: with no theme loaded the default color is near black,
+    // which makes a written ghost image unreadable. Cost does not depend on it.
+    renderer.set_extrusion_color(lv_color_hex(0xFF8A3D));
     renderer.set_streaming_controller(&controller);
     const Clock ghost_start = now();
     for (int i = 0; i < repeat; ++i) {
+        // Every pass starts cold, as the first one in the UI does.
+        for (size_t l = 0; l < layers; ++l) {
+            controller.evict_layer(l);
+        }
         renderer.build_ghost_blocking();
     }
     const Clock ghost = since(ghost_start);
+    if (const char* png = std::getenv("HELIX_BENCH_GHOST_PNG")) {
+        write_ghost_png(renderer, png);
+    }
     const float layers_done = renderer.get_ghost_build_progress();
     std::printf("ghost    %dx%d canvas, %.0f%% complete\n", width, height, layers_done * 100.0f);
     print_row("ghost", ghost, mb * repeat);

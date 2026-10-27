@@ -374,11 +374,16 @@ TEST_CASE("a streamed ghost leaves no empty row inside the model",
     CHECK(largest_gap == 0);
 }
 
-TEST_CASE("a streamed flat plate's ghost reads layers for the rows it spans, not the canvas",
-          "[gcode][ghost][streaming][cost]") {
-    // 400 layers of 0.05mm is a 20mm plate across ~180mm of bed: auto-fit makes
-    // it width-constrained, so its Z spans a small slice of the canvas, and the
-    // canvas rule alone would visit every one of its 400 layers.
+namespace {
+
+struct FlatPlateRun {
+    size_t reads = 0;
+    InkRows ink;
+};
+
+/// One ghost pass over a 400-layer, 20mm plate on a board that scanned its index
+/// at @p index_rate MB/cpu-s.
+FlatPlateRun run_flat_plate_ghost(double index_rate) {
     const int layers = 400;
     TempFile file(make_flat_wide_gcode(layers, 0.05));
     auto source = std::make_unique<CountingDataSource>(file.path());
@@ -386,6 +391,7 @@ TEST_CASE("a streamed flat plate's ghost reads layers for the rows it spans, not
     GCodeStreamingController controller;
     REQUIRE(controller.open_source(std::move(source)));
     REQUIRE(controller.get_layer_count() >= static_cast<size_t>(layers - 1));
+    controller.set_index_throughput_for_test(index_rate);
 
     GCodeLayerRenderer renderer;
     renderer.set_canvas_size(kCanvasW, kCanvasH);
@@ -395,16 +401,39 @@ TEST_CASE("a streamed flat plate's ghost reads layers for the rows it spans, not
 
     GCodeLayerRendererTestAccess::run_ghost_pass(renderer);
     REQUIRE(GCodeLayerRendererTestAccess::ghost_completed(renderer));
+    return {counter->reads(), scan_ghost_rows(renderer)};
+}
 
-    const auto canvas_plan = plan_ghost_sampling(layers, /*streaming=*/true, kCanvasH);
-    REQUIRE(canvas_plan.count == layers);
-    INFO("reads=" << counter->reads() << " canvas_plan=" << canvas_plan.count);
-    CHECK(counter->reads() <= static_cast<size_t>(layers) / 3);
-    CHECK(counter->reads() >= static_cast<size_t>(kGhostMinModelSamples));
+} // namespace
+
+TEST_CASE("a streamed flat plate's ghost reads layers for the rows it spans, not the canvas",
+          "[gcode][ghost][streaming][cost]") {
+    // 400 layers of 0.05mm is a 20mm plate across ~180mm of bed: auto-fit makes
+    // it width-constrained, so its Z spans a small slice of the canvas, and the
+    // canvas rule alone would visit every one of its 400 layers.
+    REQUIRE(plan_ghost_sampling(400, /*streaming=*/true, kCanvasH).count == 400);
+
+    const FlatPlateRun fast = run_flat_plate_ghost(kWeakIndexRateMbPerCpuS * 10);
+    INFO("fast reads=" << fast.reads);
+    CHECK(fast.reads <= 400u / 3);
+    CHECK(fast.reads >= static_cast<size_t>(kGhostMinModelSamples));
 
     // Fewer layers, and still no banding across the plate's front face.
-    const InkRows ink = scan_ghost_rows(renderer);
-    REQUIRE(ink.first >= 0);
-    INFO("rows " << ink.first << ".." << ink.last << " largest_gap=" << ink.largest_gap);
-    CHECK(ink.largest_gap == 0);
+    REQUIRE(fast.ink.first >= 0);
+    INFO("rows " << fast.ink.first << ".." << fast.ink.last
+                 << " largest_gap=" << fast.ink.largest_gap);
+    CHECK(fast.ink.largest_gap == 0);
+}
+
+TEST_CASE("a CPU-poor board's ghost takes half the samples, still without banding",
+          "[gcode][ghost][streaming][cost]") {
+    const FlatPlateRun fast = run_flat_plate_ghost(kWeakIndexRateMbPerCpuS * 10);
+    const FlatPlateRun slow = run_flat_plate_ghost(kWeakIndexRateMbPerCpuS / 4);
+    INFO("fast reads=" << fast.reads << " slow reads=" << slow.reads);
+    CHECK(slow.reads < fast.reads);
+    CHECK(slow.reads * 3 <= fast.reads * 2);
+
+    REQUIRE(slow.ink.first >= 0);
+    INFO("slow largest_gap=" << slow.ink.largest_gap);
+    CHECK(slow.ink.largest_gap == 0);
 }

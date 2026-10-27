@@ -98,10 +98,24 @@ constexpr int ghost_sample_budget(int resolvable_rows) {
     return resolvable_rows;
 }
 
-/// Samples per screen row of the model's Z extent. Two, not one: a sampled
-/// layer's front edge must meet the next one's, and a stride that lands each
-/// sample exactly a row apart leaves a hairline wherever rounding drops a row.
-inline constexpr int kGhostSamplesPerZRow = 2;
+/// Index-scan throughput below which a board is treated as CPU-poor, in MB of
+/// G-code per CPU second. A dual Cortex-A7 (CC1, K2) scans about 10; a Pi 4
+/// several times that; a desktop hundreds.
+inline constexpr double kWeakIndexRateMbPerCpuS = 40.0;
+
+/**
+ * @brief Ghost samples per screen row of the model's Z extent on this board.
+ *
+ * One sample a row is gap-free and differs from drawing every layer in about
+ * 0.1% of pixels (a faint speckle on some top faces); two closes most of that
+ * at twice the cost. A board that scanned the file's index slower than
+ * kWeakIndexRateMbPerCpuS takes one, as does one whose rate is unknown (0).
+ *
+ * @param index_mb_per_cpu_s GCodeStreamingController::index_throughput_mb_per_cpu_s().
+ */
+constexpr int ghost_samples_per_z_row(double index_mb_per_cpu_s) {
+    return index_mb_per_cpu_s >= kWeakIndexRateMbPerCpuS ? 2 : 1;
+}
 
 /// Floor on a model-derived budget. Below the canvas floor because the model's
 /// rows are known here: a 2mm-tall part spans a row or two, and drawing it from
@@ -120,19 +134,21 @@ constexpr float front_view_z_rows(float z_span_mm, float scale) {
  * In the FRONT view consecutive layers sit a fraction of a row apart, so each
  * one is painted over by the next everywhere but a sliver of its front edge.
  * The rows the model's own height spans are what can be resolved, which for a
- * flat plate is a small fraction of the canvas. kGhostSamplesPerZRow per row,
- * never below kGhostMinModelSamples and never above the canvas rule.
+ * flat plate is a small fraction of the canvas. @p samples_per_row per row
+ * (ghost_samples_per_z_row()), never below kGhostMinModelSamples and never
+ * above the canvas rule.
  *
- * @param canvas_rows Ghost buffer height in pixels (the canvas rule's input).
- * @param z_rows      front_view_z_rows() of the model; 0 or less when unknown,
- *                    which falls back to the canvas rule.
+ * @param canvas_rows     Ghost buffer height in pixels (the canvas rule's input).
+ * @param z_rows          front_view_z_rows() of the model; 0 or less when
+ *                        unknown, which falls back to the canvas rule.
+ * @param samples_per_row Samples per row of Z extent; below 1 counts as 1.
  */
-constexpr int ghost_model_budget(int canvas_rows, float z_rows) {
+constexpr int ghost_model_budget(int canvas_rows, float z_rows, int samples_per_row) {
     const int canvas_budget = ghost_sample_budget(canvas_rows);
     if (!(z_rows > 0.0f)) {
         return canvas_budget;
     }
-    const float wanted_f = z_rows * static_cast<float>(kGhostSamplesPerZRow);
+    const float wanted_f = z_rows * static_cast<float>(samples_per_row < 1 ? 1 : samples_per_row);
     int wanted = static_cast<int>(wanted_f);
     if (static_cast<float>(wanted) < wanted_f) {
         ++wanted;

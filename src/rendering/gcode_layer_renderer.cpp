@@ -1825,6 +1825,10 @@ GCodeLayerRenderer::GhostSnapshot GCodeLayerRenderer::capture_ghost_snapshot() c
 
     snap.line_width = get_extrusion_pixel_width();
     snap.layer_count = get_layer_count();
+    if (streaming_controller_) {
+        snap.samples_per_z_row =
+            ghost_samples_per_z_row(streaming_controller_->index_throughput_mb_per_cpu_s());
+    }
     if (bounds_valid_ && snap.transform.view_mode == ViewMode::FRONT) {
         snap.model_z_rows = front_view_z_rows(bounds_max_z_ - bounds_min_z_, snap.transform.scale);
     }
@@ -1909,6 +1913,18 @@ bool GCodeLayerRenderer::build_ghost_blocking() {
     }
     ghost_thread_.join();
     return ghost_thread_ready_.load();
+}
+
+std::vector<uint8_t> GCodeLayerRenderer::copy_ghost_pixels(int& width, int& height) const {
+    width = 0;
+    height = 0;
+    if (!ghost_thread_ready_.load() || !ghost_raw_buffer_) {
+        return {};
+    }
+    width = ghost_raw_width_;
+    height = ghost_raw_height_;
+    const size_t bytes = ghost_raw_stride_ * static_cast<size_t>(ghost_raw_height_);
+    return std::vector<uint8_t>(ghost_raw_buffer_.get(), ghost_raw_buffer_.get() + bytes);
 }
 
 void GCodeLayerRenderer::cancel_background_ghost_render() {
@@ -2107,9 +2123,9 @@ void GCodeLayerRenderer::background_ghost_render_thread(GhostSnapshot snap) {
     // The budget is the rows the model's own Z extent spans on this canvas,
     // capped by the ghost buffer's height: between two samples a row apart,
     // every layer is painted over by the next.
-    const GhostSamplePlan ghost_plan =
-        plan_ghost_sampling_budget(total_layers, local_streaming != nullptr,
-                                   ghost_model_budget(transform.canvas_height, snap.model_z_rows));
+    const GhostSamplePlan ghost_plan = plan_ghost_sampling_budget(
+        total_layers, local_streaming != nullptr,
+        ghost_model_budget(transform.canvas_height, snap.model_z_rows, snap.samples_per_z_row));
     if (local_streaming && ghost_plan.step > 1) {
         spdlog::debug("[GCodeLayerRenderer] Ghost sampling {} of {} layers (every {})",
                       ghost_plan.count, total_layers, ghost_plan.step);
