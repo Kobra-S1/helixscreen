@@ -36,9 +36,12 @@ void RemoteScreenSettingsManager::init_subjects() {
         return;
     }
     settings_.init(subjects_);
-    UI_MANAGED_SUBJECT_INT(available_subject_, 0, "remote_screen_available", subjects_);
-    UI_MANAGED_SUBJECT_INT(lan_mode_subject_, 0, "remote_screen_lan_mode", subjects_);
-    UI_MANAGED_SUBJECT_INT(control_active_subject_, 0, "remote_screen_control_active", subjects_);
+    UI_MANAGED_SUBJECT_INT(available_subject_, available_ ? 1 : 0, "remote_screen_available",
+                           subjects_);
+    UI_MANAGED_SUBJECT_INT(lan_mode_subject_, lan_mode_ ? 1 : 0, "remote_screen_lan_mode",
+                           subjects_);
+    UI_MANAGED_SUBJECT_INT(control_active_subject_, control_active_ ? 1 : 0,
+                           "remote_screen_control_active", subjects_);
     UI_MANAGED_SUBJECT_STRING(pair_code_subject_, pair_code_buf_, get_pair_code().c_str(),
                               "remote_screen_pair_code", subjects_);
     // A config edited by hand can hold control without view.
@@ -87,6 +90,7 @@ void RemoteScreenSettingsManager::notify_changed() {
 }
 
 void RemoteScreenSettingsManager::set_available(bool available) {
+    available_ = available;
     if (subjects_initialized_) {
         lv_subject_set_int(&available_subject_, available ? 1 : 0);
     }
@@ -132,12 +136,14 @@ void RemoteScreenSettingsManager::set_webcam_uid(const std::string& printer,
 }
 
 void RemoteScreenSettingsManager::set_lan_mode(bool lan_mode) {
+    lan_mode_ = lan_mode;
     if (subjects_initialized_) {
         lv_subject_set_int(&lan_mode_subject_, lan_mode ? 1 : 0);
     }
 }
 
 void RemoteScreenSettingsManager::set_control_active(bool active) {
+    control_active_ = active;
     if (subjects_initialized_ && lv_subject_get_int(&control_active_subject_) != (active ? 1 : 0)) {
         lv_subject_set_int(&control_active_subject_, active ? 1 : 0);
     }

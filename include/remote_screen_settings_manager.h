@@ -112,6 +112,11 @@ class RemoteScreenSettingsManager {
     lv_subject_t pair_code_subject_{};
     char pair_code_buf_[16] = {};
     bool subjects_initialized_ = false;
+    // What the service decided, kept apart from the subjects: a session rebuild
+    // re-creates the subjects, and the service decides these only once per process.
+    bool available_ = false;
+    bool lan_mode_ = false;
+    bool control_active_ = false;
 };
 
 } // namespace helix

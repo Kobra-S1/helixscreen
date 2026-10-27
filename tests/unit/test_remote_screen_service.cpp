@@ -53,6 +53,9 @@ struct RemoteScreenFixture : LVGLTestFixture {
         data.erase("remote_screen");
         Config::get_instance()->set<int>("/remote_screen/port", 0);
         auto& m = RemoteScreenSettingsManager::instance();
+        m.set_available(false);
+        m.set_lan_mode(false);
+        m.set_control_active(false);
         m.deinit_subjects();
         m.init_subjects();
     }
@@ -101,6 +104,30 @@ TEST_CASE_METHOD(RemoteScreenFixture,
     m.deinit_subjects();
     m.init_subjects();
     CHECK_FALSE(m.get_control());
+}
+
+// A printer switch tears every registered subject down and rebuilds it, while the
+// service that decided these values keeps running and never decides them again.
+TEST_CASE_METHOD(
+    RemoteScreenFixture,
+    "settings: availability and LAN mode and the control badge survive a subject rebuild",
+    "[remote_screen][settings]") {
+    auto& m = RemoteScreenSettingsManager::instance();
+    m.set_available(true);
+    m.set_lan_mode(true);
+    m.set_control_active(true);
+
+    m.deinit_subjects();
+    m.init_subjects();
+
+    const auto value = [](const char* name) {
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
+        REQUIRE(subject != nullptr);
+        return lv_subject_get_int(subject);
+    };
+    CHECK(value("remote_screen_available") == 1);
+    CHECK(value("remote_screen_lan_mode") == 1);
+    CHECK(value("remote_screen_control_active") == 1);
 }
 
 TEST_CASE("route: missing, blank and present route files", "[remote_screen][settings]") {
