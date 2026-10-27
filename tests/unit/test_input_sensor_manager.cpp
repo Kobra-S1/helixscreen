@@ -15,6 +15,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
 #include "input_sensor_manager.h"
@@ -350,14 +351,15 @@ TEST_CASE_METHOD(
             st.print_state().set_print_materials({});
             helix::test::set_wire_state(st, PrintJobState::STANDBY);
             helix::ui::UpdateQueue::instance().drain();
-            ToastManager::instance().set_observer({});
+            helix::ui::set_test_toast_hook(nullptr);
         }
     } restore;
     REQUIRE(ps.print_state().get_print_lifecycle() == PrintState::Printing);
 
     std::vector<std::string> toasts;
-    ToastManager::instance().set_observer(
-        [&toasts](const ToastManager::Event& e) { toasts.push_back(e.message); });
+    helix::ui::set_test_toast_hook([&toasts](ToastSeverity, const std::string& message, uint32_t) {
+        toasts.push_back(message);
+    });
 
     InputSensorManager::instance().discover(kC5Objects);
     InputSensorManager::instance().update_from_status(
