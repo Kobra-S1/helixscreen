@@ -16,6 +16,7 @@
 #include "async_lifetime_guard.h"
 #include "bed_occupancy.h"
 #include "print_history_manager.h"
+#include "print_lifecycle_state.h"
 #include "subject_managed_panel.h"
 
 #include <functional>
@@ -71,9 +72,13 @@ class BedOccupancyState {
     /// can drive it after changing the history mock.
     void refresh();
 
+    /// Stop observing the history manager. The session calls it before it destroys the
+    /// manager, which happens before this object is destroyed.
+    void detach_history();
+
   private:
     void on_history_changed();
-    void on_print_lifecycle(int state);
+    void on_print_lifecycle(PrintState state);
     void capture_outline_snapshot();
     [[nodiscard]] std::optional<BedJobSummary> newest_job() const;
 
@@ -88,8 +93,15 @@ class BedOccupancyState {
     lv_subject_t version_{};
     bool subjects_initialized_ = false;
 
+    void bump_version();
+
+    /// The lifecycle the last observer call saw, so only a real end of a print captures.
+    PrintState last_lifecycle_ = PrintState::Idle;
+    bool history_attached_ = false;
+
     ObserverGuard lifecycle_observer_;
     ObserverGuard connection_observer_;
+    ObserverGuard objects_observer_;
 
     // Declared last so it is torn down first.
     AsyncLifetimeGuard lifetime_;

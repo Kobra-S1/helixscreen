@@ -148,6 +148,7 @@ src/print/three_mf_reader.cpp
 src/print/zip_reader.cpp
 src/printer/active_material_provider.cpp
 src/printer/bed_occupancy.cpp
+src/printer/bed_occupancy_state.cpp
 src/printer/afc_config_manager.cpp
 src/printer/afc_defaults.cpp
 src/printer/afc_fault_position.cpp
