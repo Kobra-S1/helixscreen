@@ -1862,6 +1862,7 @@
   <translation tag="It homes and heats on its own (no start macro found)." ru="Парковка и нагрев выполняются самостоятельно (стартовый макрос не найден)."/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" ru="Он зажат между датчиком хаба и его шестернёй. Откройте CFS, освободите хаб и повторите"/>
   <translation tag="It starts with your {} macro." ru="Начинается с вашего макроса {}."/>
+  <translation tag="It saves the result and restarts Klipper when it finishes." ru="По завершении результат сохраняется, и Klipper перезапускается."/>
   <translation tag="It&apos;s a new spool" ru="Это новая катушка"/>
   <translation tag="Its home tile" ru="Его плитка на главном экране"/>
   <translation tag="Jammed" ru="Замятие"/>
@@ -3790,6 +3791,7 @@
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ru="Принтер потерял питание при печати {}. Возобновлённый слой может не совпасть точно."/>
   <translation tag="The printer no longer has a print to resume." ru="У принтера больше нет печати для продолжения."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." ru="Принтер читает файл до последней сохранённой позиции. Большой файл может занять минуту."/>
+  <translation tag="The printer moves the toolhead and measures its motors." ru="Принтер перемещает печатающую головку и измеряет моторы."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" ru="По записи принтера в печатающей головке канал {}, а не этот"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." ru="Принтер отклонил этот порт: проверьте порт (Moonraker обычно использует 7125)."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." ru="Принтер отклонил конфигурацию филамента. Печать не была запущена."/>
@@ -4005,6 +4007,7 @@
   <translation tag="Tune Belts" ru="Настроить"/>
   <translation tag="Tuner" ru="Настройка"/>
   <translation tag="Tuning tower enabled - start a print to test" ru="Башня настройки включена — начните печать для теста"/>
+  <translation tag="Tune the motors to remove fine vertical lines" ru="Настроить моторы, чтобы убрать тонкие вертикальные полосы"/>
   <translation tag="Turbo" ru="Турбо"/>
   <translation tag="Turbo Inner" ru="Турбо (внутренний)"/>
   <translation tag="Turbo Outer" ru="Турбо (внешний)"/>
@@ -4155,6 +4158,7 @@
   <translation tag="Vertical" ru="Вертикально"/>
   <translation tag="Vibration" ru="Вибрация"/>
   <translation tag="Vibration compensation active" ru="Компенсация вибраций активна"/>
+  <translation tag="Vertical Artifact Compensation" ru="Компенсация вертикальных артефактов"/>
   <translation tag="Video playback speed" ru="Скорость воспроизведения видео"/>
   <translation tag="View" ru="Просмотр"/>
   <translation tag="View Changelog" ru="Просмотр изменений"/>

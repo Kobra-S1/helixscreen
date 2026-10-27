@@ -1817,6 +1817,7 @@
   <translation tag="It homes and heats on its own (no start macro found)." es="Hace homing y calienta por su cuenta (no se encontró macro de inicio)."/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" es="Está atascado entre el sensor del concentrador y su engranaje. Abra el CFS y despeje el concentrador antes de reintentar"/>
   <translation tag="It starts with your {} macro." es="Empieza con tu macro {}."/>
+  <translation tag="It saves the result and restarts Klipper when it finishes." es="Al terminar, guarda el resultado y reinicia Klipper."/>
   <translation tag="It&apos;s a new spool" es="Es una bobina nueva"/>
   <translation tag="Its home tile" es="Su mosaico de inicio"/>
   <translation tag="Jammed" es="Atascado"/>
@@ -3730,6 +3731,7 @@
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." es="La impresora perdió corriente mientras imprimía {}. La capa reanudada puede no alinearse con exactitud."/>
   <translation tag="The printer no longer has a print to resume." es="La impresora ya no tiene una impresión para reanudar."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." es="La impresora lee el archivo hasta la última posición guardada. Un archivo grande puede tardar un minuto."/>
+  <translation tag="The printer moves the toolhead and measures its motors." es="La impresora mueve el cabezal y mide sus motores."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" es="La impresora registra el carril {} en el cabezal, no este"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." es="La impresora rechazó ese puerto: comprueba el puerto (Moonraker suele usar el 7125)."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." es="La impresora rechazó la configuración de filamento. La impresión no se inició."/>
@@ -3945,6 +3947,7 @@
   <translation tag="Tune Belts" es="Ajustar"/>
   <translation tag="Tuner" es="Ajuste"/>
   <translation tag="Tuning tower enabled - start a print to test" es="Torre de ajuste activada - inicie una impresión para probar"/>
+  <translation tag="Tune the motors to remove fine vertical lines" es="Ajusta los motores para eliminar líneas verticales finas"/>
   <translation tag="Turbo" es="Turbo"/>
   <translation tag="Turbo Inner" es="Turbo interior"/>
   <translation tag="Turbo Outer" es="Turbo exterior"/>
@@ -4095,6 +4098,7 @@
   <translation tag="Vertical" es="Vertical"/>
   <translation tag="Vibration" es="Vibración"/>
   <translation tag="Vibration compensation active" es="Compensación de vibración activa"/>
+  <translation tag="Vertical Artifact Compensation" es="Compensación de artefactos verticales"/>
   <translation tag="Video playback speed" es="Velocidad de reproducción de video"/>
   <translation tag="View" es="Ver"/>
   <translation tag="View Changelog" es="Ver registro de cambios"/>

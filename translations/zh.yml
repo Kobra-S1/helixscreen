@@ -1885,6 +1885,7 @@ translations:
   It homes and heats on its own (no start macro found).: 自行归零并加热(未找到开始宏)。
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: 它卡在集线器传感器与集线器齿轮之间。请打开 CFS 清理集线器后重试
   It starts with your {} macro.: 使用你的{}宏开始。
+  It saves the result and restarts Klipper when it finishes.: '完成后将保存结果并重启 Klipper。'
   It's a new spool: 这是新料盘
   Its home tile: '其主页磁贴'
   Jammed: 堵塞
@@ -3879,6 +3880,7 @@ translations:
   The printer lost power while printing {}. The resumed layer may not line up exactly.: 打印机在打印 {} 时断电。恢复后的层可能无法完全对准。
   The printer no longer has a print to resume.: 打印机已没有可恢复的打印。
   The printer reads the file up to the last saved position. A large file can take a minute.: 打印机正在读取文件直到最后保存的位置。大文件可能需要一分钟。
+  The printer moves the toolhead and measures its motors.: '打印机将移动打印头并测量电机。'
   The printer records lane {} in the toolhead, not this one: '打印机记录的工具头里是耗材通道{}，不是这个'
   'The printer refused that port: check the port (Moonraker is usually 7125).': "打印机拒绝了该端口:请检查端口(Moonraker 通常为 7125)。"
   The printer rejected the filament configuration. The print was not started.: 打印机拒绝了该耗材配置。打印未启动。
@@ -4118,6 +4120,7 @@ translations:
   Tune Belts: "调整皮带"
   Tuner: 调校
   Tuning tower enabled - start a print to test: 调优塔已启用 - 开始打印以测试
+  Tune the motors to remove fine vertical lines: '调整电机以消除细小的垂直纹路'
   Turbo: 极速
   Turbo Inner: 极速内圈
   Turbo Outer: 极速外圈
@@ -4262,6 +4265,7 @@ translations:
   Vertical: 垂直
   Vibration: 振动
   Vibration compensation active: 振动补偿已启用
+  Vertical Artifact Compensation: '垂直纹路补偿'
   Video playback speed: 视频播放速度
   View: 查看
   View Changelog: 查看更新日志

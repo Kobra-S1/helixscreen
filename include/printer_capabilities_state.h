@@ -55,6 +55,7 @@ enum class Capability : uint8_t {
     HasWebcam,                   ///< an enabled webcam is configured
     WebcamCount,                 ///< named webcams (what a picker can offer)
     HasExtraFans,                ///< controllable fans beyond part cooling
+    HasStepperResonanceCal,      ///< firmware calibrates stepper resonance (vertical artifacts)
     PowerDeviceCount,            ///< power devices (0 = none)
     SensorCount,                 ///< Moonraker sensors (0 = none)
     HasShakeTune,                ///< Klippain Shake&Tune macros

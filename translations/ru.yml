@@ -2040,6 +2040,7 @@ translations:
   It homes and heats on its own (no start macro found).: Парковка и нагрев выполняются самостоятельно (стартовый макрос не найден).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Он зажат между датчиком хаба и его шестернёй. Откройте CFS, освободите хаб и повторите
   It starts with your {} macro.: Начинается с вашего макроса {}.
+  It saves the result and restarts Klipper when it finishes.: 'По завершении результат сохраняется, и Klipper перезапускается.'
   It's a new spool: Это новая катушка
   Its home tile: 'Его плитка на главном экране'
   Jammed: Замятие
@@ -4147,6 +4148,7 @@ translations:
   The printer lost power while printing {}. The resumed layer may not line up exactly.: Принтер потерял питание при печати {}. Возобновлённый слой может не совпасть точно.
   The printer no longer has a print to resume.: У принтера больше нет печати для продолжения.
   The printer reads the file up to the last saved position. A large file can take a minute.: Принтер читает файл до последней сохранённой позиции. Большой файл может занять минуту.
+  The printer moves the toolhead and measures its motors.: 'Принтер перемещает печатающую головку и измеряет моторы.'
   The printer records lane {} in the toolhead, not this one: 'По записи принтера в печатающей головке канал {}, а не этот'
   'The printer refused that port: check the port (Moonraker is usually 7125).': "Принтер отклонил этот порт: проверьте порт (Moonraker обычно использует 7125)."
   The printer rejected the filament configuration. The print was not started.: Принтер
@@ -4405,6 +4407,7 @@ translations:
   Tune Belts: "Настроить"
   Tuner: Настройка
   Tuning tower enabled - start a print to test: Башня настройки включена — начните
+  Tune the motors to remove fine vertical lines: 'Настроить моторы, чтобы убрать тонкие вертикальные полосы'
     печать для теста
   Turbo: Турбо
   Turbo Inner: Турбо (внутренний)
@@ -4554,6 +4557,7 @@ translations:
   Vertical: Вертикально
   Vibration: Вибрация
   Vibration compensation active: Компенсация вибраций активна
+  Vertical Artifact Compensation: 'Компенсация вертикальных артефактов'
   Video playback speed: Скорость воспроизведения видео
   View: Просмотр
   View Changelog: Просмотр изменений

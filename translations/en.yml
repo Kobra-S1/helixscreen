@@ -1948,6 +1948,7 @@ translations:
   It homes and heats on its own (no start macro found).: It homes and heats on its own (no start macro found).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying
   It starts with your {} macro.: It starts with your {} macro.
+  It saves the result and restarts Klipper when it finishes.: It saves the result and restarts Klipper when it finishes.
   It's a new spool: It's a new spool
   Its home tile: Its home tile
   Jammed: Jammed
@@ -4006,6 +4007,7 @@ translations:
   The printer lost power while printing {}. The resumed layer may not line up exactly.: The printer lost power while printing {}. The resumed layer may not line up exactly.
   The printer no longer has a print to resume.: The printer no longer has a print to resume.
   The printer reads the file up to the last saved position. A large file can take a minute.: The printer reads the file up to the last saved position. A large file can take a minute.
+  The printer moves the toolhead and measures its motors.: The printer moves the toolhead and measures its motors.
   The printer records lane {} in the toolhead, not this one: The printer records lane {} in the toolhead, not this one
   'The printer refused that port: check the port (Moonraker is usually 7125).': 'The printer refused that port: check the port (Moonraker is usually 7125).'
   The printer rejected the filament configuration. The print was not started.: The
@@ -4265,6 +4267,7 @@ translations:
   Tune Belts: Tune Belts
   Tuner: Tuner
   Tuning tower enabled - start a print to test: Tuning tower enabled - start a print
+  Tune the motors to remove fine vertical lines: Tune the motors to remove fine vertical lines
     to test
   Turbo: Turbo
   Turbo Inner: Turbo Inner
@@ -4418,6 +4421,7 @@ translations:
   Vertical: Vertical
   Vibration: Vibration
   Vibration compensation active: Vibration compensation active
+  Vertical Artifact Compensation: Vertical Artifact Compensation
   Video playback speed: Video playback speed
   View: View
   View Changelog: View Changelog

@@ -1999,6 +1999,7 @@ translations:
   It homes and heats on its own (no start macro found).: Hace homing y calienta por su cuenta (no se encontró macro de inicio).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Está atascado entre el sensor del concentrador y su engranaje. Abra el CFS y despeje el concentrador antes de reintentar
   It starts with your {} macro.: Empieza con tu macro {}.
+  It saves the result and restarts Klipper when it finishes.: 'Al terminar, guarda el resultado y reinicia Klipper.'
   It's a new spool: Es una bobina nueva
   Its home tile: 'Su mosaico de inicio'
   Jammed: Atascado
@@ -4101,6 +4102,7 @@ translations:
   The printer lost power while printing {}. The resumed layer may not line up exactly.: La impresora perdió corriente mientras imprimía {}. La capa reanudada puede no alinearse con exactitud.
   The printer no longer has a print to resume.: La impresora ya no tiene una impresión para reanudar.
   The printer reads the file up to the last saved position. A large file can take a minute.: La impresora lee el archivo hasta la última posición guardada. Un archivo grande puede tardar un minuto.
+  The printer moves the toolhead and measures its motors.: 'La impresora mueve el cabezal y mide sus motores.'
   The printer records lane {} in the toolhead, not this one: 'La impresora registra el carril {} en el cabezal, no este'
   'The printer refused that port: check the port (Moonraker is usually 7125).': "La impresora rechazó ese puerto: comprueba el puerto (Moonraker suele usar el 7125)."
   The printer rejected the filament configuration. The print was not started.: La
@@ -4365,6 +4367,7 @@ translations:
   Tune Belts: "Ajustar"
   Tuner: Ajuste
   Tuning tower enabled - start a print to test: Torre de ajuste activada - inicie
+  Tune the motors to remove fine vertical lines: 'Ajusta los motores para eliminar líneas verticales finas'
     una impresión para probar
   Turbo: Turbo
   Turbo Inner: Turbo interior
@@ -4515,6 +4518,7 @@ translations:
   Vertical: Vertical
   Vibration: Vibración
   Vibration compensation active: Compensación de vibración activa
+  Vertical Artifact Compensation: 'Compensación de artefactos verticales'
   Video playback speed: Velocidad de reproducción de video
   View: Ver
   View Changelog: Ver registro de cambios

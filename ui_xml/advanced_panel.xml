@@ -233,6 +233,14 @@
           <bind_flag_if_eq subject="printer_has_tool_offset_cal" flag="hidden" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_tool_offset_row_clicked"/>
         </setting_action_row>
+        <!-- Vertical Artifact Compensation (firmwares with a stepper resonance
+             calibration; helix::stepper_resonance_cal decides) -->
+        <setting_action_row name="row_stepper_resonance_cal"
+                            label="Vertical Artifact Compensation" icon="sine_wave"
+                            description="Tune the motors to remove fine vertical lines">
+          <bind_flag_if_eq subject="printer_has_stepper_resonance_cal" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_stepper_resonance_cal_clicked"/>
+        </setting_action_row>
         <!-- Belt Tension (hidden if no accelerometer) -->
         <setting_action_row name="row_belt_tension"
                             label="Belt Tension" icon="vibrate" description="Compare belt paths with a resonance sweep">

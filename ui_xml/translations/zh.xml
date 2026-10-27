@@ -1817,6 +1817,7 @@
   <translation tag="It homes and heats on its own (no start macro found)." zh="自行归零并加热(未找到开始宏)。"/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" zh="它卡在集线器传感器与集线器齿轮之间。请打开 CFS 清理集线器后重试"/>
   <translation tag="It starts with your {} macro." zh="使用你的{}宏开始。"/>
+  <translation tag="It saves the result and restarts Klipper when it finishes." zh="完成后将保存结果并重启 Klipper。"/>
   <translation tag="It&apos;s a new spool" zh="这是新料盘"/>
   <translation tag="Its home tile" zh="其主页磁贴"/>
   <translation tag="Jammed" zh="堵塞"/>
@@ -3730,6 +3731,7 @@
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." zh="打印机在打印 {} 时断电。恢复后的层可能无法完全对准。"/>
   <translation tag="The printer no longer has a print to resume." zh="打印机已没有可恢复的打印。"/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." zh="打印机正在读取文件直到最后保存的位置。大文件可能需要一分钟。"/>
+  <translation tag="The printer moves the toolhead and measures its motors." zh="打印机将移动打印头并测量电机。"/>
   <translation tag="The printer records lane {} in the toolhead, not this one" zh="打印机记录的工具头里是耗材通道{}，不是这个"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." zh="打印机拒绝了该端口:请检查端口(Moonraker 通常为 7125)。"/>
   <translation tag="The printer rejected the filament configuration. The print was not started." zh="打印机拒绝了该耗材配置。打印未启动。"/>
@@ -3945,6 +3947,7 @@
   <translation tag="Tune Belts" zh="调整皮带"/>
   <translation tag="Tuner" zh="调校"/>
   <translation tag="Tuning tower enabled - start a print to test" zh="调优塔已启用 - 开始打印以测试"/>
+  <translation tag="Tune the motors to remove fine vertical lines" zh="调整电机以消除细小的垂直纹路"/>
   <translation tag="Turbo" zh="极速"/>
   <translation tag="Turbo Inner" zh="极速内圈"/>
   <translation tag="Turbo Outer" zh="极速外圈"/>
@@ -4095,6 +4098,7 @@
   <translation tag="Vertical" zh="垂直"/>
   <translation tag="Vibration" zh="振动"/>
   <translation tag="Vibration compensation active" zh="振动补偿已启用"/>
+  <translation tag="Vertical Artifact Compensation" zh="垂直纹路补偿"/>
   <translation tag="Video playback speed" zh="视频播放速度"/>
   <translation tag="View" zh="查看"/>
   <translation tag="View Changelog" zh="查看更新日志"/>

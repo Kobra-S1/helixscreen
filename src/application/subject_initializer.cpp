@@ -36,6 +36,7 @@
 #include "ui_panel_spoolman.h"
 #include "ui_printer_status_icon.h"
 #include "ui_probe_overlay.h"
+#include "ui_stepper_resonance_cal_modal.h"
 #include "ui_update_queue.h"
 #include "ui_wizard.h"
 
@@ -302,6 +303,7 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     init_belt_tension_row_handler();
     init_zoffset_row_handler();
     helix::ui::init_tool_offset_row_handler();
+    helix::ui::init_stepper_resonance_cal_row_handler();
     init_zoffset_event_callbacks();
     init_probe_row_handler();
 

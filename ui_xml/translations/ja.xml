@@ -1817,6 +1817,7 @@
   <translation tag="It homes and heats on its own (no start macro found)." ja="ホーミングと加熱を自分で行います(開始マクロが見つかりません)。"/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" ja="ハブセンサーとハブギアの間で詰まっています。CFS を開けてハブを取り除いてから再試行してください"/>
   <translation tag="It starts with your {} macro." ja="{}マクロで開始します。"/>
+  <translation tag="It saves the result and restarts Klipper when it finishes." ja="完了すると結果を保存し、Klipperを再起動します。"/>
   <translation tag="It&apos;s a new spool" ja="新しいスプールです"/>
   <translation tag="Its home tile" ja="ホームのタイル"/>
   <translation tag="Jammed" ja="詰まり"/>
@@ -3730,6 +3731,7 @@
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ja="{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
   <translation tag="The printer no longer has a print to resume." ja="プリンターに再開できる印刷がありません。"/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." ja="プリンターは最後に保存された位置までファイルを読み込みます。大きなファイルでは1分かかることがあります。"/>
+  <translation tag="The printer moves the toolhead and measures its motors." ja="プリンターがツールヘッドを動かし、モーターを測定します。"/>
   <translation tag="The printer records lane {} in the toolhead, not this one" ja="プリンターの記録ではツールヘッドにあるのはレーン{}で、このレーンではありません"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." ja="プリンターがそのポートを拒否しました: ポートを確認してください(Moonrakerは通常7125)。"/>
   <translation tag="The printer rejected the filament configuration. The print was not started." ja="プリンターがフィラメント設定を拒否しました。印刷は開始されませんでした。"/>
@@ -3945,6 +3947,7 @@
   <translation tag="Tune Belts" ja="ベルト調整"/>
   <translation tag="Tuner" ja="調整"/>
   <translation tag="Tuning tower enabled - start a print to test" ja="チューニングタワー有効 - 印刷を開始してテストしてください"/>
+  <translation tag="Tune the motors to remove fine vertical lines" ja="モーターを調整して細かい垂直の線を除去"/>
   <translation tag="Turbo" ja="ターボ"/>
   <translation tag="Turbo Inner" ja="ターボ・内側"/>
   <translation tag="Turbo Outer" ja="ターボ・外側"/>
@@ -4095,6 +4098,7 @@
   <translation tag="Vertical" ja="垂直"/>
   <translation tag="Vibration" ja="振動"/>
   <translation tag="Vibration compensation active" ja="振動補正が有効です"/>
+  <translation tag="Vertical Artifact Compensation" ja="垂直アーティファクト補正"/>
   <translation tag="Video playback speed" ja="動画再生速度"/>
   <translation tag="View" ja="表示"/>
   <translation tag="View Changelog" ja="変更履歴を表示"/>

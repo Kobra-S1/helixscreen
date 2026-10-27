@@ -2013,6 +2013,7 @@ translations:
   It homes and heats on its own (no start macro found).: Elle fait l'origine et chauffe seule (aucune macro de démarrage trouvée).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Il est coincé entre le capteur du hub et son engrenage. Ouvrez le CFS et dégagez le hub avant de réessayer
   It starts with your {} macro.: Elle démarre avec votre macro {}.
+  It saves the result and restarts Klipper when it finishes.: 'À la fin, le résultat est enregistré et Klipper redémarre.'
   It's a new spool: C'est une nouvelle bobine
   Its home tile: 'Sa tuile d''accueil'
   Jammed: Bourrage
@@ -4128,6 +4129,7 @@ translations:
   The printer lost power while printing {}. The resumed layer may not line up exactly.: L'imprimante a été mise hors tension pendant l'impression de {}. La couche reprise peut ne pas s'aligner exactement.
   The printer no longer has a print to resume.: L'imprimante n'a plus d'impression à reprendre.
   The printer reads the file up to the last saved position. A large file can take a minute.: L'imprimante lit le fichier jusqu'à la dernière position enregistrée. Un gros fichier peut prendre une minute.
+  The printer moves the toolhead and measures its motors.: 'L''imprimante déplace la tête et mesure ses moteurs.'
   The printer records lane {} in the toolhead, not this one: 'L''imprimante enregistre la voie {} dans la tête, pas celle-ci'
   'The printer refused that port: check the port (Moonraker is usually 7125).': "L'imprimante a refusé ce port : vérifiez le port (Moonraker utilise généralement 7125)."
   The printer rejected the filament configuration. The print was not started.: L'imprimante
@@ -4396,6 +4398,7 @@ translations:
   Tune Belts: "Régler"
   Tuner: Réglage
   Tuning tower enabled - start a print to test: Tour de réglage activée - lancez une
+  Tune the motors to remove fine vertical lines: 'Régler les moteurs pour supprimer les fines lignes verticales'
     impression pour tester
   Turbo: Turbo
   Turbo Inner: Turbo intérieur
@@ -4547,6 +4550,7 @@ translations:
   Vertical: Vertical
   Vibration: Vibration
   Vibration compensation active: Compensation de vibration active
+  Vertical Artifact Compensation: 'Compensation des artefacts verticaux'
   Video playback speed: Vitesse de lecture vidéo
   View: Voir
   View Changelog: Voir le journal des modifications

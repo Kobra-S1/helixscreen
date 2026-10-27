@@ -1890,6 +1890,7 @@ translations:
   It homes and heats on its own (no start macro found).: ホーミングと加熱を自分で行います(開始マクロが見つかりません)。
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: ハブセンサーとハブギアの間で詰まっています。CFS を開けてハブを取り除いてから再試行してください
   It starts with your {} macro.: '{}マクロで開始します。'
+  It saves the result and restarts Klipper when it finishes.: '完了すると結果を保存し、Klipperを再起動します。'
   It's a new spool: 新しいスプールです
   Its home tile: 'ホームのタイル'
   Jammed: 詰まり
@@ -3888,6 +3889,7 @@ translations:
   The printer lost power while printing {}. The resumed layer may not line up exactly.: '{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。'
   The printer no longer has a print to resume.: プリンターに再開できる印刷がありません。
   The printer reads the file up to the last saved position. A large file can take a minute.: プリンターは最後に保存された位置までファイルを読み込みます。大きなファイルでは1分かかることがあります。
+  The printer moves the toolhead and measures its motors.: 'プリンターがツールヘッドを動かし、モーターを測定します。'
   The printer records lane {} in the toolhead, not this one: 'プリンターの記録ではツールヘッドにあるのはレーン{}で、このレーンではありません'
   'The printer refused that port: check the port (Moonraker is usually 7125).': "プリンターがそのポートを拒否しました: ポートを確認してください(Moonrakerは通常7125)。"
   The printer rejected the filament configuration. The print was not started.: プリンターがフィラメント設定を拒否しました。印刷は開始されませんでした。
@@ -4127,6 +4129,7 @@ translations:
   Tune Belts: "ベルト調整"
   Tuner: 調整
   Tuning tower enabled - start a print to test: チューニングタワー有効 - 印刷を開始してテストしてください
+  Tune the motors to remove fine vertical lines: 'モーターを調整して細かい垂直の線を除去'
   Turbo: ターボ
   Turbo Inner: ターボ・内側
   Turbo Outer: ターボ・外側
@@ -4271,6 +4274,7 @@ translations:
   Vertical: 垂直
   Vibration: 振動
   Vibration compensation active: 振動補正が有効です
+  Vertical Artifact Compensation: '垂直アーティファクト補正'
   Video playback speed: 動画再生速度
   View: 表示
   View Changelog: 変更履歴を表示

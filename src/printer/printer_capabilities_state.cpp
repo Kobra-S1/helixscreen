@@ -19,6 +19,7 @@
 #include "sound_manager.h"
 #include "state/subject_macros.h"
 #include "tool_offset_calibration.h"
+#include "stepper_resonance_calibration.h"
 #include "webcam_selection.h"
 
 #include <spdlog/spdlog.h>
@@ -71,6 +72,7 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::WebcamCount, "webcam_count", 0},
     {Capability::HasExtraFans, "printer_has_extra_fans", 0},
     {Capability::PowerDeviceCount, "power_device_count", 0},
+    {Capability::HasStepperResonanceCal, "printer_has_stepper_resonance_cal", 0},
     {Capability::SensorCount, "sensor_count", 0},
     {Capability::HasShakeTune, "printer_has_shaketune", 0},
     {Capability::HasHeatSoak, "printer_has_heat_soak", 0},
@@ -283,6 +285,8 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     bump_hardware_generation();
 }
 
+    set_capability(Capability::HasStepperResonanceCal,
+                   helix::stepper_resonance_cal::supported(hardware) ? 1 : 0);
 void PrinterCapabilitiesState::render_tool_offset_cal_description() {
     if (!subjects_initialized_) {
         return;

@@ -1817,6 +1817,7 @@
   <translation tag="It homes and heats on its own (no start macro found)." fr="Elle fait l&apos;origine et chauffe seule (aucune macro de démarrage trouvée)."/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" fr="Il est coincé entre le capteur du hub et son engrenage. Ouvrez le CFS et dégagez le hub avant de réessayer"/>
   <translation tag="It starts with your {} macro." fr="Elle démarre avec votre macro {}."/>
+  <translation tag="It saves the result and restarts Klipper when it finishes." fr="À la fin, le résultat est enregistré et Klipper redémarre."/>
   <translation tag="It&apos;s a new spool" fr="C&apos;est une nouvelle bobine"/>
   <translation tag="Its home tile" fr="Sa tuile d&apos;accueil"/>
   <translation tag="Jammed" fr="Bourrage"/>
@@ -3730,6 +3731,7 @@
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." fr="L&apos;imprimante a été mise hors tension pendant l&apos;impression de {}. La couche reprise peut ne pas s&apos;aligner exactement."/>
   <translation tag="The printer no longer has a print to resume." fr="L&apos;imprimante n&apos;a plus d&apos;impression à reprendre."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." fr="L&apos;imprimante lit le fichier jusqu&apos;à la dernière position enregistrée. Un gros fichier peut prendre une minute."/>
+  <translation tag="The printer moves the toolhead and measures its motors." fr="L&apos;imprimante déplace la tête et mesure ses moteurs."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" fr="L&apos;imprimante enregistre la voie {} dans la tête, pas celle-ci"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." fr="L&apos;imprimante a refusé ce port : vérifiez le port (Moonraker utilise généralement 7125)."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." fr="L&apos;imprimante a rejeté la configuration du filament. L&apos;impression n&apos;a pas été démarrée."/>
@@ -3945,6 +3947,7 @@
   <translation tag="Tune Belts" fr="Régler"/>
   <translation tag="Tuner" fr="Réglage"/>
   <translation tag="Tuning tower enabled - start a print to test" fr="Tour de réglage activée - lancez une impression pour tester"/>
+  <translation tag="Tune the motors to remove fine vertical lines" fr="Régler les moteurs pour supprimer les fines lignes verticales"/>
   <translation tag="Turbo" fr="Turbo"/>
   <translation tag="Turbo Inner" fr="Turbo intérieur"/>
   <translation tag="Turbo Outer" fr="Turbo extérieur"/>
@@ -4095,6 +4098,7 @@
   <translation tag="Vertical" fr="Vertical"/>
   <translation tag="Vibration" fr="Vibration"/>
   <translation tag="Vibration compensation active" fr="Compensation de vibration active"/>
+  <translation tag="Vertical Artifact Compensation" fr="Compensation des artefacts verticaux"/>
   <translation tag="Video playback speed" fr="Vitesse de lecture vidéo"/>
   <translation tag="View" fr="Voir"/>
   <translation tag="View Changelog" fr="Voir le journal des modifications"/>
