@@ -2069,7 +2069,11 @@ templates. Today that is QIDI's `M604`. Generic code never sees those pieces: it
 out of the params), sends `guided_load_status_query()`, and reads the reply with
 `guided_load_waits()`. When the macro tier's load succeeds and the macro has a wizard,
 `start_guided_load()` in `src/ui/filament_op_execute.cpp` does exactly that and opens
-`GuidedLoadModal` (`src/ui/ui_guided_load_modal.cpp`). For `M604`:
+`GuidedLoadModal` (`src/ui/ui_guided_load_modal.cpp`). The modal declines to open while a
+job holds the machine (`GuidedLoadModal::opens_during()`, over `job_holds_machine()` in
+`include/print_lifecycle_state.h`): a load is allowed on a paused print for runout recovery,
+but the wizard's Extrude and Done are motion-gated during a job and its cleanup would cool
+the nozzle under the paused print. While a step runs it offers Cancel. For `M604`:
 
 | The printer reports | The modal opens on | Steps |
 |---|---|---|
