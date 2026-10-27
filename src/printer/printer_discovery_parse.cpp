@@ -673,14 +673,14 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
 
 namespace {
 
-bool kind_in(hw::ObjectKind kind, std::initializer_list<hw::ObjectKind> kinds) {
+bool kind_in(hw::ObjectKind kind, const std::vector<hw::ObjectKind>& kinds) {
     return std::find(kinds.begin(), kinds.end(), kind) != kinds.end();
 }
 
 } // namespace
 
 std::vector<std::string>
-PrinterDiscovery::objects_of(std::initializer_list<hw::ObjectKind> kinds) const {
+PrinterDiscovery::objects_of(const std::vector<hw::ObjectKind>& kinds) const {
     std::vector<std::string> out;
     for (const auto& o : objects_) {
         if (kind_in(o.cls.kind, kinds)) {
@@ -700,7 +700,7 @@ std::vector<std::pair<std::string, hw::ObjectKind>> PrinterDiscovery::object_kin
 }
 
 std::vector<std::string>
-PrinterDiscovery::sections_of(std::initializer_list<hw::ObjectKind> kinds) const {
+PrinterDiscovery::sections_of(const std::vector<hw::ObjectKind>& kinds) const {
     std::vector<std::string> out;
     for (const auto& s : sections_) {
         if (kind_in(s.cls.kind, kinds)) {
