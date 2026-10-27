@@ -137,7 +137,7 @@
         {
           "enabled": true,
           "klipper_name": "cartographer",
-          "role": "none",
+          "role": "z_probe",
           "sensor_name": "cartographer",
           "type": "cartographer"
         }

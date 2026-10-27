@@ -410,7 +410,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 // Gcode macro templates for param detection testing
                 config_section.merge_patch(get_mock_gcode_macro_config());
 
-                // Probe section — where ProbeSensorManager::discover_from_config()
+                // Probe section — where ProbeSensorManager::on_discovered()
                 // reads z_offset from on the real discovery path.
                 config_section.merge_patch(get_mock_probe_config(self->get_printer_type()));
 

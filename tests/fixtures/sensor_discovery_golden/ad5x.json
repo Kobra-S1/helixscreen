@@ -104,7 +104,7 @@
         {
           "enabled": true,
           "klipper_name": "probe",
-          "role": "none",
+          "role": "z_probe",
           "sensor_name": "probe",
           "type": "standard"
         }

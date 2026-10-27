@@ -5,6 +5,7 @@
 #include "config.h"
 #include "json_utils.h"
 #include "printer_discovery.h"
+#include "probe_sensor_manager.h"
 #include "spdlog/spdlog.h"
 #include "static_subject_registry.h"
 #include "width_sensor_manager.h"
@@ -479,7 +480,8 @@ const SensorManager::Options& SensorManager::options() const {
 std::vector<SensorManager*>& detail::mutable_sensor_managers() {
     // Migrated managers join in this order: filament, humidity, width, probe,
     // accel, temperature, load cell, input, SensorState.
-    static std::vector<SensorManager*> managers = {&WidthSensorManager::instance()};
+    static std::vector<SensorManager*> managers = {&WidthSensorManager::instance(),
+                                                   &ProbeSensorManager::instance()};
     return managers;
 }
 

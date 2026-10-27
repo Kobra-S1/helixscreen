@@ -59,7 +59,7 @@ PrinterDiscovery ──► init_subsystems_from_hardware()
                          ├─ FilamentSensorManager::discover_sensors() + load_config_from_file()
                          ├─ TemperatureSensorManager::discover()
                          ├─ LoadCellManager::discover()
-                         ├─ ProbeSensorManager::discover() + load_config_from_file()
+                         ├─ ProbeSensorManager::discover(hw) + load_settings()
                          ├─ HumiditySensorManager::discover()
                          └─ WidthSensorManager::discover() + load_config_from_file()
 
@@ -104,12 +104,12 @@ Discovery is deliberately not on that list, because each manager reads a differe
 | Filament | `hardware.filament_sensor_names()`, only when `has_filament_sensors()` | `load_config_from_file()` |
 | Temperature | `hardware.sensors()` | none |
 | Load cell | `hardware.load_cells()` | none |
-| Probe | `hardware.printer_objects()`, then `discover_from_config()` later | `load_config_from_file()` |
+| Probe | `hardware.objects_of({Probe})` plus its config-only sections, re-run when the configfile arrives | `load_settings()` |
 | Humidity | `hardware.printer_objects()` | none |
 | Width | `hardware.width_sensor_objects()`, only when `has_width_sensors()` | `load_config_from_file()` |
 | Accel | `discover_from_config()` only | none |
 
-The `configfile.config` arm lives in `src/api/moonraker_discovery_sequence.cpp#continue_discovery_objects`. It posts a copy of the config to the main thread and hands it to `ProbeSensorManager::discover_from_config()` (which only seeds `z_offset` for probes already discovered, for modules whose status reports it as null) and `AccelSensorManager::discover_from_config()` (the only place accelerometers are found, since they have no `get_status`).
+The `configfile.config` arm lives in `src/api/moonraker_discovery_sequence.cpp#continue_discovery_objects`. It posts a copy of the config to the main thread and re-runs every registered manager's `discover()` against the hardware snapshot that now carries the config sections (a probe seeds `z_offset` from its section there, for modules whose status reports it as null), and hands it to `AccelSensorManager::discover_from_config()` (the only place accelerometers are found, since they have no `get_status`).
 
 Every `discover()` has the same shape: clear `sensors_`, parse each name with a private `parse_klipper_name()`, push a default `*Config`, mark the `states_` entry `available`, mark vanished sensors unavailable, update the `*_count` subject, then run `update_subjects()`. Some managers also auto-assign roles from the sensor name at this point (see each manager below). Because `discover()` rebuilds `sensors_` from scratch, any role set at runtime and not persisted is gone after a reconnect.
 
@@ -124,7 +124,7 @@ A manager only sees fields that `MoonrakerDiscoverySequence::build_subscription_
 | `load_cell *` | `force_g` |
 | filament switch/motion sensors | `filament_detected`, `enabled`, `detection_count` |
 | width sensors | `Diameter`, `Raw` |
-| probe objects (`probe`, `bltouch`, `beacon`, ...), one per physical probe | `last_z_result` and `z_offset`, plus `last_query` where the type publishes a usable one, per the table in [Probe status keys](#probe-status-keys), from `ProbeSensorManager::required_status_objects()` |
+| probe objects (`probe`, `bltouch`, `beacon`, ...), one per physical probe | `last_z_result` and `z_offset`, plus `last_query` where the type publishes a usable one, per the table in [Probe status keys](#probe-status-keys), from `ProbeSensorManager::extra_subscriptions()` |
 
 `ProbeSensorManager` owns which object names are probes and which object and keys each type publishes, so the builder asks it rather than listing them. Mainline modules do not publish `z_offset` and Klipper answers the requested key with `null`, so the offset seeded by `discover_from_config()` stands; the Creality and QIDI forks publish it, and a numeric value replaces the seed. Accelerometers have no `get_status()` and are never subscribed; `AccelSensorManager::update_from_status()` is a no-op that exists only for the shared fan-out.
 
@@ -330,7 +330,7 @@ Tests: `[input_sensors]` in `tests/unit/test_input_sensor_manager.cpp` (default 
 
 ## Probe, Accelerometer, Width and Load Cell
 
-**Probe.** `parse_klipper_name()` matches exact object names (`probe`, `bltouch`, `smart_effector`, `cartographer`, `beacon`) and the `probe_eddy_current <name>` prefix. One physical probe often registers several objects: Klipper's `bltouch`, `smart_effector` and `probe_eddy_current`, Beacon and the Cartographer plugin all also register the generic `probe`. `probes_in()` keeps only the most specific object (and drops an eddy object beside a named scanner), and both `discover()` and the status subscription go through it, so such a printer has one probe sensor, subscribed once. `load_config_from_file()` applies a saved `probe_sensors` role first, then auto-assigns Z_PROBE when exactly one probe remains and none holds it. Nothing in the UI assigns probe roles, so a printer with two genuinely distinct probes and no saved choice reads -1 on the probe subjects. `set_probe_type_override()` lets the printer database retype a generic `probe` as the real hardware; `PrinterState` calls it after detection. `ui_probe_overlay.cpp` reads `get_z_offset()`.
+**Probe.** The hardware object table matches exact object names (`probe`, `bltouch`, `smart_effector`, `cartographer`, `beacon`) and the `probe_eddy_current <name>` prefix; the config-only `load_cell_probe` and `dockable_probe` sections describe the generic `probe` object, so beside it they type it (a load cell) and supply its `z_offset` rather than adding a sensor. One physical probe often registers several objects: Klipper's `bltouch`, `smart_effector` and `probe_eddy_current`, Beacon and the Cartographer plugin all also register the generic `probe`. `keep_most_specific()` keeps only the most specific object (and drops an eddy object beside a named scanner), and both `on_discovered()` and `extra_subscriptions()` go through it, so such a printer has one probe sensor, subscribed once. `on_discovered()` auto-assigns Z_PROBE when exactly one probe remains and none holds it; a saved `probe_sensors` role, applied by `load_settings()` afterwards, overrides that, including a saved role of none. Nothing in the UI assigns probe roles, so a printer with two genuinely distinct probes and no saved choice reads -1 on the probe subjects. `set_probe_type_override()` lets the printer database retype a generic `probe` as the real hardware; `PrinterState` calls it after detection. `ui_probe_overlay.cpp` reads `get_z_offset()`.
 
 ### Probe status keys
 

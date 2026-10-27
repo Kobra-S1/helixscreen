@@ -15,7 +15,6 @@
 #include "load_cell_manager.h"
 #include "moonraker_api.h"
 #include "printer_name_sync.h"
-#include "probe_sensor_manager.h"
 #include "runtime_config.h"
 #include "sensor_manager.h"
 #include "spdlog/spdlog.h"
@@ -54,7 +53,6 @@ void reload_sensor_roles_after_preset() {
         m->load_settings();
     }
     FilamentSensorManager::instance().load_config_from_file();
-    helix::sensors::ProbeSensorManager::instance().load_config_from_file();
     helix::sensors::InputSensorManager::instance().load_config_from_file();
 }
 
@@ -78,12 +76,6 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     // hardware.load_cells() returns load_cell objects
     auto& lcm = helix::sensors::LoadCellManager::instance();
     lcm.discover(hardware.load_cells());
-
-    // Initialize probe sensor manager
-    // Probe sensors (bltouch, cartographer, beacon, etc.) are discovered from the full objects list
-    auto& psm = helix::sensors::ProbeSensorManager::instance();
-    psm.discover(hardware.printer_objects());
-    psm.load_config_from_file();
 
     // Initialize humidity sensor manager
     // Humidity sensors (bme280, htu21d) are discovered from the full objects list

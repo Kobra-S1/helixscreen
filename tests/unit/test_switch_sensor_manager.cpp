@@ -20,7 +20,6 @@
 #include "../ui_test_utils.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
-#include "probe_sensor_manager.h"
 
 #include <spdlog/spdlog.h>
 
@@ -1116,17 +1115,13 @@ TEST_CASE_METHOD(FilamentSensorTestFixture,
     mgr().set_sync_mode(true);
 }
 
-// Each manager's triggered subject is reachable from XML under its own name.
-TEST_CASE_METHOD(
-    FilamentSensorTestFixture,
-    "FilamentSensorManager - probe subject name does not collide with ProbeSensorManager",
-    "[filament][probe]") {
-    auto& psm = helix::sensors::ProbeSensorManager::instance();
-    psm.init_subjects();
+// The filament manager's triggered subject is reachable from XML under its own name.
+TEST_CASE_METHOD(FilamentSensorTestFixture,
+                 "FilamentSensorManager - probe subject is reachable from XML",
+                 "[filament][probe]") {
     mgr().deinit_subjects();
     mgr().init_subjects();
 
     REQUIRE(lv_xml_get_subject(nullptr, "filament_probe_triggered") ==
             mgr().get_probe_triggered_subject());
-    REQUIRE(lv_xml_get_subject(nullptr, "probe_triggered") == psm.get_probe_triggered_subject());
 }
