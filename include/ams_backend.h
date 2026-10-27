@@ -3971,6 +3971,21 @@ class AmsBackend {
      */
     static std::unique_ptr<AmsBackend> create_mock(int slot_count = 4);
 
+    /**
+     * @brief Load the state filament backends keep across sessions
+     *
+     * Process-scoped and independent of which backend this printer runs: a
+     * backend reads it when it is constructed, and a printer switch keeps it.
+     * Call once at startup, before any backend is created; a backend built
+     * before this treats every remembered fact as unknown.
+     *
+     * @param config_dir Writable directory the state is persisted under
+     */
+    static void init_persistent_state(const std::string& config_dir);
+
+    /// Release what init_persistent_state() loaded, at process exit.
+    static void shutdown_persistent_state();
+
   private:
     /// Tool -> slot aimed from our UI, for as long as this backend lives.
     /// tool_mapping_origin() reads an entry as the user's answer only while the

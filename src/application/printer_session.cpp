@@ -71,7 +71,6 @@
 #include "static_panel_registry.h"
 #include "static_subject_registry.h"
 #include "subject_initializer.h"
-#include "system/afc_message_dedup.h"
 #include "system/crash_handler.h"
 #include "system/crash_history.h"
 #include "system/telemetry_manager.h"
@@ -722,7 +721,7 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
         UpdateChecker::instance().shutdown();    // cancels pending checks
         TelemetryManager::instance().shutdown(); // persists queue, joins send thread
         helix::CrashHistory::instance().shutdown();
-        AfcMessageDedup::instance().shutdown();
+        AmsBackend::shutdown_persistent_state();
         // Before the client is destroyed: the M300 backend's sender lambda references it
         // and the sequencer thread must be stopped first (#714).
         SoundManager::instance().shutdown();

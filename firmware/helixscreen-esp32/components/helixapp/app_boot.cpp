@@ -101,7 +101,6 @@
 #include "src/xml/lv_xml.h"
 #include "status_dispatch.h"
 #include "subject_initializer.h"
-#include "system/afc_message_dedup.h"
 #include "system/update_checker.h"
 #include "text_io.h"
 #include "theme_manager.h"
@@ -881,9 +880,9 @@ extern "C" void app_boot_ui(void) {
     config->set_storage(
         helix::make_file_config_storage("/config/settings.json", helix::ConfigFootprint::Small));
     config->init("/config/settings.json");
-    // Remembers which AFC message each printer has already shown, so one AFC
-    // latched hours ago toasts once rather than at every boot.
-    helix::AfcMessageDedup::instance().init("/config");
+    // What filament backends remember across boots, e.g. which latched
+    // message each printer has already shown.
+    helix::AmsBackend::init_persistent_state("/config");
     apply_boot_crash_guard(config);
 
     // Task 12 R2: first-boot-only Moonraker host/port seed. If settings.json
@@ -952,9 +951,7 @@ extern "C" void app_boot_ui(void) {
     // expat parse each) — the milestone brackets it so the HIL profile can
     // separate registration cost from panel-build cost (subjects-up → home).
     helix::register_xml_components();
-    helix::ui::register_cfs_device_flows();
-    helix::ui::register_snapmaker_device_flows();
-    helix::ui::register_indx_device_flows();
+    helix::ui::register_builtin_guided_device_flows();
     log_heap_milestone("xml-registered");
 
     // The bell opens the notification history panel. Registered BEFORE

@@ -7,13 +7,10 @@
 #include "ui_ams_current_tool.h"
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_device_section_detail_overlay.h"
+#include "ui_ams_edit_overlay.h"
 #include "ui_bed_drying_modal.h"
 #include "ui_belt_gap_gauge.h"
 #include "ui_belt_path_sketch.h"
-#if HELIX_HAS_CFS
-#include "ui_cfs_chute_calibration_overlay.h"
-#endif
-#include "ui_ams_edit_overlay.h"
 #include "ui_button.h"
 #include "ui_carousel.h"
 #include "ui_color_picker.h"

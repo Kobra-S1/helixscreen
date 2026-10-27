@@ -3093,9 +3093,11 @@ registry. It never names a vendor, and a flow id with no registration is refused
 warning rather than executed, because the flow is what asks before moving the machine.
 
 The Creality CFS flows (`cfs_purge_chute`, `cfs_cutter`) live in `src/ui/ui_cfs_device_flows.cpp`
-and are registered by `register_cfs_device_flows()` at startup, before any overlay builds
-(`Application::register_xml_components()`, and the ESP32 `app_boot.cpp` boot path). A new
-vendor flow is one new file plus one `guided_flow` string on its backend's action.
+and are registered by `register_cfs_device_flows()`, one row of the registrar table behind
+`register_builtin_guided_device_flows()` (`src/ui/ui_guided_device_flow.cpp`). Startup calls
+that once, before any overlay builds (`Application::register_xml_components()`, and the ESP32
+`app_boot.cpp` boot path), and never names a vendor. A new vendor's flows are one new file, one
+row in that table, and one `guided_flow` string on its backend's action.
 
 #### Tracked device actions
 

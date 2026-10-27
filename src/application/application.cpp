@@ -21,7 +21,7 @@
 #include "ui_overlay_timelapse_videos.h"
 #include "ui_update_queue.h"
 
-#include "ams_backend_cfs.h"
+#include "ams_backend.h"
 #include "ams_error_bridge.h"
 #include "app_constants.h"
 #include "asset_manager.h"
@@ -188,7 +188,6 @@
 #include "printer_detector.h"
 #include "safety_settings_manager.h"
 #include "settings_manager.h"
-#include "system/afc_message_dedup.h"
 #include "system/config_trust.h"
 #include "system/crash_handler.h"
 #include "system/crash_history.h"
@@ -705,9 +704,8 @@ int Application::run(int argc, char** argv) {
     }
     helix::CrashHistory::instance().init(user_config_dir);
     m_crash_reporter.init(user_config_dir);
-    // Cross-session seed for AFC's latched message dedup (uninitialized
-    // before this point, which reads as "every message is new").
-    AfcMessageDedup::instance().init(user_config_dir);
+    // Before any backend exists: one built earlier sees none of its saved state.
+    AmsBackend::init_persistent_state(user_config_dir);
 
     // Initialize TelemetryManager (opt-in, default OFF)
     // Note: record_session() is called after m_session.init_panel_subjects() so that
@@ -1774,9 +1772,7 @@ bool Application::register_xml_components() {
 
     // Guided flows must exist before any overlay builds: an action that names an unregistered
     // flow is refused rather than executed.
-    helix::ui::register_cfs_device_flows();
-    helix::ui::register_snapmaker_device_flows();
-    helix::ui::register_indx_device_flows();
+    helix::ui::register_builtin_guided_device_flows();
 
     // Start XML hot reloader if enabled. Default ON for native (non-release)
     // builds so editing XML during dev Just Works; OFF for cross-compiled

@@ -283,7 +283,7 @@ TEST_CASE_METHOD(SettingsScopeFixture,
 
     // Per-printer: B falls back to the built-in defaults, NOT A's values.
     CHECK(sm.get_extrude_speed() == 5);
-    CHECK(sm.get_ams_eject_distance() == 878);
+    CHECK(sm.get_ams_eject_distance() == 0);
     // Global: B inherits what A set.
     CHECK(sm.get_detection_enabled() == false);
     CHECK(sm.get_console_filter_temps() == false);
@@ -302,8 +302,8 @@ TEST_CASE_METHOD(SettingsScopeFixture,
 
     CHECK(cfg->get<int>(a("filament/extrude_speed"), -1) == 17);
     CHECK(cfg->get<int>(b("filament/extrude_speed"), -1) == 31);
-    CHECK(cfg->get<int>(a("ams/qidi_eject_distance"), -1) == 555);
-    CHECK(cfg->get<int>(b("ams/qidi_eject_distance"), -1) == 1200);
+    CHECK(cfg->get<int>(a("ams/eject_distance"), -1) == 555);
+    CHECK(cfg->get<int>(b("ams/eject_distance"), -1) == 1200);
 
     CHECK(cfg->exists("/detection/enabled"));
     CHECK_FALSE(cfg->exists(a("detection/enabled")));
@@ -463,8 +463,8 @@ TEST_CASE_METHOD(SettingsScopeFixture,
 
         expect_per_printer("z_movement_style");
         expect_per_printer("filament/extrude_speed");
-        expect_per_printer("ams/qidi_eject_distance");
-        expect_per_printer("ams/qidi_eject_velocity");
+        expect_per_printer("ams/eject_distance");
+        expect_per_printer("ams/eject_velocity");
         expect_per_printer("filament/auto_color_map");
         expect_per_printer("ams/unload_after_print");
         expect_per_printer("ams/end_of_print_unload_tools");
