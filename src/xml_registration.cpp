@@ -6,14 +6,10 @@
 #include "ui_ams_current_tool.h"
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_device_section_detail_overlay.h"
+#include "ui_ams_edit_overlay.h"
 #include "ui_bed_drying_modal.h"
 #include "ui_belt_gap_gauge.h"
 #include "ui_belt_path_sketch.h"
-#include "ui_fault_path.h"
-#if HELIX_HAS_CFS
-#include "ui_cfs_chute_calibration_overlay.h"
-#endif
-#include "ui_ams_edit_overlay.h"
 #include "ui_button.h"
 #include "ui_carousel.h"
 #include "ui_color_picker.h"
@@ -21,6 +17,7 @@
 #include "ui_context_menu.h"
 #include "ui_event_safety.h"
 #include "ui_fan_dial.h"
+#include "ui_fault_path.h"
 #include "ui_fonts.h"
 #include "ui_gcode_viewer.h"
 #include "ui_hsv_picker.h"

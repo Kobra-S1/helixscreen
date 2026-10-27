@@ -842,9 +842,43 @@ TEST_CASE("QIDI Box eject sliders set the distance and speed lane eject uses",
     CHECK_FALSE(backend.execute_device_action("eject_distance").success());
     CHECK_FALSE(backend.execute_device_action("eject_nonsense", std::any(1.0f)).success());
 
-    // Restore defaults so sibling tests in this shard see the default eject gcode.
-    settings.set_ams_eject_distance(saved_dist > 0 ? saved_dist : 878);
-    settings.set_ams_eject_velocity(saved_vel > 0 ? saved_vel : 100);
+    // Restore so sibling tests in this shard see the default eject gcode.
+    settings.set_ams_eject_distance(saved_dist);
+    settings.set_ams_eject_velocity(saved_vel);
+}
+
+TEST_CASE("QIDI Box supplies its own eject defaults while none is stored",
+          "[ams][qidi_box][write_path][device_actions]") {
+    auto& settings = helix::SettingsManager::instance();
+    settings.init_subjects();
+    const int saved_dist = settings.get_ams_eject_distance();
+    const int saved_vel = settings.get_ams_eject_velocity();
+
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"force_move", {{"enable_force_move", true}}}});
+
+    // The generic setting stores 0 until a value is chosen; the box fills it in.
+    settings.set_ams_eject_distance(0);
+    settings.set_ams_eject_velocity(0);
+    REQUIRE(settings.get_ams_eject_distance() == 0);
+    CHECK(helix::printer::device_action_number(backend.get_device_actions()[0].current_value) ==
+          878.0);
+    CHECK(helix::printer::device_action_number(backend.get_device_actions()[1].current_value) ==
+          100.0);
+    REQUIRE(backend.eject_lane(1).success());
+    REQUIRE(backend.sent.size() == 1);
+    CHECK(backend.sent[0] == "FORCE_MOVE STEPPER=\"box_stepper slot1\" VELOCITY=100 DISTANCE=-878");
+
+    // A stored value below the box's slider range is raised to it.
+    settings.set_ams_eject_distance(50);
+    settings.set_ams_eject_velocity(5);
+    REQUIRE(backend.eject_lane(1).success());
+    REQUIRE(backend.sent.size() == 2);
+    CHECK(backend.sent[1] == "FORCE_MOVE STEPPER=\"box_stepper slot1\" VELOCITY=10 DISTANCE=-100");
+
+    settings.set_ams_eject_distance(saved_dist);
+    settings.set_ams_eject_velocity(saved_vel);
 }
 
 TEST_CASE("QIDI Box [force_move] disabled keeps lane eject off", "[ams][qidi_box][write_path]") {

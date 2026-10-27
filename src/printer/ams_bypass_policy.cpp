@@ -11,19 +11,9 @@
 
 namespace helix {
 
-namespace {
-
-/// The conventional wrapper names on hardware whose filament path has a master
-/// switch but no bypass command. An owner whose macros are named differently
-/// picks theirs in the device operations.
-constexpr const char* kConventionalBypassOn = "ACE_BYPASS_ON";
-constexpr const char* kConventionalBypassOff = "ACE_BYPASS_OFF";
-
-} // namespace
-
-BypassMacros detect_bypass_macros(const PrinterDiscovery& hw) {
-    return {hw.has_macro(kConventionalBypassOn) ? std::string(kConventionalBypassOn) : "",
-            hw.has_macro(kConventionalBypassOff) ? std::string(kConventionalBypassOff) : ""};
+BypassMacros detect_bypass_macros(const PrinterDiscovery& hw, const BypassMacros& conventional) {
+    return {hw.has_macro(conventional.on) ? conventional.on : "",
+            hw.has_macro(conventional.off) ? conventional.off : ""};
 }
 
 std::vector<std::string> bypass_macro_options(const PrinterDiscovery& hw) {
@@ -54,15 +44,10 @@ BypassMacros resolve_bypass_macros(const BypassMacros& detected, const std::stri
     return macros;
 }
 
-BypassMacros resolve_bypass_macros(const PrinterDiscovery& hw, const std::string& on_override,
+BypassMacros resolve_bypass_macros(const PrinterDiscovery& hw, const BypassMacros& conventional,
+                                   const std::string& on_override,
                                    const std::string& off_override) {
-    return resolve_bypass_macros(detect_bypass_macros(hw), on_override, off_override);
-}
-
-BypassMacros resolve_bypass_macros_for(const PrinterDiscovery& hw) {
-    auto& settings = SettingsManager::instance();
-    return resolve_bypass_macros(hw, settings.get_ace_bypass_on_macro(),
-                                 settings.get_ace_bypass_off_macro());
+    return resolve_bypass_macros(detect_bypass_macros(hw, conventional), on_override, off_override);
 }
 
 bool bypass_available_for(bool firmware_supports_bypass) {

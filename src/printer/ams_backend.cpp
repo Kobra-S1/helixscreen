@@ -9,6 +9,7 @@
 #include "ams_backend_openams.h"
 #include "ams_state.h"
 #include "settings_manager.h"
+#include "system/afc_message_dedup.h"
 #ifdef HELIX_ENABLE_MOCKS
 #include "ams_backend_mock.h"
 #include "app_globals.h"
@@ -903,6 +904,14 @@ const std::vector<std::string>& AmsBackend::filament_sensor_object_prefixes() {
     static const std::vector<std::string> prefixes(kAd5xIfsSensorObjectPrefixes.begin(),
                                                    kAd5xIfsSensorObjectPrefixes.end());
     return prefixes;
+}
+
+void AmsBackend::init_persistent_state(const std::string& config_dir) {
+    AfcMessageDedup::instance().init(config_dir);
+}
+
+void AmsBackend::shutdown_persistent_state() {
+    AfcMessageDedup::instance().shutdown();
 }
 
 std::unique_ptr<AmsBackend> AmsBackend::create(AmsType detected_type, IMoonrakerAPI* api,

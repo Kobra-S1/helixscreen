@@ -26,23 +26,19 @@
 #include "ui_utils.h"
 
 #include "ams_backend.h"
-#include "data_root_resolver.h"
-#include "overlay_base.h"
-#include "ui/ui_widget_helpers.h"
-#if HELIX_HAS_CFS
-#include "ams_backend_cfs.h"
-#endif
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
 #include "buffer_status_modal.h"
 #include "color_utils.h"
 #include "config.h"
+#include "data_root_resolver.h"
 #include "display_numbering.h"
 #include "filament_accounting_controller.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
+#include "overlay_base.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "spoolman_manager.h"
@@ -51,6 +47,7 @@
 #include "theme_manager.h"
 #include "tool_change_request.h"
 #include "ui/ams_drawing_utils.h"
+#include "ui/ui_widget_helpers.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>

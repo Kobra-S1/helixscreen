@@ -76,6 +76,17 @@ bool rest_poll_answered(const RestResponse& resp) {
     return resp.success && resp.data.contains("result") &&
            rest_result_answered(resp.data["result"]);
 }
+
+/// The bypass wrapper names a stock ACE config defines.
+const helix::BypassMacros kConventionalBypass{helix::ace::kBypassOnMacro,
+                                              helix::ace::kBypassOffMacro};
+
+/// The bypass pair after the owner's stored macro choices are applied.
+helix::BypassMacros resolve_with_stored_bypass_choices(const helix::BypassMacros& detected) {
+    const auto& settings = helix::SettingsManager::instance();
+    return helix::resolve_bypass_macros(detected, settings.get_ace_bypass_on_macro(),
+                                        settings.get_ace_bypass_off_macro());
+}
 } // namespace
 
 namespace {
@@ -905,12 +916,14 @@ std::vector<int> AmsBackendAce::get_tool_mapping() const {
 // ============================================================================
 
 void AmsBackendAce::set_discovery(const helix::PrinterDiscovery& discovery) {
+    const helix::BypassMacros detected =
+        helix::detect_bypass_macros(discovery, kConventionalBypass);
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        bypass_detected_ = helix::detect_bypass_macros(discovery);
+        bypass_detected_ = detected;
         bypass_macro_options_ = helix::bypass_macro_options(discovery);
     }
-    set_bypass_macros(helix::resolve_bypass_macros_for(discovery));
+    set_bypass_macros(resolve_with_stored_bypass_choices(detected));
     std::lock_guard<std::mutex> lock(mutex_);
     discovered_instances_.clear();
     for (const auto& name : discovery.ace_object_names()) {
@@ -2582,8 +2595,7 @@ AmsError AmsBackendAce::do_execute_device_action(const std::string& action_id,
             std::lock_guard<std::mutex> lock(mutex_);
             detected = bypass_detected_;
         }
-        set_bypass_macros(helix::resolve_bypass_macros(detected, settings.get_ace_bypass_on_macro(),
-                                                       settings.get_ace_bypass_off_macro()));
+        set_bypass_macros(resolve_with_stored_bypass_choices(detected));
         emit_event(EVENT_STATE_CHANGED);
         return AmsErrorHelper::success();
     }

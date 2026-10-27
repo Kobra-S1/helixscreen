@@ -221,11 +221,6 @@ constexpr int kQidiDefaultLoadTempC = 250;
 // other fetch failure here — non-fatal, temps stay at defaults.
 constexpr size_t kQidiFilasListCapBytes = 32 * 1024;
 
-// Manual lane-eject via FORCE_MOVE on the box_stepper (#1041). Distance/velocity
-// from the QIDI Discord (xenon) + Camden's Q2 measurement: 878 mm fully ejects,
-// ~100 mm/s matches the stock feel. Both are the user's, through the eject
-// sliders (get_device_actions()) stored in SettingsManager. May need refining for
-// Plus 4 / Max 4 boxes.
 int load_temp_for_slot(const SlotInfo& slot) {
     if (slot.nozzle_temp_max > 0) {
         return slot.nozzle_temp_max;
@@ -234,6 +229,35 @@ int load_temp_for_slot(const SlotInfo& slot) {
         return slot.nozzle_temp_min;
     }
     return kQidiDefaultLoadTempC;
+}
+
+// Manual lane-eject via FORCE_MOVE on the box_stepper (#1041). Distance/velocity
+// from the QIDI Discord (xenon) + Camden's Q2 measurement: 878 mm fully ejects,
+// ~100 mm/s matches the stock feel. Both are the user's, through the eject
+// sliders (get_device_actions()) stored in SettingsManager, which stores 0 until
+// the user picks a value. May need refining for Plus 4 / Max 4 boxes.
+constexpr int kDefaultEjectDistanceMm = 878;
+constexpr int kMinEjectDistanceMm = 100;
+constexpr int kMaxEjectDistanceMm = 2000;
+constexpr int kDefaultEjectVelocityMmS = 100;
+constexpr int kMinEjectVelocityMmS = 10;
+constexpr int kMaxEjectVelocityMmS = 300;
+
+/// A stored eject setting, or the box's default when none is stored. A FORCE_MOVE
+/// with VELOCITY=0/DISTANCE=0 is a degenerate no-op Klipper rejects, so the eject
+/// always carries a real number.
+int stored_or_default(int stored, int fallback, int lo, int hi) {
+    return stored <= 0 ? fallback : std::clamp(stored, lo, hi);
+}
+
+int eject_distance_mm() {
+    return stored_or_default(helix::SettingsManager::instance().get_ams_eject_distance(),
+                             kDefaultEjectDistanceMm, kMinEjectDistanceMm, kMaxEjectDistanceMm);
+}
+
+int eject_velocity_mm_s() {
+    return stored_or_default(helix::SettingsManager::instance().get_ams_eject_velocity(),
+                             kDefaultEjectVelocityMmS, kMinEjectVelocityMmS, kMaxEjectVelocityMmS);
 }
 } // namespace
 
@@ -1518,22 +1542,10 @@ AmsError AmsBackendQidi::eject_lane(int slot_index) {
     // side (#1041, QIDI Discord / xenon). Offered only for non-loaded lanes (the
     // context menu gates on !loaded), so no pre-unload is needed here — for a
     // loaded lane the caller runs the unload stack first to park at the hub.
-    // Distance is stored as a positive magnitude in settings; negate it here to
-    // keep the existing "push back into the box" direction. Fall back to the
-    // historic defaults (878 mm / 100 mm/s) if SettingsManager hasn't been
-    // initialized — a FORCE_MOVE with VELOCITY=0/DISTANCE=0 is a degenerate no-op
-    // that Klipper rejects, so the eject must always carry real numbers.
-    int eject_velocity = helix::SettingsManager::instance().get_ams_eject_velocity();
-    int eject_distance_mm = helix::SettingsManager::instance().get_ams_eject_distance();
-    if (eject_velocity <= 0) {
-        eject_velocity = 100;
-    }
-    if (eject_distance_mm <= 0) {
-        eject_distance_mm = 878;
-    }
+    // Distance is a positive magnitude; negate it here to push back into the box.
     return execute_gcode("FORCE_MOVE STEPPER=\"box_stepper slot" + std::to_string(slot_index) +
-                         "\" VELOCITY=" + std::to_string(eject_velocity) +
-                         " DISTANCE=" + std::to_string(-eject_distance_mm));
+                         "\" VELOCITY=" + std::to_string(eject_velocity_mm_s()) +
+                         " DISTANCE=" + std::to_string(-eject_distance_mm()));
 }
 
 // --- Configuration ---
@@ -2116,15 +2128,15 @@ std::vector<helix::printer::DeviceSection> AmsBackendQidi::get_device_sections()
 
 std::vector<helix::printer::DeviceAction> AmsBackendQidi::get_device_actions() const {
     using helix::printer::DeviceAction;
-    const auto& settings = helix::SettingsManager::instance();
     return {
         DeviceAction::slider("eject_distance", "Eject Distance", "filament_control",
-                             static_cast<float>(settings.get_ams_eject_distance()), 100.0f, 2000.0f,
-                             "mm", "filament",
+                             static_cast<float>(eject_distance_mm()), kMinEjectDistanceMm,
+                             kMaxEjectDistanceMm, "mm", "filament",
                              "How far filament is pushed back into the box on eject"),
         DeviceAction::slider("eject_velocity", "Eject Speed", "filament_control",
-                             static_cast<float>(settings.get_ams_eject_velocity()), 10.0f, 300.0f,
-                             "mm/s", "speed", "How fast filament is pushed back on eject"),
+                             static_cast<float>(eject_velocity_mm_s()), kMinEjectVelocityMmS,
+                             kMaxEjectVelocityMmS, "mm/s", "speed",
+                             "How fast filament is pushed back on eject"),
     };
 }
 

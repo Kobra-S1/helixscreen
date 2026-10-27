@@ -19,6 +19,7 @@
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "klipper_error_table.h"
+#include "lvgl.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
 #include "print_control_buttons.h"
@@ -27,12 +28,6 @@
 #include "printer_state.h"
 #include "recovery_modal_presenter.h"
 #include "rpc_error_correlation.h"
-
-#if HELIX_HAS_CFS
-#include "ams_backend_cfs.h"
-#endif
-
-#include "lvgl.h"
 
 #include <spdlog/spdlog.h>
 
