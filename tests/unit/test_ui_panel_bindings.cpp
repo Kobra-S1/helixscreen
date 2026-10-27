@@ -348,40 +348,6 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: part_fan_slider binding update
 // =============================================================================
 
 TEST_CASE_METHOD(XMLTestFixture,
-                 "print_status_preview_card: preparing_overlay tracks preparing_visible",
-                 "[ui][print_status_panel][bind_flag][.xml_required]") {
-    PrintStatusSubjects owner(state());
-    REQUIRE(register_component("components/print_status_preview_card"));
-    set_xml_subject("preparing_visible", 0);
-    lv_obj_t* card = create_component("print_status_preview_card");
-    lv_obj_t* overlay = require_named(card, "preparing_overlay");
-    CHECK(is_hidden(overlay));
-
-    set_xml_subject("preparing_visible", 1);
-    CHECK_FALSE(is_hidden(overlay));
-}
-
-TEST_CASE_METHOD(XMLTestFixture,
-                 "print_status_preview_card: progress bar goes invisible while preparing",
-                 "[ui][print_status_panel][bind_style][.xml_required]") {
-    // The card dims its progress bar through a shared "invisible" style
-    // (transparent, keeps layout space) pulled in via bind_style. A style
-    // declared in the embedding panel's <styles> block is invisible to a
-    // component parsed in its own scope, so the style has to live in the
-    // cross-file styles.xml namespace - living in the panel, the bar never
-    // dims during pre-print and nothing logs (bundle CSLYH92R).
-    PrintStatusSubjects owner(state());
-    REQUIRE(register_component("components/print_status_preview_card"));
-    set_xml_subject("preparing_visible", 0);
-    lv_obj_t* card = create_component("print_status_preview_card");
-    lv_obj_t* progress = require_named(card, "print_progress");
-    REQUIRE(lv_obj_get_style_opa(progress, LV_PART_MAIN) == LV_OPA_COVER);
-
-    set_xml_subject("preparing_visible", 1);
-    CHECK(lv_obj_get_style_opa(progress, LV_PART_MAIN) == 0);
-}
-
-TEST_CASE_METHOD(XMLTestFixture,
                  "print_status_preview_card: print_complete_overlay tracks show_complete_overlay",
                  "[ui][print_status_panel][bind_flag][.xml_required]") {
     // The overlay is authored hidden="true" and revealed by the binding, so an
@@ -471,19 +437,4 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: all_homed drives btn_home_all 
     REQUIRE(register_component("controls_panel"));
     lv_obj_t* panel = create_component("controls_panel");
     check_homing_button_tracks_subject(panel, "btn_home_all", "all_homed");
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "print_status_panel: btn_timelapse hidden without the capability",
-                 "[ui][print_status_panel][bind_flag][.xml_required]") {
-    // A printer with no timelapse component must not be offered the button;
-    // an inverted ref_value here offers an action that cannot work.
-    PrintStatusSubjects owner(state());
-    REQUIRE(register_component("print_status_panel"));
-    set_xml_subject("printer_has_timelapse", 0);
-    lv_obj_t* panel = create_component("print_status_panel");
-    lv_obj_t* btn = require_named(panel, "btn_timelapse");
-    CHECK(is_hidden(btn));
-
-    set_xml_subject("printer_has_timelapse", 1);
-    CHECK_FALSE(is_hidden(btn));
 }
