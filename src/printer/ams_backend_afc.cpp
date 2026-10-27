@@ -14,6 +14,7 @@
 #include "ams_bypass_policy.h"
 #include "ams_device_action_value.h"
 #include "ams_fault_event.h"
+#include "ams_status_json.h"
 #include "config.h"
 #include "humidity_sensor_types.h"
 #include "i_moonraker_api.h"
@@ -1449,8 +1450,8 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
             // would report MOUNTED during the swap.
             const MountState previous_mount = system_info_.mount_state;
             std::string tc_status;
-            if (tc_data.contains("status") && tc_data["status"].is_string()) {
-                tc_status = tc_data["status"].get<std::string>();
+            if (auto v = ams::read_field<std::string>(tc_data, "status")) {
+                tc_status = std::move(*v);
             }
 
             if (!tc_status.empty() && tc_status != "ready") {
@@ -1870,8 +1871,8 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
     // Parse current lane — try "current_lane" first, fall back to "current_load".
     // An empty string is treated as absent (fall through to check the other field).
     std::string loaded_lane;
-    if (afc_data.contains("current_lane") && afc_data["current_lane"].is_string()) {
-        loaded_lane = afc_data["current_lane"].get<std::string>();
+    if (auto v = ams::read_field<std::string>(afc_data, "current_lane")) {
+        loaded_lane = std::move(*v);
     }
     if (loaded_lane.empty() && afc_data.contains("current_load") &&
         afc_data["current_load"].is_string()) {
@@ -2010,8 +2011,8 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
 
             // Get message type (error, warning, or empty)
             std::string msg_type;
-            if (msg.contains("type") && msg["type"].is_string()) {
-                msg_type = msg["type"].get<std::string>();
+            if (auto v = ams::read_field<std::string>(msg, "type")) {
+                msg_type = std::move(*v);
             }
 
             // Track message type for per-lane error severity mapping
@@ -2164,8 +2165,8 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
             }
 
             std::string unit_name;
-            if (unit_json.contains("name") && unit_json["name"].is_string()) {
-                unit_name = unit_json["name"].get<std::string>();
+            if (auto v = ams::read_field<std::string>(unit_json, "name")) {
+                unit_name = std::move(*v);
             }
 
             // Capture per-unit lane list
@@ -2301,14 +2302,14 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
 
     // Firmware holds a restorable toolhead position (set when an error
     // interrupted a print mid-move).
-    if (afc_data.contains("position_saved") && afc_data["position_saved"].is_boolean()) {
-        system_info_.position_saved = afc_data["position_saved"].get<bool>();
+    if (auto v = ams::read_field<bool>(afc_data, "position_saved")) {
+        system_info_.position_saved = *v;
     }
 
     // Spoolman base URL the firmware is configured against. AFC publishes false
     // (not null) when Spoolman is off, so only a string is meaningful.
-    if (afc_data.contains("spoolman") && afc_data["spoolman"].is_string()) {
-        system_info_.spoolman_url = afc_data["spoolman"].get<std::string>();
+    if (auto v = ams::read_field<std::string>(afc_data, "spoolman")) {
+        system_info_.spoolman_url = std::move(*v);
     }
 
     // T-commands AFC registered with Klipper (v1.2.0+). Consumed by the per-lane
@@ -2337,11 +2338,11 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
     }
 
     // Parse global quiet_mode and LED state
-    if (afc_data.contains("quiet_mode") && afc_data["quiet_mode"].is_boolean()) {
-        afc_quiet_mode_ = afc_data["quiet_mode"].get<bool>();
+    if (auto v = ams::read_field<bool>(afc_data, "quiet_mode")) {
+        afc_quiet_mode_ = *v;
     }
-    if (afc_data.contains("led_state") && afc_data["led_state"].is_boolean()) {
-        afc_led_state_ = afc_data["led_state"].get<bool>();
+    if (auto v = ams::read_field<bool>(afc_data, "led_state")) {
+        afc_led_state_ = *v;
     }
 
     // Parse system.num_extruders and system.extruders (toolchanger support)
@@ -2392,8 +2393,8 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
                 }
 
                 // Parse toolhead distances
-                if (ext_data.contains("tool_stn") && ext_data["tool_stn"].is_number()) {
-                    info.tool_stn = ext_data["tool_stn"].get<float>();
+                if (auto v = ams::read_field<float>(ext_data, "tool_stn")) {
+                    info.tool_stn = *v;
                 }
                 if (ext_data.contains("tool_stn_unload") &&
                     ext_data["tool_stn_unload"].is_number()) {
@@ -2534,29 +2535,29 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
 
     // Update sensor state for this lane
     auto& sensors = lane_sensors_for(lane_name);
-    if (data.contains("prep") && data["prep"].is_boolean()) {
-        sensors.prep = data["prep"].get<bool>();
+    if (auto v = ams::read_field<bool>(data, "prep")) {
+        sensors.prep = *v;
     }
-    if (data.contains("load") && data["load"].is_boolean()) {
-        sensors.load = data["load"].get<bool>();
+    if (auto v = ams::read_field<bool>(data, "load")) {
+        sensors.load = *v;
     }
-    if (data.contains("loaded_to_hub") && data["loaded_to_hub"].is_boolean()) {
-        sensors.loaded_to_hub = data["loaded_to_hub"].get<bool>();
+    if (auto v = ams::read_field<bool>(data, "loaded_to_hub")) {
+        sensors.loaded_to_hub = *v;
     }
-    if (data.contains("buffer_status") && data["buffer_status"].is_string()) {
-        sensors.buffer_status = data["buffer_status"].get<std::string>();
+    if (auto v = ams::read_field<std::string>(data, "buffer_status")) {
+        sensors.buffer_status = std::move(*v);
     }
-    if (data.contains("filament_status") && data["filament_status"].is_string()) {
-        sensors.filament_status = data["filament_status"].get<std::string>();
+    if (auto v = ams::read_field<std::string>(data, "filament_status")) {
+        sensors.filament_status = std::move(*v);
     }
     // Severity colour for the lane's status LED. Firmware splits one
     // get_filament_status() string into filament_status + this hex, so the two
     // always describe the same condition and are parsed together.
-    if (data.contains("filament_status_led") && data["filament_status_led"].is_string()) {
-        sensors.filament_status_led = data["filament_status_led"].get<std::string>();
+    if (auto v = ams::read_field<std::string>(data, "filament_status_led")) {
+        sensors.filament_status_led = std::move(*v);
     }
-    if (data.contains("dist_hub") && data["dist_hub"].is_number()) {
-        sensors.dist_hub = data["dist_hub"].get<float>();
+    if (auto v = ams::read_field<float>(data, "dist_hub")) {
+        sensors.dist_hub = *v;
     }
     // Selector sensor, published only by units that have one (HTLF, QuattroBox).
     // Presence is latched: a lane that once reported a selector still has one,
@@ -2567,8 +2568,8 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     }
     // Homing endstops configured on this lane, comma-separated. A capability
     // list, not a reading — AFC omits the key entirely on lanes with none.
-    if (data.contains("endstops") && data["endstops"].is_string()) {
-        sensors.endstops = data["endstops"].get<std::string>();
+    if (auto v = ams::read_field<std::string>(data, "endstops")) {
+        sensors.endstops = std::move(*v);
     }
 
     // Get slot info for filament data update
@@ -2626,8 +2627,8 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     if (data.contains("td1_td")) {
         slot.scanned_td = data["td1_td"].is_number() ? data["td1_td"].get<float>() : -1.0f;
     }
-    if (data.contains("td1_scan_time") && data["td1_scan_time"].is_string()) {
-        slot.scanned_time = data["td1_scan_time"].get<std::string>();
+    if (auto v = ams::read_field<std::string>(data, "td1_scan_time")) {
+        slot.scanned_time = std::move(*v);
     }
 
     // Parse material
@@ -2806,8 +2807,8 @@ void AmsBackendAfc::parse_afc_stepper(int slot_index, const std::string& lane_na
     // Whether AFC itself retains this lane's spool metadata across an eject.
     // When false, clear_values() wipes colour/material/weight in firmware and
     // our override store is the only thing that puts the user's identity back.
-    if (data.contains("remember_spool") && data["remember_spool"].is_boolean()) {
-        lane_remember_spool_[lane_name] = data["remember_spool"].get<bool>();
+    if (auto v = ams::read_field<bool>(data, "remember_spool")) {
+        lane_remember_spool_[lane_name] = *v;
     }
 
     // Vendor/brand — see read_vendor().
@@ -3336,16 +3337,16 @@ void AmsBackendAfc::parse_afc_buffer(const std::string& buffer_name, const nlohm
     // fold in whatever buffer most recently claimed that unit.
     BufferHealth& health = buffer_health_[buffer_name];
 
-    if (data.contains("fault_detection_enabled") && data["fault_detection_enabled"].is_boolean()) {
-        health.fault_detection_enabled = data["fault_detection_enabled"].get<bool>();
+    if (auto v = ams::read_field<bool>(data, "fault_detection_enabled")) {
+        health.fault_detection_enabled = *v;
     }
 
-    if (data.contains("distance_to_fault") && data["distance_to_fault"].is_number()) {
-        health.distance_to_fault = data["distance_to_fault"].get<float>();
+    if (auto v = ams::read_field<float>(data, "distance_to_fault")) {
+        health.distance_to_fault = *v;
     }
 
-    if (data.contains("error_sensitivity") && data["error_sensitivity"].is_number()) {
-        health.error_sensitivity = data["error_sensitivity"].get<float>();
+    if (auto v = ams::read_field<float>(data, "error_sensitivity")) {
+        health.error_sensitivity = *v;
     }
 
     if (data.contains("state") && data["state"].is_string()) {
@@ -3386,14 +3387,14 @@ void AmsBackendAfc::parse_afc_buffer(const std::string& buffer_name, const nlohm
     // Rotation-distance multipliers (v1.2.0+). `multiplier` is the value last
     // applied; the high/low pair is the configured swing it moves between.
     // AFC seeds _last_multiplier with an int 1, so accept any number.
-    if (data.contains("multiplier") && data["multiplier"].is_number()) {
-        health.multiplier = data["multiplier"].get<float>();
+    if (auto v = ams::read_field<float>(data, "multiplier")) {
+        health.multiplier = *v;
     }
-    if (data.contains("multiplier_high") && data["multiplier_high"].is_number()) {
-        health.multiplier_high = data["multiplier_high"].get<float>();
+    if (auto v = ams::read_field<float>(data, "multiplier_high")) {
+        health.multiplier_high = *v;
     }
-    if (data.contains("multiplier_low") && data["multiplier_low"].is_number()) {
-        health.multiplier_low = data["multiplier_low"].get<float>();
+    if (auto v = ams::read_field<float>(data, "multiplier_low")) {
+        health.multiplier_low = *v;
     }
 
     // Filament pressure sensor, present only on `type: FPS_PSF`. A TurtleNeck
@@ -3404,11 +3405,11 @@ void AmsBackendAfc::parse_afc_buffer(const std::string& buffer_name, const nlohm
         health.smoothed_fps = data["smoothed_fps"].get<float>();
         health.fps_reported = true;
     }
-    if (data.contains("fps_value") && data["fps_value"].is_number()) {
-        health.fps_value = data["fps_value"].get<float>();
+    if (auto v = ams::read_field<float>(data, "fps_value")) {
+        health.fps_value = *v;
     }
-    if (data.contains("set_point") && data["set_point"].is_number()) {
-        health.fps_set_point = data["set_point"].get<float>();
+    if (auto v = ams::read_field<float>(data, "set_point")) {
+        health.fps_set_point = *v;
     }
 
     spdlog::trace("[AMS AFC] Buffer {}: fault_detect={} dist={} sensitivity={} state={} "
@@ -3604,14 +3605,14 @@ void AmsBackendAfc::parse_afc_extruder(const std::string& ext_name, const nlohma
     // and simply leaves the defaults in place.
     {
         AfcToolState& ts = tool_states_[ext_name];
-        if (data.contains("status") && data["status"].is_string()) {
-            ts.status = data["status"].get<std::string>();
+        if (auto v = ams::read_field<std::string>(data, "status")) {
+            ts.status = std::move(*v);
         }
-        if (data.contains("next_pickup") && data["next_pickup"].is_boolean()) {
-            ts.next_pickup = data["next_pickup"].get<bool>();
+        if (auto v = ams::read_field<bool>(data, "next_pickup")) {
+            ts.next_pickup = *v;
         }
-        if (data.contains("is_standalone") && data["is_standalone"].is_boolean()) {
-            ts.is_standalone = data["is_standalone"].get<bool>();
+        if (auto v = ams::read_field<bool>(data, "is_standalone")) {
+            ts.is_standalone = *v;
         }
     }
 
@@ -4679,8 +4680,8 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
                                     lane.contains("available") || lane.contains("empty");
 
         bool tool_loaded = false;
-        if (lane.contains("tool_loaded") && lane["tool_loaded"].is_boolean()) {
-            tool_loaded = lane["tool_loaded"].get<bool>();
+        if (auto v = ams::read_field<bool>(lane, "tool_loaded")) {
+            tool_loaded = *v;
         }
 
         if (tool_loaded) {

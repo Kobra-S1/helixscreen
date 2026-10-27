@@ -20,6 +20,7 @@
 #include "ams_bypass_policy.h"
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
+#include "ams_status_json.h"
 #include "ams_tool_map_sync.h"
 #include "exception_policy.h"
 #include "helix_thread.h"
@@ -1359,8 +1360,8 @@ int AmsBackendAce::tool_for_slot_locked(int slot_index) const {
 bool AmsBackendAce::apply_target_index_locked(const json& data) {
     // Caller holds mutex_. Absent means unchanged: notify frames carry only
     // changed fields.
-    if (data.contains("target_index") && data["target_index"].is_number_integer()) {
-        target_index_ = data["target_index"].get<int>();
+    if (auto v = ams::read_integer_field(data, "target_index")) {
+        target_index_ = *v;
     }
 
     const int prev_pending = system_info_.pending_target_slot;
@@ -1453,11 +1454,11 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
         UnitIdentity& identity = unit_identities_[index];
         const UnitIdentity before = identity;
         identity.reported = identity.reported || from_instance;
-        if (data.contains("model") && data["model"].is_string()) {
-            identity.model = data["model"].get<std::string>();
+        if (auto v = ams::read_field<std::string>(data, "model")) {
+            identity.model = std::move(*v);
         }
-        if (data.contains("protocol") && data["protocol"].is_string()) {
-            identity.protocol = data["protocol"].get<std::string>();
+        if (auto v = ams::read_field<std::string>(data, "protocol")) {
+            identity.protocol = std::move(*v);
         }
         if (data.contains("firmware") && data["firmware"].is_string()) {
             identity.firmware = data["firmware"].get<std::string>();
@@ -1783,8 +1784,8 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
         system_info_.supports_bypass = !bypass_on_macro_.empty() && !bypass_off_macro_.empty();
     }
 
-    if (data.contains("feed_assist_slot") && data["feed_assist_slot"].is_number_integer()) {
-        feed_assist_slots_[unit_index] = data["feed_assist_slot"].get<int>();
+    if (auto v = ams::read_integer_field(data, "feed_assist_slot")) {
+        feed_assist_slots_[unit_index] = *v;
     }
 
     if (data.contains("endless_spool_enabled") && data["endless_spool_enabled"].is_boolean()) {
@@ -1792,8 +1793,8 @@ void AmsBackendAce::parse_ace_object(const json& data, int unit) {
         endless_spool_on_ = data["endless_spool_enabled"].get<bool>();
         system_info_.endless_spool_enabled = endless_spool_on_;
     }
-    if (data.contains("endless_spool_match_mode") && data["endless_spool_match_mode"].is_string()) {
-        endless_spool_mode_ = data["endless_spool_match_mode"].get<std::string>();
+    if (auto v = ams::read_field<std::string>(data, "endless_spool_match_mode")) {
+        endless_spool_mode_ = std::move(*v);
     }
 
     // All four seated signals (the ValgACE "loaded" scan, loaded_slot, native
@@ -2161,8 +2162,8 @@ void AmsBackendAce::parse_info_response(const json& data) {
         system_info_.type_name = "ACE";
     }
 
-    if (data.contains("version") && data["version"].is_string()) {
-        system_info_.version = data["version"].get<std::string>();
+    if (auto v = ams::read_field<std::string>(data, "version")) {
+        system_info_.version = std::move(*v);
     }
 
     if (data.contains("slot_count") && data["slot_count"].is_number_integer()) {
@@ -2213,8 +2214,8 @@ bool AmsBackendAce::parse_status_response(const json& data) {
             system_info_.units[0].name = model;
         }
     }
-    if (data.contains("firmware") && data["firmware"].is_string()) {
-        system_info_.version = data["firmware"].get<std::string>();
+    if (auto v = ams::read_field<std::string>(data, "firmware")) {
+        system_info_.version = std::move(*v);
     }
 
     if (data.contains("loaded_slot") && data["loaded_slot"].is_number_integer()) {
@@ -2244,10 +2245,10 @@ bool AmsBackendAce::parse_status_response(const json& data) {
     // `status` ("ready"/etc.) with the same loading/unloading/error
     // vocabulary the object path maps (#1069).
     std::string action_str;
-    if (data.contains("action") && data["action"].is_string()) {
-        action_str = data["action"].get<std::string>();
-    } else if (data.contains("status") && data["status"].is_string()) {
-        action_str = data["status"].get<std::string>();
+    if (auto v = ams::read_field<std::string>(data, "action")) {
+        action_str = std::move(*v);
+    } else if (auto v = ams::read_field<std::string>(data, "status")) {
+        action_str = std::move(*v);
     }
     // The ValgACE bridge names the action field `action`; the ACEPRO driver names it
     // `status` ("ready"/etc.) with the same loading/unloading/error
