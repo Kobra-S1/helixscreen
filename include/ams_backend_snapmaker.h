@@ -336,6 +336,10 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend {
     AmsError recover() override;
     AmsError reset() override;
     AmsError cancel() override;
+    /// cancel() has nothing to send on this firmware, so no Abort is offered.
+    [[nodiscard]] bool can_cancel_operation() const override {
+        return false;
+    }
     /// Also forgets each channel's last frame and in-flight op, because the
     /// backend outlives the restart: the subscription's first full frame is
     /// then a fresh start rather than a change from firmware that is gone.

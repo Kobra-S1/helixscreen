@@ -267,10 +267,11 @@ void abort_ams_operation() {
         NOTIFY_WARNING("{}", lv_tr("No Multi-Filament System connected"));
         return;
     }
+    // Said first: a backend that reports its own result toasts it from inside
+    // cancel(), and that toast must come after this one.
+    NOTIFY_INFO("{}", lv_tr("Aborting..."));
     AmsError result = backend->cancel();
-    if (result.success()) {
-        NOTIFY_INFO("{}", lv_tr("Aborting..."));
-    } else {
+    if (!result.success()) {
         helix::ui::notify_ams_error(result, lv_tr("Abort failed"));
     }
 }
