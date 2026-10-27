@@ -144,6 +144,11 @@ callback:on_pid_retry
 callback:on_pid_start
 callback:on_pid_temp_down
 callback:on_pid_temp_up
+callback:on_printer_image_tagger_cancel
+callback:on_printer_image_tagger_save
+callback:on_printer_image_tagger_skip
+callback:on_printer_image_tagger_tap
+callback:on_printer_image_tagger_undo
 callback:on_printer_selected
 callback:on_qr_scanner_close
 callback:on_runout_sensor_dropdown_changed
@@ -423,6 +428,11 @@ subject:pid_kp
 subject:pid_progress_text
 subject:pid_result_summary
 subject:pid_temp_display
+subject:printer_image_tagger_can_skip
+subject:printer_image_tagger_can_undo
+subject:printer_image_tagger_prompt
+subject:printer_image_tagger_reviewing
+subject:printer_image_tagger_src
 subject:printer_name
 subject:probe_count_text
 subject:qr_scanner_status
