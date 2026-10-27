@@ -20,7 +20,6 @@
 
 namespace helix {
 struct SensorInfo;      // Forward declaration for get_sensors()
-struct PlrDetectResult; // plr_backend.h — check_continue_print_state() result
 class IMoonrakerClient; // returned by get_client()
 class PrinterState;     // returned by printer_state()
 class PrinterDiscovery; // returned by hardware()
@@ -249,16 +248,6 @@ class IMoonrakerAPI {
     /// @brief Exclude an object from the current print
     virtual void exclude_object(const std::string& object_name, SuccessCallback on_success,
                                 ErrorCallback on_error) = 0;
-
-    /// @brief Probe Creality's power-loss recovery snapshot. SIDE-EFFECTFUL —
-    ///        call at most once per connection, only in standby, never poll.
-    ///        See MoonrakerAPI for the full contract.
-    virtual void
-    check_continue_print_state(std::function<void(const helix::PlrDetectResult&)> on_result,
-                               ErrorCallback on_error) = 0;
-
-    /// @brief Discard the Creality power-loss recovery snapshot.
-    virtual void cancel_continue_print(SuccessCallback on_success, ErrorCallback on_error) = 0;
 
     /// @brief Emergency stop
     virtual void emergency_stop(SuccessCallback on_success, ErrorCallback on_error) = 0;

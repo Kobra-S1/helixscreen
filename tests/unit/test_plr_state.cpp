@@ -55,7 +55,7 @@ class PlrStateTestFixture {
     }
 
     bool pl_env_valid() {
-        return state_.print_state().is_pl_env_valid();
+        return state_.print_state().is_plr_snapshot_valid();
     }
 
     const std::string& pl_recovery_file() {
@@ -164,7 +164,7 @@ TEST_CASE_METHOD(PlrStateTestFixture,
     // The offer controller performs exactly this on a CONNECTED->not-CONNECTED
     // edge so a reconnect re-derives a genuine 0->1 pl_env_valid edge from the
     // fresh status: force the subject to 0 and drop the stale recovery file.
-    lv_subject_set_int(state().print_state().get_pl_env_valid_subject(), 0);
+    lv_subject_set_int(state().print_state().get_plr_snapshot_valid_subject(), 0);
     state().print_state().clear_pl_recovery_file();
     REQUIRE(pl_env_valid() == false);
     REQUIRE(pl_recovery_file().empty());

@@ -72,7 +72,7 @@ class PlrOfferPreparingFixture : public LVGLTestFixture {
                   {{"pl_env_valid", true}, {"file_path", "gcodes/interrupted.gcode"}}}});
         ps.print_state().set_print_start_state(PrintStartPhase::IDLE, "", 0);
         settle();
-        REQUIRE(ps.print_state().is_pl_env_valid());
+        REQUIRE(ps.print_state().is_plr_snapshot_valid());
         REQUIRE_FALSE(ps.print_state().pl_recovery_file().empty());
     }
 

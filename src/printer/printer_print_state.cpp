@@ -17,6 +17,7 @@
 #include "firmware_error_envelope.h"
 #include "format_utils.h"
 #include "json_utils.h"
+#include "pause_descriptor.h"
 #include "plr_backend.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h" // For enum definitions
@@ -133,12 +134,13 @@ void PrinterPrintState::init_subjects(bool register_xml) {
     INIT_SUBJECT_STRING(print_stop_reason, "", subjects_, register_xml);
     INIT_SUBJECT_INT(print_stop_reason_visible, 0, subjects_, register_xml);
 
-    // virtual_sdcard.pl_env_valid — Snapmaker-fork Power-Loss-Recovery flag.
-    // Default 0; stays 0 forever on mainline Klipper (field absent).
-    INIT_SUBJECT_INT(pl_env_valid, 0, subjects_, register_xml);
+    // Power-loss recovery: the firmware's own validated-snapshot flag
+    // (plr_parse_snapshot_valid). Default 0; stays 0 on firmware without one.
+    INIT_SUBJECT_INT(plr_snapshot_valid, 0, subjects_, register_xml);
 
-    // print_stats.power_loss — Creality-fork Power-Loss-Recovery capability
-    // marker. Default 0; set to 1 by presence of the key (see update_from_status).
+    // Power-loss recovery: the active probe's capability marker
+    // (plr_parse_power_loss_signal). Default 0; latched to 1 by presence of the
+    // key (see update_from_status).
     INIT_SUBJECT_INT(plr_power_loss_signal, 0, subjects_, register_xml);
 
     // Power-loss recovery, passive-backend half: the discovered resume macro
@@ -538,10 +540,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
         }
 
         ++print_stats_frames_;
-        const bool frame_has_exception = [&stats] {
-            auto exc = stats.find("exception");
-            return exc != stats.end() && exc->is_object() && !exc->empty();
-        }();
+        const bool frame_has_exception = helix::pause_descriptor::frame_carries_cause(stats);
         if (auto state_it = stats.find("state"); state_it != stats.end() && state_it->is_string()) {
             std::string state_str = state_it->get<std::string>();
             PrintJobState new_state = parse_print_job_state(state_str.c_str());
@@ -704,44 +703,19 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
             reconcile_preparing();
         }
 
-        // print_stats.exception — Snapmaker U1 structured pause descriptor
-        // {id, index, code, message, level}. On these firmware pauses
-        // print_stats.message is empty and the reason text lives here (#991).
-        // Subscribed-field updates may send null; parse defensively (find() +
-        // is_object(), never .at()). Empty object {} = user pause / cleared
-        // exception → reset. Absent key → leave members unchanged.
-        if (auto exc_it = stats.find("exception"); exc_it != stats.end()) {
-            if (exc_it->is_object() && !exc_it->empty()) {
-                const auto& exc = *exc_it;
+        // Structured pause cause. pause_descriptor owns which firmware publishes
+        // one and its schema; a frame silent about it leaves the latched cause,
+        // and an empty descriptor (a user pause, or the cause cleared) resets it.
+        if (auto cause = helix::pause_descriptor::read(stats)) {
+            if (frame_has_exception) {
                 print_exception_frame_ = print_stats_frames_;
-                if (auto id_it = exc.find("id"); id_it != exc.end() && id_it->is_number_integer()) {
-                    print_exception_id_ = id_it->get<int>();
-                } else {
-                    print_exception_id_ = -1;
-                }
-                if (auto code_it = exc.find("code");
-                    code_it != exc.end() && code_it->is_number_integer()) {
-                    print_exception_code_ = code_it->get<int>();
-                } else {
-                    print_exception_code_ = -1;
-                }
-                if (auto emsg_it = exc.find("message");
-                    emsg_it != exc.end() && emsg_it->is_string()) {
-                    print_exception_message_ =
-                        decode_firmware_error_text(emsg_it->get<std::string>());
-                } else {
-                    print_exception_message_.clear();
-                }
-            } else if (exc_it->is_object()) {
-                // Empty object {} — user pause or cleared exception. Reset.
-                print_exception_id_ = -1;
-                print_exception_code_ = -1;
-                print_exception_message_.clear();
             }
-            // null or non-object: leave members unchanged.
-            if (lv_subject_get_int(&print_exception_) != print_exception_code_) {
-                lv_subject_set_int(&print_exception_, print_exception_code_);
-            }
+            print_exception_id_ = cause->id;
+            print_exception_code_ = cause->code;
+            print_exception_message_ = std::move(cause->message);
+        }
+        if (lv_subject_get_int(&print_exception_) != print_exception_code_) {
+            lv_subject_set_int(&print_exception_, print_exception_code_);
         }
 
         // Update layer info from print_stats.info (sent by Moonraker/mock client)
@@ -937,22 +911,16 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
             sdcard_active_ = sdcard["is_active"].get<bool>();
         }
 
-        // pl_env_valid / file_path — Snapmaker-fork Power-Loss-Recovery fields.
-        // Absent (harmless) on mainline Klipper; Moonraker sends an explicit
-        // null for a subscribed field the connected firmware never populates,
-        // so type-check before extracting rather than assuming presence.
-        if (auto pl_it = sdcard.find("pl_env_valid");
-            pl_it != sdcard.end() && pl_it->is_boolean()) {
-            int val = pl_it->get<bool>() ? 1 : 0;
-            lv_subject_set_int(&pl_env_valid_, val);
+        // Power-loss recovery: plr_backend owns which keys carry the
+        // validated-snapshot flag and the recovery file, and their type rules
+        // (-1 / nullptr mean this frame says nothing about them).
+        if (const int snapshot_valid = helix::plr_parse_snapshot_valid(status);
+            snapshot_valid >= 0) {
+            lv_subject_set_int(&plr_snapshot_valid_, snapshot_valid);
         }
-        if (auto fp_it = sdcard.find("file_path"); fp_it != sdcard.end() && fp_it->is_string()) {
-            // get_ref borrows the stored string (no temporary); assign only when
-            // it actually changed, mirroring the pl_env_valid changed-guard above.
-            const auto& fp = fp_it->get_ref<const std::string&>();
-            if (pl_recovery_file_ != fp) {
-                pl_recovery_file_ = fp;
-            }
+        if (const std::string* fp = helix::plr_parse_recovery_file(status);
+            fp != nullptr && pl_recovery_file_ != *fp) {
+            pl_recovery_file_ = *fp;
         }
 
         if (sdcard.contains("progress") && sdcard["progress"].is_number()) {
@@ -1062,7 +1030,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
     // Power-loss recovery: plr_backend owns which status key carries the
     // interrupted flag and the boolean-only rule (-1 means this frame says
     // nothing about it; see plr_parse_interrupted_flag). The offer controller
-    // resets the subject on the disconnect edge, like pl_env_valid.
+    // resets the subject on the disconnect edge, like plr_snapshot_valid.
     const int plr_flag = helix::plr_parse_interrupted_flag(status);
     if (plr_flag >= 0 && lv_subject_get_int(&plr_interrupted_flag_) != plr_flag) {
         spdlog::debug("[PrinterPrintState] PLR interrupted flag = {} (power-loss recovery)",

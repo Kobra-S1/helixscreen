@@ -55,7 +55,7 @@ class MoonrakerDiscoverySequence {
      * @brief Parse Klipper object list into typed hardware vectors
      *
      * Categorizes objects into heaters, sensors, fans, LEDs, steppers,
-     * AFC objects, and filament sensors.
+     * filament sensors and MCUs.
      *
      * @param objects JSON array of object name strings
      */
@@ -183,9 +183,6 @@ class MoonrakerDiscoverySequence {
     std::vector<std::string>& steppers() {
         return steppers_;
     }
-    std::vector<std::string>& afc_objects() {
-        return afc_objects_;
-    }
     std::vector<std::string>& filament_sensors() {
         return filament_sensors_;
     }
@@ -207,9 +204,6 @@ class MoonrakerDiscoverySequence {
     }
     const std::vector<std::string>& steppers() const {
         return steppers_;
-    }
-    const std::vector<std::string>& afc_objects() const {
-        return afc_objects_;
     }
     const std::vector<std::string>& filament_sensors() const {
         return filament_sensors_;
@@ -370,7 +364,6 @@ class MoonrakerDiscoverySequence {
     std::vector<std::string> fans_;
     std::vector<std::string> leds_;
     std::vector<std::string> steppers_;
-    std::vector<std::string> afc_objects_;
     std::vector<std::string> filament_sensors_;
     // MCUs (matches "mcu" and "mcu <name>" — e.g. "mcu host", "mcu e0").
     // Subscribed alongside the rest so PerformanceState gets live
