@@ -328,9 +328,10 @@ per-slot subjects `sensor_row_<field>_<slot>`.
 
 The row subjects are owned by the Settings overlay, not by the managers. Slots are allocated on
 demand while the overlay is open, one per row across all sections (temperature sensors are
-unbounded, so there is no fixed maximum), and released when it closes; each row is an
-`lv_xml_create("sensor_row", {slot})` into its section's list, the dynamic-list structural
-exception. The overlay asks each registered manager for its rows (`SensorManager::row(i)`
+unbounded, so there is no fixed maximum), and released when it closes; each section is a
+`<repeat count="sensor_<section>_row_count">` of `sensor_row` (declarative rule 8). Role option
+labels are static per section in XML (helix-xml has no options binding), and a test asserts they
+match the manager's offered roles. The overlay asks each registered manager for its rows (`SensorManager::row(i)`
 returning a plain `SensorRowView`: strings, the offered role options built from `RoleSpec`, the
 selected role, toggle kind and value) and fills slots. Rows are live: the overlay observes each
 manager's `revision_subject` and refills that section's slots, so live state text (input doors
@@ -432,8 +433,8 @@ the behavior fixes table.
   managers directly.
 - The AMS-sensor filter stays a backend decision, consolidated to one function; the table only
   classifies kinds.
-- Settings slots are allocated on demand (no fixed cap) and rows refresh live off a per-manager
-  revision subject.
+- Settings row subjects are allocated per section on demand (no fixed cap), rows render through
+  `<repeat>`, and rows refresh live off a per-manager revision subject.
 - Home widgets share the row model, not the Settings component.
 - The filament `Z_PROBE` role is deleted.
 
