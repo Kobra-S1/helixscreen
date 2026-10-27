@@ -4078,7 +4078,6 @@ translations:
   Tool cycle finished: 依次更换工具完成
   Tool is seated: 工具已装好
   Tool may be half seated: "工具可能未完全安装到位"
-  'Tool offset calibration failed: {}': '工具偏移校准失败: {}'
   Tool offsets (mm): 工具偏移 (mm)
   Tool offsets saved: 工具偏移已保存
   Tool swap: 工具切换

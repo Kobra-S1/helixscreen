@@ -4365,7 +4365,6 @@ translations:
   Tool cycle finished: Перебор инструментов завершён
   Tool is seated: Инструмент установлен
   Tool may be half seated: "Инструмент может быть установлен не полностью"
-  'Tool offset calibration failed: {}': 'Ошибка калибровки смещений инструментов: {}'
   Tool offsets (mm): Смещения инструментов (мм)
   Tool offsets saved: Смещения инструментов сохранены
   Tool swap: Смена инструмента

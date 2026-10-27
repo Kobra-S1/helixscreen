@@ -15,51 +15,79 @@ namespace helix::tool_offset_calibration {
 
 namespace {
 
-bool has_macro_procedure(const PrinterDiscovery& hw) {
-    return hw.has_tool_changer() && hw.has_macro(kMacro);
+constexpr const char* kMeasureDescription =
+    TR_NOOP("Measure every tool's XYZ offset automatically");
+
+/// klipper-toolchanger's example macro. The command alias is always the
+/// uppercased name whatever case printer.cfg spells the section in
+/// (klippy/extras/gcode_macro.py), so the constant is the right spelling to
+/// send - unlike a SET_GCODE_VARIABLE MACRO= mux key.
+constexpr const char* kPanelMacro = "CALIBRATE_TOOL_OFFSETS";
+
+/// Z-Mod's Creator 5 calibration (c5pro_generic.cfg): opens "remove the build
+/// plate" in an action:prompt whose OK runs _T_CALIBRATE_EXTRUDERS.
+constexpr const char* kPromptMacro = "CALIBRATE_EXTRUDERS";
+
+/// One way a printer calibrates its tool offsets.
+struct Row {
+    const char* name;
+    bool (*detect)(const PrinterDiscovery& hw);
+    ProcedureKind kind;
+    /// The panel or prompt macro, or the guided flow id.
+    const char* target;
+    const char* entry_description;
+};
+
+/// A tool changer in any dialect: klipper-toolchanger, or a changer firmware
+/// toolchanger_addon claims.
+bool is_tool_changer(const PrinterDiscovery& hw) {
+    return hw.has_tool_changer() || toolchanger_addon::present(hw);
 }
+
+bool panel_detect(const PrinterDiscovery& hw) {
+    return hw.has_tool_changer() && hw.has_macro(kPanelMacro);
+}
+
+bool prompt_detect(const PrinterDiscovery& hw) {
+    return is_tool_changer(hw) && hw.has_macro(kPromptMacro);
+}
+
+/// Precedence order: the first row that detects wins.
+const Row kRows[] = {
+#if HELIX_HAS_SNAPMAKER
+    {"Snapmaker nozzle offset", snapmaker::nozzle_offset::supported, ProcedureKind::GuidedFlow,
+     snapmaker::nozzle_offset::kGuidedFlowId, kMeasureDescription},
+#endif
+    {"INDX seat by hand", indx::supports_seat_by_hand, ProcedureKind::GuidedFlow,
+     indx::kSeatByHandFlowId, TR_NOOP("Seat a tool by hand for the first Z home")},
+    {"klipper-toolchanger", panel_detect, ProcedureKind::Panel, kPanelMacro, kMeasureDescription},
+    {"changer firmware prompt", prompt_detect, ProcedureKind::PrinterPrompt, kPromptMacro,
+     kMeasureDescription},
+};
 
 } // namespace
 
-bool supported(const PrinterDiscovery& hw) {
-    return has_macro_procedure(hw) || toolchanger_addon::resolve_offset_calibration(hw).present ||
-           !guided_flow(hw).empty();
-}
-
-std::string printer_prompt_gcode(const PrinterDiscovery& hw) {
-    if (has_macro_procedure(hw)) {
-        return {};
-    }
-    return toolchanger_addon::resolve_offset_calibration(hw).prompt_gcode;
-}
-
-std::string guided_flow(const PrinterDiscovery& hw) {
-#if HELIX_HAS_SNAPMAKER
-    if (snapmaker::nozzle_offset::supported(hw)) {
-        return snapmaker::nozzle_offset::kGuidedFlowId;
-    }
-#endif
-    if (indx::supports_seat_by_hand(hw)) {
-        return indx::kSeatByHandFlowId;
+Procedure resolve_procedure(const PrinterDiscovery& hw) {
+    for (const auto& row : kRows) {
+        if (!row.detect(hw)) {
+            continue;
+        }
+        Procedure p;
+        p.kind = row.kind;
+        p.name = row.name;
+        p.entry_description = row.entry_description;
+        if (row.kind == ProcedureKind::GuidedFlow) {
+            p.flow_id = row.target;
+        } else {
+            p.gcode = row.target;
+        }
+        return p;
     }
     return {};
 }
 
-const char* entry_description(const PrinterDiscovery& hw) {
-    if (guided_flow(hw) == indx::kSeatByHandFlowId) {
-        return TR_NOOP("Seat a tool by hand for the first Z home");
-    }
-    return TR_NOOP("Measure every tool's XYZ offset automatically");
-}
-
-std::string calibrate_all_gcode(const PrinterDiscovery& hw) {
-    if (!has_macro_procedure(hw)) {
-        return {};
-    }
-    // The command alias is always the uppercased name whatever case printer.cfg
-    // spells the section in (klippy/extras/gcode_macro.py), so the constant is
-    // the right spelling here - unlike a SET_GCODE_VARIABLE MACRO= mux key.
-    return kMacro;
+bool supported(const PrinterDiscovery& hw) {
+    return resolve_procedure(hw).kind != ProcedureKind::None;
 }
 
 } // namespace helix::tool_offset_calibration

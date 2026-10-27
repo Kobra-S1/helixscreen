@@ -4087,7 +4087,6 @@ translations:
   Tool cycle finished: ツールの順次交換が完了しました
   Tool is seated: ツールは装着済み
   Tool may be half seated: "ツールが半分しか装着されていない可能性があります"
-  'Tool offset calibration failed: {}': 'ツールオフセットのキャリブレーションに失敗しました: {}'
   Tool offsets (mm): ツールオフセット (mm)
   Tool offsets saved: ツールオフセットを保存しました
   Tool swap: ツール交換

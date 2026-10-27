@@ -4325,7 +4325,6 @@ translations:
   Tool cycle finished: Ciclo degli strumenti completato
   Tool is seated: Lo strumento è inserito
   Tool may be half seated: "Lo strumento potrebbe essere inserito a metà"
-  'Tool offset calibration failed: {}': 'Calibrazione offset strumenti fallita: {}'
   Tool offsets (mm): Offset strumenti (mm)
   Tool offsets saved: Offset strumenti salvati
   Tool swap: Cambio utensile

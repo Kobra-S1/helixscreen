@@ -277,9 +277,11 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     set_capability(Capability::HasLayerPause, helix::layer_pause::supported(hardware) ? 1 : 0);
 
     // Automatic tool offset calibration: the module owns what "can" means.
-    set_capability(Capability::HasToolOffsetCal,
-                   helix::tool_offset_calibration::supported(hardware) ? 1 : 0);
-    tool_offset_cal_description_key_ = helix::tool_offset_calibration::entry_description(hardware);
+    const auto tool_offset_procedure = helix::tool_offset_calibration::resolve_procedure(hardware);
+    set_capability(
+        Capability::HasToolOffsetCal,
+        tool_offset_procedure.kind != helix::tool_offset_calibration::ProcedureKind::None ? 1 : 0);
+    tool_offset_cal_description_key_ = tool_offset_procedure.entry_description;
     render_tool_offset_cal_description();
 
     // Automatic pressure advance calibration. Which firmwares can measure it,

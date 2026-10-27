@@ -3906,7 +3906,6 @@
   <translation tag="Tool cycle finished" zh="依次更换工具完成"/>
   <translation tag="Tool is seated" zh="工具已装好"/>
   <translation tag="Tool may be half seated" zh="工具可能未完全安装到位"/>
-  <translation tag="Tool offset calibration failed: {}" zh="工具偏移校准失败: {}"/>
   <translation tag="Tool offsets (mm)" zh="工具偏移 (mm)"/>
   <translation tag="Tool offsets saved" zh="工具偏移已保存"/>
   <translation tag="Tool swap" zh="工具切换"/>

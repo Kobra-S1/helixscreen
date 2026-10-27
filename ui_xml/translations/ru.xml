@@ -3966,7 +3966,6 @@
   <translation tag="Tool cycle finished" ru="Перебор инструментов завершён"/>
   <translation tag="Tool is seated" ru="Инструмент установлен"/>
   <translation tag="Tool may be half seated" ru="Инструмент может быть установлен не полностью"/>
-  <translation tag="Tool offset calibration failed: {}" ru="Ошибка калибровки смещений инструментов: {}"/>
   <translation tag="Tool offsets (mm)" ru="Смещения инструментов (мм)"/>
   <translation tag="Tool offsets saved" ru="Смещения инструментов сохранены"/>
   <translation tag="Tool swap" ru="Смена инструмента"/>

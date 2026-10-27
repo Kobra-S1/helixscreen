@@ -3906,7 +3906,6 @@
   <translation tag="Tool cycle finished" ja="ツールの順次交換が完了しました"/>
   <translation tag="Tool is seated" ja="ツールは装着済み"/>
   <translation tag="Tool may be half seated" ja="ツールが半分しか装着されていない可能性があります"/>
-  <translation tag="Tool offset calibration failed: {}" ja="ツールオフセットのキャリブレーションに失敗しました: {}"/>
   <translation tag="Tool offsets (mm)" ja="ツールオフセット (mm)"/>
   <translation tag="Tool offsets saved" ja="ツールオフセットを保存しました"/>
   <translation tag="Tool swap" ja="ツール交換"/>

@@ -3906,7 +3906,6 @@
   <translation tag="Tool cycle finished" en="Tool cycle finished"/>
   <translation tag="Tool is seated" en="Tool is seated"/>
   <translation tag="Tool may be half seated" en="Tool may be half seated"/>
-  <translation tag="Tool offset calibration failed: {}" en="Tool offset calibration failed: {}"/>
   <translation tag="Tool offsets (mm)" en="Tool offsets (mm)"/>
   <translation tag="Tool offsets saved" en="Tool offsets saved"/>
   <translation tag="Tool swap" en="Tool swap"/>
