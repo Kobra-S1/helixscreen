@@ -21,6 +21,7 @@
 #include "filament_action_set.h"
 #include "mount_feed_sequence.h"
 #include "printer_discovery.h"
+#include "static_subject_registry.h"
 #include "test_helpers/ams_sidebar_xml.h"
 #include "toolchanger_addon.h"
 
@@ -335,6 +336,18 @@ TEST_CASE_METHOD(BatchStepsFixture,
     CHECK_FALSE(cancel_shown());
     // A second Cancel while the first is held is no failure.
     CHECK(changer_->cancel().success());
+}
+
+TEST_CASE_METHOD(BatchStepsFixture, "A printer switch takes the sidebar Cancel down",
+                 "[ams][sidebar][mount_feed][batch][cancel]") {
+    pick(HeadPickOp::Unload, {0, 1, 2});
+    lv_subject_t* shown = lv_xml_get_subject(nullptr, "ams_sidebar_cancel_shown");
+    REQUIRE(shown != nullptr);
+    REQUIRE(lv_subject_get_int(shown) == 1);
+    // The next printer's sidebar starts from the subjects' reset values.
+    REQUIRE(StaticSubjectRegistry::instance().deinit_one(
+        "AmsSidebarButtonGatingReset", StaticSubjectRegistry::Scope::PrinterSwitch));
+    CHECK(lv_subject_get_int(shown) == 0);
 }
 
 TEST_CASE_METHOD(BatchStepsFixture, "The sidebar withholds Cancel when the backend cannot cancel",

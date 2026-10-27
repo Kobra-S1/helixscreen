@@ -17,10 +17,14 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/scoped_env.h"
+#include "macro_param_cache.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
 
+#include <chrono>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -211,4 +215,145 @@ TEST_CASE_METHOD(StockMedusaFixture, "MedusaHC mock: RESUME to a tool heated aft
         MoonrakerClientMockTestAccess::advance_secondary_extruders(mock, 0.5);
     }
     REQUIRE(mock.gcode_script("RESUME") == 0);
+}
+
+namespace {
+
+json subscribe(MoonrakerClientMock& mock, const std::vector<std::string>& names) {
+    json objects = json::object();
+    for (const auto& n : names) {
+        objects[n] = nullptr;
+    }
+    json response;
+    mock.send_jsonrpc(
+        "printer.objects.subscribe", json{{"objects", objects}},
+        [&response](const json& r) { response = r; }, [](const MoonrakerError&) {});
+    return response["result"]["status"];
+}
+
+json status_param(const json& notification) {
+    const auto& params = notification["params"];
+    return params.is_array() && !params.empty() ? params[0] : json::object();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(StockMedusaFixture,
+                 "MedusaHC mock: its RESUME runs MHC_RESUME, as upstream's does",
+                 "[medusahc][mock][resume]") {
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+    // The cache the mock fills at construction, the way discovery fills it.
+    CHECK(MacroParamCache::instance().macro_runs("RESUME", "MHC_RESUME"));
+
+    // And the configfile a real discovery reads.
+    const json config = query(mock, {"configfile"})["configfile"]["config"];
+    REQUIRE(config.contains("gcode_macro resume"));
+    CHECK(config["gcode_macro resume"]["gcode"].get<std::string>().find("MHC_RESUME") !=
+          std::string::npos);
+    MacroParamCache::instance().clear();
+}
+
+TEST_CASE_METHOD(StockMedusaFixture,
+                 "MedusaHC mock: a park names the parked tool as RESUME's target",
+                 "[medusahc][mock][resume]") {
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+    mock.medusa_place_tools_by_hand(1); // T1 on the carriage, no SET behind it
+    REQUIRE(mock.gcode_script("MHC_DROP") == 0);
+    run_to_rest(mock);
+    const json global = query(mock, {"gcode_macro _GLOBAL_STATE"})["gcode_macro _GLOBAL_STATE"];
+    CHECK(global["target_tool"].get<int>() == 1);
+}
+
+TEST_CASE_METHOD(StockMedusaFixture, "MedusaHC mock: every gcode_move frame keeps the X/Y offset",
+                 "[medusahc][mock][tool_offsets]") {
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+    REQUIRE(mock.gcode_script("SET_GCODE_VARIABLE MACRO=_TOOL_OFFSET VARIABLE=t0_off_x "
+                              "VALUE=0.120") == 0);
+    REQUIRE(mock.gcode_script("SET_GCODE_VARIABLE MACRO=_TOOL_OFFSET VARIABLE=t0_off_y "
+                              "VALUE=-0.080") == 0);
+    REQUIRE(mock.gcode_script("MHC_TOOL_OFFSET T=0 MOVE=0") == 0);
+
+    std::mutex mu;
+    std::vector<json> origins;
+    const auto sub = mock.register_notify_update([&](const json& notification) {
+        const json status = status_param(notification);
+        if (status.contains("gcode_move") && status["gcode_move"].contains("homing_origin")) {
+            std::lock_guard<std::mutex> lock(mu);
+            origins.push_back(status["gcode_move"]["homing_origin"]);
+        }
+    });
+    const auto check_all = [&](size_t from) {
+        std::lock_guard<std::mutex> lock(mu);
+        REQUIRE(origins.size() > from);
+        for (size_t i = from; i < origins.size(); ++i) {
+            INFO("frame " << i);
+            CHECK(origins[i][0].get<double>() == Approx(0.12));
+            CHECK(origins[i][1].get<double>() == Approx(-0.08));
+        }
+    };
+
+    SECTION("the initial state") {
+        MoonrakerClientMockTestAccess::dispatch_initial_state(mock);
+        check_all(0);
+    }
+    SECTION("a Z offset change") {
+        REQUIRE(mock.gcode_script("SET_GCODE_OFFSET Z=0.100") == 0);
+        check_all(0);
+    }
+    SECTION("the live simulation frames") {
+        mock.connect("ws://mock/websocket", [] {}, [] {});
+        const uint32_t start = MoonrakerClientMockTestAccess::tick_count(mock);
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+        while (MoonrakerClientMockTestAccess::tick_count(mock) < start + 3 &&
+               std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        REQUIRE(MoonrakerClientMockTestAccess::tick_count(mock) >= start + 3);
+        check_all(0);
+        mock.stop_temperature_simulation();
+    }
+    mock.unsubscribe_notify_update(sub);
+}
+
+TEST_CASE_METHOD(StockMedusaFixture,
+                 "MedusaHC mock: the live frames heat a secondary hot end toward its target",
+                 "[medusahc][mock]") {
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+    std::mutex mu;
+    std::vector<json> readings;
+    const auto sub = mock.register_notify_update([&](const json& notification) {
+        const json status = status_param(notification);
+        if (status.contains("extruder1") && status["extruder1"].contains("temperature")) {
+            std::lock_guard<std::mutex> lock(mu);
+            readings.push_back(status["extruder1"]);
+        }
+    });
+    REQUIRE(mock.gcode_script("SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=230") == 0);
+    mock.connect("ws://mock/websocket", [] {}, [] {});
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (MoonrakerClientMockTestAccess::tick_count(mock) < 4 &&
+           std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    mock.stop_temperature_simulation();
+    mock.unsubscribe_notify_update(sub);
+
+    std::lock_guard<std::mutex> lock(mu);
+    REQUIRE_FALSE(readings.empty());
+    CHECK(readings.back()["target"].get<double>() == Approx(230.0));
+    CHECK(readings.back()["temperature"].get<double>() > 150.0); // it moved
+}
+
+TEST_CASE_METHOD(StockMedusaFixture,
+                 "MedusaHC mock: the subscription answers each hot end and the macros' state",
+                 "[medusahc][mock]") {
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+    REQUIRE(mock.gcode_script("SET_HEATER_TEMPERATURE HEATER=extruder2 TARGET=210") == 0);
+    REQUIRE(mock.gcode_script("SET_GCODE_VARIABLE MACRO=_TOOL_OFFSET VARIABLE=t1_off_x "
+                              "VALUE=0.120") == 0);
+    const json status = subscribe(mock, {"extruder2", "gcode_macro _TOOL_OFFSET"});
+    REQUIRE(status.contains("extruder2"));
+    CHECK(status["extruder2"]["target"].get<double>() == Approx(210.0));
+    REQUIRE(status.contains("gcode_macro _TOOL_OFFSET"));
+    CHECK(status["gcode_macro _TOOL_OFFSET"]["t1_off_x"].get<double>() == Approx(0.12));
 }

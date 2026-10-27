@@ -226,6 +226,24 @@ TEST_CASE("A restart or a lost connection forgets the controller's last phase wo
     CHECK(ToolChangerTestAccess::last_operation_word(tc).empty());
 }
 
+TEST_CASE("A park this screen dispatched fails as a park, not a tool change",
+          "[ams][toolchanger][medusahc][state]") {
+    ToolChangerHelper tc(6);
+    wire(tc, standalone_discovery(6));
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+    REQUIRE(tc.park_active_tool().success());
+    // The failure is the first frame the controller sends: no `dropping` seen.
+    tc.feed(json{{"medusahc",
+                  {{"operation", "idle"},
+                   {"current_tool", -2},
+                   {"target_tool", 1},
+                   {"sensor_error", true},
+                   {"last_error", "MHC_DROP: sensors did not confirm the drop"}}}});
+    const auto err = tc.current_error();
+    REQUIRE(err.has_value());
+    CHECK(err->detail == "Parking Tool 2 (T1) failed: MHC_DROP: sensors did not confirm the drop");
+}
+
 TEST_CASE("Klipper restart: a swap latched mid-'changing' clears",
           "[ams][toolchanger][medusahc][state]") {
     ToolChangerHelper tc(6);

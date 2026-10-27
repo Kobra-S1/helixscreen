@@ -2093,3 +2093,44 @@ TEST_CASE("MedusaHC remembers which docked hot ends a completed load fed",
     REQUIRE(tc.get_current_action() == AmsAction::IDLE);
     CHECK_FALSE(tc.head_has_filament(2).has_value());
 }
+
+TEST_CASE("MedusaHC: a new run turns an earlier run's owed heaters off before its own",
+          "[toolchanger][mount_feed][medusahc]") {
+    AckingChanger tc(4);
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.load_filament(3).success());
+    tc.ack();
+    ToolChangerTestAccess::feed_operator_reply(tc, mf::Reply::Continue);
+    tc.ack();  // mounted; heating
+    tc.lose(); // owed, and no frame has arrived since
+    const size_t before = tc.sent_.size();
+    REQUIRE(tc.load_filament(1).success());
+    REQUIRE(tc.sent_.size() == before + 2);
+    CHECK(tc.sent_[before] == "SET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0");
+    CHECK(tc.sent_[before + 1].find("action:prompt_begin") != std::string::npos);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A backend hears the connection drop after PrinterState's subjects are rebuilt",
+                 "[toolchanger][mount_feed][ams]") {
+    get_printer_state().init_subjects(false);
+    AmsState::instance().init_subjects(true);
+    // A soft restart rebuilds PrinterState's subjects; AmsState re-inits on top.
+    get_printer_state().deinit_subjects();
+    get_printer_state().init_subjects(false);
+    AmsState::instance().init_subjects(true);
+
+    const auto set_connection = [](ConnectionState state) {
+        get_printer_state().set_printer_connection_state(static_cast<int>(state), "");
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    };
+    set_connection(ConnectionState::CONNECTED);
+    auto owned = std::make_unique<ConnectionRecordingBackend>();
+    auto* backend = owned.get();
+    AmsState::instance().set_backend(std::move(owned));
+    set_connection(ConnectionState::RECONNECTING);
+    CHECK(backend->lost == 1);
+
+    AmsState::instance().set_backend(nullptr);
+    set_connection(ConnectionState::CONNECTED);
+}

@@ -1681,3 +1681,20 @@ TEST_CASE("Each MedusaHC mock variant lists its configuration's objects",
         CHECK(mock.medusa_status_json().contains("operation"));
     }
 }
+
+TEST_CASE("Only upstream's dock and head keys are read", "[ams][toolchanger][medusahc]") {
+    // The abandoned fork published toolN_docked and head_loaded; upstream's
+    // controller has `sensors` with t0, t1, ... only.
+    auto reading =
+        toolchanger_addon::read_tool(json{{"medusahc",
+                                           {{"current_tool", 0},
+                                            {"tool1_docked", true},
+                                            {"head_loaded", true},
+                                            {"sensors", {{"tool2_docked", 1}, {"t3", 1}}}}}});
+    REQUIRE(reading.has_value());
+    CHECK_FALSE(reading->head_loaded.has_value());
+    REQUIRE(reading->docks.size() == 4);
+    CHECK_FALSE(reading->docks[1].has_value());
+    CHECK_FALSE(reading->docks[2].has_value());
+    CHECK(reading->docks[3] == std::optional<bool>(true));
+}

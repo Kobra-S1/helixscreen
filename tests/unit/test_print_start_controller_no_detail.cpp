@@ -21,6 +21,7 @@
 #include "../test_helpers/print_start_grace.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -29,7 +30,10 @@
 #include "print_start_inputs.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -197,10 +201,23 @@ TEST_CASE_METHOD(NoDetailFixture, "a filament operation under way refuses the st
         }
     } unset;
 
+    // The refusal is what says so; a start that went on would end for some
+    // other reason with some other notice.
+    std::vector<std::string> warnings;
+    helix::ui::set_test_notification_warning_hook(
+        [&warnings](const std::string& m) { warnings.push_back(m); });
+    struct Unhook {
+        ~Unhook() {
+            helix::ui::set_test_notification_warning_hook(nullptr);
+        }
+    } unhook;
+
     controller->initiate();
     drain();
     CHECK(cancelled == 1);
     CHECK(started == 0);
+    CHECK(std::count(warnings.begin(), warnings.end(),
+                     "Wait for the current filament operation to finish") == 1);
 
     bool reprint_failed = false;
     controller->initiate_reprint("cube.gcode", "", {0}, nullptr,
