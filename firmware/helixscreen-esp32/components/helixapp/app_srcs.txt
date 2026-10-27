@@ -150,6 +150,7 @@ src/printer/active_material_provider.cpp
 src/printer/afc_config_manager.cpp
 src/printer/afc_defaults.cpp
 src/printer/afc_fault_position.cpp
+src/printer/fault_path_position.cpp
 src/printer/ace_slot_parse.cpp
 src/printer/ams_backend.cpp
 src/printer/ams_backend_registry.cpp
@@ -513,7 +514,7 @@ src/ui/ui_ams_loading_error_modal.cpp
 src/ui/ui_ams_mini_status.cpp
 src/ui/ui_ams_recover_state_modal.cpp
 src/ui/ui_ams_selector_menu.cpp
-src/ui/ui_afc_fault_path.cpp
+src/ui/ui_fault_path.cpp
 src/ui/ui_multiselect.cpp
 src/ui/ui_batch_filament_modal.cpp
 src/ui/ui_ams_sidebar.cpp

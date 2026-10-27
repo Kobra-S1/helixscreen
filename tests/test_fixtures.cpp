@@ -3,10 +3,10 @@
 
 #include "test_fixtures.h"
 
-#include "ui_afc_fault_path.h"
 #include "ui_button.h"
 #include "ui_card.h"
 #include "ui_dialog.h"
+#include "ui_fault_path.h"
 #include "ui_humidity_drop.h"
 #include "ui_icon.h"
 #include "ui_progress_bar.h"
@@ -272,10 +272,10 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     lv_xml_register_component_from_file("A:ui_xml/macro_param_modal.xml");
     lv_xml_register_component_from_file("A:ui_xml/form_field.xml");
 
-    // <afc_fault_path> + the afc_fault_segment subject it binds. Embedded by
+    // <fault_path> + the fault_path_segment subject it binds. Embedded by
     // ams_loading_error_modal.xml and action_prompt_modal.xml, both of which
     // tests register directly (#1184).
-    helix::ui::afc_fault_path_register();
+    helix::ui::fault_path_register();
 
     // <context_menu_backdrop> is the root every context menu extends, so it has
     // to exist before a test registers any of them.

@@ -3,9 +3,9 @@
 
 #include "action_prompt_modal.h"
 
-#include "ui_afc_fault_path.h"
 #include "ui_breakpoint.h"
 #include "ui_error_reporting.h"
+#include "ui_fault_path.h"
 #include "ui_swatch.h"
 
 #include "color_utils.h"

@@ -500,7 +500,8 @@ remedies, and AFC_BoxTurtle.py writes `||------||` where AFC.py writes `||-----|
 **message text**, and strip the art.
 
 `helix::afc::afc_fault_position()` (`include/afc_fault_position.h`) — a pure function, no LVGL, no
-printer state:
+printer state. It is AFC's row in the generic fault-path provider table, `helix::faultpath`
+(`include/fault_path_position.h`); the graphic and the modals ask that module, never AFC:
 
 | Message fragment | Filament reached | `PathSegment` |
 |---|---|---|
@@ -518,8 +519,8 @@ plain-text rendering we had before rather than mangling the sentence. Tests driv
 `tests/unit/test_afc_fault_position.cpp`.
 
 **Where it surfaces.** Both modals that can show an AFC lane fault route their text through
-`helix::ui::afc_fault_path_apply()` (`include/ui_afc_fault_path.h`), which publishes the stop point
-to the int subject `afc_fault_segment` and returns the stripped text:
+`helix::ui::fault_path_apply()` (`include/ui_fault_path.h`), which publishes the stop point
+to the int subject `fault_path_segment` and returns the stripped text:
 
 | Path | Modal | Call site |
 |---|---|---|
@@ -527,9 +528,9 @@ to the int subject `afc_fault_segment` and returns the stripped text:
 | `AmsAction::ERROR` rising edge -> `AmsErrorBridge` -> `backend->current_error()` -> `RecoveryModalPresenter` | `ActionPromptModal` | same call site as the row above, reached with no `!!` line involved |
 | `printer.AFC.message` -> `AmsAction::ERROR` -> `AmsPanel` | `AmsLoadingErrorModal` | `ui_panel_ams.cpp` `show_loading_error_modal()` |
 
-All three can fire for the same fault. The graphic itself is `ui_xml/components/afc_fault_path.xml` —
+All three can fire for the same fault. The graphic itself is `ui_xml/components/fault_path.xml` —
 four labelled checkpoints joined by the three **gaps** between them, all bound to
-`afc_fault_segment` alone; 0 (`PathSegment::NONE`) hides the whole component.
+`fault_path_segment` alone; 0 (`PathSegment::NONE`) hides the whole component.
 
 **The gap, not the checkpoint, is what gets marked**, and that is not cosmetic. AFC's own art is
 three sections under four labels (`Spool`→`Lane`, `Lane`→`Hub`, `Hub`→`Toolhead`), which is why it
@@ -547,9 +548,9 @@ sits under the failing gap, between the two checkpoint names that bound it, and 
 *Jammed* takes the toolhead's own label, since that fault happens at a node rather than in a gap.
 Each word is bound to one segment value, so exactly one shows and the strip stays two rows tall.
 
-Every caller must go through `afc_fault_path_apply()` even when the message is not AFC's, or a
+Every caller must go through `fault_path_apply()` even when the message is not AFC's, or a
 previous fault's marker stays on screen. `ActionPromptModal` also re-publishes from its own text
-(`afc_fault_path_publish()`) before it builds, so any action:prompt, including a firmware one such
+(`fault_path_publish()`) before it builds, so any action:prompt, including a firmware one such
 as `AFC_CALIBRATION`'s unit picker, shows the strip only for the fault its text names. The subject
 backs a component registered once at boot, so it is a `Lifetime::Process` registry entry: it stays
 registered and live across a printer switch and is torn down only at exit. A modal built while it

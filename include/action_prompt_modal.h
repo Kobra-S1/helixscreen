@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "ui_afc_fault_path.h"
+#include "ui_fault_path.h"
 #include "ui_modal.h"
 
 #include "action_prompt_manager.h"
@@ -149,10 +149,10 @@ class ActionPromptModal : public Modal {
     void on_hide() override;
 
   private:
-    /// Points the AFC diagram at this prompt's own text, so a prompt that names no
+    /// Points the fault-path diagram at this prompt's own text, so a prompt that names no
     /// fault never shows one an earlier modal published.
     void publish_fault_path();
-    AfcFaultPathHold fault_path_;
+    FaultPathHold fault_path_;
 
     // Grants white-box access to button widgets / containers for layout tests.
     friend struct ::ActionPromptModalTestAccess;

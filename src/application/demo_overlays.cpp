@@ -184,7 +184,7 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
         lv_xml_register_component_from_file(
             helix::asset_component_uri("ui_xml/ams_loading_error_modal.xml").c_str());
 
-        lv_subject_t* seg = lv_xml_get_subject(nullptr, "afc_fault_segment");
+        lv_subject_t* seg = lv_xml_get_subject(nullptr, "fault_path_segment");
         if (seg != nullptr) {
             lv_subject_set_int(seg, static_cast<int>(PathSegment::HUB));
         }

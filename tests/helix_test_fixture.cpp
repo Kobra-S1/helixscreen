@@ -540,7 +540,7 @@ void HelixTestFixture::reset_all() {
     // kModalExitDurationMs instead of completing synchronously, and any modal
     // test that pumps less than 150ms starts reading the OUTGOING dialog —
     // lv_obj_find_by_name() returns the stale subtree because it is still parented
-    // to the screen (test_afc_fault_path_modal.cpp read a previous fault's text).
+    // to the screen (test_fault_path_modal.cpp read a previous fault's text).
     //
     // The name is re-pointed at the manager's own subject rather than looked up:
     // a fixture that publishes its own subject under this global name and
