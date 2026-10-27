@@ -42,7 +42,8 @@ class BedPlateGesture {
     /// Returns false (and ignores the rest of the gesture) when can_move() refuses.
     bool press(int x, int y);
     /// Streams the target under the finger once the drag threshold is crossed. A sample
-    /// mapping to the target already sent sends nothing.
+    /// mapping to the target already sent sends nothing. Every send asks can_move() again,
+    /// and a refusal ends the stream for the rest of the gesture.
     void pressing(int x, int y);
 
     struct Release {

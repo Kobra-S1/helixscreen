@@ -7,6 +7,7 @@
 #include "ui_widget_ref.h"
 
 #include "axis.h"
+#include "bed_plate_gesture.h"
 #include "hold_repeat_timer.h"
 #include "motion_presets.h"
 #include "overlay_base.h"
@@ -272,10 +273,6 @@ class MotionPanel : public OverlayBase {
     /// wins), with the release point sent only if it differs from the last.
     void handle_bed_touch(helix::BedTouch phase, lv_obj_t* area, lv_point_t screen_point);
 
-    /// Bed tab: send the toolhead to @p target (XY), raising Z to @p lift_z
-    /// first when set. Unhomed XY homes first, and then never lifts.
-    void commit_bed_target(helix::AxisTarget target, std::optional<double> lift_z);
-
     /// Bed tab: size the plate to the bed's aspect inside the touch surface
     /// and place the marker. No-op while another tab is showing.
     void layout_bed_map();
@@ -294,10 +291,6 @@ class MotionPanel : public OverlayBase {
     /// with the limit it hit. Returns the permitted delta, 0.0 when blocked.
     double clamp_axis_delta(helix::Axis axis, double current, double uncommitted, double delta,
                             float min, float max, bool fresh_press);
-    /// The G-code envelope the clamps and the Z-button state use: the nominal
-    /// one inset by kGcodeEdgeMarginMm. The keypad offers the nominal limits.
-    helix::AxisBounds clamp_bounds();
-
     /// Raise the "at its limit" warning for an axis refused at the clamp bound
     /// on its max (`at_max`) or min side.
     void warn_axis_limit(helix::Axis axis, float clamp_bound, bool at_max);
@@ -401,19 +394,8 @@ class MotionPanel : public OverlayBase {
     void stop_hold_repeat();
     static bool jog_hold_fire(void* user_data);
 
-    /// The Bed tab's plate (preset_area()) and shape, or nullopt while the
-    /// bounds are unknown or degenerate.
-    struct BedPlate {
-        helix::AxisBounds area;
-        bool circular;
-    };
-    std::optional<BedPlate> bed_plate() const;
-
     /// Target under @p screen_point on the touch surface @p area.
     std::optional<helix::AxisTarget> bed_target_at(lv_obj_t* area, lv_point_t screen_point) const;
-
-    /// Z a Bed-tab move would lift to now, or nullopt for none (or Z unhomed).
-    std::optional<double> bed_lift_z();
 
     /// Move the toolhead marker to the commanded XY.
     void update_bed_marker();
@@ -422,23 +404,17 @@ class MotionPanel : public OverlayBase {
     /// the clearance lift a commit would make.
     void refresh_bed_readout();
 
-    // Bed tab press tracking: where the press landed, and whether it has
-    // travelled far enough to be a drag. The drag target feeds the readout.
-    bool bed_pressing_ = false;
-    bool bed_dragging_ = false;
-    lv_point_t bed_press_point_{};
-    std::optional<helix::AxisTarget> bed_drag_target_;
-    /// The last target this gesture sent; empty until its first move.
-    std::optional<helix::AxisTarget> bed_sent_target_;
-    /// The Z every move of this gesture lifts to, decided at its first move.
-    std::optional<double> bed_gesture_lift_z_;
-    /// A move of this gesture was refused; it sends nothing more.
-    bool bed_gesture_failed_ = false;
+    /// The Bed tab's press / drag / release decisions, shared with the home
+    /// Toolhead widget.
+    helix::BedPlateGesture bed_gesture_;
+    /// The touch surface handle_bed_touch() is handling, for the gesture's
+    /// target_at hook; null outside that call.
+    lv_obj_t* bed_touch_area_ = nullptr;
     /// Stop tracking the finger: no press, no drag target, readout at rest.
     void end_bed_gesture();
 
-    /// Send one of the current gesture's targets, lifting only on the first.
-    void send_bed_gesture_target(const helix::AxisTarget& target);
+    /// The gesture's send hook: one Bed-tab target, lift already applied.
+    void send_bed_target(const helix::AxisTarget& target);
 
     /// Gating backstop behind the Move tab's XML disabled bindings: commands
     /// are allowed only while nav buttons are enabled (connected + klippy

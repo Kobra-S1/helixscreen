@@ -3969,6 +3969,7 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.
+  The part on the bed is too tall to clear. Remove it, then tap Cleared.: The part on the bed is too tall to clear. Remove it, then tap Cleared.
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   The peak of {} moved out of the zone. Widening it.: The peak of {} moved out of the zone. Widening it.
@@ -4597,6 +4598,7 @@ translations:
   Z tilt: Z tilt
   Z {:.2f} mm: Z {:.2f} mm
   Z {}, will lift to {}mm: Z {}, will lift to {}mm
+  'Z {}, will lift to {}mm: last print is {}mm tall': 'Z {}, will lift to {}mm: last print is {}mm tall'
   'Z-Off:': 'Z-Off:'
   Z-Offset: Z-Offset
   Z-Offset Calibration: Z-Offset Calibration

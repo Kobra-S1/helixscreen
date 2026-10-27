@@ -3699,6 +3699,7 @@
   <translation tag="The nozzle is clear of the print" it="L&apos;ugello non tocca la stampa"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." it="L&apos;ugello è caldo. Puliscilo con la spazzola metallica in dotazione, mantieni pulita la posizione di aggancio, poi tocca Avanti."/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." it="L&apos;ugello è sollevato dalla stampa e X e Y sono azzerati. Riprendendo, scende di nuovo all&apos;altezza in cui si è fermato."/>
+  <translation tag="The part on the bed is too tall to clear. Remove it, then tap Cleared." it="Il pezzo sul piano è troppo alto per passarci sopra. Rimuovilo, poi tocca &quot;Liberato&quot;."/>
   <translation tag="The peak of {0} left the zone. Check that only {1}&apos;s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts." it="Il picco di {0} è uscito dalla zona. Verifica di aver girato solo il tenditore di {1}. Non sai quale sia quale? Tocca la matita per identificare le cinghie."/>
   <translation tag="The peak of {} moved out of the zone. Widening it." it="Il picco di {} è uscito dalla zona. Allargamento."/>
   <translation tag="The plate and the spools are still hot. Use gloves." it="Il piano e le bobine sono ancora caldi. Usa i guanti."/>
@@ -4263,6 +4264,7 @@
   <translation tag="Z tilt" it="Inclinazione Z"/>
   <translation tag="Z {:.2f} mm" it="Z {:.2f} mm"/>
   <translation tag="Z {}, will lift to {}mm" it="Z {}, salirà a {}mm"/>
+  <translation tag="Z {}, will lift to {}mm: last print is {}mm tall" it="Z {}, salirà a {}mm: l&apos;ultima stampa è alta {}mm"/>
   <translation tag="Z-Off:" it="Z-Off:"/>
   <translation tag="Z-Offset" it="Z-Offset"/>
   <translation tag="Z-Offset Calibration" it="Calibrazione Z-Offset"/>

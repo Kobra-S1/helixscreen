@@ -3699,6 +3699,7 @@
   <translation tag="The nozzle is clear of the print" en="The nozzle is clear of the print"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." en="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next."/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." en="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at."/>
+  <translation tag="The part on the bed is too tall to clear. Remove it, then tap Cleared." en="The part on the bed is too tall to clear. Remove it, then tap Cleared."/>
   <translation tag="The peak of {0} left the zone. Check that only {1}&apos;s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts." en="The peak of {0} left the zone. Check that only {1}&apos;s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts."/>
   <translation tag="The peak of {} moved out of the zone. Widening it." en="The peak of {} moved out of the zone. Widening it."/>
   <translation tag="The plate and the spools are still hot. Use gloves." en="The plate and the spools are still hot. Use gloves."/>
@@ -4263,6 +4264,7 @@
   <translation tag="Z tilt" en="Z tilt"/>
   <translation tag="Z {:.2f} mm" en="Z {:.2f} mm"/>
   <translation tag="Z {}, will lift to {}mm" en="Z {}, will lift to {}mm"/>
+  <translation tag="Z {}, will lift to {}mm: last print is {}mm tall" en="Z {}, will lift to {}mm: last print is {}mm tall"/>
   <translation tag="Z-Off:" en="Z-Off:"/>
   <translation tag="Z-Offset" en="Z-Offset"/>
   <translation tag="Z-Offset Calibration" en="Z-Offset Calibration"/>

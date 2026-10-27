@@ -17,6 +17,7 @@
 
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
+#include "bed_plate_context.h"
 #include "bed_plate_draw.h"
 #include "config.h"
 #include "format_utils.h"
@@ -51,9 +52,6 @@ using helix::ui::find_required;
 namespace {
 /// How far Park lifts the nozzle away from the plate before moving over it.
 constexpr double kParkZLiftMm = 10.0;
-
-/// Bed tab: finger travel up to this is still a tap at the press point.
-constexpr int kBedMapDragThresholdPx = 8;
 } // namespace
 
 /// Trim trailing zeros so 0.1 reads "0.1" and 10.0 reads "10"; the default
@@ -288,11 +286,26 @@ MotionPanel::MotionPanel()
                     },
                     [this](const MoonrakerError&) {
                         // A Bed-tab drag would send the next sample into the same refusal.
-                        bed_gesture_failed_ = true;
+                        bed_gesture_.mark_failed();
                         // A hold-to-repeat still ticking would re-send the refused move
                         // every interval and raise one error toast per tick.
                         stop_hold_repeat();
-                    }}) {
+                    }}),
+      bed_gesture_(
+          {[this](int x, int y) { return bed_target_at(bed_touch_area_, lv_point_t{x, y}); },
+           []() {
+               return get_moonraker_api() != nullptr &&
+                      helix::plate_moves_allowed(get_printer_state());
+           },
+           [this]() {
+               return helix::current_plate_lift(get_printer_state(),
+                                                move_sender_.target_start_z(current_z_));
+           },
+           [this](const helix::AxisTarget& target) { send_bed_target(target); },
+           []() {
+               NOTIFY_WARNING(lv_tr("The part on the bed is too tall to clear. Remove "
+                                    "it, then tap Cleared."));
+           }}) {
     // Initialize buffer contents (axis labels are in XML, values only here)
     std::strcpy(pos_x_buf_, "—");
     std::strcpy(pos_y_buf_, "—");
@@ -1014,7 +1027,7 @@ void MotionPanel::update_jog_pad_enabled() {
 void MotionPanel::update_z_button_blocked() {
     if (!subjects_initialized_)
         return;
-    const auto bounds = clamp_bounds();
+    const auto bounds = helix::move_clamp_bounds(get_printer_state());
     const bool z_homed = helix::axis_is_homed(get_printer_state(), helix::Axis::Z);
     // Commanded, not predicted: an in-flight move leaves no recompute trigger
     // when it acks, so a prediction here could disable a button for good.
@@ -1110,7 +1123,7 @@ bool MotionPanel::handle_jog_button(const char* name, bool is_repeat) {
     }
 
     // Bounds are in gcode space, so this must follow the inversion above.
-    const auto bounds = clamp_bounds();
+    const auto bounds = helix::move_clamp_bounds(get_printer_state());
     if (bounds.has_z && helix::axis_is_homed(get_printer_state(), helix::Axis::Z)) {
         distance =
             clamp_axis_delta(helix::Axis::Z, current_z_,
@@ -1209,7 +1222,7 @@ bool MotionPanel::jog(JogDirection direction, float distance_mm, bool is_repeat)
     // Soft-stop: clamp against the PREDICTED position (current + uncommitted
     // coalescer travel) so queued taps can't walk past the envelope. Skip when
     // bounds aren't known yet (fresh connect) or the axis isn't homed.
-    const auto bounds = clamp_bounds();
+    const auto bounds = helix::move_clamp_bounds(get_printer_state());
 
     double ddx = static_cast<double>(dx);
     double ddy = static_cast<double>(dy);
@@ -1256,11 +1269,6 @@ double MotionPanel::clamp_axis_delta(helix::Axis axis, double current, double un
     return 0.0;
 }
 
-helix::AxisBounds MotionPanel::clamp_bounds() {
-    return helix::inset_bounds(get_printer_state().motion_state().get_gcode_axis_bounds(),
-                               helix::kGcodeEdgeMarginMm);
-}
-
 void MotionPanel::warn_axis_limit(helix::Axis axis, float clamp_bound, bool at_max) {
     // The clamp stops kGcodeEdgeMarginMm inside; tell the user the limit.
     const auto limit = static_cast<float>(at_max ? clamp_bound + helix::kGcodeEdgeMarginMm
@@ -1287,7 +1295,8 @@ bool MotionPanel::dispatch_jog(const helix::AxisMove& delta) {
 }
 
 bool MotionPanel::dispatch_target(const helix::AxisTarget& target) {
-    return move_sender_.send_target(get_moonraker_api(), target, clamp_bounds(), current_z_);
+    return move_sender_.send_target(get_moonraker_api(), target,
+                                    helix::move_clamp_bounds(get_printer_state()), current_z_);
 }
 
 void MotionPanel::home(char axis) {
@@ -1484,7 +1493,7 @@ void MotionPanel::handle_preset(helix::MotionPreset preset) {
     }
     // Computed at tap time: bounds can change (settings, calibration) between
     // the panel opening and the tap.
-    const auto plate = bed_plate();
+    const auto plate = helix::current_bed_plate(get_printer_state(), get_moonraker_api());
     const auto target =
         plate ? helix::motion_preset_target(preset, plate->area, plate->circular) : std::nullopt;
     if (!target) {
@@ -1539,7 +1548,7 @@ void MotionPanel::park_over_plate(bool lift_z) {
         return;
     }
     const AxisBounds gcode = get_printer_state().motion_state().get_gcode_axis_bounds();
-    const auto plate = bed_plate();
+    const auto plate = helix::current_bed_plate(get_printer_state(), get_moonraker_api());
     auto target = plate ? helix::plate_rear_park(plate->area) : std::nullopt;
     if (!target) {
         NOTIFY_INFO(lv_tr("Axis limits unknown"));
@@ -1563,30 +1572,9 @@ static helix::BedCoordMapper bed_surface_mapper(lv_obj_t* area, const helix::Axi
                                  lv_obj_get_content_height(area));
 }
 
-/// Both targets set and naming the same XY.
-static bool same_xy(const std::optional<helix::AxisTarget>& a,
-                    const std::optional<helix::AxisTarget>& b) {
-    return a && b && a->x == b->x && a->y == b->y;
-}
-
-std::optional<MotionPanel::BedPlate> MotionPanel::bed_plate() const {
-    IMoonrakerAPI* api = get_moonraker_api();
-    if (!api) {
-        return std::nullopt;
-    }
-    const auto& ps = get_printer_state();
-    const auto area = helix::preset_area(ps.motion_state().get_axis_bounds(),
-                                         ps.motion_state().get_gcode_axis_bounds(),
-                                         api->hardware().build_volume());
-    if (!area.has_x || !area.has_y || area.x_max <= area.x_min || area.y_max <= area.y_min) {
-        return std::nullopt;
-    }
-    return BedPlate{area, helix::circular_bed_kinematics(api->hardware().kinematics())};
-}
-
 std::optional<helix::AxisTarget> MotionPanel::bed_target_at(lv_obj_t* area,
                                                             lv_point_t screen_point) const {
-    const auto plate = bed_plate();
+    const auto plate = helix::current_bed_plate(get_printer_state(), get_moonraker_api());
     if (!plate || !area) {
         return std::nullopt;
     }
@@ -1597,21 +1585,6 @@ std::optional<helix::AxisTarget> MotionPanel::bed_target_at(lv_obj_t* area,
     return helix::bed_map_target(
         static_cast<float>(screen_point.x - left), static_cast<float>(screen_point.y - top),
         bed_surface_mapper(area, plate->area), plate->area, plate->circular);
-}
-
-std::optional<double> MotionPanel::bed_lift_z() {
-    const auto bounds = clamp_bounds();
-    if (!bounds.has_z || !helix::axis_is_homed(get_printer_state(), helix::Axis::Z)) {
-        return std::nullopt;
-    }
-    const auto lift = helix::plate_lift(
-        move_sender_.target_start_z(current_z_),
-        static_cast<double>(SettingsManager::instance().get_bed_map_clearance_mm()),
-        static_cast<double>(bounds.z_max), std::nullopt);
-    if (lift.kind != helix::PlateLift::Kind::Lift) {
-        return std::nullopt;
-    }
-    return lift.z;
 }
 
 namespace {
@@ -1634,7 +1607,7 @@ void MotionPanel::layout_bed_map() {
     }
     lv_obj_t* area = helix::ui::find_required(overlay_root_, "bed_map_area", get_name());
     lv_obj_t* plate_obj = helix::ui::find_required(area, "bed_map_plate", get_name());
-    const auto plate = bed_plate();
+    const auto plate = helix::current_bed_plate(get_printer_state(), get_moonraker_api());
     if (!plate_obj || !plate) {
         return;
     }
@@ -1710,7 +1683,7 @@ void MotionPanel::fit_jog_layout(lv_obj_t* root) {
 void MotionPanel::draw_bed_plate(lv_event_t* e) const {
     lv_obj_t* plate_obj = lv_event_get_current_target_obj(e);
     lv_obj_t* area = plate_obj ? lv_obj_get_parent(plate_obj) : nullptr;
-    const auto plate = bed_plate();
+    const auto plate = helix::current_bed_plate(get_printer_state(), get_moonraker_api());
     if (!area || !plate) {
         return;
     }
@@ -1749,7 +1722,7 @@ void MotionPanel::update_bed_marker() {
     lv_obj_t* area = helix::ui::find_required(overlay_root_, "bed_map_area", get_name());
     lv_obj_t* marker = helix::ui::find_required(area, "bed_map_marker", get_name());
     lv_obj_t* plate_obj = helix::ui::find_required(area, "bed_map_plate", get_name());
-    const auto plate = bed_plate();
+    const auto plate = helix::current_bed_plate(get_printer_state(), get_moonraker_api());
     if (!marker || !plate_obj || !plate) {
         return;
     }
@@ -1786,7 +1759,8 @@ void MotionPanel::refresh_bed_readout() {
     if (!subjects_initialized_) {
         return;
     }
-    const bool dragging = bed_drag_target_ && bed_drag_target_->x && bed_drag_target_->y;
+    const auto& drag_target = bed_gesture_.drag_target();
+    const bool dragging = drag_target && drag_target->x && drag_target->y;
     std::string text;
     if (!dragging && !helix::toolhead_is_homed(get_printer_state())) {
         text = lv_tr("Home all axes to use the map");
@@ -1794,19 +1768,32 @@ void MotionPanel::refresh_bed_readout() {
         // The target under a dragging finger; at rest the header already
         // shows where the head is, so only a pending lift is worth saying.
         if (dragging) {
-            text = fmt::format("X {:.1f}  Y {:.1f}", *bed_drag_target_->x, *bed_drag_target_->y);
+            text = fmt::format("X {:.1f}  Y {:.1f}", *drag_target->x, *drag_target->y);
         }
         // Announced before the tap: an unrequested Z move is acceptable only
         // when the user was told about it first.
-        if (const auto lift = bed_lift_z()) {
+        const auto lift = helix::axis_is_homed(get_printer_state(), helix::Axis::Z)
+                              ? helix::current_plate_lift(get_printer_state(),
+                                                          move_sender_.target_start_z(current_z_))
+                              : helix::PlateLift{};
+        if (lift.kind == helix::PlateLift::Kind::Lift) {
             char z_buf[16];
             char lift_buf[16];
             format_axis_value(z_buf, sizeof(z_buf), show_actual_ ? live_z_ : current_z_);
-            format_distance_label(lift_buf, sizeof(lift_buf), static_cast<float>(*lift));
+            format_distance_label(lift_buf, sizeof(lift_buf), static_cast<float>(lift.z));
             if (!text.empty()) {
                 text += "  ";
             }
-            text += fmt::format(fmt::runtime(lv_tr("Z {}, will lift to {}mm")), z_buf, lift_buf);
+            if (const auto part = helix::bed_part_height()) {
+                char part_buf[16];
+                format_distance_label(part_buf, sizeof(part_buf), static_cast<float>(*part));
+                text += fmt::format(
+                    fmt::runtime(lv_tr("Z {}, will lift to {}mm: last print is {}mm tall")), z_buf,
+                    lift_buf, part_buf);
+            } else {
+                text +=
+                    fmt::format(fmt::runtime(lv_tr("Z {}, will lift to {}mm")), z_buf, lift_buf);
+            }
         }
     }
     // Position frames arrive many times a second; most change nothing shown.
@@ -1818,108 +1805,50 @@ void MotionPanel::refresh_bed_readout() {
 }
 
 void MotionPanel::handle_bed_touch(helix::BedTouch phase, lv_obj_t* area, lv_point_t screen_point) {
+    // The gesture maps points through this surface while the call lasts.
+    bed_touch_area_ = area;
+    const int x = static_cast<int>(screen_point.x);
+    const int y = static_cast<int>(screen_point.y);
     switch (phase) {
     case helix::BedTouch::Pressed:
-        // Another operation (homing, leveling, a long macro) holds the head.
-        // Our own moves never count: the surface keeps a gesture it started.
-        if (get_printer_state().is_external_blocking_operation_active()) {
-            return;
-        }
-        bed_pressing_ = true;
-        bed_dragging_ = false;
-        bed_press_point_ = screen_point;
-        bed_sent_target_.reset();
-        bed_gesture_failed_ = false;
-        return;
+        bed_gesture_.press(x, y);
+        break;
     case helix::BedTouch::Pressing: {
-        if (!bed_pressing_) {
-            return;
+        const auto before = bed_gesture_.drag_target();
+        bed_gesture_.pressing(x, y);
+        const auto& after = bed_gesture_.drag_target();
+        if (after && (!before || before->x != after->x || before->y != after->y)) {
+            refresh_bed_readout();
         }
-        if (!bed_dragging_ &&
-            std::abs(screen_point.x - bed_press_point_.x) <= kBedMapDragThresholdPx &&
-            std::abs(screen_point.y - bed_press_point_.y) <= kBedMapDragThresholdPx) {
-            return;
-        }
-        bed_dragging_ = true;
-        // PRESSING repeats on every input read while the finger rests.
-        auto target = bed_target_at(area, screen_point);
-        if (!target || same_xy(target, bed_drag_target_)) {
-            return;
-        }
-        bed_drag_target_ = target;
-        refresh_bed_readout();
-        // The head follows the finger, coalesced latest-wins: one move in
-        // flight, the newest target pending. Only on a homed machine: an
-        // unhomed one would queue a home per pointer sample, so its drag
-        // commits once, on release.
-        if (!bed_gesture_failed_ && helix::toolhead_is_homed(get_printer_state())) {
-            send_bed_gesture_target(*target);
-        }
-        return;
+        break;
     }
     case helix::BedTouch::Released: {
-        if (!bed_pressing_) {
-            return;
+        const auto release = bed_gesture_.release(x, y);
+        if (!release.was_drag && release.tap_target) {
+            bed_gesture_.send_once(*release.tap_target);
         }
-        const auto target = bed_target_at(area, bed_dragging_ ? screen_point : bed_press_point_);
-        end_bed_gesture();
-        // A drag that already streamed the point it ended on sends nothing more.
-        if (target && !bed_gesture_failed_ && !same_xy(target, bed_sent_target_)) {
-            send_bed_gesture_target(*target);
-            refresh_bed_readout(); // a lift now in flight is no longer pending
-        }
-        return;
+        refresh_bed_readout(); // a lift now in flight is no longer pending
+        break;
     }
     case helix::BedTouch::Lost:
         end_bed_gesture();
-        return;
+        break;
     }
+    bed_touch_area_ = nullptr;
 }
 
 void MotionPanel::end_bed_gesture() {
-    bed_pressing_ = false;
-    bed_dragging_ = false;
-    bed_drag_target_.reset();
+    bed_gesture_.lost();
     refresh_bed_readout();
 }
 
-void MotionPanel::send_bed_gesture_target(const helix::AxisTarget& target) {
-    // The lift is decided once, at the gesture's first move, and stamped on
-    // every later one: a sample replacing a pending target replaces it
-    // wholesale, so a lift carried by the first alone could be dropped. A
-    // repeated G0 to the same height is no motion, never a descent.
-    if (!bed_sent_target_) {
-        bed_gesture_lift_z_ = bed_lift_z();
-    }
-    commit_bed_target(target, bed_gesture_lift_z_);
-    bed_sent_target_ = target;
-}
-
-void MotionPanel::commit_bed_target(helix::AxisTarget target, std::optional<double> lift_z) {
-    if (!get_moonraker_api() || !moves_allowed()) {
-        return;
-    }
-    // Every axis, like Park: the lift needs a known Z.
-    if (!helix::toolhead_is_homed(get_printer_state())) {
-        // No lift: the Z this panel holds predates the G28 about to run, and
-        // homing leaves the nozzle clear of the plate.
-        helix::ensure_homed_then(
-            get_moonraker_api(), lifetime_, [this, target]() { dispatch_target(target); },
-            lifetime_.bg_cb("MotionPanel::bed_home_failed", [](const MoonrakerError& err) {
-                NOTIFY_ERROR(lv_tr("Homing failed: {}"),
-                             clean_gcode_error(err.localized_message()));
-            }));
-        return;
-    }
-    // The lift rides in the same target as the XY: move_to raises Z on its
-    // own line before the XY travel.
-    if (lift_z) {
-        target.z = *lift_z;
-    }
+void MotionPanel::send_bed_target(const helix::AxisTarget& target) {
     spdlog::info("[{}] Bed map target X{:.2f} Y{:.2f}{}", get_name(), target.x.value_or(0.0),
                  target.y.value_or(0.0),
                  target.z ? fmt::format(" (lift Z{:.2f})", *target.z) : std::string());
-    dispatch_target(target);
+    if (!dispatch_target(target)) {
+        bed_gesture_.mark_failed();
+    }
 }
 
 void MotionPanel::handle_motors_off() {

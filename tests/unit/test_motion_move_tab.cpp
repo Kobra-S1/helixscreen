@@ -23,10 +23,12 @@
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/bed_occupancy_state_test_access.h"
 #include "../test_helpers/holding_motion_api.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "bed_occupancy_state.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -651,7 +653,7 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: a print disables the tab and the plat
     CHECK(all_scripts().empty());
 }
 
-TEST_CASE_METHOD(MoveTabFixture, "bed tab: a tap on an unhomed plate homes, then moves",
+TEST_CASE_METHOD(MoveTabFixture, "bed tab: a tap on an unhomed plate sends nothing",
                  "[motion][bed-tab]") {
     get_global_motion_panel().set_motion_tab(2);
     drain();
@@ -661,13 +663,8 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: a tap on an unhomed plate homes, then
 
     bed_tap(area, far_point(area, false, false));
 
-    const std::string scripts = all_scripts();
-    INFO(scripts);
-    const auto home = scripts.find("G28");
-    const auto travel = scripts.find("G0 X-174.97");
-    REQUIRE(home != std::string::npos);
-    REQUIRE(travel != std::string::npos);
-    CHECK(home < travel);
+    INFO(all_scripts());
+    CHECK(client_.gcode_script_history().empty());
 }
 
 TEST_CASE_METHOD(MoveTabFixture, "bed tab: each tap is its own gesture, even on the same spot",
@@ -790,24 +787,84 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: Z unhomed counts as unhomed, like Par
     get_printer_state().update_from_status(ready_status("xy"));
     drain();
     lv_obj_t* area = panel_widget("bed_map_area");
-    // With Z unknown no lift can be computed, so the map offers homing first.
+    // With Z unknown no lift can be computed, so the map offers Home instead.
     CHECK(lv_obj_has_flag(panel_widget("bed_map_marker"), LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(panel_widget("bed_map_home"), LV_OBJ_FLAG_HIDDEN));
 
-    // A drag streams nothing; release homes, then moves.
+    // Neither a drag nor its release moves or homes anything.
     panel.handle_bed_touch(helix::BedTouch::Pressed, area, far_point(area, false, false));
     panel.handle_bed_touch(helix::BedTouch::Pressing, area, far_point(area, true, true));
-    drain();
-    CHECK(client_.gcode_script_history().empty());
     panel.handle_bed_touch(helix::BedTouch::Released, area, far_point(area, true, true));
     drain();
+    INFO(all_scripts());
+    CHECK(client_.gcode_script_history().empty());
+}
+
+namespace {
+
+/// Puts a part of @p height_mm on the bed for the panel to see, for the scope's life.
+class ScopedPartOnBed {
+  public:
+    explicit ScopedPartOnBed(double height_mm) : state_(get_printer_state(), nullptr) {
+        state_.init_subjects();
+        // The state's own observers fire on the drain and re-decide from its (empty)
+        // history; the verdict goes in after them.
+        MoveTabFixture::drain();
+        helix::BedOccupancyStateTestAccess::set_verdict(state_,
+                                                        {true, height_mm, "job-on-the-bed"});
+        previous_ = helix::get_bed_occupancy_state();
+        helix::set_bed_occupancy_state(&state_);
+    }
+    ~ScopedPartOnBed() {
+        helix::set_bed_occupancy_state(previous_);
+    }
+    ScopedPartOnBed(const ScopedPartOnBed&) = delete;
+    ScopedPartOnBed& operator=(const ScopedPartOnBed&) = delete;
+
+  private:
+    helix::BedOccupancyState state_;
+    helix::BedOccupancyState* previous_ = nullptr;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(MoveTabFixture, "bed tab: a tap lifts above a part still on the bed",
+                 "[motion][bed-tab]") {
+    ScopedPartOnBed part(38.0);
+    get_global_motion_panel().set_motion_tab(2);
+    drain();
+    lv_obj_t* area = panel_widget("bed_map_area");
+    // The default 5mm clearance over a 38mm part.
+    CHECK(bed_readout().find("will lift to 43mm: last print is 38mm tall") != std::string::npos);
+
+    bed_tap(area, far_point(area, false, false));
 
     const std::string scripts = all_scripts();
     INFO(scripts);
-    const auto home = scripts.find("G28");
-    REQUIRE(home != std::string::npos);
-    REQUIRE(scripts.find("G0 X174.9") != std::string::npos);
-    CHECK(home < scripts.find("G0 X174.9"));
+    const auto lift = scripts.find("Z43");
+    const auto travel = scripts.find("G0 X-174.97");
+    REQUIRE(lift != std::string::npos);
+    REQUIRE(travel != std::string::npos);
+    CHECK(lift < travel);
+}
+
+TEST_CASE_METHOD(MoveTabFixture, "bed tab: a part too tall to clear refuses the move",
+                 "[motion][bed-tab]") {
+    // Z travel is 275mm; a 274.5mm part leaves under 1mm above it.
+    ScopedPartOnBed part(274.5);
+    get_global_motion_panel().set_motion_tab(2);
+    drain();
+    lv_obj_t* area = panel_widget("bed_map_area");
+
+    bed_tap(area, far_point(area, false, false));
+    auto& panel = get_global_motion_panel();
+    panel.handle_bed_touch(helix::BedTouch::Pressed, area, far_point(area, false, false));
+    panel.handle_bed_touch(helix::BedTouch::Pressing, area, far_point(area, true, true));
+    panel.handle_bed_touch(helix::BedTouch::Released, area, far_point(area, true, false));
+    drain();
+
+    INFO(all_scripts());
+    CHECK(client_.gcode_script_history().empty());
 }
 
 TEST_CASE_METHOD(MoveTabFixture, "bed tab: a refused move ends the stream for that gesture",

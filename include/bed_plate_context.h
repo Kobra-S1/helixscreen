@@ -31,7 +31,11 @@ struct BedPlateArea {
 
 /// Every axis homed, nav enabled, machine_motion_blocked clear and no external blocking
 /// operation: the plate and the position presets may move the head.
-[[nodiscard]] bool plate_moves_allowed(const PrinterState& ps);
+[[nodiscard]] bool plate_moves_allowed(PrinterState& ps);
+
+/// The height of a part that may still be on the bed, from get_bed_occupancy_state():
+/// nullopt with no state, a clear bed, or an occupying job of unknown height.
+[[nodiscard]] std::optional<double> bed_part_height();
 
 /// plate_lift() for a move starting at @p start_z, with the clearance setting, the clamp
 /// envelope's z_max and the bed-occupancy part height. Kind::None when Z bounds are unknown.

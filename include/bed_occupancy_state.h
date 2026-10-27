@@ -77,6 +77,8 @@ class BedOccupancyState {
     void detach_history();
 
   private:
+    friend class BedOccupancyStateTestAccess;
+
     void on_history_changed();
     void on_print_lifecycle(PrintState state);
     void capture_outline_snapshot();

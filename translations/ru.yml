@@ -4107,6 +4107,7 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : Сопло горячее. Очистите его металлической щёткой из комплекта, держите место парковки чистым и нажмите «Далее».
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "Сопло поднято над печатью, X и Y запаркованы. При продолжении оно опустится на высоту, где остановилось."
+  The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'Деталь на столе слишком высокая, над ней не пройти. Уберите её, затем нажмите «Очищено».'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "Пик ({0}) вышел из зоны. Проверьте, что крутили только натяжитель: {1}. Не знаете, где какой? Коснитесь значка карандаша, чтобы определить ремни."
   The peak of {} moved out of the zone. Widening it.: "Пик ({}) вышел из зоны. Расширяем её."
@@ -4733,6 +4734,7 @@ translations:
   Z tilt: Наклон Z
   Z {:.2f} mm: Z {:.2f} мм
   Z {}, will lift to {}mm: 'Z {}, подъём до {}мм'
+  'Z {}, will lift to {}mm: last print is {}mm tall': 'Z {}, подъём до {}мм: высота последней печати {}мм'
   'Z-Off:': 'Z-Off:'
   Z-Offset: Z-Offset
   Z-Offset Calibration: Калибровка Z-смещения

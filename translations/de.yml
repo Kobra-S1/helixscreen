@@ -4064,6 +4064,7 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : Die Düse ist heiß. Bürste sie mit der mitgelieferten Drahtbürste sauber, halte die Parkposition sauber und tippe dann auf Weiter.
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "Die Düse ist vom Druck abgehoben und X und Y sind referenziert. Beim Fortsetzen senkt sie sich wieder auf die Höhe, an der sie stoppte."
+  The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'Das Teil auf dem Bett ist zu hoch, um es zu überfahren. Entferne es und tippe dann auf „Geräumt“.'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "Die Spitze von {0} hat die Zone verlassen. Prüfe, dass nur der Spanner von {1} gedreht wurde. Unsicher, welcher welcher ist? Tippe auf den Stift, um die Riemen zu identifizieren."
   The peak of {} moved out of the zone. Widening it.: "Die Spitze von {} hat die Zone verlassen. Sie wird erweitert."
@@ -4703,6 +4704,7 @@ translations:
   Z tilt: Z-Neigung
   Z {:.2f} mm: Z {:.2f} mm
   Z {}, will lift to {}mm: 'Z {}, hebt auf {}mm an'
+  'Z {}, will lift to {}mm: last print is {}mm tall': 'Z {}, hebt auf {}mm an: letzter Druck ist {}mm hoch'
   'Z-Off:': 'Z-Off:'
   Z-Offset: Z-Offset
   Z-Offset Calibration: Z-Offset-Kalibrierung
