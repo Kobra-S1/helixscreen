@@ -82,7 +82,9 @@
          can stop is running (AmsOperationSidebar::refresh_button_gating). It sits
          above the stepper: a run of several tools outgrows a small screen's
          column, and the steps scroll where Cancel must not. -->
-    <ui_button name="btn_cancel_operation" width="100%" variant="danger" icon="stop" text="Cancel" long_mode="dots">
+    <ui_button name="btn_cancel_operation"
+               width="100%" variant="danger" icon="stop" text="Cancel" long_mode="dots"
+               style_min_height="#touch_target_min" style_max_height="#touch_target_min" style_pad_ver="#space_xxs">
       <bind_flag_if_eq subject="ams_sidebar_cancel_shown" flag="hidden" ref_value="0"/>
       <event_cb trigger="clicked" callback="ams_sidebar_cancel_clicked"/>
     </ui_button>
