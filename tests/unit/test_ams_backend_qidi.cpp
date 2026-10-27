@@ -616,8 +616,9 @@ TEST_CASE("QIDI Box load_filament: unloads a different loaded slot first",
 
     REQUIRE(err.success());
     REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] ==
-            "M603 S250\nM109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0");
+    REQUIRE(
+        backend.sent[0] ==
+        "M603 S250\nENABLE_ALL_SENSOR\nM109 S250\nEXTRUDER_LOAD SLOT=slot2\nCLEAR_NOZZLE\nM104 S0");
 }
 
 TEST_CASE("QIDI Box load_filament accepts global slots from later boxes",
@@ -652,7 +653,7 @@ TEST_CASE("QIDI Box unload_filament: emits M603 (stock unload)", "[ams][qidi_box
 
     REQUIRE(err.success());
     REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M603 S250");
+    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
 }
 
 TEST_CASE("QIDI Box unload_filament with -1 unloads the active slot via M603",
@@ -665,7 +666,7 @@ TEST_CASE("QIDI Box unload_filament with -1 unloads the active slot via M603",
 
     REQUIRE(err.success());
     REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M603 S250");
+    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
 }
 
 TEST_CASE("QIDI Box unload_filament accepts global slots from later boxes",
@@ -677,7 +678,7 @@ TEST_CASE("QIDI Box unload_filament accepts global slots from later boxes",
 
     REQUIRE(err.success());
     REQUIRE(backend.sent.size() == 1);
-    REQUIRE(backend.sent[0] == "M603 S250");
+    REQUIRE(backend.sent[0] == "M603 S250\nENABLE_ALL_SENSOR");
 }
 
 TEST_CASE("QIDI Box unload_filament with -1 and nothing loaded errors",
@@ -855,13 +856,51 @@ TEST_CASE("QIDI Box [force_move] disabled keeps lane eject off", "[ams][qidi_box
 }
 
 // ---------------------------------------------------------------------------
-// Max 4 dialect (multi_color_controller): the Max 4 box rejects the Q2
-// box_stepper FORCE_MOVE with "Invalid pin value" and drives eject/unload
-// through the multi_color_controller command surface instead. Presence of a
-// [multi_color_controller] config section is the dialect discriminator; the
-// Q2/Plus 4 box has box_stepper/box_extras but no multi_color_controller.
+// Controller dialect (multi_color_controller): the Max 4 box rejects the
+// box_stepper FORCE_MOVE with "Invalid pin value" and drives load, unload and
+// eject through the multi_color_controller command surface instead. Presence of
+// a [multi_color_controller] config section is the dialect discriminator: the
+// Max 4 and Q2 firmware 01.01.02.x carry it, Q2 1.1.x and the Plus 4 do not.
 // (prestonbrown/helixscreen#1083)
 // ---------------------------------------------------------------------------
+
+TEST_CASE("QIDI Box multi_color_controller dialect loads through the controller",
+          "[ams][qidi_box][write_path][max4]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"multi_color_controller", json::object()}});
+
+    SECTION("an empty extruder") {
+        REQUIRE(backend.load_filament(2).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_LOAD SLOT=slot2");
+    }
+    SECTION("another slot loaded: the controller swaps it, so no unload goes first") {
+        QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot0"}});
+        REQUIRE(backend.load_filament(2).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_LOAD SLOT=slot2");
+    }
+}
+
+TEST_CASE("QIDI Box multi_color_controller dialect unloads through the controller",
+          "[ams][qidi_box][write_path][max4]") {
+    RecordingQidiBackend backend;
+    QidiBoxTestAccess::apply_config_settings(backend,
+                                             json{{"multi_color_controller", json::object()}});
+
+    SECTION("a named slot") {
+        REQUIRE(backend.unload_filament(1).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_UNLOAD SLOT=slot1");
+    }
+    SECTION("the active slot") {
+        QidiBoxTestAccess::parse_vars(backend, json{{"last_load_slot", "slot3"}});
+        REQUIRE(backend.unload_filament(-1).success());
+        REQUIRE(backend.sent.size() == 1);
+        CHECK(backend.sent[0] == "MULTI_COLOR_UNLOAD SLOT=slot3");
+    }
+}
 
 TEST_CASE("QIDI Box Max 4 dialect ejects via MULTI_COLOR_BOX_UNLOAD",
           "[ams][qidi_box][write_path][max4]") {

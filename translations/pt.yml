@@ -1354,6 +1354,7 @@ translations:
   'Extrude failed: {}': 'Falha ao extrudar: {}'
   Extrude may still be running — response timed out: A extrusão pode ainda estar em
     execução — tempo esgotado
+  Extrude more: "Extrudar mais"
   Extrude/retract feedrate (Saved): Velocidade de extrusão/retração (Salva)
   Extruded past the nozzle after each load: 'Extrudado pelo bico após cada carregamento'
   Extruder: Extrusor
@@ -1370,6 +1371,7 @@ translations:
   Extruder to Nozzle: 'Extrusor ao bico'
   Extruder too cold: Extrusor frio demais
   Extruding prime line...: Extrudando linha de preparação...
+  Extruding...: "Extrudando..."
   FAILED: FALHOU
   FILAMENT: FILAMENTO
   FILAMENT & TOOLHEAD: 'FILAMENTO E CABEÇOTE'
@@ -1994,6 +1996,7 @@ translations:
   Invalid tool/slot: 'Ferramenta/slot inválido'
   Invalid value: 'Valor inválido'
   Invalid value type: 'Tipo de valor inválido'
+  Is new filament coming out of the nozzle?: "O filamento novo está saindo pelo bico?"
   Issue description: Descrição do problema
   It can be un-archived in Spoolman's web UI.: Pode ser desarquivado na interface web do Spoolman.
   It has not reported its slots yet. Try again in a moment.: Ainda não informou seus slots. Tente novamente em instantes.
@@ -3094,6 +3097,7 @@ translations:
   Purging: Purgando
   Purging nozzle: Purgando bico
   Purging...: Purgando...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Empurre o filamento no extrusor até parar. Ele é puxado automaticamente, ou toque em Extrudar."
   QGL: QGL
   'QGL failed: {}': 'Falha no QGL: {}'
   QGL may still be running — response timed out: QGL pode ainda estar em execução

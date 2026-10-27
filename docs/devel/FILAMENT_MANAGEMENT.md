@@ -2058,6 +2058,33 @@ slot's `mapped_tool`. Every other call takes the slot.
 | `SelectSlot` | The backend wants a slot and none resolved | Load only |
 | `NothingLoaded` | No slot resolved, or nothing at that slot worth pulling | Unload only — its *only* refusal |
 
+### Stock load macros that are one step of a wizard
+
+Some firmware's own screen treats its load macro as the first step of a wizard and sends
+the rest itself. `filament_macros::guided_load()` (`include/filament_macro_profiles.h`) is
+the one place that names those macros and what follows them; today that is QIDI's `M604`.
+When the macro tier's load succeeds and the macro has one, `start_guided_load()` in
+`src/ui/filament_op_execute.cpp` queries the profile's waiting field once
+(`print_stats_manager.sub_status` for `M604`) and opens `GuidedLoadModal`
+(`src/ui/ui_guided_load_modal.cpp`):
+
+| The printer reports | The modal opens on | Steps |
+|---|---|---|
+| The waiting value (`push_filamenting`: QIDI 01.01.02.x) | Push filament in | a 0-to-1 edge on `filament_runout_detected`, or Extrude, sends the feed (`bit_filamenting` + `M604 T1`); then the question; Done sends the flush (`M604 T2`) |
+| Anything else, or no answer (QIDI 1.1.x: no such object) | Is new filament coming out | Extrude more sends `M604 T1`; Done sends the cleanup only |
+
+Every ending sends the cleanup (`M104 S0`, `ENABLE_ALL_SENSOR`): the macro leaves the nozzle
+hot and the filament sensor switched off. A cancel on the waiting generation also releases
+the printer's load state (`SET_PRINT_MAIN_STATUS MAIN_STATUS=ready`). Commands only the
+waiting generation knows are never sent to the other: an unknown command aborts the whole
+script it sits in. `GuidedLoadFlow` (`include/guided_load_flow.h`) makes every decision
+without UI or I/O, so `[guided_load]` tests it directly; `helix-screen ctl demo guided-load`
+and `guided-load-confirm` open the two starting views.
+
+The unload side has the matching question: `filament_macros::restore_after()` names what a
+stock unload leaves undone (`M603`: `ENABLE_ALL_SENSOR`), sent after the macro tier's unload
+and appended by `AmsBackendQidi` to its own `M603`.
+
 ### One deliberate asymmetry between load and unload
 
 **Bypass falls through on load and stays on the backend for unload.**

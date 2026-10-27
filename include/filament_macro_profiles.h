@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 
 namespace helix::filament_macros {
@@ -66,5 +67,47 @@ namespace helix::filament_macros {
  * @return true when a caller must home before sending the macro
  */
 [[nodiscard]] bool macro_needs_home_first(const std::string& macro_name);
+
+/**
+ * @brief The steps a stock screen runs around a load macro that is one step of a wizard.
+ *
+ * Every script is rendered for one temperature. The waiting-generation scripts
+ * (feed, flush, release) exist only on firmware where the load macro stops for a
+ * hand push, and are sent only after the printer reported that wait: older
+ * firmware does not know their commands, and an unknown command aborts the
+ * whole script it sits in.
+ */
+struct GuidedLoad {
+    /// Printer object and field to query once the load macro returns, and the
+    /// value meaning the macro stopped and waits for the user to push filament in.
+    std::string waiting_object;
+    std::string waiting_field;
+    std::string waiting_value;
+    /// Grip the pushed filament and extrude it to the nozzle.
+    std::string feed;
+    /// Extrude again because nothing came out of the nozzle yet.
+    std::string retry;
+    /// The user saw new filament: purge the old colour out.
+    std::string flush;
+    /// Put the printer back in its idle state after a wizard that waited.
+    std::string release;
+    /// What every ending sends: the nozzle off and the filament sensor back on.
+    std::string cleanup;
+};
+
+/**
+ * @brief The wizard behind @p macro_name at @p temp_c, or nullopt for a macro with none.
+ *
+ * Case-insensitive, like the other questions here.
+ */
+[[nodiscard]] std::optional<GuidedLoad> guided_load(const std::string& macro_name, int temp_c);
+
+/**
+ * @brief What @p macro_name leaves undone that the caller must send after it.
+ *
+ * A stock unload that switches the filament sensor off and never back on gets
+ * the command that turns it on. Empty for every other macro.
+ */
+[[nodiscard]] std::string restore_after(const std::string& macro_name);
 
 } // namespace helix::filament_macros

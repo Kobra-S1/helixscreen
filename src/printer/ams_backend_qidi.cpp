@@ -11,6 +11,7 @@
 #include "ams_error.h"
 #include "color_utils.h"
 #include "display_numbering.h"
+#include "filament_macro_profiles.h"
 #include "lane_apply.h"
 #include "lane_legacy_migration.h"
 #include "lane_source_store.h"
@@ -505,8 +506,9 @@ void AmsBackendQidi::apply_config_settings(const nlohmann::json& settings) {
     bool has_multi_color = false;
     for (auto it = settings.begin(); it != settings.end(); ++it) {
         const std::string& key = it.key();
-        // Max 4 dialect marker: a "[multi_color_controller]" section (bare or
-        // instanced, e.g. "multi_color_controller box0") is Max 4-only. #1083
+        // Box-controller dialect marker: a "[multi_color_controller]" section
+        // (bare or instanced, e.g. "multi_color_controller box0"). The Max 4 ships
+        // it, and so does Q2 firmware 01.01.02.x; Q2 1.1.x and the Plus 4 do not. #1083
         if (key == "multi_color_controller" || key.rfind("multi_color_controller ", 0) == 0) {
             has_multi_color = true;
         }
@@ -546,7 +548,7 @@ void AmsBackendQidi::apply_config_settings(const nlohmann::json& settings) {
     box_uses_multi_color_ = has_multi_color;
     spdlog::info("{} Lane eject {} (multi_color_controller {}, force_move {})", backend_log_tag(),
                  (has_multi_color || force_move) ? "available" : "unavailable",
-                 has_multi_color ? "present -> Max 4 dialect" : "absent",
+                 has_multi_color ? "present -> controller dialect" : "absent",
                  force_move ? "enabled" : "disabled/absent");
 }
 
@@ -1265,7 +1267,12 @@ void AmsBackendQidi::detect_firmware_capabilities() {
 
 std::string AmsBackendQidi::build_unload_gcode(int slot_index, int temp) const {
     if (fw_has_m603_) {
-        return "M603 S" + std::to_string(temp);
+        std::string g = "M603 S" + std::to_string(temp);
+        if (const std::string restore = helix::filament_macros::restore_after("M603");
+            !restore.empty()) {
+            g += "\n" + restore;
+        }
+        return g;
     }
     // Fallback for firmware without M603: drive the box_stepper primitive that
     // UNLOAD_T<n> wraps. Needs the hotend hot like the load path does.
@@ -1309,6 +1316,12 @@ AmsError AmsBackendQidi::do_load_filament(int slot_index) {
                 break;
             }
         }
+    }
+
+    // The multi_color_controller owns the whole load: it heats, swaps out a
+    // seated slot, feeds and wipes, the way the stock screen drives it.
+    if (box_uses_multi_color_) {
+        return execute_gcode("MULTI_COLOR_LOAD SLOT=slot" + std::to_string(slot_index));
     }
 
     // The stock T<n> macros don't exist for the box's own slots on Q2 firmware
@@ -1371,6 +1384,10 @@ AmsError AmsBackendQidi::do_unload_filament(int slot_index) {
             return AmsErrorHelper::invalid_slot(lane_noun(), slot_index,
                                                 slot_index_bound_locked() - 1);
         }
+    }
+
+    if (box_uses_multi_color_) {
+        return execute_gcode("MULTI_COLOR_UNLOAD SLOT=slot" + std::to_string(target_slot));
     }
 
     // M603 is the stock "unload" the QIDI screen runs — it heats, retracts to
@@ -1486,7 +1503,7 @@ AmsError AmsBackendQidi::eject_lane(int slot_index) {
             return err;
         }
     }
-    // Max 4 dialect: the multi_color_controller state machine owns filament ops and
+    // Controller dialect: the multi_color_controller state machine owns filament ops and
     // rejects the Q2 box_stepper FORCE_MOVE with "Invalid pin value". Eject via the
     // public MULTI_COLOR_BOX_UNLOAD command instead — no [force_move] required, and it
     // must win over the FORCE_MOVE path even if force_move happens to be enabled. #1083

@@ -80,4 +80,40 @@ bool macro_needs_home_first(const std::string& macro_name) {
     return p && p->needs_home_first;
 }
 
+// QIDI's screen treats M604 as the first step of a wizard. On firmware
+// 01.01.02.x, `M604 T0` heats and parks over the trash chute, sets
+// print_stats_manager.sub_status to push_filamenting and stops for the user to
+// push filament in; the screen then sends the bite (T1, after its own
+// bit_filamenting status write), offers Extrude again (T1) or Done (T2, an 80mm
+// flush), and the stop path restores main_status. On 1.1.x, T0 already extrudes
+// and T1 is the retry; that firmware has no print_stats_manager object, so the
+// waiting check answers false there and the 01.01.02-only commands are never
+// sent. M604 and M603 both run DISABLE_ALL_SENSOR and nothing turns the sensor
+// back on before PRINT_START, and T2 leaves the nozzle hot.
+std::optional<GuidedLoad> guided_load(const std::string& macro_name, int temp_c) {
+    if (helix::text_io::to_upper(macro_name) != "M604") {
+        return std::nullopt;
+    }
+    // The macro's own `params.S|default(250)`.
+    constexpr int kMacroDefaultTempC = 250;
+    const std::string s = " S" + std::to_string(temp_c > 0 ? temp_c : kMacroDefaultTempC);
+    GuidedLoad g;
+    g.waiting_object = "print_stats_manager";
+    g.waiting_field = "sub_status";
+    g.waiting_value = "push_filamenting";
+    g.feed = "SET_PRINT_SUB_STATUS SUB_STATUS=bit_filamenting\nM604 T1" + s;
+    g.retry = "M604 T1" + s;
+    g.flush = "M604 T2" + s;
+    g.release = "SET_PRINT_MAIN_STATUS MAIN_STATUS=ready";
+    g.cleanup = "M104 S0\nENABLE_ALL_SENSOR";
+    return g;
+}
+
+std::string restore_after(const std::string& macro_name) {
+    if (helix::text_io::to_upper(macro_name) == "M603") {
+        return "ENABLE_ALL_SENSOR";
+    }
+    return {};
+}
+
 } // namespace helix::filament_macros

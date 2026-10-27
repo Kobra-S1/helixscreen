@@ -389,6 +389,7 @@ src/ui/filament_op_heater.cpp
 src/ui/filament_op_router.cpp
 src/ui/filament_path_geometry.cpp
 src/ui/filament_tube_stroker.cpp
+src/ui/guided_load_flow.cpp
 src/ui/grid_layout.cpp
 src/ui/helix_sparkline.cpp
 src/ui/job_queue_state.cpp
@@ -536,6 +537,7 @@ src/ui/ui_component_keypad.cpp
 src/ui/ui_confetti.cpp
 src/ui/ui_context_menu.cpp
 src/ui/ui_debug_bundle_modal.cpp
+src/ui/ui_guided_load_modal.cpp
 src/ui/ui_dialog.cpp
 src/ui/ui_effects.cpp
 src/ui/ui_emergency_stop.cpp
