@@ -1505,6 +1505,7 @@
   <translation tag="Follow active tool" en="Follow active tool"/>
   <translation tag="Follow graph screen" en="Follow graph screen"/>
   <translation tag="For a first Z home: claim the tool you put on the head" en="For a first Z home: claim the tool you put on the head"/>
+  <translation tag="For materials that need a warm enclosure, like ABS or ASA" en="For materials that need a warm enclosure, like ABS or ASA"/>
   <translation tag="Force/weight sensors" en="Force/weight sensors"/>
   <translation tag="Forget" en="Forget"/>
   <translation tag="Forget Network?" en="Forget Network?"/>
@@ -4385,6 +4386,8 @@
   <translation tag="within one bin" en="within one bin"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." en="wpa_supplicant is not running. WiFi features unavailable."/>
   <translation tag="you have" en="you have"/>
+  <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." en="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway."/>
+  <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." en="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." en="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" en="{:.0f}-{:.0f} Hz · about {} min"/>
   <translation tag="{} ({} of {})" en="{} ({} of {})"/>
@@ -4397,7 +4400,6 @@
   <translation tag="{} Tools" en="{} Tools"/>
   <translation tag="{} and {}" en="{} and {}"/>
   <translation tag="{} and {} are both mapped here" en="{} and {} are both mapped here"/>
-  <translation tag="{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway." en="{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway."/>
   <translation tag="{} available" en="{} available"/>
   <translation tag="{} axes homed" en="{} axes homed"/>
   <translation tag="{} axis homed" en="{} axis homed"/>
@@ -4432,7 +4434,6 @@
   <translation tag="{} is looser" en="{} is looser"/>
   <translation tag="{} is not available on this device. Printing original file." en="{} is not available on this device. Printing original file."/>
   <translation tag="{} is not set up on this printer" en="{} is not set up on this printer"/>
-  <translation tag="{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway." en="{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway."/>
   <translation tag="{} is still printing. The print keeps running after you switch." en="{} is still printing. The print keeps running after you switch."/>
   <translation tag="{} is tighter" en="{} is tighter"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." en="{} isn&apos;t loaded. The print will pause when it needs it."/>

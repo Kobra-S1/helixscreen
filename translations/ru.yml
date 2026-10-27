@@ -1689,6 +1689,7 @@ translations:
   Follow active tool: Следовать активному инструменту
   Follow graph screen: Следовать экрану графика
   'For a first Z home: claim the tool you put on the head': 'Для первой парковки Z: закрепить инструмент, установленный на головку'
+  For materials that need a warm enclosure, like ABS or ASA: 'Для материалов, которым нужен тёплый закрытый корпус, например ABS или ASA'
   Force/weight sensors: 'Датчики силы/веса'
   Forget: Забыть
   Forget Network?: Забыть сеть?
@@ -4866,6 +4867,10 @@ translations:
   within one bin: "в пределах одного бина"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant не запущен. Функции WiFi недоступны.
   you have: у вас
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0} открыты. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте их или начните всё равно.'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0} открыта. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте её или начните всё равно.'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} резонирует на {2:.0f} Гц намного сильнее, чем {1}. Это указывает на механическое различие (установочные винты шкивов, подшипники роликов, ход ремня), а не на натяжение."
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Гц · примерно {} мин'
@@ -4879,7 +4884,6 @@ translations:
   '{} Tools': 'Инструментов: {}'
   '{} and {}': '{} и {}'
   '{} and {} are both mapped here': '{} и {} оба назначены сюда'
-  '{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway.': '{} открыты. Через открытый корпус уходит тепло, и печать может не получиться. Закройте их или начните всё равно.'
   '{} available': Доступна версия {}
   '{} axes homed': 'Оси {} запаркованы'
   '{} axis homed': Ось {} запаркована
@@ -4918,7 +4922,6 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{}: подаёт филамент для текущей печати. Удалите катушку после завершения печати.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} установлен, но его настройка бесконечной катушки выключена, поэтому при обрыве ничего не переключится.'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} установлен, но прочитать его настройку бесконечной катушки не удалось - не рассчитывайте на бесконечную катушку.'
-  '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.': '{} открыта. Через открытый корпус уходит тепло, и печать может не получиться. Закройте её или начните всё равно.'
   '{} is still printing. The print keeps running after you switch.': '{} ещё печатает. Печать продолжится после переключения.'
   '{} is looser': "{} слабее"
   '{} is not available on this device. Printing original file.': '{} недоступно на этом устройстве. Будет напечатан исходный файл.'

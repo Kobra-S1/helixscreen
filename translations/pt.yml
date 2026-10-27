@@ -1650,6 +1650,7 @@ translations:
   Follow active tool: Seguir ferramenta ativa
   Follow graph screen: Acompanhar tela do gráfico
   'For a first Z home: claim the tool you put on the head': 'Para a primeira referência de Z: registrar a ferramenta colocada no cabeçote'
+  For materials that need a warm enclosure, like ABS or ASA: 'Para materiais que precisam de um gabinete quente, como ABS ou ASA'
   Force/weight sensors: 'Sensores de força/peso'
   Forget: Esquecer
   Forget Network?: Esquecer Rede?
@@ -4829,6 +4830,10 @@ translations:
   within one bin: "dentro de um bin"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant não está em execução. Os recursos de WiFi estão indisponíveis.
   you have: você tem
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0} estão abertas. {1} imprime melhor em um gabinete quente e fechado; uma porta aberta esfria a câmara e pode causar empenamento ou separação de camadas. Feche-as ou inicie mesmo assim.'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0} está aberta. {1} imprime melhor em um gabinete quente e fechado; uma porta aberta esfria a câmara e pode causar empenamento ou separação de camadas. Feche-a ou inicie mesmo assim.'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} ressoa muito mais que {1} a {2:.0f} Hz. Isso indica uma diferença mecânica (parafusos da polia, rolamentos das polias livres, alinhamento da correia), não a tensão."
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · cerca de {} min'
@@ -4842,7 +4847,6 @@ translations:
   '{} Tools': '{} ferramentas'
   '{} and {}': '{} e {}'
   '{} and {} are both mapped here': '{} e {} estão ambos atribuídos aqui'
-  '{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway.': '{} estão abertas. Um gabinete aberto deixa o calor escapar e pode estragar a impressão. Feche-as ou inicie mesmo assim.'
   '{} available': '{} disponível'
   '{} axes homed': 'Eixos {} referenciados'
   '{} axis homed': Eixo {} referenciado
@@ -4873,7 +4877,6 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{}: alimenta a impressão atual. Remova a bobina após o fim da impressão.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} está instalado mas sua configuração de carretel infinito está desligada, então nada trocará ao acabar o filamento.'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} está instalado, mas não foi possível ler sua configuração de carretel infinito - não conte com o carretel infinito.'
-  '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.': '{} está aberta. Um gabinete aberto deixa o calor escapar e pode estragar a impressão. Feche-a ou inicie mesmo assim.'
   '{} is still printing. The print keeps running after you switch.': '{} ainda está imprimindo. A impressão continua depois da troca.'
   '{} is looser': "{} está mais frouxa"
   '{} is not available on this device. Printing original file.': '{} não está disponível neste dispositivo. O arquivo original será impresso.'

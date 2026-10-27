@@ -61,6 +61,9 @@
               <event_cb trigger="value_changed" callback="on_input_door_check_changed"/>
             </ui_switch>
           </lv_obj>
+          <text_tiny width="100%"
+                     text="For materials that need a warm enclosure, like ABS or ASA" style_text_color="#text_muted"
+                     style_text_align="left"/>
           <text_small width="100%" text="Door switches, buttons, and other on/off inputs" style_text_align="left"/>
           <!-- Rows: rebuilt whenever input_sensor_count changes -->
           <lv_obj name="input_sensors_list"

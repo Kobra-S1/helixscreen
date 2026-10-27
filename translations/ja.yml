@@ -1563,6 +1563,7 @@ translations:
   Follow active tool: アクティブツールに追従
   Follow graph screen: グラフ画面に追従
   'For a first Z home: claim the tool you put on the head': 初回のZホーミング用：ヘッドに取り付けたツールを登録
+  For materials that need a warm enclosure, like ABS or ASA: 'ABSやASAなど、暖かいエンクロージャーが必要な材料向け'
   Force/weight sensors: '力/重量センサー'
   Forget: 登録解除
   Forget Network?: ネットワークを登録解除しますか？
@@ -4570,6 +4571,10 @@ translations:
   within one bin: "1ビン以内"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant が動作していません。WiFi 機能は利用できません。
   you have: 現在は
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0}が開いています。{1}は暖かく閉じたエンクロージャーで最もよく印刷できます。ドアが開いているとチャンバーが冷え、反りやレイヤーの分離の原因になります。閉じるか、このまま開始してください。'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0}が開いています。{1}は暖かく閉じたエンクロージャーで最もよく印刷できます。ドアが開いているとチャンバーが冷え、反りやレイヤーの分離の原因になります。閉じるか、このまま開始してください。'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0}は{2:.0f} Hzで{1}よりはるかに強く共振しています。張力ではなく機械的な違い(プーリーのイモネジ、アイドラーのベアリング、ベルトの走行)を示しています。"
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 約{}分'
@@ -4583,7 +4588,6 @@ translations:
   '{} Tools': '{} ツール'
   '{} and {}': '{}と{}'
   '{} and {} are both mapped here': '{} と {} の両方がここに割り当てられています'
-  '{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway.': '{}が開いています。エンクロージャーが開いていると熱が外に出て、印刷に失敗することがあります。閉じるか、このまま開始してください。'
   '{} available': '{} が利用可能'
   '{} axes homed': '{} 軸がホーミング済み'
   '{} axis homed': '{} 軸がホーミング済み'
@@ -4614,7 +4618,6 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{} は現在の印刷に給紙中です。印刷終了後にクリアしてください。'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} はインストールされていますが、エンドレススプールの設定がオフになっているため、フィラメント切れになっても何も切り替わりません。'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} はインストールされていますが、エンドレススプールの設定を読み取れませんでした - エンドレススプールを当てにしないでください。'
-  '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.': '{}が開いています。エンクロージャーが開いていると熱が外に出て、印刷に失敗することがあります。閉じるか、このまま開始してください。'
   '{} is still printing. The print keeps running after you switch.': '{}は印刷中です。切り替えても印刷は続行されます。'
   '{} is looser': "{}の方が緩い"
   '{} is not available on this device. Printing original file.': 'このデバイスでは {} を利用できません。元のファイルを印刷します。'

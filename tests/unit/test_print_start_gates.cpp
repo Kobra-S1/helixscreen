@@ -1467,59 +1467,112 @@ TEST_CASE("gate runner: a block shows a dialog and never starts the print",
 }
 
 // ---------------------------------------------------------------------------
-// door_open
+// door_open: an open door only matters to a material that needs a warm enclosure
 // ---------------------------------------------------------------------------
 
-TEST_CASE("gate door_open: passes with no door, closed doors, or the check off",
+TEST_CASE("enclosure_material_in: only materials that want a warm chamber count",
           "[print-start][gate-pipeline][door]") {
-    const auto& gate = gate_named("door_open");
+    // Expectations come from the filament database, not hand-copied values.
+    REQUIRE_FALSE(filament::find_material("PLA")->needs_enclosure());
+    REQUIRE_FALSE(filament::find_material("PETG")->needs_enclosure());
+    REQUIRE(filament::find_material("ABS")->needs_enclosure());
+    REQUIRE(filament::find_material("ASA")->needs_enclosure());
 
-    // No Door input at all: the check defaults off and nothing is open.
-    CHECK(gate.evaluate(PrintStartContext{}).verdict == CheckResult::Verdict::Pass);
+    CHECK_FALSE(enclosure_material_in({"PLA"}));
+    CHECK_FALSE(enclosure_material_in({"PETG"}));
+    CHECK(enclosure_material_in({"ABS"}) == std::optional<std::string>("ABS"));
+    CHECK(enclosure_material_in({"PLA", "ASA"}) == std::optional<std::string>("ASA"));
+    CHECK_FALSE(enclosure_material_in({"Unobtainium"}));
+    CHECK_FALSE(enclosure_material_in({}));
+    // A slicer's long name resolves through its base polymer, and keeps its own name.
+    CHECK(enclosure_material_in({"ABS Generic"}) == std::optional<std::string>("ABS Generic"));
 
-    // Every door closed.
-    auto closed = ctx_with([](PrintStartContext& c) { c.door_check_enabled = true; });
-    CHECK(gate.evaluate(closed).verdict == CheckResult::Verdict::Pass);
-
-    // A door open, but the user turned the check off.
-    auto off = ctx_with([](PrintStartContext& c) {
-        c.door_check_enabled = false;
-        c.open_doors = {"frontDoor"};
-    });
-    CHECK(gate.evaluate(off).verdict == CheckResult::Verdict::Pass);
+    // The material named is the one wanting the warmest chamber.
+    const auto abs = filament::find_material("ABS");
+    const auto pc = filament::find_material("PC");
+    REQUIRE(pc.has_value());
+    REQUIRE(pc->needs_enclosure());
+    if (pc->chamber_temp_c != abs->chamber_temp_c) {
+        const std::string warmer = pc->chamber_temp_c > abs->chamber_temp_c ? "PC" : "ABS";
+        CHECK(enclosure_material_in({"ABS", "PC"}) == std::optional<std::string>(warmer));
+        CHECK(enclosure_material_in({"PC", "ABS"}) == std::optional<std::string>(warmer));
+    }
 }
 
-TEST_CASE("gate door_open: an open door warns with Start Anyway and names every door",
+TEST_CASE("door_warning_material: check on, a door open, and an enclosure material",
           "[print-start][gate-pipeline][door]") {
-    auto ctx = ctx_with([](PrintStartContext& c) {
-        c.door_check_enabled = true;
-        c.open_doors = {"frontDoor", "topDoor"};
-    });
-    const auto r = gate_named("door_open").evaluate(ctx);
-    CHECK(r.verdict == CheckResult::Verdict::Warn);
-    CHECK(r.severity == GateSeverity::Warning);
-    CHECK(r.proceed_label == "Start Anyway");
-    CHECK(r.title == "Door Open");
-    CHECK(r.body.rfind("frontDoor and topDoor are open.", 0) == 0);
-    CHECK(r.body.find("Close them") != std::string::npos);
+    CHECK(door_warning_material(true, true, {"ABS"}) == std::optional<std::string>("ABS"));
+    CHECK_FALSE(door_warning_material(false, true, {"ABS"}));
+    CHECK_FALSE(door_warning_material(true, false, {"ABS"}));
+    CHECK_FALSE(door_warning_material(true, true, {"PLA"}));
+    CHECK_FALSE(door_warning_material(true, true, {}));
 }
 
-TEST_CASE("gate door_open: one door is singular, three are a list",
+TEST_CASE("materials_in_print: used tools only, deduplicated, empty without file facts",
+          "[print-start][gate-pipeline][door][mixed-temp]") {
+    CHECK(materials_in_print(mixed_file({"PLA", "ABS", "PLA"}, {0, 2})) ==
+          std::vector<std::string>{"PLA"});
+    CHECK(materials_in_print(mixed_file({"PLA", "ABS"}, {0, 1})) ==
+          std::vector<std::string>{"PLA", "ABS"});
+    auto no_facts = mixed_file({"ABS"}, {0});
+    no_facts.has_file_facts = false;
+    CHECK(materials_in_print(no_facts).empty());
+    // No scan: the slicer's per-tool weights say which tools print.
+    auto weights = mixed_file({"PLA", "ASA"}, {});
+    weights.metadata = FileMetadata{};
+    weights.metadata->filament_weights = {0.0, 12.5};
+    CHECK(materials_in_print(weights) == std::vector<std::string>{"ASA"});
+}
+
+namespace {
+PrintStartContext door_file(std::vector<std::string> palette, std::vector<std::string> doors) {
+    std::set<int> used;
+    for (size_t i = 0; i < palette.size(); ++i) {
+        used.insert(static_cast<int>(i));
+    }
+    auto ctx = mixed_file(std::move(palette), std::move(used));
+    ctx.door_check_enabled = true;
+    ctx.open_doors = std::move(doors);
+    return ctx;
+}
+} // namespace
+
+TEST_CASE("gate door_open: warns only when the print needs a warm enclosure",
           "[print-start][gate-pipeline][door]") {
     const auto& gate = gate_named("door_open");
-    auto one = ctx_with([](PrintStartContext& c) {
-        c.door_check_enabled = true;
-        c.open_doors = {"frontDoor"};
-    });
-    const auto r1 = gate.evaluate(one);
-    CHECK(r1.body.rfind("frontDoor is open.", 0) == 0);
-    CHECK(r1.body.find("Close it,") != std::string::npos);
+    using V = CheckResult::Verdict;
+    CHECK(gate.evaluate(door_file({"PLA"}, {"frontDoor"})).verdict == V::Pass);
+    CHECK(gate.evaluate(door_file({"PETG"}, {"frontDoor"})).verdict == V::Pass);
+    CHECK(gate.evaluate(door_file({"ABS"}, {"frontDoor"})).verdict == V::Warn);
+    CHECK(gate.evaluate(door_file({"PLA", "ASA"}, {"frontDoor"})).verdict == V::Warn);
+    CHECK(gate.evaluate(door_file({"Unobtainium"}, {"frontDoor"})).verdict == V::Pass);
+    auto no_facts = door_file({"ABS"}, {"frontDoor"});
+    no_facts.has_file_facts = false;
+    CHECK(gate.evaluate(no_facts).verdict == V::Pass);
+    // Closed doors, or the check off.
+    CHECK(gate.evaluate(door_file({"ABS"}, {})).verdict == V::Pass);
+    auto off = door_file({"ABS"}, {"frontDoor"});
+    off.door_check_enabled = false;
+    CHECK(gate.evaluate(off).verdict == V::Pass);
+}
 
-    auto three = ctx_with([](PrintStartContext& c) {
-        c.door_check_enabled = true;
-        c.open_doors = {"frontDoor", "topDoor", "lid"};
-    });
-    CHECK(gate.evaluate(three).body.rfind("frontDoor, topDoor and lid are open.", 0) == 0);
+TEST_CASE("gate door_open: names the doors and the material, singular or plural",
+          "[print-start][gate-pipeline][door]") {
+    const auto& gate = gate_named("door_open");
+    const auto one = gate.evaluate(door_file({"PLA", "ASA"}, {"frontDoor"}));
+    CHECK(one.verdict == CheckResult::Verdict::Warn);
+    CHECK(one.severity == GateSeverity::Warning);
+    CHECK(one.proceed_label == "Start Anyway");
+    CHECK(one.title == "Door Open");
+    CHECK(one.body.rfind("frontDoor is open. ASA prints best in a warm, closed enclosure", 0) == 0);
+    CHECK(one.body.find("Close it,") != std::string::npos);
+
+    const auto two = gate.evaluate(door_file({"ABS"}, {"frontDoor", "topDoor"}));
+    CHECK(two.body.rfind("frontDoor and topDoor are open. ABS prints best", 0) == 0);
+    CHECK(two.body.find("Close them,") != std::string::npos);
+
+    const auto three = gate.evaluate(door_file({"ABS"}, {"frontDoor", "topDoor", "lid"}));
+    CHECK(three.body.rfind("frontDoor, topDoor and lid are open.", 0) == 0);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "gate door_open: a locale's own list separator joins the doors",
@@ -1532,11 +1585,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "gate door_open: a locale's own list separator
     helix::ui::ensure_translation_loaded("ja");
     lv_translation_set_language("ja");
 
-    auto three = ctx_with([](PrintStartContext& c) {
-        c.door_check_enabled = true;
-        c.open_doors = {"frontDoor", "topDoor", "lid"};
-    });
-    const auto body = gate_named("door_open").evaluate(three).body;
+    const auto body =
+        gate_named("door_open").evaluate(door_file({"ABS"}, {"frontDoor", "topDoor", "lid"})).body;
     INFO(body);
     CHECK(body.rfind("frontDoor\xe3\x80\x81topDoor\xe3\x81\xa8lid", 0) == 0); // 、 and と
 }

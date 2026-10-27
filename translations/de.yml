@@ -1659,6 +1659,7 @@ translations:
   Follow active tool: Aktivem Werkzeug folgen
   Follow graph screen: Diagrammbildschirm folgen
   'For a first Z home: claim the tool you put on the head': 'Für die erste Z-Referenzfahrt: das Werkzeug übernehmen, das Sie an den Kopf gesetzt haben'
+  For materials that need a warm enclosure, like ABS or ASA: 'Für Materialien, die ein warmes Gehäuse brauchen, wie ABS oder ASA'
   Force/weight sensors: 'Kraft-/Gewichtssensoren'
   Forget: Vergessen
   Forget Network?: Netzwerk vergessen?
@@ -4834,6 +4835,10 @@ translations:
   within one bin: "innerhalb eines Bins"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant läuft nicht. WiFi-Funktionen sind nicht verfügbar.
   you have: Sie haben
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0} sind offen. {1} druckt am besten in einem warmen, geschlossenen Gehäuse; eine offene Tür kühlt den Bauraum und kann Verzug oder Schichtrisse verursachen. Schließen oder trotzdem starten.'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0} ist offen. {1} druckt am besten in einem warmen, geschlossenen Gehäuse; eine offene Tür kühlt den Bauraum und kann Verzug oder Schichtrisse verursachen. Schließen oder trotzdem starten.'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} schwingt bei {2:.0f} Hz viel stärker als {1}. Das deutet auf einen mechanischen Unterschied hin (Madenschrauben am Pulley, Umlenkrollenlager, Riemenlauf), nicht auf die Spannung."
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · ca. {} Min.'
@@ -4847,7 +4852,6 @@ translations:
   '{} Tools': '{} Werkzeuge'
   '{} and {}': '{} und {}'
   '{} and {} are both mapped here': '{} und {} sind beide hier zugewiesen'
-  '{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway.': '{} sind offen. Ein offenes Gehäuse lässt Wärme entweichen und kann den Druck verderben. Schließen oder trotzdem starten.'
   '{} available': '{} verfügbar'
   '{} axes homed': '{}-Achsen referenziert'
   '{} axis homed': '{}-Achse referenziert'
@@ -4878,7 +4882,6 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{}: versorgt den laufenden Druck. Erst nach Druckende löschen.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} ist installiert, aber die Endlosspulen-Einstellung ist ausgeschaltet, daher wird bei Filamentende nichts gewechselt.'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} ist installiert, aber die Endlosspulen-Einstellung konnte nicht gelesen werden - verlasse dich nicht auf die Endlosspule.'
-  '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.': '{} ist offen. Ein offenes Gehäuse lässt Wärme entweichen und kann den Druck verderben. Schließen oder trotzdem starten.'
   '{} is still printing. The print keeps running after you switch.': '{} druckt noch. Der Druck läuft nach dem Wechsel weiter.'
   '{} is looser': "{} ist lockerer"
   '{} is not available on this device. Printing original file.': '{} ist auf diesem Gerät nicht verfügbar. Die Originaldatei wird gedruckt.'

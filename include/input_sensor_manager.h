@@ -78,6 +78,14 @@ class InputSensorManager {
     /// mid-print warning skips such a door rather than repeat the printer's own.
     [[nodiscard]] bool firmware_reacts_to_opening(const std::string& klipper_name) const;
 
+    /// Short names of the doors in @p newly_open (klipper names) owed a warning
+    /// while printing @p print_materials: the door check is on, the print has a
+    /// material that needs a warm enclosure (door_warning_material()), and the
+    /// printer's own config does not already announce that door opening.
+    [[nodiscard]] std::vector<std::string>
+    mid_print_door_warnings(const std::vector<std::string>& newly_open,
+                            const std::vector<std::string>& print_materials) const;
+
     /// @note MUST be called from main LVGL thread (updates subjects directly)
     void load_config(const nlohmann::json& config);
     [[nodiscard]] nlohmann::json save_config() const;

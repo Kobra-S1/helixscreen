@@ -12,6 +12,8 @@
 #include "json_utils.h"
 #include "memory_monitor.h"
 #include "observer_factory.h"
+#include "print_start_checks.h"
+#include "print_start_inputs.h"
 #include "three_mf_reader.h"
 #include "thumbnail_cache.h"
 #include "thumbnail_load_context.h"
@@ -36,6 +38,16 @@ namespace helix {
 
 // Singleton storage
 static std::unique_ptr<ActivePrintMediaManager> g_instance;
+
+/// The materials a file's metadata says it extrudes, by the same rule the
+/// print-start checks use: tools with slicer weight, each tool's palette entry.
+static std::vector<std::string> materials_in_metadata(const FileMetadata& metadata) {
+    PrintStartContext ctx;
+    ctx.has_file_facts = true;
+    ctx.metadata = metadata;
+    ctx.filament_materials = file_palette_from_metadata(metadata).materials;
+    return materials_in_print(ctx);
+}
 
 void init_active_print_media_manager() {
     if (g_instance) {
@@ -436,6 +448,9 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
     // most one duplicate header download per generation, and only when the
     // previous download outlasts the retry backoff.
     self_serve_pending_for_.clear();
+    // The materials belong to the file being loaded; until its metadata says,
+    // they are unknown.
+    printer_state_.print_state().set_print_materials({});
 
     // One staleness context per load. Creating it bumps thumbnail_load_generation_,
     // so every callback still in flight from an earlier load now reports stale.
@@ -474,6 +489,8 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                     spdlog::trace("[ActivePrintMediaManager] Stale metadata callback, ignoring");
                     return;
                 }
+
+                printer_state_.print_state().set_print_materials(materials_in_metadata(metadata));
 
                 // Slice layer heights power the Z-height current-layer derivation
                 // for printers whose slicer never reports a layer number. Thread

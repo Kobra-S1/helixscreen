@@ -1559,6 +1559,7 @@ translations:
   Follow active tool: 跟随当前工具
   Follow graph screen: 跟随图表屏幕
   'For a first Z home: claim the tool you put on the head': 首次Z轴归零时：登记您装在打印头上的工具
+  For materials that need a warm enclosure, like ABS or ASA: '适用于需要温暖机箱的材料，如 ABS 或 ASA'
   Force/weight sensors: '力/重量传感器'
   Forget: 忘记
   Forget Network?: 忘记网络？
@@ -4560,6 +4561,10 @@ translations:
   within one bin: "在一个频点内"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant 未运行。WiFi 功能不可用。
   you have: 您有
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 约 {} 分钟'
@@ -4573,7 +4578,6 @@ translations:
   '{} Tools': '{} 个工具'
   '{} and {}': '{} 和 {}'
   '{} and {} are both mapped here': '{} 和 {} 都映射到这里'
-  '{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway.': '{} 已打开。打开的机箱会让热量流失，可能导致打印失败。请关闭，或仍然开始。'
   '{} available': '{} 可用'
   '{} axes homed': '{} 轴已归位'
   '{} axis homed': '{} 轴已归位'
@@ -4604,7 +4608,6 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{} 正在为当前打印供料。请在打印结束后清除。'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} 已安装，但其无限料盘设置已关闭，因此耗材用尽时不会切换。'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} 已安装，但无法读取其无限料盘设置 - 请勿指望无限料盘。'
-  '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.': '{} 已打开。打开的机箱会让热量流失，可能导致打印失败。请关闭，或仍然开始。'
   '{} is still printing. The print keeps running after you switch.': '{} 仍在打印。切换后打印会继续进行。'
   '{} is looser': "{} 更松"
   '{} is not available on this device. Printing original file.': '此设备不支持{}。将打印原始文件。'

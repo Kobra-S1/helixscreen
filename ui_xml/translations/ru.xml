@@ -1547,6 +1547,7 @@
   <translation tag="Follow active tool" ru="Следовать активному инструменту"/>
   <translation tag="Follow graph screen" ru="Следовать экрану графика"/>
   <translation tag="For a first Z home: claim the tool you put on the head" ru="Для первой парковки Z: закрепить инструмент, установленный на головку"/>
+  <translation tag="For materials that need a warm enclosure, like ABS or ASA" ru="Для материалов, которым нужен тёплый закрытый корпус, например ABS или ASA"/>
   <translation tag="Force/weight sensors" ru="Датчики силы/веса"/>
   <translation tag="Forget" ru="Забыть"/>
   <translation tag="Forget Network?" ru="Забыть сеть?"/>
@@ -4448,6 +4449,8 @@
   <translation tag="within one bin" ru="в пределах одного бина"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." ru="wpa_supplicant не запущен. Функции WiFi недоступны."/>
   <translation tag="you have" ru="у вас"/>
+  <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." ru="{0} открыты. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте их или начните всё равно."/>
+  <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." ru="{0} открыта. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте её или начните всё равно."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." ru="{0} резонирует на {2:.0f} Гц намного сильнее, чем {1}. Это указывает на механическое различие (установочные винты шкивов, подшипники роликов, ход ремня), а не на натяжение."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ru="{:.0f}-{:.0f} Гц · примерно {} мин"/>
   <translation tag="{} ({} of {})" ru="{} ({} из {})"/>
@@ -4460,7 +4463,6 @@
   <translation tag="{} Tools" ru="Инструментов: {}"/>
   <translation tag="{} and {}" ru="{} и {}"/>
   <translation tag="{} and {} are both mapped here" ru="{} и {} оба назначены сюда"/>
-  <translation tag="{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway." ru="{} открыты. Через открытый корпус уходит тепло, и печать может не получиться. Закройте их или начните всё равно."/>
   <translation tag="{} available" ru="Доступна версия {}"/>
   <translation tag="{} axes homed" ru="Оси {} запаркованы"/>
   <translation tag="{} axis homed" ru="Ось {} запаркована"/>
@@ -4501,7 +4503,6 @@
   <translation tag="{} is looser" ru="{} слабее"/>
   <translation tag="{} is not available on this device. Printing original file." ru="{} недоступно на этом устройстве. Будет напечатан исходный файл."/>
   <translation tag="{} is not set up on this printer" ru="{} не настроен на этом принтере"/>
-  <translation tag="{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway." ru="{} открыта. Через открытый корпус уходит тепло, и печать может не получиться. Закройте её или начните всё равно."/>
   <translation tag="{} is still printing. The print keeps running after you switch." ru="{} ещё печатает. Печать продолжится после переключения."/>
   <translation tag="{} is tighter" ru="{} туже"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." ru="{}: филамент не загружен. Печать приостановится, когда он понадобится."/>

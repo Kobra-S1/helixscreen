@@ -528,18 +528,23 @@ static std::string spoken_list(const std::vector<std::string>& names) {
 }
 
 CheckResult gate_door_open(const PrintStartContext& ctx) {
-    if (!ctx.door_check_enabled || ctx.open_doors.empty()) {
+    const auto material = door_warning_material(ctx.door_check_enabled, !ctx.open_doors.empty(),
+                                                materials_in_print(ctx));
+    if (!material) {
         return pass_result();
     }
     const std::string names = spoken_list(ctx.open_doors);
-    spdlog::info("[PrintStartController] Door open ({}) - showing pre-print warning", names);
+    spdlog::info("[PrintStartController] Door open ({}) on a {} print - showing pre-print warning",
+                 names, *material);
     const char* body =
         ctx.open_doors.size() == 1
-            ? lv_tr("{} is open. An open enclosure lets heat out and can spoil the print. "
-                    "Close it, or start anyway.")
-            : lv_tr("{} are open. An open enclosure lets heat out and can spoil the print. "
-                    "Close them, or start anyway.");
-    return warn_result(lv_tr("Door Open"), fmt::format(fmt::runtime(body), names),
+            ? lv_tr("{0} is open. {1} prints best in a warm, closed enclosure; an open door "
+                    "cools the chamber and can cause warping or layer splits. Close it, or "
+                    "start anyway.")
+            : lv_tr("{0} are open. {1} prints best in a warm, closed enclosure; an open door "
+                    "cools the chamber and can cause warping or layer splits. Close them, or "
+                    "start anyway.");
+    return warn_result(lv_tr("Door Open"), fmt::format(fmt::runtime(body), names, *material),
                        lv_tr("Start Anyway"));
 }
 
@@ -965,10 +970,9 @@ bool materials_conflict_in_temperature(std::string_view a, std::string_view b) {
     return hotter.needs_enclosure() && cooler.nozzle_max < hotter.nozzle_min;
 }
 
-std::optional<MixedTemperatureMaterials>
-mixed_temperature_materials_in(const PrintStartContext& ctx) {
+std::vector<std::string> materials_in_print(const PrintStartContext& ctx) {
     if (!ctx.has_file_facts) {
-        return std::nullopt;
+        return {};
     }
 
     std::set<int> used = ctx.tools_used;
@@ -989,7 +993,33 @@ mixed_temperature_materials_in(const PrintStartContext& ctx) {
             materials.push_back(std::move(material));
         }
     }
+    return materials;
+}
 
+std::optional<std::string> enclosure_material_in(const std::vector<std::string>& materials) {
+    std::optional<std::string> warmest;
+    int warmest_chamber_c = 0;
+    for (const auto& material : materials) {
+        const auto info = resolve_material_info(material);
+        if (info && info->needs_enclosure() && info->chamber_temp_c > warmest_chamber_c) {
+            warmest = material;
+            warmest_chamber_c = info->chamber_temp_c;
+        }
+    }
+    return warmest;
+}
+
+std::optional<std::string> door_warning_material(bool door_check_enabled, bool any_door_open,
+                                                 const std::vector<std::string>& materials) {
+    if (!door_check_enabled || !any_door_open) {
+        return std::nullopt;
+    }
+    return enclosure_material_in(materials);
+}
+
+std::optional<MixedTemperatureMaterials>
+mixed_temperature_materials_in(const PrintStartContext& ctx) {
+    const std::vector<std::string> materials = materials_in_print(ctx);
     for (size_t i = 0; i < materials.size(); ++i) {
         for (size_t j = i + 1; j < materials.size(); ++j) {
             if (!materials_conflict_in_temperature(materials[i], materials[j])) {

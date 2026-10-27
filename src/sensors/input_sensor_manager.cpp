@@ -9,6 +9,7 @@
 #include "config.h"
 #include "json_utils.h"
 #include "print_lifecycle_state.h"
+#include "print_start_checks.h"
 #include "printer_state.h"
 #include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
@@ -214,6 +215,28 @@ bool InputSensorManager::firmware_reacts_to_opening(const std::string& klipper_n
         return false;
     }
     return sensors::firmware_reacts_to_opening(it->second, sensor->inverted);
+}
+
+std::vector<std::string>
+InputSensorManager::mid_print_door_warnings(const std::vector<std::string>& newly_open,
+                                            const std::vector<std::string>& print_materials) const {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    std::vector<std::string> warn;
+    if (!door_warning_material(door_check_enabled(), !newly_open.empty(), print_materials)) {
+        return warn;
+    }
+    for (const auto& name : newly_open) {
+        const auto* sensor = sensors_.find(name);
+        if (!sensor) {
+            continue;
+        }
+        if (firmware_reacts_to_opening(name)) {
+            spdlog::debug("[InputSensorManager] {} opened; the printer announces it", name);
+            continue;
+        }
+        warn.push_back(sensor->sensor_name);
+    }
+    return warn;
 }
 
 void InputSensorManager::load_config(const nlohmann::json& config) {
@@ -456,8 +479,8 @@ void InputSensorManager::update_subjects() {
         lv_subject_set_int(&door_check_subject_, check);
     }
 
-    // A door opening mid-print gets one toast per opening, unless the
-    // printer's own config already reacts to that door opening.
+    // A door opening mid-print gets one toast per opening (rules in
+    // mid_print_door_warnings()).
     std::vector<std::string> open;
     for (const auto& sensor : sensors_) {
         const auto* state = sensors_.state(sensor.klipper_name);
@@ -467,15 +490,12 @@ void InputSensorManager::update_subjects() {
     }
     const bool printing =
         get_printer_state().print_state().get_print_lifecycle() == PrintState::Printing;
-    if (printing && door_check_enabled()) {
-        for (const auto& name : doors_newly_open(open_doors_seen_, open)) {
-            if (firmware_reacts_to_opening(name)) {
-                spdlog::debug("[InputSensorManager] {} opened; the printer announces it", name);
-                continue;
-            }
-            const auto* sensor = sensors_.find(name);
-            const std::string msg = fmt::format(fmt::runtime(lv_tr("Door opened during print: {}")),
-                                                sensor->sensor_name);
+    if (printing) {
+        for (const auto& name :
+             mid_print_door_warnings(doors_newly_open(open_doors_seen_, open),
+                                     get_printer_state().print_state().print_materials())) {
+            const std::string msg =
+                fmt::format(fmt::runtime(lv_tr("Door opened during print: {}")), name);
             ToastManager::instance().show(ToastSeverity::WARNING, msg.c_str(), 6000);
         }
     }

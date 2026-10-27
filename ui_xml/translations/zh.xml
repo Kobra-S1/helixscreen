@@ -1505,6 +1505,7 @@
   <translation tag="Follow active tool" zh="跟随当前工具"/>
   <translation tag="Follow graph screen" zh="跟随图表屏幕"/>
   <translation tag="For a first Z home: claim the tool you put on the head" zh="首次Z轴归零时：登记您装在打印头上的工具"/>
+  <translation tag="For materials that need a warm enclosure, like ABS or ASA" zh="适用于需要温暖机箱的材料，如 ABS 或 ASA"/>
   <translation tag="Force/weight sensors" zh="力/重量传感器"/>
   <translation tag="Forget" zh="忘记"/>
   <translation tag="Forget Network?" zh="忘记网络？"/>
@@ -4385,6 +4386,8 @@
   <translation tag="within one bin" zh="在一个频点内"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." zh="wpa_supplicant 未运行。WiFi 功能不可用。"/>
   <translation tag="you have" zh="您有"/>
+  <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." zh="{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。"/>
+  <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." zh="{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." zh="{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" zh="{:.0f}-{:.0f} Hz · 约 {} 分钟"/>
   <translation tag="{} ({} of {})" zh="{}（{}/{}）"/>
@@ -4397,7 +4400,6 @@
   <translation tag="{} Tools" zh="{} 个工具"/>
   <translation tag="{} and {}" zh="{} 和 {}"/>
   <translation tag="{} and {} are both mapped here" zh="{} 和 {} 都映射到这里"/>
-  <translation tag="{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway." zh="{} 已打开。打开的机箱会让热量流失，可能导致打印失败。请关闭，或仍然开始。"/>
   <translation tag="{} available" zh="{} 可用"/>
   <translation tag="{} axes homed" zh="{} 轴已归位"/>
   <translation tag="{} axis homed" zh="{} 轴已归位"/>
@@ -4432,7 +4434,6 @@
   <translation tag="{} is looser" zh="{} 更松"/>
   <translation tag="{} is not available on this device. Printing original file." zh="此设备不支持{}。将打印原始文件。"/>
   <translation tag="{} is not set up on this printer" zh="{} 未在此打印机上设置"/>
-  <translation tag="{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway." zh="{} 已打开。打开的机箱会让热量流失，可能导致打印失败。请关闭，或仍然开始。"/>
   <translation tag="{} is still printing. The print keeps running after you switch." zh="{} 仍在打印。切换后打印会继续进行。"/>
   <translation tag="{} is tighter" zh="{} 更紧"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." zh="{}未装载。打印需要时将暂停。"/>

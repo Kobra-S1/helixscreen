@@ -286,3 +286,28 @@ TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager reads which doors the p
     mgr().discover_from_config(json::object());
     CHECK_FALSE(mgr().firmware_reacts_to_opening("gcode_button topDoor"));
 }
+
+TEST_CASE_METHOD(InputSensorFixture,
+                 "InputSensorManager warns mid-print only for enclosure materials",
+                 "[input_sensors]") {
+    mgr().discover(kC5Objects);
+    const std::vector<std::string> opened = {"gcode_button frontDoor"};
+
+    // A material that needs a warm chamber: warned, by short name.
+    CHECK(mgr().mid_print_door_warnings(opened, {"PLA", "ASA"}) ==
+          std::vector<std::string>{"frontDoor"});
+    // PLA alone wants air: quiet. Unknown materials (empty) stay quiet too.
+    CHECK(mgr().mid_print_door_warnings(opened, {"PLA"}).empty());
+    CHECK(mgr().mid_print_door_warnings(opened, {}).empty());
+    // Nothing newly open, or the check off: quiet.
+    CHECK(mgr().mid_print_door_warnings({}, {"ABS"}).empty());
+    mgr().set_door_check_enabled(false);
+    CHECK(mgr().mid_print_door_warnings(opened, {"ABS"}).empty());
+    mgr().set_door_check_enabled(true);
+
+    // The printer announcing the door itself silences only that door.
+    mgr().discover_from_config(
+        json{{"gcode_button frontDoor", {{"release_gcode", "RESPOND MSG=open"}}}});
+    CHECK(mgr().mid_print_door_warnings({"gcode_button frontDoor", "gcode_button topDoor"},
+                                        {"ABS"}) == std::vector<std::string>{"topDoor"});
+}

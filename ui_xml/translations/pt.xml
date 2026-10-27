@@ -1505,6 +1505,7 @@
   <translation tag="Follow active tool" pt="Seguir ferramenta ativa"/>
   <translation tag="Follow graph screen" pt="Acompanhar tela do gráfico"/>
   <translation tag="For a first Z home: claim the tool you put on the head" pt="Para a primeira referência de Z: registrar a ferramenta colocada no cabeçote"/>
+  <translation tag="For materials that need a warm enclosure, like ABS or ASA" pt="Para materiais que precisam de um gabinete quente, como ABS ou ASA"/>
   <translation tag="Force/weight sensors" pt="Sensores de força/peso"/>
   <translation tag="Forget" pt="Esquecer"/>
   <translation tag="Forget Network?" pt="Esquecer Rede?"/>
@@ -4385,6 +4386,8 @@
   <translation tag="within one bin" pt="dentro de um bin"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." pt="wpa_supplicant não está em execução. Os recursos de WiFi estão indisponíveis."/>
   <translation tag="you have" pt="você tem"/>
+  <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." pt="{0} estão abertas. {1} imprime melhor em um gabinete quente e fechado; uma porta aberta esfria a câmara e pode causar empenamento ou separação de camadas. Feche-as ou inicie mesmo assim."/>
+  <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." pt="{0} está aberta. {1} imprime melhor em um gabinete quente e fechado; uma porta aberta esfria a câmara e pode causar empenamento ou separação de camadas. Feche-a ou inicie mesmo assim."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." pt="{0} ressoa muito mais que {1} a {2:.0f} Hz. Isso indica uma diferença mecânica (parafusos da polia, rolamentos das polias livres, alinhamento da correia), não a tensão."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" pt="{:.0f}-{:.0f} Hz · cerca de {} min"/>
   <translation tag="{} ({} of {})" pt="{} ({} de {})"/>
@@ -4397,7 +4400,6 @@
   <translation tag="{} Tools" pt="{} ferramentas"/>
   <translation tag="{} and {}" pt="{} e {}"/>
   <translation tag="{} and {} are both mapped here" pt="{} e {} estão ambos atribuídos aqui"/>
-  <translation tag="{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway." pt="{} estão abertas. Um gabinete aberto deixa o calor escapar e pode estragar a impressão. Feche-as ou inicie mesmo assim."/>
   <translation tag="{} available" pt="{} disponível"/>
   <translation tag="{} axes homed" pt="Eixos {} referenciados"/>
   <translation tag="{} axis homed" pt="Eixo {} referenciado"/>
@@ -4432,7 +4434,6 @@
   <translation tag="{} is looser" pt="{} está mais frouxa"/>
   <translation tag="{} is not available on this device. Printing original file." pt="{} não está disponível neste dispositivo. O arquivo original será impresso."/>
   <translation tag="{} is not set up on this printer" pt="{} não está configurado nesta impressora"/>
-  <translation tag="{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway." pt="{} está aberta. Um gabinete aberto deixa o calor escapar e pode estragar a impressão. Feche-a ou inicie mesmo assim."/>
   <translation tag="{} is still printing. The print keeps running after you switch." pt="{} ainda está imprimindo. A impressão continua depois da troca."/>
   <translation tag="{} is tighter" pt="{} está mais apertada"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." pt="{} não está carregado. A impressão vai pausar quando precisar dele."/>

@@ -1604,6 +1604,7 @@ translations:
   Follow active tool: Follow active tool
   Follow graph screen: Follow graph screen
   'For a first Z home: claim the tool you put on the head': 'For a first Z home: claim the tool you put on the head'
+  For materials that need a warm enclosure, like ABS or ASA: For materials that need a warm enclosure, like ABS or ASA
   Force/weight sensors: Force/weight sensors
   Forget: Forget
   Forget Network?: Forget Network?
@@ -4721,6 +4722,10 @@ translations:
   within one bin: within one bin
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant is not running. WiFi features unavailable.
   you have: you have
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · about {} min'
@@ -4734,7 +4739,6 @@ translations:
   '{} Tools': '{} Tools'
   '{} and {}': '{} and {}'
   '{} and {} are both mapped here': '{} and {} are both mapped here'
-  '{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway.': '{} are open. An open enclosure lets heat out and can spoil the print. Close them, or start anyway.'
   '{} available': '{} available'
   '{} axes homed': '{} axes homed'
   '{} axis homed': '{} axis homed'
@@ -4765,7 +4769,6 @@ translations:
   '{} is feeding the current print. Clear it after the print ends.': '{} is feeding the current print. Clear it after the print ends.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.'
-  '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.': '{} is open. An open enclosure lets heat out and can spoil the print. Close it, or start anyway.'
   '{} is still printing. The print keeps running after you switch.': '{} is still printing. The print keeps running after you switch.'
   '{} is looser': '{} is looser'
   '{} is not available on this device. Printing original file.': '{} is not available on this device. Printing original file.'
