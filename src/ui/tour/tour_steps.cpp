@@ -8,7 +8,7 @@
 namespace helix::tour {
 
 bool hardware_has_ams() {
-    return AmsState::instance().backend_count() > 0;
+    return AmsState::instance().is_available();
 }
 
 // i18n: the literals below are translation keys (the English UI text),

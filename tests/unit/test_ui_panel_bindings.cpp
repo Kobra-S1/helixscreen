@@ -344,7 +344,7 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: part_fan_slider binding update
 }
 
 // =============================================================================
-// PRINT STATUS PANEL BINDING TESTS (SKIP - complex dependencies)
+// PRINT STATUS PANEL BINDING TESTS (.xml_required: need ui_xml/ on the relative path)
 // =============================================================================
 
 TEST_CASE_METHOD(XMLTestFixture, "print_status_strip: the pre-print line tracks preparing_visible",

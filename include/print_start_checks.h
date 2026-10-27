@@ -119,7 +119,7 @@ struct PrintStartContext {
 
     // ---- environment (from AmsState / FilamentSensorManager) ----
     bool ams_available = false;           ///< AmsState::is_available()
-    bool ams_manages_filament = false;    ///< any backend present
+    bool ams_manages_filament = false;    ///< any backend presents a filament system
     bool has_active_backend = false;      ///< AmsState::get_backend() != nullptr
     bool any_auto_unload_backend = false; ///< any backend->auto_unloads_after_print()
     bool any_bypass_active = false;       ///< AmsState::any_bypass_active()

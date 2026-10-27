@@ -2124,8 +2124,9 @@ void AmsBackendCfs::apply_box_units_locked(BoxFrame& f) {
     const bool external_spool_only =
         !is_flat && new_info.units.empty() && system_info_.units.empty();
     if (system_info_.external_spool_only != external_spool_only) {
-        spdlog::info("[AMS CFS] external_spool_only {} -> {} (no CFS unit on the bus)",
-                     system_info_.external_spool_only, external_spool_only);
+        spdlog::info("[AMS CFS] external_spool_only {} -> {} ({})",
+                     system_info_.external_spool_only, external_spool_only,
+                     external_spool_only ? "no CFS unit on the bus" : "a CFS unit is connected");
         system_info_.external_spool_only = external_spool_only;
         // The sentinel stood for "the only path is loaded"; with a unit up it
         // is the declaration's to claim, and nothing has declared it.
@@ -3411,6 +3412,16 @@ AmsError AmsBackendCfs::enable_bypass() {
         return err;
     }
 
+    // With no unit on the bus the external spool is the only path: there is
+    // nothing to stand down or re-arm, and a BOX_ENABLE_CFS_PRINT would reach
+    // an empty bus. Reachable only through the force override.
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (system_info_.external_spool_only) {
+            return AmsErrorHelper::not_supported("Bypass with no CFS unit");
+        }
+    }
+
     // Same policy as the other capability questions: the user's force override
     // is folded in by bypass_available_for, never written into
     // supports_bypass itself.
@@ -3483,6 +3494,16 @@ AmsError AmsBackendCfs::disable_bypass() {
     auto err = check_preconditions();
     if (err.result != AmsResult::SUCCESS) {
         return err;
+    }
+
+    // With no unit on the bus the external spool is the only path: there is
+    // nothing to stand down or re-arm, and a BOX_ENABLE_CFS_PRINT would reach
+    // an empty bus. Reachable only through the force override.
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (system_info_.external_spool_only) {
+            return AmsErrorHelper::not_supported("Bypass with no CFS unit");
+        }
     }
 
     if (schema_ == CfsSchema::Flat) {

@@ -10,6 +10,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_slot_override_store_test_access.h"
+#include "../test_helpers/force_bypass_controls_guard.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
@@ -6336,6 +6337,45 @@ TEST_CASE("CFS with no unit on the bus feeds only the external spool", "[ams][cf
         CHECK(info.supports_bypass);
         CHECK(info.current_slot != helix::ui::kExternalSpoolSlot);
     }
+}
+
+TEST_CASE("CFS keeps a unit it has seen when a later frame drops it", "[ams][cfs][bypass][1904]") {
+    CfsRemapHelper cfs;
+    json box = make_single_unit_box({"101001", "-1", "-1", "-1"}, {"01A1A1A", "-1", "-1", "-1"});
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(box));
+    REQUIRE_FALSE(cfs.get_system_info().units.empty());
+
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box()));
+    CHECK_FALSE(cfs.get_system_info().external_spool_only);
+    CHECK_FALSE(cfs.is_bypass_active());
+}
+
+TEST_CASE("CFS flat schema is never external-spool-only", "[ams][cfs][bypass][1904]") {
+    CfsRemapHelper cfs;
+    json box = make_flat_fork_box();
+    box["slots"] = json::array();
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(box));
+    REQUIRE(CfsTestAccess::schema(cfs) == CfsSchema::Flat);
+    CHECK_FALSE(cfs.get_system_info().external_spool_only);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "CFS bypass setters refuse an empty bus, forced controls included",
+                 "[ams][cfs][bypass][1904]") {
+    helix::test::ForceBypassControlsGuard force;
+    REQUIRE(SettingsManager::instance().get_ams_force_bypass_controls());
+    CfsRemapHelper cfs;
+    cfs.mark_running();
+    CfsTestAccess::handle_status(cfs, make_cfs_notification(make_empty_bus_box()));
+    REQUIRE(cfs.get_system_info().external_spool_only);
+    CfsTestAccess::set_filament_sensor(cfs, /*seen=*/true, /*detected=*/true);
+    CfsTestAccess::handle_status(cfs, json{{"params", json::array({json::object(), 0})}});
+    REQUIRE(cfs.get_system_info().current_slot == helix::ui::kExternalSpoolSlot);
+
+    CHECK(cfs.enable_bypass().result == AmsResult::NOT_SUPPORTED);
+    CHECK(cfs.disable_bypass().result == AmsResult::NOT_SUPPORTED);
+    CHECK(cfs.captured.empty());
+    CHECK_FALSE(CfsTestAccess::bypass_declared(cfs));
 }
 
 TEST_CASE("CFS with a unit on the bus is not external-spool-only", "[ams][cfs][bypass][1904]") {

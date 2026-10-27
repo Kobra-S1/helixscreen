@@ -236,7 +236,9 @@ bool WizardAmsIdentifyStep::should_skip() const {
     }
 
     helix::AmsType type = backend->get_type();
-    bool skip = (type == helix::AmsType::NONE);
+    // A backend whose hardware feeds only the external spool presents no
+    // system, so there is nothing to identify (or to expect next session).
+    bool skip = !backend->get_system_info().presents_filament_system();
 
     if (skip) {
         spdlog::info("[{}] No AMS detected (type=NONE), skipping step", get_name());

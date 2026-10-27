@@ -10,11 +10,13 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/force_bypass_controls_guard.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
 
 #include <memory>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -31,13 +33,14 @@ class ExternalSpoolOnlyMock : public AmsBackendMock {
     [[nodiscard]] AmsSystemInfo get_system_info() const override {
         AmsSystemInfo info = AmsBackendMock::get_system_info();
         info.external_spool_only = external_spool_only;
-        info.supports_bypass = true;
+        info.supports_bypass = supports_bypass;
         info.action = action;
         info.filament_loaded = filament_loaded;
         return info;
     }
 
     bool external_spool_only = true;
+    bool supports_bypass = true;
     AmsAction action = AmsAction::IDLE;
     bool filament_loaded = false;
 };
@@ -65,7 +68,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "an external-spool-only backend presents no fi
         CHECK(lv_subject_get_int(ams.get_slot_count_subject()) == 0);
         CHECK(lv_subject_get_int(ams.get_supports_bypass_subject()) == 0);
         CHECK(lv_subject_get_int(ams.get_has_device_ops_subject()) == 0);
+        CHECK(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())).empty());
         CHECK_FALSE(ams.is_available());
+    }
+
+    SECTION("forced bypass controls still offer no toggle") {
+        helix::test::ForceBypassControlsGuard force;
+        REQUIRE(SettingsManager::instance().get_ams_force_bypass_controls());
+        mock_ptr->supports_bypass = false;
+        ams.sync_from_backend();
+        CHECK(lv_subject_get_int(ams.get_supports_bypass_subject()) == 0);
+
+        // The override is what lights it for a presented system.
+        mock_ptr->external_spool_only = false;
+        ams.sync_from_backend();
+        CHECK(lv_subject_get_int(ams.get_supports_bypass_subject()) == 1);
     }
 
     SECTION("the operation it runs stays observable") {

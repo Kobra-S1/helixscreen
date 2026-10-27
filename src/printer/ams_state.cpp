@@ -541,9 +541,8 @@ void AmsState::set_active_backend(int index) {
 
 bool AmsState::is_available() const {
     assert_main_thread();
-    auto* primary = get_backend(0);
-    return primary && primary->get_type() != AmsType::NONE &&
-           primary->get_system_info().presents_filament_system();
+    const auto primary = system_info(0);
+    return primary && primary->presents_filament_system();
 }
 
 void AmsState::set_moonraker_api(IMoonrakerAPI* api) {
