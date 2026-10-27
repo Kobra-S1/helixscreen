@@ -95,7 +95,7 @@ TEST_CASE_METHOD(PrintStatusPreviewFixture,
         // holds no geometry - not just the panel's own bookkeeping.
         CHECK(state_.print_state().get_scheduled_pauses().empty());
         CHECK(gcode_displayed_file().empty());
-        CHECK_FALSE(ui_gcode_viewer_has_content(viewer_));
+        CHECK_FALSE(helix::ui::gcode_viewer_has_content(viewer_));
 
         land(kPrintB);
 
@@ -109,7 +109,7 @@ TEST_CASE_METHOD(PrintStatusPreviewFixture,
         land(kPrintB);
         CHECK(gcode_displayed_file() == kPrintB);
         const int version_after_b = pause_markers_version();
-        const char* widget_file_raw = ui_gcode_viewer_get_filename(viewer_);
+        const char* widget_file_raw = helix::ui::gcode_viewer_get_filename(viewer_);
         const std::string widget_file_after_b = widget_file_raw ? widget_file_raw : "";
 
         land_dropped(kPrintA);
@@ -121,7 +121,7 @@ TEST_CASE_METHOD(PrintStatusPreviewFixture,
         CHECK(pause_markers_version() == version_after_b);
         CHECK(state_.print_state().get_scheduled_pauses().empty());
         CHECK(gcode_displayed_file() == kPrintB);
-        widget_file_raw = ui_gcode_viewer_get_filename(viewer_);
+        widget_file_raw = helix::ui::gcode_viewer_get_filename(viewer_);
         CHECK((widget_file_raw ? std::string(widget_file_raw) : std::string()) ==
               widget_file_after_b);
     }
@@ -227,7 +227,7 @@ TEST_CASE_METHOD(StaleLoadFixture,
     // been displayed yet, for either print, and the widget itself holds no
     // geometry - not just the panel's own bookkeeping.
     REQUIRE(gcode_displayed_file().empty());
-    CHECK_FALSE(ui_gcode_viewer_has_content(viewer_));
+    CHECK_FALSE(helix::ui::gcode_viewer_has_content(viewer_));
     CHECK(scoped_runout() == -1);
     CHECK(layer_total() == 0);
 

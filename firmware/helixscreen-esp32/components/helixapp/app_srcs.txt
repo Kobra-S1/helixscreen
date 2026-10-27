@@ -828,7 +828,7 @@ src/rendering/gcode_file_modifier.cpp
 src/rendering/gcode_tool_remapper.cpp
 src/rendering/gcode_color_metadata.cpp
 #   gcode viewer, compiled-out branch (HELIX_HAS_GCODE_VIEWER=0): its #else
-#   no-op body defines the full ui_gcode_viewer_* C/C++ API AND registers a
+#   no-op body defines the full helix::ui::gcode_viewer_* API AND registers a
 #   stub <gcode_viewer> XML widget so the print-status / print-select layouts
 #   parse (an unregistered tag corrupts sibling parenting). Replaces the
 #   hand-written gcode half of excluded_subsystems_stub.cpp — and unlike that
@@ -840,6 +840,7 @@ src/ui/ui_gcode_viewer.cpp
 #   and call it ungated; its only deps are the ui_gcode_viewer_* API above (the
 #   no-op branch defines all of it), DisplaySettingsManager and RuntimeConfig.
 src/ui/gcode_preview_fetcher.cpp
+src/ui/gcode_preview_gate.cpp
 src/ui/gcode_preview_setup.cpp
 src/ui/print_preview_controller.cpp
 #   bed-mesh viewer, compiled-out branch (HELIX_HAS_BED_MESH_3D=0): same trick

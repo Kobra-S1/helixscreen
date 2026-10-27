@@ -258,7 +258,7 @@ class FilamentMapper {
     /// into a DENSE vector indexed by logical tool number (size = max
     /// tool_index + 1). Tool numbers not present in @p tools get 0x808080; used
     /// tools with no matched lane keep their slicer color. Ready to hand to
-    /// ui_gcode_viewer_set_tool_colors (which is logical-tool-indexed). Returns
+    /// helix::ui::gcode_viewer_set_tool_colors (which is logical-tool-indexed). Returns
     /// empty when @p tools is empty. Pure; no LVGL/AMS.
     static std::vector<uint32_t> effective_tool_colors(const std::vector<GcodeToolInfo>& tools,
                                                        const std::vector<AvailableSlot>& slots,

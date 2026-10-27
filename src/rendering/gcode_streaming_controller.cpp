@@ -49,7 +49,7 @@ void BackgroundGhostBuilder::start(GCodeStreamingController* controller,
     spdlog::info("[GhostBuilder] Starting background ghost build for {} layers",
                  total_layers_.load());
 
-    worker_ = helix::make_thread(&BackgroundGhostBuilder::worker_thread, this);
+    worker_ = helix::make_background_thread(&BackgroundGhostBuilder::worker_thread, this);
 }
 
 void BackgroundGhostBuilder::cancel() {
@@ -317,6 +317,7 @@ void GCodeStreamingController::open_file_async(const std::string& filepath,
     // gcode file can fail — surface that as a failed load, not a crash.
     index_future_ = std::async(std::launch::async, [this, filepath]() { // THREAD_OK: below
         helix::install_thread_altstack();
+        helix::lower_current_thread_priority();
         bool success = false;
         try {
             if (index_worker_gate) {
@@ -530,7 +531,8 @@ void GCodeStreamingController::start_prefetch_worker() {
     if (prefetch_thread_.joinable() || stop_prefetch_) {
         return;
     }
-    prefetch_thread_ = helix::make_thread(&GCodeStreamingController::prefetch_worker, this);
+    prefetch_thread_ =
+        helix::make_background_thread(&GCodeStreamingController::prefetch_worker, this);
 }
 
 void GCodeStreamingController::stop_prefetch_worker(bool permanent) {
@@ -786,22 +788,18 @@ std::vector<ToolpathSegment> GCodeStreamingController::load_layer(size_t layer_i
     // move for vase-mode G-code.
     parser.set_use_layer_markers(index_.uses_layer_markers());
 
-    // Walk lines directly out of the byte buffer into a reused scratch string. Feeding an
-    // istringstream instead would hold three copies of the layer bytes simultaneously
-    // (vector + temporary std::string + the stream's internal buffer).
+    // Hand the parser views straight into the byte buffer: no copy per line.
     // Line splitting matches std::getline: '\n' terminated and excluded, any trailing '\r'
     // left on the line for the parser to trim, final line without a newline still parsed.
     const char* data = reinterpret_cast<const char*>(bytes.data());
     const size_t byte_count = bytes.size();
-    std::string line;
     size_t pos = 0;
 
     while (pos < byte_count) {
         const void* nl = std::memchr(data + pos, '\n', byte_count - pos);
         size_t line_end =
             nl ? static_cast<size_t>(static_cast<const char*>(nl) - data) : byte_count;
-        line.assign(data + pos, line_end - pos);
-        parser.parse_line(line);
+        parser.parse_line(std::string_view(data + pos, line_end - pos));
         pos = nl ? line_end + 1 : byte_count;
     }
 
@@ -839,6 +837,8 @@ bool GCodeStreamingController::build_index() {
     // FileDataSource returns its original filepath; sources that stage data on
     // disk return the staged path once ensure_indexable() has materialized it
     std::string file_path = data_source_->indexable_file_path();
+    index_mb_per_cpu_s_.store(0.0, std::memory_order_relaxed);
+    index_abandoned_for_cost_.store(false, std::memory_order_relaxed);
 
     if (!layer_index_sidecar_.empty() && !file_path.empty()) {
         const std::string sidecar = std::move(layer_index_sidecar_);
@@ -853,15 +853,41 @@ bool GCodeStreamingController::build_index() {
     }
 
     if (!file_path.empty()) {
+        const int64_t cpu_start = helix::thread_cpu_ns();
         // Publish real indexing progress. Before this the atomic went 0.0 to
         // 1.0 with nothing in between, so get_index_progress() could only ever
         // drive an indeterminate spinner — on a 133MB print that is 69 seconds
         // of a UI that looks hung. Storing an atomic from the scan thread is
         // the whole cost; the UI polls it on its own clock.
-        return index_.build_from_file(file_path, [this](float fraction) {
-            index_progress_.store(fraction);
-            return !index_cancel_requested_.load(std::memory_order_relaxed);
-        });
+        float scanned_fraction = 0.0f;
+        const bool built =
+            index_.build_from_file(file_path, [this, cpu_start, &scanned_fraction](float fraction) {
+                scanned_fraction = fraction;
+                index_progress_.store(fraction);
+                if (index_cost_guard_) {
+                    const double cpu_s =
+                        static_cast<double>(helix::thread_cpu_ns() - cpu_start) / 1e9;
+                    if (!index_cost_guard_(fraction, cpu_s)) {
+                        index_abandoned_for_cost_.store(true, std::memory_order_relaxed);
+                        return false;
+                    }
+                }
+                return !index_cancel_requested_.load(std::memory_order_relaxed);
+            });
+        // A scan the cost guard stopped still measured the board over the part
+        // it read, which is what lets the next decision be made before download.
+        const bool abandoned = index_abandoned_for_cost_.load(std::memory_order_relaxed);
+        if (built || abandoned) {
+            const double cpu_s = static_cast<double>(helix::thread_cpu_ns() - cpu_start) / 1e9;
+            const double size = static_cast<double>(data_source_->file_size());
+            const double scanned = built ? size : size * scanned_fraction;
+            if (cpu_s > 0.0 && (scanned >= static_cast<double>(kMinRateSampleBytes) ||
+                                cpu_s >= kMinRateSampleCpuS)) {
+                index_mb_per_cpu_s_.store(scanned / (1024.0 * 1024.0) / cpu_s,
+                                          std::memory_order_relaxed);
+            }
+        }
+        return built;
     }
 
     // Sources without file path (e.g., MemoryDataSource) cannot be indexed

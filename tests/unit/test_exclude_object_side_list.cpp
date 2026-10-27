@@ -431,10 +431,10 @@ lv_obj_t* make_viewer_with_obj_4(helix::gcode::GCodeLayerRenderer*& renderer) {
     file->layers.push_back(std::move(layer));
     file->total_segments = 1;
 
-    lv_obj_t* viewer = ui_gcode_viewer_create(lv_screen_active());
+    lv_obj_t* viewer = helix::ui::gcode_viewer_create(lv_screen_active());
     lv_obj_set_size(viewer, 200, 200);
     lv_obj_update_layout(viewer);
-    ui_gcode_viewer_set_render_mode(viewer, helix::GcodeViewerRenderMode::Layer2D);
+    helix::ui::gcode_viewer_set_render_mode(viewer, helix::GcodeViewerRenderMode::Layer2D);
     renderer = helix::test_access::gcode_viewer_show_2d(viewer, std::move(file));
     return viewer;
 }

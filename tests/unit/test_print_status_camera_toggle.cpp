@@ -278,17 +278,17 @@ TEST_CASE_METHOD(CameraToggleFixture, "Print status G-code viewer pauses under t
     REQUIRE(viewer != nullptr);
     PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
     drain();
-    REQUIRE_FALSE(ui_gcode_viewer_is_paused(viewer));
+    REQUIRE_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
 
     tap_camera_button();
-    CHECK(ui_gcode_viewer_is_paused(viewer));
+    CHECK(helix::ui::gcode_viewer_is_paused(viewer));
 
     SECTION("the preview controller re-showing the viewer keeps it paused") {
         PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
-        CHECK(ui_gcode_viewer_is_paused(viewer));
+        CHECK(helix::ui::gcode_viewer_is_paused(viewer));
     }
     SECTION("toggling back resumes it") {
         tap_camera_button();
-        CHECK_FALSE(ui_gcode_viewer_is_paused(viewer));
+        CHECK_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
     }
 }

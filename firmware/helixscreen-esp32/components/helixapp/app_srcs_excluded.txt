@@ -101,6 +101,7 @@ src/application/rotation_probe.cpp  # not in the v1 Core+AMS cut
 src/application/screen_hide_hold.cpp  # not in the v1 Core+AMS cut
 src/application/process_guards.cpp  # not in the v1 Core+AMS cut
 src/application/probe_egl_cmd.cpp  # DRM/EGL probe, no meaning on the firmware
+src/application/bench_gcode_cmd.cpp  # desktop/Linux measurement CLI, no meaning on the firmware
 src/application/printer_session.cpp  # not in the v1 Core+AMS cut
 src/application/error_classify.cpp  # not in the v1 Core+AMS cut
 src/application/fault_surface_correlation.cpp  # not in the v1 Core+AMS cut

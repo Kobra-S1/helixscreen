@@ -527,7 +527,7 @@ none, so it never reports `printer_model_mismatch`. The gate asks only for a war
 **File facts on the screen.** `fit_file_from_sources(record, head, metadata, preview, tools)`:
 the plugin's record (`FileAnalysisRecord::fit`, parsed from `bounds` / `header`) field by field,
 else the 200 KB head scan (`ScanResult::fit_head`), metadata `first_layer_*_temp` and
-`nozzle_diameter`, and `ui_gcode_viewer_get_model_bounds()` (the full parse box or
+`nozzle_diameter`, and `helix::ui::gcode_viewer_get_model_bounds()` (the full parse box or
 `LayerIndexStats`). A queued start (`fill_file_context`) has the record and metadata only. The
 detail view asks for the record once per open (`request_fit_record`, from `on_activate`); a
 `pending` reply is ignored and the fallback facts stand until the view is opened again, since

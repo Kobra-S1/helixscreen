@@ -304,10 +304,13 @@ namespace {
 /// 1MB is well under the smallest device's headroom (the AD5M runs in ~47MB).
 constexpr size_t kIndexReadBlockBytes = 1024 * 1024;
 
-/// Report progress at most this often. Coarse on purpose: the callback crosses
-/// to an atomic the UI polls, and a 5M-line file would otherwise call it 5M
-/// times to move a bar 100 steps.
-constexpr size_t kIndexProgressLineInterval = 20000;
+/// Report progress, and ask whether to stop, this often. The callback is also
+/// where a cancel and the preview's cost guard are answered, and the UI thread
+/// joins the scan on cancel: the scan runs at nice 19, so on a CPU Klipper has
+/// saturated every line between checks stretches that join. 2000 lines is a few
+/// milliseconds of scanning on a Cortex-A7, and still 2500 calls, not 5M, for a
+/// 5M-line file.
+constexpr size_t kIndexProgressLineInterval = 2000;
 
 /**
  * @brief Feeds whole lines out of a block-buffered file read.

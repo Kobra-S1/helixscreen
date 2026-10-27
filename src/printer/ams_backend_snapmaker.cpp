@@ -286,7 +286,7 @@ AmsBackendSnapmaker::AmsBackendSnapmaker(IMoonrakerAPI* api, helix::IMoonrakerCl
     // It is NOT the print routing, and nothing may read it as such. Which head
     // prints logical tool N lives in print_task_config.extruder_map_table, which
     // get_tool_mapping() below publishes. This map was originally populated to
-    // stop ui_gcode_viewer_apply_ams_tool_colors() short-circuiting on an empty
+    // stop helix::ui::gcode_viewer_apply_ams_tool_colors() short-circuiting on an empty
     // map (which left the model black when the first tool's filament was dark) —
     // i.e. a safety valve was fed data to keep it from tripping, and the "fix"
     // made every tool render in head-index order. That consumer now resolves
