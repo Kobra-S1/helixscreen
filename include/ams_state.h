@@ -824,6 +824,16 @@ class AmsState {
     }
 
     /**
+     * @brief The primary backend's can_cancel_operation(), 0 or 1
+     *
+     * It can change with no action edge (a backend holding a Cancel keeps its
+     * action), so a surface offering Cancel observes this too.
+     */
+    lv_subject_t* get_ams_can_cancel_subject() {
+        return &ams_can_cancel_;
+    }
+
+    /**
      * @brief Get action detail string subject
      * @return Subject holding current operation description
      */
@@ -2295,7 +2305,8 @@ class AmsState {
     void sync_system_subjects(const AmsSystemInfo& info);
     /// Push or drop the AMS tool topology in ToolState.
     void sync_tool_topology(AmsBackend* backend, const AmsSystemInfo& info);
-    /// Heat-blocked subject, and the swap preheat latch on a shared-heater swap.
+    /// Heat-blocked and can-cancel subjects, and the swap preheat latch on a
+    /// shared-heater swap.
     void sync_shared_heater(AmsBackend* backend, const AmsSystemInfo& info);
     /// filament_loaded, the runout indicator's edge state, and the unload grace.
     void sync_filament_runout(const AmsSystemInfo& info);
@@ -2451,6 +2462,7 @@ class AmsState {
     lv_subject_t ams_type_{};
     lv_subject_t ams_is_tool_changer_{};
     lv_subject_t ams_nozzle_heat_blocked_{};
+    lv_subject_t ams_can_cancel_{};
     /// The mounted tool last seen on a shared-heater backend, -2 before any.
     int shared_heater_tool_ = -2;
     lv_subject_t ams_is_filament_system_{};

@@ -220,9 +220,10 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     char details_buf_[512] = {};
     lv_subject_t has_details_subject_{}; ///< 1 when details_subject_ is non-empty
 
-    /// AMS action observer that keeps can_abort_subject_ current while the
-    /// overlay exists.
+    /// AMS action and can-cancel observers that keep can_abort_subject_
+    /// current while the overlay exists.
     ObserverGuard action_observer_;
+    ObserverGuard can_cancel_observer_;
 
     /// Cached section metadata for row click dispatch
     std::vector<helix::printer::DeviceSection> cached_sections_;

@@ -20,7 +20,9 @@
 #include "ams_step_operation.h"
 #include "filament_action_set.h"
 #include "mount_feed_sequence.h"
+#include "printer_discovery.h"
 #include "test_helpers/ams_sidebar_xml.h"
+#include "toolchanger_addon.h"
 
 #include <functional>
 #include <memory>
@@ -307,6 +309,32 @@ TEST_CASE_METHOD(BatchStepsFixture,
     lv_obj_send_event(cancel_button(), LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(changer_->cancel_calls_ == 1);
+}
+
+TEST_CASE_METHOD(BatchStepsFixture,
+                 "The sidebar withdraws Cancel once the backend holds one for a swap",
+                 "[ams][sidebar][mount_feed][batch][cancel]") {
+    // Dock sensors: a Cancel during a swap waits for it to settle.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"medusahc", "pin_watch io", "extruder", "extruder1",
+                                            "extruder2", "extruder3", "extruder4", "extruder5"}));
+    changer_->set_tool_sensor(helix::toolchanger_addon::resolve_tool_sensor(hw));
+    changer_->feed(nlohmann::json{{"pin_watch io", {{"current_tool", 0}}}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    pick(HeadPickOp::Load, {2});
+    changer_->ack();             // the prompt is up
+    changer_->continue_prompt(); // the Mount's swap is under way
+    REQUIRE(cancel_shown());
+
+    lv_obj_send_event(cancel_button(), LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(changer_->cancel_calls_ == 1);
+    REQUIRE(changer_->get_system_info().is_busy()); // still the swap
+    CHECK_FALSE(cancel_shown());
+    // A second Cancel while the first is held is no failure.
+    CHECK(changer_->cancel().success());
 }
 
 TEST_CASE_METHOD(BatchStepsFixture, "The sidebar withholds Cancel when the backend cannot cancel",

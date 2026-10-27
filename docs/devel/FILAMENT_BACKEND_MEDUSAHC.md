@@ -161,7 +161,8 @@ A swap command Klipper rejects with a gcode error (the controller's own "MedusaH
 failed swap raised as an error) ends the optimistic `SELECTING` too. A reply timeout does not:
 the macro may still be running. Nor does a rejection while the controller's last `operation`
 word is busy: that is another client's swap, which keeps the action its word maps to until its
-own `idle` frame ends it.
+own `idle` frame ends it. That word counts only from a source that has said `idle` at least once
+(Z-Mod's markers never do), and a Klipper restart or a lost connection forgets it.
 
 **`feeder_open` is published on both configurations**, so the gripper phases are drivable on
 every machine carrying `[medusahc]`.
@@ -265,7 +266,9 @@ to its toast.
 **A Cancel during a swap waits for it.** With dock sensors, a Cancel while a Mount or Restore
 is in flight or waiting on its confirmation does not unwind at once: Klipper finishes the swap
 whatever the screen does, and a cleanup sent then would end the run while the carriage still
-moves. The run stays busy (its action, step bar and no Cancel) until the swap settles, then
+moves. The run stays busy (its action, step bar and no Cancel: `can_cancel_operation()` turns false,
+and the sidebar and Device Operations follow AmsState's `ams_can_cancel` subject, since no action
+edge comes; a second `cancel()` succeeds quietly) until the swap settles, then
 turns the heaters off without a restore and toasts, as a warning, "Load stopped. The tool
 change under way finished, and Tool 1 was not put back on the carriage." A swap that never
 settles stops on the sensors' fault as usual. Without dock sensors the cleanup queues behind
@@ -292,7 +295,11 @@ dropped websocket leaves them all set; the failed request looks the same either 
 the heaters-off always goes out, harmlessly after a restart. A heaters-off dropped by the
 connection again stays owed, merged with whatever a later run came to owe meanwhile; a new
 run sends any owed one before its own first stage. A print holding the printer (printing or
-paused) when the debt comes due owns those heaters: the debt is dropped unsent.
+paused) when the debt comes due owns those heaters: the debt is dropped unsent, and a warning
+names them ("Tool 4's nozzle is still heating."). After a lost connection the debt waits for a
+frame carrying `print_stats.state`, and that frame's own state decides: PrinterState may apply
+the same frame after the backend does, so its lifecycle can still describe the printer from
+before the drop.
 The carriage is never restored after a loss: nothing can vouch for it.
 
 `abandon_feed_run_after_disconnect()` is the backend STOPPING under a live run

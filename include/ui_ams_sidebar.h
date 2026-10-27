@@ -221,6 +221,7 @@ class AmsOperationSidebar {
     // The extruder set changing re-creates per-extruder subjects: the step
     // heater observers re-attach to the new ones.
     ObserverGuard step_heater_version_observer_;
+    ObserverGuard can_cancel_observer_;
     ObserverGuard color_observer_;
     ObserverGuard colors_observer_;
     ObserverGuard finish_observer_;

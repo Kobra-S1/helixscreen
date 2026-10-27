@@ -1758,7 +1758,9 @@ TEST_CASE("MedusaHC: a dropped connection ends the run and turns its heaters off
     tc.on_connection_lost(); // the connection edge arrives after the failed stage
     CHECK(tc.sent_.size() == before);
 
-    tc.feed_status("ready", 1); // reconnected: Klippy reports again
+    tc.feed_status("ready", 1); // reconnected, but no word yet on a print
+    CHECK(tc.sent_.size() == before);
+    tc.feed(json{{"print_stats", {{"state", "standby"}}}}); // the reconnect's snapshot
     REQUIRE(tc.sent_.size() == before + 1);
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0\n"
                              "SET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0");
@@ -1811,9 +1813,45 @@ TEST_CASE("MedusaHC: a print that takes over owns the heaters a lost run owed",
     tc.feed_status("ready", 0);
     CHECK(tc.sent_.size() == before);
 
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Tool 4's nozzle is still heating.");
+
     tc.printing = false; // the print ended: the debt went with it
     tc.feed_status("ready", 0);
     CHECK(tc.sent_.size() == before);
+}
+
+TEST_CASE("MedusaHC: a reconnect sends owed heaters-off only once the print state is known",
+          "[toolchanger][mount_feed][medusahc]") {
+    const auto lose_heating_run = [](PrintableChanger& tc) {
+        tc.feed_status("ready", 0);
+        REQUIRE(tc.load_filament(3).success());
+        tc.ack();
+        ToolChangerTestAccess::feed_operator_reply(tc, mf::Reply::Continue);
+        tc.ack(); // mounted; heating
+        tc.lose();
+        tc.on_connection_lost();
+    };
+    SECTION("the snapshot names a print PrinterState has not applied yet") {
+        PrintableChanger tc(4);
+        lose_heating_run(tc);
+        const size_t before = tc.sent_.size();
+        tc.feed_status("ready", 0); // the toolchanger's frame lands first
+        CHECK(tc.sent_.size() == before);
+        // PrinterState still reads idle (printing == false); the frame says otherwise.
+        tc.feed(json{{"print_stats", {{"state", "printing"}}}});
+        CHECK(tc.sent_.size() == before);
+        CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Tool 4's nozzle is still heating.");
+        tc.feed(json{{"print_stats", {{"state", "complete"}}}});
+        CHECK(tc.sent_.size() == before); // the debt went with the print
+    }
+    SECTION("the snapshot says no print") {
+        PrintableChanger tc(4);
+        lose_heating_run(tc);
+        const size_t before = tc.sent_.size();
+        tc.feed(json{{"print_stats", {{"state", "standby"}}}});
+        REQUIRE(tc.sent_.size() == before + 1);
+        CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0");
+    }
 }
 
 TEST_CASE("MedusaHC: a heaters-off dropped late keeps what a later run came to owe",

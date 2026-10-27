@@ -133,6 +133,12 @@ class ToolChangerTestAccess {
         b.on_zmod_marker_line(line);
     }
 
+    /// The controller's latched phase word.
+    static std::string last_operation_word(const AmsBackendToolChanger& b) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        return b.last_operation_word_;
+    }
+
     /// Run the REAL on_started(), which is where the backend builds its
     /// FilamentSlotOverrideStore and does the blocking load. start() is final on
     /// AmsSubscriptionBackend and drags in subscription setup a store

@@ -821,6 +821,10 @@ void AmsState::sync_shared_heater(AmsBackend* backend, const AmsSystemInfo& info
     if (lv_subject_get_int(&ams_nozzle_heat_blocked_) != (blocked ? 1 : 0)) {
         lv_subject_set_int(&ams_nozzle_heat_blocked_, blocked ? 1 : 0);
     }
+    const int can_cancel = backend && backend->can_cancel_operation() ? 1 : 0;
+    if (lv_subject_get_int(&ams_can_cancel_) != can_cancel) {
+        lv_subject_set_int(&ams_can_cancel_, can_cancel);
+    }
     if (!backend || !backend->heads_share_heater()) {
         shared_heater_tool_ = -2;
         return;

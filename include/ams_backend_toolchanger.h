@@ -362,9 +362,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     [[nodiscard]] bool slot_is_actively_loaded(int slot_index) const override;
 
     /// On a changer that mounts to feed, every docked tool is an Unload target:
-    /// nothing senses filament in a head (head_has_filament() is nullopt), and
-    /// the unload mounts the tool before it retracts, so being off the carriage
-    /// is no reason to refuse it. Withdrawn while the dock sensors are faulted,
+    /// nothing senses filament in a head (head_has_filament() knows only what
+    /// this screen's own completed loads fed, nullopt otherwise), and the
+    /// unload mounts the tool before it retracts, so being off the carriage is
+    /// no reason to refuse it. Withdrawn while the dock sensors are faulted,
     /// since the run's mount and restore both depend on them.
     [[nodiscard]] bool slot_filament_parked_in_toolhead(int slot_index) const override;
 
@@ -616,7 +617,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Send the heaters-off a run stopped by stop_feed_run_unreachable() owes.
     /// Klippy must be ready: a status frame or a Klipper restart says it is.
     /// A print holding the printer owns those heaters: the debt is dropped
-    /// unsent.
+    /// unsent, with a toast naming them. After a lost connection it waits for
+    /// a frame that says whether a print is running.
     void flush_owed_heaters_off();
     /// Add @p heads to owed_heaters_off_, keeping every head already owed.
     void owe_heaters_off(const std::vector<int>& heads);
@@ -726,6 +728,15 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Heads whose heaters a run stopped by stop_feed_run_unreachable() left
     /// on. Main thread.
     std::vector<int> owed_heaters_off_;
+    /// print_stats.state from the latest frame that carried it; empty until
+    /// one does. Read off the frame itself, because PrinterState may apply the
+    /// same frame after this backend does. Main thread.
+    std::string frame_print_state_;
+    /// Whether frame_print_state_ describes the printer as it is now: false
+    /// from a lost connection until a frame names print_stats.state again,
+    /// since the reconnect may find a print that started meanwhile. Main
+    /// thread.
+    bool frame_print_state_current_ = true;
     /// The last toast a feed run raised, recorded before the LVGL guard so
     /// unit tests can pin the wording without a display.
     std::string feed_last_toast_;
@@ -895,8 +906,13 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// a swap is already running and the step bar has to be built before that.
     bool direction_reported_ = false;
     /// The controller's last phase word, latched across frames that do not
-    /// carry one; empty until one arrives. Guarded by mutex_.
+    /// carry one; empty until one arrives, and cleared by a Klipper restart or
+    /// a lost connection. Guarded by mutex_.
     std::string last_operation_word_;
+    /// The phase source has said `idle` at least once, so a busy word in
+    /// last_operation_word_ can be trusted to end. Z-Mod's markers name only
+    /// the direction and never say idle. Guarded by mutex_.
+    bool operation_idle_reported_ = false;
     /// The controller's current or last operation is a park, not a swap: it
     /// opened on `dropping` with no `changing` before it (MHC_DROP), or it is
     /// a park this backend dispatched. Its target_tool is then the tool being

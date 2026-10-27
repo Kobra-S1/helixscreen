@@ -252,12 +252,17 @@ lv_obj_t* AmsDeviceOperationsOverlay::create(lv_obj_t* parent) {
         AmsState::instance().get_ams_action_subject(), this,
         [](AmsDeviceOperationsOverlay* self, int) { self->update_abort_available(); },
         AmsState::instance().get_subjects_lifetime());
+    can_cancel_observer_ = observe<int>(
+        AmsState::instance().get_ams_can_cancel_subject(), this,
+        [](AmsDeviceOperationsOverlay* self, int) { self->update_abort_available(); },
+        AmsState::instance().get_subjects_lifetime());
 
     return overlay_root_;
 }
 
 void AmsDeviceOperationsOverlay::on_ui_destroyed() {
     action_observer_.reset();
+    can_cancel_observer_.reset();
     bypass_toggle_.cancel_pending();
 }
 

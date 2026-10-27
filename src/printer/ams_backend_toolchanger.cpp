@@ -951,7 +951,14 @@ void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
         recheck_swap();
     }
     // A status frame comes only from a ready Klippy: what a run stopped by a
-    // lost connection owes its heaters can go out.
+    // lost connection owes its heaters can go out, once the frames have said
+    // whether a print holds the printer.
+    if (auto ps = params.find("print_stats"); ps != params.end() && ps->is_object()) {
+        if (auto st = ps->find("state"); st != ps->end() && st->is_string()) {
+            frame_print_state_ = st->get<std::string>();
+            frame_print_state_current_ = true;
+        }
+    }
     flush_owed_heaters_off();
 
     // Emit event OUTSIDE the lock to avoid deadlock if the callback
@@ -1141,6 +1148,9 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
             controller_op_is_park_ = op == "dropping";
         }
         last_operation_word_ = op;
+        if (op == "idle") {
+            operation_idle_reported_ = true;
+        }
     }
     if (const auto busy = operation_word_action(op)) {
         system_info_.action = *busy;
@@ -1671,9 +1681,13 @@ void AmsBackendToolChanger::abandon_dispatch(uint64_t generation) {
         // A fault a frame raised meanwhile is the machine's answer and stays.
         if (ams_action_holds_system(system_info_.action)) {
             // A swap the controller reports running is someone else's (the
-            // rejection is often its "MedusaHC is busy"), and its own frames
-            // end it.
-            if (const auto running = operation_word_action(last_operation_word_)) {
+            // rejection is often its "MedusaHC is busy"), and its own idle
+            // frame ends it. A source that never says idle cannot end one, so
+            // its last word is no evidence of anything still running.
+            const auto running = operation_idle_reported_
+                                     ? operation_word_action(last_operation_word_)
+                                     : std::nullopt;
+            if (running) {
                 system_info_.action = *running;
                 system_info_.operation_detail = last_operation_word_;
             } else {
@@ -2385,12 +2399,22 @@ void AmsBackendToolChanger::flush_owed_heaters_off() {
     if (owed_heaters_off_.empty()) {
         return;
     }
+    if (!frame_print_state_current_) {
+        // Not yet known whether the reconnect found a print running: sending
+        // now could zero a new job's heaters.
+        return;
+    }
     // A print owns the heaters it finds: zeroing one now would cool a nozzle
-    // the job is using. What the run owed is the print's to set from here.
-    if (print_holds_printer()) {
+    // the job is using. What the run owed is the print's to set from here, so
+    // the operator is told which were left set.
+    const bool print_holds = frame_print_state_.empty() ? print_holds_printer()
+                                                        : frame_print_state_ == "printing" ||
+                                                              frame_print_state_ == "paused";
+    if (print_holds) {
         spdlog::info("[AMS ToolChanger] A print holds the printer; dropping the heaters-off a "
                      "stopped mount-to-feed run owed");
-        owed_heaters_off_.clear();
+        const std::vector<int> heads = std::exchange(owed_heaters_off_, {});
+        show_feed_toast(still_heating_sentence(heads) + ".", ToastSeverity::WARNING);
         return;
     }
     std::vector<int> heads = std::exchange(owed_heaters_off_, {});
@@ -2736,6 +2760,8 @@ void AmsBackendToolChanger::on_klipper_restarted() {
         std::lock_guard<std::mutex> lock(mutex_);
         pending_dispatch_action_.reset();
         ++dispatch_generation_;
+        // Whatever the controller was doing died with it.
+        last_operation_word_.clear();
     }
     // Everything the run had queued died with the restart. Klippy is ready
     // again, so what the run owes its heaters can go out now.
@@ -2745,10 +2771,21 @@ void AmsBackendToolChanger::on_klipper_restarted() {
 }
 
 void AmsBackendToolChanger::on_connection_lost() {
+    {
+        // A phase word from before the drop says nothing about the printer
+        // the reconnect finds.
+        std::lock_guard<std::mutex> lock(mutex_);
+        last_operation_word_.clear();
+    }
+    frame_print_state_current_ = false;
     stop_feed_run_unreachable();
 }
 
 AmsError AmsBackendToolChanger::cancel() {
+    if (feed_run_ && feed_cancel_after_swap_) {
+        // Already asked: the run ends once the swap settles.
+        return AmsErrorHelper::success();
+    }
     if (can_cancel_operation()) {
         // Only the dock sensors make a swap something to wait out: without
         // them the cleanup queues behind it in Klipper and restores as usual.

@@ -926,3 +926,23 @@ TEST_CASE("Unload stays manual when Load is a feed", "[toolchanger][zmod][feed][
     wire_zmod_with(tc, zmod_c5_afclite_discovery());
     CHECK(tc.unload_is_manual());
 }
+
+TEST_CASE("A rejected Z-Mod swap ends: its markers never say idle",
+          "[toolchanger][zmod][dispatch]") {
+    ToolChangerHelper tc(4);
+    wire_zmod(tc);
+    tc.feed(json{{"zmod_color", {{"active_tool_id", 1}}}});
+    struct RestoreStepOperation {
+        ~RestoreStepOperation() {
+            AmsState::instance().set_active_step_operation(StepOperationType::LOAD_SWAP);
+        }
+    } restore_step_operation;
+
+    REQUIRE(tc.change_tool(2).success());
+    ToolChangerTestAccess::feed_zmod_marker(tc, "// Unload attempt for T1: 1 of 5...");
+    ToolChangerTestAccess::feed_zmod_marker(tc, "// Grab attempt for T2: 1 of 5...");
+    REQUIRE(tc.get_current_action() == AmsAction::SELECTING);
+    tc.reject_last_send(MoonrakerErrorType::JSON_RPC_ERROR, "Grab failed");
+    CHECK(tc.get_current_action() == AmsAction::IDLE);
+    CHECK_FALSE(tc.get_system_info().is_busy());
+}

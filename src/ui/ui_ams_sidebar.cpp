@@ -613,6 +613,12 @@ void AmsOperationSidebar::init_observers() {
         AmsState::instance().get_filament_loaded_subject(), this,
         [](AmsOperationSidebar* self, int) { self->refresh_button_gating(); },
         AmsState::instance().get_subjects_lifetime());
+    // A backend can stop being cancellable mid-operation (a Cancel it holds for
+    // a swap), with no action edge to say so.
+    can_cancel_observer_ = observe<int>(
+        AmsState::instance().get_ams_can_cancel_subject(), this,
+        [](AmsOperationSidebar* self, int) { self->refresh_button_gating(); },
+        AmsState::instance().get_subjects_lifetime());
     print_state_observer_ = observe<int>(
         printer_state_.print_state().get_print_lifecycle_subject(), this,
         [](AmsOperationSidebar* self, int) { self->refresh_button_gating(); },
@@ -765,6 +771,7 @@ void AmsOperationSidebar::cleanup() {
     step_heater_version_observer_.reset();
     indeterminate_observer_.reset();
     filament_loaded_observer_.reset();
+    can_cancel_observer_.reset();
     print_state_observer_.reset();
 
     // Reset extracted modules AFTER observers — they may have their own observers

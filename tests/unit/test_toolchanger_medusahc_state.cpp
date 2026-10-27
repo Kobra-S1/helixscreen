@@ -16,6 +16,7 @@
 #include "ui_update_queue.h"
 
 #include "../test_helpers/backend_user_edit.h"
+#include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_state.h"
 #include "moonraker_error.h"
@@ -207,6 +208,22 @@ TEST_CASE("A rejected swap command clears the optimistic action",
         tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
         CHECK(tc.get_current_action() == AmsAction::IDLE);
     }
+}
+
+TEST_CASE("A restart or a lost connection forgets the controller's last phase word",
+          "[ams][toolchanger][medusahc][state]") {
+    ToolChangerHelper tc(6);
+    wire(tc, standalone_discovery(6));
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}}}});
+    tc.feed(json{{"medusahc", {{"operation", "picking"}}}});
+    REQUIRE(ToolChangerTestAccess::last_operation_word(tc) == "picking");
+    tc.on_connection_lost();
+    CHECK(ToolChangerTestAccess::last_operation_word(tc).empty());
+
+    tc.feed(json{{"medusahc", {{"operation", "dropping"}}}});
+    REQUIRE(ToolChangerTestAccess::last_operation_word(tc) == "dropping");
+    tc.on_klipper_restarted();
+    CHECK(ToolChangerTestAccess::last_operation_word(tc).empty());
 }
 
 TEST_CASE("Klipper restart: a swap latched mid-'changing' clears",
