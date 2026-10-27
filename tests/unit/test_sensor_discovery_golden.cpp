@@ -110,7 +110,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     tsm.discover({});
     lcm.discover({});
     psm.discover({});
-    hsm.discover({});
+    hsm.discover(PrinterDiscovery{});
     wsm.discover(PrinterDiscovery{});
     ism.discover({});
     ism.discover_from_config(json::object());
@@ -120,7 +120,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     tsm.discover(helix::temperature_sensor_objects(hw));
     lcm.discover(hw.load_cells());
     psm.discover(hw.printer_objects());
-    hsm.discover(hw.printer_objects());
+    hsm.discover(hw);
     wsm.discover(hw);
     ism.discover(hw.printer_objects());
     if (configfile != nullptr) {
@@ -142,8 +142,21 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     m["probe"] = manager_entry(entries_of(
         psm.get_sensors(), [](const auto& s) { return probe_role_to_string(s.role); },
         [](const auto& s) { return probe_type_to_string(s.type); }));
+    struct HumidityRow {
+        std::string klipper_name;
+        std::string sensor_name;
+        helix::sensors::HumiditySensorRole role;
+        helix::sensors::HumiditySensorType type;
+        bool enabled;
+    };
+    std::vector<HumidityRow> humidity_rows;
+    for (const auto& e : hsm.entries()) {
+        humidity_rows.push_back({e.klipper_name, e.display_name,
+                                 static_cast<HumiditySensorRole>(e.role),
+                                 static_cast<HumiditySensorType>(e.type), e.enabled});
+    }
     m["humidity"] = manager_entry(entries_of(
-        hsm.get_sensors(), [](const auto& s) { return humidity_role_to_string(s.role); },
+        humidity_rows, [](const auto& s) { return humidity_role_to_string(s.role); },
         [](const auto& s) { return humidity_type_to_string(s.type); }));
     // The golden keeps the short sensor name the Settings rows show.
     struct WidthRow {
@@ -174,7 +187,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     tsm.discover({});
     lcm.discover({});
     psm.discover({});
-    hsm.discover({});
+    hsm.discover(PrinterDiscovery{});
     wsm.discover(PrinterDiscovery{});
     ism.discover({});
     ism.discover_from_config(json::object());

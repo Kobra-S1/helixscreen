@@ -76,30 +76,6 @@ humidity_chip_for_object(const std::string& klipper_name) {
     return nullptr;
 }
 
-/// @brief Configuration for a humidity sensor
-struct HumiditySensorConfig {
-    std::string klipper_name; ///< Full Klipper name (e.g., "bme280 chamber")
-    std::string sensor_name;  ///< Short name (e.g., "chamber")
-    HumiditySensorType type = HumiditySensorType::BME280;
-    HumiditySensorRole role = HumiditySensorRole::NONE;
-    bool enabled = true;
-
-    HumiditySensorConfig() = default;
-
-    HumiditySensorConfig(std::string klipper_name_, std::string sensor_name_,
-                         HumiditySensorType type_)
-        : klipper_name(std::move(klipper_name_)), sensor_name(std::move(sensor_name_)),
-          type(type_) {}
-};
-
-/// @brief Runtime state for a humidity sensor
-struct HumiditySensorState {
-    float humidity = 0.0f;    ///< Humidity percentage (0-100)
-    float pressure = 0.0f;    ///< Pressure in hPa (BME280 only, 0 for HTU21D)
-    float temperature = 0.0f; ///< Temperature in degrees C
-    bool available = false;   ///< Sensor available in current config
-};
-
 inline constexpr EnumName<HumiditySensorRole> kHumiditySensorRoles[] = {
     {HumiditySensorRole::NONE, "none", "Unassigned"},
     {HumiditySensorRole::CHAMBER, "chamber", "Chamber"},

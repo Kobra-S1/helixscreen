@@ -7,7 +7,6 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "filament_sensor_manager.h"
-#include "humidity_sensor_manager.h"
 #include "i_moonraker_client.h"
 #include "input_sensor_manager.h"
 #include "led/led_auto_state.h"
@@ -84,11 +83,6 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     auto& psm = helix::sensors::ProbeSensorManager::instance();
     psm.discover(hardware.printer_objects());
     psm.load_config_from_file();
-
-    // Initialize humidity sensor manager
-    // Humidity sensors (bme280, htu21d) are discovered from the full objects list
-    auto& hsm = helix::sensors::HumiditySensorManager::instance();
-    hsm.discover(hardware.printer_objects());
 
     for (auto* m : helix::sensors::sensor_managers()) {
         m->discover(hardware);

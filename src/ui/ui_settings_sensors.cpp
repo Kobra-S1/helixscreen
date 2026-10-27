@@ -530,7 +530,7 @@ void SensorSettingsOverlay::populate_humidity_sensors() {
     }
 
     auto& mgr = helix::sensors::HumiditySensorManager::instance();
-    auto sensors = mgr.get_sensors();
+    auto sensors = mgr.entries();
 
     spdlog::debug("[{}] Populating humidity sensor list with {} sensors", get_name(),
                   sensors.size());
@@ -546,16 +546,19 @@ void SensorSettingsOverlay::populate_humidity_sensors() {
         lv_obj_set_style_flex_cross_place(row, LV_FLEX_ALIGN_CENTER, 0);
 
         auto* name_label = lv_label_create(row);
-        lv_label_set_text(name_label, sensor.sensor_name.c_str());
+        lv_label_set_text(name_label, sensor.display_name.c_str());
         lv_obj_set_style_text_color(name_label, theme_manager_get_color("text"), 0);
         lv_obj_set_flex_grow(name_label, 1);
 
         auto* type_label = lv_label_create(row);
         lv_label_set_text(type_label,
-                          helix::sensors::humidity_type_to_display_string(sensor.type).c_str());
+                          helix::sensors::humidity_type_to_display_string(
+                              static_cast<helix::sensors::HumiditySensorType>(sensor.type))
+                              .c_str());
         lv_obj_set_style_text_color(type_label, theme_manager_get_color("text_muted"), 0);
 
-        spdlog::debug("[{}]   Created row for humidity sensor: {}", get_name(), sensor.sensor_name);
+        spdlog::debug("[{}]   Created row for humidity sensor: {}", get_name(),
+                      sensor.display_name);
     }
 }
 

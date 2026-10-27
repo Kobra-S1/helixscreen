@@ -44,7 +44,7 @@ static void humidity_widget_init_subjects() {
                             lv_subject_copy_string(target, buf);
                         }
                     },
-                    helix::sensors::HumiditySensorManager::instance().get_subjects_lifetime());
+                    helix::sensors::HumiditySensorManager::instance().subjects_lifetime());
             }
 
             spdlog::debug("[HumidityWidget] Subjects initialized (chamber_humidity_text)");
