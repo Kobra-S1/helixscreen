@@ -89,6 +89,10 @@ EffectiveFilament to_effective(const nlohmann::json& p) {
                 e.codes[scheme] = code.get<std::string>();
         }
     }
+    // OrcaSlicer's preset `filament_id` is a code like any other: filed as
+    // scheme "orca" so load_codes_cached("orca") serves it on a repeating path.
+    if (std::string orca = helix::json_util::safe_string(p, "orca_id"); !orca.empty())
+        e.codes["orca"] = std::move(orca);
     return e;
 }
 

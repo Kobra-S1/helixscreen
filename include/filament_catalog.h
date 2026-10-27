@@ -31,7 +31,9 @@ struct EffectiveFilament {
     int dry_time_min = 0;
     float density_g_cm3 = 0.0f;
     std::string compat_group;
-    std::map<std::string, std::string> codes; ///< scheme -> code
+    /// scheme -> code. "orca" is the product's top-level `orca_id`, OrcaSlicer's
+    /// preset `filament_id`.
+    std::map<std::string, std::string> codes;
 };
 
 /// Transient, on-demand filament catalog. NO resident singleton: construct via a

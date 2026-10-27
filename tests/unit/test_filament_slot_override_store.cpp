@@ -3850,6 +3850,45 @@ TEST_CASE("a Spoolman filing keeps a declared colour on the stored record",
     }
 }
 
+TEST_CASE("lane_data carries the catalog product's OrcaSlicer filament_id as a string",
+          "[filament_slot_override][orca]") {
+    FilamentSlotOverride ovr;
+    ovr.brand = "Bambu Lab";
+    ovr.material = "ABS";
+
+    SECTION("a product with an Orca id writes it") {
+        ovr.catalog_id = "bambu-lab-bambu-abs";
+        json wire = helix::ams::to_lane_data_record(0, ovr);
+        REQUIRE(wire.contains("filament_id"));
+        CHECK(wire["filament_id"].is_string());
+        CHECK(wire["filament_id"] == "OGFB00");
+
+        // Read back unchanged: the field is Orca's, not part of the override.
+        auto parsed = helix::ams::from_lane_data_record(wire);
+        REQUIRE(parsed.has_value());
+        CHECK(parsed->second.catalog_id == "bambu-lab-bambu-abs");
+        CHECK(parsed->second.spoolman_filament_id == 0);
+    }
+
+    SECTION("a product with no Orca id writes none") {
+        ovr.catalog_id = "creality-cr-abs";
+        CHECK_FALSE(helix::ams::to_lane_data_record(0, ovr).contains("filament_id"));
+    }
+
+    SECTION("an unknown catalog id writes none") {
+        ovr.catalog_id = "no-such-product";
+        CHECK_FALSE(helix::ams::to_lane_data_record(0, ovr).contains("filament_id"));
+    }
+
+    SECTION("no catalog id writes none, even with a Spoolman filament id") {
+        ovr.spoolman_id = 42;
+        ovr.spoolman_filament_id = 55;
+        json wire = helix::ams::to_lane_data_record(0, ovr);
+        CHECK_FALSE(wire.contains("filament_id"));
+        CHECK(wire["helix_spoolman_filament_id"] == 55);
+    }
+}
+
 TEST_CASE("slot fingerprint round-trips through the lane_data record and the local cache",
           "[filament_slot_override][ams]") {
     FilamentSlotOverride ovr;

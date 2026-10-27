@@ -64,6 +64,22 @@ TEST_CASE_METHOD(HelixTestFixture, "load_codes materializes only coded slice",
     CHECK(cat.resolve_id("polymaker-abs-pro") == nullptr);
 }
 
+TEST_CASE_METHOD(HelixTestFixture, "orca_id is the product's code in scheme orca",
+                 "[filament_catalog]") {
+    auto cat = FilamentCatalog::load_from_file(FIX, /*codes_only=*/true, "orca");
+    REQUIRE(cat.all_products().size() == 1);
+    const auto* pla = cat.resolve_id("polymaker-pla-pro");
+    REQUIRE(pla != nullptr);
+    CHECK(pla->codes.at("orca") == "TESTORCA01");
+    CHECK(cat.resolve_code("orca", "TESTORCA01") == pla);
+    CHECK(cat.resolve_id("polymaker-abs-pro") == nullptr); // no orca_id, not in the slice
+
+    auto full = FilamentCatalog::load_from_file(FIX, false, "");
+    const auto* abs = full.resolve_id("polymaker-abs-pro");
+    REQUIRE(abs != nullptr);
+    CHECK(abs->codes.count("orca") == 0);
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "queries by brand and type", "[filament_catalog]") {
     auto cat = FilamentCatalog::load_from_file(FIX, false, "");
     CHECK(cat.products_for_brand("Polymaker").size() == 2);

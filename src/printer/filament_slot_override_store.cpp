@@ -4,6 +4,7 @@
 #include "ams_types.h"
 #include "data_root_resolver.h"
 #include "exception_policy.h"
+#include "filament_catalog.h"
 #include "filament_database.h"
 #include "filament_slot_override.h"
 #include "filament_variants.h"
@@ -342,8 +343,9 @@ std::optional<int> implied_slot_from_key(const std::string& key) {
 } // namespace
 
 // Convert FilamentSlotOverride + slot_index to the AFC-shaped JSON Orca expects,
-// plus our extension fields (prefixed comment fields are HelixScreen-only, silently
-// ignored by Orca 2.3.2 which only reads the top 5 required fields).
+// plus our extension fields. Orca reads lane, color, material, nozzle_temp,
+// bed_temp and a string filament_id; the helix_-prefixed fields are
+// HelixScreen-only and Orca ignores them.
 //
 // NOTE on indexing: the outer Moonraker DB key style varies (laneN 1-based for
 // filament systems, T<n> 0-based for tool changers) but the "lane" field inside
@@ -388,8 +390,19 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
     // namespace. Emitted independently: a pick whose id later stops resolving
     // still has a name worth keeping, and a name with no id is a legitimate
     // half-record rather than a reason to drop both.
-    if (!o.catalog_id.empty())
+    if (!o.catalog_id.empty()) {
         j["helix_catalog_id"] = o.catalog_id;
+        // OrcaSlicer matches a string `filament_id` against its presets' own
+        // filament_id and picks that exact preset over the generic one for the
+        // material. Only the catalog's recorded id goes here, never a guess; a
+        // numeric `filament_id` (Happy Hare's Spoolman id, in its own records)
+        // is ignored by Orca.
+        const auto orca_slice = helix::printer::FilamentCatalog::load_codes_cached("orca");
+        if (const auto* product = orca_slice->resolve_id(o.catalog_id)) {
+            if (auto code = product->codes.find("orca"); code != product->codes.end())
+                j["filament_id"] = code->second;
+        }
+    }
     if (!o.product_name.empty())
         j["helix_product_name"] = o.product_name;
     // Authorship for the identity fields, colour and material included.
@@ -433,8 +446,9 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
     }
     if (o.spoolman_vendor_id > 0)
         j["spoolman_vendor_id"] = o.spoolman_vendor_id;
-    // helix_-prefixed: Happy Hare writes its own unprefixed "filament_id" inner
-    // field into these shared records, so that name is not ours to take.
+    // helix_-prefixed: the unprefixed "filament_id" in our records is
+    // OrcaSlicer's preset id (above), and Happy Hare's records use it for a
+    // numeric Spoolman id, so the Spoolman definition id needs its own name.
     if (o.spoolman_filament_id > 0)
         j["helix_spoolman_filament_id"] = o.spoolman_filament_id;
     if (o.remaining_weight_g >= 0)
