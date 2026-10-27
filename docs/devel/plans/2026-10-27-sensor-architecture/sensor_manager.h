@@ -100,9 +100,10 @@ class SensorManager {
     /// Default: lock, parse_status(), unlock, publish() if it changed anything.
     virtual void update_from_status(const nlohmann::json& status);
 
-    /// Objects to subscribe beyond hw::status_fields() of the manager's kinds.
-    [[nodiscard]] virtual std::vector<std::string>
-    extra_subscriptions(const PrinterDiscovery& hw) const;
+    /// Subscriptions this manager owns beyond hw::status_fields() of its kinds, in
+    /// printer.objects.subscribe shape: {object: [fields...] or null}. Probe owns
+    /// every probe subscription here (per-type object and fields).
+    [[nodiscard]] virtual nlohmann::json extra_subscriptions(const PrinterDiscovery& hw) const;
 
     void load_settings(); ///< no-op when the manager has no config key
     void save_settings();
