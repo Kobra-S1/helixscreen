@@ -608,8 +608,7 @@ class PrintSelectDetailView : public OverlayBase {
      *
      * Computed in try_extract_gcode_colors() after the gcode is parsed, for
      * ALL AMS backends (including those whose mapping card is hidden, e.g.
-     * Snapmaker U1 / ACE). Drives the filament_mismatch_ and
-     * empty_tools_warning_ subjects, and is read by the print-start gate and
+     * Snapmaker U1 / ACE). Read by the print-start gate and
      * the enriched pre-print modal. Empty (no checks) until a file is parsed.
      */
     [[nodiscard]] const helix::PreflightResult& preflight_result() const {
@@ -622,8 +621,7 @@ class PrintSelectDetailView : public OverlayBase {
      * Rebuilds the per-tool intent (filtered to the precise tools_used set from
      * the parsed gcode), re-reads available slots from AmsState, computes the
      * default mapping, runs PreflightValidator::validate, caches the result into
-     * preflight_result_, and republishes the filament_mismatch_ /
-     * empty_tools_warning_ subjects.
+     * preflight_result_.
      *
      * Called once after parse (from try_extract_gcode_colors()) and again after
      * a native tool→slot remap so the print-start gate reflects the new mapping.
@@ -936,7 +934,6 @@ class PrintSelectDetailView : public OverlayBase {
     // Pre-print option toggle state lives in `option_rows_renderer_` (one
     // heap-allocated subject per option) — the legacy fixed six subjects
     // (preprint_bed_mesh_, preprint_qgl_, etc.) were retired in Phase 3.5.
-    lv_subject_t filament_mismatch_{};        // 1 = material mismatch warning visible
     lv_subject_t filament_mapping_visible_{}; // 1 = filament card visible (AMS+tools)
     // 1 = tapping the filament card opens the remap picker. Drives BOTH the
     // chevron that advertises the tap and the card's own clickable flag, so a
@@ -954,7 +951,6 @@ class PrintSelectDetailView : public OverlayBase {
     // Covers both the refusal and the "this will misfile your history" advisory;
     // the copy is chosen when the icon is tapped, not when it is published.
     lv_subject_t color_card_remap_help_visible_{};
-    lv_subject_t empty_tools_warning_{}; // 1 = at least one used tool's slot is empty
     // The fit check's verdict for the shown file: 0 none, 1 notes only,
     // 2 warnings, 3 a block, and one line per finding.
     lv_subject_t detail_fit_severity_{};
@@ -971,8 +967,7 @@ class PrintSelectDetailView : public OverlayBase {
     // Published by publish_rewrite_availability().
     lv_subject_t gcode_rewrite_available_{};
     // Cached backend-agnostic pre-flight validation result for the current file.
-    // Computed in try_extract_gcode_colors() once the gcode is parsed; the single
-    // source of truth driving filament_mismatch_ + empty_tools_warning_ (works
+    // Computed in try_extract_gcode_colors() once the gcode is parsed (works
     // even when the mapping card is hidden, e.g. Snapmaker U1 / ACE). Read by the
     // print-start gate and the enriched pre-print modal. Empty until a file parses.
     helix::PreflightResult preflight_result_{};

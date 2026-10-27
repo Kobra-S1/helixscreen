@@ -2,6 +2,7 @@
 #pragma once
 
 #include "ui_filament_mapping_modal.h"
+#include "ui_observer_guard.h"
 
 #include "filament_mapper.h"
 
@@ -16,9 +17,12 @@ namespace helix::ui {
 /**
  * @brief Compact filament mapping card for the print detail view
  *
- * Shows a compact row of color swatch pairs (gcode_color -> slot_color)
- * for each tool mapping. Tapping the card opens the FilamentMappingModal
- * for full interaction.
+ * One chip per used G-code tool: the file's colour and material over the mapped
+ * slot's spool and label, outlined by how well the two match
+ * (helix::chip_severity). The chips are filament_swatch.xml repeated by
+ * filament_chip_row.xml; the card only publishes the filament_chip_* subjects
+ * they bind and creates no widget. Tapping the card opens the
+ * FilamentMappingModal for full interaction.
  *
  * Visibility: declarative. The card itself does NOT toggle the LVGL HIDDEN
  * flag. After each `update()` it caches whether it should be visible
@@ -44,7 +48,7 @@ class FilamentMappingCard {
      * @brief Attach to XML widgets after instantiation
      *
      * @param card_widget The filament_mapping_card ui_card
-     * @param rows_container The filament_mapping_rows container (used for compact swatch row)
+     * @param rows_container The filament_mapping_rows container, measured for how many chips fit
      * @param warning_container The filament_mapping_warning container
      */
     void create(lv_obj_t* card_widget, lv_obj_t* rows_container, lv_obj_t* warning_container);
@@ -133,17 +137,14 @@ class FilamentMappingCard {
     /**
      * @brief Replace the current tool→slot mappings and repaint.
      *
-     * The single mapping-store writer. Stores, re-renders the chips, then fires
+     * The single mapping-store writer. Stores, republishes the chips, then fires
      * on_mappings_changed_ so downstream consumers (preview colours, pre-flight
-     * gate) re-evaluate. The repaint is not optional: the lane number inside each
-     * chip is written imperatively during rebuild_compact_view(), so a store
-     * without a rebuild leaves the pre-remap lane on screen while the print runs
-     * the new one. Safe to call before create() — rebuild_compact_view() returns
+     * gate) re-evaluate. Safe to call before create(): publish_chips() returns
      * early when rows_container_ is null.
      */
     void set_mappings(std::vector<helix::ToolMapping> mappings) {
         mappings_ = std::move(mappings);
-        rebuild_compact_view();
+        publish_chips();
         if (on_mappings_changed_) {
             on_mappings_changed_();
         }
@@ -304,28 +305,33 @@ class FilamentMappingCard {
                                         std::vector<helix::ToolMapping>& mappings,
                                         const std::optional<std::set<int>>& used);
 
-    /// Fixed on-screen width of one chip, in pixels. Mirrors the width
-    /// `filament_swatch.xml` documents; set from C++ because a numeric width on a
-    /// component `<view>` root is not honoured by `lv_xml_create`.
-    static constexpr int32_t kChipWidth = 40;
+    /// Width of one chip when the #filament_chip_width token cannot be read
+    /// (the theme is not up yet); the token's 800x480 value.
+    static constexpr int32_t kChipWidth = 64;
+
+    /// Chips the card has subjects for. A file using more tools shows the first
+    /// ones and a "+N" pill for the rest.
+    static constexpr size_t kMaxFilamentChips = 16;
+
+    /// Register the filament_chip_* subjects filament_chip_row.xml binds. Must
+    /// run before that XML is created; idempotent.
+    static void init_subjects();
 
     /// Chips to assume fit before layout has settled and the row can be measured.
     /// `filament_mapping_rows` measures 181px on the narrowest supported screen
-    /// (480x272), and holds 4 chips there for every `space_xs` the theme hands
-    /// out (the token is breakpoint-scaled: 2px at 480x272, 5px at 800x480), so 4
-    /// is the floor that is safe everywhere. Measured, not derived.
-    static constexpr size_t kMinVisibleChips = 4;
+    /// (480x272), which holds three of that breakpoint's chips.
+    static constexpr size_t kMinVisibleChips = 3;
 
-    /// How many chips fit in one row `content_width` px wide with `gap` px
-    /// between them; never less than 1.
+    /// How many chips @p chip_width px wide fit in one row `content_width` px
+    /// wide with `gap` px between them; never less than 1.
     ///
     /// Pure/stateless. The chips are drawn in a single non-wrapping row of fixed
     /// height, so everything past the right edge is clipped rather than wrapped —
     /// the card caps what it draws at this number and summarises the remainder in
     /// a "+N" pill. A non-positive width (layout not settled) yields
-    /// kMinVisibleChips. Exposed static so the arithmetic is testable without
-    /// LVGL geometry.
-    [[nodiscard]] static size_t chips_that_fit(int32_t content_width, int32_t gap);
+    /// kMinVisibleChips.
+    [[nodiscard]] static size_t chips_that_fit(int32_t content_width, int32_t gap,
+                                               int32_t chip_width = kChipWidth);
 
     /// Find a tool by its real gcode `.tool_index`, not by vector position.
     ///
@@ -337,8 +343,9 @@ class FilamentMappingCard {
     find_by_tool_index(const std::vector<helix::GcodeToolInfo>& tool_info, int tool_index);
 
   private:
-    /// Build compact swatch pair row in rows_container_
-    void rebuild_compact_view();
+    /// Publish the filament_chip_* subjects for the current tools, mappings and
+    /// slots: severity and colours are judged against the slots as they are now.
+    void publish_chips();
 
     /// Check if any mappings have material mismatches
     bool has_any_mismatch() const;
@@ -391,12 +398,8 @@ class FilamentMappingCard {
     /// update() so a set pushed before a later update() survives the rebuild.
     std::optional<std::set<int>> used_tools_;
 
-    /// Fingerprint of the inputs (tools + mappings + slot state) behind the
-    /// last render of the compact view. rebuild_compact_view() skips the
-    /// destroy/recreate when a freshly computed fingerprint matches this and
-    /// children still exist. Cleared in on_ui_destroyed() — a recycled card
-    /// must re-render against fresh widgets even with identical data.
-    std::string last_render_fingerprint_;
+    /// Republishes the chips on a language switch: "Pick" is translated in C++.
+    ObserverGuard language_observer_;
 
     FilamentMappingModal mapping_modal_;
     MappingsChangedCallback on_mappings_changed_;

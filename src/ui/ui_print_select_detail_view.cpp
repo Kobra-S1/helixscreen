@@ -203,8 +203,8 @@ void PrintSelectDetailView::init_subjects() {
     // scan or viewer parse completes.
     UI_MANAGED_SUBJECT_INT(detail_mapping_ready_, 0, "detail_mapping_ready", subjects_);
 
-    // Filament mismatch warning (0=hidden, 1=visible)
-    UI_MANAGED_SUBJECT_INT(filament_mismatch_, 0, "filament_mismatch", subjects_);
+    // The chips print_file_detail.xml repeats.
+    FilamentMappingCard::init_subjects();
 
     // Filament mapping card visibility (0=hidden, 1=visible). Driven by
     // FilamentMappingCard::should_show() after each update(); XML binds
@@ -226,9 +226,6 @@ void PrintSelectDetailView::init_subjects() {
     UI_MANAGED_SUBJECT_INT(color_card_remap_help_visible_, 0, "color_card_remap_help_visible",
                            subjects_);
 
-    // Empty-tools warning visibility (0=hidden, 1=visible). Set by
-    // recompute_preflight() when any T-command-referenced slot is empty.
-    UI_MANAGED_SUBJECT_INT(empty_tools_warning_, 0, "empty_tools_warning", subjects_);
     UI_MANAGED_SUBJECT_INT(detail_fit_severity_, 0, "detail_fit_check_severity", subjects_);
     UI_MANAGED_SUBJECT_STRING(detail_fit_text_, detail_fit_text_buf_, "", "detail_fit_check_text",
                               subjects_);
@@ -599,20 +596,6 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     // the precise used-tool set as soon as that set is known.
     publish_card_visibility();
 
-    // The warnings start in a neutral "not yet known" state. Seeding them from
-    // the slicer palette index here inspects the wrong AMS slots, because the
-    // palette over-counts the tools the file really uses. The authoritative
-    // answer arrives with the pre-flight validator once the gcode viewer has
-    // parsed and produced tools_used_indices. Reset every show() so
-    // re-selecting a different file never leaks stale warning state.
-    //
-    // filament_mismatch_ is likewise neutral-until-parse: seeding it from
-    // filament_mapping_card_.has_mismatch() here would flash a value computed
-    // against the full slicer palette before the validator runs against the
-    // precise tools_used set. The pre-flight validator in
-    // try_extract_gcode_colors() is the sole authoritative post-parse writer.
-    lv_subject_set_int(&empty_tools_warning_, 0);
-    lv_subject_set_int(&filament_mismatch_, 0);
     lv_subject_set_int(&detail_prefer_sliced_colors_, 0); // every open starts on actual colors
     fit_record_.reset();
     refresh_fit_check();
@@ -1561,7 +1544,6 @@ void PrintSelectDetailView::on_ams_state_changed() {
 
 void PrintSelectDetailView::refresh_preview_colors_and_mismatch() {
     apply_preview_colors();
-    lv_subject_set_int(&filament_mismatch_, filament_mapping_card_.has_mismatch() ? 1 : 0);
     // Re-evaluate the pre-flight gate so a subsequent Print reflects the current
     // tool->slot mapping (native remap flow reads get_filament_mappings()).
     recompute_preflight();
@@ -1579,8 +1561,7 @@ void PrintSelectDetailView::try_extract_gcode_colors(lv_obj_t* viewer) {
     if (helix::ui::gcode_viewer_adopt_palette_if_empty(viewer, current_filament_colors_)) {
         // Rebuild the mapping card's internal tool/slot/mapping state with the
         // newly-extracted colors (the card uses them when AMS is present). The
-        // filament_mismatch_ / empty_tools_warning_ subjects are NOT published
-        // here — the pre-flight validator below is the single source of truth.
+        // pre-flight validator below is the single source of truth for the gate.
         filament_mapping_card_.refresh_palette(current_filament_colors_,
                                                current_filament_materials_);
 
@@ -1665,8 +1646,8 @@ void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tool
                                                current_filament_materials_);
     }
 
-    // Backend-agnostic pre-flight validation (single source of truth for
-    // filament_mismatch_ + empty_tools_warning_).
+    // Backend-agnostic pre-flight validation (single source of truth for the
+    // print-start gate).
     recompute_preflight();
 
     // Restrict the mapping card to the tools this file actually uses — it was
@@ -1695,8 +1676,8 @@ void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tool
 
 void PrintSelectDetailView::recompute_preflight() {
     // ------------------------------------------------------------------
-    // Backend-agnostic pre-flight validation (single source of truth for
-    // filament_mismatch_ + empty_tools_warning_).
+    // Backend-agnostic pre-flight validation (single source of truth for the
+    // print-start gate).
     //
     // Runs for ALL AMS backends — including those whose mapping card is hidden
     // (Snapmaker U1 / ACE), where get_available_slots() on the card is empty.
@@ -1739,23 +1720,9 @@ void PrintSelectDetailView::recompute_preflight() {
     // would report EmptySlot. Backend-agnostic — AFC and Happy Hare both report it.
     preflight_result_ = helix::file_preflight(tools, effective_mappings());
 
-    // The triangle means MATERIAL, and only material. PreflightResult already
-    // separates the three severities and this used to flatten them: any severity
-    // other than Ok lit it, so a ColorMismatch raised a card-level colour alarm
-    // that was explicitly decided against. An empty lane is published next to it
-    // as its own signal, and colour is the per-chip surround on the swatch - the
-    // chip shows both colours side by side, so an alarm here would fire on most
-    // prints and devalue the triangle that flags what cannot be seen.
-    lv_subject_set_int(&filament_mismatch_, preflight_result_.has_advisory() ? 1 : 0);
-    lv_subject_set_int(&empty_tools_warning_, preflight_result_.has_block() ? 1 : 0);
-
-    // Log every severity separately, not only the one the triangle publishes.
-    // The bug above was three findings sharing one lamp, so the log must not
-    // repeat it: someone looking at a chip that wears a colour surround while
-    // the triangle is dark needs to see WHICH finding preflight made, and
-    // "advisory=false" alone cannot tell "nothing was wrong" from "something
-    // was, and it was not material". These three are the complete set - every
-    // severity other than Ok is one of them.
+    // Log every severity separately: "advisory=false" alone cannot tell
+    // "nothing was wrong" from "something was, and it was not material". These
+    // three are the complete set - every severity other than Ok is one of them.
     const bool color_flagged =
         std::any_of(preflight_result_.checks.begin(), preflight_result_.checks.end(),
                     [](const helix::ToolCheck& c) {

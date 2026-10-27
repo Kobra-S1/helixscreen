@@ -85,7 +85,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Card shows on a backend whose mappin
     mock->set_snapmaker_mode(true);
     card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
     CHECK(card.should_show());
-    CHECK(lv_obj_get_child_count(rows) == 2);
+    CHECK(chip_count() == 2);
     process_lvgl(100);
 }
 
@@ -109,7 +109,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Card shows a single-tool file on a m
     card.set_used_tools(std::set<int>{0});
     card.update({"#FF0000"}, {"PLA"});
     CHECK(card.should_show());
-    CHECK(lv_obj_get_child_count(rows) == 1);
+    CHECK(chip_count() == 1);
     process_lvgl(100);
 }
 
@@ -127,7 +127,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     card.set_used_tools(std::set<int>{});
     card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
     CHECK(card.should_show());
-    CHECK(lv_obj_get_child_count(rows) == 2);
+    CHECK(chip_count() == 2);
     process_lvgl(100);
 }
 
@@ -150,7 +150,7 @@ TEST_CASE_METHOD(SingleExtruderMappingCardFixture,
     // brief named as the failure mode of the merge.
     card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
     CHECK(card.should_show());
-    CHECK(lv_obj_get_child_count(rows) == 2);
+    CHECK(chip_count() == 2);
     process_lvgl(100);
 }
 
@@ -161,8 +161,9 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "A chip centres each label on its ban
     // band centres it.
     lv_obj_set_size(rows, 300, 40);
     card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
-    REQUIRE(lv_obj_get_child_count(rows) >= 1);
-    lv_obj_t* chip = lv_obj_get_child(rows, 0);
+    REQUIRE(chip_count() >= 1);
+    lv_obj_t* chip = this->chip(0);
+    REQUIRE(chip != nullptr);
     lv_obj_update_layout(chip);
 
     const auto centre_y = [](lv_obj_t* obj) {
@@ -171,7 +172,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "A chip centres each label on its ban
         return (a.y1 + a.y2) / 2.0;
     };
     for (const auto& [band_name, label_name] :
-         {std::pair{"bottom_band", "slot_label"}, std::pair{"top_band", "material_label"}}) {
+         {std::pair{"chip_body", "chip_slot"}, std::pair{"chip_header", "chip_material"}}) {
         INFO(label_name);
         lv_obj_t* band = lv_obj_find_by_name(chip, band_name);
         lv_obj_t* label = lv_obj_find_by_name(chip, label_name);

@@ -9,13 +9,20 @@
 #include "ams_state.h"
 #include "color_utils.h"
 #include "display_numbering.h"
+#include "filament_chip_model.h"
 #include "filament_mapper.h"
+#include "filament_variants.h"
+#include "helix/xml/indexed_subject_pool.h"
+#include "helix_psram_attr.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "observe_language.h"
 #include "print_start_checks.h"
 #include "settings_manager.h"
+#include "subject_managed_panel.h"
 #include "theme_manager.h"
 #include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
+#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
@@ -24,9 +31,91 @@
 
 namespace helix::ui {
 
-// Chips are instantiated from ui_xml/components/filament_swatch.xml (dynamic
-// count depends on the gcode file). lv_obj_add_event_cb is used on the card
-// itself for the modal-open handler as an allowed exception.
+namespace {
+
+using helix::xml::IndexedSubjectPool;
+
+HELIX_PSRAM_BSS lv_subject_t s_chip_count{};
+HELIX_PSRAM_BSS lv_subject_t s_more_count{};
+HELIX_PSRAM_BSS lv_subject_t s_more_text{};
+HELIX_PSRAM_BSS char s_more_text_buf[16];
+helix::WidgetSubjects s_chip_subjects{"FilamentChipSubjects"};
+
+// Per chip, in display order: filament_chip_<i>_material and so on.
+IndexedSubjectPool s_chip_material{"filament_chip", IndexedSubjectPool::Type::String, 32,
+                                   "_material"};
+IndexedSubjectPool s_chip_slot{"filament_chip", IndexedSubjectPool::Type::String, 16, "_slot"};
+IndexedSubjectPool s_chip_file_color{"filament_chip", IndexedSubjectPool::Type::Color, 0,
+                                     "_file_color"};
+IndexedSubjectPool s_chip_file_color_known{"filament_chip", IndexedSubjectPool::Type::Int, 0,
+                                           "_file_color_known"};
+IndexedSubjectPool s_chip_ink{"filament_chip", IndexedSubjectPool::Type::Int, 0, "_ink"};
+IndexedSubjectPool s_chip_slot_color{"filament_chip", IndexedSubjectPool::Type::Color, 0,
+                                     "_slot_color"};
+IndexedSubjectPool s_chip_slot_colors{"filament_chip", IndexedSubjectPool::Type::String, 96,
+                                      "_slot_colors"};
+IndexedSubjectPool s_chip_slot_finish{"filament_chip", IndexedSubjectPool::Type::String, 32,
+                                      "_slot_finish"};
+IndexedSubjectPool s_chip_slot_state{"filament_chip", IndexedSubjectPool::Type::Int, 0,
+                                     "_slot_state"};
+IndexedSubjectPool s_chip_severity{"filament_chip", IndexedSubjectPool::Type::Int, 0, "_severity"};
+
+IndexedSubjectPool* const s_chip_pools[] = {
+    &s_chip_material,   &s_chip_slot,       &s_chip_file_color,  &s_chip_file_color_known,
+    &s_chip_ink,        &s_chip_slot_color, &s_chip_slot_colors, &s_chip_slot_finish,
+    &s_chip_slot_state, &s_chip_severity};
+
+/// filament_chip_<i>_slot_state: what the chip's body draws.
+enum ChipSlotState : int { kNoSlot = 0, kLoadedSlot = 1, kEmptySlot = 2 };
+
+/// filament_chip_<i>_ink: the header label's colour.
+enum ChipInk : int { kThemeInk = 0, kDarkInk = 1, kLightInk = 2 };
+
+void init_chip_subjects() {
+    s_chip_subjects.ensure_init(
+        [] {
+            UI_MANAGED_SUBJECT_INT(s_chip_count, 0, "filament_chip_count", s_chip_subjects);
+            UI_MANAGED_SUBJECT_INT(s_more_count, 0, "filament_chip_more_count", s_chip_subjects);
+            UI_MANAGED_SUBJECT_STRING(s_more_text, s_more_text_buf, "", "filament_chip_more_text",
+                                      s_chip_subjects);
+            for (IndexedSubjectPool* pool : s_chip_pools) {
+                pool->ensure_size(FilamentMappingCard::kMaxFilamentChips);
+            }
+        },
+        [] {
+            for (IndexedSubjectPool* pool : s_chip_pools) {
+                pool->reclaim();
+            }
+        });
+}
+
+void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::AvailableSlot* slot,
+                  const std::vector<helix::AvailableSlot>& all_slots) {
+    // The file names the tool by its material; the G-code tool is the fallback.
+    s_chip_material.set_string(i, tool.material.empty() ? helix::ui::tool_label(tool.tool_index)
+                                                        : tool.material);
+    s_chip_file_color.set_color(i, tool.color_rgb);
+    s_chip_file_color_known.set_int(i, tool.color_known ? 1 : 0);
+    int ink = kThemeInk;
+    if (tool.color_known) {
+        ink = lv_color_eq(theme_manager_get_readable_on(lv_color_hex(tool.color_rgb)),
+                          lv_color_black())
+                  ? kDarkInk
+                  : kLightInk;
+    }
+    s_chip_ink.set_int(i, ink);
+
+    s_chip_slot.set_string(i, slot ? helix::chip_slot_label(*slot, all_slots)
+                                   : std::string(lv_tr("Pick")));
+    s_chip_slot_color.set_color(i, slot ? slot->color_rgb : 0);
+    s_chip_slot_colors.set_string(i, slot ? slot->multi_color_hexes : std::string{});
+    s_chip_slot_finish.set_string(i, slot ? std::string(helix::filament_finish_name(slot->finish))
+                                          : std::string{});
+    s_chip_slot_state.set_int(i, !slot ? kNoSlot : (slot->is_empty ? kEmptySlot : kLoadedSlot));
+    s_chip_severity.set_int(i, static_cast<int>(helix::chip_severity(tool, slot)));
+}
+
+} // namespace
 
 // ============================================================================
 // Setup
@@ -55,6 +144,10 @@ void FilamentMappingCard::create(lv_obj_t* card_widget, lv_obj_t* rows_container
             },
             LV_EVENT_CLICKED, this);
     }
+
+    init_chip_subjects();
+    language_observer_ =
+        observe_language_change(this, [](FilamentMappingCard* self) { self->publish_chips(); });
 
     spdlog::debug("[FilamentMapping] Card created");
 }
@@ -208,7 +301,7 @@ void FilamentMappingCard::seed_from_palette(const std::vector<std::string>& gcod
     helix::FilamentMapper::apply_picks(mappings_, keep_picks);
 
     // Build the compact UI
-    rebuild_compact_view();
+    publish_chips();
 
     spdlog::debug("[FilamentMapping] Updated: {} tools, {} slots, {} mappings", tool_info_.size(),
                   available_slots_.size(), mappings_.size());
@@ -232,7 +325,7 @@ void FilamentMappingCard::refresh_slot_data() {
     // The slots can take away what made the card worth showing (the backend
     // going away, bypass engaging), so the rule runs again first.
     if (!recompute_visibility_or_clear()) {
-        rebuild_compact_view();
+        publish_chips();
         return;
     }
     if (!AmsState::instance().is_available()) {
@@ -242,7 +335,7 @@ void FilamentMappingCard::refresh_slot_data() {
     const Mapping fresh = compute_mapping(palette_colors_, palette_materials_, used_tools_);
     const bool followed =
         fresh.shows && helix::FilamentMapper::follow_seed(mappings_, fresh.mappings);
-    rebuild_compact_view();
+    publish_chips();
     if (followed && on_mappings_changed_) {
         on_mappings_changed_();
     }
@@ -275,7 +368,7 @@ void FilamentMappingCard::set_used_tools(std::optional<std::set<int>> used) {
     // detail view's full-palette copies (current_filament_colors_/materials) — only the card's own
     // vectors.
     apply_used_tools_filter(tool_info_, mappings_, used_tools_);
-    rebuild_compact_view();
+    publish_chips();
 }
 
 bool FilamentMappingCard::has_mismatch() const {
@@ -286,267 +379,64 @@ void FilamentMappingCard::on_ui_destroyed() {
     card_ = nullptr;
     rows_container_ = nullptr;
     warning_container_ = nullptr;
-    // The widgets this fingerprint described are gone — a recycled card must
-    // fully re-render, not early-return against a stale render.
-    last_render_fingerprint_.clear();
+    language_observer_.reset();
 }
 
 // ============================================================================
-// Compact swatch pair view
+// Chips
 // ============================================================================
 
-void FilamentMappingCard::rebuild_compact_view() {
+void FilamentMappingCard::init_subjects() {
+    init_chip_subjects();
+}
+
+void FilamentMappingCard::publish_chips() {
     if (!rows_container_) {
         return;
     }
+    init_chip_subjects();
 
-    // Nothing queued reaches the chips, and this can run inside LVGL's own
-    // event dispatch (modal on_mappings_updated -> here), so the clear below
-    // goes through safe_clean_children, which deletes outside it. Running
-    // queued work here would let a pending go_back destroy the card's widgets
-    // under this call (#1221).
-
-    // A card that is not going to be shown holds no chips. update() has always
-    // worked this way - it returns before this call on every hidden path - but
-    // set_used_tools() and refresh_slot_data() reach here directly, and a
-    // used-tool set that flips visibility off arrives through the first of
-    // those. Building the chips anyway left them parented under a hidden card:
-    // invisible, but real widgets carrying a lane claim the gate had just
-    // decided not to make, on a machine where that work is not free. Clearing
-    // the fingerprint keeps a later re-show from early-returning onto the empty
-    // container it would leave behind.
+    // A card that is not going to be shown publishes no chips: they would carry
+    // a lane claim the visibility rule has just decided not to make.
     if (!should_show_) {
-        helix::ui::safe_clean_children(rows_container_);
-        last_render_fingerprint_.clear();
+        lv_subject_set_int(&s_more_count, 0);
+        lv_subject_set_int(&s_chip_count, 0);
         return;
     }
 
-    // Idempotent render: identical (tools, mappings, slot state) + existing
-    // children => nothing visible changed => skip the destroy/recreate. Kills
-    // the late "gray -> real" rebuild when AMS resync data arrives after the
-    // panel opens.
-    //
-    // material is the only free-form string in the encoding (every other field
-    // is numeric or a single flag char), so it is the only one that can smuggle
-    // the ':'/'|' separators: one tool with material "A|1:0:B" and the two tools
-    // {0,0,"A"},{1,0,"B"} both render "0:0:A|1:0:B|" in the tool section. The
-    // mappings section below happens to break the tie today (it re-encodes the
-    // tool count, and mappings_ is built parallel to tool_info_), so this is
-    // hardening rather than a live skipped rebuild — but nothing enforces that
-    // redundancy. Length-prefixing as <len>':'<bytes> makes the tool section
-    // unambiguous on its own, for any material text.
-    std::string fingerprint;
-    fingerprint.reserve(128);
-    for (const auto& t : tool_info_) {
-        fingerprint += std::to_string(t.tool_index) + ":" + std::to_string(t.color_rgb) + ":" +
-                       (t.color_known ? "k" : "u") + ":" + std::to_string(t.material.size()) + ":" +
-                       t.material + "|";
-    }
-    for (const auto& m : mappings_) {
-        fingerprint += std::to_string(m.tool_index) + ">" + std::to_string(m.mapped_slot) + ":" +
-                       std::to_string(m.mapped_backend) + (m.is_auto ? "a" : "m") + "|";
-    }
-    for (const auto& s : available_slots_) {
-        fingerprint += std::to_string(s.backend_index) + "." + std::to_string(s.slot_index) + "=" +
-                       std::to_string(s.color_rgb) + (s.is_empty ? "e" : "f") + "|";
-    }
-
-    // ONE row, and what runs past its right edge is clipped, not wrapped:
-    // filament_mapping_rows is flex_flow="row" at a fixed height with
-    // scrollable="false". So cap the chips at what actually fits and say so with
-    // a "+N" pill - dropping the rest silently would hide lanes the print uses.
-    // n chips occupy n*CHIP_W + (n-1)*gap, hence the (+ gap) on both sides.
+    // ONE row, and what runs past its right edge is clipped, not wrapped: cap
+    // the chips at what fits and say so with a "+N" pill, which takes a chip's
+    // place. Dropping the rest silently would hide lanes the print uses.
     const int32_t gap = theme_manager_get_spacing("space_xs");
-    const int32_t avail = lv_obj_get_content_width(rows_container_);
-    const size_t capacity = chips_that_fit(avail, gap);
-
-    // Capacity is an input to the render, so it has to be an input to the
-    // fingerprint. A render that lands before layout has settled measures a
-    // zero-width row and takes the kMinVisibleChips fallback; without this the
-    // wrong answer would be PERMANENT, because every later rebuild carrying the
-    // same data early-returns below and on_ui_destroyed() is the only other thing
-    // that clears the fingerprint. Encode the capacity rather than the raw width:
-    // a width change that does not change how many chips fit changes nothing on
-    // screen and should not cost a rebuild.
-    fingerprint += "c" + std::to_string(capacity);
-
-    if (fingerprint == last_render_fingerprint_ && lv_obj_get_child_count(rows_container_) > 0) {
-        return;
+    int32_t chip_width = theme_manager_get_spacing("filament_chip_width");
+    if (chip_width <= 0) {
+        chip_width = kChipWidth;
     }
-    last_render_fingerprint_ = std::move(fingerprint);
-
-    helix::ui::safe_clean_children(rows_container_);
-
-    // Chip layout, sizing, padding, fonts all live in
-    // ui_xml/components/filament_swatch.xml — tune visuals without rebuilding.
-    // C++ only supplies per-chip dynamic data: the two band colours, the Tx and
-    // lane labels, the divider colour, and the empty-slot warning variant.
-    lv_obj_set_flex_flow(rows_container_, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_flex_cross_place(rows_container_, LV_FLEX_ALIGN_CENTER, 0);
-    lv_obj_set_style_pad_gap(rows_container_, gap, 0);
-
-    // The "+N" pill takes one of the slots rather than being drawn past the edge,
-    // so overflowing costs a chip.
+    const size_t capacity =
+        std::min(chips_that_fit(lv_obj_get_content_width(rows_container_), gap, chip_width),
+                 kMaxFilamentChips);
     const size_t tool_count = tool_info_.size();
     const bool overflow = tool_count > capacity;
     const size_t visible = overflow ? capacity - 1 : tool_count;
-    spdlog::debug("[FilamentMapping] Row {}px fits {} chip(s); {} tool(s) -> {} shown{}", avail,
-                  capacity, tool_count, visible, overflow ? " + overflow pill" : "");
-
-    const bool multi_tool = tool_count > 1;
-    const lv_color_t neutral = theme_manager_get_color("text_muted");
 
     for (size_t i = 0; i < visible; ++i) {
-        const auto& tool = tool_info_[i];
-        auto* chip =
-            static_cast<lv_obj_t*>(lv_xml_create(rows_container_, "filament_swatch", nullptr));
-        if (!chip) {
-            continue;
-        }
-        // Fix the chip width in code: a numeric width on a component <view> root
-        // is not honoured by lv_xml_create (only "content"/"%"), and the band
-        // labels use flex_grow (which contributes 0 to content width), so without
-        // this the whole chip collapses to 0.
-        lv_obj_set_width(chip, kChipWidth); // DECLARATIVE_OK: lv_xml_create width limitation
-
         // mappings_ is built parallel to tool_info_ and compacted in lockstep by
-        // apply_used_tools_filter, so index i is this tool's mapping. Fall back to
-        // a default mapping rather than indexing past the end if that ever drifts.
+        // apply_used_tools_filter, so index i is this tool's mapping.
         const ToolMapping mapping = (i < mappings_.size()) ? mappings_[i] : ToolMapping{};
-        const helix::AvailableSlot* const resolved =
-            helix::FilamentMapper::resolve_mapped_slot(mapping, available_slots_);
-
-        // Every mutation below is per-item payload on a C++-generated collection:
-        // the card builds one chip per used tool from runtime data, so there is no
-        // XML instance per tool to hang a bind on.
-
-        // Colour mismatch surrounds the WHOLE chip (color_mismatch style, under
-        // selector user_2 in filament_swatch.xml): the wrong thing is the pairing
-        // the two bands represent, not either band on its own. That scope is also
-        // what keeps it apart from the empty-lane border below, which stays on
-        // bottom_band because "this lane holds nothing" is a fact about the lane.
-        //
-        // Classified HERE, against the lane just resolved, rather than read from
-        // mapping.color_mismatch. refresh_slot_data() replaces available_slots_
-        // while a user's pick stays on its lane, so a cached verdict would outlive
-        // the lane it judged: swap a spool for one holding the file's colour and
-        // the bottom band would repaint while the surround stayed on.
-        // DECLARATIVE_OK: per-item payload on a C++-generated collection.
-        if (resolved &&
-            helix::FilamentMapper::classify_mismatches(tool, *resolved).color_mismatch) {
-            lv_obj_add_state(chip, LV_STATE_USER_2);
-        }
-
-        // TOP band: the gcode file's intended colour for this tool.
-        if (auto* top = helix::ui::find_required(chip, "top_band", "FilamentMapping")) {
-            if (tool.color_known) {
-                // The file names only a colour: no split, no finish.
-                helix::ui::apply_swatch_color(top, tool.color_rgb, "");
-            } else {
-                // No fill: painting the neutral stand-in reads as "this file
-                // prints in grey", a claim nothing has made. (K2 Plus report.)
-                lv_obj_set_style_bg_opa(top, LV_OPA_TRANSP, 0); // DECLARATIVE_OK: see above
-            }
-            // The material names the tool on its own, so it takes the band; the
-            // Tx number is the fallback for a file that reports no material.
-            auto* material_lbl = helix::ui::find_required(top, "material_label", "FilamentMapping");
-            auto* tool_lbl = helix::ui::find_required(top, "tool_label", "FilamentMapping");
-            lv_obj_t* shown = nullptr;
-            if (!tool.material.empty() && material_lbl) {
-                lv_label_set_text(material_lbl, tool.material.c_str());
-                shown = material_lbl;
-            } else if (multi_tool && tool_lbl) {
-                lv_label_set_text(tool_lbl, helix::ui::tool_label(tool.tool_index).c_str());
-                shown = tool_lbl;
-            }
-            if (shown) {
-                // Contrast is computed against the fill; with no fill there is
-                // nothing to contrast against, so take the normal text colour.
-                lv_obj_set_style_text_color(
-                    shown,
-                    tool.color_known
-                        ? theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"),
-                                                                   lv_color_hex(tool.color_rgb))
-                        : theme_manager_get_color("text"),
-                    0);
-                lv_obj_remove_flag(shown, LV_OBJ_FLAG_HIDDEN);
-            }
-            if (tool_lbl && shown != tool_lbl) {
-                lv_obj_add_flag(tool_lbl, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-
-        // BOTTOM band: the present colour of the effective mapped lane.
-        const bool slot_empty = resolved && resolved->is_empty;
-        const lv_color_t slot_color =
-            (resolved && !resolved->is_empty) ? lv_color_hex(resolved->color_rgb) : neutral;
-        if (auto* bottom = helix::ui::find_required(chip, "bottom_band", "FilamentMapping")) {
-            if (slot_empty) {
-                // Declarative empty_slot style (warning border, faded neutral
-                // fill) declared in filament_swatch.xml under selector user_1.
-                // The band is not a filament colour, so it stays unpainted.
-                lv_obj_add_state(bottom, LV_STATE_USER_1);
-            } else if (resolved) {
-                helix::ui::apply_swatch_color(bottom, resolved->color_rgb,
-                                              resolved->multi_color_hexes,
-                                              helix::ui::swatch_finish(resolved->finish));
-            } else {
-                // No lane chosen yet: naming one would be a claim the mapping has
-                // not made, so the band stays blank.
-                lv_obj_set_style_bg_opa(bottom, LV_OPA_TRANSP, 0); // DECLARATIVE_OK: see above
-            }
-            if (auto* slot_lbl =
-                    helix::ui::find_required(bottom, "slot_label", "FilamentMapping")) {
-                // resolve_mapped_slot() already found the lane; asking
-                // mapped_lane_display_number() would rescan available_slots_ for
-                // the same answer, which is the split this task exists to close.
-                const int lane_number =
-                    resolved ? helix::ui::lane_number(resolved->local_slot_index) : -1;
-                if (lane_number > 0) {
-                    lv_label_set_text_fmt(slot_lbl, "%d", lane_number);
-                    // An empty lane draws no fill, so there is nothing to contrast
-                    // against - take the warning colour that the band border uses.
-                    lv_obj_set_style_text_color(
-                        slot_lbl,
-                        slot_empty ? theme_manager_get_color("warning")
-                                   : theme_manager_get_contrast_adjusted_text(
-                                         theme_manager_get_color("text"), slot_color),
-                        0);
-                    lv_obj_remove_flag(slot_lbl, LV_OBJ_FLAG_HIDDEN);
-                } else {
-                    lv_obj_add_flag(slot_lbl, LV_OBJ_FLAG_HIDDEN);
-                }
-            }
-        }
-
-        // Divider: a colour that reads against BOTH band fills. Blend the two
-        // 50/50 and take the contrast of the blend, so the rule stays visible
-        // whether the bands are light, dark or mixed.
-        if (auto* divider = helix::ui::find_required(chip, "divider", "FilamentMapping")) {
-            const lv_color_t top_color = tool.color_known ? lv_color_hex(tool.color_rgb) : neutral;
-            lv_obj_set_style_bg_color(
-                divider,
-                theme_manager_get_readable_on(lv_color_mix(top_color, slot_color, LV_OPA_50)),
-                0); // DECLARATIVE_OK: see above
-        }
+        // Judged against the slots as they are now, never a cached verdict:
+        // refresh_slot_data() replaces available_slots_ while a pick stays put.
+        publish_chip(i, tool_info_[i],
+                     helix::FilamentMapper::resolve_mapped_slot(mapping, available_slots_),
+                     available_slots_);
     }
 
-    if (overflow) {
-        if (auto* more = static_cast<lv_obj_t*>(
-                lv_xml_create(rows_container_, "filament_mapping_more_pill", nullptr))) {
-            // Same 40px slot as a chip - the capacity arithmetic above counted it
-            // as one - and the row's full height, since the row is fixed-height
-            // and the component is content-sized.
-            lv_obj_set_width(more, kChipWidth); // DECLARATIVE_OK: see the chip width above
-            lv_obj_set_height(more, lv_pct(100));
-            if (auto* lbl = helix::ui::find_required(more, "count_label", "FilamentMapping")) {
-                const size_t hidden = tool_count - visible;
-                lv_label_set_text_fmt(lbl, "+%zu", hidden); // DECLARATIVE_OK: see above
-            }
-        }
-    }
-
-    // Warning icon visibility is handled by XML bind_flag_if_eq on "filament_mismatch" subject
+    const size_t hidden = tool_count - visible;
+    lv_subject_copy_string(&s_more_text, ("+" + std::to_string(hidden)).c_str());
+    lv_subject_set_int(&s_more_count, static_cast<int>(hidden));
+    // Last: the count rebuilds the chips, which then bind the values above.
+    lv_subject_set_int(&s_chip_count, static_cast<int>(visible));
+    spdlog::debug("[FilamentMapping] {} tool(s): {} chip(s) of {} that fit{}", tool_count, visible,
+                  capacity, overflow ? " + overflow pill" : "");
 }
 
 bool FilamentMappingCard::has_any_mismatch() const {
@@ -648,15 +538,15 @@ FilamentMappingCard::build_tool_info(const std::vector<std::string>& colors,
     return tools;
 }
 
-size_t FilamentMappingCard::chips_that_fit(int32_t content_width, int32_t gap) {
+size_t FilamentMappingCard::chips_that_fit(int32_t content_width, int32_t gap, int32_t chip_width) {
     // Layout has not settled on the very first render, so the width reads 0 (or
     // negative once padding is subtracted). Fall back to the floor rather than
     // to "everything": drawing past the right edge is what silently loses lanes.
     if (content_width <= 0) {
         return kMinVisibleChips;
     }
-    // n chips occupy n*kChipWidth + (n-1)*gap, hence the (+ gap) on both sides.
-    const int32_t n = (content_width + gap) / (kChipWidth + gap);
+    // n chips occupy n*chip_width + (n-1)*gap, hence the (+ gap) on both sides.
+    const int32_t n = (content_width + gap) / (std::max<int32_t>(1, chip_width) + gap);
     // Always offer one slot: a row too narrow for a single chip still has to show
     // the "+N" pill rather than nothing at all.
     return static_cast<size_t>(std::max<int32_t>(1, n));
