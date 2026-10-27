@@ -74,6 +74,15 @@ Tap a file to see the preview panel:
 - **Pre-print steps**: Shows which calibration steps will run before printing (e.g., bed mesh)
 - **Timelapse toggle**: Enable recording if you have the timelapse plugin installed
 
+### Sliced 3MF files
+
+A sliced 3MF (a `.gcode.3mf` file, as Bambu Studio, OrcaSlicer and FlashForge's slicer upload it) can hold several plates. The preview shows one plate at a time, with a plate label at the bottom of the preview:
+
+- With one plate, the label shows that plate.
+- With several, arrows appear either side of the label. Tap them to step through the plates. The preview, time and filament follow the plate shown, and **Print** prints that plate.
+
+The label uses the name you gave the plate in the slicer, such as **Hull (1 of 2)**. A plate without a name shows its plate number instead, such as **Plate 2 (2 of 2)**. Very long names are shortened.
+
 ### With the HelixPrint plugin
 
 When the [HelixPrint plugin](helixprint-plugin.md) is installed on your printer (the **Install** row on the **Advanced** screen; on a screen that is not attached to the printer it shows a command to run on the printer instead), it reads every G-code file once, in the background, right after you upload it. You don't need to do anything, and the file prints exactly as it would without it. What you get:
@@ -130,6 +139,8 @@ Changing a pre-print option updates the estimate straight away:
 The line appears once the file's details have loaded. It is not shown for files on a USB stick, and small screens (480x320 and below) leave it out to make room for the options.
 
 The UI switches to the Print Status panel automatically.
+
+Before the print starts, HelixScreen may ask about the file and your filament. A file that mixes high- and low-temperature materials, such as PLA with ABS, shows **Mixed-Temperature Materials**; see [Print Monitoring](print-monitoring.md#the-mixed-temperature-materials-dialog) for what each dialog means.
 
 ### Does the file fit this printer?
 
