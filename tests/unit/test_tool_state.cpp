@@ -2001,24 +2001,25 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState offsets: a Z-only delta frame leav
     CHECK(ts.tool_offset_dirty(0, Axis::Z));
 }
 
-TEST_CASE_METHOD(ToolStateFixture, "ToolState offsets: a Z-only firmware never learns X or Y",
+TEST_CASE_METHOD(ToolStateFixture, "ToolState offsets: the TOOL_OFFSET macro owns every axis",
                  "[tool][tool-state][tool-offsets]") {
     // The MedusaHC shape: klipper-toolchanger objects plus the TOOL_OFFSET
-    // macro, whose provider row keeps only Z. The tool object still carries
-    // gcode_x_offset, and it must be ignored: that store is not the authority
-    // on this machine, and offering X controls would promise a write the
-    // module refuses to emit.
+    // macro, whose t{n}_off_{x,y,z} variables are what the controller applies.
+    // The tool object still carries gcode_x_offset, and it must be ignored:
+    // that store is not the authority on this machine.
     lv_init_safe();
     ToolState& ts = fresh_tool_state(toolchanger_hw(2, {"gcode_macro TOOL_OFFSET"}));
 
-    CHECK(subj(ts.get_per_tool_axis_supported_subject(Axis::X)) == 0);
-    CHECK(subj(ts.get_per_tool_axis_supported_subject(Axis::Y)) == 0);
+    CHECK(subj(ts.get_per_tool_axis_supported_subject(Axis::X)) == 1);
+    CHECK(subj(ts.get_per_tool_axis_supported_subject(Axis::Y)) == 1);
     CHECK(subj(ts.get_per_tool_axis_supported_subject(Axis::Z)) == 1);
 
-    ts.update_from_status({{"gcode_macro TOOL_OFFSET", {{"t0_off_z", -0.2}}},
-                           {"tool T0", {{"gcode_x_offset", 1.5}, {"gcode_z_offset", 0.1}}}});
+    ts.update_from_status(
+        {{"gcode_macro TOOL_OFFSET", {{"t0_off_x", 0.4}, {"t0_off_y", -0.3}, {"t0_off_z", -0.2}}},
+         {"tool T0", {{"gcode_x_offset", 1.5}, {"gcode_z_offset", 0.1}}}});
 
-    CHECK_FALSE(ts.tool_offset_known(0, Axis::X));
+    CHECK(ts.tool_offset_mm(0, Axis::X) == Catch::Approx(0.4f));
+    CHECK(ts.tool_offset_mm(0, Axis::Y) == Catch::Approx(-0.3f));
     CHECK(ts.tool_offset_mm(0, Axis::Z) == Catch::Approx(-0.2f));
 }
 
