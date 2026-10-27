@@ -74,8 +74,7 @@
 #include <vector>
 
 namespace helix {
-struct SensorInfo;      // Forward declaration for get_sensors()
-struct PlrDetectResult; // plr_backend.h — check_continue_print_state() result
+struct SensorInfo; // Forward declaration for get_sensors()
 } // namespace helix
 
 /**
@@ -364,42 +363,6 @@ class MoonrakerAPI : public helix::IMoonrakerAPI {
      * @param on_error Error callback
      */
     void get_print_state(StringCallback on_result, ErrorCallback on_error) override;
-
-    // ========================================================================
-    // Power-Loss Recovery — Creality Klipper fork
-    // ========================================================================
-
-    /**
-     * @brief One-shot Creality power-loss-recovery probe.
-     *
-     * Calls the Klipper webhook endpoint
-     * `pause_resume/check_continue_print_state`, which Moonraker auto-registers
-     * as a JSON-RPC method.
-     *
-     * @warning SIDE-EFFECTFUL. On a JSON parse failure the Klipper handler
-     * DELETES the recovery sidecar; it clears exclude_object_info when the state
-     * is false; and it sets `print_stats.power_loss = 1` when both states are
-     * true and the printer is in standby. Call AT MOST ONCE per connection and
-     * only while `print_stats.state == "standby"`. NEVER poll it.
-     *
-     * That last effect is also why the call is mandatory before resuming: the
-     * stock sensorless-homing macro gates its pre-homing Z clearance lift on
-     * `power_loss == 1`. See docs/devel/POWER_LOSS_RECOVERY.md.
-     *
-     * @param on_result Receives the parsed result. `completed` is false when the
-     *                  response was malformed, which forbids resume.
-     * @param on_error  Transport/RPC error callback
-     */
-    void check_continue_print_state(std::function<void(const helix::PlrDetectResult&)> on_result,
-                                    ErrorCallback on_error) override;
-
-    /**
-     * @brief Discard the Creality power-loss recovery snapshot.
-     *
-     * JSON-RPC `printer.pause_resume.cancel_continue_print`. Touches no motion,
-     * so it is safe to expose regardless of the probe outcome.
-     */
-    void cancel_continue_print(SuccessCallback on_success, ErrorCallback on_error) override;
 
     // ========================================================================
     // Safety Limits Configuration

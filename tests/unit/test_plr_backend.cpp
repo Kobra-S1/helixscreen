@@ -49,7 +49,7 @@ TEST_CASE("plr_select_backend: no capability markers => NONE", "[plr][backend]")
 
 TEST_CASE("plr_select_backend: print_stats.power_loss present => CREALITY", "[plr][backend]") {
     PlrCapabilitySignals caps;
-    caps.creality_power_loss_field = true;
+    caps.probe_capable = true;
     REQUIRE(helix::plr_select_backend(caps) == PlrBackendType::CREALITY);
 }
 
@@ -59,22 +59,22 @@ TEST_CASE("plr_select_backend: power_loss key absent => never CREALITY", "[plr][
     // as presence. Selecting CREALITY here would fire a side-effectful probe at
     // a printer whose firmware has no such endpoint.
     PlrCapabilitySignals caps;
-    caps.creality_power_loss_field = false;
-    caps.snapmaker_pl_env_valid = false;
+    caps.probe_capable = false;
+    caps.snapshot_valid = false;
     REQUIRE(helix::plr_select_backend(caps) == PlrBackendType::NONE);
 }
 
 TEST_CASE("plr_select_backend: pl_env_valid => SNAPMAKER", "[plr][backend]") {
     PlrCapabilitySignals caps;
-    caps.snapmaker_pl_env_valid = true;
+    caps.snapshot_valid = true;
     REQUIRE(helix::plr_select_backend(caps) == PlrBackendType::SNAPMAKER);
 }
 
 TEST_CASE("plr_select_backend: both markers => SNAPMAKER wins (no probe needed)",
           "[plr][backend]") {
     PlrCapabilitySignals caps;
-    caps.snapmaker_pl_env_valid = true;
-    caps.creality_power_loss_field = true;
+    caps.snapshot_valid = true;
+    caps.probe_capable = true;
     REQUIRE(helix::plr_select_backend(caps) == PlrBackendType::SNAPMAKER);
 }
 
@@ -82,42 +82,42 @@ TEST_CASE("plr_select_backend: both markers => SNAPMAKER wins (no probe needed)"
 // Creality availability — BOTH states required
 // ===========================================================================
 
-TEST_CASE("plr_creality_recovery_available: both states true after a completed probe",
+TEST_CASE("plr_probe_recovery_available: both states true after a completed probe",
           "[plr][backend][creality]") {
-    REQUIRE(helix::plr_creality_recovery_available(confirmed_detect()) == true);
+    REQUIRE(helix::plr_probe_recovery_available(confirmed_detect()) == true);
 }
 
-TEST_CASE("plr_creality_recovery_available: file_state only => unavailable",
+TEST_CASE("plr_probe_recovery_available: file_state only => unavailable",
           "[plr][backend][creality]") {
     PlrDetectResult r = confirmed_detect();
     r.eeprom_state = false;
     // Without the bl24c16f EEPROM snapshot, ISCONTINUEPRINT=1 silently restarts
     // the print from the beginning. This gate is what prevents that.
-    REQUIRE(helix::plr_creality_recovery_available(r) == false);
+    REQUIRE(helix::plr_probe_recovery_available(r) == false);
 }
 
-TEST_CASE("plr_creality_recovery_available: eeprom_state only => unavailable",
+TEST_CASE("plr_probe_recovery_available: eeprom_state only => unavailable",
           "[plr][backend][creality]") {
     PlrDetectResult r = confirmed_detect();
     r.file_state = false;
-    REQUIRE(helix::plr_creality_recovery_available(r) == false);
+    REQUIRE(helix::plr_probe_recovery_available(r) == false);
 }
 
-TEST_CASE("plr_creality_recovery_available: both true but probe never completed => unavailable",
+TEST_CASE("plr_probe_recovery_available: both true but probe never completed => unavailable",
           "[plr][backend][creality]") {
     PlrDetectResult r;
     r.completed = false;
     r.file_state = true;
     r.eeprom_state = true;
-    REQUIRE(helix::plr_creality_recovery_available(r) == false);
+    REQUIRE(helix::plr_probe_recovery_available(r) == false);
 }
 
-TEST_CASE("plr_creality_recovery_available: idle printer response (both false)",
+TEST_CASE("plr_probe_recovery_available: idle printer response (both false)",
           "[plr][backend][creality]") {
     // Verbatim shape of a live idle K1C: {"result":{"file_state":false,"eeprom_state":false}}
     PlrDetectResult r;
     r.completed = true;
-    REQUIRE(helix::plr_creality_recovery_available(r) == false);
+    REQUIRE(helix::plr_probe_recovery_available(r) == false);
 }
 
 // ===========================================================================
@@ -332,8 +332,8 @@ TEST_CASE("plr_creality_sdcard_relative_name: unrecognizable root left alone", "
 
 TEST_CASE("plr_select_backend: qidi macro + was_interrupted => QIDI", "[plr][backend][qidi]") {
     PlrCapabilitySignals caps;
-    caps.qidi_resume_macro = true;
-    caps.qidi_was_interrupted = true;
+    caps.resume_macro = true;
+    caps.interrupted_flag = true;
     REQUIRE(helix::plr_select_backend(caps) == PlrBackendType::QIDI);
 }
 
@@ -342,7 +342,7 @@ TEST_CASE("plr_select_backend: was_interrupted without the macro => NONE", "[plr
     // with this name alone must never select the backend: only the stock
     // firmware's RESUME_INTERRUPTED macro identifies Qidi.
     PlrCapabilitySignals caps;
-    caps.qidi_was_interrupted = true;
+    caps.interrupted_flag = true;
     REQUIRE(helix::plr_select_backend(caps) == PlrBackendType::NONE);
 }
 
@@ -350,7 +350,7 @@ TEST_CASE("plr_select_backend: macro without was_interrupted => NONE", "[plr][ba
     // A Qidi printer whose last print ended normally: CLEAR_LAST_FILE set the
     // variable false. Capability is not availability.
     PlrCapabilitySignals caps;
-    caps.qidi_resume_macro = true;
+    caps.resume_macro = true;
     REQUIRE(helix::plr_select_backend(caps) == PlrBackendType::NONE);
 }
 
@@ -358,9 +358,9 @@ TEST_CASE("plr_select_backend: SNAPMAKER outranks QIDI", "[plr][backend][qidi]")
     // No firmware carries both markers; the order just makes the tie
     // deterministic, passive flag first.
     PlrCapabilitySignals caps;
-    caps.snapmaker_pl_env_valid = true;
-    caps.qidi_resume_macro = true;
-    caps.qidi_was_interrupted = true;
+    caps.snapshot_valid = true;
+    caps.resume_macro = true;
+    caps.interrupted_flag = true;
     REQUIRE(helix::plr_select_backend(caps) == PlrBackendType::SNAPMAKER);
 }
 
@@ -368,9 +368,9 @@ TEST_CASE("plr_select_backend: QIDI outranks CREALITY", "[plr][backend][qidi]") 
     // Same tie rule: a passive signal beats one that needs a side-effectful
     // probe.
     PlrCapabilitySignals caps;
-    caps.creality_power_loss_field = true;
-    caps.qidi_resume_macro = true;
-    caps.qidi_was_interrupted = true;
+    caps.probe_capable = true;
+    caps.resume_macro = true;
+    caps.interrupted_flag = true;
     REQUIRE(helix::plr_select_backend(caps) == PlrBackendType::QIDI);
 }
 
@@ -422,7 +422,138 @@ TEST_CASE("plr_resume_macro_present: DETECT_INTERRUPTION alone marks Python-comm
     q2.parse_objects(json::array({"gcode_macro DETECT_INTERRUPTION", "gcode_macro PRINT_START",
                                   "save_variables", "print_stats_manager"}));
     REQUIRE(helix::plr_resume_macro_present(q2));
-    REQUIRE(helix::plr_required_status_objects(q2) == std::vector<std::string>{"save_variables"});
+    const json fields = helix::plr_required_status_fields(q2);
+    REQUIRE(fields.contains("save_variables"));
+    REQUIRE(fields["save_variables"].is_null());
+}
+
+// ===========================================================================
+// Provider table: subscription fields, status readers, availability
+// ===========================================================================
+
+namespace {
+
+bool lists_field(const json& fields, const char* obj, const char* field) {
+    if (!fields.contains(obj) || !fields[obj].is_array()) {
+        return false;
+    }
+    for (const auto& f : fields[obj]) {
+        if (f == field) {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+TEST_CASE("plr_required_status_fields: each firmware's fields only where discovery finds it",
+          "[plr][backend]") {
+    SECTION("mainline Klipper: only the probe marker and the recovery file") {
+        helix::PrinterDiscovery plain;
+        plain.parse_objects(json::array({"extruder", "heater_bed", "virtual_sdcard"}));
+        const json fields = helix::plr_required_status_fields(plain);
+        // The probe's marker is its own detection, so every printer carries it.
+        CHECK(lists_field(fields, "print_stats", "power_loss"));
+        CHECK(lists_field(fields, "virtual_sdcard", "file_path"));
+        CHECK_FALSE(lists_field(fields, "virtual_sdcard", "pl_env_valid"));
+        CHECK_FALSE(fields.contains("save_variables"));
+    }
+
+    SECTION("validated-snapshot firmware adds its flag") {
+        helix::PrinterDiscovery u1;
+        u1.parse_objects(json::array({"extruder", "filament_detect"}));
+        const json fields = helix::plr_required_status_fields(u1);
+        CHECK(lists_field(fields, "virtual_sdcard", "pl_env_valid"));
+        CHECK(lists_field(fields, "virtual_sdcard", "file_path"));
+        CHECK_FALSE(fields.contains("save_variables"));
+    }
+}
+
+TEST_CASE("plr_parse_snapshot_valid: booleans only, silence is -1", "[plr][backend]") {
+    CHECK(helix::plr_parse_snapshot_valid(json{{"virtual_sdcard", {{"pl_env_valid", true}}}}) == 1);
+    CHECK(helix::plr_parse_snapshot_valid(json{{"virtual_sdcard", {{"pl_env_valid", false}}}}) ==
+          0);
+    CHECK(helix::plr_parse_snapshot_valid(json{{"virtual_sdcard", {{"pl_env_valid", nullptr}}}}) ==
+          -1);
+    CHECK(helix::plr_parse_snapshot_valid(json{{"virtual_sdcard", {{"progress", 0.5}}}}) == -1);
+    CHECK(helix::plr_parse_snapshot_valid(json{{"print_stats", json::object()}}) == -1);
+}
+
+TEST_CASE("plr_parse_recovery_file: strings only", "[plr][backend]") {
+    const json with = {{"virtual_sdcard", {{"file_path", "gcodes/a.gcode"}}}};
+    const std::string* fp = helix::plr_parse_recovery_file(with);
+    REQUIRE(fp != nullptr);
+    CHECK(*fp == "gcodes/a.gcode");
+    CHECK(helix::plr_parse_recovery_file(json{{"virtual_sdcard", {{"file_path", nullptr}}}}) ==
+          nullptr);
+    CHECK(helix::plr_parse_recovery_file(json{{"print_stats", json::object()}}) == nullptr);
+}
+
+TEST_CASE("plr_offer_availability: each backend's availability and recovery-file rule",
+          "[plr][backend]") {
+    PlrCapabilitySignals caps;
+    caps.status_recovery_file = "status.gcode";
+    helix::PlrProbeSession probe;
+    probe.recovery_file = "probe.gcode";
+
+    SECTION("validated snapshot: the flag is availability, file from status") {
+        caps.snapshot_valid = true;
+        auto a = helix::plr_offer_availability(caps, probe);
+        CHECK(a.backend == PlrBackendType::SNAPMAKER);
+        CHECK(a.available);
+        CHECK(a.recovery_file == "status.gcode");
+    }
+
+    SECTION("macro + flag: available, file from status") {
+        caps.resume_macro = true;
+        caps.interrupted_flag = true;
+        auto a = helix::plr_offer_availability(caps, probe);
+        CHECK(a.backend == PlrBackendType::QIDI);
+        CHECK(a.available);
+        CHECK(a.recovery_file == "status.gcode");
+    }
+
+    SECTION("probe: unavailable until a completed probe confirms both states") {
+        caps.probe_capable = true;
+        auto before = helix::plr_offer_availability(caps, probe);
+        CHECK(before.backend == PlrBackendType::CREALITY);
+        CHECK_FALSE(before.available);
+        CHECK(before.recovery_file == "probe.gcode");
+
+        probe.result = confirmed_detect();
+        CHECK(helix::plr_offer_availability(caps, probe).available);
+    }
+
+    SECTION("plugin: its own verdict, and its file only when it offers") {
+        caps.plr_feature = helix::PluginFeatureState::Ready;
+        caps.plugin_backend = helix::PlrPluginBackend::Generic;
+        caps.plugin_recovery_file = "plugin.gcode";
+        auto withheld = helix::plr_offer_availability(caps, probe);
+        CHECK(withheld.backend == PlrBackendType::GENERIC);
+        CHECK_FALSE(withheld.available);
+        CHECK(withheld.recovery_file.empty());
+
+        caps.plugin_offer_available = true;
+        auto offered = helix::plr_offer_availability(caps, probe);
+        CHECK(offered.available);
+        CHECK(offered.recovery_file == "plugin.gcode");
+    }
+
+    SECTION("nothing selected") {
+        auto a = helix::plr_offer_availability(caps, probe);
+        CHECK(a.backend == PlrBackendType::NONE);
+        CHECK_FALSE(a.available);
+    }
+}
+
+TEST_CASE("plr_reoffers_after_job_drop: only the plugin re-offers on a job drop",
+          "[plr][backend]") {
+    CHECK(helix::plr_reoffers_after_job_drop(PlrBackendType::GENERIC));
+    CHECK_FALSE(helix::plr_reoffers_after_job_drop(PlrBackendType::SNAPMAKER));
+    CHECK_FALSE(helix::plr_reoffers_after_job_drop(PlrBackendType::QIDI));
+    CHECK_FALSE(helix::plr_reoffers_after_job_drop(PlrBackendType::CREALITY));
+    CHECK_FALSE(helix::plr_reoffers_after_job_drop(PlrBackendType::NONE));
 }
 
 TEST_CASE("plr_build_plan: NONE backend yields no actions at all", "[plr][backend]") {
@@ -553,11 +684,11 @@ TEST_CASE("plr_select_backend: plugin backends slot into the vendor precedence",
     };
     for (const auto& row : rows) {
         PlrCapabilitySignals caps;
-        caps.snapmaker_pl_env_valid = row.pl_env_valid;
+        caps.snapshot_valid = row.pl_env_valid;
         caps.plugin_backend = row.plugin_backend;
-        caps.qidi_resume_macro = row.legacy_qidi;
-        caps.qidi_was_interrupted = row.legacy_qidi;
-        caps.creality_power_loss_field = row.creality_field;
+        caps.resume_macro = row.legacy_qidi;
+        caps.interrupted_flag = row.legacy_qidi;
+        caps.probe_capable = row.creality_field;
         caps.plugin_offer_available = row.plugin_offer;
         caps.plr_feature = row.feature;
         CAPTURE(row.pl_env_valid, static_cast<int>(row.plugin_backend), row.legacy_qidi,

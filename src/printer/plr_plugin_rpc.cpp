@@ -102,6 +102,48 @@ void discard(IMoonrakerAPI& api, std::function<void()> on_ok, ErrorCallback on_e
     send_action(api, kPlrDiscardRpc, json::object(), 0, std::move(on_ok), std::move(on_error));
 }
 
+void request_recovery_probe(IMoonrakerAPI& api,
+                            std::function<void(const PlrDetectResult&)> on_result,
+                            ErrorCallback on_error) {
+    // Logged at info: this is a side-effectful, at-most-once-per-connection
+    // call, so a second line in a session's log is itself a bug report.
+    spdlog::info("[PLR] Recovery probe -> {}", kCrealityDetectRpc);
+    api.get_client().send_jsonrpc(
+        kCrealityDetectRpc, json::object(),
+        [on_result = std::move(on_result)](const json& response) {
+            PlrDetectResult result;
+            if (!plr_parse_check_continue_response(response, result)) {
+                spdlog::warn("[PLR] Unusable recovery probe response: {}",
+                             json_util::safe_dump(response));
+            } else {
+                spdlog::info("[PLR] Recovery probe: file_state={} eeprom_state={}",
+                             result.file_state, result.eeprom_state);
+            }
+            if (on_result) {
+                on_result(result);
+            }
+        },
+        std::move(on_error));
+}
+
+void discard_with_rpc(IMoonrakerAPI& api, const PlrRecoveryPlan& plan, std::function<void()> on_ok,
+                      ErrorCallback on_error) {
+    if (plan.discard_rpc_method == kPlrDiscardRpc) {
+        discard(api, std::move(on_ok), std::move(on_error));
+        return;
+    }
+    // The method is copied: the reply can outlive the plan it came from.
+    api.get_client().send_jsonrpc(
+        plan.discard_rpc_method, json::object(),
+        [on_ok = std::move(on_ok), method = plan.discard_rpc_method](const json& /*response*/) {
+            spdlog::info("[PLR] {} accepted", method);
+            if (on_ok) {
+                on_ok();
+            }
+        },
+        std::move(on_error));
+}
+
 void request_mesh_include_status(IMoonrakerAPI& api, std::function<void(bool present)> on_ok,
                                  ErrorCallback on_error) {
     api.get_client().send_jsonrpc(

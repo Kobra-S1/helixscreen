@@ -88,8 +88,7 @@
     "estimated_time",
     "info",
     "message",
-    "power_loss",
-    "exception"
+    "power_loss"
   ],
   "save_variables": [
     "variables"
@@ -111,9 +110,8 @@
     "layer",
     "layer_count",
     "is_active",
-    "pl_env_valid",
-    "file_path",
-    "file_position"
+    "file_position",
+    "file_path"
   ],
   "webhooks": [
     "state",

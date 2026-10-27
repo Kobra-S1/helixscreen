@@ -100,9 +100,9 @@
     "layer",
     "layer_count",
     "is_active",
+    "file_position",
     "pl_env_valid",
-    "file_path",
-    "file_position"
+    "file_path"
   ],
   "webhooks": [
     "state",

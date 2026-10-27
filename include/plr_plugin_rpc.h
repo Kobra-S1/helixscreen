@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-// The HelixPrint plugin's power-loss endpoints (server.helix.plr.*) as calls.
-// Each reads its reply with the plr_wizard.h readers and answers on whatever
-// thread the client delivers on: callers marshal to the main thread.
+// The power-loss endpoints as calls: the HelixPrint plugin's
+// (server.helix.plr.*) and a firmware's own recovery RPCs. Each reads its reply
+// with the plr_wizard.h / plr_backend.h readers and answers on whatever thread
+// the client delivers on: callers marshal to the main thread.
 
 #include "helix_plugin_features.h"
 #include "moonraker_error.h"
+#include "plr_backend.h"
 #include "plr_wizard.h"
 
 #include <cstdint>
@@ -50,6 +52,24 @@ void abort(IMoonrakerAPI& api, const std::string& plan_id, std::function<void()>
            ErrorCallback on_error);
 
 void discard(IMoonrakerAPI& api, std::function<void()> on_ok, ErrorCallback on_error);
+
+/// Fire the firmware's active recovery probe (kCrealityDetectRpc).
+/// SIDE-EFFECTFUL: on a JSON parse failure the Klipper handler deletes the
+/// recovery sidecar, it clears exclude_object_info when the state is false, and
+/// it sets print_stats.power_loss = 1 when both states are true in standby.
+/// Call at most once per connection, only while print_stats.state ==
+/// "standby", never poll it. That last effect is also why the call is mandatory
+/// before resuming: the stock sensorless-homing macro gates its pre-homing Z
+/// clearance lift on power_loss == 1. @p on_result gets every reply; an
+/// unusable one leaves `completed` false, which forbids the resume downstream.
+void request_recovery_probe(IMoonrakerAPI& api,
+                            std::function<void(const PlrDetectResult&)> on_result,
+                            ErrorCallback on_error);
+
+/// Discard through @p plan's discard RPC: the plugin's own, or the firmware's.
+/// Touches no motion.
+void discard_with_rpc(IMoonrakerAPI& api, const PlrRecoveryPlan& plan, std::function<void()> on_ok,
+                      ErrorCallback on_error);
 
 /// server.helix.plr.mesh_include without an action: whether printer.cfg
 /// carries the include line a resume's mesh carry-over needs.

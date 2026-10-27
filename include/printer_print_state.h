@@ -254,7 +254,7 @@ class PrinterPrintState {
         return &print_state_enum_;
     }
 
-    /// print_stats.exception code as a subject (-1 when none is latched), so a
+    /// The latched pause cause's code as a subject (-1 when none is latched), so a
     /// consumer sees a code that arrives in a later frame than the pause.
     lv_subject_t* get_print_exception_subject() {
         return &print_exception_;
@@ -712,58 +712,58 @@ class PrinterPrintState {
         return last_gcode_error_time_;
     }
 
-    /// print_stats.exception (Snapmaker U1 structured pause descriptor) id, or
-    /// -1 when no exception is latched. Hardware-verified ids: 523 = recoverable
-    /// runout, 532 = terminal dirty-bed (#991). Main-thread only.
+    /// The latched structured pause cause's id (pause_cause::read), or -1 when
+    /// none is latched. Main-thread only.
     [[nodiscard]] int get_print_exception_id() const {
         return print_exception_id_;
     }
 
-    /// print_stats.exception code, or -1 when absent. (Runout = 0, dirty-bed = 1.)
+    /// The latched pause cause's code, or -1 when absent.
     [[nodiscard]] int get_print_exception_code() const {
         return print_exception_code_;
     }
 
-    /// Drop the latched print_stats.exception (id, code, message, subject).
+    /// Drop the latched pause cause (id, code, message, subject).
     /// Main-thread only.
     void clear_print_exception();
 
-    /// print_stats.exception message — the human-readable pause reason. On these
-    /// firmware pauses print_stats.message is EMPTY and the text lives here.
+    /// The latched pause cause's message — the human-readable pause reason. On
+    /// the firmware that publishes one, print_stats.message is EMPTY on these
+    /// pauses and the text lives here.
     [[nodiscard]] const std::string& get_print_exception_message() const {
         return print_exception_message_;
     }
 
-    /// virtual_sdcard.pl_env_valid — Snapmaker-fork Power-Loss-Recovery flag.
-    /// True only after the firmware validates a coherent power-loss snapshot
-    /// against MCU flash on boot; default 0, and stays 0 on mainline Klipper
-    /// (field absent). Main-thread only (updated by update_from_status).
-    lv_subject_t* get_pl_env_valid_subject() {
-        return &pl_env_valid_;
+    /// Power-loss recovery: the firmware reports a snapshot it validated itself
+    /// (plr_backend owns which firmware and which key). Default 0, and stays 0
+    /// on firmware without one. Main-thread only (updated by update_from_status).
+    lv_subject_t* get_plr_snapshot_valid_subject() {
+        return &plr_snapshot_valid_;
     }
 
-    /// True when virtual_sdcard.pl_env_valid is set. See get_pl_env_valid_subject().
-    [[nodiscard]] bool is_pl_env_valid() const {
-        return lv_subject_get_int(const_cast<lv_subject_t*>(&pl_env_valid_)) != 0;
+    /// True when the validated-snapshot flag is set. See
+    /// get_plr_snapshot_valid_subject().
+    [[nodiscard]] bool is_plr_snapshot_valid() const {
+        return lv_subject_get_int(const_cast<lv_subject_t*>(&plr_snapshot_valid_)) != 0;
     }
 
-    /// virtual_sdcard.file_path — the file a Power-Loss-Recovery restore would
-    /// resume. Only meaningful when is_pl_env_valid() is true. Main-thread only.
+    /// The file a Power-Loss-Recovery restore would resume, as the status
+    /// payload names it (plr_parse_recovery_file). Main-thread only.
     [[nodiscard]] const std::string& pl_recovery_file() const {
         return pl_recovery_file_;
     }
 
     /// Clear the cached Power-Loss-Recovery file path. Used on the disconnect
-    /// edge alongside forcing pl_env_valid back to 0, so a reconnect starts from
+    /// edge alongside forcing plr_snapshot_valid back to 0, so a reconnect starts from
     /// a clean slate and re-derives both from the fresh status. Main-thread only.
     void clear_pl_recovery_file() {
         pl_recovery_file_.clear();
     }
 
-    /// print_stats.power_loss PRESENCE — the Creality-Klipper-fork capability
-    /// marker for Power-Loss-Recovery. 1 once a status payload has carried the
-    /// key as a JSON number; mainline Klipper never emits it, and Moonraker's
-    /// explicit null for a subscribed-but-unpopulated field does not count.
+    /// The active recovery probe's capability marker (plr_parse_power_loss_signal
+    /// owns the key and the presence rule). 1 once a status payload has carried
+    /// it; Moonraker's explicit null for a subscribed-but-unpopulated field does
+    /// not count.
     /// Latches UP only (status arrives as deltas) and is reset by the offer
     /// controller on the disconnect edge. See docs/devel/POWER_LOSS_RECOVERY.md.
     lv_subject_t* get_plr_power_loss_signal_subject() {
@@ -1341,14 +1341,14 @@ class PrinterPrintState {
     /// while print_progress_display_ holds its final value.
     bool progress_frozen_ = false;
 
-    // virtual_sdcard.pl_env_valid — Snapmaker-fork Power-Loss-Recovery flag.
-    lv_subject_t pl_env_valid_{}; // Integer: 1 when a validated PLR snapshot exists
-    // virtual_sdcard.file_path — companion to pl_env_valid_. Not a subject:
+    // Power-loss recovery validated-snapshot flag (plr_parse_snapshot_valid).
+    lv_subject_t plr_snapshot_valid_{}; // Integer: 1 when a validated PLR snapshot exists
+    // Recovery file (plr_parse_recovery_file). Not a subject:
     // no XML binding needed, read on the main thread by the resume dispatcher.
     std::string pl_recovery_file_;
 
-    // print_stats.power_loss — Creality-fork PLR capability marker. Integer:
-    // 1 once the key has been seen as a JSON number (presence, not value).
+    // Active recovery probe capability marker (plr_parse_power_loss_signal).
+    // Integer: 1 once the key has been seen (presence, not value).
     lv_subject_t plr_power_loss_signal_{};
 
     // PLR passive backend. plr_resume_macro_: 1 once discovery found the
@@ -1377,11 +1377,9 @@ class PrinterPrintState {
     std::string last_gcode_error_;
     double last_gcode_error_time_ = 0.0;
 
-    // print_stats.exception — structured pause descriptor {id,index,code,message,
-    // level} sent by Snapmaker U1 firmware. On these pauses print_stats.message
-    // is empty and the reason text lives in exception.message. Plain members
-    // (not subjects): no XML binding, read on the main thread by the resume
-    // classifier. Default -1/"" means "no exception latched". (#991)
+    // Latched structured pause cause (pause_cause::read). Plain members (not
+    // subjects): no XML binding, read on the main thread by the resume
+    // classifier. Default -1/"" means "no cause latched". (#991)
     int print_exception_id_ = -1;
     int print_exception_code_ = -1;
     std::string print_exception_message_;
