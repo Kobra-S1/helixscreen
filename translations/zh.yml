@@ -62,6 +62,7 @@ translations:
   + Add Printer: + 添加打印机
   + New: + 新建
   +{} more: '还有 {} 个'
+  ', also {}': '，另有 {}'
   '- Check [resonance_tester] in printer.cfg': '- 检查 printer.cfg 中的 [resonance_tester]'
   '- Ensure ADXL345 is connected': '- 确保 ADXL345 已连接'
   '- Try Measure Noise first': '- 先尝试测量噪声'
@@ -4486,6 +4487,7 @@ translations:
   by: '作者：'
   by Preston Brown: by Preston Brown
   chamber heater: 腔体加热器
+  color differs: '颜色不同'
   complete: 完成
   cores: 核心
   direct drive: 直驱
@@ -4504,6 +4506,7 @@ translations:
   enable: 启用
   enabled: 已启用
   error: 错误
+  exact match: '完全匹配'
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact：材料和颜色相同。material：材料相同。next：任意就绪槽位，即使材料不同'
   extruder: 挤出机
   extruder(s): 挤出机
@@ -4531,6 +4534,7 @@ translations:
   loaded: '已加载'
   locked: '已锁定'
   matched: 匹配
+  material differs: '材料不同'
   mm: mm
   mm Z-offset: mm Z 偏移
   mm before clog: 毫米后堵料

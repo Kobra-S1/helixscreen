@@ -106,6 +106,7 @@ translations:
   + Add Printer: + Добавить принтер
   + New: + Новый
   +{} more: '+ещё {}'
+  ', also {}': ', также {}'
   '- Check [resonance_tester] in printer.cfg': '- Проверьте блок [resonance_tester]
     в printer.cfg'
   '- Ensure ADXL345 is connected': '- Убедитесь, что ADXL345 подключен'
@@ -4788,6 +4789,7 @@ translations:
   by: 'автор:'
   by Preston Brown: от Preston Brown
   chamber heater: нагреватель камеры
+  color differs: 'другой цвет'
   complete: завершено
   cores: ядер
   direct drive: с прямой подачей
@@ -4806,6 +4808,7 @@ translations:
   enable: включить
   enabled: включено
   error: ошибка
+  exact match: 'точное совпадение'
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: тот же материал и цвет. material: тот же материал. next: любой готовый слот, даже с другим материалом'
   extruder: экструдер
   extruder(s): экструдер(ы)
@@ -4837,6 +4840,7 @@ translations:
   loaded: 'загружен'
   locked: 'заблокировано'
   matched: совпадают
+  material differs: 'другой материал'
   mm: мм
   mm Z-offset: мм Z-смещение
   mm before clog: мм до засора

@@ -367,6 +367,23 @@ void FilamentMapper::apply_picks(std::vector<ToolMapping>& current,
     }
 }
 
+void FilamentMapper::pick_slot(ToolMapping& mapping, const GcodeToolInfo& tool,
+                               const std::vector<AvailableSlot>& slots, int slot_index,
+                               int backend_index, bool is_auto) {
+    mapping.mapped_slot = slot_index;
+    mapping.mapped_backend = backend_index;
+    mapping.is_auto = is_auto;
+    mapping.user_picked = true;
+
+    // A hand-picked lane is a new pairing, so earlier warnings do not apply to it.
+    mapping.set_mismatches({});
+    if (is_auto) {
+        mapping.reason = ToolMapping::MatchReason::AUTO;
+    } else if (const auto* slot = resolve_mapped_slot(mapping, slots)) {
+        mapping.set_mismatches(classify_mismatches(tool, *slot));
+    }
+}
+
 bool FilamentMapper::follow_seed(std::vector<ToolMapping>& current,
                                  const std::vector<ToolMapping>& seed) {
     bool changed = false;

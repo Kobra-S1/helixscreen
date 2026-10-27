@@ -203,6 +203,7 @@ src/printer/chamber_heater_backend_panda_breath.cpp
 src/printer/consumption_sink.cpp
 src/printer/enclosure_top.cpp
 src/printer/filament_catalog.cpp
+src/printer/filament_chip_model.cpp
 src/printer/filament_consumption_tracker.cpp
 src/printer/filament_database.cpp
 src/printer/filament_display_name.cpp

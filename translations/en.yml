@@ -62,6 +62,7 @@ translations:
   + Add Printer: + Add Printer
   + New: + New
   +{} more: +{} more
+  ', also {}': ', also {}'
   '- Check [resonance_tester] in printer.cfg': '- Check [resonance_tester] in printer.cfg'
   '- Ensure ADXL345 is connected': '- Ensure ADXL345 is connected'
   '- Try Measure Noise first': '- Try Measure Noise first'
@@ -4652,6 +4653,7 @@ translations:
   by: by
   by Preston Brown: by Preston Brown
   chamber heater: chamber heater
+  color differs: color differs
   complete: complete
   cores: cores
   direct drive: direct drive
@@ -4670,6 +4672,7 @@ translations:
   enable: enable
   enabled: enabled
   error: error
+  exact match: exact match
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: same material and color. material: same material. next: any ready slot, even a different material'
   extruder: extruder
   extruder(s): extruder(s)
@@ -4698,6 +4701,7 @@ translations:
   loaded: loaded
   locked: locked
   matched: matched
+  material differs: material differs
   mm: mm
   mm Z-offset: mm Z-offset
   mm before clog: mm before clog

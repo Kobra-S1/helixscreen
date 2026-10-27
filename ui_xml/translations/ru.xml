@@ -95,6 +95,7 @@
   <translation tag="+ Add Printer" ru="+ Добавить принтер"/>
   <translation tag="+ New" ru="+ Новый"/>
   <translation tag="+{} more" ru="+ещё {}"/>
+  <translation tag=", also {}" ru=", также {}"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" ru="- Проверьте блок [resonance_tester] в printer.cfg"/>
   <translation tag="- Ensure ADXL345 is connected" ru="- Убедитесь, что ADXL345 подключен"/>
   <translation tag="- Try Measure Noise first" ru="- Сначала попробуйте измерить шум акселерометра"/>
@@ -4376,6 +4377,7 @@
   <translation tag="by" ru="автор:"/>
   <translation tag="by Preston Brown" ru="от Preston Brown"/>
   <translation tag="chamber heater" ru="нагреватель камеры"/>
+  <translation tag="color differs" ru="другой цвет"/>
   <translation tag="complete" ru="завершено"/>
   <translation tag="cores" ru="ядер"/>
   <translation tag="direct drive" ru="с прямой подачей"/>
@@ -4394,6 +4396,7 @@
   <translation tag="enable" ru="включить"/>
   <translation tag="enabled" ru="включено"/>
   <translation tag="error" ru="ошибка"/>
+  <translation tag="exact match" ru="точное совпадение"/>
   <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" ru="exact: тот же материал и цвет. material: тот же материал. next: любой готовый слот, даже с другим материалом"/>
   <translation tag="extruder" ru="экструдер"/>
   <translation tag="extruder(s)" ru="экструдер(ы)"/>
@@ -4425,6 +4428,7 @@
   <translation tag="loaded" ru="загружен"/>
   <translation tag="locked" ru="заблокировано"/>
   <translation tag="matched" ru="совпадают"/>
+  <translation tag="material differs" ru="другой материал"/>
   <translation tag="mm" ru="мм"/>
   <translation tag="mm Z-offset" ru="мм Z-смещение"/>
   <translation tag="mm before clog" ru="мм до засора"/>
