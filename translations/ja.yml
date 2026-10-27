@@ -3333,6 +3333,7 @@ translations:
   Screen Blank: 画面消灯
   Screen Dim: 画面減光
   Screen Rotation: 画面の回転
+  Screen Sharing: '画面共有'
   Screen dims to lower brightness after period of inactivity: 一定時間操作がないと画面の明るさが下がります
   Screen lock and PIN settings: 画面ロックと PIN の設定
   Screen is not permitted to shut down or reboot. Restart HelixScreen to fix it.: 画面にはシャットダウンや再起動の権限がありません。HelixScreen を再起動すると修正されます。
@@ -4354,6 +4355,7 @@ translations:
   Warn if a door is open: ドアが開いていたら警告
   Warning: 警告
   Warnings & errors: '警告とエラー'
+  Watch and control this screen from a browser: 'ブラウザからこの画面を表示・操作'
   Watch the camera during a print for failed prints: 印刷中にカメラで印刷失敗を監視します
   Watch which motor turns: "どのモーターが回るか見てください"
   Weak battery: バッテリー残量低下

@@ -2,7 +2,7 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Connection Settings Overlay -->
-<!-- How this screen reaches the network and its printers: network, printers, Moonraker host, screen sharing -->
+<!-- How this screen reaches its printers and the network: printers, network, Moonraker host, screen sharing -->
 <component>
   <view name="settings_connection_overlay" extends="overlay_panel" title="Connection" bg_color="#screen_bg">
     <!-- Content Area - no padding, rows handle their own -->
@@ -10,6 +10,12 @@
             width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
             style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
       <setting_group name="group_connection">
+        <!-- ================================================================== -->
+        <!-- PRINTERS -->
+        <!-- ================================================================== -->
+        <setting_action_row name="row_printers"
+                            label="Printers" icon="printer_3d" description="Manage configured printers"
+                            callback="on_printers_clicked"/>
         <!-- ================================================================== -->
         <!-- NETWORK SETTINGS (hidden on Android where OS manages WiFi) -->
         <!-- ================================================================== -->
@@ -20,12 +26,6 @@
                               callback="on_network_clicked"/>
         </lv_obj>
         <!-- ================================================================== -->
-        <!-- PRINTERS -->
-        <!-- ================================================================== -->
-        <setting_action_row name="row_printers"
-                            label="Printers" icon="printer_3d" description="Manage configured printers"
-                            callback="on_printers_clicked"/>
-        <!-- ================================================================== -->
         <!-- HOST -->
         <!-- ================================================================== -->
         <setting_action_row name="row_printer_host"
@@ -34,31 +34,12 @@
         <!-- ================================================================== -->
         <!-- SCREEN SHARING (hidden where the firmware serves the screen itself) -->
         <!-- ================================================================== -->
-        <lv_obj name="container_remote_screen" width="100%" style_pad_all="0" scrollable="false">
+        <lv_obj name="container_screen_sharing" width="100%" style_pad_all="0" scrollable="false">
           <bind_flag_if_eq subject="remote_screen_available" flag="hidden" ref_value="0"/>
-          <setting_toggle_row name="row_remote_screen"
-                              label="Share Screen" icon="webcam"
-                              description="Show this screen as a webcam in Mainsail and Fluidd"
-                              subject="settings_remote_screen_enabled" callback="on_remote_screen_changed"/>
-        </lv_obj>
-        <lv_obj name="container_remote_control" width="100%" style_pad_all="0" scrollable="false">
-          <bind_flag_if_eq subject="remote_screen_available" flag="hidden" ref_value="0"/>
-          <setting_toggle_row name="row_remote_control"
-                              label="Allow Remote Control" icon="remote_desktop"
-                              description="Let a browser tap and drag on this screen"
-                              subject="settings_remote_screen_control" callback="on_remote_control_changed"
-                              disabled="settings_remote_screen_enabled" disabled_ref_value="0"/>
-        </lv_obj>
-        <!-- Pairing: only when the server faces the LAN with nothing in front of it -->
-        <lv_obj name="container_remote_pairing" width="100%" style_pad_all="0" scrollable="false" flex_flow="column">
-          <bind_flag_if cond="remote_screen_available eq 0 or remote_screen_lan_mode eq 0 or settings_remote_screen_control eq 0"
-                        flag="hidden"/>
-          <setting_info_row name="row_remote_pair_code"
-                            label="Pairing Code" icon="link" bind_value="remote_screen_pair_code"/>
-          <setting_action_row name="row_remote_forget"
-                              label="Forget Paired Browsers" icon="close_circle"
-                              description="Every browser needs a new code to control this screen"
-                              callback="on_remote_forget_clicked"/>
+          <setting_action_row name="row_screen_sharing"
+                              label="Screen Sharing" icon="webcam"
+                              description="Watch and control this screen from a browser"
+                              callback="on_screen_sharing_clicked"/>
         </lv_obj>
       </setting_group>
     </lv_obj>

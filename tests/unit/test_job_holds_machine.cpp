@@ -634,6 +634,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/settings_panel.xml",
     "ui_xml/settings_printing_overlay.xml",
     "ui_xml/settings_safety_overlay.xml",
+    "ui_xml/settings_screen_sharing_overlay.xml",
     "ui_xml/settings_sound_overlay.xml",
     "ui_xml/settings_storage_overlay.xml",
     "ui_xml/settings_system_overlay.xml",

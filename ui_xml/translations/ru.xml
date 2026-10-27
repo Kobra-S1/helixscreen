@@ -3267,6 +3267,7 @@
   <translation tag="Screen Blank" ru="Гашение экрана"/>
   <translation tag="Screen Dim" ru="Затемнение экрана"/>
   <translation tag="Screen Rotation" ru="Поворот экрана"/>
+  <translation tag="Screen Sharing" ru="Общий доступ к экрану"/>
   <translation tag="Screen dims to lower brightness after period of inactivity" ru="Экран затемняется после периода простоя"/>
   <translation tag="Screen is not permitted to shut down or reboot. Restart HelixScreen to fix it." ru="Экрану не разрешено выключаться или перезагружаться. Перезапустите HelixScreen, чтобы исправить это."/>
   <translation tag="Screen lock and PIN settings" ru="Блокировка экрана и настройки PIN"/>
@@ -4238,6 +4239,7 @@
   <translation tag="Warn if a door is open" ru="Предупреждать, если дверь открыта"/>
   <translation tag="Warning" ru="Предупреждение"/>
   <translation tag="Warnings &amp; errors" ru="Предупреждения и ошибки"/>
+  <translation tag="Watch and control this screen from a browser" ru="Просмотр и управление этим экраном из браузера"/>
   <translation tag="Watch the camera during a print for failed prints" ru="Следит за камерой во время печати, выявляя неудачные печати"/>
   <translation tag="Watch which motor turns" ru="Смотрите, какой двигатель вращается"/>
   <translation tag="Weak battery" ru="Слабый заряд"/>

@@ -250,7 +250,7 @@ This enables SIMD-accelerated (hardware-optimized) JPEG decoding, which is 3-5x 
 
 ### Can I see or use the printer's screen from my browser?
 
-**Yes.** Turn on **Settings > Connection > Share Screen** and the screen shows up live in your browser, and as a **HelixScreen Screen** webcam in Mainsail and Fluidd. Turn on **Allow Remote Control** as well to tap and drag on it from the browser. Both are off until you turn them on at the printer. Some printers ask for a pairing code before a browser can take control; on a Raspberry Pi running MainsailOS or KIAUH, Moonraker's trusted clients decide instead. See [Screen Sharing and Remote Control](guide/screen-sharing.md).
+**Yes.** Turn on **Settings > Connection > Screen Sharing > Share Screen** and the screen shows up live in your browser, and as a **HelixScreen Screen** webcam in Mainsail and Fluidd. Turn on **Allow Remote Control** as well to tap and drag on it from the browser. Both are off until you turn them on at the printer. Some printers ask for a pairing code before a browser can take control; on a Raspberry Pi running MainsailOS or KIAUH, Moonraker's trusted clients decide instead. See [Screen Sharing and Remote Control](guide/screen-sharing.md).
 
 ### Does it work with Spoolman?
 

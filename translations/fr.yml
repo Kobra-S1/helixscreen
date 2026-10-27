@@ -3526,6 +3526,7 @@ translations:
   Screen Blank: Extinction de l'écran
   Screen Dim: Atténuation de l'écran
   Screen Rotation: Rotation de l'écran
+  Screen Sharing: 'Partage d''écran'
   Screen dims to lower brightness after period of inactivity: L'écran s'atténue après
     une période d'inactivité
   Screen lock and PIN settings: Verrouillage de l'écran et paramètres PIN
@@ -4632,6 +4633,7 @@ translations:
   Warn if a door is open: Avertir si une porte est ouverte
   Warning: Avertissement
   Warnings & errors: 'Avertissements et erreurs'
+  Watch and control this screen from a browser: 'Voir et contrôler cet écran depuis un navigateur'
   Watch the camera during a print for failed prints: Surveille la caméra pendant une impression pour détecter les impressions échouées
   Watch which motor turns: "Regardez quel moteur tourne"
   Weak battery: Batterie faible
