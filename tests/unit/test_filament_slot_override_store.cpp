@@ -3870,6 +3870,12 @@ TEST_CASE("lane_data carries the catalog product's OrcaSlicer filament_id as a s
         CHECK(parsed->second.spoolman_filament_id == 0);
     }
 
+    SECTION("an Orca id several catalog products share writes none") {
+        ovr.material = "PP";
+        ovr.catalog_id = "eryone-pp"; // EFL43, also eryone-petg-cf's
+        CHECK_FALSE(helix::ams::to_lane_data_record(0, ovr).contains("filament_id"));
+    }
+
     SECTION("a product with no Orca id writes none") {
         ovr.catalog_id = "creality-cr-abs";
         CHECK_FALSE(helix::ams::to_lane_data_record(0, ovr).contains("filament_id"));

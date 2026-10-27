@@ -89,10 +89,6 @@ EffectiveFilament to_effective(const nlohmann::json& p) {
                 e.codes[scheme] = code.get<std::string>();
         }
     }
-    // OrcaSlicer's preset `filament_id` is a code like any other: filed as
-    // scheme "orca" so load_codes_cached("orca") serves it on a repeating path.
-    if (std::string orca = helix::json_util::safe_string(p, "orca_id"); !orca.empty())
-        e.codes["orca"] = std::move(orca);
     return e;
 }
 
@@ -281,6 +277,65 @@ std::vector<std::string> FilamentCatalog::builtin_candidate_paths() {
 FilamentCatalog FilamentCatalog::load_full() {
     return load_with_overlay(first_existing(builtin_candidate_paths()),
                              first_existing(user_paths()));
+}
+
+std::unordered_map<std::string, std::string>
+FilamentCatalog::orca_id_map_from(const std::string& builtin_path,
+                                  const std::string& overlay_path) {
+    // catalog id -> the Orca id that product carries, built-ins first, then the
+    // overlay. An overlay entry speaks for the whole product: it may have
+    // changed what the product is, so one with no orca_id of its own carries
+    // none, rather than inheriting the built-in's.
+    std::unordered_map<std::string, std::string> by_product;
+    for (const auto& jp : read_products({builtin_path}))
+        by_product[helix::json_util::safe_string(jp, "id")] =
+            helix::json_util::safe_string(jp, "orca_id");
+    for (const auto& jp : read_products({overlay_path}))
+        by_product[helix::json_util::safe_string(jp, "id")] =
+            helix::json_util::safe_string(jp, "orca_id");
+
+    // An Orca id carried by more than one product names none of them exactly:
+    // child Orca profiles inherit their parent's id, so a shared id can belong
+    // to another product or another material altogether.
+    std::unordered_map<std::string, int> carriers;
+    for (const auto& [id, orca] : by_product)
+        if (!orca.empty())
+            ++carriers[orca];
+
+    std::unordered_map<std::string, std::string> out;
+    for (auto& [id, orca] : by_product)
+        if (!id.empty() && !orca.empty() && carriers[orca] == 1)
+            out.emplace(id, std::move(orca));
+    return out;
+}
+
+namespace {
+std::mutex g_orca_ids_mutex;
+uint64_t g_orca_ids_generation = 0;
+std::shared_ptr<const std::unordered_map<std::string, std::string>> g_orca_ids;
+} // namespace
+
+std::string FilamentCatalog::orca_id_for(const std::string& catalog_id) {
+    if (catalog_id.empty())
+        return {};
+    const uint64_t gen = g_user_overlay_generation.load(std::memory_order_acquire);
+    std::shared_ptr<const std::unordered_map<std::string, std::string>> ids;
+    {
+        std::lock_guard<std::mutex> lock(g_orca_ids_mutex);
+        if (g_orca_ids && g_orca_ids_generation == gen)
+            ids = g_orca_ids;
+    }
+    if (!ids) {
+        // Built outside the lock, as in load_codes_cached(): the parse is the
+        // whole bundled catalog, and a racing build is wasted once, never wrong.
+        ids = std::make_shared<const std::unordered_map<std::string, std::string>>(orca_id_map_from(
+            first_existing(builtin_candidate_paths()), first_existing(user_paths())));
+        std::lock_guard<std::mutex> lock(g_orca_ids_mutex);
+        g_orca_ids = ids;
+        g_orca_ids_generation = gen;
+    }
+    auto it = ids->find(catalog_id);
+    return it == ids->end() ? std::string{} : it->second;
 }
 
 std::map<std::string, std::string> FilamentCatalog::load_user_orca_type_map() {

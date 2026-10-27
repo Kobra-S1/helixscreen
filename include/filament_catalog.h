@@ -31,9 +31,7 @@ struct EffectiveFilament {
     int dry_time_min = 0;
     float density_g_cm3 = 0.0f;
     std::string compat_group;
-    /// scheme -> code. "orca" is the product's top-level `orca_id`, OrcaSlicer's
-    /// preset `filament_id`.
-    std::map<std::string, std::string> codes;
+    std::map<std::string, std::string> codes; ///< scheme -> code
 };
 
 /// Transient, on-demand filament catalog. NO resident singleton: construct via a
@@ -69,6 +67,21 @@ class FilamentCatalog {
      * user-added product still appears without a restart.
      */
     static std::shared_ptr<const FilamentCatalog> load_codes_cached(const std::string& scheme);
+
+    /**
+     * @brief OrcaSlicer's preset `filament_id` for catalog product @p catalog_id
+     *
+     * "" when the product carries no `orca_id`, or carries one that another
+     * product in the effective catalog (built-ins plus user overlay) also
+     * carries: a shared id does not name this product exactly. Keeps only a
+     * flat catalog id -> Orca id map resident, rebuilt after a user-overlay
+     * write. Thread-safe.
+     */
+    static std::string orca_id_for(const std::string& catalog_id);
+    /// The map orca_id_for() serves, from explicit paths (tests). An overlay
+    /// entry for a built-in id replaces its Orca id, with none when it carries none.
+    static std::unordered_map<std::string, std::string>
+    orca_id_map_from(const std::string& builtin_path, const std::string& overlay_path);
 
     /// Bumped by every successful user-overlay write; the cache keys off it.
     /// Exposed so tests can assert invalidation rather than infer it.

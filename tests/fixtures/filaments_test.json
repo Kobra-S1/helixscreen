@@ -7,6 +7,6 @@
      "type": "ABS", "nozzle": 280, "nozzle_min": 270, "nozzle_max": 290,
      "bed": 105, "source": "orca"},
     {"id": "polymaker-pla-pro", "brand": "Polymaker", "name": "PLA Pro",
-     "type": "PLA", "nozzle": 210, "orca_id": "TESTORCA01", "source": "orca"}
+     "type": "PLA", "nozzle": 210, "source": "orca"}
   ]
 }

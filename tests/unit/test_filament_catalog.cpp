@@ -64,20 +64,34 @@ TEST_CASE_METHOD(HelixTestFixture, "load_codes materializes only coded slice",
     CHECK(cat.resolve_id("polymaker-abs-pro") == nullptr);
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "orca_id is the product's code in scheme orca",
-                 "[filament_catalog]") {
-    auto cat = FilamentCatalog::load_from_file(FIX, /*codes_only=*/true, "orca");
-    REQUIRE(cat.all_products().size() == 1);
-    const auto* pla = cat.resolve_id("polymaker-pla-pro");
-    REQUIRE(pla != nullptr);
-    CHECK(pla->codes.at("orca") == "TESTORCA01");
-    CHECK(cat.resolve_code("orca", "TESTORCA01") == pla);
-    CHECK(cat.resolve_id("polymaker-abs-pro") == nullptr); // no orca_id, not in the slice
+TEST_CASE_METHOD(HelixTestFixture, "orca ids: only an id exactly one product carries",
+                 "[filament_catalog][orca]") {
+    constexpr const char* kBuiltin = "tests/fixtures/orca_ids_builtin.json";
+    constexpr const char* kOverlay = "tests/fixtures/orca_ids_overlay.json";
 
-    auto full = FilamentCatalog::load_from_file(FIX, false, "");
-    const auto* abs = full.resolve_id("polymaker-abs-pro");
-    REQUIRE(abs != nullptr);
-    CHECK(abs->codes.count("orca") == 0);
+    SECTION("built-ins alone") {
+        const auto ids = FilamentCatalog::orca_id_map_from(kBuiltin, "");
+        REQUIRE(ids.count("acme-pla") == 1);
+        CHECK(ids.at("acme-pla") == "UNIQUE01");
+        CHECK(ids.count("acme-pp") == 0); // SHARED01 names two products
+        CHECK(ids.count("acme-petg-cf") == 0);
+        CHECK(ids.count("acme-pc") == 0); // no orca_id
+        REQUIRE(ids.count("acme-tpu") == 1);
+        CHECK(ids.at("acme-tpu") == "OVERLAY_TAKEN");
+    }
+
+    SECTION("with the user overlay") {
+        const auto ids = FilamentCatalog::orca_id_map_from(kBuiltin, kOverlay);
+        CHECK(ids.at("acme-pla") == "UNIQUE01");
+        // An override with no orca_id of its own carries none.
+        CHECK(ids.count("acme-abs") == 0);
+        // An override with its own orca_id carries that one.
+        REQUIRE(ids.count("acme-asa") == 1);
+        CHECK(ids.at("acme-asa") == "OVERLAY_ASA");
+        // A user product sharing a built-in's id makes it ambiguous for both.
+        CHECK(ids.count("acme-tpu") == 0);
+        CHECK(ids.count("user-tpu") == 0);
+    }
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "queries by brand and type", "[filament_catalog]") {

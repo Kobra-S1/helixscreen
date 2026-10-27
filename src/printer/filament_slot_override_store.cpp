@@ -394,14 +394,13 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
         j["helix_catalog_id"] = o.catalog_id;
         // OrcaSlicer matches a string `filament_id` against its presets' own
         // filament_id and picks that exact preset over the generic one for the
-        // material. Only the catalog's recorded id goes here, never a guess; a
-        // numeric `filament_id` (Happy Hare's Spoolman id, in its own records)
-        // is ignored by Orca.
-        const auto orca_slice = helix::printer::FilamentCatalog::load_codes_cached("orca");
-        if (const auto* product = orca_slice->resolve_id(o.catalog_id)) {
-            if (auto code = product->codes.find("orca"); code != product->codes.end())
-                j["filament_id"] = code->second;
-        }
+        // material. Only an id the catalog records for this one product goes
+        // here, never a guess and never one several products share. Orca
+        // ignores a numeric `filament_id` (Happy Hare's Spoolman id, in its own
+        // records).
+        if (std::string orca = helix::printer::FilamentCatalog::orca_id_for(o.catalog_id);
+            !orca.empty())
+            j["filament_id"] = std::move(orca);
     }
     if (!o.product_name.empty())
         j["helix_product_name"] = o.product_name;
