@@ -64,9 +64,9 @@ constexpr Row kRows[] = {
     {Match::Prefix, "fan_generic ", ObjectKind::GenericFan, 0, Scope::Both},
 
     {Match::Prefix, "led_effect ", ObjectKind::LedEffect, 0, Scope::Both},
-    {Match::BareOrPrefix, "neopixel", ObjectKind::Led, 0, Scope::Both},
-    {Match::BareOrPrefix, "dotstar", ObjectKind::Led, 0, Scope::Both},
-    {Match::Prefix, "led ", ObjectKind::Led, 0, Scope::Both},
+    {Match::BareOrPrefix, "neopixel", ObjectKind::Led, kLedChipNeopixel, Scope::Both},
+    {Match::BareOrPrefix, "dotstar", ObjectKind::Led, kLedChipDotstar, Scope::Both},
+    {Match::Prefix, "led ", ObjectKind::Led, kLedChipGeneric, Scope::Both},
 
     {Match::Prefix, "filament_switch_sensor ", ObjectKind::FilamentSwitch, 0, Scope::Both},
     {Match::Prefix, "filament_motion_sensor ", ObjectKind::FilamentMotion, 0, Scope::Both},

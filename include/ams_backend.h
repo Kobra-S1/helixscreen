@@ -3977,14 +3977,6 @@ class AmsBackend {
      */
     [[nodiscard]] static nlohmann::json required_status_objects(const helix::PrinterDiscovery& hw);
 
-    /**
-     * @brief Object-name prefixes, beyond Klipper's stock filament_switch_sensor and
-     *        filament_motion_sensor, under which a backend's filament sensors are
-     *        published. Discovery buckets objects with these prefixes as filament
-     *        sensors.
-     */
-    [[nodiscard]] static const std::vector<std::string>& filament_sensor_object_prefixes();
-
     // ========================================================================
     // Factory Method
     // ========================================================================

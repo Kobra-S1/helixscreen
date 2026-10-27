@@ -51,6 +51,11 @@ enum class ObjectKind : uint8_t {
     PowerLossMonitor,
 };
 
+/// ObjectClass::chip for ObjectKind::Led.
+inline constexpr uint8_t kLedChipGeneric = 0;  ///< [led name]: pins decide color and white
+inline constexpr uint8_t kLedChipNeopixel = 1; ///< addressable RGB(W)
+inline constexpr uint8_t kLedChipDotstar = 2;  ///< addressable RGB, never white
+
 struct ObjectClass {
     ObjectKind kind = ObjectKind::Unknown;
     std::string instance; ///< the part after the prefix: "chamber" in "temperature_sensor chamber"

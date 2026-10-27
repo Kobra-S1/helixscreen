@@ -2,6 +2,7 @@
 #include "hardware_role_registry.h"
 
 #include "config.h"
+#include "hardware_object_table.h"
 #include "printer_discovery.h"
 #include "printer_hardware.h"
 #include "wizard_config_paths.h"
@@ -21,21 +22,25 @@ bool contains(const std::vector<std::string>& v, const std::string& s) {
 // These gate heuristic/canonical picks so a fallback guess can't pick a wrong-category object
 // (e.g. guess_part_cooling_fan() falling back to fans_[0] which is a controller_fan).
 
+using hw::ObjectKind;
+
 // Part cooling: anything that is NOT an auto-controlled fan type.
 bool is_part_fan_candidate(const std::string& o) {
-    return o.rfind("heater_fan ", 0) != 0 && o.rfind("controller_fan ", 0) != 0 &&
-           o.rfind("temperature_fan ", 0) != 0;
+    const ObjectKind kind = hw::classify_object(o).kind;
+    return kind != ObjectKind::HeaterFan && kind != ObjectKind::ControllerFan &&
+           kind != ObjectKind::TemperatureFan;
 }
 // Hotend / heatbreak cooling fan.
 // NOTE: intentionally avoids bare "heat" to prevent matching "heater_bed".
 bool is_hotend_fan_candidate(const std::string& o) {
-    return o.rfind("heater_fan ", 0) == 0 || o.find("hotend") != std::string::npos ||
-           o.find("heatbreak") != std::string::npos;
+    return hw::classify_object(o).kind == ObjectKind::HeaterFan ||
+           o.find("hotend") != std::string::npos || o.find("heatbreak") != std::string::npos;
 }
 // Chamber circulation / filter fan.
 bool is_chamber_fan_candidate(const std::string& o) {
-    return o.find("chamber") != std::string::npos || o.find("nevermore") != std::string::npos ||
-           o.find("filter") != std::string::npos || o.rfind("temperature_fan ", 0) == 0;
+    return hw::classify_object(o).kind == ObjectKind::TemperatureFan ||
+           o.find("chamber") != std::string::npos || o.find("nevermore") != std::string::npos ||
+           o.find("filter") != std::string::npos;
 }
 // Exhaust / vent fan.
 bool is_exhaust_fan_candidate(const std::string& o) {
@@ -51,8 +56,10 @@ bool is_bed_heater_candidate(const std::string& o) {
     return o.find("bed") != std::string::npos;
 }
 bool is_hotend_heater_candidate(const std::string& o) {
-    return o == "extruder" || o.rfind("extruder", 0) == 0 ||
-           o.find("hotend") != std::string::npos || o == "e0";
+    if (hw::classify_object(o).kind == ObjectKind::Heater && o != "heater_bed") {
+        return true;
+    }
+    return o.rfind("extruder", 0) == 0 || o.find("hotend") != std::string::npos || o == "e0";
 }
 
 // --- guess adapters: reuse the single heuristic implementation in PrinterHardware ---

@@ -8,6 +8,7 @@
 #include "color_utils.h"
 #include "config.h"
 #include "device_display_name.h"
+#include "hardware_object_table.h"
 #include "helix/xml/scoped_subject_registry.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
@@ -234,9 +235,10 @@ void LedController::discover_from_hardware(const helix::PrinterDiscovery& hardwa
     // Populate native backend from discovered LEDs
     for (const auto& led_id : hardware.leds()) {
         // Check if this is an output_pin (not a native LED strip)
-        if (led_id.rfind("output_pin ", 0) == 0) {
+        const auto led_class = helix::hw::classify_object(led_id);
+        if (led_class.kind == helix::hw::ObjectKind::OutputPinLed) {
             LedStripInfo pin;
-            const std::string display = helix::prettify_name(led_id.substr(11));
+            const std::string display = helix::prettify_name(led_class.instance);
             pin.name = display;
             pin.id = led_id;
             pin.backend = LedBackendType::OUTPUT_PIN;
@@ -259,16 +261,18 @@ void LedController::discover_from_hardware(const helix::PrinterDiscovery& hardwa
 
         // The display name is the object name without its type prefix
         std::string raw_name;
-        if (led_id.rfind("neopixel ", 0) == 0) {
-            raw_name = led_id.substr(9);
+        const bool named =
+            led_class.kind == helix::hw::ObjectKind::Led && !led_class.instance.empty();
+        if (named && led_class.chip == helix::hw::kLedChipNeopixel) {
+            raw_name = led_class.instance;
             strip.supports_color = true; // Addressable: RGB(W); no rgb pins in configfile
             strip.supports_white = true; // Until its color_order is read
-        } else if (led_id.rfind("dotstar ", 0) == 0) {
-            raw_name = led_id.substr(8);
+        } else if (named && led_class.chip == helix::hw::kLedChipDotstar) {
+            raw_name = led_class.instance;
             strip.supports_color = true; // Addressable RGB; no rgb pins in configfile
             strip.supports_white = false;
-        } else if (led_id.rfind("led ", 0) == 0) {
-            raw_name = led_id.substr(4);
+        } else if (named) {
+            raw_name = led_class.instance;
             // Generic [led]: white-only until the configfile parse proves RGB pins
             // exist (update_pin_config sets both flags from the pins present).
             strip.supports_white = true;
@@ -471,12 +475,9 @@ void LedController::apply_configfile(const nlohmann::json& configfile_config) {
     if (configfile_config.is_object()) {
         for (auto it = configfile_config.begin(); it != configfile_config.end(); ++it) {
             const std::string& key = it.key();
-            for (const char* prefix :
-                 {"led ", "led_effect ", "neopixel", "dotstar", "output_pin "}) {
-                if (key.rfind(prefix, 0) == 0) {
-                    configfile_config_[key] = it.value();
-                    break;
-                }
+            const auto kind = helix::hw::classify_section(key, it.value()).kind;
+            if (helix::hw::is_led(kind) || kind == helix::hw::ObjectKind::LedEffect) {
+                configfile_config_[key] = it.value();
             }
         }
     }
@@ -659,8 +660,12 @@ void NativeBackend::update_pin_config(const nlohmann::json& config_section) {
         // Addressable strips name no channel pins: a neopixel has W where its
         // color_order says so (Klipper's default is GRB, and a chain may list one
         // order per LED), and a dotstar never has W.
-        const bool neopixel = strip.id.rfind("neopixel ", 0) == 0;
-        if (neopixel || strip.id.rfind("dotstar ", 0) == 0) {
+        const auto strip_class = helix::hw::classify_object(strip.id);
+        const bool addressable = strip_class.kind == helix::hw::ObjectKind::Led &&
+                                 strip_class.chip != helix::hw::kLedChipGeneric &&
+                                 !strip_class.instance.empty();
+        const bool neopixel = addressable && strip_class.chip == helix::hw::kLedChipNeopixel;
+        if (addressable) {
             strip.supports_color = true;
             strip.supports_white = neopixel && color_order_has_white(led_cfg);
             strip.pin_config_known = true;

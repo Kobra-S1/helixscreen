@@ -3,19 +3,6 @@
 
 #pragma once
 
-#include <array>
-
-namespace helix {
-
-/// Klipper object-name prefixes under which native Z-Mod publishes the IFS head and
-/// motion sensors, in place of the stock filament_switch_sensor /
-/// filament_motion_sensor sections. Outside the HELIX_HAS_IFS guard because
-/// discovery buckets these as filament sensors on every build.
-inline constexpr std::array<const char*, 2> kAd5xIfsSensorObjectPrefixes = {
-    "zmod_ifs_switch_sensor ", "zmod_ifs_motion_sensor "};
-
-} // namespace helix
-
 #if HELIX_HAS_IFS
 
 #include "ams_subscription_backend.h"

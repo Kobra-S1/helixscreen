@@ -913,12 +913,6 @@ nlohmann::json AmsBackend::required_status_objects(const helix::PrinterDiscovery
     return objects;
 }
 
-const std::vector<std::string>& AmsBackend::filament_sensor_object_prefixes() {
-    static const std::vector<std::string> prefixes(kAd5xIfsSensorObjectPrefixes.begin(),
-                                                   kAd5xIfsSensorObjectPrefixes.end());
-    return prefixes;
-}
-
 void AmsBackend::init_persistent_state(const std::string& config_dir) {
     AfcMessageDedup::instance().init(config_dir);
 }

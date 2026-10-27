@@ -12,6 +12,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "config.h"
+#include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_fs.h"
 #include "helix_regex.h"
@@ -173,12 +174,11 @@ bool AmsBackendAd5xIfs::owns_filament_sensor(const std::string& bare_name,
     // (zmod_ifs_switch_sensor / zmod_ifs_motion_sensor) instead of the stock
     // filament_switch_sensor / filament_motion_sensor sections. The hardware-side
     // strip only removes the stock prefixes, so the bare_name still carries the
-    // zmod namespace — claim it by prefix so the head/motion sensors aren't
-    // surfaced as generic runout sensors.
-    for (const char* prefix : kAd5xIfsSensorObjectPrefixes) {
-        if (bare_name.rfind(prefix, 0) == 0) {
-            return true;
-        }
+    // zmod namespace; the object table knows those names, so the head/motion
+    // sensors aren't surfaced as generic runout sensors.
+    if (helix::hw::classify_object(bare_name).kind ==
+        helix::hw::ObjectKind::BackendFilamentSensor) {
+        return true;
     }
     // lessWaste per-port HUB sensors (_ifs_port_sensor_{1..4}) and older ZMOD
     // per-port motion sensors (_ifs_motion_sensor_N).

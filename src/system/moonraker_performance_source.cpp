@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "moonraker_performance_source.h"
 
+#include "hardware_object_table.h"
 #include "i_moonraker_api.h"
 #include "moonraker_types.h"
 
@@ -82,9 +83,8 @@ void MoonrakerPerformanceSource::start() {
             if (!obj.is_object())
                 return;
             for (auto it = obj.begin(); it != obj.end(); ++it) {
-                // Route MCU keys (matches "mcu" and "mcu <name>").
                 const std::string& key = it.key();
-                if (key == "mcu" || key.rfind("mcu ", 0) == 0) {
+                if (hw::classify_object(key).kind == hw::ObjectKind::Mcu) {
                     on_mcu_status_update(key, it.value());
                 }
             }
