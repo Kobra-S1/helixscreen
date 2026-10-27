@@ -141,7 +141,7 @@ class SensorManager {
     virtual void register_subjects(SubjectManager& subjects) = 0; ///< main thread
     virtual void refresh_subjects() = 0;                          ///< main thread, mutex NOT held
     virtual bool parse_status(const nlohmann::json& status) = 0;  ///< mutex held
-    virtual void on_discovered() {}                               ///< mutex held; auto roles
+    virtual void on_discovered(const PrinterDiscovery& /*hw*/) {} ///< mutex held; auto roles
     virtual void on_entries_changed() {} ///< mutex held; resize parallel readings
     virtual void read_entry_extra(SensorEntry& /*entry*/, const nlohmann::json& /*saved*/) {}
     virtual void write_entry_extra(const SensorEntry& /*entry*/, nlohmann::json& /*out*/) const {}

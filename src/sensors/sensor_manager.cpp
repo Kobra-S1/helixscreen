@@ -122,7 +122,7 @@ void SensorManager::discover(const PrinterDiscovery& hw) {
     {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
         replace_entries_locked(std::move(found));
-        on_discovered();
+        on_discovered(hw);
         count = entries_.size();
     }
     spdlog::debug("[{}] Discovered {} sensors", options_.name, count);
