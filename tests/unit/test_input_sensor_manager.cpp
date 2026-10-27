@@ -9,18 +9,22 @@
  * Run with: ./build/bin/helix-tests "[input_sensors]"
  */
 
+#include "ui_print_start_controller.h"
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/print_start_controller_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
 #include "input_sensor_manager.h"
 #include "input_sensor_types.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
+#include "tool_state.h"
 
 #include <string>
 #include <vector>
@@ -380,4 +384,36 @@ TEST_CASE_METHOD(
         json{{"gcode_button frontDoor", {{"state", "RELEASED"}}}});
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0].find("frontDoor") != std::string::npos);
+}
+
+TEST_CASE_METHOD(InputSensorPrintFixture,
+                 "PrintStartController hands the start checks the open doors and the toolheads",
+                 "[input_sensors][door][print_start_controller]") {
+    auto& inputs = InputSensorManager::instance();
+    inputs.discover(kC5Objects);
+    inputs.update_from_status(json{{"gcode_button frontDoor", {{"state", "RELEASED"}}},
+                                   {"gcode_button topDoor", {{"state", "PRESSED"}}}});
+    REQUIRE(inputs.door_check_enabled());
+
+    ToolState::instance().deinit_subjects();
+    ToolState::instance().init_subjects(true);
+    helix::PrinterDiscovery changer;
+    changer.parse_objects(
+        json::array({"gcode_move", "toolchanger", "tool T0", "tool T1", "extruder", "extruder1"}));
+    ToolState::instance().init_tools(changer);
+    REQUIRE(ToolState::instance().has_multiple_toolheads());
+
+    helix::ui::PrintStartController controller{get_printer_state(), nullptr};
+    auto ctx = PrintStartControllerTestAccess::gather(controller);
+    CHECK(ctx.door_check_enabled);
+    CHECK(ctx.open_doors == std::vector<std::string>{"frontDoor"});
+    CHECK(ctx.multiple_toolheads);
+
+    inputs.set_door_check_enabled(false);
+    helix::PrinterDiscovery single;
+    single.parse_objects(json::array({"gcode_move", "extruder"}));
+    ToolState::instance().init_tools(single);
+    ctx = PrintStartControllerTestAccess::gather(controller);
+    CHECK_FALSE(ctx.door_check_enabled);
+    CHECK_FALSE(ctx.multiple_toolheads);
 }
