@@ -28,37 +28,12 @@ using nlohmann::json;
 
 namespace {
 
-// All `printer.objects.list` entries we plumb through both the discovery-
-// sequence's own vectors and the unified PrinterDiscovery snapshot.
+// The `printer.objects.list` entries of one test; PrinterDiscovery classifies them.
 struct DiscoveryFixture {
-    std::vector<std::string> heaters;
-    std::vector<std::string> sensors;
-    std::vector<std::string> fans;
-    std::vector<std::string> leds;
-    std::vector<std::string> load_cells;
-    std::vector<std::string> filament_sensors;
-    std::vector<std::string> mcus;
     json all_objects = json::array();
 
-    void add(const std::string& name, std::initializer_list<const char*> categories) {
+    void add(const std::string& name) {
         all_objects.push_back(name);
-        for (const auto& cat : categories) {
-            std::string c = cat;
-            if (c == "heater")
-                heaters.push_back(name);
-            else if (c == "sensor")
-                sensors.push_back(name);
-            else if (c == "fan")
-                fans.push_back(name);
-            else if (c == "led")
-                leds.push_back(name);
-            else if (c == "load_cell")
-                load_cells.push_back(name);
-            else if (c == "filament_sensor")
-                filament_sensors.push_back(name);
-            else if (c == "mcu")
-                mcus.push_back(name);
-        }
     }
 
     json build() const {
@@ -69,8 +44,7 @@ struct DiscoveryFixture {
 
     /// For a snapshot a test finished itself, e.g. one with a status claim settled.
     json build(const PrinterDiscovery& hw) const {
-        return MoonrakerDiscoverySequence::build_subscription_objects(
-            hw, heaters, sensors, load_cells, fans, leds, filament_sensors, mcus);
+        return MoonrakerDiscoverySequence::build_subscription_objects(hw);
     }
 };
 
@@ -174,7 +148,7 @@ TEST_CASE("Subscription: power-loss recovery and pause-cause fields follow the f
         // The structured pause cause feeds defect detection and the resume
         // classifier; the snapshot flag is that firmware's recovery offer.
         DiscoveryFixture fx;
-        fx.add("filament_detect", {});
+        fx.add("filament_detect");
         json subs = fx.build();
         CHECK(has_field(subs, "print_stats", "exception"));
         CHECK(has_field(subs, "virtual_sdcard", "pl_env_valid"));
@@ -185,7 +159,7 @@ TEST_CASE("Subscription: power-loss recovery and pause-cause fields follow the f
 
     SECTION("the recovery macro adds save_variables with every field") {
         DiscoveryFixture fx;
-        fx.add("gcode_macro DETECT_INTERRUPTION", {});
+        fx.add("gcode_macro DETECT_INTERRUPTION");
         json subs = fx.build();
         REQUIRE(subs.contains("save_variables"));
         CHECK(subs["save_variables"].is_null());
@@ -196,10 +170,10 @@ TEST_CASE("Subscription: heaters narrow to {temperature, target, power}, extrude
           "pressure advance",
           "[moonraker][subscription]") {
     DiscoveryFixture fx;
-    fx.add("extruder", {"heater"});
-    fx.add("extruder1", {"heater"});
-    fx.add("heater_bed", {"heater"});
-    fx.add("heater_generic chamber", {"heater"});
+    fx.add("extruder");
+    fx.add("extruder1");
+    fx.add("heater_bed");
+    fx.add("heater_generic chamber");
 
     json subs = fx.build();
 
@@ -223,9 +197,9 @@ TEST_CASE("Subscription: heaters narrow to {temperature, target, power}, extrude
 TEST_CASE("Subscription: temp sensors narrow to {temperature, humidity}",
           "[moonraker][subscription]") {
     DiscoveryFixture fx;
-    fx.add("temperature_sensor enclosure", {"sensor"});
-    fx.add("tmc2240 stepper_x", {"sensor"});
-    fx.add("tmc5160 stepper_y", {"sensor"});
+    fx.add("temperature_sensor enclosure");
+    fx.add("tmc2240 stepper_x");
+    fx.add("tmc5160 stepper_y");
 
     json subs = fx.build();
 
@@ -245,15 +219,15 @@ TEST_CASE("Subscription: temp sensors narrow to {temperature, humidity}",
 TEST_CASE("Subscription: humidity sensor chips are subscribed with humidity",
           "[moonraker][subscription]") {
     DiscoveryFixture fx;
-    fx.add("htu21d box", {"sensor"});
-    fx.add("bme280 chamber", {"sensor"});
-    fx.add("sht3x enclosure", {"sensor"});
-    fx.add("aht10 dryer", {"sensor"});
-    fx.add("aht20 box", {"sensor"});
+    fx.add("htu21d box");
+    fx.add("bme280 chamber");
+    fx.add("sht3x enclosure");
+    fx.add("aht10 dryer");
+    fx.add("aht20 box");
     // QIDI's box temp/humidity chip ("aht20_f heater_box1" → {temperature,
     // humidity}); confirmed on a stock Q2 (#1022). Without humidity in its
     // subscription the dryer overlay never gets box humidity.
-    fx.add("aht20_f heater_box1", {"sensor"});
+    fx.add("aht20_f heater_box1");
 
     json subs = fx.build();
 
@@ -267,12 +241,12 @@ TEST_CASE("Subscription: humidity sensor chips are subscribed with humidity",
 
 TEST_CASE("Subscription: fan field shape varies by object type", "[moonraker][subscription]") {
     DiscoveryFixture fx;
-    fx.add("fan", {"fan"});
-    fx.add("heater_fan hotend_fan", {"fan"});
-    fx.add("fan_generic part_cooling", {"fan"});
-    fx.add("controller_fan board_fan", {"fan"});
-    fx.add("temperature_fan chamber", {"sensor", "fan"});
-    fx.add("output_pin fan0", {"fan"});
+    fx.add("fan");
+    fx.add("heater_fan hotend_fan");
+    fx.add("fan_generic part_cooling");
+    fx.add("controller_fan board_fan");
+    fx.add("temperature_fan chamber");
+    fx.add("output_pin fan0");
 
     json subs = fx.build();
 
@@ -299,10 +273,10 @@ TEST_CASE("Subscription: fan field shape varies by object type", "[moonraker][su
 
 TEST_CASE("Subscription: LEDs narrow by type", "[moonraker][subscription]") {
     DiscoveryFixture fx;
-    fx.add("neopixel chamber", {"led"});
-    fx.add("dotstar accent", {"led"});
-    fx.add("led status", {"led"});
-    fx.add("output_pin lamp", {"led"});
+    fx.add("neopixel chamber");
+    fx.add("dotstar accent");
+    fx.add("led status");
+    fx.add("output_pin lamp");
 
     json subs = fx.build();
 
@@ -323,9 +297,9 @@ TEST_CASE("Subscription: LEDs narrow by type", "[moonraker][subscription]") {
 TEST_CASE("Subscription: led_effect objects narrow to {enabled} (per-frame storm)",
           "[moonraker][subscription]") {
     DiscoveryFixture fx;
-    fx.add("led_effect breathing", {});
-    fx.add("led_effect fire", {});
-    fx.add("neopixel chamber", {"led"});
+    fx.add("led_effect breathing");
+    fx.add("led_effect fire");
+    fx.add("neopixel chamber");
 
     json subs = fx.build();
 
@@ -338,14 +312,14 @@ TEST_CASE("Subscription: led_effect objects narrow to {enabled} (per-frame storm
 
 TEST_CASE("Subscription: AFC objects narrow per type", "[moonraker][subscription]") {
     DiscoveryFixture fx;
-    fx.add("AFC", {"afc"});
-    fx.add("AFC_stepper lane1", {"afc"});
-    fx.add("AFC_lane lane2", {"afc"});
-    fx.add("AFC_hub turtle1", {"afc"});
-    fx.add("AFC_buffer buffer1", {"afc"});
-    fx.add("AFC_extruder extruder", {"afc"});
-    fx.add("AFC_BoxTurtle turtle1", {"afc"});
-    fx.add("AFC_led lane1_led", {"afc"});
+    fx.add("AFC");
+    fx.add("AFC_stepper lane1");
+    fx.add("AFC_lane lane2");
+    fx.add("AFC_hub turtle1");
+    fx.add("AFC_buffer buffer1");
+    fx.add("AFC_extruder extruder");
+    fx.add("AFC_BoxTurtle turtle1");
+    fx.add("AFC_led lane1_led");
 
     json subs = fx.build();
 
@@ -410,13 +384,13 @@ TEST_CASE("Subscription: AFC objects narrow per type", "[moonraker][subscription
 TEST_CASE("Subscription: AFC field lists are exactly the parsers' inputs",
           "[moonraker][subscription][afc]") {
     DiscoveryFixture fx;
-    fx.add("AFC", {"afc"});
-    fx.add("AFC_stepper lane1", {"afc"});
-    fx.add("AFC_lane lane2", {"afc"});
-    fx.add("AFC_hub turtle1", {"afc"});
-    fx.add("AFC_buffer buffer1", {"afc"});
-    fx.add("AFC_extruder extruder", {"afc"});
-    fx.add("AFC_BoxTurtle turtle1", {"afc"});
+    fx.add("AFC");
+    fx.add("AFC_stepper lane1");
+    fx.add("AFC_lane lane2");
+    fx.add("AFC_hub turtle1");
+    fx.add("AFC_buffer buffer1");
+    fx.add("AFC_extruder extruder");
+    fx.add("AFC_BoxTurtle turtle1");
     json subs = fx.build();
 
     const json state = json::array({"connected",
@@ -510,7 +484,7 @@ TEST_CASE("Subscription: firmware_retraction subscribed only when discovered",
 
     SECTION("present with all four tunables when discovered") {
         DiscoveryFixture fx;
-        fx.add("firmware_retraction", {});
+        fx.add("firmware_retraction");
         json subs = fx.build();
         REQUIRE(has_field(subs, "firmware_retraction", "retract_length"));
         REQUIRE(has_field(subs, "firmware_retraction", "retract_speed"));
@@ -521,10 +495,10 @@ TEST_CASE("Subscription: firmware_retraction subscribed only when discovered",
 
 TEST_CASE("Subscription: filament + width sensors narrow correctly", "[moonraker][subscription]") {
     DiscoveryFixture fx;
-    fx.add("filament_switch_sensor runout", {"filament_sensor"});
-    fx.add("filament_motion_sensor encoder", {"filament_sensor"});
-    fx.add("hall_filament_width_sensor", {});
-    fx.add("tsl1401cl_filament_width_sensor", {});
+    fx.add("filament_switch_sensor runout");
+    fx.add("filament_motion_sensor encoder");
+    fx.add("hall_filament_width_sensor");
+    fx.add("tsl1401cl_filament_width_sensor");
 
     json subs = fx.build();
 
@@ -551,7 +525,7 @@ TEST_CASE("Subscription: probe objects narrow to ProbeSensorManager reads",
     const auto build_with = [](std::initializer_list<const char*> names) {
         DiscoveryFixture fx;
         for (const auto& name : names) {
-            fx.add(name, {});
+            fx.add(name);
         }
         return fx.build();
     };
@@ -609,9 +583,9 @@ TEST_CASE("Subscription: probe objects narrow to ProbeSensorManager reads",
 TEST_CASE("Subscription: toolchanger + per-tool fields cover ToolState reads",
           "[moonraker][subscription]") {
     DiscoveryFixture fx;
-    fx.add("toolchanger", {});
-    fx.add("tool T0", {});
-    fx.add("tool T1", {});
+    fx.add("toolchanger");
+    fx.add("tool T0");
+    fx.add("tool T1");
     json subs = fx.build();
 
     SECTION("toolchanger reads status, tool_number, tool_numbers, tool_names") {
@@ -648,8 +622,8 @@ TEST_CASE("Subscription: print-start macros narrow to boolean flags", "[moonrake
 TEST_CASE("Subscription: system_stats dropped; idle_timeout narrowed to state",
           "[moonraker][subscription]") {
     DiscoveryFixture fx;
-    fx.add("idle_timeout", {});
-    fx.add("system_stats", {});
+    fx.add("idle_timeout");
+    fx.add("system_stats");
     json subs = fx.build();
 
     // system_stats is unread by any production parser; subscription must skip it.
@@ -671,7 +645,7 @@ TEST_CASE("Subscription: fan_feedback subscribed only when present", "[moonraker
 
     SECTION("present with fan0..fan9_speed when discovered") {
         DiscoveryFixture fx;
-        fx.add("fan_feedback", {});
+        fx.add("fan_feedback");
         json subs = fx.build();
         for (int i = 0; i < 10; ++i) {
             std::string field = "fan" + std::to_string(i) + "_speed";
@@ -685,14 +659,14 @@ TEST_CASE("Subscription: fan_feedback subscribed only when present", "[moonraker
 TEST_CASE("Subscription: mmu subscribed only for Happy Hare", "[moonraker][subscription]") {
     SECTION("Happy Hare subscribes mmu") {
         DiscoveryFixture fx;
-        fx.add("mmu", {});
+        fx.add("mmu");
         json subs = fx.build();
         REQUIRE(has_field(subs, "mmu", "gate"));
     }
 
     SECTION("CFS does not subscribe mmu") {
         DiscoveryFixture fx;
-        fx.add("box", {});
+        fx.add("box");
         json subs = fx.build();
         REQUIRE_FALSE(subs.contains("mmu"));
     }
@@ -715,7 +689,7 @@ TEST_CASE("Subscription: MCU objects narrow to PerformanceSource reads",
 
     SECTION("primary mcu subscribes last_stats") {
         DiscoveryFixture fx;
-        fx.add("mcu", {"mcu"});
+        fx.add("mcu");
         json subs = fx.build();
 
         // on_mcu_status_update reads last_stats.mcu_awake and
@@ -727,10 +701,10 @@ TEST_CASE("Subscription: MCU objects narrow to PerformanceSource reads",
 
     SECTION("secondary MCUs (host + per-toolhead) each subscribe last_stats") {
         DiscoveryFixture fx;
-        fx.add("mcu", {"mcu"});
-        fx.add("mcu host", {"mcu"});
-        fx.add("mcu e0", {"mcu"});
-        fx.add("mcu e1", {"mcu"});
+        fx.add("mcu");
+        fx.add("mcu host");
+        fx.add("mcu e0");
+        fx.add("mcu e1");
         json subs = fx.build();
 
         for (const char* name : {"mcu", "mcu host", "mcu e0", "mcu e1"}) {
@@ -742,10 +716,10 @@ TEST_CASE("Subscription: MCU objects narrow to PerformanceSource reads",
     SECTION("MCU subscription coexists with heater/print_stats — the v0.99.68 outage was about "
             "replacement") {
         DiscoveryFixture fx;
-        fx.add("mcu", {"mcu"});
-        fx.add("mcu host", {"mcu"});
-        fx.add("extruder", {"heater"});
-        fx.add("heater_bed", {"heater"});
+        fx.add("mcu");
+        fx.add("mcu host");
+        fx.add("extruder");
+        fx.add("heater_bed");
         json subs = fx.build();
 
         // The point of the union subscription: adding MCU objects must NOT
@@ -769,7 +743,7 @@ TEST_CASE("Subscription: fault-code firmware subscribes its standing-fault objec
         // again, so the exceptions array in this object is the only channel
         // that carries it.
         DiscoveryFixture fx;
-        fx.add("exception_manager", {});
+        fx.add("exception_manager");
         json subs = fx.build();
 
         REQUIRE(subs.contains("exception_manager"));
@@ -779,8 +753,8 @@ TEST_CASE("Subscription: fault-code firmware subscribes its standing-fault objec
         // Printers whose firmware does not report structured faults must not
         // subscribe an object nothing reads.
         DiscoveryFixture fx;
-        fx.add("gcode_macro START_PRINT", {});
-        fx.add("extruder", {"heater"});
+        fx.add("gcode_macro START_PRINT");
+        fx.add("extruder");
         json subs = fx.build();
 
         REQUIRE_FALSE(subs.contains("exception_manager"));
@@ -793,7 +767,7 @@ TEST_CASE("Subscription: mains-monitor firmware subscribes its power-loss object
         // The debug bundle's printer-state query reads this object, so the
         // subscription keeps it arriving in status frames too.
         DiscoveryFixture fx;
-        fx.add("power_loss_check", {});
+        fx.add("power_loss_check");
         json subs = fx.build();
 
         REQUIRE(subs.contains("power_loss_check"));
@@ -804,8 +778,8 @@ TEST_CASE("Subscription: mains-monitor firmware subscribes its power-loss object
         // uninitialised. Only the bare name is the mains monitor; a prefix
         // match would subscribe a sibling that never takes a reading.
         DiscoveryFixture fx;
-        fx.add("power_loss_check e0", {});
-        fx.add("power_loss_check e1", {});
+        fx.add("power_loss_check e0");
+        fx.add("power_loss_check e1");
         json subs = fx.build();
 
         REQUIRE_FALSE(subs.contains("power_loss_check"));
@@ -817,8 +791,8 @@ TEST_CASE("Subscription: enclosure-top firmware subscribes the one field it read
     SECTION("purifier discovered -> power_detected subscribed alone") {
         // The object's fan readings change every tick; only the flag is read.
         DiscoveryFixture fx;
-        fx.add("purifier", {});
-        fx.add("fm175xx_reader", {});
+        fx.add("purifier");
+        fx.add("fm175xx_reader");
         json subs = fx.build();
 
         REQUIRE(subs.contains("purifier"));
@@ -827,7 +801,7 @@ TEST_CASE("Subscription: enclosure-top firmware subscribes the one field it read
 
     SECTION("no purifier -> not subscribed") {
         DiscoveryFixture fx;
-        fx.add("extruder", {"heater"});
+        fx.add("extruder");
         json subs = fx.build();
 
         REQUIRE_FALSE(subs.contains("purifier"));
@@ -835,7 +809,7 @@ TEST_CASE("Subscription: enclosure-top firmware subscribes the one field it read
 
     SECTION("a purifier without the firmware's marker -> not subscribed") {
         DiscoveryFixture fx;
-        fx.add("purifier", {});
+        fx.add("purifier");
         json subs = fx.build();
 
         REQUIRE_FALSE(subs.contains("purifier"));
@@ -849,8 +823,8 @@ TEST_CASE("Subscription: ZMOD printers subscribe save_variables for the persiste
         // one in save_variables' gcode_offsets. Without this subscription the
         // Z-offset row reads 0.000 whenever the printer is idle.
         DiscoveryFixture fx;
-        fx.add("gcode_macro SAVE_ZMOD_DATA", {});
-        fx.add("extruder", {"heater"});
+        fx.add("gcode_macro SAVE_ZMOD_DATA");
+        fx.add("extruder");
         json subs = fx.build();
 
         REQUIRE(subs.contains("save_variables"));
@@ -859,8 +833,8 @@ TEST_CASE("Subscription: ZMOD printers subscribe save_variables for the persiste
     SECTION("no ZMOD macro -> save_variables not subscribed") {
         // Every non-ZMOD printer must not pay for an object nothing reads.
         DiscoveryFixture fx;
-        fx.add("gcode_macro START_PRINT", {});
-        fx.add("extruder", {"heater"});
+        fx.add("gcode_macro START_PRINT");
+        fx.add("extruder");
         json subs = fx.build();
 
         REQUIRE_FALSE(subs.contains("save_variables"));
@@ -868,7 +842,7 @@ TEST_CASE("Subscription: ZMOD printers subscribe save_variables for the persiste
 
     SECTION("detection is case-insensitive like every other macro gate") {
         DiscoveryFixture fx;
-        fx.add("gcode_macro save_zmod_data", {});
+        fx.add("gcode_macro save_zmod_data");
         json subs = fx.build();
 
         REQUIRE(subs.contains("save_variables"));
@@ -882,7 +856,7 @@ TEST_CASE("Subscription: Qidi PLR subscribes save_variables when the recovery ma
     // unnoticed. The not-subscribed-by-default half is pinned by the ZMOD
     // case above.
     DiscoveryFixture fx;
-    fx.add("gcode_macro DETECT_INTERRUPTION", {});
+    fx.add("gcode_macro DETECT_INTERRUPTION");
     json subs = fx.build();
 
     REQUIRE(subs.contains("save_variables"));
@@ -892,8 +866,8 @@ TEST_CASE("Subscription: the U1 batch macro subscribes under its config-case key
           "[moonraker][subscription]") {
     SECTION("uppercase config subscribes the uppercase object") {
         DiscoveryFixture fx;
-        fx.add("filament_detect", {});
-        fx.add("gcode_macro AUTO_FEEDING_BATCH", {});
+        fx.add("filament_detect");
+        fx.add("gcode_macro AUTO_FEEDING_BATCH");
         json subs = fx.build();
 
         REQUIRE(subs.contains("gcode_macro AUTO_FEEDING_BATCH"));
@@ -904,8 +878,8 @@ TEST_CASE("Subscription: the U1 batch macro subscribes under its config-case key
         // subscription spelled in caps never matches — and an object Moonraker
         // does not know rejects the WHOLE subscription (blank printer state).
         DiscoveryFixture fx;
-        fx.add("filament_detect", {});
-        fx.add("gcode_macro auto_feeding_batch", {});
+        fx.add("filament_detect");
+        fx.add("gcode_macro auto_feeding_batch");
         json subs = fx.build();
 
         REQUIRE(subs.contains("gcode_macro auto_feeding_batch"));
@@ -914,7 +888,7 @@ TEST_CASE("Subscription: the U1 batch macro subscribes under its config-case key
 
     SECTION("no batch macro -> no batch object subscribed") {
         DiscoveryFixture fx;
-        fx.add("filament_detect", {});
+        fx.add("filament_detect");
         json subs = fx.build();
 
         REQUIRE_FALSE(subs.contains("gcode_macro AUTO_FEEDING_BATCH"));
@@ -926,8 +900,8 @@ TEST_CASE("Subscription: OpenAMS subscribes every oams_manager field its backend
           "[moonraker][subscription][openams]") {
     // Mirrors ams_backend_openams.cpp#parse_snapshot_locked.
     DiscoveryFixture fx;
-    fx.add("oams_manager", {});
-    fx.add("extruder", {"heater"});
+    fx.add("oams_manager");
+    fx.add("extruder");
 
     SECTION("a settled v1 claim subscribes them") {
         PrinterDiscovery hw;
@@ -954,7 +928,7 @@ TEST_CASE("Subscription: a firmware that stores pre-print settings gets its stor
           "[moonraker][subscription][firmware_seeded]") {
     SECTION("from the provider table, whatever the AMS type") {
         DiscoveryFixture fx;
-        fx.add("print_task_config", {});
+        fx.add("print_task_config");
         PrinterDiscovery hw;
         hw.parse_objects(fx.all_objects);
         REQUIRE(hw.mmu_type() != helix::AmsType::SNAPMAKER);
@@ -997,15 +971,15 @@ TEST_CASE("Subscription: layer-pause state macro subscribed only with the macros
           "[moonraker][subscription][layer_pause]") {
     SECTION("absent without the scheduling macros") {
         DiscoveryFixture fx;
-        fx.add("gcode_macro SET_PRINT_STATS_INFO", {});
+        fx.add("gcode_macro SET_PRINT_STATS_INFO");
         REQUIRE_FALSE(fx.build().contains("gcode_macro SET_PRINT_STATS_INFO"));
     }
 
     SECTION("narrowed to the two schedule variables when offered") {
         DiscoveryFixture fx;
-        fx.add("gcode_macro SET_PAUSE_NEXT_LAYER", {});
-        fx.add("gcode_macro SET_PAUSE_AT_LAYER", {});
-        fx.add("gcode_macro SET_PRINT_STATS_INFO", {});
+        fx.add("gcode_macro SET_PAUSE_NEXT_LAYER");
+        fx.add("gcode_macro SET_PAUSE_AT_LAYER");
+        fx.add("gcode_macro SET_PRINT_STATS_INFO");
         json subs = fx.build();
         REQUIRE(has_field(subs, "gcode_macro SET_PRINT_STATS_INFO", "pause_next_layer"));
         REQUIRE(has_field(subs, "gcode_macro SET_PRINT_STATS_INFO", "pause_at_layer"));

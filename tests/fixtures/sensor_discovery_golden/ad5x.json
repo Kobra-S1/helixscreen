@@ -61,30 +61,6 @@
     ],
     "width_sensor_objects": []
   },
-  "discovery_sequence_buckets": {
-    "fans": [
-      "fan_generic fanM106",
-      "heater_fan heat_fan",
-      "fan_generic chamber_fan",
-      "fan_generic pcb_fan"
-    ],
-    "filament_sensors": [
-      "filament_switch_sensor head_switch_sensor"
-    ],
-    "heaters": [
-      "heater_bed",
-      "extruder"
-    ],
-    "leds": [],
-    "load_cells": [],
-    "mcus": [
-      "mcu"
-    ],
-    "sensors": [
-      "temperature_sensor chamber"
-    ],
-    "steppers": []
-  },
   "managers": {
     "accel": {
       "count": 1,

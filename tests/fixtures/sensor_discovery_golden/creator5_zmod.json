@@ -138,47 +138,6 @@
       "hall_filament_width_sensor"
     ]
   },
-  "discovery_sequence_buckets": {
-    "fans": [
-      "heater_fan heat_fan",
-      "fan_generic fanM106",
-      "fan_generic chamber_fan",
-      "fan_generic chamber_loop_fan"
-    ],
-    "filament_sensors": [
-      "filament_switch_sensor fd_ex0",
-      "filament_motion_sensor fm_ex0",
-      "filament_switch_sensor fd_ex1",
-      "filament_motion_sensor fm_ex1",
-      "filament_switch_sensor fd_ex2",
-      "filament_motion_sensor fm_ex2",
-      "filament_switch_sensor fd_ex3",
-      "filament_motion_sensor fm_ex3"
-    ],
-    "heaters": [
-      "heater_bed",
-      "extruder",
-      "extruder1",
-      "extruder2",
-      "extruder3",
-      "heater_generic chamber_heater"
-    ],
-    "leds": [
-      "led chamber_led"
-    ],
-    "load_cells": [],
-    "mcus": [
-      "mcu",
-      "mcu EBBCan"
-    ],
-    "sensors": [
-      "temperature_sensor chamber",
-      "temperature_sensor mcu_temp",
-      "bme280 chamber",
-      "htu21d dryer"
-    ],
-    "steppers": []
-  },
   "managers": {
     "accel": {
       "count": 1,

@@ -101,43 +101,6 @@
       "hall_filament_width_sensor"
     ]
   },
-  "discovery_sequence_buckets": {
-    "fans": [
-      "heater_fan hotend_fan",
-      "fan",
-      "fan_generic nevermore",
-      "controller_fan controller_fan"
-    ],
-    "filament_sensors": [
-      "filament_switch_sensor runout_sensor"
-    ],
-    "heaters": [
-      "heater_bed",
-      "extruder",
-      "heater_generic chamber"
-    ],
-    "leds": [
-      "neopixel chamber_light",
-      "neopixel status_led",
-      "led caselight",
-      "output_pin Enclosure_LEDs"
-    ],
-    "load_cells": [],
-    "mcus": [
-      "mcu",
-      "mcu EBBCan"
-    ],
-    "sensors": [
-      "temperature_sensor chamber",
-      "temperature_sensor raspberry_pi",
-      "temperature_sensor mcu_temp",
-      "tmc2240 stepper_x",
-      "tmc2240 stepper_y",
-      "bme280 chamber",
-      "htu21d dryer"
-    ],
-    "steppers": []
-  },
   "managers": {
     "accel": {
       "count": 1,

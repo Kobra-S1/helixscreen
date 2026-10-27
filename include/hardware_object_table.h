@@ -65,7 +65,8 @@ struct ObjectClass {
 [[nodiscard]] ObjectClass classify_section(std::string_view section, const nlohmann::json& body);
 
 /// The fields to subscribe for a kind. Empty: subscribe nothing. A single "*"
-/// entry: subscribe the whole object (Moonraker null).
+/// entry: subscribe the whole object (Moonraker null). Probe is empty: its fields vary
+/// per probe type and ProbeSensorManager supplies them.
 [[nodiscard]] const std::vector<std::string>& status_fields(ObjectKind kind);
 
 [[nodiscard]] bool is_heater(ObjectKind kind);      ///< Heater, GenericHeater

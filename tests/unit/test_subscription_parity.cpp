@@ -29,11 +29,8 @@ using nlohmann::json;
 
 namespace {
 
-/// One printer's object list, bucketed the way parse_objects() buckets it.
+/// One printer's object list.
 struct Printer {
-    std::vector<std::string> heaters{"extruder", "heater_bed"};
-    std::vector<std::string> fans{"fan"};
-    std::vector<std::string> filament_sensors;
     json all_objects = json::array({"extruder", "heater_bed", "fan"});
     json status_claim;
 
@@ -45,9 +42,7 @@ struct Printer {
         return obj(name);
     }
     Printer& sensor(const std::string& name) {
-        all_objects.push_back(name);
-        filament_sensors.push_back(name);
-        return *this;
+        return obj(name);
     }
 
     json build() const {
@@ -56,8 +51,7 @@ struct Printer {
         if (!status_claim.is_null()) {
             hw.settle_status_claims(status_claim);
         }
-        return MoonrakerDiscoverySequence::build_subscription_objects(hw, heaters, {}, {}, fans, {},
-                                                                      filament_sensors, {});
+        return MoonrakerDiscoverySequence::build_subscription_objects(hw);
     }
 };
 
@@ -163,7 +157,6 @@ TEST_CASE("subscription objects are unchanged for every backend fixture", "[subs
     SECTION("klipper-toolchanger") {
         Printer p;
         p.obj("toolchanger").obj("tool T0").obj("tool T1").obj("extruder1");
-        p.heaters.push_back("extruder1");
         check_against_golden("subscription_parity", "toolchanger", p.build());
     }
 
@@ -182,7 +175,7 @@ TEST_CASE("subscription objects are unchanged for every backend fixture", "[subs
     }
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "backend sensor prefixes bucket as filament sensors",
+TEST_CASE_METHOD(HelixTestFixture, "backend sensor prefixes subscribe as filament sensors",
                  "[subscription_parity]") {
     MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerDiscoverySequence discovery(mock);
@@ -191,17 +184,12 @@ TEST_CASE_METHOD(HelixTestFixture, "backend sensor prefixes bucket as filament s
                      "zmod_ifs_switch_sensor head", "zmod_ifs_motion_sensor ifs_motion_sensor",
                      "zmod_ifs", "zmod_ifs_status"}));
 
-    const auto& sensors = discovery.filament_sensors();
-    CHECK(sensors == std::vector<std::string>{"filament_switch_sensor runout",
-                                              "filament_motion_sensor encoder",
-                                              "zmod_ifs_switch_sensor head",
-                                              "zmod_ifs_motion_sensor ifs_motion_sensor"});
+    const std::vector<std::string> sensors{
+        "filament_switch_sensor runout", "filament_motion_sensor encoder",
+        "zmod_ifs_switch_sensor head", "zmod_ifs_motion_sensor ifs_motion_sensor"};
 
     const json fields = json::array({"filament_detected", "enabled", "detection_count"});
-    PrinterDiscovery hw;
-    hw.parse_objects(json::array({"extruder"}));
-    const json subs =
-        MoonrakerDiscoverySequence::build_subscription_objects(hw, {}, {}, {}, {}, {}, sensors, {});
+    const json subs = MoonrakerDiscoverySequence::build_subscription_objects(discovery.hardware());
     for (const auto& name : sensors) {
         INFO(name);
         CHECK(subs.value(name, json()) == fields);
@@ -217,8 +205,9 @@ TEST_CASE_METHOD(HelixTestFixture,
     // The Snapmaker U1 lists extruder_offset_calibration beside its four extruders.
     discovery.parse_objects(json::array({"heater_bed", "extruder_offset_calibration", "extruder",
                                          "extruder1", "extruder2", "extruder3"}));
-    CHECK(discovery.heaters() == std::vector<std::string>{"heater_bed", "extruder", "extruder1",
-                                                          "extruder2", "extruder3"});
+    CHECK(discovery.hardware().heaters() == std::vector<std::string>{"heater_bed", "extruder",
+                                                                     "extruder1", "extruder2",
+                                                                     "extruder3"});
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "discovery and the hardware snapshot share one heater rule",
@@ -239,7 +228,7 @@ TEST_CASE_METHOD(HelixTestFixture, "discovery and the hardware snapshot share on
     MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerDiscoverySequence sequence(mock);
     sequence.parse_objects(objects);
-    CHECK(sequence.heaters() == expected);
+    CHECK(sequence.hardware().heaters() == expected);
 
     PrinterDiscovery hw;
     hw.parse_objects(objects);

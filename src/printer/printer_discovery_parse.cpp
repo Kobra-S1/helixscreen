@@ -690,6 +690,15 @@ PrinterDiscovery::objects_of(std::initializer_list<hw::ObjectKind> kinds) const 
     return out;
 }
 
+std::vector<std::pair<std::string, hw::ObjectKind>> PrinterDiscovery::object_kinds() const {
+    std::vector<std::pair<std::string, hw::ObjectKind>> out;
+    out.reserve(objects_.size());
+    for (const auto& o : objects_) {
+        out.emplace_back(o.name, o.cls.kind);
+    }
+    return out;
+}
+
 std::vector<std::string>
 PrinterDiscovery::sections_of(std::initializer_list<hw::ObjectKind> kinds) const {
     std::vector<std::string> out;

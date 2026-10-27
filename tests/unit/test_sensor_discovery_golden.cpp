@@ -11,7 +11,6 @@
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/golden_json.h"
 #include "../test_helpers/mock_personas.h"
-#include "../test_helpers/moonraker_discovery_sequence_test_access.h"
 #include "accel_sensor_manager.h"
 #include "filament_sensor_manager.h"
 #include "humidity_sensor_manager.h"
@@ -33,7 +32,6 @@
 
 using helix::FilamentSensorManager;
 using helix::MoonrakerDiscoverySequence;
-using helix::MoonrakerDiscoverySequenceTestAccess;
 using helix::PrinterDiscovery;
 using helix::test::check_against_golden;
 using nlohmann::json;
@@ -170,39 +168,10 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     return m;
 }
 
-/// The buckets parse_objects() builds in the discovery sequence, and the subscription map
-/// built from them.
-json sequence_snapshot(const PrinterDiscovery& hw, json* subscriptions) {
-    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
-    MoonrakerDiscoverySequence seq(client);
-    json objects = json::array();
-    for (const auto& name : hw.printer_objects()) {
-        objects.push_back(name);
-    }
-    seq.parse_objects(objects);
-    const auto& mcus = MoonrakerDiscoverySequenceTestAccess::mcus(seq);
-
-    json b;
-    b["heaters"] = seq.heaters();
-    b["sensors"] = seq.sensors();
-    b["load_cells"] = seq.load_cells();
-    b["fans"] = seq.fans();
-    b["leds"] = seq.leds();
-    b["steppers"] = seq.steppers();
-    b["filament_sensors"] = seq.filament_sensors();
-    b["mcus"] = mcus;
-    *subscriptions = MoonrakerDiscoverySequence::build_subscription_objects(
-        hw, seq.heaters(), seq.sensors(), seq.load_cells(), seq.fans(), seq.leds(),
-        seq.filament_sensors(), mcus);
-    return b;
-}
-
 json snapshot(const PrinterDiscovery& hw, const json* configfile) {
     json doc;
     doc["buckets"] = buckets_of(hw);
-    json subscriptions;
-    doc["discovery_sequence_buckets"] = sequence_snapshot(hw, &subscriptions);
-    doc["subscriptions"] = subscriptions;
+    doc["subscriptions"] = MoonrakerDiscoverySequence::build_subscription_objects(hw);
     doc["managers"] = run_managers(hw, configfile);
     return doc;
 }

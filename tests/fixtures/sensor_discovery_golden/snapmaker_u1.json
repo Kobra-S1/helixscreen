@@ -126,45 +126,6 @@
     ],
     "width_sensor_objects": []
   },
-  "discovery_sequence_buckets": {
-    "fans": [
-      "fan",
-      "heater_fan power_fan",
-      "fan_generic cavity_fan",
-      "heater_fan e0_nozzle_fan",
-      "fan_generic e1_fan",
-      "heater_fan e1_nozzle_fan",
-      "fan_generic e2_fan",
-      "heater_fan e2_nozzle_fan",
-      "fan_generic e3_fan",
-      "heater_fan e3_nozzle_fan"
-    ],
-    "filament_sensors": [
-      "filament_motion_sensor e0_filament",
-      "filament_motion_sensor e1_filament",
-      "filament_motion_sensor e2_filament",
-      "filament_motion_sensor e3_filament"
-    ],
-    "heaters": [
-      "heater_bed",
-      "extruder",
-      "extruder1",
-      "extruder2",
-      "extruder3"
-    ],
-    "leds": [
-      "led cavity_led"
-    ],
-    "load_cells": [],
-    "mcus": [
-      "mcu"
-    ],
-    "sensors": [
-      "temperature_sensor cavity",
-      "tmc2240 stepper_x"
-    ],
-    "steppers": []
-  },
   "managers": {
     "accel": {
       "count": 1,

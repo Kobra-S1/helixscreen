@@ -79,34 +79,6 @@
       "hall_filament_width_sensor"
     ]
   },
-  "discovery_sequence_buckets": {
-    "fans": [
-      "heater_fan hotend_fan",
-      "fan"
-    ],
-    "filament_sensors": [
-      "filament_switch_sensor runout_sensor"
-    ],
-    "heaters": [
-      "heater_bed",
-      "extruder"
-    ],
-    "leds": [
-      "neopixel chamber_led"
-    ],
-    "load_cells": [],
-    "mcus": [
-      "mcu",
-      "mcu EBBCan"
-    ],
-    "sensors": [
-      "temperature_sensor chamber",
-      "temperature_sensor raspberry_pi",
-      "bme280 chamber",
-      "htu21d dryer"
-    ],
-    "steppers": []
-  },
   "managers": {
     "accel": {
       "count": 1,

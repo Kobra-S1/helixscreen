@@ -83,36 +83,6 @@
       "hall_filament_width_sensor"
     ]
   },
-  "discovery_sequence_buckets": {
-    "fans": [
-      "heater_fan hotend_fan",
-      "fan",
-      "fan_generic auxiliary_fan"
-    ],
-    "filament_sensors": [
-      "filament_switch_sensor runout_sensor"
-    ],
-    "heaters": [
-      "heater_bed",
-      "extruder"
-    ],
-    "leds": [
-      "neopixel logo_led"
-    ],
-    "load_cells": [],
-    "mcus": [
-      "mcu",
-      "mcu EBBCan"
-    ],
-    "sensors": [
-      "temperature_sensor chamber",
-      "temperature_sensor mcu_temp",
-      "temperature_sensor host_temp",
-      "bme280 chamber",
-      "htu21d dryer"
-    ],
-    "steppers": []
-  },
   "managers": {
     "accel": {
       "count": 1,

@@ -171,6 +171,9 @@ class PrinterDiscovery {
     [[nodiscard]] std::vector<std::string>
     objects_of(std::initializer_list<hw::ObjectKind> kinds) const;
 
+    /// Every named object with its kind, in discovery order (Unknown kinds included).
+    [[nodiscard]] std::vector<std::pair<std::string, hw::ObjectKind>> object_kinds() const;
+
     /// Config sections (configfile.config keys) whose class is one of @p kinds, in config order.
     [[nodiscard]] std::vector<std::string>
     sections_of(std::initializer_list<hw::ObjectKind> kinds) const;

@@ -237,7 +237,6 @@ const std::vector<std::string> kFilamentSensor = {"filament_detected", "enabled"
                                                   "detection_count"};
 const std::vector<std::string> kWidth = {"Diameter", "Raw"};
 const std::vector<std::string> kForce = {"force_g"};
-const std::vector<std::string> kProbe = {"last_query", "last_z_result", "z_offset"};
 const std::vector<std::string> kState = {"state"};
 const std::vector<std::string> kWhole = {"*"};
 const std::vector<std::string> kMcu = {"last_stats"};
@@ -301,8 +300,6 @@ const std::vector<std::string>& status_fields(ObjectKind kind) {
         return kWidth;
     case ObjectKind::LoadCell:
         return kForce;
-    case ObjectKind::Probe:
-        return kProbe;
     case ObjectKind::Input:
         return kState;
     case ObjectKind::PowerLossMonitor:
@@ -310,6 +307,7 @@ const std::vector<std::string>& status_fields(ObjectKind kind) {
     case ObjectKind::Mcu:
         return kMcu;
     case ObjectKind::Unknown:
+    case ObjectKind::Probe:
     case ObjectKind::Stepper:
     case ObjectKind::Speaker:
     case ObjectKind::Accelerometer:

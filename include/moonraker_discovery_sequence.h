@@ -161,7 +161,7 @@ class MoonrakerDiscoverySequence {
     /** @brief Invoke the on_discovery_complete callback with current hardware (mock use) */
     void invoke_discovery_complete();
 
-    // ======== Hardware vector accessors (for mock to populate directly) ========
+    // ======== Mock-owned hardware lists (real discovery reads PrinterDiscovery) ========
     // Thread safety: mutable accessors must only be called before start() or
     // from the same thread as discovery callbacks. Not safe for concurrent use.
 
@@ -171,17 +171,11 @@ class MoonrakerDiscoverySequence {
     std::vector<std::string>& sensors() {
         return sensors_;
     }
-    std::vector<std::string>& load_cells() {
-        return load_cells_;
-    }
     std::vector<std::string>& fans() {
         return fans_;
     }
     std::vector<std::string>& leds() {
         return leds_;
-    }
-    std::vector<std::string>& steppers() {
-        return steppers_;
     }
     std::vector<std::string>& filament_sensors() {
         return filament_sensors_;
@@ -189,9 +183,6 @@ class MoonrakerDiscoverySequence {
 
     const std::vector<std::string>& heaters() const {
         return heaters_;
-    }
-    const std::vector<std::string>& load_cells() const {
-        return load_cells_;
     }
     const std::vector<std::string>& sensors() const {
         return sensors_;
@@ -202,16 +193,11 @@ class MoonrakerDiscoverySequence {
     const std::vector<std::string>& leds() const {
         return leds_;
     }
-    const std::vector<std::string>& steppers() const {
-        return steppers_;
-    }
     const std::vector<std::string>& filament_sensors() const {
         return filament_sensors_;
     }
 
   private:
-    friend class MoonrakerDiscoverySequenceTestAccess;
-
     /**
      * @brief Check if the current discovery sequence is stale
      *
@@ -340,15 +326,13 @@ class MoonrakerDiscoverySequence {
      * narrowing each object to just the fields HelixScreen parsers actually
      * read. Exposed publicly so unit tests can lock the field lists against
      * regression — production code calls it from
-     * complete_discovery_subscription() with the live discovery vectors.
+     * complete_discovery_subscription() with the discovery snapshot.
      *
-     * Pure (no I/O, no logging, no member access) — depends only on its args.
+     * Every object PrinterDiscovery classified is subscribed with
+     * hw::status_fields(kind). Pure aside from the active print-start profile
+     * lookup; no member access.
      */
-    static nlohmann::json build_subscription_objects(
-        const PrinterDiscovery& hw, const std::vector<std::string>& heaters,
-        const std::vector<std::string>& sensors, const std::vector<std::string>& load_cells,
-        const std::vector<std::string>& fans, const std::vector<std::string>& leds,
-        const std::vector<std::string>& filament_sensors, const std::vector<std::string>& mcus);
+    static nlohmann::json build_subscription_objects(const PrinterDiscovery& hw);
 
   private:
     MoonrakerClient& client_;
@@ -361,18 +345,10 @@ class MoonrakerDiscoverySequence {
 
     // Hardware vectors
     std::vector<std::string> heaters_;
-    std::vector<std::string> load_cells_;
     std::vector<std::string> sensors_;
     std::vector<std::string> fans_;
     std::vector<std::string> leds_;
-    std::vector<std::string> steppers_;
     std::vector<std::string> filament_sensors_;
-    // MCUs (matches "mcu" and "mcu <name>" — e.g. "mcu host", "mcu e0").
-    // Subscribed alongside the rest so PerformanceState gets live
-    // last_stats/bytes_retransmit via the single union subscription. Moonraker
-    // replaces the subscription on every printer.objects.subscribe call, so
-    // PerformanceSource cannot subscribe separately without wiping ours.
-    std::vector<std::string> mcus_;
 
     PrinterDiscovery hardware_;
     mutable std::mutex hardware_mutex_; // Protects hardware_ from concurrent read/write (#777)

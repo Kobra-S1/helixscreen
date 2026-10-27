@@ -250,7 +250,7 @@ TEST_CASE("hw table: status fields per kind", "[hw_object_table]") {
           status_fields(ObjectKind::FilamentMotion));
     CHECK(status_fields(ObjectKind::WidthSensor) == V{"Diameter", "Raw"});
     CHECK(status_fields(ObjectKind::Mcu) == V{"last_stats"});
-    CHECK(status_fields(ObjectKind::Probe) == V{"last_query", "last_z_result", "z_offset"});
+    CHECK(status_fields(ObjectKind::Probe).empty());
     CHECK(status_fields(ObjectKind::Speaker).empty());
     CHECK(status_fields(ObjectKind::Stepper).empty());
     CHECK(status_fields(ObjectKind::Unknown).empty());
