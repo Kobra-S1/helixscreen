@@ -4122,14 +4122,8 @@ AmsError AmsBackendHappyHare::do_execute_device_action(const std::string& action
                                                        const std::any& value) {
     spdlog::info("[AMS HappyHare] Executing device action: {}", action_id);
 
-    // Helper to look up an action's min/max range from defaults
-    auto get_action_range = [](const std::string& id) -> std::pair<float, float> {
-        static auto defaults = helix::printer::hh_default_actions();
-        for (const auto& a : defaults) {
-            if (a.id == id)
-                return {a.min_value, a.max_value};
-        }
-        return {-1e6f, 1e6f};
+    const auto get_action_range = [](const std::string& id) {
+        return helix::printer::hh_default_action_range(id);
     };
 
     // --- Simple button actions (no value required) ---
