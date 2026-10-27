@@ -286,7 +286,7 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     // and how, belongs to helix::pacal - this only asks whether one matched.
     set_capability(Capability::HasPaCal, helix::pacal::is_supported(hardware) ? 1 : 0);
     set_capability(Capability::HasStepperResonanceCal,
-                   helix::stepper_resonance_cal::supported(hardware) ? 1 : 0);
+                   helix::stepper_resonance_cal::resolve(hardware).present() ? 1 : 0);
 
     // Spoolman requires async check - default to 0, updated separately via set_spoolman_available()
 

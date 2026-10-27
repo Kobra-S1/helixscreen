@@ -2,12 +2,10 @@
 #include "ui_stepper_resonance_cal_modal.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
 
 #include "app_globals.h"
 #include "display_numbering.h"
-#include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "macro_executor.h"
 #include "printer_state.h"
@@ -26,14 +24,14 @@ namespace cal = helix::stepper_resonance_cal;
 
 namespace {
 
-bool machine_busy() {
-    return lv_subject_get_int(
-               get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0;
-}
+/// Rpc ceiling: the sweep makes a few hundred moves per motor, and a per-tool
+/// routine adds a tool change. A restarting routine's expiry is absorbed as
+/// its restart (classify_macro_rpc_failure).
+constexpr uint32_t kCalibrationTimeoutMs = 20 * 60 * 1000;
 
-std::string confirm_message(const PrinterDiscovery& hw) {
+std::string confirm_message(const cal::Procedure& procedure) {
     std::string message = lv_tr("The printer moves the toolhead and measures its motors.");
-    if (cal::restarts_klipper(hw)) {
+    if (procedure.restarts_klipper) {
         message += " ";
         message += lv_tr("It saves the result and restarts Klipper when it finishes.");
     }
@@ -41,17 +39,13 @@ std::string confirm_message(const PrinterDiscovery& hw) {
 }
 
 void on_row_clicked(lv_event_t*) {
-    const PrinterDiscovery& hw = get_printer_state().get_discovery();
-    if (!cal::supported(hw)) {
+    const cal::Procedure procedure = cal::resolve(get_printer_state().get_discovery());
+    if (!procedure.present()) {
         return;
     }
-    if (machine_busy()) {
-        NOTIFY_WARNING(lv_tr("Cannot calibrate while printing"));
-        return;
-    }
-    const std::string message = confirm_message(hw);
+    const std::string message = confirm_message(procedure);
     const size_t tools = helix::ToolState::instance().tools().size();
-    if (cal::per_tool(hw) && tools > 1) {
+    if (procedure.per_tool && tools > 1) {
         if (!StepperResonanceCalModal::show_owned(tools, message.c_str())) {
             NOTIFY_ERROR(lv_tr("Failed to show confirmation dialog"));
         }
@@ -101,44 +95,21 @@ void StepperResonanceCalModal::on_ok() {
 }
 
 void start_stepper_resonance_cal(int tool) {
-    // A print can start while the dialog is open (Mainsail, the job queue).
-    if (machine_busy()) {
-        NOTIFY_WARNING(lv_tr("Cannot calibrate while printing"));
-        return;
-    }
     const PrinterDiscovery& hw = get_printer_state().get_discovery();
-    const std::string gcode = cal::calibrate_gcode(hw, tool);
-    auto* api = get_moonraker_api();
-    if (gcode.empty() || !api) {
-        spdlog::warn("[StepperResonanceCal] Nothing to send (gcode='{}', api={})", gcode,
-                     static_cast<const void*>(api));
+    const cal::Procedure procedure = cal::resolve(hw);
+    MachineGcode cmd;
+    cmd.gcode = cal::calibrate_gcode(hw, tool);
+    if (cmd.gcode.empty()) {
+        spdlog::warn("[StepperResonanceCal] Nothing to send for tool {}", tool);
         return;
     }
-    spdlog::info("[StepperResonanceCal] Starting {} ({})", gcode, cal::provider_name(hw));
-    NOTIFY_INFO(lv_tr("Calibrating..."));
-    // Resolved here: the error callback runs on the WebSocket thread.
-    const MacroHostEffect effect =
-        cal::restarts_klipper(hw) ? MacroHostEffect::Restarts : MacroHostEffect::None;
-    api->execute_gcode(
-        gcode, nullptr,
-        [effect](const MoonrakerError& err) {
-            switch (classify_macro_rpc_failure(effect, err)) {
-            case MacroFailureReport::ExpectedRestart:
-                // The routine's closing SAVE_CONFIG drops the rpc. Armed now,
-                // when the restart happens, not at the send minutes earlier.
-                spdlog::info("[StepperResonanceCal] Klipper restarted after the calibration ({})",
-                             err.message);
-                begin_expected_klippy_restart("Firmware restarting...");
-                return;
-            case MacroFailureReport::ExpectedHalt:
-                return;
-            case MacroFailureReport::Error:
-                break;
-            }
-            spdlog::error("[StepperResonanceCal] Calibration failed: {}", err.message);
-            helix::ui::notify_error_tr(TR_NOOP("Calibration failed: {}"), err);
-        },
-        IMoonrakerAPI::kMacroTimeoutMs);
+    cmd.log_name = procedure.name;
+    cmd.display_name = lv_tr(cal::entry_name());
+    cmd.host_effect =
+        procedure.restarts_klipper ? MacroHostEffect::Restarts : MacroHostEffect::None;
+    cmd.timeout_ms = kCalibrationTimeoutMs;
+    start_calibration_gcode(get_moonraker_api(), cmd, procedure.needs_home,
+                            "[StepperResonanceCal]");
 }
 
 void init_stepper_resonance_cal_row_handler() {

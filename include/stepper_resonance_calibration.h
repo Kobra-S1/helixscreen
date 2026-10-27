@@ -10,8 +10,8 @@
 // this cancels the motor's ripple at constant speed.
 //
 // This module is the ONLY place that knows which printers have such a routine
-// and how each one runs. The Calibration entry asks these questions and never
-// names the firmware. Adding a firmware means adding one Provider to the table
+// and how each one runs. The Calibration entry asks resolve() and never names
+// the firmware. Adding a firmware means adding one row to the procedure table
 // in stepper_resonance_calibration.cpp - no call site changes.
 
 #include <string>
@@ -22,29 +22,38 @@ class PrinterDiscovery;
 
 namespace helix::stepper_resonance_cal {
 
-/// Whether this printer can run the calibration.
-bool supported(const PrinterDiscovery& hw);
+/// How this printer runs the calibration. Default-constructed means it has no
+/// routine.
+struct Procedure {
+    /// Which row matched, for logs. Empty when none did.
+    const char* name = "";
+    /// The routine runs with one chosen tool on the carriage, so the user picks
+    /// which. False for a whole-machine routine.
+    bool per_tool = false;
+    /// The toolhead must be homed first. The routine itself does not home.
+    bool needs_home = false;
+    /// The routine ends in SAVE_CONFIG, which restarts Klipper: the connection
+    /// drops when it finishes, and the user must be told before it starts.
+    bool restarts_klipper = false;
+    /// Builds the gcode; nullptr when there is no routine.
+    std::string (*build)(const PrinterDiscovery& hw, int tool) = nullptr;
 
-/// Whether the routine runs with one chosen tool on the carriage, so the user
-/// picks which. False for a whole-machine routine, and on an unsupported
-/// printer.
-bool per_tool(const PrinterDiscovery& hw);
+    [[nodiscard]] bool present() const {
+        return build != nullptr;
+    }
+};
+
+/// The most specific routine this printer offers, or an absent Procedure.
+Procedure resolve(const PrinterDiscovery& hw);
 
 /// Gcode that runs the calibration. @p tool (0-based) picks the tool for a
 /// per-tool routine and is ignored otherwise. Empty when the printer has no
-/// routine, or a per-tool routine is handed a negative tool.
+/// routine, or a per-tool routine is handed a negative tool. Never includes
+/// the homing a Procedure's needs_home asks for.
 std::string calibrate_gcode(const PrinterDiscovery& hw, int tool);
-
-/// Whether the routine ends in SAVE_CONFIG, which restarts Klipper: the
-/// connection drops when it finishes, and the user must be told before it
-/// starts.
-bool restarts_klipper(const PrinterDiscovery& hw);
 
 /// The entry's name and what it does, untranslated (pass them through lv_tr()).
 const char* entry_name();
 const char* entry_description();
-
-/// Human-readable name of the matched firmware, for logging. Empty when none.
-std::string provider_name(const PrinterDiscovery& hw);
 
 } // namespace helix::stepper_resonance_cal

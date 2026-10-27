@@ -242,7 +242,7 @@ void init_tool_offset_row_handler() {
 
 // src/ui/ui_stepper_resonance_cal_modal.cpp — same staged-row treatment: the
 // row tracks printer_has_stepper_resonance_cal, written by the KEPT
-// stepper_resonance_calibration::supported().
+// stepper_resonance_cal::resolve().
 void init_stepper_resonance_cal_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_stepper_resonance_cal_clicked",
                              esp32_staged_feature_row_cb);

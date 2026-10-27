@@ -36,8 +36,8 @@ class StepperResonanceCalModal : public Modal {
 /// Registers the Calibration row's "on_stepper_resonance_cal_clicked" callback.
 void init_stepper_resonance_cal_row_handler();
 
-/// Send the calibration with @p tool on the carriage. Refused while a print
-/// holds the machine.
+/// Send the calibration with @p tool on the carriage, homing first when the
+/// routine needs it. Refused while a print holds the machine.
 void start_stepper_resonance_cal(int tool);
 
 } // namespace helix::ui

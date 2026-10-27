@@ -1181,6 +1181,17 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back(obj);
     }
 
+    // HELIX_MOCK_STEPPER_RESONANCE: the stepper_resonance_tester extra on any
+    // persona, with the stock STEPPER_RESONANCE_FACTORY_CALIBRATE wrapper ("1")
+    // or the bare extra alone ("bare").
+    if (const char* resonance = std::getenv("HELIX_MOCK_STEPPER_RESONANCE");
+        resonance && *resonance && std::string_view(resonance) != "0") {
+        mock_objects.push_back("stepper_resonance_tester");
+        if (std::string_view(resonance) != "bare") {
+            mock_objects.push_back("gcode_macro STEPPER_RESONANCE_FACTORY_CALIBRATE");
+        }
+    }
+
     // Add printer-specific objects
     switch (printer_type_) {
     case PrinterType::VORON_24:
