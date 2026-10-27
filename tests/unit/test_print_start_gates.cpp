@@ -493,9 +493,7 @@ TEST_CASE("material_mismatches_in: AMS grade change is flagged on a matched lane
 
 TEST_CASE("gate material_compatibility: grade-only dialog names the abrasive direction",
           "[print-start][gate-pipeline][grade]") {
-    const auto& gates = default_print_start_gates();
-    const auto& gate = gates.back();
-    REQUIRE(gate.name == "material_compatibility");
+    const auto& gate = gate_named("material_compatibility");
 
     auto ctx_for = [](const char* file_material, const char* spool_material) {
         return ctx_with([&](PrintStartContext& c) {
@@ -553,27 +551,140 @@ TEST_CASE("material_mismatches_in: bypass falls back to palette materials",
 
 TEST_CASE("default gate list: names in behavior-preserving order", "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 9);
+    REQUIRE(gates.size() == 10);
     CHECK(gates[0].name == "printer_stopping_command");
     CHECK(gates[1].name == "fit_check");
-    CHECK(gates[2].name == "insufficient_spool_weight");
+    CHECK(gates[2].name == "mixed_temperature_materials");
+    CHECK(gates[3].name == "insufficient_spool_weight");
     // The lane-fed counterpart sits beside its sibling; the two are mutually
     // exclusive by construction, so their relative order is not load-bearing.
-    CHECK(gates[3].name == "insufficient_lane_weight");
-    CHECK(gates[4].name == "bypass_engaged_lane_print");
-    CHECK(gates[5].name == "unaccounted_toolhead_filament");
-    CHECK(gates[6].name == "required_filament_present");
-    CHECK(gates[7].name == "unresolved_tools");
-    CHECK(gates[8].name == "material_compatibility");
+    CHECK(gates[4].name == "insufficient_lane_weight");
+    CHECK(gates[5].name == "bypass_engaged_lane_print");
+    CHECK(gates[6].name == "unaccounted_toolhead_filament");
+    CHECK(gates[7].name == "required_filament_present");
+    CHECK(gates[8].name == "unresolved_tools");
+    CHECK(gates[9].name == "material_compatibility");
 }
 
 TEST_CASE("default gate list: the two new gates keep their relative order",
           "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 9);
-    CHECK(gates[4].name == "bypass_engaged_lane_print");
-    CHECK(gates[5].name == "unaccounted_toolhead_filament");
-    CHECK(gates[6].name == "required_filament_present");
+    REQUIRE(gates.size() == 10);
+    CHECK(gates[5].name == "bypass_engaged_lane_print");
+    CHECK(gates[6].name == "unaccounted_toolhead_filament");
+    CHECK(gates[7].name == "required_filament_present");
+}
+
+// ---------------------------------------------------------------------------
+// mixed_temperature_materials: materials the file uses that cannot share a print
+// ---------------------------------------------------------------------------
+
+TEST_CASE("materials_conflict_in_temperature: verdict per material pair",
+          "[print-start][gate-pipeline][mixed-temp]") {
+    struct Row {
+        const char* a;
+        const char* b;
+        bool conflict;
+    };
+    const Row rows[] = {
+        {"PLA", "ABS", true},  {"PLA", "PETG", false}, {"PETG", "ABS", false},
+        {"PLA", "TPU", false}, {"PLA", "PC", true},    {"ABS", "PC", false},
+        {"PLA", "PVA", false}, {"PA-CF", "PLA", true}, {"PLA+", "ABS", true},
+        {"PLA", "PLA", false},
+    };
+    for (const auto& r : rows) {
+        INFO(r.a << " + " << r.b);
+        CHECK(materials_conflict_in_temperature(r.a, r.b) == r.conflict);
+        CHECK(materials_conflict_in_temperature(r.b, r.a) == r.conflict);
+    }
+}
+
+TEST_CASE("materials_conflict_in_temperature: names resolve through their base polymer",
+          "[print-start][gate-pipeline][mixed-temp]") {
+    CHECK(materials_conflict_in_temperature("PLA SnapSpeed", "ABS"));
+    CHECK(materials_conflict_in_temperature("Nylon", "PLA")); // alias
+    // A name nothing resolves never conflicts, whatever it is paired with.
+    CHECK_FALSE(materials_conflict_in_temperature("Unobtainium", "PC"));
+    CHECK_FALSE(materials_conflict_in_temperature("", "PC"));
+}
+
+namespace {
+/// A file whose palette is @p palette and which extrudes from @p used.
+PrintStartContext mixed_file(std::vector<std::string> palette, std::set<int> used,
+                             bool multiple_toolheads = false) {
+    return ctx_with([&](PrintStartContext& c) {
+        c.has_file_facts = true;
+        c.filament_materials = std::move(palette);
+        c.tools_used = std::move(used);
+        c.multiple_toolheads = multiple_toolheads;
+    });
+}
+} // namespace
+
+TEST_CASE("gate mixed_temperature_materials: verdicts",
+          "[print-start][gate-pipeline][mixed-temp]") {
+    const auto& g = gate_named("mixed_temperature_materials");
+    using V = CheckResult::Verdict;
+
+    CHECK(g.evaluate(mixed_file({"PLA"}, {0})).verdict == V::Pass);
+    CHECK(g.evaluate(mixed_file({"PLA", "PLA"}, {0, 1})).verdict == V::Pass);
+    CHECK(g.evaluate(mixed_file({"PLA", "PETG"}, {0, 1})).verdict == V::Pass);
+    CHECK(g.evaluate(mixed_file({"Unobtainium", "ABS"}, {0, 1})).verdict == V::Pass);
+
+    const auto r = g.evaluate(mixed_file({"PLA", "ABS"}, {0, 1}));
+    REQUIRE(r.verdict == V::Warn);
+    CHECK(r.title == "Mixed-Temperature Materials");
+    CHECK(r.proceed_label == "Start Anyway");
+    CHECK(r.severity == GateSeverity::Warning);
+    // The cooler material is named first, whatever order the file lists them.
+    const auto swapped = g.evaluate(mixed_file({"ABS", "PLA"}, {0, 1}));
+    CHECK(swapped.body == r.body);
+    CHECK(r.body.find("PLA and ABS") != std::string::npos);
+}
+
+TEST_CASE("gate mixed_temperature_materials: only tools the file extrudes from count",
+          "[print-start][gate-pipeline][mixed-temp]") {
+    const auto& g = gate_named("mixed_temperature_materials");
+    using V = CheckResult::Verdict;
+
+    // A full-profile palette on a file that prints from T0 alone.
+    CHECK(g.evaluate(mixed_file({"PLA", "ABS", "PC"}, {0})).verdict == V::Pass);
+
+    // No scan and no per-tool weights: the palette cannot say which tools print.
+    CHECK(g.evaluate(mixed_file({"PLA", "ABS"}, {})).verdict == V::Pass);
+
+    // The slicer's per-tool weights stand in for the scan.
+    auto weighed = [](std::vector<double> weights) {
+        auto ctx = mixed_file({"PLA", "ABS"}, {});
+        FileMetadata md;
+        md.filament_weights = std::move(weights);
+        ctx.metadata = md;
+        return ctx;
+    };
+    CHECK(g.evaluate(weighed({3.0, 4.0})).verdict == V::Warn);
+    CHECK(g.evaluate(weighed({3.0, 0.0})).verdict == V::Pass);
+
+    // The mapping card's material for a tool wins over the palette's.
+    auto carded = mixed_file({"PLA", "PLA"}, {0, 1});
+    carded.tool_info = {GcodeToolInfo{1, 0, "PC"}};
+    CHECK(g.evaluate(carded).verdict == V::Warn);
+
+    // No file facts, no question.
+    auto no_file = mixed_file({"PLA", "ABS"}, {0, 1});
+    no_file.has_file_facts = false;
+    CHECK(g.evaluate(no_file).verdict == V::Pass);
+}
+
+TEST_CASE("gate mixed_temperature_materials: the message names where the materials meet",
+          "[print-start][gate-pipeline][mixed-temp]") {
+    const auto& g = gate_named("mixed_temperature_materials");
+    const auto one_nozzle = g.evaluate(mixed_file({"PLA", "ABS"}, {0, 1}, false));
+    const auto many_nozzles = g.evaluate(mixed_file({"PLA", "ABS"}, {0, 1}, true));
+    REQUIRE(one_nozzle.verdict == CheckResult::Verdict::Warn);
+    REQUIRE(many_nozzles.verdict == CheckResult::Verdict::Warn);
+    CHECK(one_nozzle.body.find("one nozzle") != std::string::npos);
+    CHECK(many_nozzles.body.find("one nozzle") == std::string::npos);
+    CHECK(many_nozzles.body.find("chamber") != std::string::npos);
 }
 
 // ---------------------------------------------------------------------------
@@ -660,8 +771,7 @@ TEST_CASE("gate required_filament_present: auto-unload backends suppress entirel
         c.any_auto_unload_backend = true;  // e.g. AD5X IFS post-print retract
         c.empty_required_lanes = {{0, 1}}; // would otherwise warn
     });
-    auto& gates = default_print_start_gates();
-    auto r = gates[3].evaluate(ctx);
+    auto r = gate_named("required_filament_present").evaluate(ctx);
     CHECK(r.verdict == CheckResult::Verdict::Pass);
 }
 

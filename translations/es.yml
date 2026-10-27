@@ -2355,6 +2355,7 @@ translations:
   Minimum: Mínimo
   Minutes: Minutos
   Missing value: 'Falta un valor'
+  Mixed-Temperature Materials: 'Materiales de temperaturas mixtas'
   Mode: Modo
   Modified: Modificado
   'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 'Monitoriza las impresiones en curso — tiempo restante, capa actual y progreso. Toca para pausar, reanudar o cancelar el trabajo activo.'
@@ -4175,6 +4176,8 @@ translations:
   This feature requires different hardware or configuration: Esta función requiere otro hardware u otra configuración
   This feature stopped. Restart Moonraker to start it again.: "Esta función se detuvo. Reinicia Moonraker para iniciarla de nuevo."
   This filament system does not report buffer or flow data.: Este sistema de filamento no informa datos de búfer ni de flujo.
+  This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: 'Este archivo imprime {0} y {1} por una sola boquilla. {0} puede quemarse y obstruir la boquilla a las temperaturas de {1}.'
+  This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Este archivo imprime {0} y {1} juntos. El calor de cámara y cama que necesita {1} puede ablandar {0} y atascar su boquilla.'
   This file was sliced for {} but {} is loaded.: Este archivo fue laminado para {}
     pero se ha cargado {}.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Este archivo se laminó para {}, pero hay {} cargado. Se imprimirá más lento y a una temperatura más alta de lo que necesita la bobina cargada.
