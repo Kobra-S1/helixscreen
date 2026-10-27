@@ -167,7 +167,9 @@ Files you start from the print queue get the same check. To have a slicer's own 
 
 ### Door-open warning
 
-If your printer has a door or lid switch, HelixScreen checks it when you tap **Start Print**. With a door open you see **Door Open**, naming each open door. An open enclosure lets heat out, which can make ABS, ASA and other hot materials warp or crack. Close the door and tap **Start Print** again, or tap **Start Anyway** to print with it open.
+If your printer has a door or lid switch, HelixScreen checks it when you tap **Start Print**, but only for materials that print best in a warm, closed enclosure, such as ABS, ASA, PC and nylon. For those, an open door cools the chamber and can cause warping or layers splitting apart. With a door open you see **Door Open**, naming each open door and the material. Close the door and tap **Start Print** again, or tap **Start Anyway** to print with it open.
+
+PLA, PETG and other materials that like fresh air never trigger it, and neither does a file whose materials HelixScreen can't tell.
 
 This comes after the other pre-print checks, so you may see a filament warning first.
 

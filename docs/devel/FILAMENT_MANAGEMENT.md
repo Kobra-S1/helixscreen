@@ -3010,7 +3010,7 @@ std::optional<MixedTemperatureMaterials> mixed_temperature_materials_in(const Pr
 - **Resolution**: `filament::find_material()` (aliases included), else
   `find_material(filament::extract_base_material(name))`, so "PLA SnapSpeed" reads as PLA. A name
   that resolves to nothing never conflicts.
-- **Which materials**: only tools the file extrudes from, `ctx.tools_used` from the G-code scan,
+- **Which materials**: `materials_in_print(ctx)` (shared with the door-open gate): only tools the file extrudes from, `ctx.tools_used` from the G-code scan,
   else `FileMetadata::filament_weights > 0`. With neither, nothing is reported: a slicer palette
   lists every profile tool, used or not (`print_lane_requirement()` explains the same trap). A
   tool's material is the mapping card's `GcodeToolInfo::material`, else the palette entry.
@@ -3056,13 +3056,33 @@ bool door_check_enabled = false;     // InputSensorManager::door_check_enabled()
 std::vector<std::string> open_doors; // InputSensorManager::open_doors()
 ```
 
-It passes when the check is off or `open_doors` is empty, and otherwise warns "Door Open",
-naming every open door, with "Start Anyway". Which inputs are doors, how a door reads open,
-and the check's default (on exactly when the printer has a Door input) are the input
-manager's: see "On/off Inputs" in `SENSOR_MANAGEMENT.md`. The gate names no printer. Tests:
-`[print-start][gate-pipeline][door]` in `tests/unit/test_print_start_gates.cpp`; drive it
-under `--test` with `HELIX_MOCK_DOOR_OPEN=1` on the `creator5` / `creator5_zmod` personas, or
-any persona with `HELIX_MOCK_OBJECTS="gcode_button door"`.
+An open door only matters to a material that needs a warm enclosure; PLA and PETG want the
+air. The decision is one pure function, shared with the mid-print warning:
+
+```cpp
+// include/print_start_checks.h
+std::vector<std::string> materials_in_print(const PrintStartContext& ctx);
+std::optional<std::string> enclosure_material_in(const std::vector<std::string>& materials);
+std::optional<std::string> door_warning_material(bool door_check_enabled, bool any_door_open,
+                                                 const std::vector<std::string>& materials);
+```
+
+`materials_in_print()` is the same used-tool rule the mixed-temperature gate reads.
+`enclosure_material_in()` resolves each name like that gate does (base polymer fallback) and
+returns the one with the highest `MaterialInfo::chamber_temp_c` among those that
+`needs_enclosure()`; a name that resolves to nothing needs no enclosure. The gate passes when the
+check is off, every door is closed, the print has no file facts, or no material needs an
+enclosure. Otherwise it warns "Door Open", naming every open door and that material, with "Start
+Anyway"; one door and several doors are separate translated strings, and the names join through
+the translated "{}, {}" and "{} and {}" patterns.
+
+Which inputs are doors, how a door reads open, and the check's default (on exactly when the
+printer has a Door input) are the input manager's: see "On/off Inputs" in
+`SENSOR_MANAGEMENT.md`. The gate names no printer. Tests: `[print-start][gate-pipeline][door]`
+in `tests/unit/test_print_start_gates.cpp` (PLA, PETG, unknown and no-file-facts pass; ABS and
+PLA + ASA warn; the warmest material is named). Drive it under `--test` with
+`HELIX_MOCK_DOOR_OPEN=1` on the `creator5` / `creator5_zmod` personas, or any persona with
+`HELIX_MOCK_OBJECTS="gcode_button door"`, and an ABS or ASA file.
 
 ### Bypass companions: runout arming and the external lane
 

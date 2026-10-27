@@ -64,8 +64,8 @@ Door switches are wired either way round. If a door reads **Opened** while it is
 
 **Warn if a door is open**, at the top of the section, controls the door check:
 
-- Before a print starts, HelixScreen warns you if any door reads open. See [Door-open warning](printing.md#door-open-warning).
-- During a print, opening a door shows a short warning message. If your printer already shows its own message when a door opens (Z-Mod on the Creator 5 does), HelixScreen leaves it to the printer and does not add a second one.
+- Before a print starts, HelixScreen warns you if any door reads open and the print uses a material that needs a warm enclosure, like ABS or ASA. See [Door-open warning](printing.md#door-open-warning).
+- During a print of such a material, opening a door shows a short warning message. PLA and PETG prints, and prints whose materials HelixScreen can't tell, never show it. If your printer already shows its own message when a door opens (Z-Mod on the Creator 5 does), HelixScreen leaves it to the printer and does not add a second one.
 
 It is on by default when the printer has at least one door input, and off when it has none. Turn it off here if you print with the door open on purpose.
 
