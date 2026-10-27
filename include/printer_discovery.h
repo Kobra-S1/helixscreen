@@ -431,6 +431,17 @@ class PrinterDiscovery {
         return mmu_type_;
     }
 
+    /// @brief A filament system of @p type is on this printer: it is the
+    /// detected system, or one that discovery found loaded beside it.
+    [[nodiscard]] bool has_filament_system(AmsType type) const {
+        if (type == AmsType::NONE) {
+            return false;
+        }
+        return mmu_type_ == type ||
+               std::find(coexisting_systems_.begin(), coexisting_systems_.end(), type) !=
+                   coexisting_systems_.end();
+    }
+
     /// @brief Physical slot count for a detected QIDI Box (0 if none).
     ///
     /// Derived from the number of `box_stepper slot<N>` objects in
@@ -438,6 +449,22 @@ class PrinterDiscovery {
     /// Returns 0 when mmu_type() != QIDI_BOX.
     [[nodiscard]] int qidi_box_slot_count() const {
         return qidi_box_slot_count_;
+    }
+
+    /// @brief Every filament-system object inventory discovery keeps, for code
+    /// that must cover all of them without naming each system (the hardware
+    /// fingerprint). A new inventory list joins here beside its member.
+    [[nodiscard]] std::vector<const std::vector<std::string>*> filament_system_inventories() const {
+        return {&afc_lane_names_,   &afc_hub_names_,      &afc_unit_object_names_,
+                &afc_buffer_names_, &afc_extruder_names_, &mmu_encoder_names_,
+                &mmu_servo_names_,  &ace_object_names_};
+    }
+
+    /// @brief Every filament-system presence flag and count, for the same
+    /// purpose. A new flag or count joins here beside its member.
+    [[nodiscard]] std::vector<int> filament_system_facts() const {
+        return {has_snapmaker_, has_afc_lite_,        has_zmod_afclite_,
+                has_indx_,      has_openams_manager_, qidi_box_slot_count_};
     }
 
     /// @brief All detected AMS/filament systems (may include multiple backends)
@@ -1051,6 +1078,9 @@ class PrinterDiscovery {
     bool has_afc_lite_ = false;
     bool has_zmod_afclite_ = false;
     bool has_tool_changer_ = false;
+    /// Filament systems present beside the detected mmu_type_ (a tool changer
+    /// carrying another system's lanes).
+    std::vector<AmsType> coexisting_systems_;
     bool has_auto_feeding_batch_ = false;
     bool has_pin_watch_ = false;
     std::string pin_watch_object_name_;

@@ -155,33 +155,11 @@ std::string WizardAmsIdentifyStep::get_ams_type_name() const {
         return lv_tr("Unknown");
     }
 
-    helix::AmsType type = backend->get_type();
-    switch (type) {
-    case helix::AmsType::AFC:
-        return "AFC (Armored Turtle)";
-    case helix::AmsType::HAPPY_HARE:
-        return "Happy Hare MMU";
-    case helix::AmsType::ACE:
-        return "ACE";
-    case helix::AmsType::TOOL_CHANGER:
-        return "Tool Changer";
-    case helix::AmsType::AD5X_IFS:
-        return "FlashForge IFS";
-    case helix::AmsType::CFS:
-        return "Creality CFS";
-    case helix::AmsType::SNAPMAKER:
-        return "Snapmaker SnapSwap";
-    case helix::AmsType::QIDI_BOX:
-        return "QIDI Box"; // i18n: do not translate - product name
-    case helix::AmsType::OPENAMS:
-        return "OpenAMS"; // i18n: do not translate - product name
-    default:
-        // A type with no wizard wording of its own shows its display name.
-        if (std::string_view(helix::ams_type_to_string(type)) != "None") {
-            return helix::ams_type_to_string(type);
-        }
+    const helix::AmsTypeTraits& traits = helix::ams_type_traits(backend->get_type());
+    if (traits.type == helix::AmsType::NONE) {
         return lv_tr("Unknown");
     }
+    return traits.product_name;
 }
 
 std::string WizardAmsIdentifyStep::get_ams_details() const {

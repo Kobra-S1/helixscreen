@@ -216,3 +216,27 @@ TEST_CASE("Hardware fingerprint detects MMU attach", "[hardware_fingerprint]") {
     REQUIRE(b.has_mmu());
     REQUIRE(b.mmu_type() == AmsType::AFC);
 }
+
+TEST_CASE("Hardware fingerprint covers every filament-system inventory", "[hardware_fingerprint]") {
+    // compute_hardware_fingerprint() names no system: each inventory list and
+    // detection fact PrinterDiscovery keeps reaches it through
+    // filament_system_inventories() / filament_system_facts().
+    auto with = [](std::initializer_list<const char*> extra) {
+        PrinterDiscovery hw;
+        nlohmann::json objects = nlohmann::json::array(
+            {"extruder", "heater_bed", "heater_generic chamber", "fan", "heater_fan hotend_fan",
+             "controller_fan controller_fan", "temperature_sensor chamber_sensor",
+             "neopixel case_led", "gcode_macro HELIX_BED_MESH_IF_NEEDED",
+             "gcode_macro CLEAN_NOZZLE", "bed_mesh", "probe", "quad_gantry_level", "AFC"});
+        for (const char* o : extra) {
+            objects.push_back(o);
+        }
+        hw.parse_objects(objects);
+        return compute_hardware_fingerprint(hw);
+    };
+    const size_t base = with({});
+    CHECK(with({"AFC_extruder extruder"}) != base);
+    CHECK(with({"AFC_buffer TN"}) != base);
+    CHECK(with({"AFC_unit Turtle_1"}) != base);
+    CHECK(with({"zmod_afclite"}) != base);
+}

@@ -866,6 +866,19 @@ bool AmsBackend::sensor_belongs_to_backend(AmsType type, const std::string& bare
     }
 }
 
+bool AmsBackend::sensor_name_names_filament_system(std::string_view lower_name) {
+    const auto has_any = [lower_name](const auto& keywords) {
+        for (const char* keyword : keywords) {
+            if (lower_name.find(keyword) != std::string_view::npos) {
+                return true;
+            }
+        }
+        return false;
+    };
+    return has_any(AmsBackendAfc::kSensorNameKeywords) ||
+           has_any(AmsBackendHappyHare::kSensorNameKeywords);
+}
+
 nlohmann::json AmsBackend::required_status_objects(const helix::PrinterDiscovery& hw) {
     nlohmann::json objects = nlohmann::json::object();
     const auto merge = [&objects](const nlohmann::json& from) {

@@ -97,6 +97,37 @@ TEST_CASE_METHOD(LVGLTestFixture, "clog meter: a buffer reading alone is not clo
     }
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "clog meter: a buffer fault counter is named by its system",
+                 "[ams][clog][sources]") {
+    get_printer_state().init_subjects(false);
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    ResetMeter reset{ams};
+
+    AmsSystemInfo info;
+    AmsUnit unit;
+    BufferHealth health;
+    health.fault_detection_enabled = true;
+    unit.buffer_health = health;
+    info.units.push_back(unit);
+
+    SECTION("AFC names its own buffer") {
+        info.type = AmsType::AFC;
+        AmsStateTestAccess::sync_clog_meter(ams, info);
+        CHECK(mode(ams) == static_cast<int>(ClogMeterMode::Buffer));
+        CHECK(std::string(lv_subject_get_string(ams.get_clog_meter_mode_text_subject())) ==
+              "AFC buffer");
+    }
+
+    SECTION("a system with no name of its own gets the generic one") {
+        info.type = AmsType::CFS;
+        AmsStateTestAccess::sync_clog_meter(ams, info);
+        CHECK(mode(ams) == static_cast<int>(ClogMeterMode::Buffer));
+        CHECK(std::string(lv_subject_get_string(ams.get_clog_meter_mode_text_subject())) ==
+              "Buffer");
+    }
+}
+
 // ===========================================================================
 // A Klipper filament_motion_sensor as the last-priority source (#1823)
 // ===========================================================================
