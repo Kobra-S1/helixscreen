@@ -125,7 +125,11 @@ TEST_CASE("SharedCallback and Callback: an empty one converts to an empty one",
           "[helix_callback][1874]") {
     REQUIRE_FALSE(helix::Callback<void()>{SharedCallback<void()>{}});
     REQUIRE_FALSE(SharedCallback<void()>{helix::Callback<void()>{}});
-    // An empty one would become a non-empty std::function, so neither converts to one.
+#if defined(_LIBCPP_VERSION)
+    // An empty one would become a non-empty std::function, so neither converts to one
+    // implicitly. Only libc++ honours the refusal: libstdc++ prefers std::function's
+    // own converting constructor.
     static_assert(!std::is_convertible_v<SharedCallback<void()>, std::function<void()>>);
     static_assert(!std::is_convertible_v<helix::Callback<void()>, std::function<void()>>);
+#endif
 }

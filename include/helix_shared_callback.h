@@ -142,10 +142,12 @@ class SharedCallback<R(Args...)> : public callback_detail::SharedCallbackBase {
   public:
     SharedCallback() noexcept = default;
     /// Never converts implicitly into a std::function: an empty one would become a
-    /// non-empty std::function, and calling that aborts. This refuses argument
-    /// passing and copy-initialization only; direct-initialization, emplace and
-    /// std::function's assignment still wrap, so hand a std::function a lambda
-    /// that tests this first.
+    /// non-empty std::function, and calling that aborts. Under libc++ (the macOS
+    /// build) argument passing and copy-initialization are compile errors, so a
+    /// Mac build lists every such site; libstdc++ (Linux, ESP32) prefers
+    /// std::function's own constructor and refuses nothing, and direct-initialization,
+    /// emplace and assignment wrap on both. Hand a std::function a lambda that
+    /// tests this first.
     template <typename S> operator std::function<S>() const = delete;
     SharedCallback(std::nullptr_t) noexcept {}
     SharedCallback(const SharedCallback& other) noexcept = default;
