@@ -37,7 +37,10 @@ struct Provider {
     /// command of its own.
     const char* select_prefix;
     /// Unmounts the tool on the head, or nullptr when there is no such command.
-    const char* unselect_gcode;
+    std::string (*unselect_gcode)(const PrinterDiscovery& hw);
+    /// The machine's own commands drive the swap even beside klipper-toolchanger,
+    /// whose SELECT_TOOL/UNSELECT_TOOL do not move this hardware.
+    bool owns_swap;
     /// Stores a slot's material and colour in firmware, or nullptr when the
     /// firmware keeps no such record.
     std::string (*material_write_gcode)(int slot_index, const std::string& type, std::uint32_t rgb);
@@ -52,18 +55,21 @@ struct Provider {
 
 // --- MedusaHC ---------------------------------------------------------------
 //
-// A budget hotend changer (Irbis3D/MedusaHC). MedusaHC's own pin_watch.py
-// extra reads the dock sensors; the swap is klipper-toolchanger's or the
-// Python controller's own. The configurations this serves:
+// A budget hotend changer (Irbis3D/MedusaHC). Its pin_watch extra reads the
+// dock sensors, and the swap is always the machine's own: `T<n>` macros
+// running SET, and DROP_TOOL to park. The configurations this serves:
 //
-//   (a) Irbis3D stock - [pin_watch io] + toolchanger.cfg, OPEN/CLOSE macros,
-//       no [medusahc] object. pin_watch.get_status() is {"current_tool": int}.
-//   (b) Irbis3D MedusaHC-Python-Controller - adds [medusahc], whose get_status()
-//       carries operation / current_tool / target_tool / last_error /
-//       feeder_open / layer / sensor_error / tool_count / sensors. Registers
-//       MHC_* commands and ships legacy OPEN/CLOSE aliases forwarding to them.
-//       Runs with klipper-toolchanger (sync_toolchanger: 1) or without it, when
-//       T<n> macros drive the swap.
+//   (a) Irbis3D stock - [medusahc] + [pin_watch io], no klipper-toolchanger.
+//       [medusahc].get_status() carries operation / current_tool / target_tool
+//       / last_error / feeder_open / layer / sensor_error / tool_count /
+//       sensors, and the controller registers the MHC_* commands that
+//       MHC_macros.cfg wraps (SET, DROP_TOOL, OPEN, CLOSE, CLEAN).
+//   (b) The same plus klipper-toolchanger (pin_watch sync_toolchanger: 1),
+//       which only mirrors the detected tool: its existing T<n> macros are kept
+//       and its UNSELECT_TOOL runs an empty dropoff_gcode, so it never moves
+//       this hardware.
+//   (c) The frozen legacy-macros config: [pin_watch io] + toolchanger.cfg and
+//       the same T<n> / DROP_TOOL macros, no [medusahc].
 
 bool medusa_detect(const PrinterDiscovery& hw) {
     // pin_watch is required, and alone is just the extra. Beside it,
@@ -82,6 +88,15 @@ std::vector<std::string> medusa_status_objects(const PrinterDiscovery& hw) {
         objects.push_back(hw.pin_watch_object_name());
     }
     return objects;
+}
+
+/// DROP_TOOL is a [gcode_macro] on every shipped configuration (it also closes
+/// the feeder). A config that dropped it still has the controller's own pair.
+std::string medusa_unselect_gcode(const PrinterDiscovery& hw) {
+    if (!hw.has_macro("DROP_TOOL") && hw.has_medusahc()) {
+        return "MHC_DROP\nMHC_CLOSE";
+    }
+    return "DROP_TOOL";
 }
 
 /// The plain OPEN/CLOSE names: every configuration has them (the controller's
@@ -114,6 +129,10 @@ bool printer_has_object(const PrinterDiscovery& hw, const char* name) {
 bool zmod_c5_detect(const PrinterDiscovery& hw) {
     return printer_has_object(hw, kZmodColorObject) &&
            printer_has_object(hw, "gcode_button extruder_grab1");
+}
+
+std::string zmod_c5_unselect_gcode(const PrinterDiscovery& /*hw*/) {
+    return "_T_OUT";
 }
 
 std::vector<std::string> zmod_c5_status_objects(const PrinterDiscovery& hw) {
@@ -162,17 +181,14 @@ std::string zmod_c5_feed_gcode(const PrinterDiscovery& hw, int head) {
 
 const std::vector<Provider>& providers() {
     static const std::vector<Provider> table = {
-        // T<n> and DROP_TOOL swap tools on a MedusaHC without klipper-toolchanger:
-        // the Irbis3D controller with sync_toolchanger off. With
-        // klipper-toolchanger present SELECT_TOOL/UNSELECT_TOOL stay in use.
-        // DROP_TOOL is a [gcode_macro] in Irbis3D's MHC_macros.cfg and a bare
-        // command elsewhere, so it cannot be capability-checked the way the
-        // feeder macros are, and naming it here is the whole point of this table.
+        // T<n> and DROP_TOOL swap tools on every MedusaHC, with or without
+        // klipper-toolchanger beside the controller.
         {"MedusaHC", medusa_detect, medusa_status_objects, medusa_open_gcode, medusa_close_gcode,
-         "T", "DROP_TOOL", nullptr, nullptr, /*feeds_through_mount=*/true},
+         "T", medusa_unselect_gcode, /*owns_swap=*/true, nullptr, nullptr,
+         /*feeds_through_mount=*/true},
         {kZmodC5ProviderName, zmod_c5_detect, zmod_c5_status_objects, nullptr, nullptr,
-         "_T_IN T=", "_T_OUT", zmod_c5_material_write, zmod_c5_feed_gcode,
-         /*feeds_through_mount=*/false},
+         "_T_IN T=", zmod_c5_unselect_gcode, /*owns_swap=*/true, zmod_c5_material_write,
+         zmod_c5_feed_gcode, /*feeds_through_mount=*/false},
     };
     return table;
 }
@@ -507,22 +523,23 @@ ToolSensor resolve_tool_sensor(const PrinterDiscovery& hw) {
 }
 
 ToolCommands resolve_tool_commands(const PrinterDiscovery& hw) {
+    const Provider* p = match(hw);
     // klipper-toolchanger present means SELECT_TOOL/UNSELECT_TOOL exist and are
-    // the machine's own answer.
-    if (hw.has_tool_changer()) {
+    // the machine's own answer, unless the provider swaps the hardware itself.
+    if (hw.has_tool_changer() && !(p && p->owns_swap)) {
         return {};
     }
-    // Without it there is no SELECT_TOOL, and T<n> is what every multi-tool
-    // machine answers to instead: Klipper maps it to ACTIVATE_EXTRUDER, and a
-    // changer extra registers its own T<n> over that. So the table only has to
-    // name what DIFFERS, which is the unmount - a machine whose tools are plain
-    // extruders has none, and its tool can only be swapped for another.
-    const Provider* p = match(hw);
+    // Otherwise T<n> is what every multi-tool machine answers to: Klipper maps
+    // it to ACTIVATE_EXTRUDER, and a changer extra registers its own T<n> over
+    // that. So the table only has to name what DIFFERS, which is the unmount -
+    // a machine whose tools are plain extruders has none, and its tool can only
+    // be swapped for another.
     ToolCommands c;
     c.present = true;
     c.provider_name = p ? p->name : std::string();
     c.select_prefix = (p && p->select_prefix) ? p->select_prefix : "T";
-    c.unselect = (p && p->unselect_gcode) ? p->unselect_gcode : "";
+    c.unselect = (p && p->unselect_gcode) ? p->unselect_gcode(hw) : "";
+    c.initialize_available = hw.has_tool_changer();
     return c;
 }
 

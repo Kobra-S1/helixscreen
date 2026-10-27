@@ -121,14 +121,21 @@ struct ToolReading {
 /// How a swap is commanded on a machine where klipper-toolchanger is not the
 /// one doing it. Default-constructed - `present` false - means the printer has
 /// [toolchanger] and its SELECT_TOOL/UNSELECT_TOOL own the swap.
+///
+/// `present` is also the tool-mapping answer: these commands name the physical
+/// tool outright, and klipper-toolchanger's ASSIGN_TOOL does not reach them,
+/// so a remap has to rewrite the job file instead.
 struct ToolCommands {
     bool present = false;
     std::string provider_name; ///< Machine it came from, for logs
     /// Prefixed to the tool number: "T" sends T0, T1, ... Empty when absent.
     std::string select_prefix;
-    /// Unmounts whatever is on the head. Empty when the machine has no such
-    /// command and the tool can only be swapped for another.
+    /// Unmounts whatever is on the head; may be several lines. Empty when the
+    /// machine has no such command and the tool can only be swapped for another.
     std::string unselect;
+    /// klipper-toolchanger runs beside these commands, so INITIALIZE_TOOLCHANGER
+    /// exists even though it does not drive the swap.
+    bool initialize_available = false;
 };
 
 /// Presence of an add-on dock sensor. When set, read_tool() is worth calling on

@@ -287,11 +287,25 @@ TEST_CASE("A frame with no dock fields reports no docks at all",
 // Who owns the swap
 // ============================================================================
 
-TEST_CASE("klipper-toolchanger keeps its own select commands",
+TEST_CASE("A MedusaHC beside klipper-toolchanger still swaps with its own commands",
           "[toolchanger][toolsource][commands]") {
-    // Stock MedusaHC has [toolchanger], which owns SELECT_TOOL/UNSELECT_TOOL.
-    // An absent capability is the backend's signal to keep using them.
+    // klipper-toolchanger only mirrors the detected tool there: it keeps the
+    // machine's own T<n> macros and its UNSELECT_TOOL runs an empty
+    // dropoff_gcode. Its INITIALIZE_TOOLCHANGER does exist.
     auto cmds = toolchanger_addon::resolve_tool_commands(medusahc_hw());
+    REQUIRE(cmds.present);
+    CHECK(cmds.select_prefix == "T");
+    CHECK(cmds.unselect == "DROP_TOOL");
+    CHECK(cmds.initialize_available);
+}
+
+TEST_CASE("A plain klipper-toolchanger keeps its own select commands",
+          "[toolchanger][toolsource][commands]") {
+    // An absent capability is the backend's signal to keep using
+    // SELECT_TOOL/UNSELECT_TOOL.
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T1", "extruder"}));
+    auto cmds = toolchanger_addon::resolve_tool_commands(hw);
     CHECK_FALSE(cmds.present);
     CHECK(cmds.select_prefix.empty());
     CHECK(cmds.unselect.empty());
@@ -301,7 +315,7 @@ TEST_CASE("A changer without klipper-toolchanger names its own commands",
           "[toolchanger][toolsource][commands]") {
     PrinterDiscovery hw;
     hw.parse_objects(json::array({"pin_watch io", "medusahc", "gcode_macro T0", "gcode_macro T1",
-                                  "extruder", "extruder1", "toolhead"}));
+                                  "gcode_macro DROP_TOOL", "extruder", "extruder1", "toolhead"}));
 
     auto cmds = toolchanger_addon::resolve_tool_commands(hw);
     REQUIRE(cmds.present);
@@ -309,6 +323,18 @@ TEST_CASE("A changer without klipper-toolchanger names its own commands",
     // registers are the swap.
     CHECK(cmds.select_prefix == "T");
     CHECK(cmds.unselect == "DROP_TOOL");
+    CHECK_FALSE(cmds.initialize_available);
+}
+
+TEST_CASE("A MedusaHC without a DROP_TOOL macro parks with the controller's own commands",
+          "[toolchanger][toolsource][commands]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"pin_watch io", "medusahc", "gcode_macro T0", "gcode_macro T1",
+                                  "extruder", "extruder1", "toolhead"}));
+
+    auto cmds = toolchanger_addon::resolve_tool_commands(hw);
+    REQUIRE(cmds.present);
+    CHECK(cmds.unselect == "MHC_DROP\nMHC_CLOSE");
 }
 
 TEST_CASE("A printer with no changer module at all swaps with plain T<n>",

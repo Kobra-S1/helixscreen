@@ -238,53 +238,61 @@ TEST_CASE("Recover and reset send INITIALIZE_TOOLCHANGER only where it exists",
 }
 
 // ============================================================================
+// Swap commands and tool mapping beside klipper-toolchanger
+// ============================================================================
+
+TEST_CASE("Beside klipper-toolchanger a MedusaHC mounts with T<n> and parks with its own drop",
+          "[ams][toolchanger][medusahc][commands]") {
+    // klipper-toolchanger's SELECT_TOOL/UNSELECT_TOOL do not move this
+    // hardware; the controller's own T<n> macros do.
+    ToolChangerHelper tc(4);
+    wire(tc, irbis_tc_discovery());
+    tc.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 0}}},
+                 {"medusahc", {{"operation", "idle"}, {"current_tool", 0}}}});
+
+    REQUIRE(tc.change_tool(2).success());
+    CHECK(tc.sent().back() == "T2");
+
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 2}}}});
+    REQUIRE(tc.park_active_tool().success());
+    // No DROP_TOOL macro in this config: the controller's pair it wraps.
+    CHECK(tc.sent().back() == "MHC_DROP\nMHC_CLOSE");
+    CHECK_FALSE(sent_contains(tc, "SELECT_TOOL"));
+}
+
+TEST_CASE("A MedusaHC maps tools by rewriting the file, with or without klipper-toolchanger",
+          "[ams][toolchanger][medusahc][tool_map]") {
+    // Its T<n> macros name the physical tool, and ASSIGN_TOOL never changes
+    // them, so a Native remap would print on the firmware's own mapping.
+    ToolChangerHelper beside(4);
+    wire(beside, irbis_tc_discovery());
+    CHECK(beside.get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite);
+    CHECK_FALSE(beside.set_tool_mapping(/*tool_number=*/1, /*slot_index=*/3).success());
+    CHECK_FALSE(sent_contains(beside, "ASSIGN_TOOL"));
+
+    ToolChangerHelper standalone(4);
+    wire(standalone, standalone_discovery(4));
+    CHECK(standalone.get_remap_strategy() == AmsBackend::RemapStrategy::GcodeRewrite);
+}
+
+// ============================================================================
 // Physical tools, not G-code numbers
 // ============================================================================
 
-TEST_CASE("A dock reading is a physical tool, not a remapped G-code number",
+TEST_CASE("A dock reading is a physical tool, not klipper-toolchanger's tool number",
           "[ams][toolchanger][medusahc][state]") {
     ToolChangerHelper tc(4);
     wire(tc, irbis_tc_discovery());
-    tc.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", -1}}},
+    tc.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", 0}}},
                  {"medusahc", {{"operation", "idle"}, {"current_tool", -1}}}});
-    // T0 and T2 swapped by ASSIGN_TOOL.
-    REQUIRE(tc.set_tool_mapping(0, 2).success());
-    REQUIRE(tc.set_tool_mapping(2, 0).success());
 
-    // Physical tool 2 (dock t2) goes onto the head.
+    // Physical tool 2 (dock t2) goes onto the head, whatever tool_number says.
     tc.feed(json{{"medusahc",
                   {{"current_tool", 2},
                    {"sensors", {{"e", 1}, {"t0", 1}, {"t1", 1}, {"t2", 0}, {"t3", 1}}}}}});
     CHECK(tc.get_current_slot() == 2);
     CHECK(tc.get_slot_info(2).status == SlotStatus::LOADED);
     CHECK(tc.get_slot_info(0).status == SlotStatus::AVAILABLE);
-}
-
-TEST_CASE("Mounting a tool names the physical tool, whatever ASSIGN_TOOL did",
-          "[ams][toolchanger][medusahc][state]") {
-    ToolChangerHelper tc(4);
-    wire(tc, irbis_tc_discovery());
-    tc.feed(json{{"toolchanger", {{"status", "ready"}, {"tool_number", -1}}},
-                 {"medusahc", {{"operation", "idle"}, {"current_tool", -1}}}});
-    REQUIRE(tc.set_tool_mapping(0, 2).success());
-    REQUIRE(tc.set_tool_mapping(2, 0).success());
-    tc.sent_.clear();
-
-    // SELECT_TOOL T=2 resolves through the remapped table and would mount
-    // physical tool 0.
-    REQUIRE(tc.change_tool(2).success());
-    REQUIRE_FALSE(tc.sent().empty());
-    CHECK(tc.sent().back() == "SELECT_TOOL TOOL=\"tool T2\"");
-}
-
-TEST_CASE("ASSIGN_TOOL names the tool object klipper-toolchanger registered",
-          "[ams][toolchanger][medusahc][state]") {
-    ToolChangerHelper tc(4);
-    wire(tc, irbis_tc_discovery());
-    // ASSIGN_TOOL is a mux command keyed on the tool's full object name.
-    REQUIRE(tc.set_tool_mapping(0, 2).success());
-    REQUIRE_FALSE(tc.sent().empty());
-    CHECK(tc.sent().back() == "ASSIGN_TOOL TOOL=\"tool T2\" N=0");
 }
 
 TEST_CASE("An out-of-range dock reading never becomes the current slot",

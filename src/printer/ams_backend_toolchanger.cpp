@@ -2518,12 +2518,12 @@ std::string AmsBackendToolChanger::park_gcode() const {
 
 bool AmsBackendToolChanger::reset_available() const {
     // INITIALIZE_TOOLCHANGER is klipper-toolchanger's; a changer driving its
-    // own T<n> has nothing to reinitialize from here.
-    return !tool_commands_.present;
+    // own T<n> without it has nothing to reinitialize from here.
+    return !tool_commands_.present || tool_commands_.initialize_available;
 }
 
 bool AmsBackendToolChanger::recover_available() const {
-    return !tool_commands_.present;
+    return reset_available();
 }
 
 AmsError AmsBackendToolChanger::recover() {

@@ -218,8 +218,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// ASSIGN_TOOL belongs to klipper-toolchanger. A machine that drives swaps
     /// with its own T<n> commands instead (tool_commands_.present) has no
     /// tool-number indirection to rewrite: those macros name the physical tool
-    /// outright. Klipper answers an unknown command by logging it and carrying
-    /// on, so a remap sent to such a machine is accepted and never applied.
+    /// outright, and klipper-toolchanger keeps an existing T<n> macro rather
+    /// than registering its own, so even where ASSIGN_TOOL exists it never
+    /// moves a tool there.
     ///
     /// The file's own tool numbers are the only thing left to change, so such a
     /// machine rewrites the job instead. That needs no firmware cooperation but
@@ -435,7 +436,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     // Recovery
     AmsError recover() override;
     AmsError reset() override;
-    /// Both send INITIALIZE_TOOLCHANGER, which exists only with klipper-toolchanger.
+    /// Both send INITIALIZE_TOOLCHANGER, which exists only with klipper-toolchanger
+    /// (tool_commands_.initialize_available on a machine driving its own swap).
     [[nodiscard]] bool reset_available() const override;
     [[nodiscard]] bool recover_available() const override;
     AmsError cancel() override;

@@ -315,6 +315,28 @@ TEST_CASE("MedusaHC unloads by retracting fully, sends no OPEN, and parks when n
     CHECK(tc.get_current_action() == AmsAction::IDLE);
 }
 
+TEST_CASE("MedusaHC beside klipper-toolchanger mounts and parks with its own commands",
+          "[toolchanger][mount_feed][medusahc][commands]") {
+    // The Mount and Restore stages are the same swap the Tool buttons send.
+    PrinterDiscovery hw;
+    hw.parse_objects(
+        json::array({"toolchanger", "tool T0", "tool T1", "tool T2", "tool T3", "pin_watch io",
+                     "medusahc", "gcode_macro DROP_TOOL", "extruder"}));
+    AckingChanger tc(4);
+    tc.set_tool_commands(toolchanger_addon::resolve_tool_commands(hw));
+    tc.feed_status("ready", -1);
+
+    REQUIRE(tc.unload_filament(1).success());
+    CHECK(tc.sent_.back() == "T1");
+    tc.ack();
+    tc.ack();
+    tc.ack();
+    CHECK(tc.sent_.back() == "DROP_TOOL");
+    for (const auto& g : tc.sent_) {
+        CHECK(g.find("SELECT_TOOL") == std::string::npos);
+    }
+}
+
 TEST_CASE("MedusaHC never runs the printer's own LOAD_FILAMENT or UNLOAD_FILAMENT",
           "[toolchanger][mount_feed][medusahc][macro]") {
     // Shaped like a real printer's custom macros: both take T=, which is no

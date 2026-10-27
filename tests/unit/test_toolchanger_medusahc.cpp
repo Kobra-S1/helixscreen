@@ -307,7 +307,7 @@ TEST_CASE("A frame with no dock fields leaves the stamps alone", "[ams][toolchan
 /// Discovery for a changer whose own extra does the swapping: no [toolchanger],
 /// tools enumerated off the extruders.
 static PrinterDiscovery standalone_medusahc_discovery(int tools) {
-    auto objects = json::array({"pin_watch io", "medusahc", "toolhead"});
+    auto objects = json::array({"pin_watch io", "medusahc", "toolhead", "gcode_macro DROP_TOOL"});
     for (int i = 0; i < tools; ++i) {
         objects.push_back("gcode_macro T" + std::to_string(i));
         objects.push_back(i == 0 ? std::string("extruder") : "extruder" + std::to_string(i));
@@ -1486,7 +1486,7 @@ TEST_CASE("Each MedusaHC mock variant lists its configuration's objects",
         // MHC_* are native commands, never a [gcode_macro].
         CHECK_FALSE(has(hw, "gcode_macro MHC_OPEN"));
         CHECK(has(hw, "gcode_macro OPEN"));
-        CHECK(toolchanger_addon::resolve_tool_commands(hw).select_prefix.empty());
+        CHECK(toolchanger_addon::resolve_tool_commands(hw).select_prefix == "T");
     }
     SECTION("controller alone, T<n> macros") {
         ScopedEnv ams_env("HELIX_MOCK_AMS", "medusahc-tn");
