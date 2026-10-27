@@ -1917,7 +1917,7 @@ SubjectLifetime gate_subject_lifetime(const char* name) {
         return AmsState::instance().get_subjects_lifetime();
     }
     if (std::strcmp(name, "filament_sensor_count") == 0) {
-        return FilamentSensorManager::instance().get_subjects_lifetime();
+        return FilamentSensorManager::instance().subjects_lifetime();
     }
     if (std::strcmp(name, "humidity_sensor_count") == 0) {
         return sensors::HumiditySensorManager::instance().subjects_lifetime();

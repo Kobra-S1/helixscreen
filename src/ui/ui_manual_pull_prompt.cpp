@@ -66,7 +66,7 @@ void arm_manual_pull_prompt() {
                     fire("toolhead sensor");
                 }
             },
-            sensors.get_subjects_lifetime());
+            sensors.subjects_lifetime());
     }
 
     if (!s_registered) {

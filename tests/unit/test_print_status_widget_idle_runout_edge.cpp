@@ -27,6 +27,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/print_status_widget_test_access.h"
@@ -78,8 +79,8 @@ class IdleRunoutEdgeFixture : public LVGLTestFixture {
         fsm.init_subjects();
         PostUnloadGraceTestAccess::reset(fsm);
         fsm.set_master_enabled(true);
-        fsm.discover_sensors({SENSOR});
-        fsm.set_sensor_role(SENSOR, FilamentSensorRole::RUNOUT);
+        discover_filament_sensors(fsm, {SENSOR});
+        fsm.set_role(SENSOR, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
         PostUnloadGraceTestAccess::clear_startup_grace(fsm);
 
         set_idle();
@@ -110,7 +111,7 @@ class IdleRunoutEdgeFixture : public LVGLTestFixture {
     /// Publish a sensor reading the way Moonraker does, then let the observer run.
     ///
     /// The grace is cleared after draining rather than once in the constructor:
-    /// anything still queued from the mock connection can call discover_sensors(),
+    /// anything still queued from the mock connection can call discover(),
     /// which re-anchors the grace to that moment, and update_subjects() pins
     /// any_runout to 0 for as long as it is armed.
     static void set_filament(bool detected) {

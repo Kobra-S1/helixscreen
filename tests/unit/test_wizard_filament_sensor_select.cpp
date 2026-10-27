@@ -96,7 +96,7 @@ class WizardFilamentSensorSelectTestFixture {
 
     // Helper to discover test sensors (standalone, non-AMS)
     void discover_standalone_sensors(const std::vector<std::string>& sensors) {
-        sensor_mgr().discover_sensors(sensors);
+        discover_filament_sensors(sensor_mgr(), sensors);
     }
 
     // Helper to discover AMS sensors (should be filtered out)
@@ -108,7 +108,7 @@ class WizardFilamentSensorSelectTestFixture {
             "filament_switch_sensor turtle_1", // BoxTurtle sensor - matches "turtle"
             "filament_switch_sensor afc_hub"   // AFC hub - matches "afc"
         };
-        sensor_mgr().discover_sensors(sensors);
+        discover_filament_sensors(sensor_mgr(), sensors);
     }
 
     // Helper to discover mixed sensors (some AMS, some standalone)
@@ -119,7 +119,7 @@ class WizardFilamentSensorSelectTestFixture {
             "filament_switch_sensor toolhead", // Standalone
             "filament_switch_sensor slot_2"    // AMS (AFC)
         };
-        sensor_mgr().discover_sensors(sensors);
+        discover_filament_sensors(sensor_mgr(), sensors);
     }
 
   private:
@@ -298,7 +298,7 @@ TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
             "filament_switch_sensor lane_1", // AMS - should be ignored
             "filament_switch_sensor fsensor" // Standalone - should get RUNOUT
         };
-        sensor_mgr().discover_sensors(sensors);
+        discover_filament_sensors(sensor_mgr(), sensors);
 
         step.auto_configure_single_sensor();
 
@@ -455,7 +455,7 @@ TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
         REQUIRE(step.get_standalone_sensor_count() == 3);
 
         // Re-discover with no sensors
-        sensor_mgr().discover_sensors({});
+        discover_filament_sensors(sensor_mgr(), {});
         REQUIRE(step.get_standalone_sensor_count() == 0);
     }
 }

@@ -3,6 +3,7 @@
 #include "hardware_object_table.h"
 
 #include "accel_sensor_types.h"
+#include "filament_sensor_types.h"
 #include "humidity_sensor_types.h"
 #include "klipper_extruder_naming.h"
 #include "probe_sensor_types.h"
@@ -44,6 +45,9 @@ constexpr uint8_t chip_of(WidthSensorType t) {
 constexpr uint8_t chip_of(AccelSensorType t) {
     return static_cast<uint8_t>(t);
 }
+constexpr uint8_t chip_of(helix::FilamentSensorType t) {
+    return static_cast<uint8_t>(t);
+}
 
 // Scanned in order; the first row that matches wins. Longer or more specific
 // patterns precede shorter ones that would otherwise swallow them.
@@ -68,8 +72,10 @@ constexpr Row kRows[] = {
     {Match::BareOrPrefix, "dotstar", ObjectKind::Led, kLedChipDotstar, Scope::Both},
     {Match::Prefix, "led ", ObjectKind::Led, kLedChipGeneric, Scope::Both},
 
-    {Match::Prefix, "filament_switch_sensor ", ObjectKind::FilamentSwitch, 0, Scope::Both},
-    {Match::Prefix, "filament_motion_sensor ", ObjectKind::FilamentMotion, 0, Scope::Both},
+    {Match::Prefix, "filament_switch_sensor ", ObjectKind::FilamentSwitch,
+     chip_of(helix::FilamentSensorType::SWITCH), Scope::Both},
+    {Match::Prefix, "filament_motion_sensor ", ObjectKind::FilamentMotion,
+     chip_of(helix::FilamentSensorType::MOTION), Scope::Both},
     // A filament system's own sensor objects, published instead of the stock sections.
     {Match::Prefix, "zmod_ifs_switch_sensor ", ObjectKind::BackendFilamentSensor, 0, Scope::Both},
     {Match::Prefix, "zmod_ifs_motion_sensor ", ObjectKind::BackendFilamentSensor, 0, Scope::Both},

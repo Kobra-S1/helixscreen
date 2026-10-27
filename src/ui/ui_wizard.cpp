@@ -781,7 +781,7 @@ static void ui_wizard_ensure_filament_sensors_discovered() {
     }
     IMoonrakerAPI* api = get_moonraker_api();
     if (api && api->hardware().has_filament_sensors()) {
-        fsm.discover_sensors(api->hardware().filament_sensor_names());
+        fsm.discover(api->hardware());
         spdlog::debug("[Wizard] Populated FilamentSensorManager for skip calculation");
     }
 }

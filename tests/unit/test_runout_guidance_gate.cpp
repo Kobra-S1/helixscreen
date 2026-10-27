@@ -28,6 +28,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/snapmaker_test_access.h"
 #include "ams_backend_snapmaker.h"
@@ -68,8 +69,8 @@ class RunoutGuidanceFixture : public LVGLUITestFixture {
         auto& fsm = FilamentSensorManager::instance();
         helix::PostUnloadGraceTestAccess::reset(fsm);
         fsm.set_master_enabled(true);
-        fsm.discover_sensors({SENSOR});
-        fsm.set_sensor_role(SENSOR, FilamentSensorRole::RUNOUT);
+        discover_filament_sensors(fsm, {SENSOR});
+        fsm.set_role(SENSOR, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
         // Baseline present so the sensor is "available", then let each test choose.
         fsm.update_from_status(sensor_status(true));
         helix::PostUnloadGraceTestAccess::clear_startup_grace(fsm);
@@ -232,9 +233,9 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     for (int h = 0; h < 4; ++h) {
         heads.push_back("filament_motion_sensor e" + std::to_string(h) + "_filament");
     }
-    fsm.discover_sensors(heads);
+    discover_filament_sensors(fsm, heads);
     for (int h = 0; h < 4; ++h) {
-        fsm.set_sensor_role(heads[h], FilamentSensorRole::RUNOUT);
+        fsm.set_role(heads[h], static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
         const auto frame = head_switch(h, h != 3);
         helix::SnapmakerTestAccess::handle_status(*u1, frame);
         fsm.update_from_status(frame);

@@ -397,7 +397,7 @@ void FilamentSensorWidget::rebind_source() {
             (void)self;
             lv_subject_set_int(&tile_state_subject_, value);
         },
-        FilamentSensorManager::instance().get_subjects_lifetime());
+        FilamentSensorManager::instance().subjects_lifetime());
 }
 
 } // namespace helix

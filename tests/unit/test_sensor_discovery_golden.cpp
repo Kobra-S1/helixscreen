@@ -115,7 +115,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     ism.discover(PrinterDiscovery{});
     asm_.discover(PrinterDiscovery{});
 
-    fsm.discover_sensors(hw.filament_sensor_names());
+    fsm.discover(hw);
     tsm.discover(hw);
     lcm.discover(hw);
     PrinterDiscovery probe_hw = hw;
@@ -222,7 +222,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
         [](const auto& s) { return accel_type_to_string(s.type); }));
 
     // Leave nothing behind for the next test in this process.
-    fsm.discover_sensors({});
+    fsm.discover(PrinterDiscovery{});
     tsm.discover(PrinterDiscovery{});
     lcm.discover(PrinterDiscovery{});
     psm.discover(PrinterDiscovery{});

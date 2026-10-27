@@ -6,7 +6,6 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
-#include "filament_sensor_manager.h"
 #include "i_moonraker_client.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
@@ -39,7 +38,6 @@ void reload_sensor_roles_after_preset() {
     for (auto* m : helix::sensors::sensor_managers()) {
         m->load_settings();
     }
-    FilamentSensorManager::instance().load_config_from_file();
 }
 
 void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerAPI* api,
@@ -51,9 +49,6 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
 
     // Sensor discovery is unconditional: an empty list is what clears the
     // previous printer's sensors on a switch.
-    auto& fsm = FilamentSensorManager::instance();
-    fsm.discover_sensors(hardware.filament_sensor_names());
-    fsm.load_config_from_file();
 
     for (auto* m : helix::sensors::sensor_managers()) {
         m->discover(hardware);

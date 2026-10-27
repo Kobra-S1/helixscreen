@@ -35,6 +35,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/trait_probe_backend.h"
 #include "../test_helpers/update_queue_test_access.h"
@@ -113,8 +114,9 @@ class SensorEdgeToastFixture : public LVGLTestFixture {
         AmsState::instance().clear_backends();
 
         PostUnloadGraceTestAccess::reset(mgr);
-        mgr.discover_sensors({"filament_switch_sensor toolhead_sensor"});
-        mgr.set_sensor_role("filament_switch_sensor toolhead_sensor", FilamentSensorRole::RUNOUT);
+        discover_filament_sensors(mgr, {"filament_switch_sensor toolhead_sensor"});
+        mgr.set_role("filament_switch_sensor toolhead_sensor",
+                     static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
         // Seed "filament present" so the empty reading below is a real edge.
         mgr.update_from_status(json{{"filament_switch_sensor toolhead_sensor",
                                      {{"filament_detected", true}, {"enabled", true}}}});
