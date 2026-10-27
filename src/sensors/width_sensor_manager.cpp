@@ -96,7 +96,7 @@ bool WidthSensorManager::parse_status(const nlohmann::json& status) {
     return changed;
 }
 
-void WidthSensorManager::on_discovered() {
+void WidthSensorManager::on_discovered(const PrinterDiscovery& /*hw*/) {
     // First-time users get a populated diameter subject. A saved role, applied by
     // load_settings() afterwards, overrides this.
     auto& entries = entries_locked();

@@ -37,7 +37,7 @@ class WidthSensorManager : public SensorManager {
     void register_subjects(SubjectManager& subjects) override;
     void refresh_subjects() override;
     bool parse_status(const nlohmann::json& status) override;
-    void on_discovered() override;
+    void on_discovered(const PrinterDiscovery& hw) override;
 
   private:
     friend class WidthSensorManagerTestAccess;
