@@ -608,6 +608,7 @@ translations:
   Canceling turns the chamber target off so the wait ends, then stops the print.: Canceling turns the chamber target off so the wait ends, then stops the print.
   'Cannot add to queue: internal error': 'Cannot add to queue: internal error'
   Cannot be changed from here on a multi-unit MMU: Cannot be changed from here on a multi-unit MMU
+  Cannot calibrate while printing: Cannot calibrate while printing
   Cannot change the HelixPrint plugin while printing: Cannot change the HelixPrint plugin while printing
   'Cannot control timelapse: printer not connected': 'Cannot control timelapse: printer
     not connected'
@@ -4224,6 +4225,7 @@ translations:
   Tool offsets saved: Tool offsets saved
   Tool swap: Tool swap
   Toolchange purge: Toolchange purge
+  'Tool offset calibration failed: {}': 'Tool offset calibration failed: {}'
   Toolhead: Toolhead
   Toolhead Calibration Running: Toolhead Calibration Running
   Toolhead LED: Toolhead LED

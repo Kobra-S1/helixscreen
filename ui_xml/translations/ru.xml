@@ -615,6 +615,7 @@
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." ru="Отмена выключит целевую температуру камеры, чтобы ожидание закончилось, затем остановит печать."/>
   <translation tag="Cannot add to queue: internal error" ru="Не удалось добавить в очередь: внутренняя ошибка"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" ru="Нельзя изменить здесь на MMU с несколькими блоками"/>
+  <translation tag="Cannot calibrate while printing" ru="Нельзя калибровать во время печати"/>
   <translation tag="Cannot change the HelixPrint plugin while printing" ru="Нельзя изменить плагин HelixPrint во время печати"/>
   <translation tag="Cannot control timelapse: printer not connected" ru="Невозможно управлять таймлапсом: принтер не подключён"/>
   <translation tag="Cannot delete file: printer not connected" ru="Невозможно удалить файл: принтер не подключён"/>
@@ -3965,6 +3966,7 @@
   <translation tag="Tool offsets saved" ru="Смещения инструментов сохранены"/>
   <translation tag="Tool swap" ru="Смена инструмента"/>
   <translation tag="Toolchange purge" ru="Продувка при смене инструмента"/>
+  <translation tag="Tool offset calibration failed: {}" ru="Ошибка калибровки смещений инструментов: {}"/>
   <translation tag="Toolhead" ru="Печатающая головка"/>
   <translation tag="Toolhead Calibration Running" ru="Идёт калибровка головок"/>
   <translation tag="Toolhead LED" ru="LED печатающей головки"/>

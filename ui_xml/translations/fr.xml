@@ -576,6 +576,7 @@
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." fr="L&apos;annulation coupe la consigne de la chambre pour mettre fin à l&apos;attente, puis arrête l&apos;impression."/>
   <translation tag="Cannot add to queue: internal error" fr="Impossible d&apos;ajouter à la file : erreur interne"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" fr="Non modifiable ici sur un MMU multi-unités"/>
+  <translation tag="Cannot calibrate while printing" fr="Impossible de calibrer pendant l&apos;impression"/>
   <translation tag="Cannot change the HelixPrint plugin while printing" fr="Impossible de modifier le plugin HelixPrint pendant l&apos;impression"/>
   <translation tag="Cannot control timelapse: printer not connected" fr="Impossible de contrôler le timelapse : imprimante non connectée"/>
   <translation tag="Cannot delete file: printer not connected" fr="Impossible de supprimer le fichier : imprimante non connectée"/>
@@ -3905,6 +3906,7 @@
   <translation tag="Tool offsets saved" fr="Offsets d&apos;outil enregistrés"/>
   <translation tag="Tool swap" fr="Changement d&apos;outil"/>
   <translation tag="Toolchange purge" fr="Purge au changement d&apos;outil"/>
+  <translation tag="Tool offset calibration failed: {}" fr="Échec de la calibration des offsets d&apos;outil : {}"/>
   <translation tag="Toolhead" fr="Tête d&apos;outil"/>
   <translation tag="Toolhead Calibration Running" fr="Calibration des têtes d&apos;outil en cours"/>
   <translation tag="Toolhead LED" fr="LED de la tête d&apos;outil"/>

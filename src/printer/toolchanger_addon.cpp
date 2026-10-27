@@ -48,6 +48,9 @@ struct Provider {
     /// One extruder drive serves every tool, so filament moves only through
     /// the tool on the carriage: a load or unload mounts it first.
     bool feeds_through_mount;
+    /// Macro opening the firmware's own action:prompt that calibrates every
+    /// tool's offset, or nullptr when it ships none.
+    const char* offset_calibration_macro;
 };
 
 // --- MedusaHC ---------------------------------------------------------------
@@ -182,10 +185,13 @@ const std::vector<Provider>& providers() {
         // command elsewhere, so it cannot be capability-checked the way the
         // feeder macros are, and naming it here is the whole point of this table.
         {"MedusaHC", medusa_detect, medusa_status_objects, medusa_open_gcode, medusa_close_gcode,
-         "T", "DROP_TOOL", nullptr, nullptr, /*feeds_through_mount=*/true},
+         "T", "DROP_TOOL", nullptr, nullptr, /*feeds_through_mount=*/true,
+         /*offset_calibration_macro=*/nullptr},
+        // CALIBRATE_EXTRUDERS (c5pro_generic.cfg) asks "remove the build plate"
+        // in an action:prompt whose OK runs the measurement for all four heads.
         {kZmodC5ProviderName, zmod_c5_detect, zmod_c5_status_objects, nullptr, nullptr,
          "_T_IN T=", "_T_OUT", zmod_c5_material_write, zmod_c5_feed_gcode,
-         /*feeds_through_mount=*/false},
+         /*feeds_through_mount=*/false, "CALIBRATE_EXTRUDERS"},
     };
     return table;
 }
@@ -644,6 +650,18 @@ ToolFeed resolve_tool_feed(const PrinterDiscovery& hw) {
 bool feeds_through_mount(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
     return p && p->feeds_through_mount;
+}
+
+OffsetCalibration resolve_offset_calibration(const PrinterDiscovery& hw) {
+    const Provider* p = match(hw);
+    if (!p || !p->offset_calibration_macro || !hw.has_macro(p->offset_calibration_macro)) {
+        return {};
+    }
+    OffsetCalibration c;
+    c.present = true;
+    c.provider_name = p->name;
+    c.prompt_gcode = p->offset_calibration_macro;
+    return c;
 }
 
 MaterialSource resolve_material_source(const PrinterDiscovery& hw) {

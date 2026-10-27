@@ -104,6 +104,76 @@ TEST_CASE("tool offset calibration: a U1 calibrates through its own guided flow"
 }
 
 // ============================================================================
+// A changer firmware whose calibration opens a printer-side prompt
+// ============================================================================
+
+namespace {
+
+/// A Creator 5 Pro on Z-Mod: zmod_color plus the carriage grab buttons, and no
+/// klipper-toolchanger.
+PrinterDiscovery zmod_c5(bool with_calibrate_macro) {
+    json objects = json::array({"gcode_move", "toolhead", "extruder", "extruder1", "extruder2",
+                                "extruder3", "zmod", "zmod_color"});
+    for (int i = 1; i <= 4; ++i) {
+        objects.push_back("gcode_button extruder_pos" + std::to_string(i));
+        objects.push_back("gcode_button extruder_grab" + std::to_string(i));
+    }
+    if (with_calibrate_macro) {
+        objects.push_back("gcode_macro CALIBRATE_EXTRUDERS");
+    }
+    PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    return hw;
+}
+
+} // namespace
+
+TEST_CASE("tool offset calibration: a Z-Mod Creator 5 hands the run to its own prompt",
+          "[tool_offset_cal]") {
+    const PrinterDiscovery c5 = zmod_c5(/*with_calibrate_macro=*/true);
+    CHECK(cal::supported(c5));
+    CHECK(cal::printer_prompt_gcode(c5) == "CALIBRATE_EXTRUDERS");
+    // The panel never runs a prompt-only macro: its rpc answers before the run.
+    CHECK(cal::calibrate_all_gcode(c5).empty());
+    CHECK(cal::guided_flow(c5).empty());
+}
+
+TEST_CASE("tool offset calibration: the prompt needs the macro and the changer",
+          "[tool_offset_cal]") {
+    const PrinterDiscovery bare_c5 = zmod_c5(/*with_calibrate_macro=*/false);
+    CHECK_FALSE(cal::supported(bare_c5));
+    CHECK(cal::printer_prompt_gcode(bare_c5).empty());
+
+    // An AD5X on Z-Mod publishes zmod_color but has no carriage: no changer row.
+    const PrinterDiscovery ad5x =
+        printer_with({"zmod", "zmod_color", "gcode_macro CALIBRATE_EXTRUDERS"});
+    CHECK_FALSE(cal::supported(ad5x));
+    CHECK(cal::printer_prompt_gcode(ad5x).empty());
+}
+
+TEST_CASE("tool offset calibration: CALIBRATE_TOOL_OFFSETS outranks a firmware prompt",
+          "[tool_offset_cal]") {
+    // The blocking macro reports its results through ToolState; the prompt
+    // reports nothing, so where both exist the panel runs.
+    const PrinterDiscovery both = printer_with(
+        {"zmod_color", "gcode_button extruder_grab1", "toolchanger", "tool T0", "tool T1",
+         "gcode_macro CALIBRATE_EXTRUDERS", "gcode_macro CALIBRATE_TOOL_OFFSETS"});
+    CHECK(cal::printer_prompt_gcode(both).empty());
+    CHECK(cal::calibrate_all_gcode(both) == "CALIBRATE_TOOL_OFFSETS");
+}
+
+TEST_CASE("tool offset calibration: a macro toolchanger and a bare printer send no prompt",
+          "[tool_offset_cal]") {
+    CHECK(cal::printer_prompt_gcode(calibrating_toolchanger()).empty());
+    CHECK(cal::calibrate_all_gcode(calibrating_toolchanger()) == "CALIBRATE_TOOL_OFFSETS");
+
+    const PrinterDiscovery bare = printer_with({});
+    CHECK_FALSE(cal::supported(bare));
+    CHECK(cal::printer_prompt_gcode(bare).empty());
+    CHECK(cal::calibrate_all_gcode(bare).empty());
+}
+
+// ============================================================================
 // INDX: the entry seats a tool by hand
 // ============================================================================
 

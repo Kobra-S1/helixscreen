@@ -532,6 +532,27 @@ void open_tool_offset_cal_panel(lv_obj_t* parent_screen) {
         }
         return;
     }
+    // A printer whose calibration opens its own prompt gets the command alone:
+    // the prompt confirms and runs it, and the panel could follow none of it.
+    const std::string prompt_gcode = cal::printer_prompt_gcode(get_printer_state().get_discovery());
+    if (!prompt_gcode.empty()) {
+        if (lv_subject_get_int(
+                get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0) {
+            NOTIFY_WARNING(lv_tr("Cannot calibrate while printing"));
+            return;
+        }
+        auto* api = get_moonraker_api();
+        if (!api) {
+            spdlog::warn("[ToolOffsetCal] No API - cannot send {}", prompt_gcode);
+            return;
+        }
+        spdlog::info("[ToolOffsetCal] Handing calibration to the printer's prompt: {}",
+                     prompt_gcode);
+        api->execute_gcode(prompt_gcode, nullptr, [](const MoonrakerError& err) {
+            helix::ui::notify_error_tr(TR_NOOP("Tool offset calibration failed: {}"), err);
+        });
+        return;
+    }
     get_global_tool_offset_cal_panel().show(parent_screen);
 }
 

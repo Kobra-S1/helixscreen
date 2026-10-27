@@ -188,6 +188,23 @@ struct ToolFeed {
     std::vector<std::string> head_gcode;
 };
 
+/// A changer firmware's own tool offset calibration, for a machine that has no
+/// klipper-toolchanger CALIBRATE_TOOL_OFFSETS (tool_offset_calibration.h owns
+/// that one). Default-constructed means the firmware ships none.
+///
+/// The command only opens the printer's own action:prompt, which asks the user
+/// to confirm and then starts the measurement for every tool. Its rpc answers
+/// before anything moves, so that completion says nothing about the run.
+struct OffsetCalibration {
+    bool present = false;
+    std::string provider_name; ///< Machine it came from, for logs
+    std::string prompt_gcode;  ///< Opens the printer's calibration prompt
+};
+
+/// The tool offset calibration this printer's changer firmware offers, or an
+/// absent capability. Present only when the macro is actually defined.
+OffsetCalibration resolve_offset_calibration(const PrinterDiscovery& hw);
+
 /// The feed this printer offers, or an absent capability.
 ToolFeed resolve_tool_feed(const PrinterDiscovery& hw);
 

@@ -576,6 +576,7 @@
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." zh="取消会关闭腔体目标温度以结束等待，然后停止打印。"/>
   <translation tag="Cannot add to queue: internal error" zh="无法添加到队列：内部错误"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" zh="多单元 MMU 无法在此处更改"/>
+  <translation tag="Cannot calibrate while printing" zh="打印时无法校准"/>
   <translation tag="Cannot change the HelixPrint plugin while printing" zh="打印时无法更改 HelixPrint 插件"/>
   <translation tag="Cannot control timelapse: printer not connected" zh="无法控制延时摄影: 打印机未连接"/>
   <translation tag="Cannot delete file: printer not connected" zh="无法删除文件: 打印机未连接"/>
@@ -3905,6 +3906,7 @@
   <translation tag="Tool offsets saved" zh="工具偏移已保存"/>
   <translation tag="Tool swap" zh="工具切换"/>
   <translation tag="Toolchange purge" zh="换刀排料"/>
+  <translation tag="Tool offset calibration failed: {}" zh="工具偏移校准失败: {}"/>
   <translation tag="Toolhead" zh="工具头"/>
   <translation tag="Toolhead Calibration Running" zh="工具头校准进行中"/>
   <translation tag="Toolhead LED" zh="工具头 LED"/>

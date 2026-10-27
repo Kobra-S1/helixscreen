@@ -584,6 +584,7 @@ translations:
   Canceling turns the chamber target off so the wait ends, then stops the print.: '取消会关闭腔体目标温度以结束等待，然后停止打印。'
   'Cannot add to queue: internal error': '无法添加到队列：内部错误'
   Cannot be changed from here on a multi-unit MMU: 多单元 MMU 无法在此处更改
+  Cannot calibrate while printing: '打印时无法校准'
   Cannot change the HelixPrint plugin while printing: 打印时无法更改 HelixPrint 插件
   'Cannot control timelapse: printer not connected': '无法控制延时摄影: 打印机未连接'
   'Cannot delete file: printer not connected': '无法删除文件: 打印机未连接'
@@ -4077,6 +4078,7 @@ translations:
   Tool offsets saved: 工具偏移已保存
   Tool swap: 工具切换
   Toolchange purge: '换刀排料'
+  'Tool offset calibration failed: {}': '工具偏移校准失败: {}'
   Toolhead: '工具头'
   Toolhead Calibration Running: '工具头校准进行中'
   Toolhead LED: '工具头 LED'

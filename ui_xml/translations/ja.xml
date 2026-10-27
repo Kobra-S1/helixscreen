@@ -576,6 +576,7 @@
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." ja="キャンセルするとチャンバーの目標温度をオフにして待機を終了し、その後印刷を停止します。"/>
   <translation tag="Cannot add to queue: internal error" ja="キューに追加できません: 内部エラー"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" ja="マルチユニット MMU ではここから変更できません"/>
+  <translation tag="Cannot calibrate while printing" ja="印刷中はキャリブレーションできません"/>
   <translation tag="Cannot change the HelixPrint plugin while printing" ja="印刷中はHelixPrintプラグインを変更できません"/>
   <translation tag="Cannot control timelapse: printer not connected" ja="タイムラプスを制御できません: プリンター未接続"/>
   <translation tag="Cannot delete file: printer not connected" ja="ファイルを削除できません: プリンター未接続"/>
@@ -3905,6 +3906,7 @@
   <translation tag="Tool offsets saved" ja="ツールオフセットを保存しました"/>
   <translation tag="Tool swap" ja="ツール交換"/>
   <translation tag="Toolchange purge" ja="ツール交換パージ"/>
+  <translation tag="Tool offset calibration failed: {}" ja="ツールオフセットのキャリブレーションに失敗しました: {}"/>
   <translation tag="Toolhead" ja="ツールヘッド"/>
   <translation tag="Toolhead Calibration Running" ja="ツールヘッドのキャリブレーション実行中"/>
   <translation tag="Toolhead LED" ja="ツールヘッドLED"/>

@@ -12,11 +12,14 @@
 // wait for a SAVE_CONFIG, which is exactly what the per-tool offset save path
 // (helix::tool_offsets, ToolState's dirty tracking) already handles.
 //
-// This module is the ONLY place that knows which printers calibrate their tool
-// offsets and how. Two procedures exist: the macro above, run by the tool offset
-// panel, and a printer's own multi-step guided flow (a Snapmaker U1's), which
-// the Calibration entry starts instead. Callers ask these questions and never
-// name the firmware. There is no per-tool entry point: the macro is
+// This module is the ONLY place that decides which printers calibrate their
+// tool offsets and how. Three procedures exist: the macro above, run by the
+// tool offset panel; a printer's own multi-step guided flow (a Snapmaker U1's),
+// which the Calibration entry starts instead; and a changer firmware's macro
+// that hands the whole run to a printer-side action:prompt
+// (toolchanger_addon::resolve_offset_calibration), which the entry sends
+// without opening the panel. Callers ask these questions and never name the
+// firmware. There is no per-tool entry point: the macro is
 // all-or-nothing, so this module offers exactly one gcode.
 //
 // Nothing is parsed off the console. Everything the screen needs is already in
@@ -51,6 +54,14 @@ bool supported(const PrinterDiscovery& hw);
 /// printer's own flow may be a setup step its offsets depend on rather than a
 /// measurement (an INDX seats a tool by hand for its first Z home).
 std::string guided_flow(const PrinterDiscovery& hw);
+
+/// Gcode the Tool Offsets entry sends instead of opening the panel, or an empty
+/// string when the panel (or a guided flow) runs. The command opens the
+/// printer's own action:prompt, which confirms and starts the measurement, and
+/// answers before anything moves: nothing on this side can follow the run, and
+/// the panel's completion and result rows would claim a finish that has not
+/// happened.
+std::string printer_prompt_gcode(const PrinterDiscovery& hw);
 
 /// What the Tool Offsets entry does on this printer, untranslated (pass it
 /// through lv_tr()).

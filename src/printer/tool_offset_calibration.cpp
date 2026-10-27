@@ -4,6 +4,7 @@
 
 #include "indx_contract.h"
 #include "printer_discovery.h"
+#include "toolchanger_addon.h"
 #include "translation_loader.h"
 
 #if HELIX_HAS_SNAPMAKER
@@ -21,7 +22,15 @@ bool has_macro_procedure(const PrinterDiscovery& hw) {
 } // namespace
 
 bool supported(const PrinterDiscovery& hw) {
-    return has_macro_procedure(hw) || !guided_flow(hw).empty();
+    return has_macro_procedure(hw) || toolchanger_addon::resolve_offset_calibration(hw).present ||
+           !guided_flow(hw).empty();
+}
+
+std::string printer_prompt_gcode(const PrinterDiscovery& hw) {
+    if (has_macro_procedure(hw)) {
+        return {};
+    }
+    return toolchanger_addon::resolve_offset_calibration(hw).prompt_gcode;
 }
 
 std::string guided_flow(const PrinterDiscovery& hw) {
