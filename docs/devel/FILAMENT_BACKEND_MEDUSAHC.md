@@ -356,7 +356,7 @@ runs `ACTIVATE_EXTRUDER`, so the active extruder stays `extruder` whatever is mo
 sidebar re-attaches those per-heater observers when the extruder set changes
 (`extruder_version`), since a rediscovery re-creates the subjects. While
 the run is cancellable (`can_cancel_operation()`: a run not already unwinding or waiting out a
-swap, the same predicate `cancel()` acts on), the sidebar shows Cancel in place of its action
+swap, the same predicate `cancel()` acts on), the sidebar shows Cancel at the end of its status line in place of its action
 buttons; it is the same abort as Settings > AMS > Abort. A backend whose `cancel()` can never
 act (QIDI Box, Snapmaker U1, Multi-ACE) answers `can_cancel_operation()` false, so neither
 surface offers one. The backend claims
