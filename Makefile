@@ -1196,6 +1196,9 @@ HELIX_HAS_TIMELAPSE_VIEWER ?= 1
 # Compile-out gate for the Belt Tension panel. It reads Klipper's /tmp results,
 # so it only works co-located with Klipper.
 HELIX_HAS_BELT_TUNER ?= 1
+# Compile-out gate for the home Toolhead widget and its preset editor; the
+# Motion panel and every other widget stay. ESP32-class targets set it to 0.
+HELIX_HAS_TOOLHEAD_WIDGET ?= 1
 # Compile-out gate for the font rungs above the authored tier ladder. Only the
 # high-DPI UI scale factor reaches them, so a platform with a fixed panel and no
 # scale factor above 1.0 neither packs nor links those faces.
@@ -1216,6 +1219,7 @@ CXXFLAGS += -DHELIX_HAS_LABEL_PRINTER=$(HELIX_HAS_LABEL_PRINTER) \
             -DHELIX_HAS_PLUGINS=$(HELIX_HAS_PLUGINS) \
             -DHELIX_HAS_TIMELAPSE_VIEWER=$(HELIX_HAS_TIMELAPSE_VIEWER) \
             -DHELIX_HAS_BELT_TUNER=$(HELIX_HAS_BELT_TUNER) \
+            -DHELIX_HAS_TOOLHEAD_WIDGET=$(HELIX_HAS_TOOLHEAD_WIDGET) \
             -DHELIX_HAS_HIDPI_FONTS=$(HELIX_HAS_HIDPI_FONTS) \
             -DHELIX_BACKLIGHT_FLOOR_PERCENT=$(HELIX_BACKLIGHT_FLOOR_PERCENT)
 

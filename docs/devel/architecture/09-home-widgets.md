@@ -114,7 +114,7 @@ The built-in catalog (gate subjects from the def table; "-" means always availab
 | `dryer` | `DryerWidget` | `home_dryer_available` |
 | `z_offset` | `ZOffsetWidget` | - |
 | `bed_mesh_tile` | `BedMeshTileWidget` | `printer_has_bed_mesh` |
-| `toolhead` | `ToolheadWidget` | - |
+| `toolhead` | `ToolheadWidget`, `HELIX_HAS_TOOLHEAD_WIDGET` builds only (off on the ESP32 firmware) | - |
 | `exclude_map` | `ExcludeMapWidget` | `printer_has_exclude_object` |
 | `tips` | `TipsWidget` | - |
 | `clog_detection` | `ClogDetectionWidget` (the FlowGuard bar) | `clog_meter_mode` |
@@ -194,6 +194,7 @@ Two subtleties both families hit. First, `observe<int>` defers its initial fire 
 - **Multi-instance IDs carry a `:N` suffix** (`fan_stack:1`). Config, telemetry and logging see the full ID; the registry strips it for def lookup.
 - **Don't fight the grid activation order.** Children first, grid layout last (#983).
 - **The camera widget is compiled only with `HELIX_HAS_CAMERA`**: its def, registration and component sit behind the same guard.
+- **The toolhead widget is compiled only with `HELIX_HAS_TOOLHEAD_WIDGET`**: its def and registration sit behind the guard, and the ESP32 firmware, which sets it to 0, leaves its sources and preset modal out of `app_srcs.txt`. A saved layout naming `toolhead` there loads like any unknown id.
 
 ## Going deeper
 
