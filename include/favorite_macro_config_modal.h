@@ -35,7 +35,6 @@ class FavoriteMacroConfigModal : public Modal {
     static void close_cb(lv_event_t* e);
     static void require_confirm_cb(lv_event_t* e);
     static void defaults_cb(lv_event_t* e);
-    static void macro_row_cb(lv_event_t* e);
     static void color_swatch_cb(lv_event_t* e);
 
   protected:

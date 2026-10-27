@@ -338,3 +338,34 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     CHECK(lv_obj_has_flag(sec_macro, LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(sec_options, LV_OBJ_FLAG_HIDDEN));
 }
+
+TEST_CASE_METHOD(ConfigModalDefaultsFixture, "a tap on a macro row selects and saves that macro",
+                 "[macro][favorite_config]") {
+    cache_macros({{"PLAIN_MACRO", "G28"}, {"OTHER_MACRO", "G1 X10"}});
+    api().hardware().parse_objects(
+        nlohmann::json{"gcode_macro PLAIN_MACRO", "gcode_macro OTHER_MACRO"});
+    struct ApiScope {
+        IMoonrakerAPI* previous = get_moonraker_api();
+        ~ApiScope() {
+            set_moonraker_api(previous);
+        }
+    } api_scope;
+    set_moonraker_api(&api());
+    auto& modal = show_config_for("PLAIN_MACRO");
+    lv_obj_t* list = lv_obj_find_by_name(modal.dialog(), "macro_list");
+    REQUIRE(list != nullptr);
+
+    lv_obj_t* other = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
+        lv_obj_t* row = lv_obj_get_child(list, i);
+        const auto* name = static_cast<const std::string*>(lv_obj_get_user_data(row));
+        if (name && *name == "OTHER_MACRO")
+            other = row;
+    }
+    REQUIRE(other != nullptr);
+    lv_obj_send_event(other, LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    auto& wc = helix::PanelWidgetManager::instance().get_widget_config("defaults_test_panel");
+    CHECK(wc.get_widget_config("favorite_macro:1").value("macro", "") == "OTHER_MACRO");
+}

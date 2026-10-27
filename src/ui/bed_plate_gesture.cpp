@@ -32,23 +32,24 @@ bool BedPlateGesture::press(int x, int y) {
     return true;
 }
 
-void BedPlateGesture::pressing(int x, int y) {
+bool BedPlateGesture::pressing(int x, int y) {
     if (!pressing_) {
-        return;
+        return false;
     }
     if (!dragging_ && std::abs(x - press_x_) <= kPlateDragThresholdPx &&
         std::abs(y - press_y_) <= kPlateDragThresholdPx) {
-        return;
+        return false;
     }
     dragging_ = true;
     // PRESSING repeats on every input read while the finger rests.
     auto target = hooks_.target_at ? hooks_.target_at(x, y) : std::nullopt;
     if (!target || same_xy(target, drag_target_)) {
-        return;
+        return false;
     }
     drag_target_ = target;
     // The head follows the finger, coalesced latest-wins by the owner's sender.
     send_target(*target);
+    return true;
 }
 
 BedPlateGesture::Release BedPlateGesture::release(int x, int y) {

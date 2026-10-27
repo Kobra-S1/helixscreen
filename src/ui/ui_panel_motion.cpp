@@ -249,25 +249,6 @@ bool helix::z_direction_blocked(bool z_homed, bool bounds_known, double z, doubl
 
 /// Bed-grid preset keys as they appear in motion_panel.xml user_data, in
 /// MotionPreset declaration order (rear row first, front row last).
-static std::optional<helix::MotionPreset> preset_from_key(const char* key) {
-    static const struct {
-        const char* key;
-        helix::MotionPreset preset;
-    } table[] = {
-        {"rear_left", helix::MotionPreset::RearLeft},     {"rear", helix::MotionPreset::Rear},
-        {"rear_right", helix::MotionPreset::RearRight},   {"left", helix::MotionPreset::Left},
-        {"center", helix::MotionPreset::Center},          {"right", helix::MotionPreset::Right},
-        {"front_left", helix::MotionPreset::FrontLeft},   {"front", helix::MotionPreset::Front},
-        {"front_right", helix::MotionPreset::FrontRight},
-    };
-    for (const auto& row : table) {
-        if (std::strcmp(key, row.key) == 0) {
-            return row.preset;
-        }
-    }
-    return std::nullopt;
-}
-
 // ============================================================================
 // Constructor
 // ============================================================================
@@ -572,7 +553,7 @@ void MotionPanel::register_callbacks() {
         {"on_motion_preset_clicked",
          [](lv_event_t* e) {
              const char* key = static_cast<const char*>(lv_event_get_user_data(e));
-             if (auto preset = key ? preset_from_key(key) : std::nullopt) {
+             if (auto preset = key ? helix::motion_preset_from_token(key) : std::nullopt) {
                  get_global_motion_panel().handle_preset(*preset);
              }
          }},
@@ -1764,10 +1745,7 @@ void MotionPanel::handle_bed_touch(helix::BedTouch phase, lv_obj_t* area, lv_poi
         bed_gesture_.press(x, y);
         break;
     case helix::BedTouch::Pressing: {
-        const auto before = bed_gesture_.drag_target();
-        bed_gesture_.pressing(x, y);
-        const auto& after = bed_gesture_.drag_target();
-        if (after && (!before || before->x != after->x || before->y != after->y)) {
+        if (bed_gesture_.pressing(x, y)) {
             refresh_bed_readout();
         }
         break;

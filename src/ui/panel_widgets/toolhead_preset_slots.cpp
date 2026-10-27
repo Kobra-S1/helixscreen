@@ -14,19 +14,6 @@ namespace {
 
 constexpr const char* kPresetsKey = "presets";
 
-struct PresetToken {
-    MotionPreset preset;
-    const char* token;
-};
-
-constexpr PresetToken kPresetTokens[] = {
-    {MotionPreset::RearLeft, "rear_left"},     {MotionPreset::Rear, "rear"},
-    {MotionPreset::RearRight, "rear_right"},   {MotionPreset::Left, "left"},
-    {MotionPreset::Center, "center"},          {MotionPreset::Right, "right"},
-    {MotionPreset::FrontLeft, "front_left"},   {MotionPreset::Front, "front"},
-    {MotionPreset::FrontRight, "front_right"},
-};
-
 struct KindToken {
     ToolheadPresetSlot::Kind kind;
     const char* token;
@@ -120,22 +107,6 @@ void toolhead_preset_slots_to_config(const ToolheadPresetSlots& slots, nlohmann:
         array.push_back(std::move(entry));
     }
     config[kPresetsKey] = std::move(array);
-}
-
-const char* motion_preset_token(MotionPreset preset) {
-    for (const auto& p : kPresetTokens) {
-        if (p.preset == preset)
-            return p.token;
-    }
-    return "center";
-}
-
-std::optional<MotionPreset> motion_preset_from_token(const std::string& token) {
-    for (const auto& p : kPresetTokens) {
-        if (token == p.token)
-            return p.preset;
-    }
-    return std::nullopt;
 }
 
 bool toolhead_slot_moves_toolhead(const ToolheadPresetSlot& slot) {

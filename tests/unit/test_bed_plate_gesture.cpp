@@ -55,7 +55,7 @@ TEST_CASE("plate gesture: a press released in place is a tap that sends nothing"
     Recorder r;
     auto g = r.make();
     REQUIRE(g.press(100, 100));
-    g.pressing(100 + kPlateDragThresholdPx, 100 - kPlateDragThresholdPx);
+    CHECK_FALSE(g.pressing(100 + kPlateDragThresholdPx, 100 - kPlateDragThresholdPx));
     const auto rel = g.release(104, 100);
     CHECK_FALSE(rel.was_drag);
     REQUIRE(rel.tap_target.has_value());
@@ -82,9 +82,10 @@ TEST_CASE("plate gesture: two samples on one target send once", "[bed_plate_gest
     Recorder r;
     auto g = r.make();
     REQUIRE(g.press(100, 100));
-    g.pressing(120, 100);
-    g.pressing(120, 100);
+    CHECK(g.pressing(120, 100));
+    CHECK_FALSE(g.pressing(120, 100));
     CHECK(r.sent.size() == 1);
+    CHECK(g.pressing(130, 100));
 }
 
 TEST_CASE("plate gesture: one lift per gesture, stamped on every target", "[bed_plate_gesture]") {

@@ -152,6 +152,9 @@ std::string format_lift_mm(double mm) {
 } // namespace
 
 std::string plate_lift_readout(double shown_z, const PlateLift& lift) {
+    if (lift.kind == PlateLift::Kind::Refuse) {
+        return part_too_tall_text();
+    }
     if (lift.kind != PlateLift::Kind::Lift) {
         return {};
     }

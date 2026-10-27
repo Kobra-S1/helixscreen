@@ -194,4 +194,22 @@ double clamp_z_down_to_floor(double target_z, double clearance_mm, bool occupied
     return std::max(target_z, plate_z_floor(clearance_mm, part_height_mm));
 }
 
+const char* motion_preset_token(MotionPreset preset) {
+    for (const auto& p : kMotionPresetTokens) {
+        if (p.preset == preset) {
+            return p.token;
+        }
+    }
+    return "center";
+}
+
+std::optional<MotionPreset> motion_preset_from_token(std::string_view token) {
+    for (const auto& p : kMotionPresetTokens) {
+        if (token == p.token) {
+            return p.preset;
+        }
+    }
+    return std::nullopt;
+}
+
 } // namespace helix

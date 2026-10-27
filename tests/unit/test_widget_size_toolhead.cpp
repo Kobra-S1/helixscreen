@@ -26,6 +26,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
+#include "bed_plate_context.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
@@ -1088,6 +1089,20 @@ TEST_CASE_METHOD(PresetFixture, "toolhead presets: a position lifts off the plat
     REQUIRE(lift != std::string::npos);
     CHECK(xy_moves() == 1);
     CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: a part too tall to clear is announced",
+                 "[widget_size][toolhead][presets]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    // Z travel is 200mm; a 199.5mm part leaves under 1mm above it.
+    BedOccupancy verdict;
+    verdict.occupied = true;
+    verdict.part_height_mm = 199.5;
+    verdict.job_id = "job-on-the-bed";
+    BedOccupancyStateTestAccess::set_verdict(occupancy, verdict);
+    drain();
+    CHECK(subject_text("toolhead_lift_text") == part_too_tall_text());
 }
 
 TEST_CASE_METHOD(PresetFixture, "toolhead presets: Z down never ends below a part on the bed",

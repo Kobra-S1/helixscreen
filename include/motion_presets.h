@@ -10,6 +10,7 @@
 #include "printer_state.h"
 
 #include <optional>
+#include <string_view>
 
 namespace helix {
 
@@ -26,6 +27,28 @@ enum class MotionPreset {
     Front,
     FrontRight,
 };
+
+/// A preset and its stable token, as the Move tab's XML and the Toolhead widget's config
+/// name it.
+struct MotionPresetToken {
+    MotionPreset preset;
+    const char* token;
+};
+
+/// Every preset once, in grid order: the rear row, then the middle, then the front, each
+/// left to right.
+inline constexpr MotionPresetToken kMotionPresetTokens[] = {
+    {MotionPreset::RearLeft, "rear_left"},     {MotionPreset::Rear, "rear"},
+    {MotionPreset::RearRight, "rear_right"},   {MotionPreset::Left, "left"},
+    {MotionPreset::Center, "center"},          {MotionPreset::Right, "right"},
+    {MotionPreset::FrontLeft, "front_left"},   {MotionPreset::Front, "front"},
+    {MotionPreset::FrontRight, "front_right"},
+};
+
+/// The preset's token ("rear_left" ... "front_right").
+[[nodiscard]] const char* motion_preset_token(MotionPreset preset);
+/// The preset a token names; nullopt for anything else.
+[[nodiscard]] std::optional<MotionPreset> motion_preset_from_token(std::string_view token);
 
 /**
  * @brief The area Move-tab presets aim at, in G-code space

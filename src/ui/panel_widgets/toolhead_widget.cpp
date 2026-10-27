@@ -1015,9 +1015,8 @@ void ToolheadWidget::publish_lift_text() {
     std::string text;
     if (verdict_.show_presets && plate_interactive()) {
         const double z = current_z_mm();
-        const PlateLift lift = current_plate_lift(printer_state_, move_sender_.target_start_z(z));
-        text = lift.kind == PlateLift::Kind::Refuse ? std::string(part_too_tall_text())
-                                                    : plate_lift_readout(z, lift);
+        text = plate_lift_readout(
+            z, current_plate_lift(printer_state_, move_sender_.target_start_z(z)));
     }
     copy_string_if_changed(&s_lift_text_subject, text.c_str());
 }
@@ -1136,10 +1135,8 @@ void ToolheadWidget::publish_target_text() {
     if (target && target->x && target->y) {
         text = fmt::format("-> X{:.0f} Y{:.0f}", *target->x, *target->y);
         const double z = current_z_mm();
-        const PlateLift lift = current_plate_lift(printer_state_, move_sender_.target_start_z(z));
-        const std::string lift_text = lift.kind == PlateLift::Kind::Refuse
-                                          ? std::string(part_too_tall_text())
-                                          : plate_lift_readout(z, lift);
+        const std::string lift_text = plate_lift_readout(
+            z, current_plate_lift(printer_state_, move_sender_.target_start_z(z)));
         if (!lift_text.empty()) {
             text += "\n";
             text += lift_text;
@@ -1195,12 +1192,10 @@ void ToolheadWidget::handle_plate_touch(BedTouch phase, lv_point_t screen_point)
         if (!gesture_.active())
             return;
         const bool was_dragging = gesture_.dragging();
-        const auto before = gesture_.drag_target();
-        gesture_.pressing(x, y);
+        const bool target_changed = gesture_.pressing(x, y);
         if (gesture_.dragging() && !was_dragging)
             clear_ghost();
-        const auto& after = gesture_.drag_target();
-        if (after && (!before || before->x != after->x || before->y != after->y))
+        if (target_changed)
             publish_target_text();
         break;
     }

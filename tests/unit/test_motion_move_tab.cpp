@@ -29,6 +29,7 @@
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
+#include "bed_plate_context.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -1012,6 +1013,8 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: a part too tall to clear refuses the 
     get_global_motion_panel().set_motion_tab(2);
     drain();
     lv_obj_t* area = panel_widget("bed_map_area");
+    // Warned before any tap, as the home widget's plate warns.
+    CHECK(bed_readout() == helix::part_too_tall_text());
 
     bed_tap(area, far_point(area, false, false));
     auto& panel = get_global_motion_panel();

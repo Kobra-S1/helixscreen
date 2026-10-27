@@ -85,8 +85,8 @@ bool run_park_toolhead_macro(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime, c
 [[nodiscard]] double clamp_z_down_to_current_floor(double target_z);
 
 /// The sentence announcing @p lift before a move made at @p shown_z: "Z 0.20, will lift to
-/// 43mm", plus the part's height when a part on the bed raised it. Empty unless the lift is
-/// Lift. The Bed tab's readout and the home Toolhead widget's both show it.
+/// 43mm", plus the part's height when a part on the bed raised it; part_too_tall_text() for
+/// Refuse; empty for None. The Bed tab's readout and the home Toolhead widget's both show it.
 [[nodiscard]] std::string plate_lift_readout(double shown_z, const PlateLift& lift);
 
 /// What a Refuse lift tells the user: the part on the bed is too tall to clear.

@@ -34,14 +34,10 @@ using ToolheadPresetSlots = std::array<ToolheadPresetSlot, kToolheadPresetSlotCo
 
 /// The widget config's "presets" array: [{"kind":"position","position":"front"},
 /// {"kind":"park"}, {"kind":"z_up"}, {"kind":"z_down"}, {"kind":"macro","macro":"NAME"},
-/// {"kind":"empty"}]. A missing or malformed array yields the defaults; a malformed entry
-/// yields Empty in its place.
+/// {"kind":"empty"}], positions named by motion_preset_token(). A missing or malformed array yields
+/// the defaults; a malformed entry yields Empty in its place.
 [[nodiscard]] ToolheadPresetSlots toolhead_preset_slots_from_config(const nlohmann::json& config);
 void toolhead_preset_slots_to_config(const ToolheadPresetSlots& slots, nlohmann::json& config);
-
-/// Stable config tokens for the nine positions ("rear_left" ... "front_right").
-[[nodiscard]] const char* motion_preset_token(MotionPreset preset);
-[[nodiscard]] std::optional<MotionPreset> motion_preset_from_token(const std::string& token);
 
 /// Whether the slot needs every axis homed and the lift rule: Position, Park, ZUp, ZDown.
 [[nodiscard]] bool toolhead_slot_moves_toolhead(const ToolheadPresetSlot& slot);

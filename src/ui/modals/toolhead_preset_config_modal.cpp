@@ -4,7 +4,7 @@
 #include "toolhead_preset_config_modal.h"
 
 #include "ui_event_safety.h"
-#include "ui_row_text.h"
+#include "ui_picker_option_row.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -37,35 +37,9 @@ constexpr const char* kSlotTextNames[kToolheadPresetSlotCount] = {
     "toolhead_preset_cfg_slot_0_text", "toolhead_preset_cfg_slot_1_text",
     "toolhead_preset_cfg_slot_2_text"};
 
-/// A picker_option_row's action, freed with the row.
-struct RowPayload {
-    std::function<void()> on_pick;
-};
-
 void add_row(lv_obj_t* list, const std::string& label, bool selected,
              std::function<void()> on_pick) {
-    const char* attrs[] = {"selected", selected ? "true" : "false", nullptr};
-    auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "picker_option_row", attrs));
-    if (!row)
-        return;
-    ui::set_row_label_text(row, "option_label", label.c_str());
-    auto* payload = new RowPayload{std::move(on_pick)};
-    lv_obj_set_user_data(row, payload);
-    lv_obj_add_event_cb(
-        row, [](lv_event_t* e) { delete static_cast<RowPayload*>(lv_event_get_user_data(e)); },
-        LV_EVENT_DELETE, payload);
-    lv_obj_add_event_cb(
-        row,
-        [](lv_event_t* e) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[ToolheadPresetConfigModal] row_cb");
-            auto* p = static_cast<RowPayload*>(lv_event_get_user_data(e));
-            // A copy: the pick repopulates the list, which deletes this row and its payload.
-            const std::function<void()> on_pick = p ? p->on_pick : nullptr;
-            if (on_pick)
-                on_pick();
-            LVGL_SAFE_EVENT_CB_END();
-        },
-        LV_EVENT_CLICKED, payload);
+    ui::create_picker_option_row(list, label.c_str(), selected, std::move(on_pick));
 }
 
 bool same_choice(const ToolheadPresetSlot& a, const ToolheadPresetSlot& b) {
@@ -133,15 +107,10 @@ ToolheadPresetConfigModal::~ToolheadPresetConfigModal() {
 
 std::vector<ToolheadPresetSlot> ToolheadPresetConfigModal::choices() {
     std::vector<ToolheadPresetSlot> out;
-    constexpr MotionPreset kPositions[] = {
-        MotionPreset::RearLeft,  MotionPreset::Rear,   MotionPreset::RearRight,
-        MotionPreset::Left,      MotionPreset::Center, MotionPreset::Right,
-        MotionPreset::FrontLeft, MotionPreset::Front,  MotionPreset::FrontRight,
-    };
-    for (const MotionPreset p : kPositions) {
+    for (const auto& p : kMotionPresetTokens) {
         ToolheadPresetSlot slot;
         slot.kind = ToolheadPresetSlot::Kind::Position;
-        slot.position = p;
+        slot.position = p.preset;
         out.push_back(slot);
     }
     for (const auto kind : {ToolheadPresetSlot::Kind::Park, ToolheadPresetSlot::Kind::ZUp,
