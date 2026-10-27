@@ -89,7 +89,9 @@
       "temperature_sensor mcu_temp",
       "temperature_sensor z_thermal_adjust",
       "tmc2240 stepper_x",
-      "tmc2240 stepper_y"
+      "tmc2240 stepper_y",
+      "bme280 chamber",
+      "htu21d dryer"
     ],
     "width_sensor_objects": [
       "hall_filament_width_sensor"

@@ -14,6 +14,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <climits>
 #include <cstdlib>
 
@@ -133,120 +134,74 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
 
         std::string upper_name = helix::text_io::to_upper(name);
 
-        // ================================================================
-        // Steppers (stepper_x, stepper_y, stepper_z, stepper_z1, etc.)
-        // ================================================================
-        if (name.rfind("stepper_", 0) == 0) {
-            steppers_.push_back(name);
-        }
-        // ================================================================
-        // Heaters: extruders, heater_bed, heater_generic
-        // ================================================================
-        else if (helix::is_heater_object_name(name)) {
-            heaters_.push_back(name);
+        // One classification per object. The bucket lists are rebuilt from it
+        // after the loop; the switch records what a kind implies beyond that.
+        const hw::ObjectClass cls = hw::classify_object(name);
+        objects_.push_back({name, cls});
+        switch (cls.kind) {
+        case hw::ObjectKind::Heater:
             if (name == "heater_bed") {
                 has_heater_bed_ = true;
-            } else if (name.rfind("heater_generic ", 0) == 0) {
-                std::string heater_name = name.substr(15); // Remove "heater_generic " prefix
-                try_set_chamber_heater(name, heater_name, kChamberHeaterGenericWeight);
             }
-        }
-        // ================================================================
-        // Load cells: load_cell
-        // ================================================================
-        else if (name.rfind("load_cell ", 0) == 0 || name == "load_cell") {
-            load_cells_.push_back(name);
-        }
-        // ================================================================
-        // Sensors: temperature_sensor, temperature_fan (dual-purpose)
-        // ================================================================
-        else if (name.rfind("temperature_sensor ", 0) == 0) {
-            sensors_.push_back(name);
-            std::string sensor_name = name.substr(19); // Remove "temperature_sensor " prefix
-            try_set_chamber_sensor(name, sensor_name);
-        }
-        // Temperature-controlled fans (also act as sensors). A chamber-named
-        // temperature_fan is the heater equivalent — it actively drives air
-        // temperature, unlike a passive temperature_sensor.
-        else if (name.rfind("temperature_fan ", 0) == 0) {
-            sensors_.push_back(name);
-            fans_.push_back(name);                  // Also add to fans for control
-            std::string fan_name = name.substr(16); // Remove "temperature_fan " prefix
-            try_set_chamber_heater(name, fan_name, kChamberTemperatureFanWeight);
-            try_set_chamber_cooling_fan(name, fan_name);
-        }
-        // TMC stepper drivers with built-in temperature (tmc2240, tmc5160)
-        else if (name.rfind("tmc2240 ", 0) == 0 || name.rfind("tmc5160 ", 0) == 0) {
-            sensors_.push_back(name);
-        }
-        // ================================================================
-        // Fans: fan, heater_fan, fan_generic, controller_fan
-        // ================================================================
-        else if (name == "fan") {
-            fans_.push_back(name);
-        } else if (name.rfind("heater_fan ", 0) == 0) {
-            fans_.push_back(name);
-        } else if (name.rfind("fan_generic ", 0) == 0) {
-            fans_.push_back(name);
-        } else if (name.rfind("controller_fan ", 0) == 0) {
-            fans_.push_back(name);
-        }
-        // ================================================================
-        // LEDs: led_effect (must be before "led "), neopixel, dotstar, led
-        // ================================================================
-        // led_effect MUST be checked before "led " to avoid false match
-        else if (name.rfind("led_effect ", 0) == 0) {
-            led_effects_.push_back(name);
+            break;
+        case hw::ObjectKind::GenericHeater:
+            try_set_chamber_heater(name, cls.instance, kChamberHeaterGenericWeight);
+            break;
+        case hw::ObjectKind::TemperatureSensor:
+            try_set_chamber_sensor(name, cls.instance);
+            break;
+        // A chamber-named temperature_fan is the heater equivalent: it actively
+        // drives air temperature, unlike a passive temperature_sensor.
+        case hw::ObjectKind::TemperatureFan:
+            try_set_chamber_heater(name, cls.instance, kChamberTemperatureFanWeight);
+            try_set_chamber_cooling_fan(name, cls.instance);
+            break;
+        case hw::ObjectKind::Led:
+        case hw::ObjectKind::OutputPinLed:
+            has_led_ = true;
+            break;
+        case hw::ObjectKind::LedEffect:
             has_led_effects_ = true;
-        } else if (name.rfind("neopixel ", 0) == 0 || name == "neopixel") {
-            leds_.push_back(name);
-            has_led_ = true;
-        } else if (name.rfind("dotstar ", 0) == 0 || name == "dotstar") {
-            leds_.push_back(name);
-            has_led_ = true;
-        } else if (name.rfind("led ", 0) == 0) {
-            leds_.push_back(name);
-            has_led_ = true;
-        }
-        // Output pins - classify as fan, LED, or speaker based on name
-        else if (name == "fan_feedback") {
+            break;
+        case hw::ObjectKind::Speaker:
+            has_speaker_ = true;
+            break;
+        case hw::ObjectKind::FanFeedback:
             has_fan_feedback_ = true;
-        } else if (name.rfind("output_pin ", 0) == 0) {
-            std::string pin_name = name.substr(11); // Remove "output_pin " prefix
-            std::string upper_pin = helix::text_io::to_upper(pin_name);
-
-            // Fan detection: name starts with "FAN" (e.g., fan0, fan1, fan2)
-            if (upper_pin.rfind("FAN", 0) == 0) {
-                fans_.push_back(name);
+            break;
+        case hw::ObjectKind::Probe:
+            has_probe_ = true;
+            break;
+        // AD5X IFS detection via ZMOD firmware sensors. Three sensor names
+        // trigger it:
+        //   1. lessWaste plugin:  "filament_switch_sensor _ifs_port_sensor_N"
+        //   2. Native ZMOD (old): "filament_motion_sensor _ifs_motion_sensor_N"
+        //   3. Native ZMOD:       "filament_motion_sensor ifs_motion_sensor"
+        case hw::ObjectKind::FilamentSwitch:
+        case hw::ObjectKind::FilamentMotion:
+            if (!has_mmu_ && (name.rfind("filament_switch_sensor _ifs_port_sensor_", 0) == 0 ||
+                              name.rfind("filament_motion_sensor _ifs_motion_sensor_", 0) == 0 ||
+                              name == "filament_motion_sensor ifs_motion_sensor")) {
+                has_mmu_ = true;
+                mmu_type_ = AmsType::AD5X_IFS;
             }
-            // LED detection
-            else if (upper_pin.find("LIGHT") != std::string::npos ||
-                     upper_pin.find("LED") != std::string::npos ||
-                     upper_pin.find("LAMP") != std::string::npos) {
-                leds_.push_back(name);
-                has_led_ = true;
-            }
-            // Speaker/buzzer detection for M300 support
-            if (upper_pin.find("BEEPER") != std::string::npos ||
-                upper_pin.find("BUZZER") != std::string::npos ||
-                upper_pin.find("SPEAKER") != std::string::npos) {
-                has_speaker_ = true;
-            }
+            break;
+        default:
+            break;
         }
+        if (cls.kind != hw::ObjectKind::Unknown) {
+            continue;
+        }
+
         // ================================================================
         // Capability flags
         // ================================================================
-        else if (name == "quad_gantry_level") {
+        if (name == "quad_gantry_level") {
             has_qgl_ = true;
         } else if (name == "z_tilt") {
             has_z_tilt_ = true;
         } else if (name == "bed_mesh") {
             has_bed_mesh_ = true;
-        } else if (name == "probe" || name == "bltouch" || name == "smart_effector" ||
-                   name == "cartographer" || name == "beacon") {
-            has_probe_ = true;
-        } else if (name.rfind("probe_eddy_current ", 0) == 0) {
-            has_probe_ = true;
         } else if (name == "firmware_retraction") {
             has_firmware_retraction_ = true;
         } else if (name == "timelapse") {
@@ -410,26 +365,9 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
                 afc_buffer_names_.push_back(buffer_name);
             }
         }
-        // AD5X IFS detection via ZMOD firmware sensors
-        // Three sensor name patterns trigger detection:
-        //   1. lessWaste plugin:  "filament_switch_sensor _ifs_port_sensor_N"
-        //   2. Native ZMOD (old): "filament_motion_sensor _ifs_motion_sensor_N"
-        //   3. Native ZMOD:       "filament_motion_sensor ifs_motion_sensor"
-        //   4. Standalone IFS module (the Forge-X drop-in): the `ifs` /
-        //      `ifs_materials` get_status objects themselves. Its sensors
-        //      register under stock filament_switch_sensor names the
-        //      client-side bucketing already subscribes ("lane1".."lane4",
-        //      "toolhead"), so no sensor pattern is needed for it - and
-        //      these two names must NOT go into filament_sensor_names_,
-        //      which FilamentSensorManager reads as sensors.
-        else if (!has_mmu_ && (name.rfind("filament_switch_sensor _ifs_port_sensor_", 0) == 0 ||
-                               name.rfind("filament_motion_sensor _ifs_motion_sensor_", 0) == 0 ||
-                               name == "filament_motion_sensor ifs_motion_sensor")) {
-            has_mmu_ = true;
-            mmu_type_ = AmsType::AD5X_IFS;
-            filament_sensor_names_.push_back(name);
-        }
-        // The standalone module's objects, on their own: an [ifs] section
+        // Standalone IFS module (the Forge-X drop-in): its sensors register under
+        // stock filament_switch_sensor names, so no sensor pattern is needed and
+        // these two names are not sensors. The module's objects, on their own: an [ifs] section
         // with no sensors configured, or [ifs_materials] on a machine whose
         // IFS board is unplugged (deliberately readable without the board -
         // the UI should still show the slot registry and report
@@ -495,20 +433,6 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
             if (!tool_name.empty()) {
                 tool_names_.push_back(tool_name);
             }
-        }
-        // ================================================================
-        // Width sensors (filament diameter measurement)
-        // ================================================================
-        else if (name == "hall_filament_width_sensor" ||
-                 name == "tsl1401cl_filament_width_sensor") {
-            width_sensor_objects_.push_back(name);
-        }
-        // ================================================================
-        // Filament sensors
-        // ================================================================
-        else if (name.rfind("filament_switch_sensor ", 0) == 0 ||
-                 name.rfind("filament_motion_sensor ", 0) == 0) {
-            filament_sensor_names_.push_back(name);
         }
         // ================================================================
         // Macro detection
@@ -617,6 +541,8 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
             }
         }
     }
+
+    rebuild_buckets();
 
     // AFC_stepper objects can be lanes (Box Turtle: "AFC_stepper lane0") or motor
     // components (Vivid: "AFC_stepper Vivid_1_drive"/"Vivid_1_selector").
@@ -745,6 +671,61 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     register_detected_ams_systems();
 }
 
+namespace {
+
+bool kind_in(hw::ObjectKind kind, std::initializer_list<hw::ObjectKind> kinds) {
+    return std::find(kinds.begin(), kinds.end(), kind) != kinds.end();
+}
+
+} // namespace
+
+std::vector<std::string>
+PrinterDiscovery::objects_of(std::initializer_list<hw::ObjectKind> kinds) const {
+    std::vector<std::string> out;
+    for (const auto& o : objects_) {
+        if (kind_in(o.cls.kind, kinds)) {
+            out.push_back(o.name);
+        }
+    }
+    return out;
+}
+
+std::vector<std::string>
+PrinterDiscovery::sections_of(std::initializer_list<hw::ObjectKind> kinds) const {
+    std::vector<std::string> out;
+    for (const auto& s : sections_) {
+        if (kind_in(s.cls.kind, kinds)) {
+            out.push_back(s.name);
+        }
+    }
+    return out;
+}
+
+const nlohmann::json* PrinterDiscovery::section(std::string_view name) const {
+    for (const auto& s : sections_) {
+        if (s.name == name) {
+            return &s.body;
+        }
+    }
+    return nullptr;
+}
+
+void PrinterDiscovery::rebuild_buckets() {
+    using hw::ObjectKind;
+    heaters_ = objects_of({ObjectKind::Heater, ObjectKind::GenericHeater});
+    fans_ =
+        objects_of({ObjectKind::Fan, ObjectKind::HeaterFan, ObjectKind::ControllerFan,
+                    ObjectKind::GenericFan, ObjectKind::TemperatureFan, ObjectKind::OutputPinFan});
+    sensors_ = objects_of({ObjectKind::TemperatureSensor, ObjectKind::TemperatureFan,
+                           ObjectKind::DriverTemperature, ObjectKind::HumidityChip});
+    leds_ = objects_of({ObjectKind::Led, ObjectKind::OutputPinLed});
+    led_effects_ = objects_of({ObjectKind::LedEffect});
+    load_cells_ = objects_of({ObjectKind::LoadCell});
+    steppers_ = objects_of({ObjectKind::Stepper});
+    width_sensor_objects_ = objects_of({ObjectKind::WidthSensor});
+    filament_sensor_names_ = objects_of({ObjectKind::FilamentSwitch, ObjectKind::FilamentMotion});
+}
+
 void PrinterDiscovery::settle_status_claims(const nlohmann::json& status) {
     if (!has_openams_manager_ || has_mmu_) {
         return;
@@ -811,39 +792,11 @@ void PrinterDiscovery::parse_config_keys(const nlohmann::json& config) {
         }
     }
 
+    sections_.clear();
     for (const auto& [key, value] : config.items()) {
-        if (key == "adxl345" || key.rfind("adxl345 ", 0) == 0 || key == "lis2dw" ||
-            key.rfind("lis2dw ", 0) == 0 || key == "mpu9250" || key.rfind("mpu9250 ", 0) == 0 ||
-            key == "lis3dh" || key.rfind("lis3dh ", 0) == 0 || key == "icm20948" ||
-            key.rfind("icm20948 ", 0) == 0 || key == "resonance_tester") {
-            has_accelerometer_ = true;
-            spdlog::debug("[PrinterDiscovery] Accelerometer detected from config: {}", key);
-        }
-
-        // Beacon RevH has an onboard LIS2DW accelerometer.
-        // Detect from accel-specific config fields in the [beacon] section.
-        if (key == "beacon" && value.is_object()) {
-            if (value.contains("accel_scale") || value.contains("accel_axes_map")) {
-                has_accelerometer_ = true;
-                spdlog::debug(
-                    "[PrinterDiscovery] Beacon onboard accelerometer detected from config");
-            }
-        }
-
-        // Also detect accelerometers referenced by resonance_tester
-        // (e.g., accel_chip: beacon for Beacon RevH probes)
-        if (key == "resonance_tester" && value.is_object()) {
-            for (const auto& field : {"accel_chip", "accel_chip_x", "accel_chip_y"}) {
-                if (value.contains(field) && value[field].is_string()) {
-                    const auto& chip = value[field].get<std::string>();
-                    if (chip == "beacon" || chip.rfind("beacon ", 0) == 0) {
-                        has_accelerometer_ = true;
-                        spdlog::debug("[PrinterDiscovery] Beacon accelerometer detected via "
-                                      "resonance_tester {}",
-                                      field);
-                    }
-                }
-            }
+        const hw::ObjectClass cls = hw::classify_section(key, value);
+        if (cls.kind != hw::ObjectKind::Unknown) {
+            sections_.push_back({key, cls, value});
         }
 
         // screws_tilt_adjust doesn't implement get_status() in Klipper,
@@ -861,6 +814,8 @@ void PrinterDiscovery::parse_config_keys(const nlohmann::json& config) {
             spdlog::debug("[PrinterDiscovery] auto_screws_tilt_adjust detected from config");
         }
     }
+
+    has_accelerometer_ = !sections_of({hw::ObjectKind::Accelerometer}).empty();
 
     if (config.contains("spoollink")) {
         has_spoollink_ = true;
@@ -977,24 +932,13 @@ void PrinterDiscovery::parse_probe_xy_offset(const nlohmann::json& settings) {
     if (!settings.is_object()) {
         return;
     }
-    // Klipper allows one Z probe, so the first section present is the one
-    // PROBE_CALIBRATE uses. Section names arrive lowercased.
-    static constexpr const char* kProbeSections[] = {"probe", "bltouch", "smart_effector",
-                                                     "load_cell_probe", "dockable_probe"};
+    // Klipper allows one Z probe, so the first probe section present is the
+    // one PROBE_CALIBRATE uses. Section names arrive lowercased.
     const nlohmann::json* section = nullptr;
-    for (const char* name : kProbeSections) {
-        const auto s = settings.find(name);
-        if (s != settings.end() && s->is_object()) {
-            section = &*s;
+    for (const auto& [name, value] : settings.items()) {
+        if (value.is_object() && hw::classify_section(name, value).kind == hw::ObjectKind::Probe) {
+            section = &value;
             break;
-        }
-    }
-    if (!section) {
-        for (const auto& [name, value] : settings.items()) {
-            if (name.rfind("probe_eddy_current ", 0) == 0 && value.is_object()) {
-                section = &value;
-                break;
-            }
         }
     }
     if (!section) {
@@ -1020,6 +964,9 @@ void PrinterDiscovery::apply_printer_info(const nlohmann::json& result) {
 }
 
 void PrinterDiscovery::clear() {
+    objects_.clear();
+    sections_.clear();
+
     // Hardware lists
     heaters_.clear();
     fans_.clear();

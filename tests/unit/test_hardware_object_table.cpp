@@ -102,6 +102,8 @@ TEST_CASE("hw table: output_pin keyword rule", "[hw_object_table]") {
     CHECK(obj("output_pin led_fan").kind == ObjectKind::OutputPinFan);
     CHECK(obj("output_pin case_fans").kind == ObjectKind::OutputPinFan);
     CHECK(obj("output_pin fan0").kind == ObjectKind::OutputPinFan);
+    CHECK(obj("output_pin Enclosure_LEDs").kind == ObjectKind::OutputPinLed);
+    CHECK(obj("output_pin case_lights").kind == ObjectKind::OutputPinLed);
     CHECK(obj("output_pin FAN2").kind == ObjectKind::OutputPinFan);
     CHECK(obj("output_pin case_light").kind == ObjectKind::OutputPinLed);
     CHECK(obj("output_pin LED_strip").kind == ObjectKind::OutputPinLed);

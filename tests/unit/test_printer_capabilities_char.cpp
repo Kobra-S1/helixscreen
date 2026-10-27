@@ -664,12 +664,12 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
 
     SECTION("LED detected from output_pin with LIGHT in name") {
         PrinterDiscovery hardware;
-        nlohmann::json objects = {"output_pin caselight"};
+        nlohmann::json objects = {"output_pin case_light"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
         UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
-        // "caselight" contains "LIGHT", so LED IS detected
+        // "light" is a whole `_`-separated token, so LED IS detected
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_led")) == 1);
     }
 
@@ -715,14 +715,14 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_speaker")) == 0);
     }
 
-    SECTION("accelerometer detected from resonance_tester in config") {
+    SECTION("a bare resonance_tester is not an accelerometer") {
         PrinterDiscovery hardware;
         nlohmann::json config = {{"resonance_tester", nlohmann::json::object()}};
         hardware.parse_config_keys(config);
         state.set_hardware(hardware);
         UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
-        REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_accelerometer")) == 1);
+        REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_accelerometer")) == 0);
     }
 
     SECTION("accelerometer detected from adxl345 in config") {

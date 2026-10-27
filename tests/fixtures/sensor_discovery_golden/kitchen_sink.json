@@ -1,7 +1,9 @@
 {
   "buckets": {
     "fans": [
+      "output_pin exhaust_fan",
       "output_pin fan_light",
+      "output_pin led_fan",
       "temperature_fan exhaust",
       "heater_fan hotend_fan",
       "controller_fan board",
@@ -26,7 +28,6 @@
       "heater_generic chamber_heater"
     ],
     "leds": [
-      "output_pin led_fan",
       "neopixel",
       "dotstar",
       "neopixel strip"
@@ -72,6 +73,8 @@
       "fan"
     ],
     "sensors": [
+      "aht20_f heater_box1",
+      "bme280 enclosure",
       "temperature_sensor extruder_board",
       "temperature_fan exhaust",
       "tmc2240 stepper_x"

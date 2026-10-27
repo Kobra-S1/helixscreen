@@ -66,7 +66,9 @@
       "filament_switch_sensor runout_sensor"
     ],
     "sensors": [
-      "temperature_sensor chamber"
+      "temperature_sensor chamber",
+      "bme280 chamber",
+      "htu21d dryer"
     ],
     "width_sensor_objects": [
       "hall_filament_width_sensor"

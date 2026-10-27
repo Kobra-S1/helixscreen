@@ -168,7 +168,8 @@ template <size_t N> bool has_token(std::string_view name, const std::string_view
 
 ObjectKind output_pin_kind(std::string_view pin_name) {
     static constexpr std::string_view kFanWords[] = {"fan", "fans"};
-    static constexpr std::string_view kLedWords[] = {"light", "led", "lamp"};
+    static constexpr std::string_view kLedWords[] = {"light", "lights", "led",
+                                                     "leds",  "lamp",   "lamps"};
     static constexpr std::string_view kSpeakerWords[] = {"beeper", "buzzer", "speaker"};
     if (has_token(pin_name, kFanWords))
         return ObjectKind::OutputPinFan;

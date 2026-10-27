@@ -16,6 +16,7 @@
 #include "ams_types.h"
 #include "filament_database.h" // filament::kDefaultDiameterMm
 #include "fit_check.h"
+#include "hardware_object_table.h"
 #include "leveling_probe_points.h"
 #include "openams_api.h" // OpenAMS claims only a manager speaking its API
 #include "preprint_skip_wrappers.h"
@@ -24,8 +25,10 @@
 
 #include <algorithm>
 #include <cctype>
+#include <initializer_list>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -158,6 +161,26 @@ class PrinterDiscovery {
 
     [[nodiscard]] const std::vector<std::string>& steppers() const {
         return steppers_;
+    }
+
+    // ========================================================================
+    // Classified objects and config sections
+    // ========================================================================
+
+    /// Objects from printer.objects.list whose class is one of @p kinds, in discovery order.
+    [[nodiscard]] std::vector<std::string>
+    objects_of(std::initializer_list<hw::ObjectKind> kinds) const;
+
+    /// Config sections (configfile.config keys) whose class is one of @p kinds, in config order.
+    [[nodiscard]] std::vector<std::string>
+    sections_of(std::initializer_list<hw::ObjectKind> kinds) const;
+
+    /// Body of a classified config section recorded by parse_config_keys(), or nullptr.
+    [[nodiscard]] const nlohmann::json* section(std::string_view name) const;
+
+    /// Every MCU object ("mcu", "mcu toolhead", ...) in discovery order.
+    [[nodiscard]] std::vector<std::string> mcus() const {
+        return objects_of({hw::ObjectKind::Mcu});
     }
 
     // ========================================================================
@@ -1028,7 +1051,23 @@ class PrinterDiscovery {
         return false;
     }
 
-    // Hardware lists
+    struct ClassifiedName {
+        std::string name;
+        hw::ObjectClass cls;
+    };
+    struct ClassifiedSection {
+        std::string name;
+        hw::ObjectClass cls;
+        nlohmann::json body;
+    };
+
+    /// Recomputes the bucket lists below from objects_.
+    void rebuild_buckets();
+
+    std::vector<ClassifiedName> objects_;     ///< every named object, classified once
+    std::vector<ClassifiedSection> sections_; ///< config sections with a known class
+
+    // Hardware lists: views of objects_, rebuilt by rebuild_buckets()
     std::vector<std::string> heaters_;
     std::vector<std::string> fans_;
     std::vector<std::string> load_cells_;
