@@ -3,6 +3,7 @@
 
 #include "device_display_name.h"
 
+#include "hardware_object_table.h"
 #include "text_io.h"
 
 #include <algorithm>
@@ -36,29 +37,6 @@ const std::unordered_map<std::pair<std::string, DeviceType>, std::string, PairHa
         // Temperature sensors (aliases for heaters when queried as sensors)
         {{"extruder", DeviceType::TEMP_SENSOR}, "Hotend Temperature"},
         {{"heater_bed", DeviceType::TEMP_SENSOR}, "Bed Temperature"},
-};
-
-// Prefixes to strip from object names (the part before the space)
-const std::unordered_set<std::string> kStripPrefixes = {
-    // Fans
-    "heater_fan",
-    "controller_fan",
-    "fan_generic",
-    "temperature_fan",
-    "output_pin",
-    // Heaters
-    "heater_generic",
-    // Temperature sensors
-    "temperature_sensor",
-    // LEDs
-    "neopixel",
-    "led",
-    "dotstar",
-    // Load Cells
-    "load_cell",
-    // Filament sensors
-    "filament_switch_sensor",
-    "filament_motion_sensor",
 };
 
 // Type suffixes to add (if not already present in the name)
@@ -151,12 +129,13 @@ std::string extract_device_suffix(const std::string& object_name) {
         return object_name;
     }
 
-    size_t space_pos = object_name.find(' ');
+    // "<type> <instance>": the table knows every type prefix, so what follows the
+    // space is the instance exactly when the table says so.
+    const size_t space_pos = object_name.find(' ');
     if (space_pos != std::string::npos && space_pos + 1 < object_name.length()) {
-        // Check if prefix is one we should strip
-        std::string prefix = object_name.substr(0, space_pos);
-        if (kStripPrefixes.count(prefix) > 0) {
-            return object_name.substr(space_pos + 1);
+        const std::string tail = object_name.substr(space_pos + 1);
+        if (hw::classify_object(object_name).instance == tail) {
+            return tail;
         }
     }
     return object_name;

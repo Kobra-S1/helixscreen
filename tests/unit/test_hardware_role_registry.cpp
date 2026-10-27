@@ -438,3 +438,36 @@ TEST_CASE("heal_heater_roles: a bed-less printer keeps its saved bed role", "[hw
 TEST_CASE("heal_heater_roles: no config is not a heal", "[hwrole][config]") {
     CHECK_FALSE(helix::heal_heater_roles(nullptr, {"extruder"}));
 }
+
+TEST_CASE("guess never returns a non-candidate", "[hwrole][guess]") {
+    SECTION("a bed_fans fan is not a chamber fan") {
+        const auto* desc = role_descriptor(HardwareRoleId::ChamberFan);
+        CHECK(desc->guess({"fan", "fan_generic bed_fans"}).empty());
+    }
+    SECTION("a heat_fan fan_generic is not a hotend fan") {
+        const auto* desc = role_descriptor(HardwareRoleId::HotendFan);
+        CHECK(desc->guess({"fan", "fan_generic heat_fan"}).empty());
+    }
+    SECTION("a heater_generic named for e0 is not the hotend heater") {
+        const auto* desc = role_descriptor(HardwareRoleId::HotendHeater);
+        CHECK(desc->guess({"heater_bed", "heater_generic e0_block"}).empty());
+    }
+    SECTION("the part fan fallback skips auto-controlled fans") {
+        const auto* desc = role_descriptor(HardwareRoleId::PartFan);
+        CHECK(desc->guess({"controller_fan board", "temperature_fan chamber",
+                           "fan_generic blower"}) == "fan_generic blower");
+    }
+    SECTION("every guess over a mixed list is accepted by its own predicate") {
+        const std::vector<std::string> mixed = {
+            "heater_fan hotend_fan", "controller_fan mcu_fan", "temperature_fan chamber",
+            "fan_generic bed_fans",  "fan_generic heat_fan",   "fan_generic exhaust",
+            "fan_generic aux",       "fan_generic nevermore",  "output_pin fan0"};
+        for (const auto id :
+             {HardwareRoleId::PartFan, HardwareRoleId::HotendFan, HardwareRoleId::ChamberFan,
+              HardwareRoleId::ExhaustFan, HardwareRoleId::AuxFan}) {
+            const auto* desc = role_descriptor(id);
+            const std::string g = desc->guess(mixed);
+            CHECK((g.empty() || desc->is_candidate(g)));
+        }
+    }
+}

@@ -64,18 +64,6 @@
 
 namespace helix {
 
-namespace {
-
-/// Whether a filament backend publishes its sensors under @p name's object-type
-/// prefix instead of Klipper's stock filament_switch_sensor / filament_motion_sensor.
-bool is_backend_filament_sensor(const std::string& name) {
-    const auto& prefixes = AmsBackend::filament_sensor_object_prefixes();
-    return std::any_of(prefixes.begin(), prefixes.end(),
-                       [&name](const std::string& prefix) { return name.rfind(prefix, 0) == 0; });
-}
-
-} // namespace
-
 bool probe_snapshot_reachable(const std::string& snapshot_url) {
 #ifdef __ANDROID__
     if (needs_platform_tls(snapshot_url, HV_WITH_SSL)) {

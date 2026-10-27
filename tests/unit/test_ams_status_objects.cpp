@@ -161,10 +161,3 @@ TEST_CASE("the dispatcher merges every backend", "[ams][ams_status_objects]") {
               std::set<std::string>{"ace"});
     }
 }
-
-TEST_CASE("the filament sensor prefixes name the IFS module's sensors",
-          "[ams][ams_status_objects]") {
-    const auto& prefixes = AmsBackend::filament_sensor_object_prefixes();
-    CHECK(prefixes ==
-          std::vector<std::string>{"zmod_ifs_switch_sensor ", "zmod_ifs_motion_sensor "});
-}
