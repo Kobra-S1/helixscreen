@@ -41,8 +41,8 @@
 #include "print_start_profile.h"
 #include "printer_detector.h"
 #include "printer_state.h"
-#include "probe_sensor_manager.h"
 #include "screws_tilt_dialect.h"
+#include "sensor_manager.h"
 #include "sensor_state.h"
 #include "system/platform_tls.h"
 #include "text_io.h"
@@ -885,29 +885,34 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                 const auto& cfg =
                                     config_response["result"]["status"]["configfile"]["config"];
                                 std::unordered_set<std::string> macros_snapshot;
+                                std::shared_ptr<PrinterDiscovery> configured_hardware;
                                 {
                                     std::lock_guard<std::mutex> lock(hardware_mutex_);
                                     hardware_.parse_config_keys(cfg);
                                     macros_snapshot = hardware_.macros();
+                                    configured_hardware =
+                                        std::make_shared<PrinterDiscovery>(hardware_);
                                 }
                                 MacroParamCache::instance().populate_from_configfile(
                                     cfg, macros_snapshot);
 
-                                // Seed probe sensor z_offset from configfile (some probe
-                                // modules like flashforge_loadcell return null in status).
                                 // Accelerometers have no get_status(), so configfile.config
                                 // is the ONLY place they appear — this is the sole caller
                                 // that fills AccelSensorManager, which Settings > Sensors,
                                 // telemetry and detect_belt_hardware() all read.
                                 // Both must run on main thread: they set LVGL subjects
-                                // (probe_z_offset, accel_count). discover_from_config() rebuilds
+                                // (accel_count). discover_from_config() rebuilds
                                 // its list from scratch, so a reconnect re-run cannot duplicate.
                                 nlohmann::json cfg_for_sensors = cfg;
                                 helix::ui::queue_update(
                                     "MoonrakerDiscoverySequence::continue_discovery_objects",
-                                    [cfg_for_sensors]() {
-                                        helix::sensors::ProbeSensorManager::instance()
-                                            .discover_from_config(cfg_for_sensors);
+                                    [cfg_for_sensors, configured_hardware]() {
+                                        // The first sensor pass ran before the configfile
+                                        // arrived; config sections (a probe's z_offset) are
+                                        // read on this one.
+                                        for (auto* manager : helix::sensors::sensor_managers()) {
+                                            manager->discover(*configured_hardware);
+                                        }
                                         helix::sensors::AccelSensorManager::instance()
                                             .discover_from_config(cfg_for_sensors);
                                         helix::sensors::InputSensorManager::instance()
@@ -1301,7 +1306,7 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
     // temperature kind because Moonraker omits it for sensors that do not report
     // it. An extruder also carries pressure advance, which the tuning screens
     // read back as the truth of what is in effect. Probes are subscribed below
-    // by ProbeSensorManager, whose fields vary per probe type.
+    // through the sensor managers, whose fields vary per probe type.
     for (const auto& [name, kind] : hw.object_kinds()) {
         const auto& fields = helix::hw::status_fields(kind);
         if (fields.empty()) {
@@ -1419,12 +1424,11 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
     subscription_objects = merge_subscription_objects(
         subscription_objects, helix::pause_descriptor::required_status_fields(hw));
 
-    // Probe objects. ProbeSensorManager owns which names are probes and which
-    // fields it reads.
-    const json probe_objects =
-        helix::sensors::ProbeSensorManager::required_status_objects(hw.printer_objects());
-    for (auto it = probe_objects.begin(); it != probe_objects.end(); ++it) {
-        subscription_objects[it.key()] = it.value();
+    // Each sensor manager owns the subscriptions beyond its kinds' table fields
+    // (a probe's fields vary per probe type).
+    for (auto* manager : helix::sensors::sensor_managers()) {
+        subscription_objects =
+            merge_subscription_objects(subscription_objects, manager->extra_subscriptions(hw));
     }
 
     // Toolchanger + per-tool objects. AmsBackendToolchanger reads

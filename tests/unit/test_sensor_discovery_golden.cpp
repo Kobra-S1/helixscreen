@@ -109,7 +109,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     // Empty inputs clear whatever the previous persona left behind.
     tsm.discover({});
     lcm.discover({});
-    psm.discover({});
+    psm.discover(PrinterDiscovery{});
     hsm.discover(PrinterDiscovery{});
     wsm.discover(PrinterDiscovery{});
     ism.discover({});
@@ -119,12 +119,15 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     fsm.discover_sensors(hw.filament_sensor_names());
     tsm.discover(helix::temperature_sensor_objects(hw));
     lcm.discover(hw.load_cells());
-    psm.discover(hw.printer_objects());
+    PrinterDiscovery probe_hw = hw;
+    if (configfile != nullptr) {
+        probe_hw.parse_config_keys(*configfile);
+    }
+    psm.discover(probe_hw);
     hsm.discover(hw);
     wsm.discover(hw);
     ism.discover(hw.printer_objects());
     if (configfile != nullptr) {
-        psm.discover_from_config(*configfile);
         asm_.discover_from_config(*configfile);
         ism.discover_from_config(*configfile);
     }
@@ -186,7 +189,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     fsm.discover_sensors({});
     tsm.discover({});
     lcm.discover({});
-    psm.discover({});
+    psm.discover(PrinterDiscovery{});
     hsm.discover(PrinterDiscovery{});
     wsm.discover(PrinterDiscovery{});
     ism.discover({});

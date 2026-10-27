@@ -7,14 +7,15 @@
  *
  * MoonrakerClientMock::discover_printer() is a shortcut past the real
  * MoonrakerDiscoverySequence. The real sequence queries
- * `configfile.config` and hands it to ProbeSensorManager::discover_from_config()
- * so a probe whose runtime status reports a null z_offset (flashforge_loadcell
- * is the motivating case) still gets its persisted offset. Nothing exercised
+ * `configfile.config` into PrinterDiscovery, and ProbeSensorManager::discover()
+ * seeds from that section so a probe whose runtime status reports a null
+ * z_offset (flashforge_loadcell is the motivating case) still gets its
+ * persisted offset. Nothing exercised
  * that under --test, which is exactly where it would be verified.
  *
  * Two halves, tested separately so a failure says which one broke:
  *  1. the mock's configfile payload actually carries a probe section
- *  2. discover_printer() feeds that section to ProbeSensorManager
+ *  2. discover_printer() hands that section to ProbeSensorManager
  */
 
 #include "ui_update_queue.h"
@@ -22,6 +23,7 @@
 #include "../../src/api/moonraker_client_mock_internal.h"
 #include "../lvgl_test_fixture.h"
 #include "moonraker_client_mock.h"
+#include "printer_discovery.h"
 #include "probe_sensor_manager.h"
 #include "test_helpers/scoped_env.h"
 
@@ -71,22 +73,20 @@ class MockProbeDiscoveryFixture : public LVGLTestFixture {
 
     ~MockProbeDiscoveryFixture() override {
         // Leave no discovered probes behind for the next test in this process.
-        ProbeSensorManager::instance().discover({});
+        ProbeSensorManager::instance().discover(PrinterDiscovery{});
         helix::ui::UpdateQueue::instance().drain();
     }
 
   protected:
     /// What PrinterSession::setup_discovery_callbacks() does for probes: on
     /// hardware discovery, queue ProbeSensorManager::discover() onto the main
-    /// thread. Registering it makes the ordering under test real — the seeding
-    /// callback must land AFTER this one or there are no sensors to seed.
+    /// thread with the discovery data, config sections included.
     static void wire_app_probe_discovery(MoonrakerClientMock& client) {
         client.set_on_hardware_discovered([](const helix::PrinterDiscovery& hardware) {
-            auto objects = hardware.printer_objects();
-            helix::ui::queue_update([objects]() {
+            helix::ui::queue_update([hw = hardware]() {
                 auto& psm = ProbeSensorManager::instance();
-                psm.discover(objects);
-                psm.load_config_from_file();
+                psm.discover(hw);
+                psm.load_settings();
             });
         });
     }
@@ -173,8 +173,8 @@ TEST_CASE_METHOD(MockProbeDiscoveryFixture,
     helix::ui::UpdateQueue::instance().drain();
 
     auto& psm = ProbeSensorManager::instance();
-    REQUIRE(psm.has_sensors());
-    psm.set_sensor_role("bltouch", ProbeSensorRole::Z_PROBE);
+    REQUIRE(psm.sensor_count() > 0);
+    psm.set_role("bltouch", static_cast<uint8_t>(ProbeSensorRole::Z_PROBE));
 
     // No status update has arrived (discover_printer does not dispatch one), so
     // the only possible source of a non-zero offset is the configfile seed.
@@ -197,8 +197,8 @@ TEST_CASE_METHOD(MockProbeDiscoveryFixture,
     helix::ui::UpdateQueue::instance().drain();
 
     auto& psm = ProbeSensorManager::instance();
-    REQUIRE(psm.has_sensors());
-    psm.set_sensor_role("probe", ProbeSensorRole::Z_PROBE);
+    REQUIRE(psm.sensor_count() > 0);
+    psm.set_role("probe", static_cast<uint8_t>(ProbeSensorRole::Z_PROBE));
     REQUIRE(psm.get_z_offset() == Catch::Approx(-0.185f));
 
     json status;
