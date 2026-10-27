@@ -283,6 +283,18 @@ TEST_CASE("A frame with no dock fields reports no docks at all",
     CHECK_FALSE(r->head_loaded.has_value());
 }
 
+TEST_CASE("The controller's target tool is read, and absent means no news",
+          "[toolchanger][toolsource][last_error]") {
+    auto r = read_tool(json{{"medusahc", {{"target_tool", 2}}}});
+    REQUIRE(r.has_value());
+    REQUIRE(r->target_tool.has_value());
+    CHECK(*r->target_tool == 2);
+
+    auto silent = read_tool(json{{"medusahc", {{"current_tool", 1}}}});
+    REQUIRE(silent.has_value());
+    CHECK_FALSE(silent->target_tool.has_value());
+}
+
 // ============================================================================
 // Who owns the swap
 // ============================================================================

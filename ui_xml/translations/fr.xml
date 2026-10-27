@@ -1592,6 +1592,7 @@
   <translation tag="Heat the chamber too" fr="Chauffer aussi l&apos;enceinte"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" fr="Chauffez l&apos;extrudeur à au moins {}°C avant de charger le filament"/>
   <translation tag="Heat to at least %d°C for filament operations" fr="Chauffez à au moins %d°C pour les opérations sur le filament"/>
+  <translation tag="Heat {} above {}°C before resuming" fr="Chauffez {} au-dessus de {}°C avant de reprendre"/>
   <translation tag="Heatbed Temperature" fr="Température du plateau chauffant"/>
   <translation tag="Heated Bed" fr="Plateau chauffant"/>
   <translation tag="Heated Bed MPC Calibration" fr="Calibration MPC du plateau chauffant"/>
@@ -3208,6 +3209,7 @@
   <translation tag="Seat" fr="Installer"/>
   <translation tag="Seat a tool by hand" fr="Installer un outil à la main"/>
   <translation tag="Seat a tool by hand for the first Z home" fr="Installer un outil à la main pour la première prise d&apos;origine Z"/>
+  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." fr="Remettez les hotends en place, chauffez {} au-dessus de {}°C, puis appuyez sur Reprendre."/>
   <translation tag="Seat which tool by hand?" fr="Quel outil installer à la main ?"/>
   <translation tag="Seating {}..." fr="Installation de {}..."/>
   <translation tag="Secondary" fr="Secondaire"/>
@@ -3897,6 +3899,8 @@
   <translation tag="Tool change failed: {}" fr="Échec du changement d&apos;outil : {}"/>
   <translation tag="Tool change speed" fr="Vitesse de changement d&apos;outil"/>
   <translation tag="Tool change to T{}" fr="Changement d&apos;outil vers T{}"/>
+  <translation tag="Tool change to {} failed: {}" fr="Échec du changement vers l&apos;outil {} : {}"/>
+  <translation tag="Tool changer error: {}" fr="Erreur du changeur d&apos;outils : {}"/>
   <translation tag="Tool cycle failed: {}" fr="Échec de la rotation des outils : {}"/>
   <translation tag="Tool cycle finished" fr="Rotation des outils terminée"/>
   <translation tag="Tool is seated" fr="L&apos;outil est en place"/>

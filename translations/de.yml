@@ -1756,6 +1756,7 @@ translations:
   Heat the extruder to at least {}°C before loading filament: Erhitzen Sie den Extruder vor dem Laden von Filament auf mindestens {}°C
   Heat to at least %d°C for filament operations: Für Filamentvorgänge auf mindestens
     %d°C aufheizen
+  Heat {} above {}°C before resuming: '{} vor dem Fortsetzen über {}°C aufheizen'
   Heatbed Temperature: Heizbett-Temperatur
   Heated Bed: Heizbett
   Heated Bed MPC Calibration: Heizbett MPC-Kalibrierung
@@ -3511,6 +3512,7 @@ translations:
   Seat: Einsetzen
   Seat a tool by hand: Werkzeug von Hand einsetzen
   Seat a tool by hand for the first Z home: Für die erste Z-Referenzfahrt ein Werkzeug von Hand einsetzen
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: 'Setzen Sie die Hotends ein, heizen Sie {} über {}°C auf und tippen Sie dann auf Fortsetzen.'
   Seat which tool by hand?: Welches Werkzeug von Hand einsetzen?
   Seating {}...: '{} wird eingesetzt...'
   Secondary: Sekundär
@@ -4322,6 +4324,8 @@ translations:
   'Tool change failed: {}': 'Werkzeugwechsel fehlgeschlagen: {}'
   Tool change speed: Werkzeugwechsel-Geschwindigkeit
   Tool change to T{}: 'Werkzeugwechsel zu T{}'
+  'Tool change to {} failed: {}': 'Werkzeugwechsel zu {} fehlgeschlagen: {}'
+  'Tool changer error: {}': 'Werkzeugwechsler-Fehler: {}'
   'Tool cycle failed: {}': 'Werkzeugwechsel-Durchlauf fehlgeschlagen: {}'
   Tool cycle finished: Werkzeugwechsel-Durchlauf abgeschlossen
   Tool is seated: Werkzeug sitzt

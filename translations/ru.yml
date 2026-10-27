@@ -1789,6 +1789,7 @@ translations:
   Heat the chamber too: Нагреть и камеру
   Heat the extruder to at least {}°C before loading filament: Перед загрузкой филамента нагрейте экструдер минимум до {}°C
   Heat to at least %d°C for filament operations: Нагрейте минимум до %d°C для операций с филаментом
+  Heat {} above {}°C before resuming: 'Перед возобновлением нагрейте {} выше {}°C'
   Heatbed Temperature: Температура стола
   Heated Bed: Подогреваемый стол
   Heated Bed MPC Calibration: Калибровка MPC стола
@@ -3548,6 +3549,7 @@ translations:
   Seat: Установить
   Seat a tool by hand: Установить инструмент вручную
   Seat a tool by hand for the first Z home: Установить инструмент вручную для первой парковки Z
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: 'Установите хотэнды на место, нагрейте {} выше {}°C и нажмите «Продолжить».'
   Seat which tool by hand?: Какой инструмент установить вручную?
   Seating {}...: Установка {}...
   Secondary: Вторичный
@@ -4356,6 +4358,8 @@ translations:
   'Tool change failed: {}': 'Ошибка смены инструмента: {}'
   Tool change speed: Скорость смены инструмента
   Tool change to T{}: 'Смена инструмента на T{}'
+  'Tool change to {} failed: {}': 'Ошибка смены инструмента на {}: {}'
+  'Tool changer error: {}': 'Ошибка сменщика инструментов: {}'
   'Tool cycle failed: {}': 'Ошибка перебора инструментов: {}'
   Tool cycle finished: Перебор инструментов завершён
   Tool is seated: Инструмент установлен

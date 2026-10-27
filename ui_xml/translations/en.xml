@@ -1592,6 +1592,7 @@
   <translation tag="Heat the chamber too" en="Heat the chamber too"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" en="Heat the extruder to at least {}°C before loading filament"/>
   <translation tag="Heat to at least %d°C for filament operations" en="Heat to at least %d°C for filament operations"/>
+  <translation tag="Heat {} above {}°C before resuming" en="Heat {} above {}°C before resuming"/>
   <translation tag="Heatbed Temperature" en="Heatbed Temperature"/>
   <translation tag="Heated Bed" en="Heated Bed"/>
   <translation tag="Heated Bed MPC Calibration" en="Heated Bed MPC Calibration"/>
@@ -3208,6 +3209,7 @@
   <translation tag="Seat" en="Seat"/>
   <translation tag="Seat a tool by hand" en="Seat a tool by hand"/>
   <translation tag="Seat a tool by hand for the first Z home" en="Seat a tool by hand for the first Z home"/>
+  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." en="Seat the hot ends, heat {} above {}°C, then tap Resume."/>
   <translation tag="Seat which tool by hand?" en="Seat which tool by hand?"/>
   <translation tag="Seating {}..." en="Seating {}..."/>
   <translation tag="Secondary" en="Secondary"/>
@@ -3897,6 +3899,8 @@
   <translation tag="Tool change failed: {}" en="Tool change failed: {}"/>
   <translation tag="Tool change speed" en="Tool change speed"/>
   <translation tag="Tool change to T{}" en="Tool change to T{}"/>
+  <translation tag="Tool change to {} failed: {}" en="Tool change to {} failed: {}"/>
+  <translation tag="Tool changer error: {}" en="Tool changer error: {}"/>
   <translation tag="Tool cycle failed: {}" en="Tool cycle failed: {}"/>
   <translation tag="Tool cycle finished" en="Tool cycle finished"/>
   <translation tag="Tool is seated" en="Tool is seated"/>

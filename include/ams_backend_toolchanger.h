@@ -441,6 +441,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     [[nodiscard]] bool reset_available() const override;
     [[nodiscard]] bool recover_available() const override;
     AmsError cancel() override;
+    /// Refuses while a swap the controller failed mid-print leaves its target
+    /// tool too cold for the machine's own RESUME.
+    void prepare_for_resume(int slot_index, ResumeReadyCallback on_ready) override;
     /// Also drops the optimistic dispatch, which would otherwise read the
     /// first idle frame after the restart as the middle of an operation, and
     /// retires its generation so a late ack resolves nothing. A mount-to-feed
@@ -508,6 +511,13 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// SELECT_TOOL/UNSELECT_TOOL in place.
     void set_tool_commands(helix::toolchanger_addon::ToolCommands commands) {
         tool_commands_ = std::move(commands);
+    }
+
+    /// toolchanger_addon::resume_min_nozzle_c(): 0 for a machine whose RESUME
+    /// has no temperature rule.
+    void set_resume_min_nozzle_c(int celsius) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        resume_min_nozzle_c_ = celsius;
     }
 
     /// Filament feed through the firmware's own shim. Absent leaves Load as a
@@ -728,8 +738,26 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// The failure already put in front of the user, by this toast or by a
     /// mount-to-feed run's own, so one failure is told once.
     std::string controller_failure_noticed_;
-    /// A toast apply_tool_sensor_locked() decided on, shown once mutex_ is free.
+    /// The controller's `target_tool`: the tool its last operation was moving
+    /// to, -1 for none. Persists across frames that do not name it. Guarded by
+    /// mutex_.
+    int controller_target_tool_ = -1;
+    /// See set_resume_min_nozzle_c(). Guarded by mutex_.
+    int resume_min_nozzle_c_ = 0;
+    /// A toast apply_tool_sensor_locked() decided on, whole and ready to show
+    /// once mutex_ is free, and how loud.
     std::string pending_failure_toast_;
+    ToastSeverity pending_failure_severity_ = ToastSeverity::WARNING;
+    /// The controller's failure as the user reads it: the swap's target tool
+    /// when the controller named one, then its own message. Caller holds mutex_.
+    [[nodiscard]] std::string controller_failure_text_locked() const;
+    /// The tool a failed swap leaves the machine's RESUME to pick again, when
+    /// that RESUME has a temperature rule; -1 otherwise. Caller holds mutex_.
+    [[nodiscard]] int recovery_target_locked() const;
+    /// "Tool 3 (T2)" for a valid @p target. Caller holds mutex_.
+    [[nodiscard]] std::string target_tool_label_locked(int target) const;
+    /// A print is running or paused. False without an API (print state unknown).
+    [[nodiscard]] bool print_holds_printer() const;
 
     /// Z-Mod's Creator 5 row narrates its swaps through gcode-response markers
     /// (toolchanger_addon::parse_zmod_marker) rather than a status object, so

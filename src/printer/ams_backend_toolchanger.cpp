@@ -62,6 +62,7 @@ void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discove
     set_tool_commands(addon::resolve_tool_commands(discovery));
     set_tool_feed(addon::resolve_tool_feed(discovery));
     set_mounts_to_feed(addon::feeds_through_mount(discovery));
+    set_resume_min_nozzle_c(addon::resume_min_nozzle_c(discovery));
     {
         std::lock_guard<std::mutex> lock(mutex_);
         purge_mm_ = helix::SettingsManager::instance().get_mount_feed_purge_mm();
@@ -706,7 +707,7 @@ std::optional<helix::ErrorEvent> AmsBackendToolChanger::current_error() const {
         // returns, so the dialog and the greyed-out Unmount agree.
         const std::string detail =
             sensor_fault_reported_ && !controller_failure_.empty()
-                ? controller_failure_
+                ? controller_failure_text_locked()
                 : std::string(lv_tr("Dock sensors cannot tell which tool is mounted"));
         return helix::make_ams_fault_event(helix::ErrorSource::TOOLCHANGER,
                                            lv_tr("Dock sensors disagree"), detail,
@@ -752,10 +753,86 @@ bool failure_already_noticed(const std::string& failure, const std::string& noti
 
 } // namespace
 
+std::string AmsBackendToolChanger::controller_failure_text_locked() const {
+    const int target = controller_target_tool_;
+    if (target >= 0 && target < static_cast<int>(tool_names_.size())) {
+        const std::string tool = target_tool_label_locked(target);
+        std::string text = fmt::format(fmt::runtime(lv_tr("Tool change to {} failed: {}")), tool,
+                                       controller_failure_);
+        // The controller paused the print; its RESUME re-picks this tool.
+        if (recovery_target_locked() == target && print_holds_printer()) {
+            text +=
+                ". " + fmt::format(fmt::runtime(lv_tr(
+                                       "Seat the hot ends, heat {} above {}°C, then tap Resume.")),
+                                   tool, resume_min_nozzle_c_);
+        }
+        return text;
+    }
+    return fmt::format(fmt::runtime(lv_tr("Tool change failed: {}")), controller_failure_);
+}
+
+int AmsBackendToolChanger::recovery_target_locked() const {
+    const int target = controller_target_tool_;
+    if (resume_min_nozzle_c_ <= 0 || !controller_failure_latched_ || target < 0 ||
+        target >= static_cast<int>(tool_names_.size())) {
+        return -1;
+    }
+    return target;
+}
+
+std::string AmsBackendToolChanger::target_tool_label_locked(int target) const {
+    return helix::ui::tool_label_in_form(lane_noun(), tool_names_[static_cast<size_t>(target)],
+                                         target, helix::ui::ToolLabelForm::Full);
+}
+
+bool AmsBackendToolChanger::print_holds_printer() const {
+    return api_ && helix::print_blocks_filament_op(
+                       api_->printer_state().print_state().get_print_lifecycle(),
+                       /*backend_self_homes=*/true);
+}
+
+void AmsBackendToolChanger::prepare_for_resume(int /*slot_index*/, ResumeReadyCallback on_ready) {
+    int target = -1;
+    int min_c = 0;
+    std::string tool;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        target = recovery_target_locked();
+        min_c = resume_min_nozzle_c_;
+        if (target >= 0) {
+            tool = target_tool_label_locked(target);
+        }
+    }
+    // The machine's RESUME re-picks the target and refuses below its floor;
+    // asking first turns a console error into a sentence the screen can show.
+    // A heater this side cannot read is left to that refusal.
+    if (target >= 0 && api_) {
+        const auto& extruders = api_->printer_state().temperature_state().extruders();
+        const auto it = extruders.find(helix::mount_feed::heater_name(target));
+        if (it != extruders.end() && it->second.temperature <= static_cast<float>(min_c)) {
+            spdlog::warn("{} Resume refused: {} reads {:.0f}C, the controller wants above {}C",
+                         backend_log_tag(), it->first, it->second.temperature, min_c);
+            if (on_ready) {
+                on_ready(
+                    AmsError(AmsResult::WRONG_STATE,
+                             fmt::format("{} at {:.0f}C, at or below {}C", it->first,
+                                         it->second.temperature, min_c),
+                             fmt::format(fmt::runtime(lv_tr("Heat {} above {}°C before resuming")),
+                                         tool, min_c)));
+            }
+            return;
+        }
+    }
+    if (on_ready) {
+        on_ready(AmsErrorHelper::success());
+    }
+}
+
 void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
     bool state_changed = false;
     bool sensor_fault = false;
     std::string failure_toast;
+    ToastSeverity failure_severity = ToastSeverity::WARNING;
 
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -834,11 +911,11 @@ void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
         }
         sensor_fault = std::exchange(feed_sensor_fault_, false);
         failure_toast = std::exchange(pending_failure_toast_, std::string());
+        failure_severity = pending_failure_severity_;
     }
 
     if (!failure_toast.empty()) {
-        show_feed_toast(fmt::format(fmt::runtime(lv_tr("Tool change failed: {}")), failure_toast),
-                        ToastSeverity::WARNING);
+        show_feed_toast(failure_toast, failure_severity);
     }
 
     // The run reacts to the frame once it is applied: a fault stops it, and a
@@ -915,6 +992,9 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
             controller_failure_noticed_.clear();
         }
     }
+    if (reading.target_tool) {
+        controller_target_tool_ = *reading.target_tool;
+    }
     if (reading.sensor_error_named) {
         controller_failure_latched_ = reading.sensor_error_reported;
         sensor_fault_reported_ = reading.sensor_error_reported && fault;
@@ -965,7 +1045,17 @@ void AmsBackendToolChanger::apply_tool_sensor_locked(
     if (!sensor_error_ && controller_failure_latched_ && !controller_failure_.empty() &&
         !failure_already_noticed(controller_failure_, controller_failure_noticed_)) {
         controller_failure_noticed_ = controller_failure_;
-        pending_failure_toast_ = controller_failure_;
+        pending_failure_toast_ = controller_failure_text_locked();
+        pending_failure_severity_ = ToastSeverity::WARNING;
+    }
+    // A message with no failed operation behind it (the controller's own
+    // startup failing) is about the controller, not a tool change.
+    if (!controller_failure_latched_ && !controller_failure_.empty() &&
+        !failure_already_noticed(controller_failure_, controller_failure_noticed_)) {
+        controller_failure_noticed_ = controller_failure_;
+        pending_failure_toast_ =
+            fmt::format(fmt::runtime(lv_tr("Tool changer error: {}")), controller_failure_);
+        pending_failure_severity_ = ToastSeverity::ERROR;
     }
 
     // Only when the frame named the carriage. A delta carrying just the gripper

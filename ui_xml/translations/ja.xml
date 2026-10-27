@@ -1592,6 +1592,7 @@
   <translation tag="Heat the chamber too" ja="チャンバーも加熱"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" ja="フィラメントを装填する前に、エクストルーダーを最低 {}°C まで加熱してください"/>
   <translation tag="Heat to at least %d°C for filament operations" ja="フィラメント操作には少なくとも %d°C まで加熱してください"/>
+  <translation tag="Heat {} above {}°C before resuming" ja="再開前に{}を{}°C以上に加熱してください"/>
   <translation tag="Heatbed Temperature" ja="ヒートベッド温度"/>
   <translation tag="Heated Bed" ja="加熱ベッド"/>
   <translation tag="Heated Bed MPC Calibration" ja="ヒートベッド MPCキャリブレーション"/>
@@ -3208,6 +3209,7 @@
   <translation tag="Seat" ja="装着"/>
   <translation tag="Seat a tool by hand" ja="ツールを手で装着"/>
   <translation tag="Seat a tool by hand for the first Z home" ja="初回のZホーミングのためにツールを手で装着"/>
+  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." ja="ホットエンドを正しく取り付け、{}を{}°C以上に加熱してから再開をタップしてください。"/>
   <translation tag="Seat which tool by hand?" ja="どのツールを手で装着しますか？"/>
   <translation tag="Seating {}..." ja="{}を装着中..."/>
   <translation tag="Secondary" ja="セカンダリ"/>
@@ -3897,6 +3899,8 @@
   <translation tag="Tool change failed: {}" ja="ツール変更に失敗しました: {}"/>
   <translation tag="Tool change speed" ja="ツール交換速度"/>
   <translation tag="Tool change to T{}" ja="ツールを T{} に変更しています"/>
+  <translation tag="Tool change to {} failed: {}" ja="{}へのツール変更に失敗しました: {}"/>
+  <translation tag="Tool changer error: {}" ja="ツールチェンジャーのエラー: {}"/>
   <translation tag="Tool cycle failed: {}" ja="ツールの順次交換に失敗しました：{}"/>
   <translation tag="Tool cycle finished" ja="ツールの順次交換が完了しました"/>
   <translation tag="Tool is seated" ja="ツールは装着済み"/>

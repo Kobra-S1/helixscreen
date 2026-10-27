@@ -51,6 +51,9 @@ struct Provider {
     /// One extruder drive serves every tool, so filament moves only through
     /// the tool on the carriage: a load or unload mounts it first.
     bool feeds_through_mount;
+    /// The target tool's nozzle must be above this before the machine's own
+    /// RESUME continues a print a failed swap paused; 0 for no such rule.
+    int resume_min_nozzle_c;
 };
 
 // --- MedusaHC ---------------------------------------------------------------
@@ -89,6 +92,11 @@ std::vector<std::string> medusa_status_objects(const PrinterDiscovery& hw) {
     }
     return objects;
 }
+
+/// A failed swap mid-print pauses it (MHC_ERROR), and RESUME runs MHC_RESUME,
+/// which picks the target tool again, priming it, and refuses while that tool's
+/// nozzle is at or below this.
+constexpr int kMedusaResumeMinNozzleC = 190;
 
 /// DROP_TOOL is a [gcode_macro] on every shipped configuration (it also closes
 /// the feeder). A config that dropped it still has the controller's own pair.
@@ -185,10 +193,10 @@ const std::vector<Provider>& providers() {
         // klipper-toolchanger beside the controller.
         {"MedusaHC", medusa_detect, medusa_status_objects, medusa_open_gcode, medusa_close_gcode,
          "T", medusa_unselect_gcode, /*owns_swap=*/true, nullptr, nullptr,
-         /*feeds_through_mount=*/true},
+         /*feeds_through_mount=*/true, kMedusaResumeMinNozzleC},
         {kZmodC5ProviderName, zmod_c5_detect, zmod_c5_status_objects, nullptr, nullptr,
          "_T_IN T=", zmod_c5_unselect_gcode, /*owns_swap=*/true, zmod_c5_material_write,
-         zmod_c5_feed_gcode, /*feeds_through_mount=*/false},
+         zmod_c5_feed_gcode, /*feeds_through_mount=*/false, /*resume_min_nozzle_c=*/0},
     };
     return table;
 }
@@ -290,6 +298,10 @@ std::optional<ToolReading> read_medusahc(const nlohmann::json& obj) {
 
     if (auto it = obj.find("last_error"); it != obj.end() && it->is_string()) {
         r.last_error = it->get<std::string>();
+        saw_anything = true;
+    }
+    if (auto target = int_field(obj, "target_tool")) {
+        r.target_tool = *target;
         saw_anything = true;
     }
 
@@ -520,6 +532,11 @@ ToolSensor resolve_tool_sensor(const PrinterDiscovery& hw) {
         return {};
     }
     return ToolSensor{true, p->name};
+}
+
+int resume_min_nozzle_c(const PrinterDiscovery& hw) {
+    const Provider* p = match(hw);
+    return p ? p->resume_min_nozzle_c : 0;
 }
 
 ToolCommands resolve_tool_commands(const PrinterDiscovery& hw) {

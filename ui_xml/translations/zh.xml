@@ -1592,6 +1592,7 @@
   <translation tag="Heat the chamber too" zh="同时加热腔体"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" zh="装载耗材前请将挤出机加热至至少 {}°C"/>
   <translation tag="Heat to at least %d°C for filament operations" zh="请加热至至少 %d°C 以进行耗材操作"/>
+  <translation tag="Heat {} above {}°C before resuming" zh="恢复前请将{}加热到{}°C以上"/>
   <translation tag="Heatbed Temperature" zh="热床温度"/>
   <translation tag="Heated Bed" zh="加热床"/>
   <translation tag="Heated Bed MPC Calibration" zh="热床 MPC 校准"/>
@@ -3208,6 +3209,7 @@
   <translation tag="Seat" zh="装上"/>
   <translation tag="Seat a tool by hand" zh="手动安装工具"/>
   <translation tag="Seat a tool by hand for the first Z home" zh="首次Z轴归零前手动安装工具"/>
+  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." zh="请装好热端，将{}加热到{}°C以上，然后点击恢复。"/>
   <translation tag="Seat which tool by hand?" zh="手动安装哪个工具？"/>
   <translation tag="Seating {}..." zh="正在安装{}..."/>
   <translation tag="Secondary" zh="次要"/>
@@ -3897,6 +3899,8 @@
   <translation tag="Tool change failed: {}" zh="工具切换失败: {}"/>
   <translation tag="Tool change speed" zh="换工具速度"/>
   <translation tag="Tool change to T{}" zh="切换工具到 T{}"/>
+  <translation tag="Tool change to {} failed: {}" zh="切换到{}失败: {}"/>
+  <translation tag="Tool changer error: {}" zh="换刀器错误: {}"/>
   <translation tag="Tool cycle failed: {}" zh="依次更换工具失败：{}"/>
   <translation tag="Tool cycle finished" zh="依次更换工具完成"/>
   <translation tag="Tool is seated" zh="工具已装好"/>

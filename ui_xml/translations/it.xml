@@ -1592,6 +1592,7 @@
   <translation tag="Heat the chamber too" it="Riscalda anche la camera"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" it="Riscalda l&apos;estrusore ad almeno {}°C prima di caricare il filamento"/>
   <translation tag="Heat to at least %d°C for filament operations" it="Riscalda ad almeno %d°C per le operazioni sul filamento"/>
+  <translation tag="Heat {} above {}°C before resuming" it="Riscaldare {} sopra {}°C prima di riprendere"/>
   <translation tag="Heatbed Temperature" it="Temperatura piano riscaldato"/>
   <translation tag="Heated Bed" it="Piano riscaldato"/>
   <translation tag="Heated Bed MPC Calibration" it="Calibrazione MPC piano riscaldato"/>
@@ -3208,6 +3209,7 @@
   <translation tag="Seat" it="Inserisci"/>
   <translation tag="Seat a tool by hand" it="Inserisci uno strumento a mano"/>
   <translation tag="Seat a tool by hand for the first Z home" it="Inserisci uno strumento a mano per il primo homing Z"/>
+  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." it="Posizionare gli hotend, riscaldare {} sopra {}°C, quindi toccare Riprendi."/>
   <translation tag="Seat which tool by hand?" it="Quale strumento inserire a mano?"/>
   <translation tag="Seating {}..." it="Inserimento di {}..."/>
   <translation tag="Secondary" it="Secondario"/>
@@ -3897,6 +3899,8 @@
   <translation tag="Tool change failed: {}" it="Cambio utensile fallito: {}"/>
   <translation tag="Tool change speed" it="Velocità cambio strumento"/>
   <translation tag="Tool change to T{}" it="Cambio utensile su T{}"/>
+  <translation tag="Tool change to {} failed: {}" it="Cambio utensile a {} fallito: {}"/>
+  <translation tag="Tool changer error: {}" it="Errore del cambio utensile: {}"/>
   <translation tag="Tool cycle failed: {}" it="Ciclo degli strumenti non riuscito: {}"/>
   <translation tag="Tool cycle finished" it="Ciclo degli strumenti completato"/>
   <translation tag="Tool is seated" it="Lo strumento è inserito"/>

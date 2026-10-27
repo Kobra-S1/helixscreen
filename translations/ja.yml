@@ -1655,6 +1655,7 @@ translations:
   Heat the chamber too: チャンバーも加熱
   Heat the extruder to at least {}°C before loading filament: フィラメントを装填する前に、エクストルーダーを最低 {}°C まで加熱してください
   Heat to at least %d°C for filament operations: フィラメント操作には少なくとも %d°C まで加熱してください
+  Heat {} above {}°C before resuming: '再開前に{}を{}°C以上に加熱してください'
   Heatbed Temperature: ヒートベッド温度
   Heated Bed: 加熱ベッド
   Heated Bed MPC Calibration: ヒートベッド MPCキャリブレーション
@@ -3328,6 +3329,7 @@ translations:
   Seat: 装着
   Seat a tool by hand: ツールを手で装着
   Seat a tool by hand for the first Z home: 初回のZホーミングのためにツールを手で装着
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: 'ホットエンドを正しく取り付け、{}を{}°C以上に加熱してから再開をタップしてください。'
   Seat which tool by hand?: どのツールを手で装着しますか？
   Seating {}...: '{}を装着中...'
   Secondary: セカンダリ
@@ -4078,6 +4080,8 @@ translations:
   'Tool change failed: {}': 'ツール変更に失敗しました: {}'
   Tool change speed: ツール交換速度
   Tool change to T{}: 'ツールを T{} に変更しています'
+  'Tool change to {} failed: {}': '{}へのツール変更に失敗しました: {}'
+  'Tool changer error: {}': 'ツールチェンジャーのエラー: {}'
   'Tool cycle failed: {}': ツールの順次交換に失敗しました：{}
   Tool cycle finished: ツールの順次交換が完了しました
   Tool is seated: ツールは装着済み

@@ -526,7 +526,7 @@ TEST_CASE("MedusaHC's fault dialog quotes the controller's own failure",
                    {"last_error", "MHC_SET: sensors did not confirm T1"}}}});
     const auto err = tc.current_error();
     REQUIRE(err.has_value());
-    CHECK(err->detail == "MHC_SET: sensors did not confirm T1");
+    CHECK(err->detail == "Tool change failed: MHC_SET: sensors did not confirm T1");
     // On screen as a fault: no toast on top of the dialog.
     CHECK(ToolChangerTestAccess::feed_last_toast(tc).empty());
 
@@ -546,7 +546,7 @@ TEST_CASE("MedusaHC's fault dialog quotes the controller's own failure",
     CHECK(generic->detail == unreported.unload_blocked_reason(1));
 }
 
-TEST_CASE("A last_error with no failed operation behind it is no tool change failure",
+TEST_CASE("A last_error with no failed operation behind it is a controller error",
           "[ams][toolchanger][medusahc][last_error]") {
     ToolChangerHelper tc(4);
     tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
@@ -554,9 +554,66 @@ TEST_CASE("A last_error with no failed operation behind it is no tool change fai
     tc.feed(json{{"medusahc",
                   {{"operation", "idle"},
                    {"current_tool", 1},
+                   {"target_tool", -1},
                    {"sensor_error", false},
                    {"last_error", "Initialization failed; see klippy.log"}}}});
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
+          "Tool changer error: Initialization failed; see klippy.log");
+    CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::ERROR);
+    // Not a fault on the carriage: the docks agree.
+    CHECK_FALSE(tc.current_error().has_value());
+
+    // Told once.
+    ToolChangerTestAccess::clear_feed_last_toast(tc);
+    tc.feed(json{{"medusahc", {{"feeder_open", false}}}});
+    tc.feed(json{{"medusahc", {{"current_tool", 2}}}});
     CHECK(ToolChangerTestAccess::feed_last_toast(tc).empty());
+}
+
+TEST_CASE("A failed swap names the tool it was changing to",
+          "[ams][toolchanger][medusahc][last_error]") {
+    const std::string failure = "MHC_SET: sensors did not confirm T1";
+
+    SECTION("in the fault dialog") {
+        ToolChangerHelper tc(4);
+        tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+        tc.feed(json{{"medusahc", {{"operation", "picking"}, {"current_tool", 0}}}});
+        tc.feed(json{{"medusahc",
+                      {{"operation", "idle"},
+                       {"current_tool", -2},
+                       {"target_tool", 1},
+                       {"sensor_error", true},
+                       {"last_error", failure}}}});
+        const auto err = tc.current_error();
+        REQUIRE(err.has_value());
+        CHECK(err->detail == "Tool change to Tool 2 (T1) failed: " + failure);
+    }
+
+    SECTION("in the toast when the docks agree again") {
+        ToolChangerHelper tc(4);
+        tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+        tc.feed(json{{"medusahc",
+                      {{"operation", "idle"},
+                       {"current_tool", 0},
+                       {"target_tool", 3},
+                       {"sensor_error", true},
+                       {"last_error", failure}}}});
+        CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
+              "Tool change to Tool 4 (T3) failed: " + failure);
+        CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::WARNING);
+    }
+
+    SECTION("a target past the discovered tools is not named") {
+        ToolChangerHelper tc(4);
+        tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+        tc.feed(json{{"medusahc",
+                      {{"operation", "idle"},
+                       {"current_tool", 0},
+                       {"target_tool", 7},
+                       {"sensor_error", true},
+                       {"last_error", failure}}}});
+        CHECK(ToolChangerTestAccess::feed_last_toast(tc) == "Tool change failed: " + failure);
+    }
 }
 
 TEST_CASE("A controller failure the screen is not showing toasts once",

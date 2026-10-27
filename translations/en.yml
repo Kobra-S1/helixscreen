@@ -1699,6 +1699,7 @@ translations:
   Heat the chamber too: Heat the chamber too
   Heat the extruder to at least {}°C before loading filament: Heat the extruder to at least {}°C before loading filament
   Heat to at least %d°C for filament operations: Heat to at least %d°C for filament operations
+  Heat {} above {}°C before resuming: Heat {} above {}°C before resuming
   Heatbed Temperature: Heatbed Temperature
   Heated Bed: Heated Bed
   Heated Bed MPC Calibration: Heated Bed MPC Calibration
@@ -3428,6 +3429,7 @@ translations:
   Seat: Seat
   Seat a tool by hand: Seat a tool by hand
   Seat a tool by hand for the first Z home: Seat a tool by hand for the first Z home
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: Seat the hot ends, heat {} above {}°C, then tap Resume.
   Seat which tool by hand?: Seat which tool by hand?
   Seating {}...: Seating {}...
   Secondary: Secondary
@@ -4216,6 +4218,8 @@ translations:
   'Tool change failed: {}': 'Tool change failed: {}'
   Tool change speed: Tool change speed
   Tool change to T{}: Tool change to T{}
+  'Tool change to {} failed: {}': 'Tool change to {} failed: {}'
+  'Tool changer error: {}': 'Tool changer error: {}'
   'Tool cycle failed: {}': 'Tool cycle failed: {}'
   Tool cycle finished: Tool cycle finished
   Tool is seated: Tool is seated

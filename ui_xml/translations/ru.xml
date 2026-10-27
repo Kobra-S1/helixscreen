@@ -1637,6 +1637,7 @@
   <translation tag="Heat the chamber too" ru="Нагреть и камеру"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" ru="Перед загрузкой филамента нагрейте экструдер минимум до {}°C"/>
   <translation tag="Heat to at least %d°C for filament operations" ru="Нагрейте минимум до %d°C для операций с филаментом"/>
+  <translation tag="Heat {} above {}°C before resuming" ru="Перед возобновлением нагрейте {} выше {}°C"/>
   <translation tag="Heatbed Temperature" ru="Температура стола"/>
   <translation tag="Heated Bed" ru="Подогреваемый стол"/>
   <translation tag="Heated Bed MPC Calibration" ru="Калибровка MPC стола"/>
@@ -3262,6 +3263,7 @@
   <translation tag="Seat" ru="Установить"/>
   <translation tag="Seat a tool by hand" ru="Установить инструмент вручную"/>
   <translation tag="Seat a tool by hand for the first Z home" ru="Установить инструмент вручную для первой парковки Z"/>
+  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." ru="Установите хотэнды на место, нагрейте {} выше {}°C и нажмите «Продолжить»."/>
   <translation tag="Seat which tool by hand?" ru="Какой инструмент установить вручную?"/>
   <translation tag="Seating {}..." ru="Установка {}..."/>
   <translation tag="Secondary" ru="Вторичный"/>
@@ -3957,6 +3959,8 @@
   <translation tag="Tool change failed: {}" ru="Ошибка смены инструмента: {}"/>
   <translation tag="Tool change speed" ru="Скорость смены инструмента"/>
   <translation tag="Tool change to T{}" ru="Смена инструмента на T{}"/>
+  <translation tag="Tool change to {} failed: {}" ru="Ошибка смены инструмента на {}: {}"/>
+  <translation tag="Tool changer error: {}" ru="Ошибка сменщика инструментов: {}"/>
   <translation tag="Tool cycle failed: {}" ru="Ошибка перебора инструментов: {}"/>
   <translation tag="Tool cycle finished" ru="Перебор инструментов завершён"/>
   <translation tag="Tool is seated" ru="Инструмент установлен"/>

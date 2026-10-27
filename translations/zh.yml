@@ -1651,6 +1651,7 @@ translations:
   Heat the chamber too: 同时加热腔体
   Heat the extruder to at least {}°C before loading filament: 装载耗材前请将挤出机加热至至少 {}°C
   Heat to at least %d°C for filament operations: 请加热至至少 %d°C 以进行耗材操作
+  Heat {} above {}°C before resuming: '恢复前请将{}加热到{}°C以上'
   Heatbed Temperature: 热床温度
   Heated Bed: 加热床
   Heated Bed MPC Calibration: 热床 MPC 校准
@@ -3319,6 +3320,7 @@ translations:
   Seat: 装上
   Seat a tool by hand: 手动安装工具
   Seat a tool by hand for the first Z home: 首次Z轴归零前手动安装工具
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: '请装好热端，将{}加热到{}°C以上，然后点击恢复。'
   Seat which tool by hand?: 手动安装哪个工具？
   Seating {}...: 正在安装{}...
   Secondary: 次要
@@ -4069,6 +4071,8 @@ translations:
   'Tool change failed: {}': '工具切换失败: {}'
   Tool change speed: 换工具速度
   Tool change to T{}: '切换工具到 T{}'
+  'Tool change to {} failed: {}': '切换到{}失败: {}'
+  'Tool changer error: {}': '换刀器错误: {}'
   'Tool cycle failed: {}': 依次更换工具失败：{}
   Tool cycle finished: 依次更换工具完成
   Tool is seated: 工具已装好

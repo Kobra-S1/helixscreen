@@ -90,6 +90,10 @@ struct ToolReading {
     /// empty once the next operation begins. nullopt when the frame did not
     /// name it.
     std::optional<std::string> last_error;
+    /// The tool the controller's current or last operation was moving to (or,
+    /// for a park, the tool being parked); -1 for none. nullopt when the frame
+    /// did not name it.
+    std::optional<int> target_tool;
     /// True when this frame carried a phase word that names the swap DIRECTION
     /// (dropping vs picking). False when it carried none. Available from the first
     /// status frame, unlike the phase words themselves, which only appear once a
@@ -269,6 +273,11 @@ std::optional<std::vector<AfcLaneSpool>> read_afc_lane_spools(const nlohmann::js
 
 /// The dock sensor this printer exposes, or an absent capability.
 ToolSensor resolve_tool_sensor(const PrinterDiscovery& hw);
+
+/// The nozzle temperature the target tool must be ABOVE before a print paused
+/// by a failed swap may resume, because the machine's own RESUME refuses until
+/// then. 0 when the printer has no such rule.
+int resume_min_nozzle_c(const PrinterDiscovery& hw);
 
 /// The swap commands this printer needs, or an absent capability meaning
 /// klipper-toolchanger is there and owns them.
