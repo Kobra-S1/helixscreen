@@ -47,9 +47,9 @@ bool RecoveryFaultModal::show_fault(lv_obj_t* parent, const std::string& title,
         actions_.resize(kMaxActions);
     }
 
-    // AFC welds a monospace position diagram onto its lane faults, which our
-    // proportional font renders as noise (#1184). Publish the stop point to the
-    // <afc_fault_path> graphic and drop the art rows from the text. An
+    // Some firmware welds a monospace position diagram onto its lane faults,
+    // which our proportional font renders as noise (#1184). Publish the stop point to the
+    // <fault_path> graphic and drop the art rows from the text. An
     // unrecognised detail sets the subject to 0 (graphic hidden) and comes back
     // unchanged.
     const std::string message = fault_path_.apply(detail);

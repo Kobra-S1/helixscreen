@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "ui_afc_fault_path.h"
+#include "ui_fault_path.h"
 #include "ui_modal.h"
 
 #include "error_event.h"
@@ -21,8 +21,8 @@ namespace helix::ui {
  * The standard dialog card with the fault's recovery actions as the
  * modal_button_row: the first action takes the primary slot at the right, the
  * next ones the secondary, tertiary and quaternary slots leftward. Each button
- * takes its action's style ("primary", "danger", neutral). Embeds the AFC
- * fault-path diagram, which shows when the fault text names an AFC lane fault.
+ * takes its action's style ("primary", "danger", neutral). Embeds the
+ * fault-path diagram, which shows when the fault text names a stop point.
  *
  * Klipper's own action:prompt macros render through ActionPromptModal instead.
  */
@@ -99,7 +99,7 @@ class RecoveryFaultModal : public Modal {
     std::vector<helix::RecoveryAction> actions_;
     ActionCallback action_callback_;
     DismissCallback dismiss_callback_;
-    AfcFaultPathHold fault_path_;
+    FaultPathHold fault_path_;
 };
 
 } // namespace helix::ui

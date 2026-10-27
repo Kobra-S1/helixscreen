@@ -3,7 +3,6 @@
 
 #include "ui_panel_ams.h"
 
-#include "ui_afc_fault_path.h"
 #include "ui_ams_detail.h"
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_environment_overlay.h"
@@ -14,6 +13,7 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_external_spool_menu.h"
+#include "ui_fault_path.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_fonts.h"
 #include "ui_icon.h"
@@ -1454,13 +1454,13 @@ void show_ams_error_dialog(AmsLoadingErrorModal& modal, lv_obj_t* parent,
         backend->clear_fault(slot);
     });
 
-    // AFC welds a monospace position diagram onto its lane faults, which our
-    // proportional font renders as noise (#1184). Publish the stop point to the
-    // modal's <afc_fault_path> graphic and drop the art rows from the text. An
-    // unrecognised message sets the subject to 0 (graphic hidden) and comes back
-    // unchanged — including the non-AFC backends, which must clear a previous
-    // AFC fault's marker rather than inherit it.
-    modal.show(parent, afc_fault_path_apply(message), std::move(retry));
+    // Some firmware welds a monospace position diagram onto its lane faults,
+    // which our proportional font renders as noise (#1184). Publish the stop
+    // point to the modal's <fault_path> graphic and drop the art rows from the
+    // text. An unrecognised message sets the subject to 0 (graphic hidden) and
+    // comes back unchanged, so a backend whose faults carry no position clears
+    // a previous fault's marker rather than inheriting it.
+    modal.show(parent, fault_path_apply(message), std::move(retry));
 }
 
 AmsStandingFaultDialog::AmsStandingFaultDialog(PrinterState& printer) : printer_(printer) {

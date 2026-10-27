@@ -18,6 +18,7 @@
 #include "gcode_response_lines.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "klipper_error_table.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
 #include "print_control_buttons.h"
@@ -62,9 +63,9 @@ constexpr double kDisplacedProseWindowSeconds = 2.0;
 
 /// The one recovery action that does NOT run through execute_gcode: key298's
 /// rpi-MCU-bridge bounce goes via PrinterRecoveryService and so carries an
-/// empty gcode. Matched on the tag error_classify.cpp:73 stamps, because an
-/// empty gcode alone is not a reliable signal — see present_recover_toast().
-constexpr const char* kKey298RecoverTag = "error_classify::key298_recover";
+/// empty gcode. Matched on the tag the error table stamps, because an empty
+/// gcode alone is not a reliable signal — see present_recover_toast().
+constexpr const char* kKey298RecoverTag = printer::kKlipperErrorRecoveryServiceTag;
 
 /// How long a claimed RPC report waits for the router's own explanation of
 /// the same refusal before the caller's report runs after all. Matches the
@@ -823,9 +824,8 @@ void GcodeErrorRouter::on_connected() {
                     // reconnect. Modal dedup-by-title prevents the live
                     // notify_gcode_response (if Klippy re-emits) from
                     // duplicating.
-                    const char* title = (code.size() >= 4 && code.compare(0, 4, "key8") == 0)
-                                            ? lv_tr("Filament System Error")
-                                            : lv_tr("Printer Error");
+                    const char* table_title = printer::klipper_error_modal_title(code);
+                    const char* title = table_title ? table_title : lv_tr("Printer Error");
                     ui_notification_printer_fault(title, clean.c_str());
                     return;
                 }
