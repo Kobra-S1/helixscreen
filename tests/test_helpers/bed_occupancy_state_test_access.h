@@ -17,6 +17,21 @@ class BedOccupancyStateTestAccess {
         }
         state.bump_version();
     }
+
+    /// Runs the history retry timer's callback once, as its period elapsing would. The test
+    /// harness's timer pump skips repeating timers. False when no retry is armed.
+    static bool fire_history_retry(BedOccupancyState& state) {
+        lv_timer_t* timer = state.history_retry_timer_.get();
+        if (!timer) {
+            return false;
+        }
+        BedOccupancyState::history_retry_cb(timer);
+        return true;
+    }
+
+    [[nodiscard]] static bool history_retry_armed(const BedOccupancyState& state) {
+        return static_cast<bool>(state.history_retry_timer_);
+    }
 };
 
 } // namespace helix

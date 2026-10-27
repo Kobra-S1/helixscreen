@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/bed_occupancy_state_test_access.h"
 #include "bed_occupancy_state.h"
 #include "config.h"
 #include "connection_state.h"
@@ -47,6 +48,25 @@ class BedOccupancyStateFixture : public LVGLTestFixture {
                            static_cast<int>(ConnectionState::CONNECTED));
         REQUIRE(wait_until([&] { return !history_->get_jobs().empty(); }));
         ui::UpdateQueue::instance().drain();
+    }
+
+    /// A fresh history manager and state, connected, whose first RECENT load either stays
+    /// unanswered (@p fail false) or fails (@p fail true).
+    void restart_with_unloaded_history(bool fail) {
+        state_.reset();
+        history_ = std::make_unique<PrintHistoryManager>(api_.get(), &client_);
+        if (fail) {
+            client_.fail_next("server.history.list");
+        } else {
+            client_.defer_next("server.history.list");
+        }
+        const int calls = client_.call_count("server.history.list");
+        state_ = std::make_unique<BedOccupancyState>(printer_state_, history_.get());
+        // The socket is still up, so the connection observer's first call asks for history.
+        state_->init_subjects();
+        REQUIRE(wait_until([&] { return client_.call_count("server.history.list") > calls; }));
+        ui::UpdateQueue::instance().drain();
+        REQUIRE_FALSE(history_->is_loaded(HistoryScope::RECENT));
     }
 
     int occupied() {
@@ -161,4 +181,66 @@ TEST_CASE_METHOD(BedOccupancyStateFixture, "a snapshot of another file draws no 
     REQUIRE(occupied() == 1);
     REQUIRE(newest().filename != other.filename);
     CHECK(state_->outlines().empty());
+}
+
+TEST_CASE_METHOD(BedOccupancyStateFixture,
+                 "a restart keeps the part on the bed until history has loaded",
+                 "[bed_occupancy][state]") {
+    make_state();
+    REQUIRE(occupied() == 1);
+    const double height = newest().object_height;
+    const std::string job_id = newest().job_id;
+
+    restart_with_unloaded_history(/*fail=*/false);
+    CHECK(occupied() == 1);
+    CHECK(state_->current().job_id == job_id);
+    REQUIRE(state_->current().part_height_mm.has_value());
+    CHECK(*state_->current().part_height_mm == Catch::Approx(height));
+    client_.fire_deferred("server.history.list");
+}
+
+TEST_CASE_METHOD(BedOccupancyStateFixture,
+                 "a failed history load keeps the part on the bed and is retried",
+                 "[bed_occupancy][state]") {
+    make_state();
+    REQUIRE(occupied() == 1);
+    const double height = newest().object_height;
+
+    restart_with_unloaded_history(/*fail=*/true);
+    CHECK(occupied() == 1);
+    REQUIRE(state_->current().part_height_mm.has_value());
+    CHECK(*state_->current().part_height_mm == Catch::Approx(height));
+
+    const int calls = client_.call_count("server.history.list");
+    REQUIRE(BedOccupancyStateTestAccess::fire_history_retry(*state_));
+    REQUIRE(wait_until([&] { return history_->is_loaded(HistoryScope::RECENT); }));
+    CHECK(client_.call_count("server.history.list") > calls);
+    ui::UpdateQueue::instance().drain();
+    CHECK(occupied() == 1);
+    CHECK_FALSE(BedOccupancyStateTestAccess::history_retry_armed(*state_));
+}
+
+TEST_CASE_METHOD(BedOccupancyStateFixture, "a cleared bed records no part for the next restart",
+                 "[bed_occupancy][state]") {
+    make_state();
+    REQUIRE(occupied() == 1);
+    state_->mark_cleared();
+    REQUIRE(occupied() == 0);
+
+    restart_with_unloaded_history(/*fail=*/false);
+    CHECK(occupied() == 0);
+    client_.fire_deferred("server.history.list");
+}
+
+TEST_CASE_METHOD(BedOccupancyStateFixture,
+                 "a print starting or ending bumps the version even when the verdict holds",
+                 "[bed_occupancy][state]") {
+    make_state();
+    state_->mark_cleared();
+    REQUIRE(occupied() == 0);
+
+    const int before = lv_subject_get_int(state_->get_version_subject());
+    print_stats("printing");
+    REQUIRE(occupied() == 0);
+    CHECK(lv_subject_get_int(state_->get_version_subject()) > before);
 }

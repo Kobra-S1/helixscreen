@@ -14,15 +14,19 @@ using helix::BedOutlineSnapshot;
 
 namespace {
 
-BedOccupancyInput finished(PrintJobStatus status, double height = 38.0, std::string cleared = "") {
+constexpr double kStart = 1700000000.5;
+
+BedOccupancyInput finished(PrintJobStatus status, double height = 38.0, std::string cleared = "",
+                           double cleared_start = kStart) {
     BedOccupancyInput in;
     BedJobSummary job;
     job.job_id = "a";
+    job.start_time = kStart;
     job.filename = "part.gcode";
     job.status = status;
     job.object_height_mm = height;
     in.newest = job;
-    in.cleared_job_id = std::move(cleared);
+    in.cleared = {std::move(cleared), cleared_start};
     return in;
 }
 
@@ -34,6 +38,7 @@ TEST_CASE("a finished job occupies the bed until it is cleared", "[bed_occupancy
     REQUIRE(occ.part_height_mm.has_value());
     CHECK(*occ.part_height_mm == Catch::Approx(38.0));
     CHECK(occ.job_id == "a");
+    CHECK(occ.start_time == kStart);
 
     const auto cleared =
         helix::decide_bed_occupancy(finished(PrintJobStatus::COMPLETED, 38.0, "a"));
@@ -43,6 +48,16 @@ TEST_CASE("a finished job occupies the bed until it is cleared", "[bed_occupancy
 
     // Clearing an older job does not clear the newest one.
     CHECK(helix::decide_bed_occupancy(finished(PrintJobStatus::COMPLETED, 38.0, "b")).occupied);
+}
+
+TEST_CASE("a cleared marker names the job by id and start time", "[bed_occupancy]") {
+    // Moonraker reuses ids after its history is reset: the same id with another start time
+    // is a different job, and its part is on the bed.
+    CHECK(
+        helix::decide_bed_occupancy(finished(PrintJobStatus::COMPLETED, 38.0, "a", kStart + 3600.0))
+            .occupied);
+    CHECK_FALSE(helix::decide_bed_occupancy(finished(PrintJobStatus::COMPLETED, 38.0, "a", kStart))
+                    .occupied);
 }
 
 TEST_CASE("cancelled and failed jobs leave a part, unknown and running ones do not",
@@ -82,35 +97,84 @@ TEST_CASE("outline snapshot survives a round trip", "[bed_occupancy]") {
     REQUIRE(back->objects.size() == 2);
     REQUIRE(back->objects[0].points.size() == 3);
     CHECK(back->objects[0].points[1].x == Catch::Approx(30.5f));
-    CHECK(back->objects[0].points[2].y == Catch::Approx(40.25f));
+    CHECK(back->objects[0].points[2].y == Catch::Approx(40.3f));
     REQUIRE(back->objects[1].points.size() == 4);
     CHECK(back->objects[1].points[3].x == Catch::Approx(100.0f));
     CHECK(back->objects[1].points[3].y == Catch::Approx(150.0f));
 }
 
-TEST_CASE("outline snapshot persists at most the capped objects and points", "[bed_occupancy]") {
+TEST_CASE("outline snapshot rounds to a tenth of a millimetre", "[bed_occupancy]") {
+    BedOutlineSnapshot snap;
+    snap.filename = "a.gcode";
+    snap.objects.push_back({{{10.04f, 20.06f}, {123.456f, 7.0f}, {0.0f, 0.0f}}});
+
+    const std::string text = helix::bed_outline_snapshot_to_json(snap);
+    CHECK(text.find("123.5") != std::string::npos);
+    CHECK(text.find("123.45") == std::string::npos);
+    const auto back = helix::bed_outline_snapshot_from_json(text);
+    REQUIRE(back.has_value());
+    REQUIRE(back->objects.size() == 1);
+    REQUIRE(back->objects[0].points.size() == 3);
+    CHECK(back->objects[0].points[0].x == Catch::Approx(10.0f));
+    CHECK(back->objects[0].points[0].y == Catch::Approx(20.1f));
+}
+
+TEST_CASE("outline snapshot caps objects and stores a long polygon as its bbox",
+          "[bed_occupancy]") {
     BedOutlineSnapshot snap;
     snap.filename = "many.gcode";
     for (int o = 0; o < 70; ++o) {
         helix::BedObjectOutline outline;
         for (int p = 0; p < 40; ++p) {
-            outline.points.emplace_back(static_cast<float>(o), static_cast<float>(p));
+            outline.points.emplace_back(static_cast<float>(o + p), static_cast<float>(2 * p));
         }
         snap.objects.push_back(outline);
     }
+    snap.objects[1].points.resize(helix::kMaxSnapshotPointsPerObject);
     REQUIRE(snap.objects.size() > helix::kMaxSnapshotObjects);
     REQUIRE(snap.objects[0].points.size() > helix::kMaxSnapshotPointsPerObject);
 
     const auto back =
         helix::bed_outline_snapshot_from_json(helix::bed_outline_snapshot_to_json(snap));
     REQUIRE(back.has_value());
-    CHECK(back->objects.size() == 64);
-    for (const auto& outline : back->objects) {
-        CHECK(outline.points.size() == 32);
-    }
-    // The first objects and points are the ones kept.
-    CHECK(back->objects[63].points[31].x == Catch::Approx(63.0f));
-    CHECK(back->objects[63].points[31].y == Catch::Approx(31.0f));
+    CHECK(back->objects.size() == helix::kMaxSnapshotObjects);
+
+    // Over the point cap: the whole object's bbox, corner by corner.
+    const auto& box = back->objects[0].points;
+    REQUIRE(box.size() == 4);
+    CHECK(box[0].x == Catch::Approx(0.0f));
+    CHECK(box[0].y == Catch::Approx(0.0f));
+    CHECK(box[2].x == Catch::Approx(39.0f));
+    CHECK(box[2].y == Catch::Approx(78.0f));
+
+    // At the cap: the polygon itself.
+    REQUIRE(back->objects[1].points.size() == helix::kMaxSnapshotPointsPerObject);
+    CHECK(back->objects[1].points[31].x == Catch::Approx(32.0f));
+
+    // The first objects are the ones kept.
+    const auto& last = back->objects[helix::kMaxSnapshotObjects - 1].points;
+    REQUIRE(last.size() == 4);
+    CHECK(last[0].x == Catch::Approx(31.0f));
+}
+
+TEST_CASE("a job record survives a round trip and rejects garbage", "[bed_occupancy]") {
+    BedJobSummary job;
+    job.job_id = "00012A";
+    job.start_time = kStart;
+    job.filename = "dir/part.gcode";
+    job.object_height_mm = 38.4;
+
+    const auto back = helix::bed_job_from_json(helix::bed_job_to_json(job));
+    REQUIRE(back.has_value());
+    CHECK(back->job_id == "00012A");
+    CHECK(back->start_time == kStart);
+    CHECK(back->filename == "dir/part.gcode");
+    CHECK(back->object_height_mm == Catch::Approx(38.4));
+    CHECK(back->status == PrintJobStatus::COMPLETED);
+
+    CHECK_FALSE(helix::bed_job_from_json("").has_value());
+    CHECK_FALSE(helix::bed_job_from_json("[1,2]").has_value());
+    CHECK_FALSE(helix::bed_job_from_json(R"({"start_time":5})").has_value());
 }
 
 TEST_CASE("a malformed outline snapshot parses to nothing", "[bed_occupancy]") {
