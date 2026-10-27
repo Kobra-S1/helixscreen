@@ -265,7 +265,12 @@ TEST_CASE_METHOD(MoveTabFixture, "unhomed presets are disabled and send nothing"
     // Any one axis unhomed is enough: X and Y homed, Z not.
     get_printer_state().update_from_status(ready_status("xy"));
     drain();
-    CHECK(lv_obj_has_state(preset, LV_STATE_DISABLED));
+    for (const char* name :
+         {"preset_rear_left", "preset_rear", "preset_rear_right", "preset_left", "preset_center",
+          "preset_right", "preset_front_left", "preset_front", "preset_front_right"}) {
+        INFO(name);
+        CHECK(lv_obj_has_state(panel_widget(name), LV_STATE_DISABLED));
+    }
 
     // The backstop: a click delivered anyway neither homes nor moves.
     lv_obj_clear_state(preset, LV_STATE_DISABLED);
@@ -449,6 +454,22 @@ TEST_CASE_METHOD(MoveTabFixture, "an unhomed coordinate is disabled and its entr
     get_global_motion_panel().request_axis_target('y', 50.0);
     drain();
     CHECK(all_scripts().find("Y50") != std::string::npos);
+
+    // Each axis greys out on its own homing, Y and Z included.
+    lv_obj_t* z_group = lv_obj_find_by_name(root, "header_pos_z_group");
+    if (!z_group) {
+        z_group = lv_obj_find_by_name(root, "row_pos_z_group");
+    }
+    REQUIRE(z_group != nullptr);
+    get_printer_state().update_from_status(ready_status("xz"));
+    drain();
+    CHECK_FALSE(lv_obj_has_state(x_group, LV_STATE_DISABLED));
+    CHECK(lv_obj_has_state(y_group, LV_STATE_DISABLED));
+    CHECK_FALSE(lv_obj_has_state(z_group, LV_STATE_DISABLED));
+    get_printer_state().update_from_status(ready_status("xy"));
+    drain();
+    CHECK_FALSE(lv_obj_has_state(y_group, LV_STATE_DISABLED));
+    CHECK(lv_obj_has_state(z_group, LV_STATE_DISABLED));
 }
 
 TEST_CASE_METHOD(MoveTabFixture, "the grid greys out while the toolhead is busy, Z stays live",

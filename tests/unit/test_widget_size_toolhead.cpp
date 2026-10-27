@@ -860,11 +860,13 @@ TEST_CASE_METHOD(PlateFixture, "toolhead plate: dismiss clears the target and se
     build(h);
     tap_plate(h, plate_centre(h));
     REQUIRE(subject_int("toolhead_ghost_active") == 1);
+    CHECK_FALSE(lv_obj_has_flag(part(h, "toolhead_target_readout"), LV_OBJ_FLAG_HIDDEN));
 
     lv_obj_send_event(part(h, "toolhead_ghost_dismiss"), LV_EVENT_CLICKED, nullptr);
     drain();
     CHECK(subject_int("toolhead_ghost_active") == 0);
     CHECK(subject_int("toolhead_target_shown") == 0);
+    CHECK(lv_obj_has_flag(part(h, "toolhead_target_readout"), LV_OBJ_FLAG_HIDDEN));
     CHECK(all_scripts().empty());
 }
 
