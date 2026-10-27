@@ -172,6 +172,7 @@ translations:
   A print is in progress - restart still pending: 'Une impression est en cours - redémarrage en attente'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: Une impression est en cours sur ce gate. HelixScreen a effacé sa propre copie ; effacez-le à nouveau une fois l'impression terminée.
   A print is running. Apply the result after it ends.: Une impression est en cours. Appliquez le résultat quand elle sera terminée.
+  A print started: 'Une impression a démarré'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Une impression a démarré alors que des bobines sont signalées sur le plateau. Si elles y sont encore, arrêtez l'imprimante maintenant avec l'arrêt d'urgence."
   A restart is already in progress: Un redémarrage est déjà en cours
   A right, B left: "A droite, B gauche"
@@ -501,6 +502,8 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Parcourez
     les guides, références de configuration et ressources de dépannage pour HelixScreen.
   Brush nozzle: 'Brosser la buse'
+  Brush the mounted tool's nozzle clean: 'Nettoyer à la brosse la buse de l''outil monté'
+  Buffer: Tampon
   Buffer Status: État du tampon
   Buffer tube problem: Problème de tube tampon
   Build Volume: 'Volume d''impression'
@@ -765,6 +768,7 @@ translations:
   Clean Brush: 'Nettoyer la brosse'
   Clean Nozzle: Nettoyer la buse
   Clean Up Storage: 'Nettoyer le stockage'
+  Clean nozzle: 'Nettoyer la buse'
   Clean up: 'Nettoyer'
   Clean {}: Nettoyer {}
   Cleaning Nozzle...: Nettoyage de la buse...
@@ -1364,6 +1368,7 @@ translations:
   'Extrude failed: {}': 'Échec de l''extrusion : {}'
   Extrude may still be running — response timed out: Extrusion peut-être encore en
     cours — délai dépassé
+  Extrude more: "Extruder plus"
   Extrude/retract feedrate (Saved): Vitesse d'extrusion/rétraction (Sauvegardée)
   Extruded past the nozzle after each load: 'Extrudé par la buse après chaque chargement'
   Extruder: Extrudeur
@@ -1380,6 +1385,7 @@ translations:
   Extruder to Nozzle: 'Extrudeur à la buse'
   Extruder too cold: Extrudeur trop froid
   Extruding prime line...: Extrusion de la ligne d'amorçage...
+  Extruding...: "Extrusion..."
   FAILED: ÉCHOUÉ
   FILAMENT: FILAMENT
   FILAMENT & TOOLHEAD: 'FILAMENT & TÊTE D''OUTIL'
@@ -1760,6 +1766,7 @@ translations:
   Heat the extruder to at least {}°C before loading filament: Chauffez l'extrudeur à au moins {}°C avant de charger le filament
   Heat to at least %d°C for filament operations: Chauffez à au moins %d°C pour les
     opérations sur le filament
+  Heat {} above {}°C before resuming: 'Chauffez {} au-dessus de {}°C avant de reprendre'
   Heatbed Temperature: Température du plateau chauffant
   Heated Bed: Plateau chauffant
   Heated Bed MPC Calibration: Calibration MPC du plateau chauffant
@@ -2006,6 +2013,7 @@ translations:
   Invalid tool/slot: 'Outil/slot non valide'
   Invalid value: 'Valeur non valide'
   Invalid value type: 'Type de valeur non valide'
+  Is new filament coming out of the nozzle?: "Le nouveau filament sort-il de la buse ?"
   Issue description: Description du problème
   It can be un-archived in Spoolman's web UI.: Elle peut être désarchivée dans l'interface web de Spoolman.
   It has not reported its slots yet. Try again in a moment.: Il n'a pas encore signalé ses emplacements. Réessayez dans un instant.
@@ -2584,6 +2592,7 @@ translations:
   No target printer configured: Aucune imprimante cible configurée
   No temperature sensors detected: 'Aucun capteur de température détecté'
   No timelapse videos found: Aucune vidéo timelapse trouvée
+  No tool is mounted: 'Aucun outil n''est monté'
   No tool on the head: "Aucun outil sur la tête d'outil"
   No tools to calibrate: Aucun outil à calibrer
   'No turn: the gap moved {:.1f} Hz': "Sans rotation : l'écart a bougé de {:.1f} Hz"
@@ -2673,6 +2682,7 @@ translations:
   Nozzle temp must be 100-%d°C: La température de la buse doit être entre 100 et %d°C
   Nozzle, bed, and chamber in one widget: Buse, plateau et enceinte réunis
   'Nozzle:': 'Buse :'
+  'Nozzles still heating: {}': 'Buses encore en chauffe : {}'
   Number Pad Layout: Disposition du pavé numérique
   OD: OD
   'OFF': 'OFF'
@@ -2785,6 +2795,7 @@ translations:
   Park the AFC system: 'Parquer le système AFC'
   Park Toolhead: 'Parquer la tête d''outil'
   Parking toolhead: 'Parcage de la tête d''outil'
+  'Parking {} failed: {}': 'Échec du rangement de {} : {}'
   Part: Pièce
   Part Cooling Fan: Ventilateur de refroidissement pièce
   Part Fan: Ventilateur pièce
@@ -3110,6 +3121,7 @@ translations:
   Purging: Purge en cours
   Purging nozzle: Purge de la buse
   Purging...: Purge...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Poussez le filament dans l'extrudeur jusqu'en butée. Il est saisi automatiquement, ou appuyez sur Extruder."
   QGL: QGL
   'QGL failed: {}': 'Échec du QGL : {}'
   QGL may still be running — response timed out: QGL peut-être encore en cours — délai
@@ -3523,6 +3535,7 @@ translations:
   Seat: Installer
   Seat a tool by hand: Installer un outil à la main
   Seat a tool by hand for the first Z home: Installer un outil à la main pour la première prise d'origine Z
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: 'Remettez les hotends en place, chauffez {} au-dessus de {}°C, puis appuyez sur Reprendre.'
   Seat which tool by hand?: Quel outil installer à la main ?
   Seating {}...: Installation de {}...
   Secondary: Secondaire
@@ -4020,10 +4033,12 @@ translations:
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Le tampon n'a détecté aucun mouvement pendant 16 secondes. Vérifiez s'il y a une obstruction entre le CFS et l'extrudeur, ou un tampon bloqué
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : 'La caméra a cru voir quelque chose sur le plateau, l''imprimante s''est donc arrêtée avant d''imprimer. Si le plateau est libre, c''était une fausse alerte.'
+  'The carriage was not put back: check which tool is mounted': 'Le chariot n''a pas été remis en place : vérifiez quel outil est monté'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: 'Le chauffage de l''enceinte peut lancer un cycle de séchage du filament. Démarrez-le depuis la boîte de dialogue de séchage.'
   The chamber wait already ended; nothing was stopped.: 'L''attente de la chambre est déjà terminée ; rien n''a été arrêté.'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Le changement prend effet après le redémarrage de Klipper. Le firmware Klipper sera redémarré. Les opérations actives seront interrompues.
+  The connection to Klipper was lost: 'La connexion à Klipper a été perdue'
   The controller boards Klipper runs on. See their load in the system settings.: 'Les cartes contrôleur sur lesquelles tourne Klipper. Consultez leur charge dans les paramètres système.'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: La lame n'est pas revenue. Vérifiez qu'aucun filament n'est enroulé autour du mécanisme de coupe
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: Le coupe-filament est désaligné. Recalibrez avec CALIBRATE_CUT_POS
@@ -4145,6 +4160,8 @@ translations:
   The speed of one fan you choose: La vitesse d'un ventilateur choisi
   The time, date, and system uptime: Heure, date et temps de fonctionnement
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Le dossier timelapse ou de logs chevauche un dossier protégé, le nettoyage est donc désactivé."
+  The tool change under way finished, and the tool was not parked: 'Le changement d''outil en cours s''est terminé et l''outil n''a pas été rangé'
+  The tool change under way finished, and {} was not put back on the carriage: 'Le changement d''outil en cours s''est terminé et {} n''a pas été remis sur le chariot'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: La tête d'outil contient du filament mais aucun slot de l'AMS ne le signale comme chargé. Retirez-le manuellement avant d'imprimer. Démarrer quand même ?
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : La tête d'outil contient du filament mais aucun slot de l'AMS ne le signale comme chargé. L'imprimante peut refuser de charger un slot tant qu'il n'est pas vidé. Démarrer quand même ?
@@ -4347,6 +4364,8 @@ translations:
   'Tool change failed: {}': 'Échec du changement d''outil : {}'
   Tool change speed: Vitesse de changement d'outil
   Tool change to T{}: 'Changement d''outil vers T{}'
+  'Tool change to {} failed: {}': 'Échec du changement vers l''outil {} : {}'
+  'Tool changer error: {}': 'Erreur du changeur d''outils : {}'
   'Tool cycle failed: {}': 'Échec de la rotation des outils : {}'
   Tool cycle finished: Rotation des outils terminée
   Tool is seated: L'outil est en place
@@ -4653,6 +4672,7 @@ translations:
   Will not switch spools on runout: Ne changera pas de bobine en fin de filament
   Wipe nozzle on silicone cleaning strip: 'Essuyer la buse sur la bande de nettoyage en silicone'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "À {0:.1f} Hz l'une de l'autre à {1:.0f} Hz"
+  Wipe the mounted nozzle on the brush: 'Essuyer la buse montée sur la brosse'
   Wiping {}...: Essuyage de {}...
   Wizard Error: Erreur de l'assistant
   Working...: En cours...
@@ -4934,6 +4954,7 @@ translations:
   '{} · {} · {}': '{} · {} · {}'
   '{} — response timed out': '{} — réponse expirée'
   '{} → {}: no filament loaded.': '{} → {} : aucun filament chargé.'
+  "{}'s nozzle is still heating": 'La buse de {} chauffe encore'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{} : l''étiquette indique la bobine Spoolman #{}, qui n''existe pas'
   '{}:{:02} elapsed': '{}:{:02} écoulé'
   '{}% left': '{} % restant'

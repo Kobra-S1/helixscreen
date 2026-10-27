@@ -182,10 +182,12 @@ AmsBackendMock::AmsBackendMock(int slot_count) {
 
     // Mock sync feedback (proportional sensor, slight compression)
     system_info_.sync_feedback_state = "compressed";
+    system_info_.system_buffer_motion = BufferMotion::Advancing;
     system_info_.sync_feedback_bias = 0.15f;
     system_info_.sync_feedback_bias_raw = 0.18f;
     system_info_.sync_feedback_flow_rate = 98.5f;
     system_info_.espooler_state = "assist";
+    system_info_.spool_motor = SpoolMotorAction::Assisting;
     system_info_.sync_drive = true;
 
     // Mock encoder clog detection (auto mode, 85% flow, realistic headroom values)
@@ -546,6 +548,7 @@ AmsSystemInfo AmsBackendMock::get_system_info() const {
     // simulated type publishes its units' pressure sensors, as AFC and OpenAMS do.
     if (info.type != AmsType::HAPPY_HARE) {
         info.sync_feedback_bias = info.pressure_sensor_bias();
+        info.system_buffer_motion.reset();
     }
 
     // Populate environment sensor data based on configured mode
@@ -1637,6 +1640,7 @@ void AmsBackendMock::inject_mock_errors() {
             health.fault_detection_enabled = true;
             health.error_sensitivity = 7.0f;
             health.state = "Trailing";
+            health.motion = BufferMotion::Trailing;
             health.distance_to_fault = 12.5f;
             system_info_.units[u].buffer_health = health;
         }
@@ -2431,12 +2435,15 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
         }
         if (buf_env == "advancing") {
             buf_health.state = "Advancing";
+            buf_health.motion = BufferMotion::Advancing;
             buf_health.distance_to_fault = -100.0f; // fault timer stopped, stale — safe
         } else if (buf_env == "trailing") {
             buf_health.state = "Trailing";
+            buf_health.motion = BufferMotion::Trailing;
             buf_health.distance_to_fault = 25.0f; // within 40mm threshold — 37.5% danger
         } else if (buf_env == "fault") {
             buf_health.state = "Trailing";
+            buf_health.motion = BufferMotion::Trailing;
             buf_health.distance_to_fault = 5.0f; // within 40mm threshold — 87.5% danger
         } else {
             buf_health.state = "Neutral";
@@ -2781,6 +2788,7 @@ void AmsBackendMock::set_mixed_topology_mode(bool enabled) {
             health.fault_detection_enabled = true;
             health.error_sensitivity = 7.0f;
             health.state = "Trailing";
+            health.motion = BufferMotion::Trailing;
             health.distance_to_fault = 25.0f;
             u.buffer_health = health;
             system_info_.units.push_back(u);
@@ -3401,6 +3409,7 @@ void AmsBackendMock::set_htlf_toolchanger_mode(bool enabled) {
             u.lane_is_hub_routed = {false, false, true, true};
             BufferHealth health;
             health.state = "Advancing";
+            health.motion = BufferMotion::Advancing;
             health.fault_detection_enabled = false;
             u.buffer_health = health;
             system_info_.units.push_back(u);

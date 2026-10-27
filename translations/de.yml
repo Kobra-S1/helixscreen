@@ -172,6 +172,7 @@ translations:
   A print is in progress - restart still pending: 'Ein Druck läuft - Neustart noch ausstehend'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: Auf diesem Gate läuft ein Druck. HelixScreen hat seine eigene Kopie gelöscht; leere ihn nach Druckende erneut.
   A print is running. Apply the result after it ends.: Ein Druck läuft. Übernimm das Ergebnis, wenn er fertig ist.
+  A print started: 'Ein Druck wurde gestartet'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Ein Druck wurde gestartet, während Spulen als auf dem Heizbett liegend markiert sind. Falls sie noch dort liegen, stoppe den Drucker sofort mit dem Notaus."
   A restart is already in progress: Ein Neustart läuft bereits
   A right, B left: "A rechts, B links"
@@ -502,6 +503,8 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Anleitungen,
     Konfigurationsreferenzen und Fehlerbehebungsressourcen für HelixScreen durchsuchen.
   Brush nozzle: 'Düse abbürsten'
+  Brush the mounted tool's nozzle clean: 'Düse des montierten Werkzeugs an der Bürste reinigen'
+  Buffer: Puffer
   Buffer Status: Pufferstatus
   Buffer tube problem: Problem mit dem Pufferschlauch
   Build Volume: 'Bauraum'
@@ -765,6 +768,7 @@ translations:
   Clean Brush: 'Bürste reinigen'
   Clean Nozzle: Düse reinigen
   Clean Up Storage: 'Speicher bereinigen'
+  Clean nozzle: 'Düse reinigen'
   Clean up: 'Bereinigen'
   Clean {}: '{} reinigen'
   Cleaning Nozzle...: Düse reinigen...
@@ -1360,6 +1364,7 @@ translations:
   'Extrude failed: {}': 'Extrusion fehlgeschlagen: {}'
   Extrude may still be running — response timed out: Extrusion läuft möglicherweise
     noch — Zeitüberschreitung
+  Extrude more: "Weiter extrudieren"
   Extrude/retract feedrate (Saved): Extrusions-/Rückzugsgeschwindigkeit (Gespeichert)
   Extruded past the nozzle after each load: 'Nach jedem Laden durch die Düse extrudiert'
   Extruder: Extruder
@@ -1376,6 +1381,7 @@ translations:
   Extruder to Nozzle: 'Extruder zur Düse'
   Extruder too cold: Extruder zu kalt
   Extruding prime line...: Prime-Linie extrudieren...
+  Extruding...: "Extrudieren..."
   FAILED: FEHLGESCHLAGEN
   FILAMENT: FILAMENT
   FILAMENT & TOOLHEAD: 'FILAMENT & WERKZEUGKOPF'
@@ -1756,6 +1762,7 @@ translations:
   Heat the extruder to at least {}°C before loading filament: Erhitzen Sie den Extruder vor dem Laden von Filament auf mindestens {}°C
   Heat to at least %d°C for filament operations: Für Filamentvorgänge auf mindestens
     %d°C aufheizen
+  Heat {} above {}°C before resuming: '{} vor dem Fortsetzen über {}°C aufheizen'
   Heatbed Temperature: Heizbett-Temperatur
   Heated Bed: Heizbett
   Heated Bed MPC Calibration: Heizbett MPC-Kalibrierung
@@ -2000,6 +2007,7 @@ translations:
   Invalid tool/slot: 'Ungültiges Werkzeug/Slot'
   Invalid value: 'Ungültiger Wert'
   Invalid value type: 'Ungültiger Werttyp'
+  Is new filament coming out of the nozzle?: "Kommt neues Filament aus der Düse?"
   Issue description: Problembeschreibung
   It can be un-archived in Spoolman's web UI.: Sie kann in der Weboberfläche von Spoolman wiederhergestellt werden.
   It has not reported its slots yet. Try again in a moment.: Es hat seine Slots noch nicht gemeldet. Versuchen Sie es gleich noch einmal.
@@ -2577,6 +2585,7 @@ translations:
   No target printer configured: Kein Zieldrucker konfiguriert
   No temperature sensors detected: 'Keine Temperatursensoren erkannt'
   No timelapse videos found: Keine Zeitraffer-Videos gefunden
+  No tool is mounted: 'Kein Werkzeug montiert'
   No tool on the head: "Kein Werkzeug am Werkzeugkopf"
   No tools to calibrate: Keine Werkzeuge zum Kalibrieren
   'No turn: the gap moved {:.1f} Hz': "Keine Drehung: der Abstand bewegte sich um {:.1f} Hz"
@@ -2666,6 +2675,7 @@ translations:
   Nozzle temp must be 100-%d°C: Düsentemperatur muss 100-%d°C betragen
   Nozzle, bed, and chamber in one widget: Düse, Bett und Kammer in einem Widget
   'Nozzle:': 'Düse:'
+  'Nozzles still heating: {}': 'Düsen heizen noch: {}'
   Number Pad Layout: Ziffernblock-Layout
   OD: OD
   'OFF': AUS
@@ -2778,6 +2788,7 @@ translations:
   Park the AFC system: 'Das AFC-System parken'
   Park Toolhead: 'Werkzeugkopf parken'
   Parking toolhead: 'Werkzeugkopf wird geparkt'
+  'Parking {} failed: {}': 'Parken von {} fehlgeschlagen: {}'
   Part: Teile
   Part Cooling Fan: Teile-Kühllüfter
   Part Fan: Teile-Lüfter
@@ -3101,6 +3112,7 @@ translations:
   Purging: Spülen
   Purging nozzle: Düse wird gespült
   Purging...: Entlüften...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Schiebe das Filament bis zum Anschlag in den Extruder. Es wird automatisch gegriffen, oder tippe auf Extrudieren."
   QGL: QGL
   'QGL failed: {}': 'QGL fehlgeschlagen: {}'
   QGL may still be running — response timed out: QGL läuft möglicherweise noch — Zeitüberschreitung
@@ -3511,6 +3523,7 @@ translations:
   Seat: Einsetzen
   Seat a tool by hand: Werkzeug von Hand einsetzen
   Seat a tool by hand for the first Z home: Für die erste Z-Referenzfahrt ein Werkzeug von Hand einsetzen
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: 'Setzen Sie die Hotends ein, heizen Sie {} über {}°C auf und tippen Sie dann auf Fortsetzen.'
   Seat which tool by hand?: Welches Werkzeug von Hand einsetzen?
   Seating {}...: '{} wird eingesetzt...'
   Secondary: Sekundär
@@ -4001,10 +4014,12 @@ translations:
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Der Puffer hat 16 Sekunden lang keine Bewegung erkannt. Auf eine Blockade zwischen CFS und Extruder oder einen klemmenden Puffer prüfen
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : 'Die Kamera hat etwas auf dem Heizbett erkannt, daher hat der Drucker vor dem Drucken angehalten. Wenn das Heizbett frei ist, war es ein Fehlalarm.'
+  'The carriage was not put back: check which tool is mounted': 'Der Wagen wurde nicht zurückgestellt: prüfe, welches Werkzeug montiert ist'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: 'Die Kammerheizung kann einen Filament-Trocknungszyklus ausführen. Starte ihn im Trocknungsdialog.'
   The chamber wait already ended; nothing was stopped.: 'Das Warten auf die Kammer ist bereits beendet; es wurde nichts gestoppt.'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Die Änderung wird wirksam, nachdem Klipper neu gestartet wurde. Klipper-Firmware wird neu gestartet. Aktive Vorgänge werden unterbrochen.
+  The connection to Klipper was lost: 'Die Verbindung zu Klipper wurde unterbrochen'
   The controller boards Klipper runs on. See their load in the system settings.: 'Die Steuerplatinen, auf denen Klipper läuft. Ihre Auslastung siehst du in den Systemeinstellungen.'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: Die Schneidklinge ist nicht zurückgefahren. Prüfen, ob Filament um den Schneidmechanismus gewickelt ist
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: Der Schneider ist verstellt. Mit CALIBRATE_CUT_POS neu kalibrieren
@@ -4126,6 +4141,8 @@ translations:
   The speed of one fan you choose: Drehzahl eines gewählten Lüfters
   The time, date, and system uptime: Uhrzeit, Datum und Betriebszeit
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Der Zeitraffer- oder Protokoll-Ordner überlappt einen geschützten Ordner, daher ist die Bereinigung ausgeschaltet."
+  The tool change under way finished, and the tool was not parked: 'Der laufende Werkzeugwechsel wurde abgeschlossen, und das Werkzeug wurde nicht geparkt'
+  The tool change under way finished, and {} was not put back on the carriage: 'Der laufende Werkzeugwechsel wurde abgeschlossen, und {} wurde nicht wieder auf den Wagen gesetzt'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Ziehen Sie es vor dem Drucken manuell heraus. Trotzdem starten?
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : Im Werkzeugkopf befindet sich Filament, aber kein AMS-Slot meldet es als geladen. Der Drucker verweigert möglicherweise das Laden eines Slots, bis er geleert ist. Trotzdem starten?
@@ -4322,6 +4339,8 @@ translations:
   'Tool change failed: {}': 'Werkzeugwechsel fehlgeschlagen: {}'
   Tool change speed: Werkzeugwechsel-Geschwindigkeit
   Tool change to T{}: 'Werkzeugwechsel zu T{}'
+  'Tool change to {} failed: {}': 'Werkzeugwechsel zu {} fehlgeschlagen: {}'
+  'Tool changer error: {}': 'Werkzeugwechsler-Fehler: {}'
   'Tool cycle failed: {}': 'Werkzeugwechsel-Durchlauf fehlgeschlagen: {}'
   Tool cycle finished: Werkzeugwechsel-Durchlauf abgeschlossen
   Tool is seated: Werkzeug sitzt
@@ -4627,6 +4646,7 @@ translations:
   Will not switch spools on runout: Wechselt bei leerer Spule nicht die Spule
   Wipe nozzle on silicone cleaning strip: 'Düse am Silikon-Reinigungsstreifen abwischen'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "Bis auf {0:.1f} Hz gleich bei {1:.0f} Hz"
+  Wipe the mounted nozzle on the brush: 'Montierte Düse an der Bürste abwischen'
   Wiping {}...: '{} wird abgewischt...'
   Wizard Error: Assistentenfehler
   Working...: Wird verarbeitet...
@@ -4908,6 +4928,7 @@ translations:
   '{} · {} · {}': '{} · {} · {}'
   '{} — response timed out': '{} – Antwort-Zeitüberschreitung'
   '{} → {}: no filament loaded.': '{} → {}: kein Filament geladen.'
+  "{}'s nozzle is still heating": 'Düse von {} heizt noch'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: Das Tag nennt Spoolman-Spule #{}, die nicht existiert'
   '{}:{:02} elapsed': '{}:{:02} vergangen'
   '{}% left': '{}% übrig'

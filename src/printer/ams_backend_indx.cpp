@@ -728,12 +728,6 @@ AmsError AmsBackendIndx::do_run_device_action(const std::string& action_id, cons
 // Edit follow-up: the heater model after a material edit
 // ============================================================================
 
-bool AmsBackendIndx::print_holds_printer() const {
-    return api_ &&
-           print_blocks_filament_op(api_->printer_state().print_state().get_print_lifecycle(),
-                                    /*backend_self_homes=*/true);
-}
-
 AmsError AmsBackendIndx::follow_up_refusal_locked(int slot_index, const SlotInfo& before,
                                                   const SlotInfo& after, std::string& preset_key,
                                                   indx::FilamentPreset& values) const {

@@ -164,6 +164,7 @@ translations:
   A print is in progress - restart still pending: A print is in progress - restart still pending
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.
   A print is running. Apply the result after it ends.: A print is running. Apply the result after it ends.
+  A print started: A print started
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.
   A restart is already in progress: A restart is already in progress
   A right, B left: A right, B left
@@ -485,6 +486,8 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Browse
     guides, configuration references, and troubleshooting resources for HelixScreen.
   Brush nozzle: Brush nozzle
+  Brush the mounted tool's nozzle clean: Brush the mounted tool's nozzle clean
+  Buffer: Buffer
   Buffer Status: Buffer Status
   Buffer tube problem: Buffer tube problem
   Build Volume: Build Volume
@@ -740,6 +743,7 @@ translations:
   Clean Brush: Clean Brush
   Clean Nozzle: Clean Nozzle
   Clean Up Storage: Clean Up Storage
+  Clean nozzle: Clean nozzle
   Clean up: Clean up
   Clean {}: Clean {}
   Cleaning Nozzle...: Cleaning Nozzle...
@@ -1314,6 +1318,7 @@ translations:
   'Extrude failed: {}': 'Extrude failed: {}'
   Extrude may still be running — response timed out: Extrude may still be running
     — response timed out
+  Extrude more: Extrude more
   Extrude/retract feedrate (Saved): Extrude/retract feedrate (Saved)
   Extruded past the nozzle after each load: Extruded past the nozzle after each load
   Extruder: Extruder
@@ -1330,6 +1335,7 @@ translations:
   Extruder to Nozzle: Extruder to Nozzle
   Extruder too cold: Extruder too cold
   'Extruding prime line...': 'Extruding prime line...'
+  Extruding...: Extruding...
   FAILED: FAILED
   FILAMENT: FILAMENT
   FILAMENT & TOOLHEAD: FILAMENT & TOOLHEAD
@@ -1699,6 +1705,7 @@ translations:
   Heat the chamber too: Heat the chamber too
   Heat the extruder to at least {}°C before loading filament: Heat the extruder to at least {}°C before loading filament
   Heat to at least %d°C for filament operations: Heat to at least %d°C for filament operations
+  Heat {} above {}°C before resuming: Heat {} above {}°C before resuming
   Heatbed Temperature: Heatbed Temperature
   Heated Bed: Heated Bed
   Heated Bed MPC Calibration: Heated Bed MPC Calibration
@@ -1941,6 +1948,7 @@ translations:
   Invalid tool/slot: Invalid tool/slot
   Invalid value: Invalid value
   Invalid value type: Invalid value type
+  Is new filament coming out of the nozzle?: Is new filament coming out of the nozzle?
   Issue description: Issue description
   It can be un-archived in Spoolman's web UI.: It can be un-archived in Spoolman's web UI.
   It has not reported its slots yet. Try again in a moment.: It has not reported its slots yet. Try again in a moment.
@@ -2508,6 +2516,7 @@ translations:
   No target printer configured: No target printer configured
   No temperature sensors detected: No temperature sensors detected
   No timelapse videos found: No timelapse videos found
+  No tool is mounted: No tool is mounted
   No tool on the head: No tool on the head
   No tools to calibrate: No tools to calibrate
   'No turn: the gap moved {:.1f} Hz': 'No turn: the gap moved {:.1f} Hz'
@@ -2596,6 +2605,7 @@ translations:
   Nozzle temp must be 100-%d°C: Nozzle temp must be 100-%d°C
   Nozzle, bed, and chamber in one widget: Nozzle, bed, and chamber in one widget
   'Nozzle:': 'Nozzle:'
+  'Nozzles still heating: {}': 'Nozzles still heating: {}'
   Number Pad Layout: Number Pad Layout
   OD: OD
   'OFF': 'OFF'
@@ -2706,6 +2716,7 @@ translations:
   Park the AFC system: Park the AFC system
   Park Toolhead: Park Toolhead
   Parking toolhead: Parking toolhead
+  'Parking {} failed: {}': 'Parking {} failed: {}'
   Part: Part
   Part Cooling Fan: Part Cooling Fan
   Part Fan: Part Fan
@@ -3023,6 +3034,7 @@ translations:
   Purging: Purging
   Purging nozzle: Purging nozzle
   Purging...: Purging...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.
   QGL: QGL
   'QGL failed: {}': 'QGL failed: {}'
   QGL may still be running — response timed out: QGL may still be running — response
@@ -3428,6 +3440,7 @@ translations:
   Seat: Seat
   Seat a tool by hand: Seat a tool by hand
   Seat a tool by hand for the first Z home: Seat a tool by hand for the first Z home
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: Seat the hot ends, heat {} above {}°C, then tap Resume.
   Seat which tool by hand?: Seat which tool by hand?
   Seating {}...: Seating {}...
   Secondary: Secondary
@@ -3906,10 +3919,12 @@ translations:
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
+  'The carriage was not put back: check which tool is mounted': 'The carriage was not put back: check which tool is mounted'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: The chamber heater can run a filament drying cycle. Start one from the drying dialog.
   The chamber wait already ended; nothing was stopped.: The chamber wait already ended; nothing was stopped.
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
+  The connection to Klipper was lost: The connection to Klipper was lost
   The controller boards Klipper runs on. See their load in the system settings.: The controller boards Klipper runs on. See their load in the system settings.
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: The cutter blade didn't return — check for filament wrapped around the cutting mechanism
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS
@@ -4022,6 +4037,8 @@ translations:
   The speed of one fan you choose: The speed of one fan you choose
   The time, date, and system uptime: The time, date, and system uptime
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: The timelapse or logs folder overlaps a protected folder, so cleanup is off.
+  The tool change under way finished, and the tool was not parked: The tool change under way finished, and the tool was not parked
+  The tool change under way finished, and {} was not put back on the carriage: The tool change under way finished, and {} was not put back on the carriage
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
@@ -4216,6 +4233,8 @@ translations:
   'Tool change failed: {}': 'Tool change failed: {}'
   Tool change speed: Tool change speed
   Tool change to T{}: Tool change to T{}
+  'Tool change to {} failed: {}': 'Tool change to {} failed: {}'
+  'Tool changer error: {}': 'Tool changer error: {}'
   'Tool cycle failed: {}': 'Tool cycle failed: {}'
   Tool cycle finished: Tool cycle finished
   Tool is seated: Tool is seated
@@ -4522,6 +4541,7 @@ translations:
   Will not switch spools on runout: Will not switch spools on runout
   Wipe nozzle on silicone cleaning strip: Wipe nozzle on silicone cleaning strip
   Within {0:.1f} Hz of each other at {1:.0f} Hz: Within {0:.1f} Hz of each other at {1:.0f} Hz
+  Wipe the mounted nozzle on the brush: Wipe the mounted nozzle on the brush
   Wiping {}...: Wiping {}...
   Wizard Error: Wizard Error
   Working...: Working...
@@ -4794,6 +4814,7 @@ translations:
   '{} · {} · {}': '{} · {} · {}'
   '{} — response timed out': '{} — response timed out'
   '{} → {}: no filament loaded.': '{} → {}: no filament loaded.'
+  "{}'s nozzle is still heating": "{}'s nozzle is still heating"
   "{}: the tag names Spoolman spool #{}, which doesn't exist": "{}: the tag names Spoolman spool #{}, which doesn't exist"
   '{}:{:02} elapsed': '{}:{:02} elapsed'
   '{}% left': '{}% left'

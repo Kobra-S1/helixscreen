@@ -178,6 +178,10 @@ class AmsBackendQidi : public AmsSubscriptionBackend {
     AmsError recover() override;
     AmsError reset() override;
     AmsError cancel() override;
+    /// cancel() has nothing to send on a QIDI Box, so no Abort is offered.
+    [[nodiscard]] bool can_cancel_operation() const override {
+        return false;
+    }
 
     [[nodiscard]] std::optional<helix::ErrorEvent> current_error() const override;
 

@@ -22,9 +22,9 @@ void PidProgressTracker::start(Heater heater, int target_temp, float current_tem
     last_oscillation_tick_ = 0;
     measured_cycle_period_ = 0;
     has_measured_cycle_ = false;
-    has_kalico_ = false;
-    kalico_sample_ = 0;
-    kalico_total_ = 0;
+    has_sample_progress_ = false;
+    sample_number_ = 0;
+    sample_total_ = 0;
 }
 
 void PidProgressTracker::on_temperature(float temp, uint32_t tick_ms) {
@@ -105,9 +105,9 @@ int PidProgressTracker::progress_percent() const {
     float osc_bar = (1.0f - heat_frac) * 95.0f;
     float base = heat_frac * 95.0f;
 
-    if (has_kalico_ && kalico_total_ > 0) {
+    if (has_sample_progress_ && sample_total_ > 0) {
         float sample_progress =
-            static_cast<float>(kalico_sample_) / static_cast<float>(kalico_total_);
+            static_cast<float>(sample_number_) / static_cast<float>(sample_total_);
         int pct = static_cast<int>(base + sample_progress * osc_bar);
         return std::min(pct, 95);
     }
@@ -178,10 +178,10 @@ void PidProgressTracker::set_history(float heat_rate_s_per_deg, float oscillatio
     }
 }
 
-void PidProgressTracker::on_kalico_sample(int sample, int estimated_total) {
-    has_kalico_ = true;
-    kalico_sample_ = sample;
-    kalico_total_ = estimated_total;
+void PidProgressTracker::on_sample_progress(int sample, int estimated_total) {
+    has_sample_progress_ = true;
+    sample_number_ = sample;
+    sample_total_ = estimated_total;
 }
 
 float PidProgressTracker::default_heat_rate() const {

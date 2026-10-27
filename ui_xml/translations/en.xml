@@ -163,6 +163,7 @@
   <translation tag="A print is in progress - restart still pending" en="A print is in progress - restart still pending"/>
   <translation tag="A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes." en="A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes."/>
   <translation tag="A print is running. Apply the result after it ends." en="A print is running. Apply the result after it ends."/>
+  <translation tag="A print started" en="A print started"/>
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." en="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop."/>
   <translation tag="A restart is already in progress" en="A restart is already in progress"/>
   <translation tag="A right, B left" en="A right, B left"/>
@@ -462,6 +463,8 @@
   <translation tag="Browse catalog..." en="Browse catalog..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." en="Browse guides, configuration references, and troubleshooting resources for HelixScreen."/>
   <translation tag="Brush nozzle" en="Brush nozzle"/>
+  <translation tag="Brush the mounted tool&apos;s nozzle clean" en="Brush the mounted tool&apos;s nozzle clean"/>
+  <translation tag="Buffer" en="Buffer"/>
   <translation tag="Buffer Status" en="Buffer Status"/>
   <translation tag="Buffer tube problem" en="Buffer tube problem"/>
   <translation tag="Build Volume" en="Build Volume"/>
@@ -694,6 +697,7 @@
   <translation tag="Clean Brush" en="Clean Brush"/>
   <translation tag="Clean Nozzle" en="Clean Nozzle"/>
   <translation tag="Clean Up Storage" en="Clean Up Storage"/>
+  <translation tag="Clean nozzle" en="Clean nozzle"/>
   <translation tag="Clean up" en="Clean up"/>
   <translation tag="Clean {}" en="Clean {}"/>
   <translation tag="Cleaning Nozzle..." en="Cleaning Nozzle..."/>
@@ -1228,6 +1232,7 @@
   <translation tag="Extrude Speed" en="Extrude Speed"/>
   <translation tag="Extrude failed: {}" en="Extrude failed: {}"/>
   <translation tag="Extrude may still be running — response timed out" en="Extrude may still be running — response timed out"/>
+  <translation tag="Extrude more" en="Extrude more"/>
   <translation tag="Extrude/retract feedrate (Saved)" en="Extrude/retract feedrate (Saved)"/>
   <translation tag="Extruded past the nozzle after each load" en="Extruded past the nozzle after each load"/>
   <translation tag="Extruder" en="Extruder"/>
@@ -1243,6 +1248,7 @@
   <translation tag="Extruder to Nozzle" en="Extruder to Nozzle"/>
   <translation tag="Extruder too cold" en="Extruder too cold"/>
   <translation tag="Extruding prime line..." en="Extruding prime line..."/>
+  <translation tag="Extruding..." en="Extruding..."/>
   <translation tag="FAILED" en="FAILED"/>
   <translation tag="FILAMENT" en="FILAMENT"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" en="FILAMENT &amp; TOOLHEAD"/>
@@ -1592,6 +1598,7 @@
   <translation tag="Heat the chamber too" en="Heat the chamber too"/>
   <translation tag="Heat the extruder to at least {}°C before loading filament" en="Heat the extruder to at least {}°C before loading filament"/>
   <translation tag="Heat to at least %d°C for filament operations" en="Heat to at least %d°C for filament operations"/>
+  <translation tag="Heat {} above {}°C before resuming" en="Heat {} above {}°C before resuming"/>
   <translation tag="Heatbed Temperature" en="Heatbed Temperature"/>
   <translation tag="Heated Bed" en="Heated Bed"/>
   <translation tag="Heated Bed MPC Calibration" en="Heated Bed MPC Calibration"/>
@@ -1810,6 +1817,7 @@
   <translation tag="Invalid tool/slot" en="Invalid tool/slot"/>
   <translation tag="Invalid value" en="Invalid value"/>
   <translation tag="Invalid value type" en="Invalid value type"/>
+  <translation tag="Is new filament coming out of the nozzle?" en="Is new filament coming out of the nozzle?"/>
   <translation tag="Issue description" en="Issue description"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." en="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." en="It has not reported its slots yet. Try again in a moment."/>
@@ -2345,6 +2353,7 @@
   <translation tag="No target printer configured" en="No target printer configured"/>
   <translation tag="No temperature sensors detected" en="No temperature sensors detected"/>
   <translation tag="No timelapse videos found" en="No timelapse videos found"/>
+  <translation tag="No tool is mounted" en="No tool is mounted"/>
   <translation tag="No tool on the head" en="No tool on the head"/>
   <translation tag="No tools to calibrate" en="No tools to calibrate"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" en="No turn: the gap moved {:.1f} Hz"/>
@@ -2428,6 +2437,7 @@
   <translation tag="Nozzle temp must be 100-%d°C" en="Nozzle temp must be 100-%d°C"/>
   <translation tag="Nozzle, bed, and chamber in one widget" en="Nozzle, bed, and chamber in one widget"/>
   <translation tag="Nozzle:" en="Nozzle:"/>
+  <translation tag="Nozzles still heating: {}" en="Nozzles still heating: {}"/>
   <translation tag="Number Pad Layout" en="Number Pad Layout"/>
   <translation tag="OD" en="OD"/>
   <translation tag="OFF" en="OFF"/>
@@ -2531,6 +2541,7 @@
   <translation tag="Park Toolhead" en="Park Toolhead"/>
   <translation tag="Park the AFC system" en="Park the AFC system"/>
   <translation tag="Parking toolhead" en="Parking toolhead"/>
+  <translation tag="Parking {} failed: {}" en="Parking {} failed: {}"/>
   <translation tag="Part" en="Part"/>
   <translation tag="Part Cooling Fan" en="Part Cooling Fan"/>
   <translation tag="Part Fan" en="Part Fan"/>
@@ -2832,6 +2843,7 @@
   <translation tag="Purging" en="Purging"/>
   <translation tag="Purging nozzle" en="Purging nozzle"/>
   <translation tag="Purging..." en="Purging..."/>
+  <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." en="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude."/>
   <translation tag="QGL" en="QGL"/>
   <translation tag="QGL failed: {}" en="QGL failed: {}"/>
   <translation tag="QGL may still be running — response timed out" en="QGL may still be running — response timed out"/>
@@ -3208,6 +3220,7 @@
   <translation tag="Seat" en="Seat"/>
   <translation tag="Seat a tool by hand" en="Seat a tool by hand"/>
   <translation tag="Seat a tool by hand for the first Z home" en="Seat a tool by hand for the first Z home"/>
+  <translation tag="Seat the hot ends, heat {} above {}°C, then tap Resume." en="Seat the hot ends, heat {} above {}°C, then tap Resume."/>
   <translation tag="Seat which tool by hand?" en="Seat which tool by hand?"/>
   <translation tag="Seating {}..." en="Seating {}..."/>
   <translation tag="Secondary" en="Secondary"/>
@@ -3644,9 +3657,11 @@
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" en="The buffer may be disconnected, stuck, or faulty. Check it before retrying"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" en="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer"/>
   <translation tag="The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm." en="The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm."/>
+  <translation tag="The carriage was not put back: check which tool is mounted" en="The carriage was not put back: check which tool is mounted"/>
   <translation tag="The chamber heater can run a filament drying cycle. Start one from the drying dialog." en="The chamber heater can run a filament drying cycle. Start one from the drying dialog."/>
   <translation tag="The chamber wait already ended; nothing was stopped." en="The chamber wait already ended; nothing was stopped."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." en="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted."/>
+  <translation tag="The connection to Klipper was lost" en="The connection to Klipper was lost"/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." en="The controller boards Klipper runs on. See their load in the system settings."/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" en="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" en="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS"/>
@@ -3744,6 +3759,8 @@
   <translation tag="The speed of one fan you choose" en="The speed of one fan you choose"/>
   <translation tag="The time, date, and system uptime" en="The time, date, and system uptime"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." en="The timelapse or logs folder overlaps a protected folder, so cleanup is off."/>
+  <translation tag="The tool change under way finished, and the tool was not parked" en="The tool change under way finished, and the tool was not parked"/>
+  <translation tag="The tool change under way finished, and {} was not put back on the carriage" en="The tool change under way finished, and {} was not put back on the carriage"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" en="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" en="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" en="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?"/>
@@ -3897,6 +3914,8 @@
   <translation tag="Tool change failed: {}" en="Tool change failed: {}"/>
   <translation tag="Tool change speed" en="Tool change speed"/>
   <translation tag="Tool change to T{}" en="Tool change to T{}"/>
+  <translation tag="Tool change to {} failed: {}" en="Tool change to {} failed: {}"/>
+  <translation tag="Tool changer error: {}" en="Tool changer error: {}"/>
   <translation tag="Tool cycle failed: {}" en="Tool cycle failed: {}"/>
   <translation tag="Tool cycle finished" en="Tool cycle finished"/>
   <translation tag="Tool is seated" en="Tool is seated"/>
@@ -4192,6 +4211,7 @@
   <translation tag="Wifi" en="Wifi"/>
   <translation tag="Will not switch spools on runout" en="Will not switch spools on runout"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" en="Wipe nozzle on silicone cleaning strip"/>
+  <translation tag="Wipe the mounted nozzle on the brush" en="Wipe the mounted nozzle on the brush"/>
   <translation tag="Wiping {}..." en="Wiping {}..."/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" en="Within {0:.1f} Hz of each other at {1:.0f} Hz"/>
   <translation tag="Wizard Error" en="Wizard Error"/>
@@ -4457,6 +4477,7 @@
   <translation tag="{} — response timed out" en="{} — response timed out"/>
   <translation tag="{} → {}: no filament loaded." en="{} → {}: no filament loaded."/>
   <translation tag="{}% left" en="{}% left"/>
+  <translation tag="{}&apos;s nozzle is still heating" en="{}&apos;s nozzle is still heating"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" en="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist"/>
   <translation tag="{}:{:02} elapsed" en="{}:{:02} elapsed"/>
   <translation tag="~{:.1f} Hz / turn" en="~{:.1f} Hz / turn"/>

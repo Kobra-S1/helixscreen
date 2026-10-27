@@ -50,16 +50,18 @@ All control runs through Klipper gcode macros and `SAVE_VARIABLE` — **no dedic
 | `heater_generic heater_box<N>` | `temperature`, `target`, `power` | Per-box dryer heater |
 | `aht20_f heater_box<N>` | `temperature`, `humidity` | Per-box environment |
 | `box_extras` | `box_drying_state.box<N>.{dry_state, end_time}` | Drying countdown |
-| `printer.configfile.settings` | `heater_generic ... max_temp`, `box_config ... target_max_temp_heater_generic`, `[force_move]`, `[multi_color_controller]` | Dryer ceiling, lane-eject gating, Max 4 dialect marker |
+| `printer.configfile.settings` | `heater_generic ... max_temp`, `box_config ... target_max_temp_heater_generic`, `[force_move]`, `[multi_color_controller]` | Dryer ceiling, lane-eject gating, controller dialect marker (Max 4 and Q2 01.01.02.x) |
 
 **G-code the backend emits:**
 
 | Command | Used for |
 |---------|----------|
-| `EXTRUDER_LOAD SLOT=slot<N>` | Load (the backend manages hotend temp itself: `M109` → load → `CLEAR_NOZZLE` → `M104 S0`) |
-| `M603 S<temp>` | Unload (verified stock on Q2 1.1.1); falls back to `M109` + `EXTRUDER_UNLOAD SLOT=…` |
+| `MULTI_COLOR_LOAD SLOT=slot<N>` | Load on the controller dialect (Max 4, Q2 01.01.02.x): the controller heats, swaps out a seated slot, feeds and wipes, which is what the 01.01.02 stock screen sends |
+| `MULTI_COLOR_UNLOAD SLOT=slot<N>` | Unload on the controller dialect |
+| `EXTRUDER_LOAD SLOT=slot<N>` | Load without the controller (Q2 1.1.x, Plus 4): the backend manages hotend temp itself: `M109` → load → `CLEAR_NOZZLE` → `M104 S0` |
+| `M603 S<temp>` + `ENABLE_ALL_SENSOR` | Unload without the controller (verified stock on Q2 1.1.1). `M603` switches the filament sensor off and nothing else turns it back on before `PRINT_START`, so the backend re-enables it (`filament_macros::restore_after`); falls back to `M109` + `EXTRUDER_UNLOAD SLOT=…` |
 | `FORCE_MOVE STEPPER="box_stepper slot<N>" VELOCITY=… DISTANCE=…` | Lane eject on Q2/Plus 4 (#1041), gated on `[force_move] enable_force_move`; distance/velocity user-tunable (defaults 878 mm / 100 mm/s) |
-| `MULTI_COLOR_BOX_UNLOAD SLOT=slot<N>` | Lane eject + unload dialect on Max 4 (#1083) — the multi_color_controller rejects FORCE_MOVE |
+| `MULTI_COLOR_BOX_UNLOAD SLOT=slot<N>` | Lane eject on the controller dialect (#1083): the multi_color_controller rejects FORCE_MOVE |
 | `SAVE_VARIABLE VARIABLE=value_t<N> VALUE="slot<M>"` | Tool remap (`RemapStrategy::Native`, the unified remap path) |
 | `SAVE_VARIABLE VARIABLE={filament,color,vendor}_slot<N>` | Persisting slot metadata back to the Box's RFID indices, and the metadata clear (`VALUE=0` x3, see Slot Metadata below) |
 | `ENABLE_BOX_DRY` / `DISABLE_BOX_DRY BOX=<n>` | Dryer start/stop when the box_extras timer is present |
@@ -171,6 +173,8 @@ Not implemented: `recover()` / `reset()` / `cancel()` (return `not_supported`), 
 2. `recover()` / `reset()` / `cancel()` — still `not_supported`; blocked on knowing the stock recovery flow.
 3. Bypass — unknown whether the Box has one; needs hardware inspection.
 4. Path visualization — segments return `NONE` today.
+5. The external spool with a box attached: the stock screen loads it as slot 16 (`MULTI_COLOR_LOAD SLOT=slot16`, or `M604`, whose box branch retracts box filament first with `E_LOAD SLOT=16`); the backend offers no external-spool target, so with a box it cannot be loaded from here. Needs a box to verify.
+6. `multi_color_controller.operation.is_waiting_user`: the 01.01.02 stock screen answers it with a confirm popup that sends `USER_CONFIRM_CONTINUE`. Nothing here watches it, so a box operation that stops for the user waits until it is answered from another client. Needs a box to verify.
 
 ---
 

@@ -215,6 +215,13 @@ class AmsOperationSidebar {
     ObserverGuard active_backend_observer_;
     ObserverGuard extruder_temp_observer_;
     ObserverGuard extruder_target_observer_;
+    // The heaters the step bar's live-temp steps heat, where the backend names
+    // one other than the active extruder (AmsBackend::step_heater).
+    std::vector<ObserverGuard> step_heater_observers_;
+    // The extruder set changing re-creates per-extruder subjects: the step
+    // heater observers re-attach to the new ones.
+    ObserverGuard step_heater_version_observer_;
+    ObserverGuard can_cancel_observer_;
     ObserverGuard color_observer_;
     ObserverGuard colors_observer_;
     ObserverGuard finish_observer_;
@@ -311,6 +318,12 @@ class AmsOperationSidebar {
     // whichever one is current. Driven by apply_backend_step_index and the
     // extruder temp/target observers (live updates while heating).
     void refresh_live_temp_step_label(int current_index);
+
+    // Watch the heater of every live-temp step the backend names
+    // (AmsBackend::step_heater), so a step's readout moves with its own heater.
+    void observe_step_heaters();
+    // observe_step_heaters(), and again whenever the extruder set changes.
+    void watch_step_heaters();
 
     // Re-evaluate step display when extruder temp/target changes (called by observers).
     // Physical heating state overrides AmsAction for step indicator: backends emit

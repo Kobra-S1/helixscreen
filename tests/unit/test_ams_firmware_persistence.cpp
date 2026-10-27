@@ -128,7 +128,7 @@ TEST_CASE("AmsBackendToolChanger: apply_user_edit emits ASSIGN_TOOL on mapped_to
 
     bool emitted = false;
     for (const auto& g : backend.captured) {
-        if (g == "ASSIGN_TOOL TOOL=tool0 N=2") {
+        if (g == "ASSIGN_TOOL TOOL=\"tool tool0\" N=2") {
             emitted = true;
             break;
         }

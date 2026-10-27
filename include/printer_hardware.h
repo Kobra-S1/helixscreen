@@ -250,10 +250,10 @@ class PrinterHardware {
     /**
      * @brief Check if a filament sensor is managed by an AMS system.
      *
-     * Consults the detected AMS backend in @p discovery and falls back to
-     * substring matching against well-known AMS keywords (mmu, afc, ercf,
-     * gate, lane, hub, buffer, turtle, ...) when no specific backend is
-     * detected or the backend's named sensors don't match.
+     * Matches the filament systems' own keywords
+     * (AmsBackend::sensor_name_names_filament_system) and generic
+     * multi-material keywords (gate, lane, hub, buffer, ...) whatever was
+     * detected, then consults the detected AMS backend in @p discovery.
      *
      * Each backend owns the recognition of its named (keyword-free) sensors via
      * a static owns_filament_sensor(); this method dispatches through
@@ -276,8 +276,7 @@ class PrinterHardware {
     /**
      * Substring-only fallback used internally by the public overload above.
      * Catches AMS-naming keywords even when no backend is detected via the
-     * Klipper object list (defense in depth for ERCF, BoxTurtle without AFC,
-     * etc.). Callers should always go through the public overload.
+     * Klipper object list. Callers should always go through the public overload.
      */
     static bool is_ams_sensor_substring(const std::string& sensor_name);
 

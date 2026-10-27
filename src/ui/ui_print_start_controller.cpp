@@ -162,7 +162,7 @@ void PrintStartController::initiate() {
         return;
     }
 
-    if (divert_to_spool_removal()) {
+    if (divert_to_spool_removal() || refuse_while_filament_op_runs()) {
         end_without_print();
         return;
     }
@@ -512,6 +512,15 @@ void PrintStartController::report_preprint_failure(const std::string& reason) {
                                                "The print was not started.")));
 }
 
+bool PrintStartController::refuse_while_filament_op_runs() {
+    if (!AmsState::instance().any_operation_running_here()) {
+        return false;
+    }
+    spdlog::warn("[PrintStartController] Print start refused: a filament operation is running");
+    NOTIFY_WARNING(lv_tr("Wait for the current filament operation to finish"));
+    return true;
+}
+
 bool PrintStartController::divert_to_spool_removal() {
     if (!printer_state_.print_state().spool_latch_active()) {
         return false;
@@ -564,7 +573,7 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
         return;
     }
 
-    if (divert_to_spool_removal()) {
+    if (divert_to_spool_removal() || refuse_while_filament_op_runs()) {
         if (on_error) {
             on_error();
         }

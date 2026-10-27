@@ -633,24 +633,11 @@ void HardwareValidator::validate_configured_hardware(Config* config,
                 if (hw_name.empty())
                     continue;
 
-                // Check if this is AMS/MMU hardware (uses capability flags)
-                bool is_ams_hardware = (hw_name == "AFC" || hw_name == "mmu" ||
-                                        hw_name == "toolchanger" || hw_name == "ace");
-
-                if (is_ams_hardware) {
-                    bool found = false;
-
-                    if (hw_name == "mmu" && hardware.has_mmu()) {
-                        found = true;
-                    } else if (hw_name == "AFC" && hardware.mmu_type() == AmsType::AFC) {
-                        found = true;
-                    } else if (hw_name == "toolchanger" && hardware.has_tool_changer()) {
-                        found = true;
-                    } else if (hw_name == "ace" && hardware.mmu_type() == AmsType::ACE) {
-                        found = true;
-                    }
-
-                    if (!found && !is_hardware_optional(config, hw_name)) {
+                // A filament system's entry must find that system detected.
+                const AmsType ams_type = ams_type_for_expected_hardware(hw_name);
+                if (ams_type != AmsType::NONE) {
+                    if (!hardware.has_filament_system(ams_type) &&
+                        !is_hardware_optional(config, hw_name)) {
                         result.expected_missing.push_back(HardwareIssue::warning(
                             hw_name, HardwareType::OTHER, TR_NOOP("AMS/MMU system not detected")));
                         spdlog::debug("[HardwareValidator] Expected AMS hardware '{}' not found",

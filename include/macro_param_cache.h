@@ -89,6 +89,11 @@ class MacroParamCache {
     [[nodiscard]] std::optional<bool> macro_sets_target(const std::string& macro_name,
                                                         const std::string& target_full_name) const;
 
+    /// Whether running @p macro_name runs @p command (case-insensitive), as a
+    /// line of its template or of a macro it calls. False when configfile
+    /// carried no body for it.
+    [[nodiscard]] bool macro_runs(const std::string& macro_name, const std::string& command) const;
+
     /// Upper-case names of the macros whose template stops the printer, each with
     /// its stop message (empty when not a literal).
     [[nodiscard]] std::map<std::string, std::string> printer_stop_commands() const;

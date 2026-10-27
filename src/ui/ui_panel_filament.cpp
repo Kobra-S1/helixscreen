@@ -2184,9 +2184,11 @@ void FilamentPanel::handle_extruder_changed() {
 
     helix::ui::ToolChangeHooks hooks;
     const auto& tool = ts.tools()[static_cast<size_t>(selected)];
+    // on_success means the change was accepted, not that it finished: a swap
+    // can still fail, and that failure is reported on its own.
     hooks.on_success = [label = helix::ui::active_tool_label(tool.name, tool.index,
                                                              helix::ui::ToolLabelForm::Full)]() {
-        NOTIFY_SUCCESS(lv_tr("Switched to {}"), label);
+        NOTIFY_INFO(lv_tr("Switching to {}"), label);
     };
     hooks.on_failed = object_lifetime_.bg_cb("FilamentPanel::tool_change_err",
                                              [this]() { revert_extruder_dropdown(); });

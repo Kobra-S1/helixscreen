@@ -16,4 +16,10 @@ namespace helix::ace {
 /// instance number (`ace_instance_0`, `ace_instance_1`, ...).
 inline constexpr std::string_view kInstanceObjectPrefix = "ace_instance_";
 
+/// The conventional bypass wrapper macros. The ACE's filament path has a master
+/// switch but no bypass command, so these are what a stock config defines; an
+/// owner whose macros are named differently picks theirs in the device operations.
+inline constexpr const char* kBypassOnMacro = "ACE_BYPASS_ON";
+inline constexpr const char* kBypassOffMacro = "ACE_BYPASS_OFF";
+
 } // namespace helix::ace

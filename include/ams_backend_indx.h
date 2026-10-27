@@ -83,10 +83,6 @@ class AmsBackendIndx : public AmsBackendToolChanger {
     /// leaves its tool mounted and hot, so the last one stays on the head.
     [[nodiscard]] int max_heads_per_filament_op() const override;
 
-    [[nodiscard]] const char* get_klipper_object_name() const override {
-        return "indx";
-    }
-
     [[nodiscard]] std::optional<helix::ErrorEvent> current_error() const override;
 
     /// Seat or remove the half-seated tool, each behind a confirm. Empty
@@ -139,10 +135,6 @@ class AmsBackendIndx : public AmsBackendToolChanger {
     [[nodiscard]] AmsError follow_up_refusal_locked(int slot_index, const SlotInfo& before,
                                                     const SlotInfo& after, std::string& preset_key,
                                                     indx::FilamentPreset& values) const;
-
-    /// A print holds the printer, paused included. Virtual so tests can print
-    /// without a printer.
-    [[nodiscard]] virtual bool print_holds_printer() const;
 
     /// The nozzle heater's target in C; 0 without a printer. Virtual so tests
     /// can heat without one.

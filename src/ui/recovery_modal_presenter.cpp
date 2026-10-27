@@ -170,7 +170,7 @@ void RecoveryModalPresenter::present(const helix::ErrorEvent& e) {
     active_actions_ = e.recovery_actions;
     shown_detail_ = e.detail;
 
-    // modal_title_for encodes the CFS "Filament System Error" rule. Replacing
+    // modal_title_for falls back to "Printer Error" for an untitled event. Replacing
     // visible content hides the old dialog first, as a programmatic close, which
     // the dismiss callback does not report.
     lv_obj_t* screen = lv_screen_active();

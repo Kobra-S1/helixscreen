@@ -3448,17 +3448,15 @@ TEST_CASE("PreprintPredictor has_predictions reflects actual entries", "[print][
 }
 
 // ============================================================================
-// K2/CFS-specific gcode tag stream — folded in from the deleted
-// PrintPhaseTracker. Opted-in profiles (cfs_signals) consume these matchers;
-// every other printer falls through them.
+// K2 gcode tag stream, matched by the K2 profile's tag_patterns; every
+// other printer's profile lacks them and falls through.
 // ============================================================================
 
 /**
  * @brief The K2 tag stream run under the profile that declares it
  *
- * creality_k2.json sets cfs_signals, which is what admits the purge-percent
- * and box-load tag matchers. The base sequential fixture's profile
- * deliberately does not.
+ * creality_k2.json carries the purge-percent and box-load tag_patterns.
+ * The base sequential fixture's profile deliberately does not.
  */
 class K2TagStreamFixture : public PrintStartCollectorSequentialFixture {
   public:
@@ -5945,9 +5943,9 @@ TEST_CASE_METHOD(K1CPrintStartReplayFixture,
 }
 
 TEST_CASE_METHOD(K1CPrintStartReplayFixture,
-                 "K2 purge-percent and box tags are ignored without cfs_signals",
+                 "K2 purge-percent and box tags are ignored without the K2 tag patterns",
                  "[print][collector][k2][negative]") {
-    // The creality_k1 profile does not declare cfs_signals: on a K1/K1C the
+    // The creality_k1 profile carries no tag_patterns: on a K1/K1C the
     // tag stream never appears, and these matchers must not fire on lines
     // that merely happen to contain their vocabulary.
     collector().start();

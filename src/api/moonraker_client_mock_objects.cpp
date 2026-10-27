@@ -99,6 +99,7 @@ static json toolchanger_configfile_sections(const MoonrakerClientMock* self) {
             {"description",
              "Measures every tool's XYZ offset on the nozzle sensor. Clean all nozzles first."}};
     }
+    sections.merge_patch(self->medusa_config_sections());
     return sections;
 }
 
@@ -544,12 +545,18 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["mmu"] = get_mock_mmu_status();
             }
 
-            // MedusaHC (HELIX_MOCK_AMS=medusahc[-fork]). Emitted only for
+            // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for
             // the objects this variant actually ships, so a consumer that reads
             // the wrong schema finds nothing rather than a convenient default.
             if (objects.contains("medusahc")) {
                 if (auto medusa = self->medusa_status_json(); !medusa.empty()) {
                     status_obj["medusahc"] = medusa;
+                }
+            }
+            const auto medusa_macros = self->medusa_macro_status_json();
+            for (const auto& [name, value] : medusa_macros.items()) {
+                if (objects.contains(name)) {
+                    status_obj[name] = value;
                 }
             }
             // INDX (HELIX_MOCK_AMS=indx): only the objects asked for.
@@ -775,43 +782,18 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     {"smooth_time", self->pressure_advance_for("extruder").smooth_time}};
             }
 
-            // Toolchanger secondary extruders (HELIX_MOCK_AMS=toolchanger registers
-            // extruder1/2/3 as heaters). Distinct initial values so each heating
-            // state renders a different color in the Nozzle Temps widget:
-            //   extruder1 HEATING (150 → 250), extruder2 AT-TEMP (248 → 250),
-            //   extruder3 COOLING (200, no target). The contains() guard is
-            //   self-limiting: these heaters only exist in toolchanger mode.
-            if (objects.contains("extruder1")) {
-                status_obj["extruder1"] = {
-                    {"temperature", 150.0},
-                    {"target", 250.0},
-                    {"power", 0.8},
-                    {"pressure_advance", self->pressure_advance_for("extruder1").advance},
-                    {"smooth_time", self->pressure_advance_for("extruder1").smooth_time}};
-            }
-            if (objects.contains("extruder2")) {
-                status_obj["extruder2"] = {
-                    {"temperature", 248.0},
-                    {"target", 250.0},
-                    {"power", 0.2},
-                    {"pressure_advance", self->pressure_advance_for("extruder2").advance},
-                    {"smooth_time", self->pressure_advance_for("extruder2").smooth_time}};
-            }
-            if (objects.contains("extruder3")) {
-                status_obj["extruder3"] = {
-                    {"temperature", 200.0},
-                    {"target", 0.0},
-                    {"power", 0.0},
-                    {"pressure_advance", self->pressure_advance_for("extruder3").advance},
-                    {"smooth_time", self->pressure_advance_for("extruder3").smooth_time}};
-            }
-            // A six-tool MedusaHC's last two hot ends, cold.
-            for (const char* ext : {"extruder4", "extruder5"}) {
+            // Toolchanger secondary extruders (HELIX_MOCK_AMS=toolchanger and
+            // medusahc register them as heaters), each with its own reading and
+            // target. The contains() guard is self-limiting: these heaters only
+            // exist in those modes.
+            for (int t = 1; t <= 5; ++t) {
+                const std::string ext = "extruder" + std::to_string(t);
                 if (objects.contains(ext)) {
+                    const double target = self->secondary_extruder_target(t);
                     status_obj[ext] = {
-                        {"temperature", 25.0},
-                        {"target", 0.0},
-                        {"power", 0.0},
+                        {"temperature", self->secondary_extruder_temp(t)},
+                        {"target", target},
+                        {"power", target > 0 ? 0.5 : 0.0},
                         {"pressure_advance", self->pressure_advance_for(ext).advance},
                         {"smooth_time", self->pressure_advance_for(ext).smooth_time}};
                 }
@@ -879,12 +861,18 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["oams_manager"] = self->openams_status_json();
             }
 
-            // MedusaHC (HELIX_MOCK_AMS=medusahc[-fork]). Emitted only for
+            // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for
             // the objects this variant actually ships, so a consumer that reads
             // the wrong schema finds nothing rather than a convenient default.
             if (objects.contains("medusahc")) {
                 if (auto medusa = self->medusa_status_json(); !medusa.empty()) {
                     status_obj["medusahc"] = medusa;
+                }
+            }
+            const auto medusa_macros = self->medusa_macro_status_json();
+            for (const auto& [name, value] : medusa_macros.items()) {
+                if (objects.contains(name)) {
+                    status_obj[name] = value;
                 }
             }
             // INDX (HELIX_MOCK_AMS=indx): only the objects asked for.

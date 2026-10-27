@@ -93,7 +93,7 @@ void run_plr_resume(IMoonrakerAPI* api, const helix::PlrRecoveryPlan& plan) {
     if (!plan.resume_allowed()) {
         spdlog::error("[PLR] resume REFUSED: no authorized recovery plan "
                       "(backend={}) — see docs/devel/POWER_LOSS_RECOVERY.md",
-                      static_cast<int>(plan.backend));
+                      plr_backend_name(plan.backend));
         return;
     }
     if (!plan.resume_rpc.empty()) {
@@ -129,11 +129,7 @@ void run_plr_discard(IMoonrakerAPI* api, const helix::PlrRecoveryPlan& plan) {
         auto on_error = [fail_fmt](const MoonrakerError& err) {
             report_action_error(err, fail_fmt, "Discard");
         };
-        if (plan.discard_rpc_method == kPlrDiscardRpc) {
-            plr_rpc::discard(*api, on_ok, on_error);
-        } else {
-            api->cancel_continue_print(on_ok, on_error);
-        }
+        plr_rpc::discard_with_rpc(*api, plan, on_ok, on_error);
     } else {
         spdlog::warn("[PLR] discard: plan carries no discard action");
     }
@@ -157,9 +153,10 @@ std::string plr_prompt_body(const std::string& file_path, const char* with_file_
     return body;
 }
 
-PlrPromptStrings plr_prompt_strings(PlrBackendType backend, const PlrPromptStrings& creality,
+PlrPromptStrings plr_prompt_strings(const helix::PlrRecoveryPlan& plan,
+                                    const PlrPromptStrings& approximate,
                                     const PlrPromptStrings& standard) {
-    return backend == PlrBackendType::CREALITY ? creality : standard;
+    return plan.resume_layer_approximate ? approximate : standard;
 }
 
 void show_plr_recovery_prompt(IMoonrakerAPI* api, const helix::PlrRecoveryPlan& plan) {
@@ -179,7 +176,7 @@ void show_plr_recovery_prompt(IMoonrakerAPI* api, const helix::PlrRecoveryPlan& 
     // Literals stay here (the translation extractor needs them lexically next to
     // lv_tr); only the choice between them is factored out, so it can be tested
     // without the XML engine. Rationale for the split copy: plr_prompt_strings().
-    const PlrPromptStrings creality{
+    const PlrPromptStrings approximate{
         lv_tr("The printer lost power while printing {}. The resumed layer may not line up "
               "exactly."),
         lv_tr("The printer lost power during a print. The resumed layer may not line up "
@@ -188,7 +185,7 @@ void show_plr_recovery_prompt(IMoonrakerAPI* api, const helix::PlrRecoveryPlan& 
         lv_tr("The printer lost power while printing {}. Resume where it left off?"),
         lv_tr("The printer lost power during a print. It can resume where it left off.")};
 
-    const PlrPromptStrings chosen = plr_prompt_strings(plan.backend, creality, standard);
+    const PlrPromptStrings chosen = plr_prompt_strings(plan, approximate, standard);
     std::string body = plr_prompt_body(plan.recovery_file, chosen.with_file, chosen.generic);
 
     ConfirmOptions opts;
@@ -209,7 +206,7 @@ void show_plr_recovery_prompt(IMoonrakerAPI* api, const helix::PlrRecoveryPlan& 
     }
 
     spdlog::info("[PLR] Recovery prompt shown (backend={}, recovery_file='{}')",
-                 static_cast<int>(plan.backend), plan.recovery_file);
+                 plr_backend_name(plan.backend), plan.recovery_file);
 }
 
 } // namespace helix::ui

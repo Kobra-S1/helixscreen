@@ -8,6 +8,7 @@
 #include <spdlog/fmt/fmt.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <utility>
 
 namespace helix::mount_feed {
@@ -169,18 +170,30 @@ std::string prompt_end_gcode() {
     return respond_command("action:prompt_end");
 }
 
+std::string heaters_off_gcode(const std::vector<int>& heads) {
+    std::string out;
+    for (int head : heads) {
+        if (!out.empty()) {
+            out += "\n";
+        }
+        out += heater_off_gcode(head);
+    }
+    return out;
+}
+
 std::vector<Stage> plan(const Request& r) {
     std::vector<Stage> stages;
     // Whichever stage follows an operator-wait stage closes the prompt: the
     // reply moved the run on, and the dialog is still up until this lands.
     bool close_prompt = false;
     const auto push_stage = [&](Step step, std::string gcode, bool awaits, int tool) {
+        const bool closes = close_prompt;
         if (close_prompt) {
             gcode = prompt_end_gcode() + "\n" + std::move(gcode);
             close_prompt = false;
         }
         const bool swaps = step == Step::Mount || step == Step::Restore;
-        stages.push_back({step, std::move(gcode), awaits, tool, swaps});
+        stages.push_back({step, std::move(gcode), awaits, tool, swaps, closes});
         if (awaits) {
             close_prompt = true;
         }
@@ -299,6 +312,53 @@ int Run::phase_index() const {
     return it == all.end() ? -1 : static_cast<int>(it - all.begin());
 }
 
+bool Run::started() const {
+    if (cleaning_up_) {
+        return !stages_.empty() && stages_.front().heaters_off;
+    }
+    const size_t last = std::min(index_ + 1, stages_.size());
+    return std::any_of(stages_.begin(), stages_.begin() + static_cast<std::ptrdiff_t>(last),
+                       [](const Stage& s) { return !s.awaits_operator; });
+}
+
+std::vector<int> Run::heater_heads() const {
+    std::vector<int> heads;
+    if (cleaning_up_ ? (finished() || !stages_[index_].heaters_off) : !started()) {
+        return heads;
+    }
+    for (const HeadRequest& head : request_.heads) {
+        heads.push_back(head.head);
+    }
+    return heads;
+}
+
+void Run::note_heater_targets(const std::string& gcode) {
+    acked_targets_c_.resize(request_.heads.size(), 0);
+    for (size_t i = 0; i < request_.heads.size(); ++i) {
+        // The trailing space keeps `extruder` from matching `extruder1`.
+        const std::string key =
+            "SET_HEATER_TEMPERATURE HEATER=" + heater_name(request_.heads[i].head) + " TARGET=";
+        for (size_t at = gcode.find(key); at != std::string::npos;
+             at = gcode.find(key, at + key.size())) {
+            if (at != 0 && gcode[at - 1] != '\n') {
+                continue;
+            }
+            acked_targets_c_[i] =
+                static_cast<int>(std::strtol(gcode.c_str() + at + key.size(), nullptr, 10));
+        }
+    }
+}
+
+std::vector<int> Run::heads_left_heating() const {
+    std::vector<int> heads;
+    for (size_t i = 0; i < acked_targets_c_.size(); ++i) {
+        if (acked_targets_c_[i] > 0) {
+            heads.push_back(request_.heads[i].head);
+        }
+    }
+    return heads;
+}
+
 std::vector<int> Run::completed_heads() const {
     std::vector<int> done;
     if (cleaning_up_ || request_.heads.size() < 2) {
@@ -328,6 +388,7 @@ void Run::stage_done() {
     if (finished() || awaiting_operator_) {
         return;
     }
+    note_heater_targets(stages_[index_].gcode);
     if (stages_[index_].awaits_operator && !cleaning_up_) {
         awaiting_operator_ = true;
         waited_ms_ = 0;
@@ -374,20 +435,21 @@ void Run::abort(bool restore_carriage) {
     // before the first mount is the PREVIOUS tool's, and a blanket M104 S0
     // would zero a target its user set) and the carriage goes back where it
     // was. Before that nothing has moved or heated, so there is nothing to undo.
-    const bool started = std::any_of(stages_.begin(), stages_.begin() + index_ + 1,
-                                     [](const Stage& s) { return !s.awaits_operator; });
+    const bool started = this->started();
     std::string cleanup;
     if (awaiting_operator_ || current_step() == Step::Insert) {
         cleanup = prompt_end_gcode();
     }
     bool swaps = false;
     if (started) {
+        std::vector<int> heads;
         for (const HeadRequest& head : request_.heads) {
-            if (!cleanup.empty()) {
-                cleanup += "\n";
-            }
-            cleanup += heater_off_gcode(head.head);
+            heads.push_back(head.head);
         }
+        if (!cleanup.empty()) {
+            cleanup += "\n";
+        }
+        cleanup += heaters_off_gcode(heads);
         if (restore_carriage && !request_.restore_gcode.empty()) {
             cleanup += "\n" + request_.restore_gcode;
             swaps = true;
@@ -395,11 +457,18 @@ void Run::abort(bool restore_carriage) {
     }
     awaiting_operator_ = false;
     cleaning_up_ = true;
-    stages_ = {Stage{Step::Restore, std::move(cleanup), false, 0, swaps}};
+    Stage stage{Step::Restore, std::move(cleanup), false, 0, swaps};
+    stage.heaters_off = started;
+    stages_ = {std::move(stage)};
     index_ = 0;
     if (stages_.front().gcode.empty()) {
         index_ = stages_.size();
     }
+}
+
+void Run::abandon() {
+    awaiting_operator_ = false;
+    index_ = stages_.size();
 }
 
 } // namespace helix::mount_feed

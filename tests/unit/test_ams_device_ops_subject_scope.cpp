@@ -40,6 +40,8 @@ const char* const kDeviceOpsSubjects[] = {
     "ams_device_ops_printer_retains_spool_info",
     "ams_device_ops_can_reset_endless_spool",
     "ams_device_ops_can_abort",
+    "ams_device_ops_can_home",
+    "ams_device_ops_can_recover",
 };
 
 } // namespace

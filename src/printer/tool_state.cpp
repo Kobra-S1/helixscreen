@@ -241,10 +241,11 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
     } else if (!hardware.tool_names().empty()) {
         // Tool changer: create N tools from discovered tool names.
         //
-        // Not gated on has_tool_changer() any more. Tool names only ever come
-        // from [tool N] objects or, on a changer whose extra does the swapping
+        // Not gated on has_tool_changer(). Tool names only ever come from
+        // [tool N] objects or, on a changer whose extra does the swapping
         // itself, from the extruder enumeration discovery ran for it - both mean
-        // a changer, and the fork case has no [toolchanger] object to gate on.
+        // a changer, and a changer without klipper-toolchanger has no
+        // [toolchanger] object to gate on.
         const auto& tool_names = hardware.tool_names();
 
         const std::vector<std::string>& extruder_names = discovered_extruders_;

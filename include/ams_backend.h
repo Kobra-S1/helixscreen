@@ -773,6 +773,31 @@ class AmsBackend {
     [[nodiscard]] virtual lv_subject_t* get_operation_step_index_subject(StepOperationType op);
 
     /**
+     * @brief The operation the backend is running, when it knows which.
+     *
+     * A sidebar that did not start the operation (the AMS panel opened mid-run)
+     * otherwise guesses it from the action frames, and a load that is still
+     * heating reads the same as a swap. nullopt (default) => not known; the
+     * sidebar guesses. Main thread.
+     */
+    [[nodiscard]] virtual std::optional<StepOperationType> running_step_operation() const {
+        return std::nullopt;
+    }
+
+    /**
+     * @brief The heater a live-temp step of the current step model heats.
+     *
+     * A machine with a heater per tool heats a different one at each tool's
+     * step, and Klipper's active extruder need not be it. Empty (default) =>
+     * the active extruder. Main thread.
+     *
+     * @param step_index  Index into the model get_operation_step_model() built
+     */
+    [[nodiscard]] virtual std::string step_heater(int /*step_index*/) const {
+        return {};
+    }
+
+    /**
      * @brief Does `action` mean an operation the STEP BAR should be following?
      *
      * Drives both halves of the step bar from one definition: whether the bar is
@@ -1277,9 +1302,9 @@ class AmsBackend {
      *     carriage and feeds nothing. load_filament() names that as its first
      *     wrong answer; AUTO_FEEDING already targets any extruder directly.
      *   - Toolchanger: the swap arm dispatches change_tool(mapped_tool), but
-     *     change_tool() validates its argument as a SLOT and emits
-     *     `SELECT_TOOL T={n}` precisely to bypass ASSIGN_TOOL remapping — so a
-     *     remapped tool would mount the wrong physical toolhead.
+     *     change_tool() validates its argument as a SLOT and names that slot's
+     *     physical tool, bypassing ASSIGN_TOOL remapping — so a remapped tool
+     *     number would mount the wrong physical toolhead.
      * This is the PARALLEL-appropriate rule deferred in #1199.
      *
      * @param info        Backend system info snapshot.
@@ -1670,6 +1695,23 @@ class AmsBackend {
     }
 
     /**
+     * @brief Whether reset() has a command to send on this machine.
+     *
+     * A runtime answer, unlike supports_reset(): one backend can drive machines
+     * where the command exists and machines where it does not. The device
+     * operations overlay's Home button follows it.
+     */
+    [[nodiscard]] virtual bool reset_available() const {
+        return true;
+    }
+
+    /// Whether recover() has a command to send on this machine. The device
+    /// operations overlay's Recover button follows it.
+    [[nodiscard]] virtual bool recover_available() const {
+        return true;
+    }
+
+    /**
      * @brief Clear a latched fault so the system stops reporting an error
      *
      * Bookkeeping only — this never moves filament. Distinct from
@@ -2054,6 +2096,17 @@ class AmsBackend {
      * Main thread, from AmsState's klippy_state observer. Default: nothing to end.
      */
     virtual void on_klipper_restarted() {}
+
+    /**
+     * @brief The Moonraker connection dropped
+     *
+     * Nothing sent before the drop will be answered, and gcode cannot reach
+     * the printer until the reconnect. A backend that sequences an operation
+     * itself ends it here rather than waiting on acks. Main thread, from
+     * AmsState's connection observer, on the edge out of CONNECTED. Default:
+     * nothing to end.
+     */
+    virtual void on_connection_lost() {}
 
     /**
      * @brief Whether cancel() can reach what is running now
@@ -3406,20 +3459,6 @@ class AmsBackend {
         return is_tool_changer(get_type());
     }
 
-    /**
-     * @brief Klipper object / expected-hardware name for this backend.
-     *
-     * Used when recording expected hardware during wizard setup so the hardware
-     * validator can warn if the AMS disappears. Matches the firmware object name
-     * (e.g. "AFC", "mmu", "toolchanger"). Empty string => not a tracked Klipper
-     * object (e.g. REST-based systems). Default empty; backends override.
-     *
-     * @return Klipper object name, or "" if none
-     */
-    [[nodiscard]] virtual const char* get_klipper_object_name() const {
-        return "";
-    }
-
 #ifdef HELIX_ENABLE_MOCKS
     /**
      * @brief This backend as an AmsBackendMock, or nullptr if it is not one
@@ -3904,8 +3943,8 @@ class AmsBackend {
      * pattern matching with no per-instance state, so it needs no backend object.
      *
      * Keyword-bearing sensor names (mmu_*, afc_*, lane*, gate*, ...) are handled
-     * by the type-independent substring path in PrinterHardware and are NOT this
-     * method's concern.
+     * by the type-independent keyword paths (sensor_name_names_filament_system()
+     * and PrinterHardware's generic keywords) and are NOT this method's concern.
      *
      * @param type      Detected AMS/MMU backend type
      * @param bare_name Sensor name with the Klipper object-type prefix stripped
@@ -3914,6 +3953,18 @@ class AmsBackend {
      */
     static bool sensor_belongs_to_backend(AmsType type, const std::string& bare_name,
                                           const helix::PrinterDiscovery& discovery);
+
+    /**
+     * @brief Whether @p lower_name carries a filament system's own keyword.
+     *
+     * Type-independent: a sensor named for a system's hardware ("ercf_gate",
+     * "afc_hub") is that system's even when the system itself was not
+     * detected. Each backend lists its keywords (kSensorNameKeywords) in its
+     * own header; this asks every one of them.
+     *
+     * @param lower_name Sensor name, lowercased
+     */
+    static bool sensor_name_names_filament_system(std::string_view lower_name);
 
     /**
      * @brief Every Klipper status object the filament systems in @p hw need pushed.
@@ -3970,6 +4021,21 @@ class AmsBackend {
      * @return Unique pointer to mock backend instance
      */
     static std::unique_ptr<AmsBackend> create_mock(int slot_count = 4);
+
+    /**
+     * @brief Load the state filament backends keep across sessions
+     *
+     * Process-scoped and independent of which backend this printer runs: a
+     * backend reads it when it is constructed, and a printer switch keeps it.
+     * Call once at startup, before any backend is created; a backend built
+     * before this treats every remembered fact as unknown.
+     *
+     * @param config_dir Writable directory the state is persisted under
+     */
+    static void init_persistent_state(const std::string& config_dir);
+
+    /// Release what init_persistent_state() loaded, at process exit.
+    static void shutdown_persistent_state();
 
   private:
     /// Tool -> slot aimed from our UI, for as long as this backend lives.

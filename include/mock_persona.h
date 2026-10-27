@@ -230,21 +230,26 @@ inline constexpr std::array<PersonaEntry, 15> kPersonas = {{
 /// MedusaHC mode is mock HARDWARE: the CLI's --real-ams implication, AmsBackend's
 /// mock selection and MoonrakerClientMock all classify the mode through this.
 enum class MedusaVariant {
-    NONE,          ///< Not a MedusaHC mode
-    CONTROLLER,    ///< Irbis3D controller with klipper-toolchanger (sync_toolchanger: 1)
-    CONTROLLER_TN, ///< Irbis3D controller alone: T<n> macros -> SET -> MHC_SET, DROP_TOOL parks
-    FORK,          ///< topi314/MedusaHC: [medusahc] alone, forked status schema
+    NONE, ///< Not a MedusaHC mode
+    /// The stock install: [medusahc] + [pin_watch io], four tools, no
+    /// klipper-toolchanger. T<n> macros -> SET -> MHC_SET, DROP_TOOL parks.
+    CONTROLLER,
+    /// The same controller with the optional klipper-toolchanger beside it
+    /// (pin_watch sync_toolchanger: 1), which only mirrors the docks' tool.
+    CONTROLLER_KTC,
+    /// A six-tool machine on the controller alone, own T<n> macros.
+    CONTROLLER_TN,
 };
 
 [[nodiscard]] inline MedusaVariant medusa_variant(std::string_view mode) {
     if (mode == "medusahc" || mode == "medusa" || mode == "mhc") {
         return MedusaVariant::CONTROLLER;
     }
+    if (mode == "medusahc-ktc" || mode == "medusa-ktc") {
+        return MedusaVariant::CONTROLLER_KTC;
+    }
     if (mode == "medusahc-tn" || mode == "medusa-tn") {
         return MedusaVariant::CONTROLLER_TN;
-    }
-    if (mode == "medusahc-fork" || mode == "medusa-fork") {
-        return MedusaVariant::FORK;
     }
     return MedusaVariant::NONE;
 }

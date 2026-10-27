@@ -13,6 +13,8 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <utility>
+#include <vector>
 
 namespace helix::ui {
 
@@ -28,7 +30,6 @@ constexpr lv_opa_t kSelectedBgOpa = 40;
 /// to a filled row to carry that on a glossy panel.
 constexpr lv_opa_t kEmptyRowOpa = LV_OPA_30;
 constexpr lv_opa_t kBackdropOpa = 128;
-constexpr int32_t kCardMinWidth = 480;
 } // namespace
 
 FilamentSlotPicker::~FilamentSlotPicker() {
@@ -93,7 +94,6 @@ void FilamentSlotPicker::show(lv_obj_t* parent, lv_obj_t* trigger,
     // Up to the whole screen: every row, the last included, should show without
     // scrolling wherever they fit; position_card() moves the card to make room.
     lv_obj_set_style_max_height(card, LV_PCT(100), 0);
-    lv_obj_set_style_min_width(card, kCardMinWidth, 0);
     lv_obj_set_style_bg_color(card, theme_manager_get_color("elevated_bg"), 0);
     lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(card, card_radius, 0);
@@ -119,6 +119,7 @@ void FilamentSlotPicker::show(lv_obj_t* parent, lv_obj_t* trigger,
         create_cancel_row(card, options.cancel_choice);
     }
 
+    fit_card_width(card);
     // Position anchored to trigger widget
     position_card(card);
 
@@ -278,6 +279,37 @@ void FilamentSlotPicker::select(const Selection& sel) {
 // ============================================================================
 // Positioning
 // ============================================================================
+
+void FilamentSlotPicker::fit_card_width(lv_obj_t* card) {
+    // Rows fill the card (width 100%), and a percentage child gives a
+    // content-sized parent nothing to measure. Lay the children out at their
+    // natural width once, take the card's width from that, then let them fill
+    // it again. The card never runs past the screen less a margin each side;
+    // a row wider than that ellipsizes its label.
+    // A growing label claims only leftover space, so it adds nothing to a
+    // content-sized row; it stops growing for the measure.
+    const uint32_t count = lv_obj_get_child_count(card);
+    std::vector<std::pair<lv_obj_t*, uint8_t>> grown;
+    for (uint32_t i = 0; i < count; ++i) {
+        lv_obj_t* child = lv_obj_get_child(card, static_cast<int32_t>(i));
+        lv_obj_set_width(child, LV_SIZE_CONTENT);
+        if (lv_obj_t* label = lv_obj_find_by_name(child, "slot_label")) {
+            grown.emplace_back(label, lv_obj_get_style_flex_grow(label, LV_PART_MAIN));
+            lv_obj_set_flex_grow(label, 0);
+        }
+    }
+    lv_obj_update_layout(card);
+    const int32_t margin = theme_manager_get_spacing("space_md");
+    const int32_t max_w = LV_HOR_RES - 2 * margin;
+    const int32_t natural_w = lv_obj_get_width(card);
+    for (uint32_t i = 0; i < count; ++i) {
+        lv_obj_set_width(lv_obj_get_child(card, static_cast<int32_t>(i)), LV_PCT(100));
+    }
+    for (const auto& [label, grow] : grown) {
+        lv_obj_set_flex_grow(label, grow);
+    }
+    lv_obj_set_width(card, std::min(natural_w, max_w));
+}
 
 void FilamentSlotPicker::position_card(lv_obj_t* card) {
     lv_obj_update_layout(card);

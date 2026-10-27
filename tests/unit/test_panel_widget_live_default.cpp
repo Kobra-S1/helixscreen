@@ -924,6 +924,25 @@ TEST_CASE_METHOD(LiveDefaultFixture,
     CHECK(config(panel).is_unedited_default());
 }
 
+namespace {
+// struct stat names its timespec fields st_atim/st_mtim on Linux and
+// st_atimespec/st_mtimespec on macOS.
+timespec stat_atime(const struct stat& s) {
+#ifdef __APPLE__
+    return s.st_atimespec;
+#else
+    return s.st_atim;
+#endif
+}
+timespec stat_mtime(const struct stat& s) {
+#ifdef __APPLE__
+    return s.st_mtimespec;
+#else
+    return s.st_mtim;
+#endif
+}
+} // namespace
+
 TEST_CASE_METHOD(LiveDefaultFixture,
                  "live default: the default table is parsed once per file stamp",
                  "[live_default]") {
@@ -932,7 +951,7 @@ TEST_CASE_METHOD(LiveDefaultFixture,
     struct stat before {};
     REQUIRE(::stat(path.c_str(), &before) == 0);
     auto restore = helix::ScopeExit([&]() {
-        struct timespec times[2] = {before.st_atim, before.st_mtim};
+        struct timespec times[2] = {stat_atime(before), stat_mtime(before)};
         ::utimensat(AT_FDCWD, path.c_str(), times, 0);
     });
 
@@ -943,7 +962,7 @@ TEST_CASE_METHOD(LiveDefaultFixture,
     CHECK(PanelWidgetConfig::default_table_reads() == reads);
     CHECK(table->is_object());
 
-    struct timespec bumped[2] = {before.st_atim, before.st_mtim};
+    struct timespec bumped[2] = {stat_atime(before), stat_mtime(before)};
     bumped[1].tv_sec += 7;
     REQUIRE(::utimensat(AT_FDCWD, path.c_str(), bumped, 0) == 0);
     PanelWidgetConfig::load_default_table();

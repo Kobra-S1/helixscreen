@@ -115,6 +115,12 @@ struct Stage {
     /// The stage swaps the carriage: a Mount, a Restore, or a cleanup that puts
     /// the carriage back. The dock sensors read -2 for a moment mid-swap.
     bool swaps = false;
+    /// The stage opens with the prompt's close: the operator answered, and the
+    /// dialog stays up on every client until this stage lands.
+    bool closes_prompt = false;
+    /// A cleanup that turns heaters off. One that only closes the prompt
+    /// heated nothing, so its failure strands no hot nozzle.
+    bool heaters_off = false;
 };
 
 /// The stages @p request runs, in order.
@@ -129,6 +135,9 @@ struct Stage {
 
 /// The RESPOND line that closes it.
 [[nodiscard]] std::string prompt_end_gcode();
+
+/// Every heater of @p heads off, by name; empty for no heads.
+[[nodiscard]] std::string heaters_off_gcode(const std::vector<int>& heads);
 
 enum class Reply : uint8_t { None, Continue, Cancel };
 
@@ -187,6 +196,16 @@ class Run {
     [[nodiscard]] bool aborted() const {
         return cleaning_up_;
     }
+    /// Something past the prompt has gone out: a heater may be on and the
+    /// carriage may have moved.
+    [[nodiscard]] bool started() const;
+    /// The heads whose heaters a stop owes the printer right now: every tool in
+    /// the plan once the run started, none before, and after abort() the ones
+    /// its cleanup turns off.
+    [[nodiscard]] std::vector<int> heater_heads() const;
+    /// The heads whose heater an acked stage of this run set above zero and
+    /// no later acked stage set back to zero, in plan order.
+    [[nodiscard]] std::vector<int> heads_left_heating() const;
     /// The tools whose work fully finished before the run stopped. Empty while
     /// the run is still on its first tool, and after a clean completion the
     /// caller reports success rather than a partial list.
@@ -199,8 +218,12 @@ class Run {
     /// The current stage failed, or the user cancelled. @p restore_carriage
     /// false leaves the carriage alone, for a carriage nothing can vouch for.
     void abort(bool restore_carriage = true);
-    /// What advancing the operator wait by @p elapsed_ms did. Expired also
-    /// aborts the run into its cleanup.
+    /// End the run where it stands, sending nothing: for a printer that can no
+    /// longer take the cleanup, or one a print has taken over.
+    void abandon();
+    /// What advancing the operator wait by @p elapsed_ms, the time since the
+    /// previous call (or since the prompt went up), did. The run sums the
+    /// calls; Expired also aborts the run into its cleanup.
     enum class WaitResult : uint8_t { Waiting, NotWaiting, Expired };
     [[nodiscard]] WaitResult advance_wait(uint32_t elapsed_ms);
 
@@ -211,6 +234,12 @@ class Run {
     bool awaiting_operator_ = false;
     bool cleaning_up_ = false;
     uint32_t waited_ms_ = 0;
+    /// The last target an acked stage set on each head in the plan, by
+    /// position in Request::heads.
+    std::vector<int> acked_targets_c_;
+
+    /// Record the heater targets @p gcode sets on the plan's heads.
+    void note_heater_targets(const std::string& gcode);
 };
 
 } // namespace helix::mount_feed

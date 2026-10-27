@@ -581,6 +581,17 @@ class AmsState {
     [[nodiscard]] bool any_bypass_active() const;
 
     /**
+     * @brief Is any backend running a filament operation of this screen's own?
+     *
+     * A backend's running_step_operation(): a load or unload it sequences
+     * itself, stage by stage, so it would keep sending moves into a print
+     * started under it. A busy action alone (another client's swap, a macro
+     * the firmware runs) is the printer's own business and the printer
+     * queues behind it.
+     */
+    [[nodiscard]] bool any_operation_running_here() const;
+
+    /**
      * @brief Does Moonraker's global active Spoolman spool describe the bypass?
      *
      * Spoolman models "active spool" as a single global value, but HelixScreen
@@ -810,6 +821,16 @@ class AmsState {
      */
     lv_subject_t* get_ams_action_subject() {
         return &ams_action_;
+    }
+
+    /**
+     * @brief The primary backend's can_cancel_operation(), 0 or 1
+     *
+     * It can change with no action edge (a backend holding a Cancel keeps its
+     * action), so a surface offering Cancel observes this too.
+     */
+    lv_subject_t* get_ams_can_cancel_subject() {
+        return &ams_can_cancel_;
     }
 
     /**
@@ -1245,7 +1266,7 @@ class AmsState {
 
     /**
      * @brief Get clog meter mode subject
-     * @return Subject holding mode (0=none, 1=encoder, 2=flowguard, 3=afc_buffer)
+     * @return Subject holding mode (0=none, 1=encoder, 2=flowguard, 3=buffer fault)
      */
     lv_subject_t* get_clog_meter_mode_subject() {
         return &clog_meter_mode_;
@@ -2284,7 +2305,8 @@ class AmsState {
     void sync_system_subjects(const AmsSystemInfo& info);
     /// Push or drop the AMS tool topology in ToolState.
     void sync_tool_topology(AmsBackend* backend, const AmsSystemInfo& info);
-    /// Heat-blocked subject, and the swap preheat latch on a shared-heater swap.
+    /// Heat-blocked and can-cancel subjects, and the swap preheat latch on a
+    /// shared-heater swap.
     void sync_shared_heater(AmsBackend* backend, const AmsSystemInfo& info);
     /// filament_loaded, the runout indicator's edge state, and the unload grace.
     void sync_filament_runout(const AmsSystemInfo& info);
@@ -2440,6 +2462,7 @@ class AmsState {
     lv_subject_t ams_type_{};
     lv_subject_t ams_is_tool_changer_{};
     lv_subject_t ams_nozzle_heat_blocked_{};
+    lv_subject_t ams_can_cancel_{};
     /// The mounted tool last seen on a shared-heater backend, -2 before any.
     int shared_heater_tool_ = -2;
     lv_subject_t ams_is_filament_system_{};
@@ -2574,6 +2597,14 @@ class AmsState {
     /// Wire (or rewire) klippy_state_observer_. Idempotent.
     void install_klippy_state_observer();
 
+    /// Tells every backend the Moonraker connection dropped, on the edge out of
+    /// CONNECTED: nothing sent before it will be answered.
+    ObserverGuard connection_state_observer_;
+    /// The connection state the observer last saw; -1 before its first fire.
+    int last_connection_state_ = -1;
+    /// Wire (or rewire) connection_state_observer_. Idempotent.
+    void install_connection_state_observer();
+
     /// Re-syncs the clog meter on FilamentSensorManager's motion signature.
     ObserverGuard motion_sensor_observer_;
 
@@ -2700,8 +2731,9 @@ class AmsState {
     lv_subject_t buffer_target_text_{}; // "target 50%" where a set point is known
     char buffer_target_text_buf_[48]{};
 
-    lv_subject_t clog_meter_mode_{};  // ClogMeterMode: 0=none, 1=encoder, 2=flowguard, 3=afc_buffer
-    lv_subject_t clog_meter_value_{}; // 0-100 (encoder/afc) or -100..+100 (flowguard)
+    lv_subject_t
+        clog_meter_mode_{}; // ClogMeterMode: 0=none, 1=encoder, 2=flowguard, 3=buffer fault
+    lv_subject_t clog_meter_value_{};   // 0-100 (encoder/afc) or -100..+100 (flowguard)
     lv_subject_t clog_meter_warning_{}; // 0=ok, 1=warning
     lv_subject_t clog_meter_status_{};  // ClogMeterStatus: 0=ok, 1=warning, 2=fault
     lv_subject_t clog_meter_mode_text_{};

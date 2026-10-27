@@ -210,6 +210,7 @@ HELIX_PSRAM_BSS lv_subject_t s_action_reason{};
 HELIX_PSRAM_BSS lv_subject_t s_action_reason_shown{};
 HELIX_PSRAM_BSS char s_action_reason_buf[192];
 HELIX_PSRAM_BSS lv_subject_t s_supports_reset{};
+HELIX_PSRAM_BSS lv_subject_t s_cancel_shown{};
 bool s_gating_subjects_initialized = false;
 SubjectManager s_subjects;
 
@@ -240,6 +241,7 @@ void reset_button_gating_subjects() {
     // Shown by default, as on most backends; refresh_button_gating() hides it
     // where Reset has nothing to clear.
     lv_subject_set_int(&s_supports_reset, 1);
+    lv_subject_set_int(&s_cancel_shown, 0);
 }
 
 void init_button_gating_subjects() {
@@ -249,7 +251,8 @@ void init_button_gating_subjects() {
     for (lv_subject_t* subject :
          {&s_unload_disabled, &s_load_disabled, &s_reset_disabled, &s_check_gates_disabled,
           &s_load_hidden, &s_unload_hidden, &s_unload_picks, &s_mount_hidden, &s_mount_disabled,
-          &s_park_hidden, &s_park_disabled, &s_action_reason_shown, &s_supports_reset}) {
+          &s_park_hidden, &s_park_disabled, &s_action_reason_shown, &s_supports_reset,
+          &s_cancel_shown}) {
         lv_subject_init_int(subject, 0);
     }
     lv_subject_init_string(&s_action_reason, s_action_reason_buf, nullptr,
@@ -269,6 +272,7 @@ void init_button_gating_subjects() {
     s_subjects.publish("ams_sidebar_action_reason", &s_action_reason);
     s_subjects.publish("ams_sidebar_action_reason_shown", &s_action_reason_shown);
     s_subjects.publish("ams_sidebar_supports_reset", &s_supports_reset);
+    s_subjects.publish("ams_sidebar_cancel_shown", &s_cancel_shown);
     s_gating_subjects_initialized = true;
 
     // The subjects are created once, from the AMS panels' process-once XML
@@ -355,6 +359,7 @@ void AmsOperationSidebar::register_callbacks_static() {
              }
          }},
         {"ams_sidebar_settings_clicked", on_settings_clicked_cb},
+        {"ams_sidebar_cancel_clicked", [](lv_event_t*) { helix::ui::abort_ams_operation(); }},
         {"ams_sidebar_load_clicked",
          [](lv_event_t* e) {
              if (auto* self = get_instance_from_event(e)) {
@@ -608,6 +613,12 @@ void AmsOperationSidebar::init_observers() {
         AmsState::instance().get_filament_loaded_subject(), this,
         [](AmsOperationSidebar* self, int) { self->refresh_button_gating(); },
         AmsState::instance().get_subjects_lifetime());
+    // A backend can stop being cancellable mid-operation (a Cancel it holds for
+    // a swap), with no action edge to say so.
+    can_cancel_observer_ = observe<int>(
+        AmsState::instance().get_ams_can_cancel_subject(), this,
+        [](AmsOperationSidebar* self, int) { self->refresh_button_gating(); },
+        AmsState::instance().get_subjects_lifetime());
     print_state_observer_ = observe<int>(
         printer_state_.print_state().get_print_lifecycle_subject(), this,
         [](AmsOperationSidebar* self, int) { self->refresh_button_gating(); },
@@ -756,8 +767,11 @@ void AmsOperationSidebar::cleanup() {
     step_index_observer_.reset(); // [L085] reset(), never release()
     extruder_temp_observer_.reset();
     extruder_target_observer_.reset();
+    step_heater_observers_.clear();
+    step_heater_version_observer_.reset();
     indeterminate_observer_.reset();
     filament_loaded_observer_.reset();
+    can_cancel_observer_.reset();
     print_state_observer_.reset();
 
     // Reset extracted modules AFTER observers — they may have their own observers
@@ -918,6 +932,8 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
     step_index_observer_.reset();
     step_index_subject_ = nullptr;
     live_temp_step_index_ = -1;
+    step_heater_observers_.clear();
+    step_heater_version_observer_.reset();
 
     // Expose the active operation to AmsState so the narration router can
     // resolve `//` phase narration lines to step indices for THIS operation.
@@ -1002,6 +1018,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
                         },
                         step_lifetime);
                 }
+                watch_step_heaters();
                 spdlog::debug("[AmsSidebar] Created backend step bar: {} steps for op_type={} "
                               "(index_subject={})",
                               current_step_count_, static_cast<int>(op_type),
@@ -1159,10 +1176,24 @@ void AmsOperationSidebar::refresh_live_temp_step_label(int current_index) {
         if (indeterminate) {
             snprintf(label_buf, sizeof(label_buf), "%s %s", base_label, lv_tr("Working..."));
         } else {
-            int current_deci = lv_subject_get_int(
-                printer_state_.temperature_state().get_active_extruder_temp_subject());
-            int target_deci = lv_subject_get_int(
-                printer_state_.temperature_state().get_active_extruder_target_subject());
+            // The heater this step heats, which on a machine with one per
+            // tool need not be the active extruder.
+            auto& temps = printer_state_.temperature_state();
+            lv_subject_t* temp_subject = temps.get_active_extruder_temp_subject();
+            lv_subject_t* target_subject = temps.get_active_extruder_target_subject();
+            AmsBackend* backend = AmsState::instance().get_backend();
+            const std::string heater =
+                backend ? backend->step_heater(live_temp_step_index_) : std::string();
+            if (!heater.empty()) {
+                lv_subject_t* own_temp = temps.get_extruder_temp_subject(heater);
+                lv_subject_t* own_target = temps.get_extruder_target_subject(heater);
+                if (own_temp && own_target) {
+                    temp_subject = own_temp;
+                    target_subject = own_target;
+                }
+            }
+            int current_deci = lv_subject_get_int(temp_subject);
+            int target_deci = lv_subject_get_int(target_subject);
             char temp_buf[32];
             temperature::format_temperature_pair(temperature::deci_to_degrees(current_deci),
                                                  temperature::deci_to_degrees(target_deci),
@@ -1181,6 +1212,58 @@ void AmsOperationSidebar::refresh_live_temp_step_label(int current_index) {
         ui_step_progress_set_label(step_progress_, live_temp_step_index_, base_label);
         heat_label_showing_temp_ = false;
     }
+}
+
+void AmsOperationSidebar::observe_step_heaters() {
+    step_heater_observers_.clear();
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        return;
+    }
+    auto& temps = printer_state_.temperature_state();
+    std::vector<std::string> watched;
+    for (size_t i = 0; i < current_step_model_.steps.size(); ++i) {
+        if (!current_step_model_.steps[i].live_temp) {
+            continue;
+        }
+        const std::string heater = backend->step_heater(static_cast<int>(i));
+        if (heater.empty() || std::find(watched.begin(), watched.end(), heater) != watched.end()) {
+            continue;
+        }
+        watched.push_back(heater);
+        for (const bool target : {false, true}) {
+            SubjectLifetime lifetime;
+            lv_subject_t* subject = target ? temps.get_extruder_target_subject(heater, lifetime)
+                                           : temps.get_extruder_temp_subject(heater, lifetime);
+            if (!subject) {
+                continue;
+            }
+            step_heater_observers_.push_back(observe<int>(
+                subject, this,
+                [](AmsOperationSidebar* self, int /*deci*/) {
+                    if (!self->active_)
+                        return;
+                    self->refresh_heat_step_display();
+                },
+                lifetime));
+        }
+    }
+}
+
+void AmsOperationSidebar::watch_step_heaters() {
+    observe_step_heaters();
+    // Armed once per step bar: observe_step_heaters() never re-arms it, so its
+    // own notify on attach cannot loop.
+    auto& temps = printer_state_.temperature_state();
+    step_heater_version_observer_ = observe<int>(
+        temps.get_extruder_version_subject(), this,
+        [](AmsOperationSidebar* self, int /*version*/) {
+            if (!self->active_)
+                return;
+            self->observe_step_heaters();
+            self->refresh_heat_step_display();
+        },
+        temps.get_subjects_lifetime());
 }
 
 int AmsOperationSidebar::get_step_index_for_action(AmsAction action, StepOperationType op_type) {
@@ -1320,10 +1403,20 @@ void AmsOperationSidebar::update_step_progress(AmsAction action) {
 
     const bool unloads_stand_alone = backend && backend->unloads_stand_alone();
 
-    auto detection =
-        detect_step_operation(action, prev_ams_action_, current_operation_type_, is_external,
-                              filament_loaded, is_active_action, unloads_stand_alone);
-    if (detection.should_recreate) {
+    // An operation this sidebar did not start is named by the backend when it
+    // knows it: read from the action frames, a load still heating looks like a
+    // swap.
+    const std::optional<StepOperationType> known_op = is_external && is_active_action && backend
+                                                          ? backend->running_step_operation()
+                                                          : std::nullopt;
+    if (known_op) {
+        if (!step_progress_ || current_operation_type_ != *known_op) {
+            recreate_step_progress_for_operation(*known_op);
+        }
+    } else if (auto detection = detect_step_operation(
+                   action, prev_ams_action_, current_operation_type_, is_external, filament_loaded,
+                   is_active_action, unloads_stand_alone);
+               detection.should_recreate) {
         StepOperationType new_op = detection.op_type;
         if (new_op == StepOperationType::LOAD_SWAP &&
             current_operation_type_ == StepOperationType::UNLOAD) {
@@ -1477,6 +1570,14 @@ void AmsOperationSidebar::refresh_button_gating() {
 
     AmsBackend* backend = AmsState::instance().get_backend();
     lv_subject_set_int(&s_supports_reset, backend && backend->supports_reset() ? 1 : 0);
+
+    // Cancel stands in for the action buttons while an operation runs that the
+    // backend can stop: the sidebar is where the operation is watched.
+    const auto action =
+        static_cast<AmsAction>(lv_subject_get_int(AmsState::instance().get_ams_action_subject()));
+    lv_subject_set_int(
+        &s_cancel_shown,
+        backend && ams_action_is_busy(action) && backend->can_cancel_operation() ? 1 : 0);
 }
 
 bool AmsOperationSidebar::refuse_if_busy_or_printing() const {

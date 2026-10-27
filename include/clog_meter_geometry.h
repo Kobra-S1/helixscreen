@@ -20,7 +20,7 @@ enum class ClogMeterMode : int {
     None = 0,
     Encoder = 1,   ///< 0..100 clog percentage, gradient safe -> clogged
     Flowguard = 2, ///< -100..+100, tangle at one end and clog at the other
-    Buffer = 3,    ///< 0..100 AFC buffer fault proximity
+    Buffer = 3,    ///< 0..100 buffer fault proximity
     /// A Klipper filament_motion_sensor: a state, not a gauge. `value` is one
     /// of the kMotion*Value constants below (#1823).
     Motion = 4,

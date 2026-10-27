@@ -460,6 +460,7 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
         // Tool changer detection
         else if (name == "toolchanger") {
             has_tool_changer_ = true;
+            coexisting_systems_.push_back(AmsType::TOOL_CHANGER);
         }
         // pin_watch: a dock-sensor extra (not stock Klipper). Recorded as a
         // plain object fact, like toolchanger above. What it MEANS is
@@ -472,11 +473,9 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
             pin_watch_object_name_ = name;
         }
         // [medusahc]: a hotend changer's own extra, recorded as the same
-        // kind of plain object fact as pin_watch above. Upstream ships it
-        // ALONGSIDE pin_watch and klipper-toolchanger; one fork folds the
-        // dock sensing into it and ships neither, and there this object is
-        // the only thing left to see. Matched exactly - [medusahc_calibrate]
-        // is a sibling object, not this one.
+        // kind of plain object fact as pin_watch above. It ships alongside
+        // pin_watch, with or without klipper-toolchanger. Matched exactly -
+        // [medusahc_calibrate] is a sibling object, not this one.
         else if (name == "medusahc" || name.rfind("medusahc ", 0) == 0) {
             has_medusahc_ = true;
             medusahc_object_name_ = name;
@@ -771,33 +770,18 @@ void PrinterDiscovery::register_detected_ams_systems() {
     // MMU is one we cannot read. Toolchanger alone only handles tool
     // switching, not filament management.
     if (has_mmu_) {
-        if (mmu_type_ == AmsType::HAPPY_HARE) {
-            detected_ams_systems_.push_back({AmsType::HAPPY_HARE, "Happy Hare"});
-        } else if (mmu_type_ == AmsType::AFC) {
-            detected_ams_systems_.push_back({AmsType::AFC, "AFC"});
-        } else if (mmu_type_ == AmsType::AD5X_IFS) {
-            detected_ams_systems_.push_back({AmsType::AD5X_IFS, "AD5X IFS"});
-        } else if (mmu_type_ == AmsType::CFS) {
-            detected_ams_systems_.push_back({AmsType::CFS, "CFS"});
-        } else if (mmu_type_ == AmsType::ACE) {
-            detected_ams_systems_.push_back({AmsType::ACE, "ACE"});
-        } else if (mmu_type_ == AmsType::QIDI_BOX) {
-            // i18n: do not translate - product name
-            detected_ams_systems_.push_back({AmsType::QIDI_BOX, "QIDI Box"});
-        } else if (mmu_type_ == AmsType::OPENAMS) {
-            // i18n: do not translate - product name
-            detected_ams_systems_.push_back({AmsType::OPENAMS, "OpenAMS"});
+        if (mmu_type_ != AmsType::NONE) {
+            detected_ams_systems_.push_back({mmu_type_, ams_type_to_string(mmu_type_)});
         }
     } else if (has_snapmaker_) {
         // Native Snapmaker filament system (no aftermarket MMU)
-        detected_ams_systems_.push_back({AmsType::SNAPMAKER, "Snapmaker"});
         mmu_type_ = AmsType::SNAPMAKER;
+        detected_ams_systems_.push_back({mmu_type_, ams_type_to_string(mmu_type_)});
     } else if (has_indx_) {
         // Docked passive nozzles on one extruder: never the tool-changer arm
         // below, which needs several extruders or klipper-toolchanger.
-        // i18n: do not translate - product name
-        detected_ams_systems_.push_back({AmsType::INDX, "INDX"});
         mmu_type_ = AmsType::INDX;
+        detected_ams_systems_.push_back({mmu_type_, ams_type_to_string(mmu_type_)});
     } else if (!tool_names_.empty() && (has_tool_changer_ || tool_names_.size() > 1)) {
         // More than one hot end, and no filament system managing them:
         // parallel topology, one slot per tool. Registering it is what gives
@@ -806,8 +790,8 @@ void PrinterDiscovery::register_detected_ams_systems() {
         // (prestonbrown/helixscreen#1350). klipper-toolchanger is a changer
         // on its own word even with a single tool declared.
         // Still last in the chain, so a real MMU always keeps its backend.
-        detected_ams_systems_.push_back({AmsType::TOOL_CHANGER, "Tool Changer"});
         mmu_type_ = AmsType::TOOL_CHANGER;
+        detected_ams_systems_.push_back({mmu_type_, ams_type_to_string(mmu_type_)});
     }
 }
 
@@ -1083,6 +1067,7 @@ void PrinterDiscovery::clear() {
     has_afc_lite_ = false;
     has_zmod_afclite_ = false;
     has_tool_changer_ = false;
+    coexisting_systems_.clear();
     has_pin_watch_ = false;
     pin_watch_object_name_.clear();
     has_medusahc_ = false;

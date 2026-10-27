@@ -26,8 +26,8 @@ enum class ErrorSource {
 
 /// A one-tap fix offered alongside an error, rendered as a button by
 /// RecoveryModalPresenter. Two kinds of producer populate these: the generic
-/// error_classify::classify() for the cases it recognizes by Klipper error code
-/// (key840 "Reset CFS", key298, plus the paused-print Resume/OK fallbacks), and
+/// error_classify::classify() for the codes whose error-table row offers a fix
+/// (printer::klipper_error_classify) plus the paused-print Resume/OK fallbacks, and
 /// the AMS backends' own build_recovery_actions(), which derive a context-aware
 /// set from live hardware state (AFC, Happy Hare, AD5X IFS; QIDI hardcodes a
 /// lone dismiss). An empty list is meaningful, not merely unpopulated — it is

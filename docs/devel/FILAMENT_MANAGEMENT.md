@@ -500,7 +500,7 @@ The banner also follows the picks. The key list is computed once per open, but w
 
 The detector is a name heuristic. It reports `EXTRUDER=285` on a line where that is a temperature, and it cannot see a macro that heats a tool it looks up some other way. The first costs one unnecessary warning; the second is why the user guide recommends putting tool heating in plain `M104`/`M109 T<n>` lines the rewrite does move.
 
-Backends are consumers, not implementers: `AmsBackend::get_remap_strategy()` routes (`include/ams_backend.h`). `Native` (Happy Hare, AFC, CFS, AD5X IFS, Tool Changer with klipper-toolchanger, QIDI Box) and `PrePrintSend` (the U1 emits firmware-native `print_task_config` gcode, no file rewrite) never reach the remapper. `GcodeRewrite` is the generic fallback for firmware with no internal routing table. A tool changer driving swaps with its own `T<n>` commands rather than klipper-toolchanger takes it (`AmsBackendToolChanger::get_remap_strategy`), because `ASSIGN_TOOL` does not exist there and Klipper answers an unknown command by logging it and carrying on, so a remap sent to such a machine reads as applied and prints the firmware's own mapping. The MedusaHC fork that drops `[toolchanger]` is the shipping example ([FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md#tool-mapping)). ACE will adopt it once its `ACE_CHANGE_TOOL` family is implemented and validated, and until then ACE stays `None` (`include/ams_backend_ace.h`).
+Backends are consumers, not implementers: `AmsBackend::get_remap_strategy()` routes (`include/ams_backend.h`). `Native` (Happy Hare, AFC, CFS, AD5X IFS, Tool Changer with klipper-toolchanger, QIDI Box) and `PrePrintSend` (the U1 emits firmware-native `print_task_config` gcode, no file rewrite) never reach the remapper. `GcodeRewrite` is the generic fallback for firmware with no internal routing table. A tool changer driving swaps with its own `T<n>` commands rather than klipper-toolchanger takes it (`AmsBackendToolChanger::get_remap_strategy`), because `ASSIGN_TOOL` does not exist there and Klipper answers an unknown command by logging it and carrying on, so a remap sent to such a machine reads as applied and prints the firmware's own mapping. Every MedusaHC takes it, with or without klipper-toolchanger beside its controller, because its own `T<n>` macros do the swap and `ASSIGN_TOOL` never changes them ([FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md#tool-mapping)). ACE will adopt it once its `ACE_CHANGE_TOOL` family is implemented and validated, and until then ACE stays `None` (`include/ams_backend_ace.h`).
 
 When it runs, the production path is `PrintSelectPanel::apply_remap()` -> `PrintPreparationManager::modify_and_print_with_remap()` (`src/ui/ui_print_preparation_manager.cpp`), file to file at every stage: download the original to a temp file, rewrite it to a second temp file through `apply_to_file()`, upload that, and print it via the HelixPrint plugin under the ORIGINAL filename. No stage holds the job in memory. A remap that changes no line prints the original directly, no copy. When the plugin reports its `server_edits` feature ready, nothing is downloaded or uploaded: the remap travels as a one-edit `tool_remap` list to `server.helix.print_edited`, and the plugin applies the same per-line rule beside the file (`moonraker-plugin/helix_edits.py`), pinned to `apply_to_file()` byte for byte by `tests/fixtures/gcode_edits/` ([PRINT_START_INTEGRATION.md § How a choice reaches the sliced file](PRINT_START_INTEGRATION.md#how-a-choice-reaches-the-sliced-file)). That copy prints even when it changes nothing. The staged upload path is built by `helix::gcode::make_rewritten_gcode_path()`, the one spelling of that name, because the post-print cleanup, the startup sweep and `resolve_gcode_filename()` all recognise a staged copy by its prefix, and a path built any other way is invisible to all three at once.
 
@@ -2058,6 +2058,43 @@ slot's `mapped_tool`. Every other call takes the slot.
 | `SelectSlot` | The backend wants a slot and none resolved | Load only |
 | `NothingLoaded` | No slot resolved, or nothing at that slot worth pulling | Unload only — its *only* refusal |
 
+### Stock load macros that are one step of a wizard
+
+Some firmware's own screen treats its load macro as the first step of a wizard and sends
+the rest itself. Each such macro is a row in `kMacroProfiles`
+(`src/printer/filament_macro_profiles.cpp`) carrying a `GuidedLoadProfile`: its temperature
+parameter and default, the status that reports the wait, and the step scripts as `{temp}`
+templates. Today that is QIDI's `M604`. Generic code never sees those pieces: it asks
+`guided_load(macro, sent_params)` for rendered scripts (the profile picks its own temperature
+out of the params), sends `guided_load_status_query()`, and reads the reply with
+`guided_load_waits()`. When the macro tier's load succeeds and the macro has a wizard,
+`start_guided_load()` in `src/ui/filament_op_execute.cpp` does exactly that and opens
+`GuidedLoadModal` (`src/ui/ui_guided_load_modal.cpp`). The modal declines to open while a
+job holds the machine (`GuidedLoadModal::opens_during()`, over `job_holds_machine()` in
+`include/print_lifecycle_state.h`): a load is allowed on a paused print for runout recovery,
+but the wizard's Extrude and Done are motion-gated during a job and its cleanup would cool
+the nozzle under the paused print. While a step runs it offers Cancel. For `M604`:
+
+| The printer reports | The modal opens on | Steps |
+|---|---|---|
+| The waiting value (`push_filamenting`: QIDI 01.01.02.x) | Push filament in | a 0-to-1 edge on `filament_runout_detected`, or Extrude, sends the feed (`bit_filamenting` + `M604 T1`); then the question; Done sends the flush (`M604 T2`) |
+| Anything else, or no answer (QIDI 1.1.x: no such object) | Is new filament coming out | Extrude more sends `M604 T1`; Done sends the cleanup only |
+
+Every ending sends the cleanup (`M104 S0`, `ENABLE_ALL_SENSOR`): the macro leaves the nozzle
+hot and the filament sensor switched off. A cancel on the waiting generation also releases
+the printer's load state (`SET_PRINT_MAIN_STATUS MAIN_STATUS=ready`). Commands only the
+waiting generation knows are never sent to the other: an unknown command aborts the whole
+script it sits in. `GuidedLoadFlow` (`include/guided_load_flow.h`) makes every decision
+without UI or I/O, so `[guided_load]` tests it directly; `helix-screen ctl demo guided-load`
+and `guided-load-confirm` open the two starting views on `guided_load_example()`.
+
+A second firmware with a wizard of the same shape is one more row in that file. One whose
+steps differ grows `GuidedLoad` and the flow, never the callers.
+
+The unload side has the matching question: `filament_macros::restore_after()` names what a
+stock unload leaves undone (a column of the same table; `M603`: `ENABLE_ALL_SENSOR`), sent
+after the macro tier's unload and appended by `AmsBackendQidi` to its own `M603`.
+
 ### One deliberate asymmetry between load and unload
 
 **Bypass falls through on load and stays on the backend for unload.**
@@ -3093,9 +3130,11 @@ registry. It never names a vendor, and a flow id with no registration is refused
 warning rather than executed, because the flow is what asks before moving the machine.
 
 The Creality CFS flows (`cfs_purge_chute`, `cfs_cutter`) live in `src/ui/ui_cfs_device_flows.cpp`
-and are registered by `register_cfs_device_flows()` at startup, before any overlay builds
-(`Application::register_xml_components()`, and the ESP32 `app_boot.cpp` boot path). A new
-vendor flow is one new file plus one `guided_flow` string on its backend's action.
+and are registered by `register_cfs_device_flows()`, one row of the registrar table behind
+`register_builtin_guided_device_flows()` (`src/ui/ui_guided_device_flow.cpp`). Startup calls
+that once, before any overlay builds (`Application::register_xml_components()`, and the ESP32
+`app_boot.cpp` boot path), and never names a vendor. A new vendor's flows are one new file, one
+row in that table, and one `guided_flow` string on its backend's action.
 
 #### Tracked device actions
 

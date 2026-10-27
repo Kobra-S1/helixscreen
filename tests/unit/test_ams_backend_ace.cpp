@@ -247,6 +247,8 @@ helix::PrinterDiscovery discovery_with(const std::vector<std::string>& objects) 
     hw.parse_objects(nlohmann::json(objects));
     return hw;
 }
+
+const helix::BypassMacros kAceBypass{helix::ace::kBypassOnMacro, helix::ace::kBypassOffMacro};
 } // namespace
 
 TEST_CASE("Bypass macros resolve from discovery", "[ams][ace][bypass][1677]") {
@@ -254,7 +256,7 @@ TEST_CASE("Bypass macros resolve from discovery", "[ams][ace][bypass][1677]") {
         auto hw = discovery_with(
             {"configfile", "ace", "gcode_macro ACE_BYPASS_ON", "gcode_macro ACE_BYPASS_OFF"});
 
-        const auto macros = helix::resolve_bypass_macros(hw, "auto", "auto");
+        const auto macros = helix::resolve_bypass_macros(hw, kAceBypass, "auto", "auto");
         CHECK(macros.on == "ACE_BYPASS_ON");
         CHECK(macros.off == "ACE_BYPASS_OFF");
     }
@@ -262,7 +264,7 @@ TEST_CASE("Bypass macros resolve from discovery", "[ams][ace][bypass][1677]") {
     SECTION("neither present: no bypass offered") {
         auto hw = discovery_with({"configfile", "ace"});
 
-        const auto macros = helix::resolve_bypass_macros(hw, "auto", "auto");
+        const auto macros = helix::resolve_bypass_macros(hw, kAceBypass, "auto", "auto");
         CHECK(macros.on.empty());
         CHECK(macros.off.empty());
     }
@@ -270,7 +272,7 @@ TEST_CASE("Bypass macros resolve from discovery", "[ams][ace][bypass][1677]") {
     SECTION("only one half present: neither offered, since it cannot round-trip") {
         auto hw = discovery_with({"configfile", "ace", "gcode_macro ACE_BYPASS_ON"});
 
-        const auto macros = helix::resolve_bypass_macros(hw, "auto", "auto");
+        const auto macros = helix::resolve_bypass_macros(hw, kAceBypass, "auto", "auto");
         CHECK(macros.on.empty());
         CHECK(macros.off.empty());
     }
@@ -278,15 +280,27 @@ TEST_CASE("Bypass macros resolve from discovery", "[ams][ace][bypass][1677]") {
     SECTION("an explicit override is honoured even when discovery has not seen it") {
         auto hw = discovery_with({"configfile", "ace"});
 
-        const auto macros = helix::resolve_bypass_macros(hw, "MY_BYPASS_ON", "MY_BYPASS_OFF");
+        const auto macros =
+            helix::resolve_bypass_macros(hw, kAceBypass, "MY_BYPASS_ON", "MY_BYPASS_OFF");
         CHECK(macros.on == "MY_BYPASS_ON");
         CHECK(macros.off == "MY_BYPASS_OFF");
+    }
+
+    SECTION("detection looks for the names the caller supplies, not ACE's") {
+        auto hw =
+            discovery_with({"configfile", "gcode_macro ACE_BYPASS_ON", "gcode_macro ACE_BYPASS_OFF",
+                            "gcode_macro PATH_BYPASS_ON", "gcode_macro PATH_BYPASS_OFF"});
+
+        const auto macros = helix::resolve_bypass_macros(
+            hw, helix::BypassMacros{"PATH_BYPASS_ON", "PATH_BYPASS_OFF"}, "auto", "auto");
+        CHECK(macros.on == "PATH_BYPASS_ON");
+        CHECK(macros.off == "PATH_BYPASS_OFF");
     }
 
     SECTION("an override on one half still needs the other to resolve") {
         auto hw = discovery_with({"configfile", "ace"});
 
-        const auto macros = helix::resolve_bypass_macros(hw, "MY_BYPASS_ON", "auto");
+        const auto macros = helix::resolve_bypass_macros(hw, kAceBypass, "MY_BYPASS_ON", "auto");
         CHECK(macros.on.empty());
         CHECK(macros.off.empty());
     }
@@ -356,6 +370,39 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE bypass macros are picked from device acti
     CHECK(helper.captured_gcodes.back() == "MY_BYPASS_OFF");
 
     CHECK_FALSE(helper.execute_device_action("ace_bypass_on_macro", std::string()).success());
+
+    settings.set_ace_bypass_on_macro("auto");
+    settings.set_ace_bypass_off_macro("auto");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "ACE applies stored bypass macro choices on discovery",
+                 "[ams][ace][bypass][macro_choice]") {
+    helix::Config::get_instance();
+    auto& settings = helix::SettingsManager::instance();
+    const auto discovery = discovery_with({"configfile", "ace", "gcode_macro ACE_BYPASS_ON",
+                                           "gcode_macro ACE_BYPASS_OFF", "gcode_macro MY_BYPASS_ON",
+                                           "gcode_macro MY_BYPASS_OFF"});
+
+    SECTION("a stored choice overrides the detected macro") {
+        settings.set_ace_bypass_on_macro("MY_BYPASS_ON");
+        settings.set_ace_bypass_off_macro("MY_BYPASS_OFF");
+    }
+    SECTION("no stored choice: the detected macros") {
+        settings.set_ace_bypass_on_macro("auto");
+        settings.set_ace_bypass_off_macro("auto");
+    }
+    const bool overridden = settings.get_ace_bypass_on_macro() != "auto";
+
+    AmsBackendAceTestHelper helper;
+    helper.set_running(true);
+    helper.set_discovery(discovery);
+    AceTestAccess::parse_ace(helper, make_kobra_instance_object());
+    AceTestAccess::parse_ace(helper, make_kobra_manager_object(-1));
+
+    REQUIRE(helper.enable_bypass().success());
+    CHECK(helper.captured_gcodes.back() == (overridden ? "MY_BYPASS_ON" : "ACE_BYPASS_ON"));
+    REQUIRE(helper.disable_bypass().success());
+    CHECK(helper.captured_gcodes.back() == (overridden ? "MY_BYPASS_OFF" : "ACE_BYPASS_OFF"));
 
     settings.set_ace_bypass_on_macro("auto");
     settings.set_ace_bypass_off_macro("auto");

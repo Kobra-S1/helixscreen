@@ -6,6 +6,7 @@
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "detection_manager.h"
+#include "detection_source_table.h"
 #include "moonraker_client_mock.h"
 #include "non_filament_pause.h"
 #include "settings_manager.h"
@@ -53,6 +54,10 @@ struct StubSource : DetectionSource {
     bool bed = false; ///< returned by has_bed_check()
     bool has_bed_check() const override {
         return bed;
+    }
+    std::vector<std::vector<std::string>> listed; ///< every on_objects_listed() call
+    void on_objects_listed(const std::vector<std::string>& objects) override {
+        listed.push_back(objects);
     }
     BedCheckSetCallback pending_set; ///< the last switch, held until a test answers it
     void set_bed_check(bool, BedCheckSetCallback done) override {
@@ -190,6 +195,25 @@ TEST_CASE_METHOD(HelixTestFixture, "DetectionManager capability probe sets U1 so
     // Probe again without it -> capability is re-cleared (idempotent, reflects state).
     REQUIRE_FALSE(m.apply_objects_list_for_test(json::array({"gcode_move"})));
     REQUIRE_FALSE(raw->available());
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "DetectionManager hands every source the objects list",
+                 "[detection][manager]") {
+    auto& m = DetectionManager::instance();
+    m.reset_for_test();
+    auto stub = std::make_unique<StubSource>();
+    auto* raw = stub.get();
+    m.register_source(std::move(stub));
+
+    // Non-string entries are not object names and are dropped.
+    m.apply_objects_list_for_test(json::array({"gcode_move", 7, "toolhead"}));
+    REQUIRE(raw->listed.size() == 1);
+    CHECK(raw->listed[0] == std::vector<std::string>{"gcode_move", "toolhead"});
+
+    // A malformed answer still reaches the source, as an empty list.
+    m.apply_objects_list_for_test(json::object());
+    REQUIRE(raw->listed.size() == 2);
+    CHECK(raw->listed[1].empty());
 }
 
 namespace {
@@ -463,5 +487,31 @@ TEST_CASE_METHOD(HelixTestFixture, "DetectionManager bed check switch waits for 
     }
 
     helix::ui::set_test_toast_hook(nullptr);
+    m.reset_for_test();
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "Built-in source table registers each source with its policy",
+                 "[detection][manager]") {
+    auto& m = DetectionManager::instance();
+    m.reset_for_test();
+    auto& sm = SettingsManager::instance();
+    const int saved = sm.get_detection_policy_u1();
+    sm.set_detection_policy_u1(static_cast<int>(DetectionPolicy::Off));
+
+    register_builtin_sources(m, nullptr);
+
+    // Both sources registered (each answers to its own id), U1 under its
+    // stored policy, the K2 with no policy setting under the default.
+    CHECK(m.source_can_tune("u1_stock"));
+    CHECK(m.policy("u1_stock") == DetectionPolicy::Off);
+    CHECK(m.policy("k2_stock") == DetectionPolicy::DeferToSource);
+    CHECK(builtin_sources().size() == 2);
+
+    // The U1 decides its own capability from the objects list.
+    CHECK_FALSE(m.any_available());
+    m.apply_objects_list_for_test(json::array({"defect_detection"}));
+    CHECK(m.any_available());
+
+    sm.set_detection_policy_u1(saved);
     m.reset_for_test();
 }

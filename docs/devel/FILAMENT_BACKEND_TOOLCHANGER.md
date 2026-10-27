@@ -58,14 +58,14 @@ differs - the unmount, which a machine whose tools are plain extruders does not 
 | `tool_numbers` | int[] | All tool numbers, ascending [0, 1, 2] |
 | `tool_names` | string[] | Each tool's config section, in `tool_numbers` order ["tool T0", "tool T1", "tool T2"]. Discovery orders the slots by it (below) |
 
-**Tool order.** A slot's index is its Klipper tool number: slot `n` is selected with `SELECT_TOOL T=n` and
-labelled "T`n`". The objects list names the tools but not their numbers, so discovery
+**Tool order.** A slot's index is its Klipper tool number: slot `n` is labelled "T`n`" and selected by
+the name of its `[tool ...]` object, `SELECT_TOOL TOOL="tool <name>"`. The objects list names the tools but not their numbers, so discovery
 sorts them naturally (T2 before T10) and then, once the subscription's first status
 arrives, puts them in `toolchanger.tool_names` order
 (`PrinterDiscovery::order_tools_by_number`). `[tool Right]` numbered 0 therefore takes
 slot 0 ahead of `[tool Left]` numbered 1. Tools with no `tool_number` follow the numbered
-ones. Numbers with gaps (0, 1, 5) still map slot by position, so slot 2 is selected as
-`T=2`; that layout is not supported.
+ones. Numbers with gaps (0, 1, 5) still map slot by position: slot 2 mounts the third tool,
+but is labelled `T2`.
 
 **Per-tool** (`tool T{n}`):
 
@@ -83,7 +83,8 @@ ones. Numbers with gaps (0, 1, 5) still map slot by position, so slot 2 is selec
 
 | Command | Action |
 |---------|--------|
-| `SELECT_TOOL T={n}` | Mount the tool Klipper numbers `n` (what a slot tap sends; slot `n` is tool number `n`) |
+| `SELECT_TOOL TOOL="tool <name>"` | Mount the slot's physical tool (what a slot tap sends). `TOOL=` takes the full object name, quoted for its space. `SELECT_TOOL T=<n>` would look `n` up in the table `ASSIGN_TOOL` writes, so a remap left from a mapped print would mount another hot end |
+| `ASSIGN_TOOL TOOL="tool <name>" N=<n>` | Make G-code `T<n>` mount that physical tool (a remap). Keyed on the same full object name |
 | `UNSELECT_TOOL` | Park the current tool (`park_active_tool()`) |
 | `T{n}` | Tool change macro |
 
@@ -118,13 +119,13 @@ non-settled states are easy to get wrong:
 | Feature | Supported | Editable |
 |---------|-----------|----------|
 | Endless Spool | `Unsupported` | No override; inherits the base default |
-| Tool Mapping | Yes | With klipper-toolchanger: `RemapStrategy::Native` - `set_tool_mapping()` emits `ASSIGN_TOOL TOOL=T{n} N={tool}`, so a G-code T-number can point at any physical tool. `parse_toolchanger_state()` resolves `tool_number` back through the forward map. Without it (`tool_commands_.present`, the machine swaps with its own `T<n>` commands): `RemapStrategy::GcodeRewrite` - the job file is rewritten before printing, which needs the HelixPrint plugin. See [the remapper](FILAMENT_MANAGEMENT.md#gcode-tool-remapper) for what that rewrite does and does not move |
+| Tool Mapping | Yes | With klipper-toolchanger: `RemapStrategy::Native` - `set_tool_mapping()` emits `ASSIGN_TOOL TOOL="tool T{n}" N={tool}`, so a G-code T-number can point at any physical tool. `parse_toolchanger_state()` resolves `tool_number` back through the forward map. Without it (`tool_commands_.present`, the machine swaps with its own `T<n>` commands): `RemapStrategy::GcodeRewrite` - the job file is rewritten before printing, which needs the HelixPrint plugin. See [the remapper](FILAMENT_MANAGEMENT.md#gcode-tool-remapper) for what that rewrite does and does not move |
 | Bypass Mode | No | Not applicable - each tool is its own path. [The force override](FILAMENT_MANAGEMENT.md#bypass-visibility-and-the-force-override) shows the external spool for tracking only |
 | Spoolman | Fields only | `spoolman_id`/`spoolman_vendor_id` persist in slot overrides; no toolchanger-specific Spoolman wiring exists in the backend |
 | Slot metadata | Yes | Persisted via `FilamentSlotOverrideStore` (`lane_data`, `T<n>` keys). The firmware supplies none of it, so the store is the sole source - see [FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out) |
 | Auto-Heat on Load | No | -- |
 | Dryer | No | -- |
-| Device Actions | Machine-dependent | None by default. A tool changer with an add-on feeder exposes `open_feeder`/`close_feeder` - see [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md) |
+| Device Actions | Machine-dependent | None by default. A tool changer with an add-on feeder exposes `open_feeder`/`close_feeder`, and one with a nozzle-clean command `clean_nozzle` - see [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md) |
 | Operation step bar | Machine-dependent | Suppressed unless the machine reports phases. A plain klipper-toolchanger has only `toolchanger.status == "changing"`, which is not a sequence, so it renders no step bar rather than the legacy Heat/Feed/Purge one - nothing heats, feeds or purges when the whole hot end is swapped. A changer with an add-on phase source gets a real bar; see [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md) § "The operation step bar" |
 
 ### Discovery Sequence
@@ -134,7 +135,9 @@ Tool names must be provided via `set_discovered_tools()` before calling `start()
 ---
 
 Hotend changers (MedusaHC) run on this backend with add-ons layered on top - see
-[FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md).
+[FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md). A MedusaHC swaps with its own
+`T<n>` / `DROP_TOOL` and maps tools by rewriting the file even where klipper-toolchanger
+runs beside its controller: klipper-toolchanger only mirrors the docks' tool there.
 
 ## Z-Mod on the Creator 5 Pro
 

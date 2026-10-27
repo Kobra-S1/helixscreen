@@ -133,9 +133,7 @@ TEST_CASE("Subscription: print_stats fields cover printer_print_state reads",
     json subs = fx.build();
 
     // printer_print_state reads: state, filename, info, estimated_time,
-    //   filament_used, print_duration, total_duration, exception (the pause
-    //   cause defect detection and the resume classifier read)
-    REQUIRE(has_field(subs, "print_stats", "exception"));
+    //   filament_used, print_duration, total_duration
     REQUIRE(has_field(subs, "print_stats", "state"));
     REQUIRE(has_field(subs, "print_stats", "filename"));
     REQUIRE(has_field(subs, "print_stats", "info"));
@@ -159,6 +157,39 @@ TEST_CASE("Subscription: virtual_sdcard fields cover printer_print_state reads",
     REQUIRE(has_field(subs, "virtual_sdcard", "layer"));
     REQUIRE(has_field(subs, "virtual_sdcard", "layer_count"));
     REQUIRE(has_field(subs, "virtual_sdcard", "is_active"));
+}
+
+TEST_CASE("Subscription: power-loss recovery and pause-cause fields follow the firmware",
+          "[moonraker][subscription][plr]") {
+    SECTION("mainline Klipper gets the probe marker and recovery file only") {
+        DiscoveryFixture fx;
+        json subs = fx.build();
+        CHECK(has_field(subs, "print_stats", "power_loss"));
+        CHECK(has_field(subs, "virtual_sdcard", "file_path"));
+        CHECK_FALSE(has_field(subs, "print_stats", "exception"));
+        CHECK_FALSE(has_field(subs, "virtual_sdcard", "pl_env_valid"));
+    }
+
+    SECTION("the firmware that publishes them gets the pause cause and snapshot flag") {
+        // The structured pause cause feeds defect detection and the resume
+        // classifier; the snapshot flag is that firmware's recovery offer.
+        DiscoveryFixture fx;
+        fx.add("filament_detect", {});
+        json subs = fx.build();
+        CHECK(has_field(subs, "print_stats", "exception"));
+        CHECK(has_field(subs, "virtual_sdcard", "pl_env_valid"));
+        CHECK(has_field(subs, "virtual_sdcard", "file_path"));
+        CHECK(has_field(subs, "print_stats", "state"));
+        CHECK(has_field(subs, "virtual_sdcard", "progress"));
+    }
+
+    SECTION("the recovery macro adds save_variables with every field") {
+        DiscoveryFixture fx;
+        fx.add("gcode_macro DETECT_INTERRUPTION", {});
+        json subs = fx.build();
+        REQUIRE(subs.contains("save_variables"));
+        CHECK(subs["save_variables"].is_null());
+    }
 }
 
 TEST_CASE("Subscription: heaters narrow to {temperature, target, power}, extruders add "

@@ -75,7 +75,7 @@ struct ToolReading {
     /// KNOW, and acting on a guess would drive the carriage into a dock.
     bool sensor_error = false;
     /// The controller published `sensor_error` itself rather than us deriving it
-    /// from -2. Only Irbis3D publishes the flag, and only the flag is a fault on
+    /// from -2. Only [medusahc] publishes the flag, and only the flag is a fault on
     /// its own: -2 is one value for two answers, a pin fault and "the switch
     /// pattern matches no settled configuration". A swap in flight is always the
     /// second, because the tool is between its dock and the head.
@@ -83,24 +83,19 @@ struct ToolReading {
     /// The frame carried the controller's `sensor_error` flag at all, true or
     /// false. Without it, sensor_error_reported = false says nothing.
     bool sensor_error_named = false;
-    /// The machine's phase word, or empty when the frame did not say.
-    ///
-    /// The two controllers do NOT share a vocabulary, and this is deliberately
-    /// the raw word rather than a normalised enum, because callers need to tell
-    /// them apart:
-    ///   Irbis3D MedusaHC-Python-Controller  `operation`: idle/picking/dropping
-    ///   topi314/MedusaHC                    `state`:     uninitialized/ready/
-    ///                                                    changing/error
-    /// Verified against both sources, not inferred: `state` is a COARSER
-    /// vocabulary than `operation`, not another spelling of it.
+    /// The machine's raw phase word, or empty when the frame did not say:
+    /// MedusaHC's `operation` (idle/changing/dropping/picking), or Z-Mod's.
     std::string operation;
     /// Irbis3D's `last_error`: the message its last failed operation latched,
     /// empty once the next operation begins. nullopt when the frame did not
     /// name it.
     std::optional<std::string> last_error;
-    /// True when `operation` came from the key that names the swap DIRECTION.
-    /// False for a machine whose phase word is only ever "changing", which
-    /// cannot say whether it is docking or picking. Available from the first
+    /// The tool the controller's current or last operation was moving to (or,
+    /// for a park, the tool being parked); -1 for none. nullopt when the frame
+    /// did not name it.
+    std::optional<int> target_tool;
+    /// True when this frame carried a phase word that names the swap DIRECTION
+    /// (dropping vs picking). False when it carried none. Available from the first
     /// status frame, unlike the phase words themselves, which only appear once a
     /// swap is already running - so this is what a caller keys on to decide what
     /// it can render BEFORE anything moves.
@@ -113,15 +108,14 @@ struct ToolReading {
     /// and callers must not conflate them: Moonraker republishes only the fields
     /// that CHANGED.
     ///
-    /// Upstream spells it `sensors` ({"e":1,"t0":1,...}), the fork spells it
-    /// flat `tool<N>_docked` booleans. Same physical answer.
+    /// Spelled `sensors` ({"e":1,"t0":1,...}) on the wire.
     std::vector<std::optional<bool>> docks;
-    /// Whether anything is on the head at all (`sensors.e` / `head_loaded`).
+    /// Whether anything is on the head at all (`sensors.e`).
     /// nullopt when the frame did not say.
     std::optional<bool> head_loaded;
     /// Frame-side gripper released. nullopt when this machine does not report it
-    /// at all. BOTH MedusaHC controllers publish `feeder_open`, so in practice
-    /// every machine carrying [medusahc] fills this in; the nullopt case is a
+    /// at all. [medusahc] publishes `feeder_open`, so in practice every machine
+    /// carrying it fills this in; the nullopt case is a
     /// changer with no such extra. The difference between "closed" and "never
     /// said" is what decides whether the step bar can name the release/grip
     /// phases (see AmsBackendToolChanger::get_operation_step_model).
@@ -131,14 +125,21 @@ struct ToolReading {
 /// How a swap is commanded on a machine where klipper-toolchanger is not the
 /// one doing it. Default-constructed - `present` false - means the printer has
 /// [toolchanger] and its SELECT_TOOL/UNSELECT_TOOL own the swap.
+///
+/// `present` is also the tool-mapping answer: these commands name the physical
+/// tool outright, and klipper-toolchanger's ASSIGN_TOOL does not reach them,
+/// so a remap has to rewrite the job file instead.
 struct ToolCommands {
     bool present = false;
     std::string provider_name; ///< Machine it came from, for logs
     /// Prefixed to the tool number: "T" sends T0, T1, ... Empty when absent.
     std::string select_prefix;
-    /// Unmounts whatever is on the head. Empty when the machine has no such
-    /// command and the tool can only be swapped for another.
+    /// Unmounts whatever is on the head; may be several lines. Empty when the
+    /// machine has no such command and the tool can only be swapped for another.
     std::string unselect;
+    /// klipper-toolchanger runs beside these commands, so INITIALIZE_TOOLCHANGER
+    /// exists even though it does not drive the swap.
+    bool initialize_available = false;
 };
 
 /// Presence of an add-on dock sensor. When set, read_tool() is worth calling on
@@ -273,6 +274,26 @@ std::optional<std::vector<AfcLaneSpool>> read_afc_lane_spools(const nlohmann::js
 /// The dock sensor this printer exposes, or an absent capability.
 ToolSensor resolve_tool_sensor(const PrinterDiscovery& hw);
 
+/// Gcode that brushes the mounted tool's nozzle clean, or empty when the
+/// printer has no such command.
+std::string clean_nozzle_gcode(const PrinterDiscovery& hw);
+
+/// A temperature floor the controller's resume command enforces: before a
+/// print it paused may resume onto a tool it must pick again, that tool's
+/// nozzle must be ABOVE min_nozzle_c.
+struct ResumeRule {
+    int min_nozzle_c = 0; ///< 0 for a controller with no such rule
+    std::string command;  ///< the controller command that enforces it
+};
+
+/// This printer's controller's resume rule, whether or not its RESUME runs it.
+ResumeRule resume_rule(const PrinterDiscovery& hw);
+
+/// Whether @p rule binds: the printer's RESUME macro, as configfile reports
+/// it, runs the command that enforces it. Wiring RESUME to that command is an
+/// install step the owner may skip, so a rule with no caller is no rule.
+bool resume_rule_in_force(const ResumeRule& rule);
+
 /// The swap commands this printer needs, or an absent capability meaning
 /// klipper-toolchanger is there and owns them.
 ToolCommands resolve_tool_commands(const PrinterDiscovery& hw);
@@ -312,8 +333,7 @@ std::optional<ToolReading> read_tool(const nlohmann::json& status);
 /// neither 0 nor 1, and a switch pattern matching none of the settled
 /// configurations. A tool in transit between its dock and the head is always the
 /// second. So only a flag the controller published itself, or a -2 it still
-/// reports once at rest, is a fault. topi314's controller draws the same line,
-/// escalating -2 to state:"error" only while its machine state is ready.
+/// reports once at rest, is a fault.
 ///
 /// Irbis3D's flag is a latch on the last operation, cleared only when the next
 /// one begins, while its current_tool follows the dock sensors live. At rest, a

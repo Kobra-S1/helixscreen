@@ -3280,6 +3280,20 @@ void AmsBackendAfc::parse_afc_hub(const std::string& hub_name, const nlohmann::j
     }
 }
 
+namespace {
+/// AFC_buffer's `state` word as a direction: "Advancing" feeds filament
+/// forward, "Trailing" pulls it back; anything else has no direction.
+BufferMotion afc_buffer_motion(const std::string& state) {
+    if (state == "Advancing") {
+        return BufferMotion::Advancing;
+    }
+    if (state == "Trailing") {
+        return BufferMotion::Trailing;
+    }
+    return BufferMotion::Unknown;
+}
+} // namespace
+
 void AmsBackendAfc::parse_afc_buffer(const std::string& buffer_name, const nlohmann::json& data) {
     // Parse AFC_buffer object for buffer health and fault detection
     // {
@@ -3330,6 +3344,7 @@ void AmsBackendAfc::parse_afc_buffer(const std::string& buffer_name, const nlohm
 
     if (data.contains("state") && data["state"].is_string()) {
         health.state = data["state"].get<std::string>();
+        health.motion = afc_buffer_motion(health.state);
     }
 
     // Lane the buffer is regulating (v1.2.0+). AFC publishes null whenever the

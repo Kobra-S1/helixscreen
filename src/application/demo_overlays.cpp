@@ -11,6 +11,7 @@
 #include "ui_ams_loading_error_modal.h"
 #include "ui_dialog.h"
 #include "ui_error_reporting.h"
+#include "ui_guided_load_modal.h"
 #include "ui_lock_screen.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
@@ -32,6 +33,7 @@
 #include "color_utils.h"
 #include "data_root_resolver.h"
 #include "demo_prompt_lines.h"
+#include "filament_macro_profiles.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/ui_led_control_overlay.h"
 #include "preflight_validator.h"
@@ -184,7 +186,7 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
         lv_xml_register_component_from_file(
             helix::asset_component_uri("ui_xml/ams_loading_error_modal.xml").c_str());
 
-        lv_subject_t* seg = lv_xml_get_subject(nullptr, "afc_fault_segment");
+        lv_subject_t* seg = lv_xml_get_subject(nullptr, "fault_path_segment");
         if (seg != nullptr) {
             lv_subject_set_int(seg, static_cast<int>(PathSegment::HUB));
         }
@@ -344,6 +346,17 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
         // binds it to the paused job, and a mock with no paused job would
         // close it at once.
         return Modal::show_owned(std::make_unique<helix::detection::BedCheckModal>(), screen);
+    }
+
+    if (name == "guided-load" || name == "guided-load-confirm") {
+        // Only a load on firmware whose stock macro is a wizard reaches this, and
+        // no mock persona ships one. "guided-load" opens on the hand-push step,
+        // "guided-load-confirm" on the question the older firmware opens with.
+        auto steps = helix::filament_macros::guided_load_example();
+        if (!steps) {
+            return false;
+        }
+        return helix::ui::GuidedLoadModal::show_owned(*steps, name == "guided-load");
     }
 
     if (name == "ams-error-toast") {

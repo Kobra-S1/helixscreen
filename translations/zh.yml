@@ -165,6 +165,7 @@ translations:
   A print is in progress - restart still pending: '打印进行中 - 重启待执行'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: 此通道正在打印中。HelixScreen 已清除本地副本；打印结束后请再次清空。
   A print is running. Apply the result after it ends.: 正在打印。请在打印结束后应用结果。
+  A print started: '打印已开始'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "在料盘仍标记为放在热床上时开始了打印。如果料盘还在，请立即用紧急停止停下打印机。"
   A restart is already in progress: 重启正在进行中
   A right, B left: "A 右,B 左"
@@ -467,6 +468,8 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: 浏览
     HelixScreen 的指南、配置参考和故障排除资源。
   Brush nozzle: '刷洗喷嘴'
+  Brush the mounted tool's nozzle clean: '用刷子清洁当前安装工具的喷嘴'
+  Buffer: 缓冲区
   Buffer Status: 缓冲区状态
   Buffer tube problem: 缓冲管故障
   Build Volume: '打印尺寸'
@@ -705,6 +708,7 @@ translations:
   Clean Brush: '清洁刷子'
   Clean Nozzle: 清洁喷嘴
   Clean Up Storage: '清理存储'
+  Clean nozzle: '清洁喷嘴'
   Clean up: '清理'
   Clean {}: 清洁{}
   Cleaning Nozzle...: 正在清洁喷嘴...
@@ -1273,6 +1277,7 @@ translations:
   Extrude Speed: 挤出速度
   'Extrude failed: {}': '挤出失败: {}'
   Extrude may still be running — response timed out: 挤出可能仍在运行 — 响应超时
+  Extrude more: "继续挤出"
   Extrude/retract feedrate (Saved): 挤出/回抽速度（已保存）
   Extruded past the nozzle after each load: '每次装载后从喷嘴挤出的长度'
   Extruder: 挤出机
@@ -1288,6 +1293,7 @@ translations:
   Extruder to Nozzle: '挤出机至喷嘴'
   Extruder too cold: 挤出机温度过低
   Extruding prime line...: 正在挤出引导线...
+  Extruding...: "正在挤出..."
   FAILED: 失败
   FILAMENT: 耗材
   FILAMENT & TOOLHEAD: '耗材与工具头'
@@ -1651,6 +1657,7 @@ translations:
   Heat the chamber too: 同时加热腔体
   Heat the extruder to at least {}°C before loading filament: 装载耗材前请将挤出机加热至至少 {}°C
   Heat to at least %d°C for filament operations: 请加热至至少 %d°C 以进行耗材操作
+  Heat {} above {}°C before resuming: '恢复前请将{}加热到{}°C以上'
   Heatbed Temperature: 热床温度
   Heated Bed: 加热床
   Heated Bed MPC Calibration: 热床 MPC 校准
@@ -1878,6 +1885,7 @@ translations:
   Invalid tool/slot: '无效的工具/槽位'
   Invalid value: '值无效'
   Invalid value type: '值类型无效'
+  Is new filament coming out of the nozzle?: "喷嘴是否有新耗材挤出？"
   Issue description: 问题描述
   It can be un-archived in Spoolman's web UI.: 可以在 Spoolman 的网页界面中取消归档。
   It has not reported its slots yet. Try again in a moment.: 尚未报告其料槽。请稍后再试。
@@ -2428,6 +2436,7 @@ translations:
   No target printer configured: 未配置目标打印机
   No temperature sensors detected: '未检测到温度传感器'
   No timelapse videos found: 未找到延时视频
+  No tool is mounted: '未安装工具'
   No tool on the head: "工具头上没有工具"
   No tools to calibrate: 没有可校准的工具
   'No turn: the gap moved {:.1f} Hz': "未转动:差距移动了 {:.1f} Hz"
@@ -2517,6 +2526,7 @@ translations:
   Nozzle temp must be 100-%d°C: 喷嘴温度必须为 100-%d°C
   Nozzle, bed, and chamber in one widget: 喷嘴、热床和腔体合为一个小组件
   'Nozzle:': 喷嘴：
+  'Nozzles still heating: {}': '仍在加热的喷嘴: {}'
   Number Pad Layout: 数字键盘布局
   OD: OD
   'OFF': 关
@@ -2626,6 +2636,7 @@ translations:
   Park the AFC system: '停放 AFC 系统'
   Park Toolhead: '停放工具头'
   Parking toolhead: '正在停放工具头'
+  'Parking {} failed: {}': '停放{}失败: {}'
   Part: 零件
   Part Cooling Fan: 零件冷却风扇
   Part Fan: 零件风扇
@@ -2932,6 +2943,7 @@ translations:
   Purging: 正在清料
   Purging nozzle: 正在清洗喷嘴
   Purging...: 正在清料...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "将耗材推入挤出机直到推不动为止。挤出机会自动咬入，或点击“挤出”。"
   QGL: QGL
   'QGL failed: {}': 'QGL 失败: {}'
   QGL may still be running — response timed out: QGL 可能仍在运行 — 响应超时
@@ -3319,6 +3331,7 @@ translations:
   Seat: 装上
   Seat a tool by hand: 手动安装工具
   Seat a tool by hand for the first Z home: 首次Z轴归零前手动安装工具
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: '请装好热端，将{}加热到{}°C以上，然后点击恢复。'
   Seat which tool by hand?: 手动安装哪个工具？
   Seating {}...: 正在安装{}...
   Secondary: 次要
@@ -3778,10 +3791,12 @@ translations:
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: 缓冲器已 16 秒未检测到运动。请检查 CFS 与挤出机之间是否堵塞，或缓冲器是否卡住
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : '摄像头认为热床上有东西，因此打印机在打印前停止了。如果热床是空的，这是误报。'
+  'The carriage was not put back: check which tool is mounted': '打印头未归位：请检查当前装载的是哪个工具'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: '腔体加热器可以运行耗材烘干周期。在烘干对话框中启动。'
   The chamber wait already ended; nothing was stopped.: '腔体等待已经结束，未停止任何操作。'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 更改在 Klipper 重启后生效。将重启 Klipper 固件。所有正在进行的操作将被中断。
+  The connection to Klipper was lost: '与 Klipper 的连接已断开'
   The controller boards Klipper runs on. See their load in the system settings.: '运行 Klipper 的控制板。在系统设置中查看其负载。'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: 切刀未复位。请检查切刀机构上是否缠绕耗材
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: 切刀未对准。请使用 CALIBRATE_CUT_POS 重新校准
@@ -3893,6 +3908,8 @@ translations:
   The speed of one fan you choose: 所选风扇的转速
   The time, date, and system uptime: 时间、日期和系统运行时长
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"
+  The tool change under way finished, and the tool was not parked: '正在进行的换工具已完成，工具未停放'
+  The tool change under way finished, and {} was not put back on the carriage: '正在进行的换工具已完成，{}未放回打印头'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: 工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : '工具头内有耗材，但没有 AMS 槽位报告已装载。在清空之前，打印机可能拒绝装载槽位。仍要开始打印吗？'
@@ -4069,6 +4086,8 @@ translations:
   'Tool change failed: {}': '工具切换失败: {}'
   Tool change speed: 换工具速度
   Tool change to T{}: '切换工具到 T{}'
+  'Tool change to {} failed: {}': '切换到{}失败: {}'
+  'Tool changer error: {}': '换刀器错误: {}'
   'Tool cycle failed: {}': 依次更换工具失败：{}
   Tool cycle finished: 依次更换工具完成
   Tool is seated: 工具已装好
@@ -4361,6 +4380,7 @@ translations:
   Will not switch spools on runout: 耗材用尽时不会切换料盘
   Wipe nozzle on silicone cleaning strip: '在硅胶清洁条上擦拭喷嘴'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "在 {1:.0f} Hz 处相差 {0:.1f} Hz 以内"
+  Wipe the mounted nozzle on the brush: '在刷子上擦拭当前喷嘴'
   Wiping {}...: 正在擦拭{}...
   Wizard Error: 向导错误
   Working...: 处理中...
@@ -4632,6 +4652,7 @@ translations:
   '{} · {} · {}': '{} · {} · {}'
   '{} — response timed out': '{} — 响应超时'
   '{} → {}: no filament loaded.': '{} → {}: 未加载耗材。'
+  "{}'s nozzle is still heating": '{}的喷嘴仍在加热'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}：标签指定的 Spoolman 料盘 #{} 不存在'
   '{}:{:02} elapsed': 已用时 {}:{:02}
   '{}% left': '剩余 {}%'

@@ -166,6 +166,7 @@ translations:
   A print is in progress - restart still pending: '印刷中です - 再起動は保留中'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: このゲートで印刷中です。HelixScreen 側のコピーはクリアしました。印刷終了後に再度クリアしてください。
   A print is running. Apply the result after it ends.: 印刷中です。終了後に結果を適用してください。
+  A print started: '印刷が開始されました'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "スプールがベッド上にあるとされている状態で印刷が開始されました。まだ置かれている場合は、今すぐ緊急停止でプリンターを止めてください。"
   A restart is already in progress: 再起動はすでに進行中です
   A right, B left: "A右・B左"
@@ -468,6 +469,8 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: HelixScreen
     のガイド、設定リファレンス、トラブルシューティング資料を参照します。
   Brush nozzle: 'ノズルをブラシ清掃'
+  Brush the mounted tool's nozzle clean: '装着中のツールのノズルをブラシで清掃'
+  Buffer: バッファー
   Buffer Status: バッファーステータス
   Buffer tube problem: バッファーチューブの問題
   Build Volume: '造形ボリューム'
@@ -706,6 +709,7 @@ translations:
   Clean Brush: 'ブラシを清掃'
   Clean Nozzle: ノズル清掃
   Clean Up Storage: 'ストレージのクリーンアップ'
+  Clean nozzle: 'ノズル清掃'
   Clean up: 'クリーンアップ'
   Clean {}: '{}を清掃'
   Cleaning Nozzle...: ノズル清掃中...
@@ -1277,6 +1281,7 @@ translations:
   Extrude Speed: 押し出し速度
   'Extrude failed: {}': '押出に失敗しました: {}'
   Extrude may still be running — response timed out: 押出がまだ実行中の可能性があります — 応答タイムアウト
+  Extrude more: "さらに押し出し"
   Extrude/retract feedrate (Saved): 押し出し/引き戻し速度（保存済み）
   Extruded past the nozzle after each load: 'ロードのたびにノズルから押し出す量'
   Extruder: エクストルーダー
@@ -1292,6 +1297,7 @@ translations:
   Extruder to Nozzle: 'エクストルーダーからノズルまで'
   Extruder too cold: エクストルーダーが冷えています
   Extruding prime line...: プライムラインを押し出し中...
+  Extruding...: "押し出し中..."
   FAILED: 失敗
   FILAMENT: フィラメント
   FILAMENT & TOOLHEAD: 'フィラメントとツールヘッド'
@@ -1655,6 +1661,7 @@ translations:
   Heat the chamber too: チャンバーも加熱
   Heat the extruder to at least {}°C before loading filament: フィラメントを装填する前に、エクストルーダーを最低 {}°C まで加熱してください
   Heat to at least %d°C for filament operations: フィラメント操作には少なくとも %d°C まで加熱してください
+  Heat {} above {}°C before resuming: '再開前に{}を{}°C以上に加熱してください'
   Heatbed Temperature: ヒートベッド温度
   Heated Bed: 加熱ベッド
   Heated Bed MPC Calibration: ヒートベッド MPCキャリブレーション
@@ -1883,6 +1890,7 @@ translations:
   Invalid tool/slot: '無効なツール/スロットです'
   Invalid value: '無効な値です'
   Invalid value type: '値の型が無効です'
+  Is new filament coming out of the nozzle?: "ノズルから新しいフィラメントが出ていますか？"
   Issue description: 問題の説明
   It can be un-archived in Spoolman's web UI.: Spoolman の Web 画面でアーカイブを解除できます。
   It has not reported its slots yet. Try again in a moment.: スロットがまだ報告されていません。しばらくしてからもう一度お試しください。
@@ -2435,6 +2443,7 @@ translations:
   No target printer configured: 対象プリンターが設定されていません
   No temperature sensors detected: '温度センサーが検出されません'
   No timelapse videos found: タイムラプス動画が見つかりません
+  No tool is mounted: 'ツールが装着されていません'
   No tool on the head: "ツールヘッドにツールがありません"
   No tools to calibrate: キャリブレートするツールがありません
   'No turn: the gap moved {:.1f} Hz': "回していません: 差は{:.1f} Hz動きました"
@@ -2524,6 +2533,7 @@ translations:
   Nozzle temp must be 100-%d°C: ノズル温度は 100〜%d°C にしてください
   Nozzle, bed, and chamber in one widget: ノズル、ベッド、チャンバーをまとめて表示
   'Nozzle:': 'ノズル:'
+  'Nozzles still heating: {}': '加熱中のノズル: {}'
   Number Pad Layout: テンキーの配列
   OD: OD
   'OFF': 'OFF'
@@ -2633,6 +2643,7 @@ translations:
   Park the AFC system: 'AFCシステムをパーキング'
   Park Toolhead: 'ツールヘッドをパーキング'
   Parking toolhead: 'ツールヘッドをパーキング中'
+  'Parking {} failed: {}': '{}の格納に失敗しました: {}'
   Part: パーツ
   Part Cooling Fan: パーツ冷却ファン
   Part Fan: パーツファン
@@ -2941,6 +2952,7 @@ translations:
   Purging: パージ中
   Purging nozzle: ノズルをパージ中
   Purging...: パージ中...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"
   QGL: QGL
   'QGL failed: {}': 'QGL に失敗しました: {}'
   QGL may still be running — response timed out: QGL がまだ実行中の可能性があります — 応答タイムアウト
@@ -3328,6 +3340,7 @@ translations:
   Seat: 装着
   Seat a tool by hand: ツールを手で装着
   Seat a tool by hand for the first Z home: 初回のZホーミングのためにツールを手で装着
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: 'ホットエンドを正しく取り付け、{}を{}°C以上に加熱してから再開をタップしてください。'
   Seat which tool by hand?: どのツールを手で装着しますか？
   Seating {}...: '{}を装着中...'
   Secondary: セカンダリ
@@ -3787,10 +3800,12 @@ translations:
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: バッファーが 16 秒間動きを検出しませんでした。CFS とエクストルーダーの間の詰まり、またはバッファーの固着を確認してください
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : 'カメラがベッド上に何かを検出したため、プリンターは印刷前に停止しました。ベッドに何もなければ誤検出です。'
+  'The carriage was not put back: check which tool is mounted': 'キャリッジは元に戻されていません：装着されているツールを確認してください'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: 'チャンバーヒーターでフィラメントの乾燥サイクルを実行できます。乾燥ダイアログから開始してください。'
   The chamber wait already ended; nothing was stopped.: 'チャンバーの待機はすでに終了しました。何も停止していません。'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 変更は Klipper の再起動後に反映されます。Klipperファームウェアを再起動します。実行中の操作は中断されます。
+  The connection to Klipper was lost: 'Klipperとの接続が切れました'
   The controller boards Klipper runs on. See their load in the system settings.: 'Klipperが動作するコントローラーボード。負荷はシステム設定で確認できます。'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: カッターの刃が戻りませんでした。切断機構にフィラメントが巻き付いていないか確認してください
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: カッターの位置がずれています。CALIBRATE_CUT_POS で再校正してください
@@ -3902,6 +3917,8 @@ translations:
   The speed of one fan you choose: 選んだファン1つの速度
   The time, date, and system uptime: 時間、日付、稼働時間
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
+  The tool change under way finished, and the tool was not parked: '実行中のツール変更は完了し、ツールは格納されていません'
+  The tool change under way finished, and {} was not put back on the carriage: '実行中のツール変更は完了し、{}はキャリッジに戻されていません'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。印刷前に手動で引き抜いてください。それでも印刷を開始しますか？
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。取り除くまで、プリンターがスロットの装填を拒否する場合があります。それでも印刷を開始しますか？
@@ -4078,6 +4095,8 @@ translations:
   'Tool change failed: {}': 'ツール変更に失敗しました: {}'
   Tool change speed: ツール交換速度
   Tool change to T{}: 'ツールを T{} に変更しています'
+  'Tool change to {} failed: {}': '{}へのツール変更に失敗しました: {}'
+  'Tool changer error: {}': 'ツールチェンジャーのエラー: {}'
   'Tool cycle failed: {}': ツールの順次交換に失敗しました：{}
   Tool cycle finished: ツールの順次交換が完了しました
   Tool is seated: ツールは装着済み
@@ -4370,6 +4389,7 @@ translations:
   Will not switch spools on runout: フィラメント切れ時にスプールを切り替えません
   Wipe nozzle on silicone cleaning strip: 'シリコン清掃ストリップでノズルを拭く'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "{1:.0f} Hzで差は{0:.1f} Hz以内"
+  Wipe the mounted nozzle on the brush: '装着中のノズルをブラシで拭く'
   Wiping {}...: '{}を拭き取り中...'
   Wizard Error: ウィザードエラー
   Working...: 処理中...
@@ -4642,6 +4662,7 @@ translations:
   '{} · {} · {}': '{} · {} · {}'
   '{} — response timed out': '{} — 応答タイムアウト'
   '{} → {}: no filament loaded.': '{} → {}: フィラメントが装填されていません。'
+  "{}'s nozzle is still heating": '{}のノズルはまだ加熱中です'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: タグが示す Spoolman スプール #{} は存在しません'
   '{}:{:02} elapsed': 経過 {}:{:02}
   '{}% left': '残り {}%'

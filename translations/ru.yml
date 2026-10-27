@@ -213,6 +213,7 @@ translations:
   A print is in progress - restart still pending: 'Идёт печать - перезапуск ещё отложен'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: На этом шлюзе идёт печать. HelixScreen очистил свою копию; после окончания печати очистите его снова.
   A print is running. Apply the result after it ends.: Идёт печать. Примените результат после её завершения.
+  A print started: 'Началась печать'
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Печать началась, когда катушки отмечены как лежащие на столе. Если они всё ещё там, немедленно остановите принтер аварийной остановкой."
   A restart is already in progress: Перезапуск уже выполняется
   A right, B left: "A справа, B слева"
@@ -542,6 +543,8 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Руководства,
     справочники по настройке и ресурсы по устранению неполадок для HelixScreen.
   Brush nozzle: 'Очистка сопла щёткой'
+  Brush the mounted tool's nozzle clean: 'Очистить сопло установленного инструмента щёткой'
+  Buffer: Буфер
   Buffer Status: Статус буфера
   Buffer tube problem: Проблема с буферной трубкой
   Build Volume: 'Область печати'
@@ -803,6 +806,7 @@ translations:
   Clean Brush: 'Очистить щётку'
   Clean Nozzle: Очистить сопло
   Clean Up Storage: 'Очистка хранилища'
+  Clean nozzle: 'Очистить сопло'
   Clean up: 'Очистить'
   Clean {}: Очистите {}
   Cleaning Nozzle...: Очистка сопла...
@@ -1396,6 +1400,7 @@ translations:
   'Extrude failed: {}': 'Ошибка экструзии: {}'
   Extrude may still be running — response timed out: Экструзия может ещё выполняться
     — время ожидания истекло
+  Extrude more: "Ещё экструзия"
   Extrude/retract feedrate (Saved): Скорость экструзии/ретракции (Сохранено)
   Extruded past the nozzle after each load: 'Выдавливается через сопло после каждой загрузки'
   Extruder: Экструдер
@@ -1412,6 +1417,7 @@ translations:
   Extruder to Nozzle: 'Экструдер до сопла'
   Extruder too cold: Экструдер слишком холодный
   Extruding prime line...: Экструзия линии подготовки...
+  Extruding...: "Экструзия..."
   FAILED: ОШИБКА
   FILAMENT: ФИЛАМЕНТ
   FILAMENT & TOOLHEAD: 'ФИЛАМЕНТ И ГОЛОВКА'
@@ -1789,6 +1795,7 @@ translations:
   Heat the chamber too: Нагреть и камеру
   Heat the extruder to at least {}°C before loading filament: Перед загрузкой филамента нагрейте экструдер минимум до {}°C
   Heat to at least %d°C for filament operations: Нагрейте минимум до %d°C для операций с филаментом
+  Heat {} above {}°C before resuming: 'Перед возобновлением нагрейте {} выше {}°C'
   Heatbed Temperature: Температура стола
   Heated Bed: Подогреваемый стол
   Heated Bed MPC Calibration: Калибровка MPC стола
@@ -2033,6 +2040,7 @@ translations:
   Invalid tool/slot: 'Неверный инструмент/слот'
   Invalid value: 'Неверное значение'
   Invalid value type: 'Неверный тип значения'
+  Is new filament coming out of the nozzle?: "Выходит ли новый филамент из сопла?"
   Issue description: Описание проблемы
   It can be un-archived in Spoolman's web UI.: Это можно восстановить из архива в веб-интерфейсе Spoolman.
   It has not reported its slots yet. Try again in a moment.: Она ещё не сообщила о своих слотах. Повторите попытку через минуту.
@@ -2608,6 +2616,7 @@ translations:
   No target printer configured: Целевой принтер не настроен
   No temperature sensors detected: 'Датчики температуры не обнаружены'
   No timelapse videos found: Таймлапс-видео не найдены
+  No tool is mounted: 'Инструмент не установлен'
   No tool on the head: "На печатающей головке нет инструмента"
   No tools to calibrate: Нет инструментов для калибровки
   'No turn: the gap moved {:.1f} Hz': "Без поворота: разница сдвинулась на {:.1f} Гц"
@@ -2697,6 +2706,7 @@ translations:
   Nozzle temp must be 100-%d°C: Температура сопла должна быть 100-%d°C
   Nozzle, bed, and chamber in one widget: Сопло, стол и камера в одном виджете
   'Nozzle:': 'Сопло:'
+  'Nozzles still heating: {}': 'Сопла всё ещё нагреваются: {}'
   Number Pad Layout: Раскладка цифровой клавиатуры
   OD: OD
   'OFF': ВЫКЛ
@@ -2808,6 +2818,7 @@ translations:
   Park the AFC system: 'Припарковать систему AFC'
   Park Toolhead: 'Припарковать печатающую головку'
   Parking toolhead: 'Парковка печатающей головки'
+  'Parking {} failed: {}': 'Ошибка парковки {}: {}'
   Part: Деталь
   Part Cooling Fan: Вентилятор охлаждения детали
   Part Fan: Вент. детали
@@ -3140,6 +3151,7 @@ translations:
   Purging: Продувка
   Purging nozzle: Продувка сопла
   Purging...: Продувка...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."
   QGL: QGL
   'QGL failed: {}': 'Ошибка QGL: {}'
   QGL may still be running — response timed out: QGL может ещё выполняться — время
@@ -3548,6 +3560,7 @@ translations:
   Seat: Установить
   Seat a tool by hand: Установить инструмент вручную
   Seat a tool by hand for the first Z home: Установить инструмент вручную для первой парковки Z
+  Seat the hot ends, heat {} above {}°C, then tap Resume.: 'Установите хотэнды на место, нагрейте {} выше {}°C и нажмите «Продолжить».'
   Seat which tool by hand?: Какой инструмент установить вручную?
   Seating {}...: Установка {}...
   Secondary: Вторичный
@@ -4044,10 +4057,12 @@ translations:
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : 'Камере показалось, что на столе что-то есть, поэтому принтер остановился до начала печати. Если стол чист, это ложная тревога.'
+  'The carriage was not put back: check which tool is mounted': 'Каретка не возвращена: проверьте, какой инструмент установлен'
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: 'Нагреватель камеры может запускать цикл сушки филамента. Запустите его из диалога сушки.'
   The chamber wait already ended; nothing was stopped.: 'Ожидание камеры уже закончилось; ничего не остановлено.'
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Изменение вступает в силу после перезапуска Klipper. Прошивка Klipper будет перезапущена. Активные операции будут прерваны.
+  The connection to Klipper was lost: 'Связь с Klipper потеряна'
   The controller boards Klipper runs on. See their load in the system settings.: 'Платы контроллеров, на которых работает Klipper. Их загрузку можно посмотреть в системных настройках.'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: Резак смещён. Выполните повторную калибровку командой CALIBRATE_CUT_POS
@@ -4163,6 +4178,8 @@ translations:
   The speed of one fan you choose: Скорость выбранного вентилятора
   The time, date, and system uptime: Время, дата и время работы системы
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."
+  The tool change under way finished, and the tool was not parked: 'Текущая смена инструмента завершена, инструмент не припаркован'
+  The tool change under way finished, and {} was not put back on the carriage: 'Текущая смена инструмента завершена, {} не возвращён на каретку'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : 'В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Принтер может отказаться загружать слот, пока она не будет очищена. Всё равно начать?'
@@ -4356,6 +4373,8 @@ translations:
   'Tool change failed: {}': 'Ошибка смены инструмента: {}'
   Tool change speed: Скорость смены инструмента
   Tool change to T{}: 'Смена инструмента на T{}'
+  'Tool change to {} failed: {}': 'Ошибка смены инструмента на {}: {}'
+  'Tool changer error: {}': 'Ошибка сменщика инструментов: {}'
   'Tool cycle failed: {}': 'Ошибка перебора инструментов: {}'
   Tool cycle finished: Перебор инструментов завершён
   Tool is seated: Инструмент установлен
@@ -4657,6 +4676,7 @@ translations:
   Will not switch spools on runout: При обрыве катушка не переключится
   Wipe nozzle on silicone cleaning strip: 'Очистить сопло о силиконовую полоску'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "В пределах {0:.1f} Гц друг от друга на {1:.0f} Гц"
+  Wipe the mounted nozzle on the brush: 'Протереть установленное сопло о щётку'
   Wiping {}...: 'Очистка: {}...'
   Wizard Error: Ошибка мастера
   Working...: Выполнение...
@@ -4963,6 +4983,7 @@ translations:
   '{} · {} · {}': '{} · {} · {}'
   '{} — response timed out': '{} — время ожидания ответа истекло'
   '{} → {}: no filament loaded.': '{} → {}: филамент не загружен.'
+  "{}'s nozzle is still heating": 'Сопло {} всё ещё нагревается'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: метка указывает катушку Spoolman #{}, которой не существует'
   '{}:{:02} elapsed': прошло {}:{:02}
   '{}% left': 'Осталось {}%'

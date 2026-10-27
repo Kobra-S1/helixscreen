@@ -921,7 +921,7 @@ neither can be the record of the user's choice. The record is the per-printer se
 `ams/end_of_print_unload_tools`, a bitmask with bit N for tool N
 (`include/settings_manager.h#get_end_of_print_unload_tools`). The toggles read it, and a toggle
 writes it first and then sends the whole `END_UNLOAD_FILAMENT` list built from it
-(`src/printer/ams_backend_snapmaker.cpp#execute_device_action`). While printing or paused the
+(`src/printer/ams_backend_snapmaker.cpp#do_execute_device_action`). While printing or paused the
 firmware refuses that list without `FORCE=1`, which a toggle never passes, so the send is skipped and the
 saved choice goes out with the next start. Every print start from this screen carries the list through
 `build_preprint_gcode()` (above). A print some other client started gets it through

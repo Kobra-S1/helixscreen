@@ -3,6 +3,7 @@
 #include "ui_ams_sidebar.h"
 #include "ui_bed_drying_modal.h"
 #include "ui_filament_runout_handler.h"
+#include "ui_filament_slot_picker.h"
 #include "ui_unload_lane_choice.h"
 #include "ui_update_queue.h"
 
@@ -16,6 +17,7 @@
 #include "test_helpers/filament_runout_handler_test_access.h"
 #include "test_helpers/filament_sensor_widget_test_access.h"
 #include "test_helpers/modal_answer.h"
+#include "theme_manager.h"
 
 #include <functional>
 #include <memory>
@@ -360,4 +362,80 @@ TEST_CASE_METHOD(UnloadLaneSidebarFixture,
     lv_obj_get_coords(cancel, &cancel_area);
     CHECK(cancel_area.y2 <= card_area.y2);
     tap(cancel);
+}
+
+TEST_CASE_METHOD(UnloadLaneSidebarFixture, "The lane picker is as wide as its widest row",
+                 "[ams][1324][picker]") {
+    REQUIRE(helix::ui::choose_unload_lane(backend_, lv_obj_find_by_name(panel_, "btn_unload"),
+                                          [](int) {}));
+    lv_obj_t* cancel = find_on_screen("cancel_choice");
+    REQUIRE(cancel != nullptr);
+    lv_obj_t* card = lv_obj_get_parent(cancel);
+    lv_obj_update_layout(card);
+
+    // Every label shows its whole text, and the widest one leaves no slack:
+    // the card fits its content rather than a fixed width.
+    int32_t least_slack = INT32_MAX;
+    const uint32_t rows = lv_obj_get_child_count(card);
+    for (uint32_t i = 0; i < rows; ++i) {
+        lv_obj_t* row = lv_obj_get_child(card, static_cast<int32_t>(i));
+        lv_obj_t* label =
+            lv_obj_check_type(row, &lv_label_class) ? row : lv_obj_find_by_name(row, "slot_label");
+        if (!label) {
+            continue;
+        }
+        lv_point_t text{};
+        lv_text_get_size(&text, lv_label_get_text(label),
+                         lv_obj_get_style_text_font(label, LV_PART_MAIN),
+                         lv_obj_get_style_text_letter_space(label, LV_PART_MAIN), 0, LV_COORD_MAX,
+                         LV_TEXT_FLAG_NONE);
+        const int32_t slack = lv_obj_get_content_width(label) - text.x;
+        CHECK(slack >= 0);
+        least_slack = std::min(least_slack, slack);
+    }
+    CHECK(least_slack <= 2);
+    CHECK(lv_obj_get_width(card) < lv_display_get_horizontal_resolution(lv_display_get_default()));
+    tap(cancel);
+}
+
+TEST_CASE_METHOD(UnloadLaneSidebarFixture,
+                 "A picker row wider than the screen caps the card and ellipsizes its label",
+                 "[ams][1324][picker]") {
+    helix::ui::FilamentSlotPicker picker;
+    helix::ui::FilamentSlotPicker::Options options;
+    options.highlight_trigger = false;
+    options.extra_choice = std::string(100, 'W');
+    options.cancel_choice = "Cancel";
+    picker.show(
+        lv_screen_active(), lv_obj_find_by_name(panel_, "btn_unload"), {slot(0)},
+        helix::ui::FilamentSlotPicker::Selection{},
+        [](const helix::ui::FilamentSlotPicker::Selection&) {}, options);
+
+    lv_obj_t* extra = find_on_screen("extra_choice");
+    REQUIRE(extra != nullptr);
+    lv_obj_t* card = lv_obj_get_parent(extra);
+    lv_obj_update_layout(card);
+
+    const int32_t screen_w = lv_display_get_horizontal_resolution(lv_display_get_default());
+    CHECK(lv_obj_get_width(card) <= screen_w - 2 * theme_manager_get_spacing("space_md"));
+
+    lv_obj_t* label = lv_obj_find_by_name(extra, "slot_label");
+    REQUIRE(label != nullptr);
+    CHECK(lv_label_get_long_mode(label) == LV_LABEL_LONG_MODE_DOTS);
+    // The label's own text is the shortened one once dots apply; measure the
+    // full string the row was given.
+    lv_point_t text{};
+    lv_text_get_size(&text, options.extra_choice.c_str(),
+                     lv_obj_get_style_text_font(label, LV_PART_MAIN),
+                     lv_obj_get_style_text_letter_space(label, LV_PART_MAIN), 0, LV_COORD_MAX,
+                     LV_TEXT_FLAG_NONE);
+    CHECK(lv_obj_get_content_width(label) < text.x);
+    // The row's label grows to the cap, not to whatever the title leaves it.
+    CHECK(lv_obj_get_width(card) == screen_w - 2 * theme_manager_get_spacing("space_md"));
+    lv_area_t card_area;
+    lv_area_t label_area;
+    lv_obj_get_coords(card, &card_area);
+    lv_obj_get_coords(label, &label_area);
+    CHECK(label_area.x2 <= card_area.x2);
+    picker.hide();
 }

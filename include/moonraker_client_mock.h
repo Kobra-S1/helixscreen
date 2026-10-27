@@ -1372,10 +1372,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// it: the docks' tool when they name one, -1 (UNSELECT_TOOL) when they do
     /// not, and while printing an unnamed reading leaves it alone.
     int sync_medusa_toolchanger_tool();
-    /// Tools the MedusaHC variant carries: six on the T<n>-macro controller
-    /// (topi's machine), four on the others.
+    /// Tools the MedusaHC variant carries: six on medusahc-tn, four otherwise.
     [[nodiscard]] static int medusa_tool_count();
     static constexpr int kMedusaMaxTools = 6;
+    /// MHC_RESUME refuses to re-pick a tool whose nozzle is at or below this.
+    static constexpr int kMedusaResumeMinNozzleC = 190;
 
     /// The U1 persona's extruder_offset for head @p head (0-3), as the
     /// objects query reports it.
@@ -1459,9 +1460,22 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /**
      * @brief `[pin_watch io]` status: `{"current_tool": int}`.
      *
-     * Empty object for the FORK variant (no pin_watch) and for NONE.
+     * Empty object for NONE.
      */
     nlohmann::json pin_watch_status_json() const;
+    /// The macro state the MedusaHC controller keeps beside [medusahc]:
+    /// `gcode_macro _TOOL_OFFSET`, `gcode_macro _GLOBAL_STATE` and
+    /// `save_variables`, keyed by object name. Empty when not a MedusaHC mock.
+    nlohmann::json medusa_macro_status_json() const;
+    /// The nozzle temperature of hot end @p tool: the live extruder for tool 0,
+    /// secondary_extruder_temp() for the rest.
+    [[nodiscard]] double medusa_nozzle_temp(int tool) const;
+    /// Secondary extruder @p index (1..5)'s reading and target. They start
+    /// apart (extruder1 heating, extruder2 at temperature, extruder3 cooling,
+    /// the rest cold) so each heating state shows, and follow their targets
+    /// like the primary: SET_HEATER_TEMPERATURE HEATER=extruder<n> sets one.
+    [[nodiscard]] double secondary_extruder_temp(int index) const;
+    [[nodiscard]] double secondary_extruder_target(int index) const;
 
     /**
      * @brief U1 `defect_detection` status: the module's stored config, which
@@ -1546,20 +1560,19 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /**
      * @brief Which MedusaHC shipping configuration the mock emulates.
      *
-     * The Python extra that publishes [medusahc] lives outside the hardware repo
-     * and has two independent implementations whose objects and status schemas
-     * differ, and Irbis3D's runs with or without klipper-toolchanger (see
+     * Irbis3D's Python controller runs with or without klipper-toolchanger (see
      * docs/devel/FILAMENT_BACKEND_MEDUSAHC.md). Each variant emits the object set
-     * its configuration has, so toolchanger_addon's detection and schema
-     * discrimination run outside the unit tests too.
+     * its configuration has, so toolchanger_addon's detection and swap command
+     * routing run outside the unit tests too.
      */
     using MedusaVariant = helix::mock::MedusaVariant;
 
     /**
      * @brief MedusaHC variant selected by HELIX_MOCK_AMS, or NONE.
      *
-     * "medusahc"/"medusa"/"mhc" select CONTROLLER, "medusahc-tn" CONTROLLER_TN and
-     * "medusahc-fork" FORK (helix::mock::medusa_variant). Unlike
+     * "medusahc"/"medusa"/"mhc" select CONTROLLER, "medusahc-ktc" CONTROLLER_KTC and
+     * "medusahc-tn" CONTROLLER_TN
+     * (helix::mock::medusa_variant). Unlike
      * is_mock_toolchanger(), these values do NOT build an AmsBackendMock:
      * try_create_mock() declines them so real discovery runs and the production
      * AmsBackendToolChanger drives the mock objects.
@@ -1578,6 +1591,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     /// Convenience: mock_medusa_variant() != MedusaVariant::NONE.
     bool is_mock_medusahc() const;
+
+    /// configfile sections a MedusaHC persona adds, as Klipper reports them in
+    /// both settings and config: the upstream example RESUME, which runs
+    /// MHC_RESUME. Empty for any other persona.
+    [[nodiscard]] json medusa_config_sections() const;
 
   private:
     /**
@@ -2293,6 +2311,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // G-code offset tracking
     std::atomic<double> gcode_offset_z_{0.0}; // Z offset from SET_GCODE_OFFSET
+    std::atomic<double> gcode_offset_x_{0.0}; // X offset (MHC_TOOL_OFFSET applies X/Y/Z)
+    std::atomic<double> gcode_offset_y_{0.0};
     /// Per-tool offsets, indexed by tool number then axis, driven by
     /// SET_TOOL_PARAMETER. Seeded DISTINCT rather than all-zero, per tool and
     /// per axis: an all-zero seed makes "every tool reads the same value" (or
@@ -2390,8 +2410,24 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // Simulation parameters (realistic heating rates)
     static constexpr double kRoomTemp = 25.0;
-    static constexpr double kExtruderHeatRate = 3.0;     // °C/sec when heating
-    static constexpr double kExtruderCoolRate = 1.5;     // °C/sec when cooling
+    static constexpr double kExtruderHeatRate = 3.0; // °C/sec when heating
+    static constexpr double kExtruderCoolRate = 1.5; // °C/sec when cooling
+    /// One simulation step of @p dt simulated seconds for every secondary
+    /// extruder: toward its target, or toward room temperature when off.
+    void advance_secondary_extruders(double dt);
+    struct SecondaryExtruder {
+        double temperature = kRoomTemp;
+        double target = 0.0;
+    };
+    /// Index 0 is the primary (extruder_temp_), unused here. Guarded by
+    /// secondary_extruders_mutex_.
+    std::array<SecondaryExtruder, 6> secondary_extruders_{{{kRoomTemp, 0.0},
+                                                           {150.0, 250.0},
+                                                           {248.0, 250.0},
+                                                           {200.0, 0.0},
+                                                           {kRoomTemp, 0.0},
+                                                           {kRoomTemp, 0.0}}};
+    mutable std::mutex secondary_extruders_mutex_;
     static constexpr double kBedHeatRate = 1.0;          // °C/sec when heating
     static constexpr double kBedCoolRate = 0.3;          // °C/sec when cooling
     static constexpr double kChamberHeatRate = 0.3;      // °C/sec when heating (slower than bed)
@@ -2487,6 +2523,19 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         int toolchanger_tool = 0;
         int toolchanger_reading = 0;
         bool toolchanger_synced = false;
+        /// [medusahc].layer, from MHC_LAYER_SET.
+        int layer = 0;
+        /// `_GLOBAL_STATE`: the tool RESUME re-picks (PAUSE saves the mounted
+        /// one, SET and DROP their own), and the failed-change flag MHC_ERROR
+        /// sets while a print is active.
+        int global_target_tool = -1;
+        int error_state = 0;
+        /// The swap MHC_RESUME started: the print continues once it succeeds.
+        bool resume_after_swap = false;
+        /// `_TOOL_OFFSET` t<n>_off_{x,y,z}, by tool then axis.
+        std::array<std::array<double, 3>, kMedusaMaxTools> offsets{};
+        /// save_variables' variables (t<n>_gcode_<axis>_offset and anything else saved).
+        nlohmann::json saved_variables = nlohmann::json::object();
     };
     /// A printer.gcode.script reply held until the swap its script started ends.
     struct MedusaReply {

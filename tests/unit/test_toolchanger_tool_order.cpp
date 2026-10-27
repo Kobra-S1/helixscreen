@@ -5,7 +5,7 @@
  * @brief A tool's slot is its Klipper tool number, so the tool list follows the numbers.
  *
  * Everything downstream of discovery takes a tool's slot from its position in
- * tool_names(): the backend selects slot i as `SELECT_TOOL T=i`, the switcher
+ * tool_names(): the backend selects slot i by naming tool_names()[i], the switcher
  * labels it "T<i>", and ToolState pairs it with the i-th extruder. Ordered by
  * name, `[tool Left]` numbered 1 lands in slot 0, so tapping it mounts the tool
  * Klipper numbers 0.

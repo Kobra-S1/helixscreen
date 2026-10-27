@@ -45,6 +45,10 @@ struct DeviceDetailRow {
 /// A row appears only when its value is published.
 std::vector<DeviceDetailRow> ams_device_detail_rows(const AmsSystemInfo& info);
 
+/// Cancel the filament system's running operation and toast the outcome. The
+/// one abort every surface that offers one calls.
+void abort_ams_operation();
+
 /**
  * @class AmsDeviceOperationsOverlay
  * @brief Progressive disclosure overlay for AMS device operations
@@ -206,14 +210,20 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     /// change, since what the backend can cancel follows what it is running.
     lv_subject_t can_abort_subject_{};
 
+    /// Subjects enabling Home and Recover (0=disabled, 1=enabled), from
+    /// AmsBackend::reset_available() / recover_available() on refresh.
+    lv_subject_t can_home_subject_{};
+    lv_subject_t can_recover_subject_{};
+
     /// ams_device_detail_rows() as "Label: value" lines, "" when there are none.
     lv_subject_t details_subject_{};
     char details_buf_[512] = {};
     lv_subject_t has_details_subject_{}; ///< 1 when details_subject_ is non-empty
 
-    /// AMS action observer that keeps can_abort_subject_ current while the
-    /// overlay exists.
+    /// AMS action and can-cancel observers that keep can_abort_subject_
+    /// current while the overlay exists.
     ObserverGuard action_observer_;
+    ObserverGuard can_cancel_observer_;
 
     /// Cached section metadata for row click dispatch
     std::vector<helix::printer::DeviceSection> cached_sections_;

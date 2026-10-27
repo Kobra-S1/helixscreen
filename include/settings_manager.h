@@ -371,12 +371,12 @@ class SettingsManager {
     // LANE EJECT (owned by SettingsManager — persisted per-printer)
     // =========================================================================
 
-    /** @brief Lane eject distance magnitude in mm (default 878, range 100-2000) */
+    /** @brief Lane eject distance magnitude in mm; 0 (the default) = the backend's own */
     int get_ams_eject_distance() const {
         return settings_.get(Key::AmsEjectDistance);
     }
 
-    /** @brief Set the lane eject distance magnitude in mm (clamped 100-2000, persisted) */
+    /** @brief Set the lane eject distance magnitude in mm (clamped 0-2000, persisted) */
     void set_ams_eject_distance(int mm) {
         settings_.set(Key::AmsEjectDistance, mm);
     }
@@ -386,12 +386,12 @@ class SettingsManager {
         return settings_.subject(Key::AmsEjectDistance);
     }
 
-    /** @brief Lane eject velocity in mm/s (default 100, range 10-300) */
+    /** @brief Lane eject velocity in mm/s; 0 (the default) = the backend's own */
     int get_ams_eject_velocity() const {
         return settings_.get(Key::AmsEjectVelocity);
     }
 
-    /** @brief Set the lane eject velocity in mm/s (clamped 10-300, persisted) */
+    /** @brief Set the lane eject velocity in mm/s (clamped 0-300, persisted) */
     void set_ams_eject_velocity(int mm_per_sec) {
         settings_.set(Key::AmsEjectVelocity, mm_per_sec);
     }

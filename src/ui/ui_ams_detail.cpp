@@ -1076,7 +1076,7 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
                                                   caption.empty() ? nullptr : caption.c_str());
     }
 
-    // The buffer box: AFC buffer health, Happy Hare sync feedback, or a
+    // The buffer box: a unit buffer's health, a system buffer's motion, or a
     // filament pressure sensor, tinted by the buffer bands.
     const helix::ui::BufferBoxState box = helix::ui::ams_detail_buffer_box(info, unit_index);
     ui_filament_path_canvas_set_buffer_fault_state(canvas, box.fault);
@@ -1130,29 +1130,21 @@ namespace ui {
 
 BufferBoxState ams_detail_buffer_box(const AmsSystemInfo& info, int unit_index) {
     BufferBoxState box;
-    // The AFC buffer rows describe one unit: the one asked for, else the one
-    // the system reading came from.
+    // A unit's buffer describes one unit: the one asked for, else the one the
+    // system reading came from. Without one, a buffer serving the whole system.
+    const auto motion_state = [](BufferMotion m) {
+        return m == BufferMotion::Advancing ? 1 : m == BufferMotion::Trailing ? 2 : 0;
+    };
     const AmsUnit* unit = info.get_unit(buffer_view_unit(info, unit_index));
     if (unit && unit->buffer_health) {
         const BufferHealth& h = *unit->buffer_health;
         box.present = true;
-        if (h.state == "Advancing") {
-            box.state = 1;
-        } else if (h.state == "Trailing") {
-            box.state = 2;
-        }
+        box.state = motion_state(h.motion);
         box.fault = static_cast<int>(buffer_fault_status(h));
     }
-    if (!box.present && info.type == AmsType::HAPPY_HARE) {
-        const auto& sf = info.sync_feedback_state;
-        if (!sf.empty() && sf != "disabled") {
-            box.present = true;
-            if (sf == "compressed") {
-                box.state = 1;
-            } else if (sf == "tension") {
-                box.state = 2;
-            }
-        }
+    if (!box.present && info.system_buffer_motion) {
+        box.present = true;
+        box.state = motion_state(*info.system_buffer_motion);
     }
 
     const BufferReading reading = buffer_reading(info, unit_index);

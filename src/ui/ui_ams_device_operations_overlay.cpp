@@ -87,6 +87,8 @@ void AmsDeviceOperationsOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(can_reset_endless_spool_subject_, 0,
                                "ams_device_ops_can_reset_endless_spool", subjects_);
         UI_MANAGED_SUBJECT_INT(can_abort_subject_, 0, "ams_device_ops_can_abort", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_home_subject_, 0, "ams_device_ops_can_home", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_recover_subject_, 0, "ams_device_ops_can_recover", subjects_);
         UI_MANAGED_SUBJECT_STRING(details_subject_, details_buf_, "", "ams_device_ops_details",
                                   subjects_);
         UI_MANAGED_SUBJECT_INT(has_details_subject_, 0, "ams_device_ops_has_details", subjects_);
@@ -130,17 +132,7 @@ void AmsDeviceOperationsOverlay::register_callbacks() {
          }},
         {"on_ams_device_ops_abort",
          [](lv_event_t*) {
-             AmsBackend* backend = AmsState::instance().get_backend();
-             if (!backend) {
-                 NOTIFY_WARNING("{}", lv_tr("No Multi-Filament System connected"));
-                 return;
-             }
-             AmsError result = backend->cancel();
-             if (result.success()) {
-                 NOTIFY_INFO("{}", lv_tr("Aborting..."));
-             } else {
-                 helix::ui::notify_ams_error(result, lv_tr("Abort failed"));
-             }
+             abort_ams_operation();
              get_ams_device_operations_overlay().refresh();
          }},
         {"on_ams_device_ops_bypass_toggled",
@@ -260,13 +252,33 @@ lv_obj_t* AmsDeviceOperationsOverlay::create(lv_obj_t* parent) {
         AmsState::instance().get_ams_action_subject(), this,
         [](AmsDeviceOperationsOverlay* self, int) { self->update_abort_available(); },
         AmsState::instance().get_subjects_lifetime());
+    can_cancel_observer_ = observe<int>(
+        AmsState::instance().get_ams_can_cancel_subject(), this,
+        [](AmsDeviceOperationsOverlay* self, int) { self->update_abort_available(); },
+        AmsState::instance().get_subjects_lifetime());
 
     return overlay_root_;
 }
 
 void AmsDeviceOperationsOverlay::on_ui_destroyed() {
     action_observer_.reset();
+    can_cancel_observer_.reset();
     bypass_toggle_.cancel_pending();
+}
+
+void abort_ams_operation() {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        NOTIFY_WARNING("{}", lv_tr("No Multi-Filament System connected"));
+        return;
+    }
+    // Said first: a backend that reports its own result toasts it from inside
+    // cancel(), and that toast must come after this one.
+    NOTIFY_INFO("{}", lv_tr("Aborting..."));
+    AmsError result = backend->cancel();
+    if (!result.success()) {
+        helix::ui::notify_ams_error(result, lv_tr("Abort failed"));
+    }
 }
 
 std::vector<DeviceDetailRow> ams_device_detail_rows(const AmsSystemInfo& info) {
@@ -336,6 +348,8 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         lv_subject_set_int(&printer_retains_spool_info_subject_, 0);
         lv_subject_set_int(&can_reset_endless_spool_subject_, 0);
         lv_subject_set_int(&can_abort_subject_, 0);
+        lv_subject_set_int(&can_home_subject_, 0);
+        lv_subject_set_int(&can_recover_subject_, 0);
         details_buf_[0] = '\0';
         lv_subject_copy_string(&details_subject_, details_buf_);
         lv_subject_set_int(&has_details_subject_, 0);
@@ -422,6 +436,11 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
     // stale button that won the race just reports the refusal.
     lv_subject_set_int(&can_reset_endless_spool_subject_,
                        backend->get_endless_spool_capabilities().editable() ? 1 : 0);
+
+    // Home sends reset() and Recover recover(); a machine with no command
+    // behind either shows the button disabled rather than toasting a refusal.
+    lv_subject_set_int(&can_home_subject_, backend->reset_available() ? 1 : 0);
+    lv_subject_set_int(&can_recover_subject_, backend->recover_available() ? 1 : 0);
 
     // Populate section rows
     populate_section_list();

@@ -21,13 +21,19 @@
 #include "../test_helpers/print_start_grace.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "../ui_test_utils.h"
+#include "ams_backend_mock.h"
+#include "ams_state.h"
 #include "app_globals.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "print_start_inputs.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -173,4 +179,49 @@ TEST_CASE_METHOD(NoDetailFixture, "a missing prep manager ends the start through
     PrintStartControllerTestAccess::execute(bare);
     drain();
     CHECK(bare_cancelled == 1);
+}
+
+TEST_CASE_METHOD(NoDetailFixture, "a filament operation under way refuses the start",
+                 "[print_start_controller]") {
+    controller->set_file_facts(facts_for("cube.gcode"));
+    controller->set_file("cube.gcode", "", {"#FF0000"});
+    struct UnloadingBackend : helix::AmsBackendMock {
+        UnloadingBackend() : helix::AmsBackendMock(4) {}
+        helix::AmsAction get_current_action() const override {
+            return helix::AmsAction::UNLOADING;
+        }
+        std::optional<helix::StepOperationType> running_step_operation() const override {
+            return helix::StepOperationType::UNLOAD;
+        }
+    };
+    helix::AmsState::instance().set_backend(std::make_unique<UnloadingBackend>());
+    struct Unset {
+        ~Unset() {
+            helix::AmsState::instance().set_backend(nullptr);
+        }
+    } unset;
+
+    // The refusal is what says so; a start that went on would end for some
+    // other reason with some other notice.
+    std::vector<std::string> warnings;
+    helix::ui::set_test_notification_warning_hook(
+        [&warnings](const std::string& m) { warnings.push_back(m); });
+    struct Unhook {
+        ~Unhook() {
+            helix::ui::set_test_notification_warning_hook(nullptr);
+        }
+    } unhook;
+
+    controller->initiate();
+    drain();
+    CHECK(cancelled == 1);
+    CHECK(started == 0);
+    CHECK(std::count(warnings.begin(), warnings.end(),
+                     "Wait for the current filament operation to finish") == 1);
+
+    bool reprint_failed = false;
+    controller->initiate_reprint("cube.gcode", "", {0}, nullptr,
+                                 [&reprint_failed]() { reprint_failed = true; });
+    drain();
+    CHECK(reprint_failed);
 }

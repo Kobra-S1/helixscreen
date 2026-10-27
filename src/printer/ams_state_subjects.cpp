@@ -12,6 +12,7 @@
 #include "ams_state.h"
 #include "ams_state_internal.h"
 #include "app_globals.h"
+#include "connection_state.h"
 #include "observer_factory.h"
 #include "printer_cache_registry.h"
 #include "printer_state.h"
@@ -71,6 +72,7 @@ void AmsState::init_subjects(bool register_xml) {
         // list below — a name added there must be added here too.
         install_print_state_observer();
         install_klippy_state_observer();
+        install_connection_state_observer();
         install_print_lifecycle_observer();
         if (register_xml) {
             register_xml_subject_names();
@@ -89,6 +91,7 @@ void AmsState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(ams_type, static_cast<int>(AmsType::NONE), subjects_, register_xml);
     INIT_SUBJECT_INT(ams_is_tool_changer, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_nozzle_heat_blocked, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_can_cancel, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_is_filament_system, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_action, static_cast<int>(AmsAction::IDLE), subjects_, register_xml);
     action_mirror_.store(AmsAction::IDLE, std::memory_order_relaxed);
@@ -637,6 +640,7 @@ void AmsState::init_subjects(bool register_xml) {
     // do so during fixture setup / app boot.
     install_print_state_observer();
     install_klippy_state_observer();
+    install_connection_state_observer();
     install_print_lifecycle_observer();
 }
 
@@ -670,6 +674,30 @@ void AmsState::install_klippy_state_observer() {
             for (int i = 0; i < self->backend_count(); ++i) {
                 if (AmsBackend* backend = self->get_backend(i)) {
                     backend->on_klipper_restarted();
+                }
+            }
+        },
+        get_printer_state().get_subjects_lifetime());
+}
+
+void AmsState::install_connection_state_observer() {
+    // The request tracker fails what was in flight when the socket closes, but
+    // a backend sequencing an operation can also be between requests (waiting
+    // on the operator, or on a frame): this edge reaches it either way.
+    connection_state_observer_.reset();
+    last_connection_state_ = -1;
+    connection_state_observer_ = helix::ui::observe<int>(
+        get_printer_state().network_state().get_printer_connection_state_subject(), this,
+        [](AmsState* self, int state) {
+            constexpr int kConnected = static_cast<int>(ConnectionState::CONNECTED);
+            const int prev = self->last_connection_state_;
+            self->last_connection_state_ = state;
+            if (prev != kConnected || state == kConnected) {
+                return;
+            }
+            for (int i = 0; i < self->backend_count(); ++i) {
+                if (AmsBackend* backend = self->get_backend(i)) {
+                    backend->on_connection_lost();
                 }
             }
         },
@@ -717,6 +745,7 @@ void AmsState::register_xml_subject_names() {
     helix::xml::register_subject_in_current_scope("ams_is_tool_changer", &ams_is_tool_changer_);
     helix::xml::register_subject_in_current_scope("ams_nozzle_heat_blocked",
                                                   &ams_nozzle_heat_blocked_);
+    helix::xml::register_subject_in_current_scope("ams_can_cancel", &ams_can_cancel_);
     helix::xml::register_subject_in_current_scope("ams_is_filament_system",
                                                   &ams_is_filament_system_);
     helix::xml::register_subject_in_current_scope("ams_action", &ams_action_);
@@ -975,6 +1004,7 @@ void AmsState::deinit_subjects() {
     // CLAUDE.md § "ObserverGuard::reset() is the default").
     print_state_observer_.reset();
     klippy_state_observer_.reset();
+    connection_state_observer_.reset();
     motion_sensor_observer_.reset();
     print_lifecycle_observer_.reset();
 

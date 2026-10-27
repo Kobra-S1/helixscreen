@@ -509,6 +509,16 @@ bool AmsState::any_bypass_active() const {
     return false;
 }
 
+bool AmsState::any_operation_running_here() const {
+    assert_main_thread();
+    for (const auto& backend : registry_.backends()) {
+        if (backend && backend->running_step_operation().has_value()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool AmsState::active_spool_describes_bypass() const {
     assert_main_thread();
     return get_backend() == nullptr || any_bypass_active();
@@ -810,6 +820,10 @@ void AmsState::sync_shared_heater(AmsBackend* backend, const AmsSystemInfo& info
     const bool blocked = backend && !backend->nozzle_heat_blocked_reason().empty();
     if (lv_subject_get_int(&ams_nozzle_heat_blocked_) != (blocked ? 1 : 0)) {
         lv_subject_set_int(&ams_nozzle_heat_blocked_, blocked ? 1 : 0);
+    }
+    const int can_cancel = backend && backend->can_cancel_operation() ? 1 : 0;
+    if (lv_subject_get_int(&ams_can_cancel_) != can_cancel) {
+        lv_subject_set_int(&ams_can_cancel_, can_cancel);
     }
     if (!backend || !backend->heads_share_heater()) {
         shared_heater_tool_ = -2;

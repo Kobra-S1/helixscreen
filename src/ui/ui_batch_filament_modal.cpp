@@ -145,6 +145,16 @@ std::string BatchFilamentModal::row_label(LaneNoun noun, int slot, const SlotInf
     return lane_label(noun, slot) + contents_suffix(info, present, at_toolhead);
 }
 
+bool BatchFilamentModal::row_at_toolhead(const AmsBackend& backend, int head, int slot) {
+    if (slot < 0) {
+        return false;
+    }
+    // One slot per head: a head known to hold filament holds this slot's.
+    return backend.can_unload_from_toolhead(slot) ||
+           (backend.get_topology() == PathTopology::PARALLEL &&
+            backend.head_has_filament(head).value_or(false));
+}
+
 std::string BatchFilamentModal::head_row_label(const HeadRowText& text) {
     std::string label = lane_label(text.head_noun, text.head);
     if (text.show_slot && text.slot >= 0) {
@@ -213,7 +223,7 @@ void BatchFilamentModal::on_show() {
         text.reason = row.enabled ? std::string() : row.reason;
         text.info = row.slot >= 0 ? backend->get_slot_info(row.slot) : SlotInfo{};
         text.present = row.slot >= 0 ? slot_presence(text.info) : std::nullopt;
-        text.at_toolhead = row.slot >= 0 && backend->can_unload_from_toolhead(row.slot);
+        text.at_toolhead = row_at_toolhead(*backend, row.head, row.slot);
         items.push_back(
             {std::to_string(row.head), head_row_label(text), row.preselected, row.enabled});
     }
