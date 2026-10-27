@@ -143,10 +143,10 @@ class SensorManager {
     virtual bool parse_status(const nlohmann::json& status) = 0;  ///< mutex held
     virtual void on_discovered() {}                               ///< mutex held; auto roles
     virtual void on_entries_changed() {} ///< mutex held; resize parallel readings
-    virtual void read_entry_extra(SensorEntry& entry, const nlohmann::json& saved) {}
-    virtual void write_entry_extra(const SensorEntry& entry, nlohmann::json& out) const {}
-    virtual void read_extra_settings(const nlohmann::json& saved) {}
-    virtual void write_extra_settings(nlohmann::json& out) const {}
+    virtual void read_entry_extra(SensorEntry& /*entry*/, const nlohmann::json& /*saved*/) {}
+    virtual void write_entry_extra(const SensorEntry& /*entry*/, nlohmann::json& /*out*/) const {}
+    virtual void read_extra_settings(const nlohmann::json& /*saved*/) {}
+    virtual void write_extra_settings(nlohmann::json& /*out*/) const {}
     /// Mutex held, lifetime already invalidated: tear down subjects kept outside
     /// the SubjectManager (a DynamicSubjectMap's clear()).
     virtual void on_deinit_subjects() {}

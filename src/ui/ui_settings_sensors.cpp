@@ -399,21 +399,22 @@ void SensorSettingsOverlay::populate_width_sensors() {
     }
 
     auto& mgr = helix::sensors::WidthSensorManager::instance();
-    auto sensors = mgr.get_sensors();
+    auto sensors = mgr.entries();
 
     spdlog::debug("[{}] Populating width sensor list with {} sensors", get_name(), sensors.size());
 
     // Create a row for each sensor using XML component
     for (const auto& sensor : sensors) {
         // Create sensor row from XML component
-        const char* type_str =
-            sensor.type == helix::sensors::WidthSensorType::TSL1401CL ? "TSL1401CL" : "Hall";
-        const char* attrs[] = {"sensor_name", sensor.sensor_name.c_str(), "sensor_type", type_str,
-                               nullptr};
+        const bool is_tsl =
+            sensor.type == static_cast<uint8_t>(helix::sensors::WidthSensorType::TSL1401CL);
+        const char* type_str = is_tsl ? "TSL1401CL" : "Hall";
+        const char* short_name = is_tsl ? "tsl1401cl" : "hall";
+        const char* attrs[] = {"sensor_name", short_name, "sensor_type", type_str, nullptr};
         auto* row = static_cast<lv_obj_t*>(lv_xml_create(sensors_list, "width_sensor_row", attrs));
         if (!row) {
             spdlog::error("[{}] Failed to create sensor row for {}", get_name(),
-                          sensor.sensor_name);
+                          sensor.klipper_name);
             continue;
         }
 
@@ -451,8 +452,8 @@ void SensorSettingsOverlay::populate_width_sensors() {
                     bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
 
                     auto& mgr = helix::sensors::WidthSensorManager::instance();
-                    mgr.set_sensor_enabled(klipper_name_ptr, enabled);
-                    mgr.save_config_to_file();
+                    mgr.set_enabled(klipper_name_ptr, enabled);
+                    mgr.save_settings();
                     spdlog::info("[SensorSettingsOverlay] Width sensor {} enabled: {}",
                                  klipper_name_ptr, enabled ? "ON" : "OFF");
                 },
@@ -480,8 +481,8 @@ void SensorSettingsOverlay::populate_width_sensors() {
                     auto role = static_cast<helix::sensors::WidthSensorRole>(index);
 
                     auto& mgr = helix::sensors::WidthSensorManager::instance();
-                    mgr.set_sensor_role(klipper_name_ptr, role);
-                    mgr.save_config_to_file();
+                    mgr.set_role(klipper_name_ptr, static_cast<uint8_t>(role));
+                    mgr.save_settings();
                     spdlog::info("[SensorSettingsOverlay] Width sensor {} role changed to {}",
                                  klipper_name_ptr,
                                  helix::sensors::width_role_to_display_string(role));
@@ -489,7 +490,7 @@ void SensorSettingsOverlay::populate_width_sensors() {
                 LV_EVENT_VALUE_CHANGED, klipper_name);
         }
 
-        spdlog::debug("[{}]   Created row for width sensor: {}", get_name(), sensor.sensor_name);
+        spdlog::debug("[{}]   Created row for width sensor: {}", get_name(), sensor.klipper_name);
     }
 }
 

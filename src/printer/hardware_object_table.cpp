@@ -6,6 +6,7 @@
 #include "humidity_sensor_types.h"
 #include "klipper_extruder_naming.h"
 #include "probe_sensor_types.h"
+#include "width_sensor_types.h"
 
 #include <cctype>
 
@@ -15,6 +16,7 @@ namespace {
 
 using helix::sensors::AccelSensorType;
 using helix::sensors::ProbeSensorType;
+using helix::sensors::WidthSensorType;
 
 enum class Match : uint8_t {
     Exact,        ///< the whole name equals the pattern
@@ -34,6 +36,9 @@ struct Row {
 };
 
 constexpr uint8_t chip_of(ProbeSensorType t) {
+    return static_cast<uint8_t>(t);
+}
+constexpr uint8_t chip_of(WidthSensorType t) {
     return static_cast<uint8_t>(t);
 }
 constexpr uint8_t chip_of(AccelSensorType t) {
@@ -68,8 +73,10 @@ constexpr Row kRows[] = {
     // A filament system's own sensor objects, published instead of the stock sections.
     {Match::Prefix, "zmod_ifs_switch_sensor ", ObjectKind::BackendFilamentSensor, 0, Scope::Both},
     {Match::Prefix, "zmod_ifs_motion_sensor ", ObjectKind::BackendFilamentSensor, 0, Scope::Both},
-    {Match::Exact, "hall_filament_width_sensor", ObjectKind::WidthSensor, 0, Scope::Both},
-    {Match::Exact, "tsl1401cl_filament_width_sensor", ObjectKind::WidthSensor, 0, Scope::Both},
+    {Match::Exact, "hall_filament_width_sensor", ObjectKind::WidthSensor,
+     chip_of(WidthSensorType::HALL), Scope::Both},
+    {Match::Exact, "tsl1401cl_filament_width_sensor", ObjectKind::WidthSensor,
+     chip_of(WidthSensorType::TSL1401CL), Scope::Both},
     {Match::BareOrPrefix, "load_cell", ObjectKind::LoadCell, 0, Scope::Both},
 
     {Match::Exact, "probe", ObjectKind::Probe, chip_of(ProbeSensorType::STANDARD), Scope::Both},
@@ -372,6 +379,12 @@ std::string_view chip_name(ObjectKind kind, uint8_t chip) {
         break;
     case ObjectKind::Accelerometer:
         for (const auto& e : helix::sensors::kAccelSensorTypes) {
+            if (static_cast<uint8_t>(e.value) == chip)
+                return e.display;
+        }
+        break;
+    case ObjectKind::WidthSensor:
+        for (const auto& e : helix::sensors::kWidthSensorTypes) {
             if (static_cast<uint8_t>(e.value) == chip)
                 return e.display;
         }

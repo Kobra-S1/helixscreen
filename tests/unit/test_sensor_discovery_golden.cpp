@@ -111,7 +111,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     lcm.discover({});
     psm.discover({});
     hsm.discover({});
-    wsm.discover({});
+    wsm.discover(PrinterDiscovery{});
     ism.discover({});
     ism.discover_from_config(json::object());
     asm_.discover_from_config(json::object());
@@ -121,7 +121,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     lcm.discover(hw.load_cells());
     psm.discover(hw.printer_objects());
     hsm.discover(hw.printer_objects());
-    wsm.discover(hw.width_sensor_objects());
+    wsm.discover(hw);
     ism.discover(hw.printer_objects());
     if (configfile != nullptr) {
         psm.discover_from_config(*configfile);
@@ -145,8 +145,22 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     m["humidity"] = manager_entry(entries_of(
         hsm.get_sensors(), [](const auto& s) { return humidity_role_to_string(s.role); },
         [](const auto& s) { return humidity_type_to_string(s.type); }));
+    // The golden keeps the short sensor name the Settings rows show.
+    struct WidthRow {
+        std::string klipper_name;
+        std::string sensor_name;
+        helix::sensors::WidthSensorRole role;
+        helix::sensors::WidthSensorType type;
+        bool enabled;
+    };
+    std::vector<WidthRow> width_rows;
+    for (const auto& e : wsm.entries()) {
+        const auto type = static_cast<WidthSensorType>(e.type);
+        width_rows.push_back({e.klipper_name, width_type_to_string(type),
+                              static_cast<WidthSensorRole>(e.role), type, e.enabled});
+    }
     m["width"] = manager_entry(entries_of(
-        wsm.get_sensors(), [](const auto& s) { return width_role_to_string(s.role); },
+        width_rows, [](const auto& s) { return width_role_to_string(s.role); },
         [](const auto& s) { return width_type_to_string(s.type); }));
     m["input"] = manager_entry(entries_of(
         ism.get_sensors(), [](const auto& s) { return input_role_to_string(s.role); },
@@ -161,7 +175,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     lcm.discover({});
     psm.discover({});
     hsm.discover({});
-    wsm.discover({});
+    wsm.discover(PrinterDiscovery{});
     ism.discover({});
     ism.discover_from_config(json::object());
     asm_.discover_from_config(json::object());

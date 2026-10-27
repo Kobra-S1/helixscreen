@@ -54,7 +54,8 @@ enum class ObjectKind : uint8_t {
 struct ObjectClass {
     ObjectKind kind = ObjectKind::Unknown;
     std::string instance; ///< the part after the prefix: "chamber" in "temperature_sensor chamber"
-    uint8_t chip = 0;     ///< kind-specific type index (humidity chip, probe type, accel chip)
+    uint8_t chip =
+        0; ///< kind-specific type index (humidity chip, probe type, accel chip, width type)
 };
 
 /// Classify one name from printer.objects.list.

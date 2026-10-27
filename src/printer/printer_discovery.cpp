@@ -17,12 +17,11 @@
 #include "printer_name_sync.h"
 #include "probe_sensor_manager.h"
 #include "runtime_config.h"
+#include "sensor_manager.h"
 #include "spdlog/spdlog.h"
 #include "standard_macros.h"
 #include "temperature_sensor_manager.h"
 #include "tool_state.h"
-#include "width_sensor_manager.h"
-#include "width_sensor_types.h"
 #include "wizard_config_paths.h"
 
 #include <vector>
@@ -51,9 +50,11 @@ void remember_printer_hostname(const std::string& hostname) {
 }
 
 void reload_sensor_roles_after_preset() {
+    for (auto* m : helix::sensors::sensor_managers()) {
+        m->load_settings();
+    }
     FilamentSensorManager::instance().load_config_from_file();
     helix::sensors::ProbeSensorManager::instance().load_config_from_file();
-    helix::sensors::WidthSensorManager::instance().load_config_from_file();
     helix::sensors::InputSensorManager::instance().load_config_from_file();
 }
 
@@ -89,11 +90,10 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
     auto& hsm = helix::sensors::HumiditySensorManager::instance();
     hsm.discover(hardware.printer_objects());
 
-    // Initialize width sensor manager
-    // Width sensors (hall/tsl1401cl filament width) are discovered from Klipper objects
-    auto& wsm = helix::sensors::WidthSensorManager::instance();
-    wsm.discover(hardware.width_sensor_objects());
-    wsm.load_config_from_file();
+    for (auto* m : helix::sensors::sensor_managers()) {
+        m->discover(hardware);
+        m->load_settings();
+    }
 
     // On/off inputs (gcode_button: doors, buttons, dock sensors)
     auto& ism = helix::sensors::InputSensorManager::instance();

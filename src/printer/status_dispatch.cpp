@@ -21,6 +21,9 @@ void dispatch_status_frame(const StatusFrame& frame, std::optional<uint64_t> kli
         led_ctrl.update_from_status(status);
     }
 
+    for (auto* m : sensors::sensor_managers()) {
+        m->update_from_status(status);
+    }
     sensors::for_each_sensor_manager([&status](auto& m) { m.update_from_status(status); });
 }
 

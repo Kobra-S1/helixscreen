@@ -31,7 +31,7 @@ static void width_sensor_widget_init_subjects() {
                         lv_subject_copy_string(text_subj, helix::format::UNAVAILABLE);
                     }
                 },
-                wsm.get_subjects_lifetime());
+                wsm.subjects_lifetime());
 
             spdlog::debug("[WidthSensorWidget] Subjects initialized (diameter text observer)");
         },
