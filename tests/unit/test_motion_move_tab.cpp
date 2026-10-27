@@ -939,6 +939,31 @@ TEST_CASE_METHOD(MoveTabFixture, "bed tab: a drag sample replacing a pending one
     set_moonraker_api(&api_);
 }
 
+TEST_CASE_METHOD(MoveTabFixture, "bed tab: a sample queued behind a move dies with the gate",
+                 "[motion][bed-tab]") {
+    HoldingAPI held_api{client_, get_printer_state()};
+    set_moonraker_api(&held_api);
+    auto& moves = held_api.holding_.held;
+    auto& panel = get_global_motion_panel();
+    panel.set_motion_tab(2);
+    drain();
+    lv_obj_t* area = panel_widget("bed_map_area");
+
+    panel.handle_bed_touch(helix::BedTouch::Pressed, area, far_point(area, false, false));
+    panel.handle_bed_touch(helix::BedTouch::Pressing, area, far_point(area, true, false));
+    panel.handle_bed_touch(helix::BedTouch::Pressing, area, far_point(area, true, true));
+    REQUIRE(moves.size() == 1);
+
+    lv_subject_set_int(get_printer_state().network_state().get_nav_buttons_enabled_subject(), 0);
+    drain();
+    moves[0].on_success();
+    drain();
+    CHECK(moves.size() == 1);
+
+    panel.handle_bed_touch(helix::BedTouch::Released, area, far_point(area, true, true));
+    set_moonraker_api(&api_);
+}
+
 TEST_CASE_METHOD(MoveTabFixture, "bed tab: Z unhomed counts as unhomed, like Park",
                  "[motion][bed-tab]") {
     auto& panel = get_global_motion_panel();

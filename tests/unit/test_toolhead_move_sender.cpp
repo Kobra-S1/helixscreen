@@ -43,7 +43,8 @@ class SenderFixture : public LVGLTestFixture {
   public:
     SenderFixture()
         : sender_(lifetime_, "SenderTest",
-                  {[this]() { ++acks_; }, [this](const MoonrakerError&) { ++errors_; }}) {}
+                  {[this]() { ++acks_; }, [this](const MoonrakerError&) { ++errors_; },
+                   [this]() { return may_flush_; }}) {}
 
     static void drain() {
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
@@ -63,6 +64,7 @@ class SenderFixture : public LVGLTestFixture {
     helix::AsyncLifetimeGuard lifetime_;
     int acks_ = 0;
     int errors_ = 0;
+    bool may_flush_ = true;
     ToolheadMoveSender sender_;
 };
 
@@ -162,4 +164,22 @@ TEST_CASE_METHOD(SenderFixture, "move sender: no API sends nothing", "[move_send
     CHECK_FALSE(sender_.send_target(nullptr, xy(10, 10), bounds_xyz(), 5.0));
     CHECK_FALSE(sender_.send_delta(nullptr, AxisMove{1.0, 0.0, 0.0}));
     CHECK_FALSE(sender_.coalescer().in_flight());
+}
+
+TEST_CASE_METHOD(SenderFixture, "move sender: a coalesced move is dropped once moves stop",
+                 "[move_sender]") {
+    REQUIRE(sender_.send_target(&api_, xy(10, 10), bounds_xyz(), 5.0));
+    REQUIRE(sender_.send_target(&api_, xy(20, 20), bounds_xyz(), 5.0));
+    REQUIRE(held().size() == 1);
+
+    may_flush_ = false;
+    ack(0);
+    CHECK(held().size() == 1);
+    CHECK(acks_ == 1);
+    CHECK_FALSE(sender_.coalescer().in_flight());
+
+    // With the gate open again, the next target goes straight out.
+    may_flush_ = true;
+    REQUIRE(sender_.send_target(&api_, xy(30, 30), bounds_xyz(), 5.0));
+    CHECK(held().size() == 2);
 }

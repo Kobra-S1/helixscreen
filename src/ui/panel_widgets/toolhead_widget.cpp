@@ -518,7 +518,8 @@ ToolheadWidget::ToolheadWidget(PrinterState& printer_state)
                         publish_target_text();
                         publish_lift_text();
                     },
-                    [this](const MoonrakerError&) { gesture_.mark_failed(); }}),
+                    [this](const MoonrakerError&) { gesture_.mark_failed(); },
+                    [this]() { return plate_interactive(); }}),
       gesture_({[this](int x, int y) { return target_at(x, y); },
                 [this]() { return plate_interactive(); },
                 [this]() {
@@ -976,6 +977,8 @@ void ToolheadWidget::publish_interaction() {
         if (gesture_.active())
             gesture_.lost();
         clear_ghost();
+        // The move in flight finishes; nothing queued behind it may follow.
+        move_sender_.reset();
     }
     set_int_if_changed(&s_plate_interactive_subject, interactive ? 1 : 0);
     publish_target_text();

@@ -35,6 +35,10 @@ class ToolheadMoveSender {
         /// After the coalescer is reset for a refused move; the sender has already
         /// raised the "Jog failed" notification.
         std::function<void(const MoonrakerError&)> on_error;
+        /// Asked on every ack before the move coalesced behind it is sent. False drops that
+        /// move and resets the coalescer: the owner's motion gate closed while the head was
+        /// moving. Unset means always send.
+        std::function<bool()> may_flush;
     };
 
     /// @p tag names the owner in logs and in the lifetime guard's callback tags.

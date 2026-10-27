@@ -19,6 +19,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/bed_occupancy_state_test_access.h"
+#include "../test_helpers/holding_motion_api.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
@@ -946,6 +947,34 @@ TEST_CASE_METHOD(PlateFixture, "toolhead plate: a drag moves the head live and d
     CHECK(subject_int("toolhead_ghost_active") == 0);
     CHECK(subject_int("toolhead_target_shown") == 0);
     CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture,
+                 "toolhead plate: a drag sample queued behind a move dies with the gate",
+                 "[widget_size][toolhead][interactive]") {
+    HoldingAPI held_api{mock, state()};
+    set_moonraker_api(&held_api);
+    auto& moves = held_api.holding_.held;
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    const lv_point_t from = plate_centre(h);
+
+    h.widget().handle_plate_touch(BedTouch::Pressed, from);
+    h.widget().handle_plate_touch(BedTouch::Pressing, {from.x + 30, from.y});
+    drain();
+    REQUIRE(moves.size() == 1);
+    h.widget().handle_plate_touch(BedTouch::Pressing, {from.x + 40, from.y + 10});
+    drain();
+    REQUIRE(moves.size() == 1); // the second sample waits behind the first
+
+    // A print started from elsewhere closes the gate while the first move is in flight.
+    lv_subject_set_int(state().network_state().get_nav_buttons_enabled_subject(), 0);
+    drain();
+    moves[0].on_success();
+    drain();
+    CHECK(moves.size() == 1);
+
+    set_moonraker_api(&mock_api);
 }
 
 TEST_CASE_METHOD(PlateFixture, "toolhead plate: Cleared shows while a part may be on the bed",
