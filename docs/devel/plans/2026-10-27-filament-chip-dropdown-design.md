@@ -90,7 +90,7 @@ leaving the screen.
 ### Dropdown
 
 - Every slot, best first. For each: spool colour, label, material and a short reason ("exact
-  match", "colour differs", "material differs", "empty").
+  match", "color differs", "material differs", "empty").
 - The current pick is highlighted, and "More options…" opens the full modal.
 - Choosing a slot applies that one tool's mapping the same way the modal does (one shared apply
   path), and the chips redraw.
@@ -169,7 +169,7 @@ leaving the screen.
   - Then every slot, best first, ranked on `FilamentMapper`: exact (material and colour) >
     material match, colour differs > material differs > empty. Inside a tier, rows keep their
     physical order.
-  - Reasons are "exact match", "colour differs", "material differs" and "empty". A slot already
+  - Reasons are "exact match", "color differs", "material differs" and "empty". A slot already
     mapped to another tool adds "also T2".
   - Last comes the extra row, "More options…", which opens the full modal.
   - There is no external-spool row and no "family match" tier (the mockup's were illustrative).

@@ -49,7 +49,7 @@ struct RankedSlot {
                                                           const std::vector<GcodeToolInfo>& tools,
                                                           const std::vector<ToolMapping>& mappings);
 
-/// The dropdown reason for @p ranked: "exact match", "colour differs", "material differs",
+/// The dropdown reason for @p ranked: "exact match", "color differs", "material differs",
 /// "empty", plus ", also T2" (tool_label of each also_tool). Translated.
 [[nodiscard]] std::string slot_fit_text(const RankedSlot& ranked);
 

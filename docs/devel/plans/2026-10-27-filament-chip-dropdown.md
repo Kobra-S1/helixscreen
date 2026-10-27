@@ -56,7 +56,7 @@ say so in its commit body.
 - **Values:**
   - chips are 64px wide, four to a row at 800x480 (card content 274x69);
   - `kMaxFilamentChips = 16`, `kMaxPickerRows = 32`;
-  - the reasons read "exact match", "colour differs", "material differs", "empty" and ", also T2";
+  - the reasons read "exact match", "color differs", "material differs", "empty" and ", also T2";
   - the single-extruder body reads "Loaded", "Swap" or "?";
   - an unmapped chip reads "Pick".
 
