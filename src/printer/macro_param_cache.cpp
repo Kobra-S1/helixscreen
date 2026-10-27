@@ -323,7 +323,41 @@ std::optional<bool> sets_target(const std::unordered_map<std::string, CachedMacr
     return unknown ? std::nullopt : std::optional<bool>(false);
 }
 
+bool runs_command(const std::unordered_map<std::string, CachedMacroInfo>& cache,
+                  const std::string& macro, const std::string& command, int depth,
+                  std::unordered_set<std::string>& visited) {
+    const auto it = cache.find(macro);
+    if (it == cache.end()) {
+        return false;
+    }
+    for (const auto& line_command : it->second.temperature_use.commands) {
+        if (line_command == command) {
+            return true;
+        }
+    }
+    if (depth >= kMaxMacroCallDepth) {
+        return false;
+    }
+    for (const auto& line_command : it->second.temperature_use.commands) {
+        std::string callee = line_command;
+        to_lower_inplace(callee);
+        if (cache.find(callee) != cache.end() && visited.insert(callee).second &&
+            runs_command(cache, callee, command, depth + 1, visited)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
+
+bool MacroParamCache::macro_runs(const std::string& macro_name, const std::string& command) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::string macro = macro_name;
+    to_lower_inplace(macro);
+    std::unordered_set<std::string> visited{macro};
+    return runs_command(cache_, macro, helix::text_io::to_upper(command), 0, visited);
+}
 
 std::optional<bool> MacroParamCache::macro_sets_target(const std::string& macro_name,
                                                        const std::string& target_full_name) const {

@@ -409,6 +409,11 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// when refused; success when api_ is null (print state unknown).
     AmsError refuse_motion_if_printing() const;
 
+    /// A print holds the printer, paused included: the predicate
+    /// refuse_motion_if_printing() refuses on. False without an API (print
+    /// state unknown). Virtual so tests can print without a printer.
+    [[nodiscard]] virtual bool print_holds_printer() const;
+
     /// Send an Endless Spool on/off command. A rejection Klipper reports after
     /// the send emits kEventEndlessSpoolRefused, so a switch the user flipped
     /// returns to the backend's state. @p on_sent runs once Klipper has run it.

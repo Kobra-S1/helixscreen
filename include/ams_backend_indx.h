@@ -140,10 +140,6 @@ class AmsBackendIndx : public AmsBackendToolChanger {
                                                     const SlotInfo& after, std::string& preset_key,
                                                     indx::FilamentPreset& values) const;
 
-    /// A print holds the printer, paused included. Virtual so tests can print
-    /// without a printer.
-    [[nodiscard]] virtual bool print_holds_printer() const;
-
     /// The nozzle heater's target in C; 0 without a printer. Virtual so tests
     /// can heat without one.
     [[nodiscard]] virtual double nozzle_target_c() const;

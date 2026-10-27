@@ -581,13 +581,15 @@ class AmsState {
     [[nodiscard]] bool any_bypass_active() const;
 
     /**
-     * @brief Is any backend in the middle of a filament operation?
+     * @brief Is any backend running a filament operation of this screen's own?
      *
-     * ams_action_is_busy() over every backend's current action: a load,
-     * unload, swap or heat it is running. A print must not start under one;
-     * the operation would keep sending moves into it.
+     * A backend's running_step_operation(): a load or unload it sequences
+     * itself, stage by stage, so it would keep sending moves into a print
+     * started under it. A busy action alone (another client's swap, a macro
+     * the firmware runs) is the printer's own business and the printer
+     * queues behind it.
      */
-    [[nodiscard]] bool any_operation_in_progress() const;
+    [[nodiscard]] bool any_operation_running_here() const;
 
     /**
      * @brief Does Moonraker's global active Spoolman spool describe the bypass?

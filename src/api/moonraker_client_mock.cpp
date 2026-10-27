@@ -1607,6 +1607,7 @@ void MoonrakerClientMock::populate_capabilities() {
     if (is_mock_indx()) {
         mock_config.merge_patch(indx_config_sections());
     }
+    mock_config.merge_patch(medusa_config_sections());
 
     std::unordered_set<std::string> macros_snapshot;
     discovery_.modify_hardware([&](PrinterDiscovery& hw) {
@@ -1808,6 +1809,22 @@ MoonrakerClientMock::MedusaVariant MoonrakerClientMock::mock_medusa_variant() {
 
 bool MoonrakerClientMock::is_mock_medusahc() const {
     return mock_medusa_variant() != MedusaVariant::NONE;
+}
+
+nlohmann::json MoonrakerClientMock::medusa_config_sections() const {
+    json sections = json::object();
+    if (!is_mock_medusahc()) {
+        return sections;
+    }
+    sections["gcode_macro resume"] = {
+        {"rename_existing", "BASE_RESUME"},
+        {"gcode", "{% if printer.pause_resume.is_paused %}\n"
+                  "    {% set tgt = printer[\"gcode_macro _GLOBAL_STATE\"].target_tool|int %}\n"
+                  "    MHC_RESUME T={tgt}\n"
+                  "{% else %}\n"
+                  "    RESPOND MSG=\"RESUME (no print, passthrough)\"\n"
+                  "{% endif %}"}};
+    return sections;
 }
 
 void MoonrakerClientMock::append_k2_status(json& status) const {

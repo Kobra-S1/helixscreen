@@ -203,6 +203,9 @@ class Run {
     /// the plan once the run started, none before, and after abort() the ones
     /// its cleanup turns off.
     [[nodiscard]] std::vector<int> heater_heads() const;
+    /// The heads whose heater an acked stage of this run set above zero and
+    /// no later acked stage set back to zero, in plan order.
+    [[nodiscard]] std::vector<int> heads_left_heating() const;
     /// The tools whose work fully finished before the run stopped. Empty while
     /// the run is still on its first tool, and after a clean completion the
     /// caller reports success rather than a partial list.
@@ -231,6 +234,12 @@ class Run {
     bool awaiting_operator_ = false;
     bool cleaning_up_ = false;
     uint32_t waited_ms_ = 0;
+    /// The last target an acked stage set on each head in the plan, by
+    /// position in Request::heads.
+    std::vector<int> acked_targets_c_;
+
+    /// Record the heater targets @p gcode sets on the plan's heads.
+    void note_heater_targets(const std::string& gcode);
 };
 
 } // namespace helix::mount_feed

@@ -152,8 +152,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         mounts_to_feed_ = mounts;
     }
 
-    /// A load or unload running its mount-to-feed sequence can be cancelled:
-    /// the heater goes off and the carriage goes back.
+    /// A load or unload running its mount-to-feed sequence, and not already
+    /// unwinding, can be cancelled: the heater goes off and the carriage goes
+    /// back. The same predicate cancel() acts on. Main thread.
     [[nodiscard]] bool can_cancel_operation() const override;
 
     /// Every tool docks: the carriage can hold none.
@@ -522,11 +523,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         clean_nozzle_gcode_ = std::move(gcode);
     }
 
-    /// toolchanger_addon::resume_min_nozzle_c(): 0 for a machine whose RESUME
-    /// has no temperature rule.
-    void set_resume_min_nozzle_c(int celsius) {
+    /// toolchanger_addon::resume_rule(): a floor of 0 for a machine whose
+    /// controller has no temperature rule on resume.
+    void set_resume_rule(helix::toolchanger_addon::ResumeRule rule) {
         std::lock_guard<std::mutex> lock(mutex_);
-        resume_min_nozzle_c_ = celsius;
+        resume_rule_ = std::move(rule);
     }
 
     /// Filament feed through the firmware's own shim. Absent leaves Load as a
@@ -614,7 +615,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     void stop_feed_run_for_print();
     /// Send the heaters-off a run stopped by stop_feed_run_unreachable() owes.
     /// Klippy must be ready: a status frame or a Klipper restart says it is.
+    /// A print holding the printer owns those heaters: the debt is dropped
+    /// unsent.
     void flush_owed_heaters_off();
+    /// Add @p heads to owed_heaters_off_, keeping every head already owed.
+    void owe_heaters_off(const std::vector<int>& heads);
     /// Drop the run and every piece of state that mirrors it, publish IDLE
     /// (or the sensor fault the run held back), and emit. Main thread.
     void reset_feed_run();
@@ -658,15 +663,23 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         Failed,
         SensorFault,
         Unreachable,
-        PrintStarted
+        PrintStarted,
+        /// Cancelled while a swap was under way: the swap finished first, and
+        /// the carriage stays as it left it.
+        CancelledAfterSwap
     };
     /// A run stopping early says what it did finish. A single tool's Cancel
     /// stays silent; everything else accounts for itself. @p completed was
     /// read off the run BEFORE its unwind: abort() collapses the stage list
     /// the answer is derived from. @p carriage_restored false says the
-    /// carriage was left where the stop found it.
+    /// carriage was left where the stop found it. @p left_heating names the
+    /// tools whose heaters the stop leaves set.
     void toast_partial_run(FeedStopReason why, const std::vector<int>& completed,
-                           bool carriage_restored = true);
+                           bool carriage_restored = true,
+                           const std::vector<int>& left_heating = {});
+    /// "Tool 3's nozzle is still heating", or the plural for several tools;
+    /// empty for none.
+    [[nodiscard]] std::string still_heating_sentence(const std::vector<int>& heads) const;
     /// A completed Unload leaves the strand in the tube for the operator to
     /// pull out by hand: say so, naming every tool the run unloaded.
     void toast_unload_complete();
@@ -727,6 +740,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
         int expected_slot = -1;
     };
     std::optional<SwapCheck> feed_swap_check_;
+    /// Cancel arrived while a swap stage was under way. The run stays busy
+    /// until that swap settles (its ack and the sensors' confirmation, or its
+    /// failure), then unwinds without a restore. Main thread.
+    bool feed_cancel_after_swap_ = false;
     /// How long an acked swap may wait for the frame that confirms it.
     /// Moonraker batches status frames, so the answer can lead the frame.
     static constexpr uint32_t kSwapConfirmGraceMs = 3000;
@@ -753,8 +770,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     int controller_target_tool_ = -1;
     /// See set_clean_nozzle_gcode(). Guarded by mutex_.
     std::string clean_nozzle_gcode_;
-    /// See set_resume_min_nozzle_c(). Guarded by mutex_.
-    int resume_min_nozzle_c_ = 0;
+    /// See set_resume_rule(). Guarded by mutex_.
+    helix::toolchanger_addon::ResumeRule resume_rule_;
     /// A toast apply_tool_sensor_locked() decided on, whole and ready to show
     /// once mutex_ is free, and how loud.
     std::string pending_failure_toast_;
@@ -762,13 +779,13 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// The controller's failure as the user reads it: the swap's target tool
     /// when the controller named one, then its own message. Caller holds mutex_.
     [[nodiscard]] std::string controller_failure_text_locked() const;
-    /// The tool a failed swap leaves the machine's RESUME to pick again, when
-    /// that RESUME has a temperature rule; -1 otherwise. Caller holds mutex_.
+    /// The tool the machine's RESUME picks again before continuing, when that
+    /// RESUME runs the controller's temperature rule; -1 otherwise. It picks
+    /// after a failed swap, or when the tool on the carriage is not the
+    /// controller's target_tool. Caller holds mutex_.
     [[nodiscard]] int recovery_target_locked() const;
     /// "Tool 3 (T2)" for a valid @p target. Caller holds mutex_.
     [[nodiscard]] std::string target_tool_label_locked(int target) const;
-    /// A print is running or paused. False without an API (print state unknown).
-    [[nodiscard]] bool print_holds_printer() const;
 
     /// Z-Mod's Creator 5 row narrates its swaps through gcode-response markers
     /// (toolchanger_addon::parse_zmod_marker) rather than a status object, so
@@ -871,6 +888,14 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// status frame - the phase WORDS are not, since "picking" only appears once
     /// a swap is already running and the step bar has to be built before that.
     bool direction_reported_ = false;
+    /// The controller's last phase word, latched across frames that do not
+    /// carry one; empty until one arrives. Guarded by mutex_.
+    std::string last_operation_word_;
+    /// The controller's current or last operation is a park, not a swap: it
+    /// opened on `dropping` with no `changing` before it (MHC_DROP), or it is
+    /// a park this backend dispatched. Its target_tool is then the tool being
+    /// parked. Guarded by mutex_.
+    bool controller_op_is_park_ = false;
     /// Whether a real non-idle operation frame ("dropping"/"picking"/"changing")
     /// has been seen since the idle-with-gripper-open hold in
     /// apply_tool_sensor_locked() last released. That hold exists because a
@@ -999,6 +1024,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
      */
     static AmsAction status_to_action(const std::string& status);
 
+    /// The busy action a controller phase word means (`changing`/`picking`
+    /// SELECTING, `dropping` UNLOADING); nullopt for `idle` and anything else.
+    static std::optional<AmsAction> operation_word_action(const std::string& operation);
+
     /**
      * @brief Initialize tool structures based on discovered tool names
      *
@@ -1039,8 +1068,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// return the generation its ack must present. Caller holds mutex_.
     uint64_t begin_dispatch_locked(AmsAction action);
 
-    /// Undo an optimistic set whose gcode never left the building. Caller must
-    /// NOT hold mutex_.
+    /// Undo an optimistic set whose gcode never left or was rejected. An
+    /// operation the controller's last phase word reports running (another
+    /// client's swap) keeps its own action. Caller must NOT hold mutex_.
     void abandon_dispatch(uint64_t generation);
 
     /// Resolve a dispatch to IDLE on its macro's gcode ack, but only when the

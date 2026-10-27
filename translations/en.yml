@@ -2600,6 +2600,7 @@ translations:
   Nozzle temp must be 100-%d°C: Nozzle temp must be 100-%d°C
   Nozzle, bed, and chamber in one widget: Nozzle, bed, and chamber in one widget
   'Nozzle:': 'Nozzle:'
+  'Nozzles still heating: {}': 'Nozzles still heating: {}'
   Number Pad Layout: Number Pad Layout
   OD: OD
   'OFF': 'OFF'
@@ -2710,6 +2711,7 @@ translations:
   Park the AFC system: Park the AFC system
   Park Toolhead: Park Toolhead
   Parking toolhead: Parking toolhead
+  'Parking {} failed: {}': 'Parking {} failed: {}'
   Part: Part
   Part Cooling Fan: Part Cooling Fan
   Part Fan: Part Fan
@@ -4027,6 +4029,8 @@ translations:
   The speed of one fan you choose: The speed of one fan you choose
   The time, date, and system uptime: The time, date, and system uptime
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: The timelapse or logs folder overlaps a protected folder, so cleanup is off.
+  The tool change under way finished, and the tool was not parked: The tool change under way finished, and the tool was not parked
+  The tool change under way finished, and {} was not put back on the carriage: The tool change under way finished, and {} was not put back on the carriage
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
@@ -4802,6 +4806,7 @@ translations:
   '{} · {} · {}': '{} · {} · {}'
   '{} — response timed out': '{} — response timed out'
   '{} → {}: no filament loaded.': '{} → {}: no filament loaded.'
+  "{}'s nozzle is still heating": "{}'s nozzle is still heating"
   "{}: the tag names Spoolman spool #{}, which doesn't exist": "{}: the tag names Spoolman spool #{}, which doesn't exist"
   '{}:{:02} elapsed': '{}:{:02} elapsed'
   '{}% left': '{}% left'

@@ -8,6 +8,7 @@
 #include <spdlog/fmt/fmt.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <utility>
 
 namespace helix::mount_feed {
@@ -331,6 +332,33 @@ std::vector<int> Run::heater_heads() const {
     return heads;
 }
 
+void Run::note_heater_targets(const std::string& gcode) {
+    acked_targets_c_.resize(request_.heads.size(), 0);
+    for (size_t i = 0; i < request_.heads.size(); ++i) {
+        // The trailing space keeps `extruder` from matching `extruder1`.
+        const std::string key =
+            "SET_HEATER_TEMPERATURE HEATER=" + heater_name(request_.heads[i].head) + " TARGET=";
+        for (size_t at = gcode.find(key); at != std::string::npos;
+             at = gcode.find(key, at + key.size())) {
+            if (at != 0 && gcode[at - 1] != '\n') {
+                continue;
+            }
+            acked_targets_c_[i] =
+                static_cast<int>(std::strtol(gcode.c_str() + at + key.size(), nullptr, 10));
+        }
+    }
+}
+
+std::vector<int> Run::heads_left_heating() const {
+    std::vector<int> heads;
+    for (size_t i = 0; i < acked_targets_c_.size(); ++i) {
+        if (acked_targets_c_[i] > 0) {
+            heads.push_back(request_.heads[i].head);
+        }
+    }
+    return heads;
+}
+
 std::vector<int> Run::completed_heads() const {
     std::vector<int> done;
     if (cleaning_up_ || request_.heads.size() < 2) {
@@ -360,6 +388,7 @@ void Run::stage_done() {
     if (finished() || awaiting_operator_) {
         return;
     }
+    note_heater_targets(stages_[index_].gcode);
     if (stages_[index_].awaits_operator && !cleaning_up_) {
         awaiting_operator_ = true;
         waited_ms_ = 0;

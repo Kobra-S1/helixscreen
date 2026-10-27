@@ -3,6 +3,7 @@
 #include "toolchanger_addon.h"
 
 #include "color_utils.h"
+#include "macro_param_cache.h"
 #include "printer_discovery.h"
 #include "text_io.h"
 #include "zmod_color_status.h"
@@ -51,12 +52,15 @@ struct Provider {
     /// One extruder drive serves every tool, so filament moves only through
     /// the tool on the carriage: a load or unload mounts it first.
     bool feeds_through_mount;
-    /// The target tool's nozzle must be above this before the machine's own
-    /// RESUME continues a print a failed swap paused; 0 for no such rule.
+    /// The target tool's nozzle must be above this before the controller's
+    /// resume_command picks it to continue a paused print; 0 for no such rule.
     int resume_min_nozzle_c;
     /// Brushes the mounted nozzle clean; nullptr, or empty for this printer,
     /// when there is no such command.
     std::string (*clean_gcode)(const PrinterDiscovery& hw);
+    /// The controller command a RESUME macro calls to get the resume rule, or
+    /// nullptr.
+    const char* resume_command;
 };
 
 // --- MedusaHC ---------------------------------------------------------------
@@ -96,10 +100,11 @@ std::vector<std::string> medusa_status_objects(const PrinterDiscovery& hw) {
     return objects;
 }
 
-/// A failed swap mid-print pauses it (MHC_ERROR), and RESUME runs MHC_RESUME,
-/// which picks the target tool again, priming it, and refuses while that tool's
-/// nozzle is at or below this.
+/// A failed swap mid-print pauses it (MHC_ERROR). MHC_RESUME, which the
+/// upstream example RESUME calls, picks the target tool again, priming it, and
+/// refuses while that tool's nozzle is at or below this.
 constexpr int kMedusaResumeMinNozzleC = 190;
+constexpr const char* kMedusaResumeCommand = "MHC_RESUME";
 
 /// DROP_TOOL is a [gcode_macro] on every shipped configuration (it also closes
 /// the feeder). A config that dropped it still has the controller's own pair.
@@ -202,10 +207,12 @@ const std::vector<Provider>& providers() {
         // klipper-toolchanger beside the controller.
         {"MedusaHC", medusa_detect, medusa_status_objects, medusa_open_gcode, medusa_close_gcode,
          "T", medusa_unselect_gcode, /*owns_swap=*/true, nullptr, nullptr,
-         /*feeds_through_mount=*/true, kMedusaResumeMinNozzleC, medusa_clean_gcode},
+         /*feeds_through_mount=*/true, kMedusaResumeMinNozzleC, medusa_clean_gcode,
+         kMedusaResumeCommand},
         {kZmodC5ProviderName, zmod_c5_detect, zmod_c5_status_objects, nullptr, nullptr,
          "_T_IN T=", zmod_c5_unselect_gcode, /*owns_swap=*/true, zmod_c5_material_write,
-         zmod_c5_feed_gcode, /*feeds_through_mount=*/false, /*resume_min_nozzle_c=*/0, nullptr},
+         zmod_c5_feed_gcode, /*feeds_through_mount=*/false, /*resume_min_nozzle_c=*/0, nullptr,
+         /*resume_command=*/nullptr},
     };
     return table;
 }
@@ -548,9 +555,17 @@ std::string clean_nozzle_gcode(const PrinterDiscovery& hw) {
     return p && p->clean_gcode ? p->clean_gcode(hw) : std::string();
 }
 
-int resume_min_nozzle_c(const PrinterDiscovery& hw) {
+ResumeRule resume_rule(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
-    return p ? p->resume_min_nozzle_c : 0;
+    if (!p || p->resume_min_nozzle_c <= 0 || p->resume_command == nullptr) {
+        return {};
+    }
+    return ResumeRule{p->resume_min_nozzle_c, p->resume_command};
+}
+
+bool resume_rule_in_force(const ResumeRule& rule) {
+    return rule.min_nozzle_c > 0 && !rule.command.empty() &&
+           MacroParamCache::instance().macro_runs("RESUME", rule.command);
 }
 
 ToolCommands resolve_tool_commands(const PrinterDiscovery& hw) {

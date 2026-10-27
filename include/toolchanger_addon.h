@@ -278,10 +278,21 @@ ToolSensor resolve_tool_sensor(const PrinterDiscovery& hw);
 /// printer has no such command.
 std::string clean_nozzle_gcode(const PrinterDiscovery& hw);
 
-/// The nozzle temperature the target tool must be ABOVE before a print paused
-/// by a failed swap may resume, because the machine's own RESUME refuses until
-/// then. 0 when the printer has no such rule.
-int resume_min_nozzle_c(const PrinterDiscovery& hw);
+/// A temperature floor the controller's resume command enforces: before a
+/// print it paused may resume onto a tool it must pick again, that tool's
+/// nozzle must be ABOVE min_nozzle_c.
+struct ResumeRule {
+    int min_nozzle_c = 0; ///< 0 for a controller with no such rule
+    std::string command;  ///< the controller command that enforces it
+};
+
+/// This printer's controller's resume rule, whether or not its RESUME runs it.
+ResumeRule resume_rule(const PrinterDiscovery& hw);
+
+/// Whether @p rule binds: the printer's RESUME macro, as configfile reports
+/// it, runs the command that enforces it. Wiring RESUME to that command is an
+/// install step the owner may skip, so a rule with no caller is no rule.
+bool resume_rule_in_force(const ResumeRule& rule);
 
 /// The swap commands this printer needs, or an absent capability meaning
 /// klipper-toolchanger is there and owns them.

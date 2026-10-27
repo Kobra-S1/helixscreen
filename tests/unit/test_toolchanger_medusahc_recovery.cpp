@@ -5,9 +5,10 @@
  * @brief A swap that fails mid-print pauses the job; Resume needs the target hot.
  *
  * Irbis3D's controller answers a failed swap during a print by pausing it
- * (MHC_ERROR), with no gcode error. Its RESUME runs MHC_RESUME, which picks the
- * target tool again and refuses while that tool's nozzle is at or below 190C.
- * The screen says so while the print is held, and its Resume asks first.
+ * (MHC_ERROR), with no gcode error. A RESUME that runs MHC_RESUME (the upstream
+ * example's) picks the target tool again and refuses while that tool's nozzle
+ * is at or below 190C. The screen says so while the print is held, and its
+ * Resume asks first. A RESUME without MHC_RESUME has no such rule.
  */
 
 #include "ui_update_queue.h"
@@ -16,6 +17,7 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "ams_backend_toolchanger.h"
+#include "macro_param_cache.h"
 #include "printer_discovery.h"
 #include "toolchanger_addon.h"
 
@@ -55,11 +57,30 @@ class RecoveryChanger : public AmsBackendToolChanger {
     }
 };
 
+/// The printer's RESUME as configfile reports it.
+void resume_macro(const std::string& gcode) {
+    MacroParamCache::instance().populate_from_configfile(
+        json{{"gcode_macro resume", {{"gcode", gcode}}}}, {"RESUME"});
+}
+
+/// Upstream's macros_examples.cfg RESUME.
+constexpr const char* kUpstreamResume =
+    "{% if printer.pause_resume.is_paused %}\n"
+    "    {% set tgt = printer[\"gcode_macro _GLOBAL_STATE\"].target_tool|int %}\n"
+    "    MHC_RESUME T={tgt}\n"
+    "{% else %}\n"
+    "    RESPOND MSG=\"RESUME (no print, passthrough)\"\n"
+    "{% endif %}";
+
 class RecoveryFixture : public BusyGuardFixture {
   public:
     RecoveryFixture() {
         state.temperature_state().init_extruders(
             {"extruder", "extruder1", "extruder2", "extruder3"});
+        resume_macro(kUpstreamResume);
+    }
+    ~RecoveryFixture() override {
+        MacroParamCache::instance().clear();
     }
 
     void nozzle(const char* heater, double celsius) {
@@ -92,11 +113,30 @@ class RecoveryFixture : public BusyGuardFixture {
 
 TEST_CASE("MedusaHC: Resume after a failed swap needs the target nozzle above 190C",
           "[toolchanger][medusahc][resume]") {
-    CHECK(toolchanger_addon::resume_min_nozzle_c(stock_medusahc()) == 190);
+    const auto rule = toolchanger_addon::resume_rule(stock_medusahc());
+    CHECK(rule.min_nozzle_c == 190);
+    CHECK(rule.command == "MHC_RESUME");
 
     PrinterDiscovery plain;
     plain.parse_objects(json::array({"toolchanger", "tool T0", "tool T1", "extruder"}));
-    CHECK(toolchanger_addon::resume_min_nozzle_c(plain) == 0);
+    CHECK(toolchanger_addon::resume_rule(plain).min_nozzle_c == 0);
+}
+
+TEST_CASE("MedusaHC: the 190C rule binds only where RESUME runs MHC_RESUME",
+          "[toolchanger][medusahc][resume]") {
+    const auto rule = toolchanger_addon::resume_rule(stock_medusahc());
+    resume_macro(kUpstreamResume);
+    CHECK(toolchanger_addon::resume_rule_in_force(rule));
+    // A RESUME that reaches it through a macro of its own still runs it.
+    MacroParamCache::instance().populate_from_configfile(
+        json{{"gcode_macro resume", {{"gcode", "_MY_RESUME"}}},
+             {"gcode_macro _my_resume", {{"gcode", "MHC_RESUME T=0"}}}},
+        {"RESUME", "_MY_RESUME"});
+    CHECK(toolchanger_addon::resume_rule_in_force(rule));
+    resume_macro("RESTORE_GCODE_STATE\nBASE_RESUME");
+    CHECK_FALSE(toolchanger_addon::resume_rule_in_force(rule));
+    MacroParamCache::instance().clear();
+    CHECK_FALSE(toolchanger_addon::resume_rule_in_force(rule));
 }
 
 TEST_CASE_METHOD(RecoveryFixture, "MedusaHC: a failed swap mid-print says how to resume",
@@ -157,4 +197,39 @@ TEST_CASE_METHOD(RecoveryFixture, "MedusaHC: a pause with no failed swap resumes
     auto answer = resume_answer(tc);
     REQUIRE(answer.has_value());
     CHECK(answer->success());
+}
+
+TEST_CASE_METHOD(RecoveryFixture,
+                 "MedusaHC: a RESUME without MHC_RESUME gets no 190C wording and no gate",
+                 "[toolchanger][medusahc][resume]") {
+    resume_macro("RESTORE_GCODE_STATE\nBASE_RESUME");
+    RecoveryChanger tc(api.get(), &mock_client);
+    helix::test::set_wire_state(state, PrintJobState::PAUSED);
+
+    tc.feed(failed_pick_of_t2());
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
+          "Tool change to Tool 3 (T2) failed: MHC_SET: sensors did not confirm T2");
+    nozzle("extruder2", 25.0);
+    auto answer = resume_answer(tc);
+    REQUIRE(answer.has_value());
+    CHECK(answer->success());
+}
+
+TEST_CASE_METHOD(RecoveryFixture,
+                 "MedusaHC: a pause with another tool mounted waits for the target to heat",
+                 "[toolchanger][medusahc][resume]") {
+    RecoveryChanger tc(api.get(), &mock_client);
+    helix::test::set_wire_state(state, PrintJobState::PAUSED);
+    // A manual pause; someone swapped the hot end on the carriage since.
+    tc.feed(json{{"medusahc",
+                  {{"operation", "idle"},
+                   {"current_tool", 1},
+                   {"target_tool", 2},
+                   {"sensor_error", false},
+                   {"last_error", ""}}}});
+    nozzle("extruder2", 25.0);
+
+    auto cold = resume_answer(tc);
+    REQUIRE(cold.has_value());
+    CHECK(cold->user_msg == "Heat Tool 3 (T2) above 190°C before resuming");
 }

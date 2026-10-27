@@ -1588,6 +1588,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// Convenience: mock_medusa_variant() != MedusaVariant::NONE.
     bool is_mock_medusahc() const;
 
+    /// configfile sections a MedusaHC persona adds, as Klipper reports them in
+    /// both settings and config: the upstream example RESUME, which runs
+    /// MHC_RESUME. Empty for any other persona.
+    [[nodiscard]] json medusa_config_sections() const;
+
   private:
     /**
      * @brief Rebuild hardware from current discovery lists (heaters, fans, sensors, etc.)

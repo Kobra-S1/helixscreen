@@ -513,7 +513,7 @@ void PrintStartController::report_preprint_failure(const std::string& reason) {
 }
 
 bool PrintStartController::refuse_while_filament_op_runs() {
-    if (!AmsState::instance().any_operation_in_progress()) {
+    if (!AmsState::instance().any_operation_running_here()) {
         return false;
     }
     spdlog::warn("[PrintStartController] Print start refused: a filament operation is running");

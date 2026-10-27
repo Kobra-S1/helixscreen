@@ -660,6 +660,38 @@ TEST_CASE("A failed swap names the tool it was changing to",
         CHECK(ToolChangerTestAccess::feed_last_toast_severity(tc) == ToastSeverity::WARNING);
     }
 
+    SECTION("a failed park names the tool it was parking") {
+        ToolChangerHelper tc(4);
+        tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+        tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+        tc.feed(json{{"medusahc", {{"operation", "dropping"}, {"target_tool", 1}}}});
+        tc.feed(json{{"medusahc",
+                      {{"operation", "idle"},
+                       {"current_tool", -2},
+                       {"sensor_error", true},
+                       {"last_error", "MHC_DROP: sensors did not confirm the drop"}}}});
+        const auto err = tc.current_error();
+        REQUIRE(err.has_value());
+        CHECK(err->detail ==
+              "Parking Tool 2 (T1) failed: MHC_DROP: sensors did not confirm the drop");
+    }
+
+    SECTION("a swap that fails while dropping the old tool is still a tool change") {
+        ToolChangerHelper tc(4);
+        tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+        tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}}}});
+        tc.feed(json{{"medusahc", {{"operation", "changing"}, {"target_tool", 1}}}});
+        tc.feed(json{{"medusahc", {{"operation", "dropping"}}}});
+        tc.feed(json{{"medusahc",
+                      {{"operation", "idle"},
+                       {"current_tool", -2},
+                       {"sensor_error", true},
+                       {"last_error", failure}}}});
+        const auto err = tc.current_error();
+        REQUIRE(err.has_value());
+        CHECK(err->detail == "Tool change to Tool 2 (T1) failed: " + failure);
+    }
+
     SECTION("a target past the discovered tools is not named") {
         ToolChangerHelper tc(4);
         tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));

@@ -762,6 +762,7 @@ void AmsOperationSidebar::cleanup() {
     extruder_temp_observer_.reset();
     extruder_target_observer_.reset();
     step_heater_observers_.clear();
+    step_heater_version_observer_.reset();
     indeterminate_observer_.reset();
     filament_loaded_observer_.reset();
     print_state_observer_.reset();
@@ -925,6 +926,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
     step_index_subject_ = nullptr;
     live_temp_step_index_ = -1;
     step_heater_observers_.clear();
+    step_heater_version_observer_.reset();
 
     // Expose the active operation to AmsState so the narration router can
     // resolve `//` phase narration lines to step indices for THIS operation.
@@ -1009,7 +1011,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
                         },
                         step_lifetime);
                 }
-                observe_step_heaters();
+                watch_step_heaters();
                 spdlog::debug("[AmsSidebar] Created backend step bar: {} steps for op_type={} "
                               "(index_subject={})",
                               current_step_count_, static_cast<int>(op_type),
@@ -1213,7 +1215,6 @@ void AmsOperationSidebar::observe_step_heaters() {
     }
     auto& temps = printer_state_.temperature_state();
     std::vector<std::string> watched;
-    building_step_heater_observers_ = true;
     for (size_t i = 0; i < current_step_model_.steps.size(); ++i) {
         if (!current_step_model_.steps[i].live_temp) {
             continue;
@@ -1233,15 +1234,29 @@ void AmsOperationSidebar::observe_step_heaters() {
             step_heater_observers_.push_back(observe<int>(
                 subject, this,
                 [](AmsOperationSidebar* self, int /*deci*/) {
-                    // The first call lands mid-build: the bar is painted after.
-                    if (!self->active_ || self->building_step_heater_observers_)
+                    if (!self->active_)
                         return;
                     self->refresh_heat_step_display();
                 },
                 lifetime));
         }
     }
-    building_step_heater_observers_ = false;
+}
+
+void AmsOperationSidebar::watch_step_heaters() {
+    observe_step_heaters();
+    // Armed once per step bar: observe_step_heaters() never re-arms it, so its
+    // own notify on attach cannot loop.
+    auto& temps = printer_state_.temperature_state();
+    step_heater_version_observer_ = observe<int>(
+        temps.get_extruder_version_subject(), this,
+        [](AmsOperationSidebar* self, int /*version*/) {
+            if (!self->active_)
+                return;
+            self->observe_step_heaters();
+            self->refresh_heat_step_display();
+        },
+        temps.get_subjects_lifetime());
 }
 
 int AmsOperationSidebar::get_step_index_for_action(AmsAction action, StepOperationType op_type) {

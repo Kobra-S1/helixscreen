@@ -2432,6 +2432,7 @@
   <translation tag="Nozzle temp must be 100-%d°C" zh="喷嘴温度必须为 100-%d°C"/>
   <translation tag="Nozzle, bed, and chamber in one widget" zh="喷嘴、热床和腔体合为一个小组件"/>
   <translation tag="Nozzle:" zh="喷嘴："/>
+  <translation tag="Nozzles still heating: {}" zh="仍在加热的喷嘴: {}"/>
   <translation tag="Number Pad Layout" zh="数字键盘布局"/>
   <translation tag="OD" zh="OD"/>
   <translation tag="OFF" zh="关"/>
@@ -2535,6 +2536,7 @@
   <translation tag="Park Toolhead" zh="停放工具头"/>
   <translation tag="Park the AFC system" zh="停放 AFC 系统"/>
   <translation tag="Parking toolhead" zh="正在停放工具头"/>
+  <translation tag="Parking {} failed: {}" zh="停放{}失败: {}"/>
   <translation tag="Part" zh="零件"/>
   <translation tag="Part Cooling Fan" zh="零件冷却风扇"/>
   <translation tag="Part Fan" zh="零件风扇"/>
@@ -3749,6 +3751,8 @@
   <translation tag="The speed of one fan you choose" zh="所选风扇的转速"/>
   <translation tag="The time, date, and system uptime" zh="时间、日期和系统运行时长"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." zh="延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"/>
+  <translation tag="The tool change under way finished, and the tool was not parked" zh="正在进行的换工具已完成，工具未停放"/>
+  <translation tag="The tool change under way finished, and {} was not put back on the carriage" zh="正在进行的换工具已完成，{}未放回打印头"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。在清空之前，打印机可能拒绝装载槽位。仍要开始打印吗？"/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" zh="工具头传感器显示耗材已装载。仍要继续装载吗？"/>
@@ -4465,6 +4469,7 @@
   <translation tag="{} — response timed out" zh="{} — 响应超时"/>
   <translation tag="{} → {}: no filament loaded." zh="{} → {}: 未加载耗材。"/>
   <translation tag="{}% left" zh="剩余 {}%"/>
+  <translation tag="{}&apos;s nozzle is still heating" zh="{}的喷嘴仍在加热"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" zh="{}：标签指定的 Spoolman 料盘 #{} 不存在"/>
   <translation tag="{}:{:02} elapsed" zh="已用时 {}:{:02}"/>
   <translation tag="~{:.1f} Hz / turn" zh="约 {:.1f} Hz / 圈"/>

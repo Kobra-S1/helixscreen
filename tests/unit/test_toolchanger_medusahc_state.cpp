@@ -196,6 +196,17 @@ TEST_CASE("A rejected swap command clears the optimistic action",
         tc.reject_last_send(MoonrakerErrorType::JSON_RPC_ERROR, "swap failed");
         CHECK(tc.get_current_action() == AmsAction::ERROR);
     }
+    SECTION("another client's swap the controller reports keeps its action") {
+        REQUIRE(tc.change_tool(3).success());
+        // Someone else's T1 got there first: the controller is mid-pick.
+        tc.feed(json{{"medusahc", {{"operation", "picking"}}}});
+        tc.reject_last_send(MoonrakerErrorType::JSON_RPC_ERROR, "MedusaHC is busy: picking");
+        CHECK(tc.get_current_action() == AmsAction::SELECTING);
+        CHECK(tc.get_system_info().is_busy());
+        // Its own idle frame ends it.
+        tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
+        CHECK(tc.get_current_action() == AmsAction::IDLE);
+    }
 }
 
 TEST_CASE("Klipper restart: a swap latched mid-'changing' clears",

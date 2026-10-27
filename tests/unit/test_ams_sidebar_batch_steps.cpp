@@ -276,6 +276,27 @@ TEST_CASE_METHOD(BatchStepsFixture, "The heat row reads the heater of the tool i
 }
 
 TEST_CASE_METHOD(BatchStepsFixture,
+                 "The heat row follows its heater after the extruder set is rebuilt mid-run",
+                 "[ams][sidebar][mount_feed][batch]") {
+    auto& temps = state().temperature_state();
+    temps.init_extruders({"extruder", "extruder1", "extruder2", "extruder3"});
+    lv_subject_set_int(temps.get_extruder_temp_subject("extruder2"), 1230);
+    lv_subject_set_int(temps.get_extruder_target_subject("extruder2"), 2400);
+    pick(HeadPickOp::Unload, {2, 3});
+    changer_->ack(); // Tool 3 mounted: Tool 3 heats
+    REQUIRE(labels()[1].find("123") != std::string::npos);
+
+    // A Klipper restart's rediscovery re-creates extruder2's subjects.
+    temps.init_extruders({"extruder", "extruder1", "extruder3"});
+    temps.init_extruders({"extruder", "extruder1", "extruder2", "extruder3"});
+    helix::ui::UpdateQueue::instance().drain();
+    lv_subject_set_int(temps.get_extruder_temp_subject("extruder2"), 1990);
+    lv_subject_set_int(temps.get_extruder_target_subject("extruder2"), 2400);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(labels()[1].find("199") != std::string::npos);
+}
+
+TEST_CASE_METHOD(BatchStepsFixture,
                  "The sidebar offers Cancel while a cancellable run is under way",
                  "[ams][sidebar][mount_feed][batch][cancel]") {
     CHECK_FALSE(cancel_shown()); // idle

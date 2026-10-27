@@ -70,7 +70,9 @@ reads "Tool change to Tool 3 (T2) failed: <last_error>" while the fault is up, a
 the screen is not showing as a fault (withdrawn, or left from before this connection)
 toasts that sentence once, until the next operation clears it
 (`AmsBackendToolChanger::controller_failure_text_locked()`). `target_tool` is the tool being
-picked, or for a park the tool being parked. A `last_error` with `sensor_error` false has
+picked, or for a park the tool being parked, so a failed park reads "Parking Tool 2 (T1)
+failed: <last_error>". An operation is a park when this screen dispatched one, or when its
+first busy word is `dropping` (MHC_DROP never says `changing`; MHC_SET always opens on it). A `last_error` with `sensor_error` false has
 no failed operation behind it: the controller sets it when its own startup fails
 ("Initialization failed; see klippy.log"), and it toasts once as "Tool changer error:
 <last_error>", never as a tool change failure.
@@ -157,7 +159,9 @@ Without klipper-toolchanger nothing but `operation` sets the action: `changing` 
 
 A swap command Klipper rejects with a gcode error (the controller's own "MedusaHC is busy", a
 failed swap raised as an error) ends the optimistic `SELECTING` too. A reply timeout does not:
-the macro may still be running.
+the macro may still be running. Nor does a rejection while the controller's last `operation`
+word is busy: that is another client's swap, which keeps the action its word maps to until its
+own `idle` frame ends it.
 
 **`feeder_open` is published on both configurations**, so the gripper phases are drivable on
 every machine carrying `[medusahc]`.
@@ -249,9 +253,19 @@ nothing, so its failure ends the run with nothing further said: a printer withou
 `[respond]` refuses the prompt and its close alike, and the run's own "Load stopped."
 already told the stop.
 
-A stop that leaves the carriage where it found it - a swap in flight, a lost connection,
+A stop that leaves the carriage where it found it - a failed swap, a lost connection,
 a print taking over - adds "The carriage was not put back: check which tool is mounted."
-to its toast, even for a single tool's own Cancel. Every sentence of a stop toast ends in a
+to its toast.
+
+**A Cancel during a swap waits for it.** With dock sensors, a Cancel while a Mount or Restore
+is in flight or waiting on its confirmation does not unwind at once: Klipper finishes the swap
+whatever the screen does, and a cleanup sent then would end the run while the carriage still
+moves. The run stays busy (its action, step bar and no Cancel) until the swap settles, then
+turns the heaters off without a restore and toasts, as a warning, "Load stopped. The tool
+change under way finished, and Tool 1 was not put back on the carriage." A swap that never
+settles stops on the sensors' fault as usual. Without dock sensors the cleanup queues behind
+the swap in Klipper and restores as before. Settings > AMS > Abort says "Aborting..." before it
+calls `cancel()`, so a backend's own stop toast lands after it. Every sentence of a stop toast ends in a
 period: "Load all stopped. Completed: Tool 1, Tool 3." (`toast_partial_run()`).
 
 **A lost connection or a Klipper restart ends the run.** Neither can carry a cleanup: the
@@ -271,7 +285,9 @@ first status frame after the reconnect (frames come only from a ready Klippy), o
 from `on_klipper_restarted()`. A Klipper restart already zeroes every target, while a
 dropped websocket leaves them all set; the failed request looks the same either way, so
 the heaters-off always goes out, harmlessly after a restart. A heaters-off dropped by the
-connection again stays owed; a new run sends any owed one before its own first stage.
+connection again stays owed, merged with whatever a later run came to owe meanwhile; a new
+run sends any owed one before its own first stage. A print holding the printer (printing or
+paused) when the debt comes due owns those heaters: the debt is dropped unsent.
 The carriage is never restored after a loss: nothing can vouch for it.
 
 `abandon_feed_run_after_disconnect()` is the backend STOPPING under a live run
@@ -282,10 +298,13 @@ without `mutex_` held, since the unwind takes it and emits; `on_stopping()` runs
 **A print ends the run.** Before each stage `send_feed_stage()` asks
 `refuse_motion_if_printing()`: once a print is printing or paused, the run ends without
 sending that stage or any cleanup - the print owns the heaters and the carriage - closes
-the prompt if the operator's answer left it open, and toasts "... A print started." The
-other side is `PrintStartController`: a start (and a reprint) is refused with "Wait for
-the current filament operation to finish" while `AmsState::any_operation_in_progress()`
-(any backend's action `ams_action_is_busy()`).
+the prompt if the operator's answer left it open, and toasts "... A print started." naming
+the tools whose heaters its acked stages left set ("Tool 3's nozzle is still heating.",
+`mount_feed::Run::heads_left_heating()`), so the operator can turn off any the print does not
+use. The other side is `PrintStartController`: a start (and a reprint) is refused with "Wait
+for the current filament operation to finish" while `AmsState::any_operation_running_here()`
+(a backend's `running_step_operation()`: a run this screen sequences). A busy action alone,
+such as another client's swap, does not refuse it: Klipper queues the print behind it.
 
 **The wait has a ceiling.** Nobody inserting the filament for three minutes
 (`mount_feed::kPromptTimeoutMs`) unwinds the run the same way and raises the error toast
@@ -328,9 +347,14 @@ sidebar opened mid-run asks `running_step_operation()` (load or unload, from the
 of guessing from the action frames, where a load still heating reads like a swap. Each Heat
 row's live readout follows that tool's own heater (`step_heater()`, `mount_feed::heater_name()`
 of the row's head), not Klipper's active extruder: a MedusaHC without klipper-toolchanger never
-runs `ACTIVATE_EXTRUDER`, so the active extruder stays `extruder` whatever is mounted. While
-the run is cancellable (`can_cancel_operation()`), the sidebar shows Cancel in place of its
-action buttons; it is the same abort as Settings > AMS > Abort. The backend claims
+runs `ACTIVATE_EXTRUDER`, so the active extruder stays `extruder` whatever is mounted. The
+sidebar re-attaches those per-heater observers when the extruder set changes
+(`extruder_version`), since a rediscovery re-creates the subjects. While
+the run is cancellable (`can_cancel_operation()`: a run not already unwinding or waiting out a
+swap, the same predicate `cancel()` acts on), the sidebar shows Cancel in place of its action
+buttons; it is the same abort as Settings > AMS > Abort. A backend whose `cancel()` can never
+act (QIDI Box, Snapmaker U1, Multi-ACE) answers `can_cancel_operation()` false, so neither
+surface offers one. The backend claims
 `filament_ops_self_home`, so a load or unload is refused while a print is running or
 paused, and `supports_auto_heat_on_load/unload`, so the UI does not preheat the active tool
 before the backend mounts another.
@@ -507,17 +531,26 @@ describes it. A failed swap during a print runs `MHC_ERROR`, which sets
 `_GLOBAL_STATE.error_state` and pauses the print, with no gcode error (the command handler
 swallows `_OperationPaused`). The documented `PAUSE` macro saves the mounted tool as
 `_GLOBAL_STATE.target_tool` on a manual pause and leaves the swap's own target after a
-failure. `RESUME`, while paused, runs only `MHC_RESUME T=<target_tool>`: after a failure,
-or when another tool is mounted, it homes XY, closes the feeder and picks the target again
-(priming and brushing it inside `picking`), and it refuses while that tool's nozzle is at
-or below 190C.
+failure. The example `RESUME` (`macros_examples.cfg`), while paused, runs only
+`MHC_RESUME T=<target_tool>`: after a failure, or when another tool is mounted, it homes XY,
+closes the feeder and picks the target again (priming and brushing it inside `picking`), and
+it refuses while that tool's nozzle is at or below 190C.
 
-The screen supports it with the least new UI. While a print is held, the failure's dialog
-or toast adds "Seat the hot ends, heat Tool 3 (T2) above 190°C, then tap Resume.", and
-`AmsBackendToolChanger::prepare_for_resume()` (the hook the Resume button already runs)
-refuses with "Heat Tool 3 (T2) above 190°C before resuming" while the target's own heater
-reads at or below `toolchanger_addon::resume_min_nozzle_c()`. Both key on the controller's
-latched failure and its `target_tool`; a manual pause resumes as before.
+Wiring `RESUME` to `MHC_RESUME` is an install step the owner may skip, so the rule binds
+only where it is done: `toolchanger_addon::resume_rule()` names the floor and the command
+(190, `MHC_RESUME`), and `resume_rule_in_force()` asks `MacroParamCache::macro_runs()`
+whether the printer's `RESUME` template, or a macro it calls, runs that command. It is
+asked when needed, not at discovery, so it reads whatever configfile the cache last held.
+
+Where it binds, the screen supports it with the least new UI. While a print is held, the
+failure's dialog or toast adds "Seat the hot ends, heat Tool 3 (T2) above 190°C, then tap
+Resume.", and `AmsBackendToolChanger::prepare_for_resume()` (the hook the Resume button
+already runs) refuses with "Heat Tool 3 (T2) above 190°C before resuming" while the target's
+own heater reads at or below the floor. Both key on the controller's test: its latched
+failure (`sensor_error`, standing in for `error_state`, which the status does not publish),
+or a mounted tool other than its `target_tool`. A manual pause with the target still mounted
+resumes as before, and a printer whose `RESUME` does not run `MHC_RESUME` shows the failure
+alone, with no temperature claim and no gate.
 
 ## Adding another hotend changer
 

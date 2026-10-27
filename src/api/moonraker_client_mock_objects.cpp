@@ -99,6 +99,7 @@ static json toolchanger_configfile_sections(const MoonrakerClientMock* self) {
             {"description",
              "Measures every tool's XYZ offset on the nozzle sensor. Clean all nozzles first."}};
     }
+    sections.merge_patch(self->medusa_config_sections());
     return sections;
 }
 

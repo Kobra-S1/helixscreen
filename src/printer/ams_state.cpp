@@ -509,10 +509,10 @@ bool AmsState::any_bypass_active() const {
     return false;
 }
 
-bool AmsState::any_operation_in_progress() const {
+bool AmsState::any_operation_running_here() const {
     assert_main_thread();
     for (const auto& backend : registry_.backends()) {
-        if (backend && ams_action_is_busy(backend->get_current_action())) {
+        if (backend && backend->running_step_operation().has_value()) {
             return true;
         }
     }
