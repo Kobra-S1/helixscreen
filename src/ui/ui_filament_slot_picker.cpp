@@ -13,6 +13,8 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <utility>
+#include <vector>
 
 namespace helix::ui {
 
@@ -284,9 +286,17 @@ void FilamentSlotPicker::fit_card_width(lv_obj_t* card) {
     // natural width once, take the card's width from that, then let them fill
     // it again. The card never runs past the screen less a margin each side;
     // a row wider than that ellipsizes its label.
+    // A growing label claims only leftover space, so it adds nothing to a
+    // content-sized row; it stops growing for the measure.
     const uint32_t count = lv_obj_get_child_count(card);
+    std::vector<std::pair<lv_obj_t*, uint8_t>> grown;
     for (uint32_t i = 0; i < count; ++i) {
-        lv_obj_set_width(lv_obj_get_child(card, static_cast<int32_t>(i)), LV_SIZE_CONTENT);
+        lv_obj_t* child = lv_obj_get_child(card, static_cast<int32_t>(i));
+        lv_obj_set_width(child, LV_SIZE_CONTENT);
+        if (lv_obj_t* label = lv_obj_find_by_name(child, "slot_label")) {
+            grown.emplace_back(label, lv_obj_get_style_flex_grow(label, LV_PART_MAIN));
+            lv_obj_set_flex_grow(label, 0);
+        }
     }
     lv_obj_update_layout(card);
     const int32_t margin = theme_manager_get_spacing("space_md");
@@ -294,6 +304,9 @@ void FilamentSlotPicker::fit_card_width(lv_obj_t* card) {
     const int32_t natural_w = lv_obj_get_width(card);
     for (uint32_t i = 0; i < count; ++i) {
         lv_obj_set_width(lv_obj_get_child(card, static_cast<int32_t>(i)), LV_PCT(100));
+    }
+    for (const auto& [label, grow] : grown) {
+        lv_obj_set_flex_grow(label, grow);
     }
     lv_obj_set_width(card, std::min(natural_w, max_w));
 }
