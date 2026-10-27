@@ -945,6 +945,10 @@ TEST_CASE("a fresh scan clears an earlier cost abandonment", "[gcode][streaming]
 #ifdef __linux__
 TEST_CASE("the index scan runs below the UI thread's priority",
           "[gcode][streaming][thread_priority]") {
+    const int spawner = ::getpriority(PRIO_PROCESS, static_cast<id_t>(::syscall(SYS_gettid)));
+    if (spawner >= helix::kBackgroundThreadNice) {
+        SKIP("the test runner itself already runs at nice " << spawner);
+    }
     // Indexing a large print is a full pass over the file. On a printer's own
     // board it must yield to the UI and to Klipper whatever the launcher did.
     TempGCodeFile file(kSimple3LayerGcode);
@@ -966,6 +970,30 @@ TEST_CASE("the index scan runs below the UI thread's priority",
     REQUIRE(done_future.wait_for(std::chrono::seconds(10)) == std::future_status::ready);
     REQUIRE(done_future.get());
 
+    CHECK(worker_nice.load() == helix::kBackgroundThreadNice);
+}
+
+TEST_CASE("the ghost builder's worker runs below the UI thread's priority",
+          "[gcode][streaming][thread_priority]") {
+    const int spawner = ::getpriority(PRIO_PROCESS, static_cast<id_t>(::syscall(SYS_gettid)));
+    if (spawner >= helix::kBackgroundThreadNice) {
+        SKIP("the test runner itself already runs at nice " << spawner);
+    }
+    TempGCodeFile file(kSimple3LayerGcode);
+    GCodeStreamingController controller;
+    REQUIRE(controller.open_file(file.path()));
+
+    std::atomic<int> worker_nice{-100};
+    BackgroundGhostBuilder builder;
+    builder.start(&controller, [&](size_t, const std::vector<ToolpathSegment>&) {
+        worker_nice = ::getpriority(PRIO_PROCESS, static_cast<id_t>(::syscall(SYS_gettid)));
+    });
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!builder.is_complete() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    builder.cancel();
+    REQUIRE(worker_nice.load() != -100);
     CHECK(worker_nice.load() == helix::kBackgroundThreadNice);
 }
 #endif

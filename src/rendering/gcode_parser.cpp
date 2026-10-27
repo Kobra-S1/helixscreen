@@ -1322,8 +1322,6 @@ ParsedGCodeFile GCodeParser::finalize(bool whole_file) {
     result.filename = "";
     result.layers = std::move(layers_);
     result.objects = std::move(objects_);
-    // Its nodes now belong to the result.
-    current_object_entry_ = nullptr;
     result.global_bounding_box = global_bounds_;
 
     // Calculate statistics
