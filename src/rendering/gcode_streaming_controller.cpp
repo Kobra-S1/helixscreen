@@ -859,23 +859,33 @@ bool GCodeStreamingController::build_index() {
         // drive an indeterminate spinner — on a 133MB print that is 69 seconds
         // of a UI that looks hung. Storing an atomic from the scan thread is
         // the whole cost; the UI polls it on its own clock.
-        const bool built = index_.build_from_file(file_path, [this, cpu_start](float fraction) {
-            index_progress_.store(fraction);
-            if (index_cost_guard_) {
-                const double cpu_s = static_cast<double>(helix::thread_cpu_ns() - cpu_start) / 1e9;
-                if (!index_cost_guard_(fraction, cpu_s)) {
-                    index_abandoned_for_cost_.store(true, std::memory_order_relaxed);
-                    return false;
+        float scanned_fraction = 0.0f;
+        const bool built =
+            index_.build_from_file(file_path, [this, cpu_start, &scanned_fraction](float fraction) {
+                scanned_fraction = fraction;
+                index_progress_.store(fraction);
+                if (index_cost_guard_) {
+                    const double cpu_s =
+                        static_cast<double>(helix::thread_cpu_ns() - cpu_start) / 1e9;
+                    if (!index_cost_guard_(fraction, cpu_s)) {
+                        index_abandoned_for_cost_.store(true, std::memory_order_relaxed);
+                        return false;
+                    }
                 }
+                return !index_cancel_requested_.load(std::memory_order_relaxed);
+            });
+        // A scan the cost guard stopped still measured the board over the part
+        // it read, which is what lets the next decision be made before download.
+        const bool abandoned = index_abandoned_for_cost_.load(std::memory_order_relaxed);
+        if (built || abandoned) {
+            const double cpu_s = static_cast<double>(helix::thread_cpu_ns() - cpu_start) / 1e9;
+            const double size = static_cast<double>(data_source_->file_size());
+            const double scanned = built ? size : size * scanned_fraction;
+            if (cpu_s > 0.0 && (scanned >= static_cast<double>(kMinRateSampleBytes) ||
+                                cpu_s >= kMinRateSampleCpuS)) {
+                index_mb_per_cpu_s_.store(scanned / (1024.0 * 1024.0) / cpu_s,
+                                          std::memory_order_relaxed);
             }
-            return !index_cancel_requested_.load(std::memory_order_relaxed);
-        });
-        const int64_t cpu_ns = helix::thread_cpu_ns() - cpu_start;
-        const uint64_t scanned = data_source_->file_size();
-        if (built && cpu_ns > 0 && scanned >= kMinRateSampleBytes) {
-            const double mb = static_cast<double>(scanned) / (1024.0 * 1024.0);
-            index_mb_per_cpu_s_.store(mb / (static_cast<double>(cpu_ns) / 1e9),
-                                      std::memory_order_relaxed);
         }
         return built;
     }

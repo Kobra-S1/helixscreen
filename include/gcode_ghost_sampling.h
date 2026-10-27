@@ -37,6 +37,8 @@
 
 #pragma once
 
+#include "gcode_projection.h"
+
 namespace helix {
 namespace gcode {
 
@@ -125,7 +127,7 @@ inline constexpr int kGhostMinModelSamples = 16;
 /// Screen rows a Z span of @p z_span_mm covers in the FRONT view at @p scale
 /// pixels per millimetre: Z rises by cos(45deg) per unit (see gcode_projection.h).
 constexpr float front_view_z_rows(float z_span_mm, float scale) {
-    return z_span_mm > 0.0f && scale > 0.0f ? z_span_mm * 0.70710678f * scale : 0.0f;
+    return z_span_mm > 0.0f && scale > 0.0f ? z_span_mm * projection::kCosE * scale : 0.0f;
 }
 
 /**

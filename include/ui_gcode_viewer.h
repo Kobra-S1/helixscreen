@@ -273,6 +273,17 @@ void ui_gcode_viewer_set_render_mode(lv_obj_t* obj, helix::GcodeViewerRenderMode
  */
 bool ui_gcode_viewer_is_using_2d_mode(lv_obj_t* obj);
 
+namespace helix::ui {
+/**
+ * @brief Did the viewer's last load stop because the preview would cost too much CPU?
+ *
+ * Such a load reports failure to the load callback like any other, but it is the
+ * preview gate working, not an error: the caller shows its thumbnail and logs at
+ * info level.
+ */
+bool gcode_viewer_load_skipped_for_cost(lv_obj_t* obj);
+} // namespace helix::ui
+
 /**
  * @brief Disable streaming mode for this viewer instance.
  *

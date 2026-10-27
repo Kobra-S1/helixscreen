@@ -284,6 +284,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
     spdlog::info("[GCode Viewer] Loading file async: {}", file_path);
     st->viewer_state = GcodeViewerState::Loading;
+    st->load_skipped_for_cost = false;
     st->first_render = true;        // Reset for new file
     st->first_frame_fired_ = false; // Reset first-frame callback for new file
     st->budget_forced_2d_ = false;  // Reset budget 2D override for new file
@@ -474,7 +475,12 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                         spdlog::info("[GCode Viewer] Streaming mode: preview of {} would cost too "
                                      "much CPU on this board - using thumbnail",
                                      r->path);
+                        // The partial scan measured the board: the next file is
+                        // judged before it downloads instead of probed again.
+                        helix::ui::record_preview_rate(
+                            st->streaming_controller_->index_throughput_mb_per_cpu_s());
                         st->viewer_state = GcodeViewerState::Error;
+                        st->load_skipped_for_cost = true;
                         st->streaming_controller_.reset();
                         if (st->load_callback) {
                             st->load_callback(obj, st->load_callback_user_data, false);

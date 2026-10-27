@@ -2540,7 +2540,17 @@ void PrintSelectDetailView::load_gcode_for_preview() {
 
         const size_t local_size =
             tio::open_file(path, "rb") ? static_cast<size_t>(tio::file_size(path).value_or(0)) : 0;
-        if (helix::ui::preview_gate(local_size, "DetailView") != helix::ui::PreviewGate::Build) {
+        const helix::ui::PreviewGate gate = helix::ui::preview_gate(local_size, "DetailView");
+        if (gate == helix::ui::PreviewGate::TooExpensive) {
+            // Affordable once the print ends, so the copy stays for this view
+            // and goes with it at teardown, like any download.
+            if (helix::ui::is_reclaimable_download(path, get_helix_cache_dir("gcode_temp"))) {
+                temp_gcode_path_ = path;
+            }
+            show_gcode_viewer(false);
+            return;
+        }
+        if (gate == helix::ui::PreviewGate::TooLarge) {
             // The viewer just rejected the file — remove the canonical copy
             // so oversize re-downloads can't pile up on disk (SD-card leak).
             // Gated on the scan having actually SETTLED, not on readiness:
@@ -2601,7 +2611,12 @@ void PrintSelectDetailView::begin_viewer_load(const std::string& path,
         [](lv_obj_t* viewer, void* user_data, bool success) {
             auto* self = static_cast<PrintSelectDetailView*>(user_data);
             if (!success) {
-                spdlog::warn("[DetailView] G-code load failed");
+                if (helix::ui::gcode_viewer_load_skipped_for_cost(viewer)) {
+                    spdlog::info("[DetailView] G-code preview skipped: too costly on this board "
+                                 "now");
+                } else {
+                    spdlog::warn("[DetailView] G-code load failed");
+                }
                 self->show_gcode_viewer(false);
                 return;
             }

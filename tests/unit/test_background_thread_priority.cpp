@@ -20,7 +20,9 @@ int current_thread_nice() {
 
 TEST_CASE("make_background_thread lowers its own thread and nothing else", "[thread_priority]") {
     const int spawner_before = current_thread_nice();
-    REQUIRE(spawner_before < helix::kBackgroundThreadNice);
+    if (spawner_before >= helix::kBackgroundThreadNice) {
+        SKIP("the test runner itself already runs at nice " << spawner_before);
+    }
 
     std::atomic<int> worker_nice{-100};
     auto worker = helix::make_background_thread([&] { worker_nice = current_thread_nice(); });

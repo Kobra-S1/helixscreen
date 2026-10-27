@@ -201,8 +201,8 @@ bool starts_with(std::string_view s, std::string_view prefix) {
 }
 
 /// Where each axis word a move or arc reads FIRST appears, from one pass over the
-/// line. extract_param() semantics depend on the first occurrence only, so this
-/// answers every axis with one scan instead of one find() each.
+/// line. extract_param() semantics depend on the first occurrence only, so one
+/// scan answers every axis.
 struct AxisWords {
     static constexpr size_t kNone = std::string_view::npos;
     size_t x = kNone, y = kNone, z = kNone, e = kNone, i = kNone, j = kNone, p = kNone;
@@ -1996,7 +1996,6 @@ bool is_macro_param(std::string_view word) {
 
 } // namespace
 
-// Declared in gcode_parser.h: the single T-parse the whole tree shares.
 int arc_segment_count(float radius_mm, float sweep_rad) {
     const float sweep = std::abs(sweep_rad);
     if (!(radius_mm > kArcChordToleranceMm) || !(sweep > 0.0f)) {
@@ -2012,6 +2011,7 @@ int arc_segment_count(float radius_mm, float sweep_rad) {
     return std::max(1, static_cast<int>(needed));
 }
 
+// Declared in gcode_parser.h: the single T-parse the whole tree shares.
 int tool_index_for_line(const std::string& raw, std::pair<size_t, size_t>* digits) {
     // Strip comment (everything from the first ';').
     std::string_view sv(raw);

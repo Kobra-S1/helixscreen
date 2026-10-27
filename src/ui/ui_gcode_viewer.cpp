@@ -1100,6 +1100,11 @@ bool ui_gcode_viewer_is_using_2d_mode(lv_obj_t* obj) {
     return st ? st->is_using_2d_mode() : false;
 }
 
+bool helix::ui::gcode_viewer_load_skipped_for_cost(lv_obj_t* obj) {
+    gcode_viewer_state_t* st = get_state(obj);
+    return st && st->load_skipped_for_cost;
+}
+
 void ui_gcode_viewer_disable_streaming(lv_obj_t* obj) {
     gcode_viewer_state_t* st = get_state(obj);
     if (st) {
@@ -1916,6 +1921,10 @@ void ui_gcode_viewer_force_redraw(lv_obj_t*) {}
 void ui_gcode_viewer_set_render_mode(lv_obj_t*, helix::GcodeViewerRenderMode) {}
 
 bool ui_gcode_viewer_is_using_2d_mode(lv_obj_t*) {
+    return false;
+}
+
+bool helix::ui::gcode_viewer_load_skipped_for_cost(lv_obj_t*) {
     return false;
 }
 

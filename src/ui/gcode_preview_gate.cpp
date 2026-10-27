@@ -4,6 +4,7 @@
 #include "gcode_preview_gate.h"
 
 #include "app_globals.h"
+#include "board_fingerprint.h"
 #include "config.h"
 #include "gcode_preview_cost.h"
 #include "gcode_preview_setup.h"
@@ -11,7 +12,6 @@
 #include "printer_state.h"
 
 #if HELIX_HAS_GCODE_VIEWER
-#include "board_fingerprint.h"
 #include "helix_version.h"
 #include "platform_capabilities.h"
 #endif
@@ -25,22 +25,21 @@ std::optional<PreviewRateEntry> parse_preview_rate(const nlohmann::json* node) {
         return std::nullopt;
     }
     const auto rate = node->find("rate");
-    const auto board = node->find("board");
-    const auto version = node->find("version");
-    if (rate == node->end() || !rate->is_number() || board == node->end() || !board->is_string() ||
-        version == node->end() || !version->is_string()) {
+    const auto key = parse_measurement_key(*node);
+    if (rate == node->end() || !rate->is_number() || !key) {
         return std::nullopt;
     }
     const double value = rate->get<double>();
     if (!(value > 0.0)) {
         return std::nullopt;
     }
-    return PreviewRateEntry{value, board->get<std::string>(), version->get<std::string>()};
+    return PreviewRateEntry{value, key->board, key->version};
 }
 
 nlohmann::json preview_rate_json(const PreviewRateEntry& entry) {
-    return nlohmann::json{
-        {"rate", entry.mb_per_cpu_s}, {"board", entry.board}, {"version", entry.version}};
+    nlohmann::json node{{"rate", entry.mb_per_cpu_s}};
+    write_measurement_key(node, {entry.board, entry.version});
+    return node;
 }
 
 double learned_preview_rate(const helix::Config& config, const std::string& board,
@@ -98,6 +97,12 @@ bool print_holds_machine() {
     return job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
 }
 
+/// The last rate kept this run (main thread), for when none is stored.
+double& session_rate() {
+    static double rate = 0.0;
+    return rate;
+}
+
 } // namespace
 
 PreviewGateInputs current_preview_gate_inputs(uint64_t bytes) {
@@ -109,6 +114,9 @@ PreviewGateInputs current_preview_gate_inputs(uint64_t bytes) {
     if (config && !preview_rate_board().empty()) {
         in.learned_rate =
             learned_preview_rate(*config, preview_rate_board(), preview_rate_version());
+    }
+    if (!(in.learned_rate > 0.0)) {
+        in.learned_rate = session_rate();
     }
     return in;
 }
@@ -137,27 +145,42 @@ PreviewGate preview_gate(uint64_t bytes, const char* log_tag) {
     return gate;
 }
 
-void record_preview_rate(double mb_per_cpu_s) {
-    if (!(mb_per_cpu_s > 0.0) || preview_rate_board().empty() || print_holds_machine()) {
-        return;
+RateRecord decide_rate_record(double mb_per_cpu_s, bool board_known, bool printing,
+                              double stored_rate) {
+    if (!(mb_per_cpu_s > 0.0) || !board_known) {
+        return RateRecord::Ignore;
     }
-    helix::Config* config = helix::Config::get_instance();
-    if (!config) {
-        return;
+    if (printing) {
+        return RateRecord::SessionOnly;
     }
-    const PreviewRateEntry entry{mb_per_cpu_s, preview_rate_board(), preview_rate_version()};
-    const auto stored = parse_preview_rate(config->try_get_json(kPreviewRatePath));
-    if (stored && stored->board == entry.board && stored->version == entry.version) {
-        // A rate within a tenth of what is stored is the same board saying the
-        // same thing: skip the config write.
-        const double ratio = entry.mb_per_cpu_s / stored->mb_per_cpu_s;
+    if (stored_rate > 0.0) {
+        const double ratio = mb_per_cpu_s / stored_rate;
         if (ratio > 0.9 && ratio < 1.1) {
-            return;
+            return RateRecord::SessionOnly;
         }
     }
-    spdlog::info("[PreviewGate] Learned index rate {:.1f} MB/cpu-s on {}", mb_per_cpu_s,
-                 entry.board);
-    save_preview_rate(*config, entry);
+    return RateRecord::Persist;
+}
+
+void record_preview_rate(double mb_per_cpu_s) {
+    helix::Config* config = helix::Config::get_instance();
+    const bool board_known = config && !preview_rate_board().empty();
+    const double stored =
+        board_known ? learned_preview_rate(*config, preview_rate_board(), preview_rate_version())
+                    : 0.0;
+    switch (decide_rate_record(mb_per_cpu_s, board_known, print_holds_machine(), stored)) {
+    case RateRecord::Ignore:
+        return;
+    case RateRecord::SessionOnly:
+        session_rate() = mb_per_cpu_s;
+        return;
+    case RateRecord::Persist:
+        session_rate() = mb_per_cpu_s;
+        spdlog::info("[PreviewGate] Learned index rate {:.1f} MB/cpu-s on {}", mb_per_cpu_s,
+                     preview_rate_board());
+        save_preview_rate(*config, {mb_per_cpu_s, preview_rate_board(), preview_rate_version()});
+        return;
+    }
 }
 
 } // namespace helix::ui

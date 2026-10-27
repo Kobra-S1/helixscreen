@@ -85,8 +85,27 @@ PreviewGate preview_gate(uint64_t bytes, const char* log_tag);
 const std::string& preview_rate_board();
 const std::string& preview_rate_version();
 
-/// Main thread: record a rate measured on an idle scan. Ignored while a print
-/// runs, since that measures the print as much as the board.
+/// What becomes of a freshly measured index rate.
+enum class RateRecord {
+    Ignore,      ///< Nothing to keep: no rate, or a build that keys no board
+    SessionOnly, ///< Use it until restart: measured during a print
+    Persist,     ///< Store it: measured idle, and different from what is stored
+};
+
+/**
+ * @brief Pure: what to do with @p mb_per_cpu_s.
+ *
+ * A rate measured while a print runs is kept for the session only, so the next
+ * file is judged before it downloads, but never stored: it measures the print as
+ * much as the board. An idle rate within a tenth of @p stored_rate (0 = none
+ * stored for this board and version) is the same board saying the same thing and
+ * is not written again.
+ */
+RateRecord decide_rate_record(double mb_per_cpu_s, bool board_known, bool printing,
+                              double stored_rate);
+
+/// Main thread: keep a rate a scan just measured, per decide_rate_record(). The
+/// gate prefers a stored rate and falls back to the last one kept this session.
 void record_preview_rate(double mb_per_cpu_s);
 
 } // namespace helix::ui

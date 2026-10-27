@@ -240,6 +240,9 @@ class GCodeViewerState {
     // G-code data
     std::unique_ptr<helix::gcode::ParsedGCodeFile> gcode_file;
     GcodeViewerState viewer_state{GcodeViewerState::Empty};
+    /// The last load stopped because the preview would cost too much CPU; set
+    /// with viewer_state Error, cleared when the next load starts.
+    bool load_skipped_for_cost{false};
 
     // Rendering components (exposed for callbacks)
     std::unique_ptr<helix::gcode::GCodeCamera> camera_;

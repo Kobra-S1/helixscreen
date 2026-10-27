@@ -875,8 +875,8 @@ TEST_CASE("close during async indexing cancels the build", "[gcode][streaming][c
 }
 
 TEST_CASE("a small file's scan reports no index rate", "[gcode][streaming][index_rate]") {
-    // A 1KB scan is all fixed overhead: on a desktop that read as 6 MB/cpu-s
-    // against a true ~280, and a board taught that would refuse its own previews.
+    // A 1KB scan is all fixed overhead, so its rate says nothing about the board,
+    // and a board taught an underestimate would refuse previews it can afford.
     TempGCodeFile file(kSimple3LayerGcode);
     GCodeStreamingController controller;
     REQUIRE(controller.open_file(file.path()));
@@ -884,7 +884,7 @@ TEST_CASE("a small file's scan reports no index rate", "[gcode][streaming][index
 }
 
 namespace {
-/// Enough lines that the index scan reports progress (it does every 20000).
+/// Enough lines that the index scan reports progress many times over.
 std::string make_long_gcode() {
     std::string out = "G90\nM82\n";
     double e = 0.0;
@@ -1029,4 +1029,27 @@ TEST_CASE("open_file measures how fast this board scans the index",
     const double rate = controller.index_throughput_mb_per_cpu_s();
     CHECK(rate > 0.0);
     CHECK(std::isfinite(rate));
+}
+
+TEST_CASE("a scan the cost guard stops still measures the share it read",
+          "[gcode][streaming][index_rate]") {
+    // Stopped halfway through 20MB: 10MB read, past the sample floor.
+    BigGCodeFile file(20ull * 1024 * 1024);
+    GCodeStreamingController controller;
+    controller.set_index_cost_guard([](float fraction, double) { return fraction < 0.5f; });
+    CHECK_FALSE(controller.open_file(file.path()));
+    REQUIRE(controller.index_abandoned_for_cost());
+    const double rate = controller.index_throughput_mb_per_cpu_s();
+    CHECK(rate > 0.0);
+    CHECK(std::isfinite(rate));
+}
+
+TEST_CASE("a scan stopped before a usable sample reports no rate",
+          "[gcode][streaming][index_rate]") {
+    BigGCodeFile file(20ull * 1024 * 1024);
+    GCodeStreamingController controller;
+    controller.set_index_cost_guard([](float, double) { return false; });
+    CHECK_FALSE(controller.open_file(file.path()));
+    REQUIRE(controller.index_abandoned_for_cost());
+    CHECK(controller.index_throughput_mb_per_cpu_s() == 0.0);
 }

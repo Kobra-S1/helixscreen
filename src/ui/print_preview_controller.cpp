@@ -232,7 +232,12 @@ void PrintPreviewController::on_viewer_loaded(lv_obj_t* viewer, void* user_data,
     }
 
     if (!success) {
-        spdlog::error("[{}] G-code load failed", self->log_tag_);
+        if (helix::ui::gcode_viewer_load_skipped_for_cost(viewer)) {
+            spdlog::info("[{}] G-code preview skipped: too costly on this board now",
+                         self->log_tag_);
+        } else {
+            spdlog::error("[{}] G-code load failed", self->log_tag_);
+        }
         self->lifecycle_.set_gcode_loaded(false);
         return;
     }

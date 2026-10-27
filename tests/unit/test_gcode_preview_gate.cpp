@@ -80,3 +80,20 @@ TEST_CASE("a learned preview rate counts only on the board and version that meas
     config->get_json("/display").erase("gcode_preview_rate");
     CHECK(helix::ui::learned_preview_rate(*config, "board-a", "version-a") == 0.0);
 }
+
+TEST_CASE("decide_rate_record: idle rates are stored, print-time rates kept for the session",
+          "[gcode][preview_gate]") {
+    using helix::ui::decide_rate_record;
+    using helix::ui::RateRecord;
+    CHECK(decide_rate_record(10.0, true, /*printing=*/false, 0.0) == RateRecord::Persist);
+    CHECK(decide_rate_record(10.0, true, /*printing=*/true, 0.0) == RateRecord::SessionOnly);
+    // Same board saying the same thing: no config write.
+    CHECK(decide_rate_record(10.5, true, false, 10.0) == RateRecord::SessionOnly);
+    CHECK(decide_rate_record(9.5, true, false, 10.0) == RateRecord::SessionOnly);
+    // A real change is stored.
+    CHECK(decide_rate_record(12.0, true, false, 10.0) == RateRecord::Persist);
+    CHECK(decide_rate_record(8.0, true, false, 10.0) == RateRecord::Persist);
+    // Nothing to keep.
+    CHECK(decide_rate_record(0.0, true, false, 0.0) == RateRecord::Ignore);
+    CHECK(decide_rate_record(10.0, /*board_known=*/false, false, 0.0) == RateRecord::Ignore);
+}
