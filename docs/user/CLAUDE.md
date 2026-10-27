@@ -29,7 +29,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/install-linux-desktop.md` | x86_64 Linux desktop package: the app in a window, per-user install with `--desktop`, connecting to a remote printer, window size, updating, uninstall, running from the tarball |
 | `guide/install-esp32.md` | BigTreeTech K-Touch (ESP32-S3) alpha firmware: browser flasher, esptool install, first-boot hotspot setup, updating, recovery, other ESP32-S3 panels |
 | `guide/home-panel.md` | Home dashboard, printer manager, custom images |
-| `guide/printing.md` | File selection, printing, the file-fits-printer check, pausing at a layer, tune overlay, Z-offset, recovering after a power loss (firmware recovery and the plugin's guided resume) |
+| `guide/printing.md` | File selection, printing, the file-fits-printer check, the door-open warning, pausing at a layer, tune overlay, Z-offset, recovering after a power loss (firmware recovery and the plugin's guided resume) |
 | `guide/print-monitoring.md` | Pre-print filament checks (empty-slot block, unassigned-tool Color Mismatch, bypass exemption), camera-based failure detection (Snapmaker U1 dialog, Creality K2 AI toggle) |
 | `guide/temperature.md` | Nozzle/bed temperature panels, presets, reassigning preset filament types, graphs, drying filament on the bed, chamber heater diagnostics card |
 | `guide/chamber-heater.md` | Add-on chamber heater setup (BIGTREETECH Panda Breath): network step, stock vs DragonBreath firmware, the Klipper module and config each needs, the Snapmaker U1 menu shortcut, troubleshooting |
@@ -39,7 +39,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/bluetooth-setup.md` | Enabling Bluetooth on Raspberry Pi and BTT Pi, UART conflicts, USB dongle setup |
 | `guide/barcode-scanner.md` | USB + Bluetooth barcode scanner setup, keymaps, BT-HID bonded-only workaround |
 | `guide/label-printing.md` | Label printer setup, supported printers (Brother/Phomemo/Niimbot/MakeID), Bluetooth pairing, troubleshooting |
-| `guide/calibration.md` | Bed mesh, screws tilt, input shaper and its live chart, probe, Z-offset, tool offsets, belt tension check and tuning, pressure advance, PID/MPC |
+| `guide/calibration.md` | Bed mesh, screws tilt, input shaper and its live chart, probe, Z-offset, tool offsets (including the Creator 5's printer-side prompt), vertical artifact compensation, belt tension check and tuning, pressure advance, PID/MPC |
 | `guide/touch-calibration.md` | Touch screen calibration, forcing recalibration, config reference |
 | `guide/settings.md` | Settings hub: the three groups (Screen, Printer, HelixScreen) and their thirteen pages |
 | `guide/settings/display.md` | Screen rotation, UI scale, brightness, screen dim, display sleep, screensaver, sleep while printing |
@@ -55,8 +55,8 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/settings/system.md` | Security, storage (usage by kind, cleanup, automatic cleanup), performance, telemetry, log level, restart, factory reset |
 | `guide/settings/updates.md` | Update channel, check and install, firmware-managed and can't-update notices |
 | `guide/settings/help-about.md` | Welcome tour, debug bundles, Discord, docs, About (version, system info, print hours, beta features) |
-| `guide/fans.md` | Discovered fans grouped by controllable vs. automatic, live speed dials, RPM readouts, per-fan renaming |
-| `guide/sensors.md` | Filament and motion sensors with per-sensor role assignment, read-only sensor types, chamber heater/sensor mapping |
+| `guide/fans.md` | Discovered fans grouped by controllable vs. automatic, live speed dials, RPM readouts, chamber air modes, per-fan renaming |
+| `guide/sensors.md` | Filament and motion sensors with per-sensor role assignment, door/button inputs and the door-open warning, read-only sensor types, chamber heater/sensor mapping |
 | `guide/security.md` | PIN screen lock, auto-lock tied to display sleep, lock-screen keypad, what a factory reset clears |
 | `guide/screen-sharing.md` | Screen sharing and remote control: Settings rows, opening it in a browser or Mainsail/Fluidd, code pairing vs Moonraker-decided access per printer, the remote-control icon, cost, troubleshooting |
 | `guide/camera.md` | Webcam viewing via the home widget and fullscreen viewer, rotation/flip, stream status, performance throttling |

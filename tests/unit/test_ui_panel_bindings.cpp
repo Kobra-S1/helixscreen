@@ -347,17 +347,21 @@ TEST_CASE_METHOD(XMLTestFixture, "controls_panel: part_fan_slider binding update
 // PRINT STATUS PANEL BINDING TESTS (.xml_required: need ui_xml/ on the relative path)
 // =============================================================================
 
-TEST_CASE_METHOD(XMLTestFixture, "print_status_strip: the pre-print line tracks preparing_visible",
+TEST_CASE_METHOD(XMLTestFixture,
+                 "print_status_strip: the pre-print line replaces the print line while preparing",
                  "[ui][print_status_panel][bind_flag][.xml_required]") {
     PrintStatusSubjects owner(state());
     REQUIRE(register_component("components/print_status_strip"));
     set_xml_subject("preparing_visible", 0);
     lv_obj_t* strip = create_component("print_status_strip");
-    lv_obj_t* line = require_named(strip, "ps_strip_prepare_line");
-    CHECK(is_hidden(line));
+    lv_obj_t* prepare = require_named(strip, "ps_strip_prepare_line");
+    lv_obj_t* printing = require_named(strip, "ps_strip_print_line");
+    CHECK(is_hidden(prepare));
+    CHECK_FALSE(is_hidden(printing));
 
     set_xml_subject("preparing_visible", 1);
-    CHECK_FALSE(is_hidden(line));
+    CHECK_FALSE(is_hidden(prepare));
+    CHECK(is_hidden(printing));
 }
 
 TEST_CASE_METHOD(XMLTestFixture,

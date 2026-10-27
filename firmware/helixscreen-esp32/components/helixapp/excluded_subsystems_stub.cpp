@@ -47,6 +47,7 @@
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_panel_input_shaper.h"
 #include "ui_panel_screws_tilt.h"
+#include "ui_stepper_resonance_cal_modal.h"
 #include "ui_toast_manager.h"
 #include "ui_wizard_preferences.h"
 
@@ -237,6 +238,14 @@ void init_zoffset_event_callbacks() {}
 namespace helix::ui {
 void init_tool_offset_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_tool_offset_row_clicked", esp32_staged_feature_row_cb);
+}
+
+// src/ui/ui_stepper_resonance_cal_modal.cpp — same staged-row treatment: the
+// row tracks printer_has_stepper_resonance_cal, written by the KEPT
+// stepper_resonance_cal::resolve().
+void init_stepper_resonance_cal_row_handler() {
+    lv_xml_register_event_cb(nullptr, "on_stepper_resonance_cal_clicked",
+                             esp32_staged_feature_row_cb);
 }
 
 // src/ui/ui_panel_calibration_tool_offset.cpp (DEFINE_GLOBAL_PANEL) — the

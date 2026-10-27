@@ -505,3 +505,146 @@ TEST_CASE("parse_slice_info ignores slot and plate numbers no print can have", "
     CHECK(meta.filament_colors.size() == 2); // slots 1-2, never a billion
     CHECK(helix::three_mf::plate_of_gcode_entry("Metadata/plate_99999999999.gcode") == 0);
 }
+
+// ---------------------------------------------------------------------------
+// model_settings.config: plate names and the entries each plate points at
+// ---------------------------------------------------------------------------
+
+namespace {
+
+using helix::three_mf::parse_model_settings;
+using helix::three_mf::PlateSettings;
+
+/// Central records named @p names, enough for sliced_plates() to look up.
+std::vector<ZipEntry> named_entries(std::initializer_list<const char*> names) {
+    std::vector<ZipEntry> entries;
+    for (const char* n : names) {
+        ZipEntry e;
+        e.name = n;
+        entries.push_back(e);
+    }
+    return entries;
+}
+
+PlateSettings plate_settings(int plate, std::string gcode, std::string thumb = {},
+                             std::string name = {}) {
+    PlateSettings s;
+    s.plate = plate;
+    s.gcode_file = std::move(gcode);
+    s.thumbnail_file = std::move(thumb);
+    s.name = std::move(name);
+    return s;
+}
+
+} // namespace
+
+TEST_CASE("parse_model_settings reads each plate's number, name and entries",
+          "[three_mf][model_settings]") {
+    const std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
+<config>
+  <object id="2"><metadata key="name" value="not a plate"/></object>
+  <plate>
+    <metadata key="plater_id" value="2"/>
+    <metadata key="plater_name" value="  Brackets &amp; Clips "/>
+    <metadata key="filament_maps" value="1 1 2 2"/>
+    <metadata key="gcode_file" value="Metadata/plate_2.gcode"/>
+    <metadata key="thumbnail_file" value="Metadata/plate_2.png"/>
+  </plate>
+  <plate>
+    <metadata key="plater_id" value="1"/>
+    <metadata key="plater_name" value=""/>
+    <metadata key="gcode_file" value=""/>
+  </plate>
+  <plate>
+    <metadata key="plater_name" value="no number"/>
+  </plate>
+</config>)";
+    const auto plates = parse_model_settings(xml);
+    REQUIRE(plates.size() == 2);
+    CHECK(plates[0].plate == 2);
+    CHECK(plates[0].name == "Brackets & Clips");
+    CHECK(plates[0].gcode_file == "Metadata/plate_2.gcode");
+    CHECK(plates[0].thumbnail_file == "Metadata/plate_2.png");
+    CHECK(plates[1].plate == 1);
+    CHECK(plates[1].name.empty());
+    CHECK(plates[1].gcode_file.empty());
+}
+
+TEST_CASE("parse_model_settings cuts a long name at a character boundary",
+          "[three_mf][model_settings]") {
+    // 31 ASCII bytes then a 3-byte character straddling the limit.
+    const std::string name = std::string(31, 'a') + "\xE6\x9D\xBF";
+    const auto plates = parse_model_settings(
+        "<plate><metadata key=\"plater_id\" value=\"1\"/><metadata key=\"plater_name\" value=\"" +
+        name + "\"/></plate>");
+    REQUIRE(plates.size() == 1);
+    CHECK(plates[0].name == std::string(31, 'a'));
+    CHECK(plates[0].name.size() <= helix::three_mf::kMaxPlateNameBytes);
+}
+
+TEST_CASE("sliced_plates follows a plate's G-code pointer", "[three_mf][model_settings]") {
+    const auto entries = named_entries({"Metadata/plate_1.gcode", "Metadata/plate_1.gcode.md5",
+                                        "Metadata/first.gcode", "Metadata/first.gcode.md5",
+                                        "Metadata/render_1.png", "Metadata/plate_1.png"});
+    const auto plates = sliced_plates(
+        entries, {plate_settings(1, "Metadata/first.gcode", "/Metadata/render_1.png", "Benchy")});
+    REQUIRE(plates.size() == 1);
+    CHECK(plates[0].index == 1);
+    CHECK(plates[0].name == "Benchy");
+    REQUIRE(plates[0].gcode);
+    CHECK(plates[0].gcode->name == "Metadata/first.gcode");
+    // The checksum is the one beside the entry the G-code comes from.
+    REQUIRE(plates[0].md5);
+    CHECK(plates[0].md5->name == "Metadata/first.gcode.md5");
+    REQUIRE(plates[0].thumb);
+    CHECK(plates[0].thumb->name == "Metadata/render_1.png");
+}
+
+TEST_CASE("sliced_plates falls back to plate names when a pointer names nothing",
+          "[three_mf][model_settings]") {
+    const auto entries = named_entries(
+        {"Metadata/plate_1.gcode", "Metadata/plate_1.gcode.md5", "Metadata/plate_1.png"});
+
+    SECTION("the pointed-at entries are missing") {
+        const auto plates = sliced_plates(
+            entries, {plate_settings(1, "Metadata/gone.gcode", "Metadata/gone.png", "Named")});
+        REQUIRE(plates.size() == 1);
+        REQUIRE(plates[0].gcode);
+        CHECK(plates[0].gcode->name == "Metadata/plate_1.gcode");
+        REQUIRE(plates[0].md5);
+        CHECK(plates[0].md5->name == "Metadata/plate_1.gcode.md5");
+        REQUIRE(plates[0].thumb);
+        CHECK(plates[0].thumb->name == "Metadata/plate_1.png");
+        CHECK(plates[0].name == "Named"); // the name still applies
+    }
+    SECTION("no model_settings at all") {
+        const auto plates = sliced_plates(entries);
+        REQUIRE(plates.size() == 1);
+        CHECK(plates[0].gcode->name == "Metadata/plate_1.gcode");
+        CHECK(plates[0].name.empty());
+    }
+    SECTION("a pointed G-code without a checksum of its own takes none") {
+        const auto with_other = named_entries(
+            {"Metadata/plate_1.gcode", "Metadata/plate_1.gcode.md5", "Metadata/other.gcode"});
+        const auto plates = sliced_plates(with_other, {plate_settings(1, "Metadata/other.gcode")});
+        REQUIRE(plates.size() == 1);
+        CHECK(plates[0].gcode->name == "Metadata/other.gcode");
+        CHECK(plates[0].md5 == nullptr);
+    }
+}
+
+TEST_CASE("sliced_plates keeps plate order and gives a pointed entry to one plate",
+          "[three_mf][model_settings]") {
+    const auto entries = named_entries({"Metadata/plate_1.gcode", "Metadata/plate_2.gcode",
+                                        "Metadata/plate_3.gcode", "Metadata/plate_5.gcode"});
+    // model_settings lists plates out of order, and plate 4 prints plate_2's entry.
+    const auto plates = sliced_plates(entries, {plate_settings(3, "Metadata/plate_3.gcode"),
+                                                plate_settings(4, "Metadata/plate_2.gcode"),
+                                                plate_settings(1, "Metadata/plate_1.gcode")});
+    REQUIRE(plates.size() == 4);
+    CHECK(plates[0].index == 1);
+    CHECK(plates[1].index == 3);
+    CHECK(plates[2].index == 4);
+    CHECK(plates[2].gcode->name == "Metadata/plate_2.gcode");
+    CHECK(plates[3].index == 5); // named, absent from model_settings
+}

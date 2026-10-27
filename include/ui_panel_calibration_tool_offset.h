@@ -22,7 +22,7 @@
  *
  * Shown from the Controls / Advanced calibration entry points when the
  * printer is a tool changer that defines klipper-toolchanger's
- * CALIBRATE_TOOL_OFFSETS macro (helix::tool_offset_calibration::supported).
+ * CALIBRATE_TOOL_OFFSETS macro (helix::tool_offset_calibration::resolve_procedure).
  * The macro owns the whole procedure - heating, selecting each tool, probing
  * it on the sensor, writing the result into the tool's gcode_x/y/z_offset -
  * so this panel runs it, follows it, and offers the one thing the macro does

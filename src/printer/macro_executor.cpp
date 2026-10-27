@@ -7,12 +7,17 @@
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
+#include "app_globals.h"
+#include "async_lifetime_guard.h"
 #include "device_display_name.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
+#include "printer_state.h"
 #include "text_io.h"
+#include "toolhead_homing.h"
 
 #include <spdlog/spdlog.h>
 
@@ -134,24 +139,18 @@ std::string build_macro_gcode(const std::string& macro_name, const MacroParamRes
     return gcode;
 }
 
-void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
-                         const MacroParamResult& result, const char* caller_tag,
-                         const PrinterDiscovery& hw) {
+void execute_machine_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, const char* caller_tag) {
     if (!api) {
-        spdlog::warn("{} No API available — cannot execute macro", caller_tag);
+        spdlog::warn("{} No API available — cannot execute {}", caller_tag, cmd.log_name);
         return;
     }
+    spdlog::info("{} Executing: {}", caller_tag, cmd.gcode);
 
-    std::string gcode = build_macro_gcode(macro_name, result);
-    spdlog::info("{} Executing: {}", caller_tag, gcode);
-
-    // Resolved before the send, not inside the callback: the callback runs on
-    // the WebSocket thread, and PrinterDiscovery is not ours to read from there.
-    const MacroHostEffect host_effect = macro_host_effect(macro_name, hw);
-
-    std::string macro_copy = macro_name;
-    std::string tag_copy = caller_tag;
-    std::string display_name = helix::get_display_name(macro_name, helix::DeviceType::MACRO);
+    const std::string gcode = cmd.gcode;
+    const std::string macro_copy = cmd.log_name;
+    const std::string tag_copy = caller_tag;
+    const std::string display_name = cmd.display_name;
+    const MacroHostEffect host_effect = cmd.host_effect;
     api->execute_gcode(
         gcode,
         [tag_copy, macro_copy, display_name]() {
@@ -198,7 +197,49 @@ void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
                 ToastManager::instance().show(ToastSeverity::ERROR, msg.c_str(), 4000);
             });
         },
-        IMoonrakerAPI::kMacroTimeoutMs);
+        cmd.timeout_ms ? cmd.timeout_ms : IMoonrakerAPI::kMacroTimeoutMs);
+}
+
+void execute_macro_gcode(IMoonrakerAPI* api, const std::string& macro_name,
+                         const MacroParamResult& result, const char* caller_tag,
+                         const PrinterDiscovery& hw) {
+    MachineGcode cmd;
+    cmd.gcode = build_macro_gcode(macro_name, result);
+    cmd.log_name = macro_name;
+    cmd.display_name = helix::get_display_name(macro_name, helix::DeviceType::MACRO);
+    // Resolved before the send, not inside the callback: the callback runs on
+    // the WebSocket thread, and PrinterDiscovery is not ours to read from there.
+    cmd.host_effect = macro_host_effect(macro_name, hw);
+    execute_machine_gcode(api, cmd, caller_tag);
+}
+
+void start_calibration_gcode(IMoonrakerAPI* api, const MachineGcode& cmd, bool needs_home,
+                             const char* caller_tag) {
+    // A print can start while a confirmation is open (Mainsail, the job queue).
+    if (lv_subject_get_int(
+            get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0) {
+        ToastManager::instance().show(ToastSeverity::WARNING,
+                                      lv_tr("Cannot calibrate while printing"), 3000);
+        return;
+    }
+    if (!api) {
+        spdlog::warn("{} No API available — cannot start {}", caller_tag, cmd.log_name);
+        return;
+    }
+    if (!needs_home) {
+        execute_machine_gcode(api, cmd, caller_tag);
+        return;
+    }
+    // The homing continuation can outlive any caller, so it is owned here.
+    static AsyncLifetimeGuard homing_lifetime;
+    const std::string tag = caller_tag;
+    ensure_homed_then(
+        api, homing_lifetime, [api, cmd, tag]() { execute_machine_gcode(api, cmd, tag.c_str()); },
+        [cmd, tag](const MoonrakerError& err) {
+            spdlog::error("{} Homing before {} failed: {}", tag, cmd.log_name, err.message);
+            ToastManager::instance().show(ToastSeverity::ERROR,
+                                          (cmd.display_name + " failed").c_str(), 4000);
+        });
 }
 
 MaterialPreheatPlan plan_material_preheat(const filament::MaterialOverride* override,

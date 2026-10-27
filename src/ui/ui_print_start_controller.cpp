@@ -30,6 +30,7 @@
 #include "filament_sensor_manager.h"
 #include "helix_fs.h"
 #include "i_moonraker_api.h"
+#include "input_sensor_manager.h"
 #include "json_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
@@ -37,6 +38,7 @@
 #include "print_job_ref.h"
 #include "printer_state.h"
 #include "text_io.h"
+#include "tool_state.h"
 
 #include <spdlog/spdlog.h>
 
@@ -753,6 +755,7 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
     ctx.external_spool = ams.get_external_spool_info();
     ctx.filament_diameter_mm = printer_state_.get_discovery().filament_diameter_mm();
     ctx.has_active_backend = ams.get_backend() != nullptr;
+    ctx.multiple_toolheads = helix::ToolState::instance().has_multiple_toolheads();
     for (int i = 0; i < ams.backend_count(); ++i) {
         if (auto* backend = ams.get_backend(i)) {
             // One presenting no filament system feeds the external spool alone,
@@ -803,6 +806,10 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
     ctx.runout_enabled = sensors.is_master_enabled();
     ctx.runout_available = sensors.is_sensor_available(helix::FilamentSensorRole::RUNOUT);
     ctx.runout_detected = sensors.is_filament_detected(helix::FilamentSensorRole::RUNOUT);
+
+    auto& inputs = helix::sensors::InputSensorManager::instance();
+    ctx.door_check_enabled = inputs.door_check_enabled();
+    ctx.open_doors = inputs.open_doors();
     return ctx;
 }
 
@@ -887,7 +894,12 @@ void PrintStartController::run_gates_from(size_t index) {
 
 void PrintStartController::on_gate_proceed() {
     print_gate_modal_ = nullptr;
-    run_gates_from(gate_resume_index_ + 1);
+    // The answered dialog hides itself only after this callback returns, and
+    // the next dialog's blurred backdrop captures whatever is on screen when it
+    // opens. Running the next gate on the following tick keeps the answered
+    // dialog out of that capture.
+    lifetime_.defer("PrintStartController::next_gate",
+                    [this]() { run_gates_from(gate_resume_index_ + 1); });
 }
 
 void PrintStartController::on_gate_cancel() {

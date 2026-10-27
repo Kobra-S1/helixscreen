@@ -2143,3 +2143,24 @@ TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
     INFO(thumb);
     CHECK(thumb.find(".bin") != std::string::npos);
 }
+
+TEST_CASE_METHOD(
+    ActivePrintMediaAsyncFixture,
+    "ActivePrintMediaManager: the job's materials come from its metadata and reset per file",
+    "[ActivePrintMediaManager][active_print_media][door]") {
+    set_print_filename_no_drain("abs_part.gcode");
+    drain();
+    REQUIRE(files().has_pending());
+
+    FileMetadata abs = make_metadata(/*layer_count=*/10);
+    abs.filament_type = "ABS";
+    files().fire_last(abs);
+    drain();
+    CHECK(state().print_state().print_materials() == std::vector<std::string>{"ABS"});
+
+    // A different file: its materials are unknown until its own metadata says.
+    set_print_filename_no_drain("next_job.gcode");
+    drain();
+    REQUIRE(files().has_pending());
+    CHECK(state().print_state().print_materials().empty());
+}

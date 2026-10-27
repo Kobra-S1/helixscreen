@@ -43,6 +43,40 @@
       </setting_group>
 
       <!-- ================================================================== -->
+      <!-- INPUTS SECTION (doors, buttons, dock sensors) -->
+      <!-- ================================================================== -->
+      <setting_group name="input_sensors_section">
+        <bind_flag_if_eq subject="input_sensor_count" flag="hidden" ref_value="0"/>
+        <setting_group_header title="INPUTS" icon="electric_switch"/>
+        <lv_obj width="100%"
+                height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
+                style_pad_bottom="#space_md" scrollable="false" flex_flow="column" style_pad_gap="#space_sm">
+          <!-- Door check toggle -->
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                  style_flex_main_place="space_between" style_flex_cross_place="center">
+            <text_small text="Warn if a door is open"/>
+            <ui_switch name="door_check_toggle" size="small">
+              <bind_state_if_eq subject="input_door_check" state="checked" ref_value="1"/>
+              <event_cb trigger="value_changed" callback="on_input_door_check_changed"/>
+            </ui_switch>
+          </lv_obj>
+          <text_tiny width="100%"
+                     text="For materials that need a warm enclosure, like ABS or ASA" style_text_color="#text_muted"
+                     style_text_align="left"/>
+          <text_small width="100%" text="Door switches, buttons, and other on/off inputs" style_text_align="left"/>
+          <!-- Rows: rebuilt whenever input_sensor_count changes -->
+          <lv_obj name="input_sensors_list"
+                  width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="column"
+                  style_pad_gap="#space_xs">
+            <repeat count="input_sensor_count">
+              <input_sensor_row index="$i"/>
+            </repeat>
+          </lv_obj>
+        </lv_obj>
+      </setting_group>
+
+      <!-- ================================================================== -->
       <!-- PROBE SENSORS SECTION -->
       <!-- ================================================================== -->
       <setting_group name="probe_sensors_section">

@@ -623,6 +623,7 @@ translations:
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'L''annullamento spegne il target della camera per terminare l''attesa, poi ferma la stampa.'
   'Cannot add to queue: internal error': 'Impossibile aggiungere alla coda: errore interno'
   Cannot be changed from here on a multi-unit MMU: Non modificabile da qui su un MMU multi-unità
+  Cannot calibrate while printing: 'Impossibile calibrare durante la stampa'
   Cannot change the HelixPrint plugin while printing: Impossibile modificare il plugin HelixPrint durante la stampa
   'Cannot control timelapse: printer not connected': 'Impossibile controllare timelapse:
     stampante non connessa'
@@ -667,6 +668,7 @@ translations:
   Chamber Heater Fan: Ventola riscaldatore camera
   Chamber Sensor: Sensore camera
   Chamber Temperature: Temperatura camera
+  Chamber air: 'Aria camera'
   Chamber and dryer humidity monitoring: Monitoraggio umidità camera ed essiccatore
   Chamber at %d°C: Camera a %d°C
   Chamber heater didn't start: 'Il riscaldatore della camera non si è avviato'
@@ -792,6 +794,7 @@ translations:
   Close: Chiudi
   Close feeder: Chiudi alimentatore
   Close feeder macro: Macro di chiusura alimentatore
+  Closed: Chiusa
   Closer: Più vicino
   Closer = more squish | Farther = less squish: Più vicino = più schiacciamento |
     Più lontano = meno schiacciamento
@@ -1158,6 +1161,10 @@ translations:
   Don't Save: Non salvare
   Don't ask again: Non chiedere più
   Done: Fatto
+  Door: Porta
+  Door Open: Porta aperta
+  'Door opened during print: {}': 'Porta aperta durante la stampa: {}'
+  Door switches, buttons, and other on/off inputs: Interruttori porta, pulsanti e altri ingressi on/off
   Download update?: Scaricare aggiornamento?
   Download v{}?: Scaricare v{}?
   Downloading...: Download in corso...
@@ -1649,6 +1656,7 @@ translations:
   Follow active tool: Segui strumento attivo
   Follow graph screen: Segui schermata grafico
   'For a first Z home: claim the tool you put on the head': 'Per il primo homing Z: registra lo strumento messo sulla testina'
+  For materials that need a warm enclosure, like ABS or ASA: 'Per materiali che richiedono un''enclosure calda, come ABS o ASA'
   Force/weight sensors: 'Sensori di forza/peso'
   Forget: Dimentica
   Forget Network?: Dimenticare la rete?
@@ -1901,6 +1909,7 @@ translations:
   IMPORT FROM USB: IMPORTA DA USB
   INDX dock positions are not calibrated: "Le posizioni dei dock INDX non sono calibrate"
   INDX macros not recognized: "Macro INDX non riconosciute"
+  INPUTS: INGRESSI
   IP Address / Hostname: Indirizzo IP / Hostname
   'IP:': 'IP:'
   'IPP error: {}': 'Errore IPP: {}'
@@ -1998,11 +2007,13 @@ translations:
   Invalid value: 'Valore non valido'
   Invalid value type: 'Tipo di valore non valido'
   Is new filament coming out of the nozzle?: "Il nuovo filamento esce dall'ugello?"
+  Invert: Inverti
   Issue description: Descrizione problema
   It can be un-archived in Spoolman's web UI.: Può essere ripristinata dall'interfaccia web di Spoolman.
   It has not reported its slots yet. Try again in a moment.: Non ha ancora segnalato i suoi slot. Riprova tra un momento.
   It homes and heats on its own (no start macro found).: Esegue l'homing e scalda da sola (nessuna macro di avvio trovata).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: È inceppato tra il sensore dell'hub e il relativo ingranaggio. Aprire il CFS e liberare l'hub prima di riprovare
+  It saves the result and restarts Klipper when it finishes.: 'Al termine salva il risultato e riavvia Klipper.'
   It starts with your {} macro.: Inizia con la tua macro {}.
   It's a new spool: È una nuova bobina
   Its home tile: 'Il suo riquadro della home'
@@ -2363,6 +2374,7 @@ translations:
   Minimum: Minimo
   Minutes: Minuti
   Missing value: 'Valore mancante'
+  Mixed-Temperature Materials: 'Materiali a temperature miste'
   Mode: Modalità
   Modified: Modificato
   'Monitor prints in progress — time remaining, current layer, and progress. Tap to pause, resume, or cancel the active job.': 'Monitora le stampe in corso — tempo rimanente, layer attuale e avanzamento. Tocca per mettere in pausa, riprendere o annullare il lavoro attivo.'
@@ -2717,6 +2729,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Apri il .3mf in File di stampa per stampare di nuovo questo piatto.'
   Open the CFS unit and remove the broken filament from the slot: Aprire l'unità CFS e rimuovere il filamento spezzato dallo slot
   Open the slot editor when you load a new spool: 'Apri l''editor dello slot quando carichi una nuova bobina'
+  Opened: Aperta
   Operation already in progress: Operazione già in corso
   Operation timed out: Timeout dell'operazione
   Operations: Operazioni
@@ -2731,6 +2744,7 @@ translations:
   Or instead of turning the others: Oppure, invece di ruotare le altre
   Original file location unknown: Posizione del file originale sconosciuta
   Oscillating... cycle %d/%d: Oscillazione... ciclo %d/%d
+  Other: Altro
   Outcome: Esito
   Output Device: Dispositivo di uscita
   Output Mode: Modalità uscita
@@ -2838,7 +2852,6 @@ translations:
 
   Placed: Inserito
   Plate {}: 'Piatto {}'
-  Plate {} ({} of {}): 'Piatto {} ({} di {})'
   Platform: Piattaforma
   'Platform: ': 'Piattaforma: '
   Play / stop Crockett's Theme: Riproduci / ferma Crockett's Theme
@@ -2916,6 +2929,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Il Pressure Advance sale man mano che la torre cresce. Osserva gli angoli: tocca - o + quando vuoi e la rampa si ferma così puoi valutare il tuo valore.'
   'Pressure:': 'Pressione:'
+  Pressed: Premuto
   Pressure Adv.: 'Pressure Adv.'
   Pressure Advance: 'Pressure Advance'
   Pressure Advance Calibration: 'Calibrazione pressure advance'
@@ -3179,6 +3193,7 @@ translations:
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Ricevuti dati troppo grandi dalla stampante ({} byte). Potrebbe indicare un errore di comunicazione.
   Recent Prints: Stampe recenti
   Recently Printed: Stampate di recente
+  Recirculate: 'Ricircolo'
   Reconnect: Riconnetti
   Record Timelapse: Registra timelapse
   Record timelapses of your prints: Registra timelapse delle tue stampe
@@ -3212,6 +3227,7 @@ translations:
   Release or grip the filament by hand: Rilascia o afferra il filamento manualmente
   Release the filament: Rilascia il filamento
   Release {}'s tensioner, let the spring settle, lock it: "Rilascia il tenditore di {}, lascia assestare la molla, bloccalo"
+  Released: Rilasciato
   Reload the saved bed mesh?: Ricaricare la mesh salvata?
   Remaining: 'Rimanente'
   Remaining (g): Rimanente (g)
@@ -4112,6 +4128,7 @@ translations:
   The printer lost power while printing {}. Resume where it left off?: La stampante ha
     perso l'alimentazione durante la stampa di {}. Riprendere da dove si è interrotta?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: La stampante ha perso l'alimentazione durante la stampa di {}. Il layer ripreso potrebbe non allinearsi perfettamente.
+  The printer moves the toolhead and measures its motors.: 'La stampante muove la testina e misura i suoi motori.'
   The printer no longer has a print to resume.: La stampante non ha più una stampa da riprendere.
   The printer reads the file up to the last saved position. A large file can take a minute.: La stampante legge il file fino all'ultima posizione salvata. Un file grande può richiedere un minuto.
   The printer records lane {} in the toolhead, not this one: 'La stampante registra la corsia {} nella testina, non questa'
@@ -4190,6 +4207,8 @@ translations:
   This feature requires different hardware or configuration: Questa funzione richiede hardware o configurazione diversi
   This feature stopped. Restart Moonraker to start it again.: "Questa funzione si è fermata. Riavvia Moonraker per avviarla di nuovo."
   This filament system does not report buffer or flow data.: Questo sistema filamento non riporta dati di buffer o flusso.
+  This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: 'Questo file stampa {0} e {1} con un solo ugello. {0} può bruciarsi e ostruire l''ugello alle temperature di {1}.'
+  This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Questo file stampa {0} e {1} insieme. Il calore di camera e piano richiesto da {1} può ammorbidire {0} e intasarne l''ugello.'
   This file was sliced for {} but {} is loaded.: Questo file è stato sezionato per
     {} ma è caricato {}.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Questo file è stato sezionato per {}, ma è caricato {}. La stampa sarà più lenta e più calda di quanto richiesto dalla bobina caricata.
@@ -4380,6 +4399,7 @@ translations:
   Trying again...: 'Nuovo tentativo...'
   Tune: Regola
   Tune Belts: "Regola"
+  Tune the motors to remove fine vertical lines: 'Regola i motori per eliminare le sottili linee verticali'
   Tuner: Taratura
   Tuning tower enabled - start a print to test: Torre di regolazione abilitata - avvia
     una stampa per testare
@@ -4530,6 +4550,7 @@ translations:
   Version and what the plugin runs: 'Versione e cosa esegue il plugin'
   Version {}: Versione {}
   Vertical: Verticale
+  Vertical Artifact Compensation: 'Compensazione artefatti verticali'
   Vibration: Vibrazione
   Vibration compensation active: Compensazione vibrazione attiva
   Video playback speed: Velocità riproduzione video
@@ -4576,6 +4597,7 @@ translations:
   Warm up for a material in one tap: Preriscalda un materiale con un tocco
   Warming Bed...: Preriscaldamento piano...
   Warn: Avviso
+  Warn if a door is open: Avvisa se una porta è aperta
   Warning: Avviso
   Warnings & errors: 'Avvisi ed errori'
   Watch the camera during a print for failed prints: Controlla la telecamera durante la stampa per individuare stampe non riuscite
@@ -4831,6 +4853,10 @@ translations:
   within one bin: "entro un bin"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant non è in esecuzione. Le funzioni WiFi non sono disponibili.
   you have: hai
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0} sono aperte. {1} si stampa meglio in un''enclosure calda e chiusa; una porta aperta raffredda la camera e può causare deformazioni o strati che si separano. Chiudile o avvia comunque.'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0} è aperta. {1} si stampa meglio in un''enclosure calda e chiusa; una porta aperta raffredda la camera e può causare deformazioni o strati che si separano. Chiudila o avvia comunque.'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} risuona molto più di {1} a {2:.0f} Hz. Indica una differenza meccanica (grani della puleggia, cuscinetti dei rinvii, scorrimento della cinghia), non la tensione."
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · circa {} min'
@@ -4841,6 +4867,7 @@ translations:
   '{} LED strips available': '{} strisce LED disponibili'
   '{} MCUs': '{} MCU'
   '{} Tools': '{} utensili'
+  '{} and {}': '{} e {}'
   '{} and {} are both mapped here': '{} e {} sono entrambi assegnati qui'
   '{} available': '{} disponibile'
   '{} axes homed': 'Assi {} in posizione'
@@ -4920,6 +4947,7 @@ translations:
   '{} — response timed out': '{} — tempo scaduto'
   '{} → {}: no filament loaded.': '{} → {}: nessun filamento caricato.'
   "{}'s nozzle is still heating": 'L''ugello di {} si sta ancora riscaldando'
+  '{}, {}': '{}, {}'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: il tag indica la bobina Spoolman #{}, che non esiste'
   '{}:{:02} elapsed': '{}:{:02} trascorso'
   '{}% left': '{}% rimanente'

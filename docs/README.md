@@ -75,6 +75,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Filament Slot Metadata (internal)**](devel/FILAMENT_SLOT_METADATA.md) | `FilamentSlotOverrideStore` implementation: per-backend hooks, hardware-event clearing, cache, migration |
 | [**Creality CFS Internals (K1)**](devel/printer-research/CREALITY_CFS_K1_INTERNALS.md) | K1-family CFS box-wrapper RE reference: `BOX_*` semantics, the printer-side tn_data.json userdata, deferred-failure/resume traps |
 | [**Creality CFS Internals (K2)**](devel/printer-research/CREALITY_CFS_K2_INTERNALS.md) | K2 CFS module RE reference: `box` schema variants, command surface, error codes, runout, the community Kalico port |
+| [**Creator 5 Stock Firmware**](devel/printer-research/FLASHFORGE_CREATOR5_FIRMWARE.md) | Creator 5 stock firmware RE: package decryption, the 2.0.0 layout and features, Klipper deltas, stock features against HelixScreen |
 | [**Filament Slots Spec (public)**](specs/filament_slots.md) | Wire-format convention for the `lane_data` Moonraker DB namespace — readable by any third party |
 | [**Input Shaper & PID**](devel/INPUT_SHAPER.md) | Calibration, frequency response charts, CSV parser |
 | [**Pressure Advance Tuning**](devel/PRESSURE_ADVANCE_TUNING.md) | Tune K by eye on a live test print; Spoolman and Moonraker persistence |

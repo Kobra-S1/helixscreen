@@ -47,6 +47,20 @@ Open it from the **Controls** panel by tapping the cooling/fans card. Fans are s
 
 > Speed changes you make are reflected immediately in the rest of the UI, even before the printer confirms the command.
 
+### Chamber Air Modes
+
+On printers whose firmware groups the chamber fans into air modes, a **Chamber air** row appears at the top of the Fan Control overlay with up to three buttons:
+
+| Button | What the printer does | Typical use |
+|--------|-----------------------|-------------|
+| **Recirculate** | Keeps chamber air inside the enclosure to hold heat | ABS, ASA and other warping-prone materials |
+| **Exhaust** | Vents chamber air out of the printer to keep it cool | PLA, TPU |
+| **Off** | Turns the chamber circulation fans off | |
+
+Tap a button to switch modes. The printer sets the chamber fans for that mode; you can still adjust each fan's dial afterwards. The buttons do not stay highlighted, because the printer does not report which mode is active once its fans have been changed.
+
+Today this row appears on the FlashForge Creator 5 Pro running Z-Mod (its `AIR_CIRCULATION_INTERNAL`, `AIR_CIRCULATION_EXTERNAL` and `AIR_CIRCULATION_STOP` macros). A button appears only when the printer has its macro; on other printers the row is hidden.
+
 ---
 
 ## Renaming a Fan

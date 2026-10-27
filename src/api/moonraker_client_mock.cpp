@@ -13,6 +13,7 @@
 #include "gcode_parser.h"
 #include "helix_thread.h"
 #include "home_layout_share.h"
+#include "input_sensor_manager.h"
 #include "macro_param_cache.h"
 #include "mock_persona.h"
 #include "mock_planted_gcodes.h"
@@ -1128,10 +1129,11 @@ void MoonrakerClientMock::populate_capabilities() {
             // Accumulate tokens: "temperature_fan" + "chamber" → "temperature_fan chamber"
             if (!current_obj.empty()) {
                 // A type prefix always starts a new object...
-                bool is_prefix = (token.rfind("heater_generic", 0) == 0 ||
-                                  token.rfind("temperature_fan", 0) == 0 ||
-                                  token.rfind("temperature_sensor", 0) == 0 ||
-                                  token.rfind("output_pin", 0) == 0);
+                bool is_prefix =
+                    (token.rfind("heater_generic", 0) == 0 ||
+                     token.rfind("temperature_fan", 0) == 0 ||
+                     token.rfind("temperature_sensor", 0) == 0 ||
+                     token.rfind("output_pin", 0) == 0 || token.rfind("gcode_button", 0) == 0);
                 // ...and so does a bare backend diagnostics object
                 // ("dragonbreath") following a COMPLETED chamber heater —
                 // without this the second "dragonbreath" would append to
@@ -1182,6 +1184,17 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back(obj);
     }
 
+    // HELIX_MOCK_STEPPER_RESONANCE: the stepper_resonance_tester extra on any
+    // persona, with the stock STEPPER_RESONANCE_FACTORY_CALIBRATE wrapper ("1")
+    // or the bare extra alone ("bare").
+    if (const char* resonance = std::getenv("HELIX_MOCK_STEPPER_RESONANCE");
+        resonance && *resonance && std::string_view(resonance) != "0") {
+        mock_objects.push_back("stepper_resonance_tester");
+        if (std::string_view(resonance) != "bare") {
+            mock_objects.push_back("gcode_macro STEPPER_RESONANCE_FACTORY_CALIBRATE");
+        }
+    }
+
     // Add printer-specific objects
     switch (printer_type_) {
     case PrinterType::VORON_24:
@@ -1209,6 +1222,9 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("heater_generic chamber_heater");
         mock_objects.push_back("gcode_macro TOOLCHANGE_PARK");
         mock_objects.push_back("gcode_macro BED_MESH_CALIBRATE");
+        // The enclosure's door and top-cover switches.
+        mock_objects.push_back("gcode_button frontDoor");
+        mock_objects.push_back("gcode_button topDoor");
         break;
     case PrinterType::FLASHFORGE_CREATOR5_ZMOD:
         // Z-Mod's own objects. Its carriage buttons are 1-based, unlike the
@@ -1235,6 +1251,14 @@ void MoonrakerClientMock::populate_capabilities() {
         }
         // Same Pro-separating chamber heater as the Reforge persona above.
         mock_objects.push_back("heater_generic chamber_heater");
+        mock_objects.push_back("gcode_button frontDoor");
+        mock_objects.push_back("gcode_button topDoor");
+        // c5pro_generic.cfg's calibration macros.
+        mock_objects.push_back("gcode_macro CALIBRATE_EXTRUDERS");
+        mock_objects.push_back("gcode_macro CALIBRATE_VFA");
+        mock_objects.push_back("gcode_macro AIR_CIRCULATION_INTERNAL");
+        mock_objects.push_back("gcode_macro AIR_CIRCULATION_EXTERNAL");
+        mock_objects.push_back("gcode_macro AIR_CIRCULATION_STOP");
         break;
     case PrinterType::ELEGOO_CC1:
         // The CC1 capture's own objects. _COSMOS_SETTINGS and ELEGOO_PURGE are
@@ -2672,6 +2696,48 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_zmod(const std::stri
         dispatch_gcode_response("// X-Offset: 0.0000 _T_OUT");
         zmod_active_tool_.store(-1);
         dispatch_status_update({{"zmod_color", {{"active_tool_id", -1}}}});
+        return 0;
+    }
+    if (cmd == "CALIBRATE_EXTRUDERS") {
+        // The real macro only opens this prompt; its OK starts the measurement.
+        dispatch_gcode_response("// action:prompt_end");
+        dispatch_gcode_response("// action:prompt_begin CALIBRATE EXTRUDERS");
+        dispatch_gcode_response("// action:prompt_text Please remove the build plate first!");
+        dispatch_gcode_response("// action:prompt_text T0=1, T1=1, T2=1, T3=1");
+        dispatch_gcode_response("// action:prompt_footer_button OK|_T_CALIBRATE_EXTRUDERS|primary");
+        dispatch_gcode_response("// action:prompt_footer_button Cancel|RESPOND TYPE=command "
+                                "MSG=action:prompt_end|secondary");
+        dispatch_gcode_response("// action:prompt_show");
+        return 0;
+    }
+    if (cmd == "_T_CALIBRATE_EXTRUDERS") {
+        dispatch_gcode_response("// action:prompt_end");
+        dispatch_gcode_response("// Extruder calibration finished");
+        return 0;
+    }
+    if (cmd == "AIR_CIRCULATION_INTERNAL" || cmd == "AIR_CIRCULATION_EXTERNAL" ||
+        cmd == "AIR_CIRCULATION_STOP") {
+        // c5pro_generic.cfg's fan speeds per mode: chamber_fan, chamber_cool_fan,
+        // chamber_heat_fan, chamber_loop_fan.
+        static const char* const kFans[] = {"chamber_fan", "chamber_cool_fan", "chamber_heat_fan",
+                                            "chamber_loop_fan"};
+        const double internal[] = {0.0, 0.0, 0.9, 0.3};
+        const double external[] = {0.5, 0.7, 0.0, 0.0};
+        const double stop[] = {0.0, 0.0, 0.0, 0.0};
+        const double* speeds = cmd == "AIR_CIRCULATION_INTERNAL"   ? internal
+                               : cmd == "AIR_CIRCULATION_EXTERNAL" ? external
+                                                                   : stop;
+        for (size_t i = 0; i < std::size(kFans); ++i) {
+            gcode_set_fan_speed(fmt::format("SET_FAN_SPEED FAN={} SPEED={}", kFans[i], speeds[i]));
+        }
+        return 0;
+    }
+    if (cmd == "CALIBRATE_VFA") {
+        // Mounts the head, calibrates and parks it; the real macro then ends
+        // in SAVE_CONFIG, which the mock does not restart for.
+        const std::string tool = param("T").empty() ? "0" : param("T");
+        dispatch_gcode_response("// Grab attempt for T" + tool + ": 1 of 5...");
+        dispatch_gcode_response("// VFA calibration finished");
         return 0;
     }
     if (cmd == "CHANGE_ZCOLOR") {
@@ -4964,6 +5030,18 @@ void MoonrakerClientMock::dispatch_initial_state() {
         const auto env = helix::sim::mock_filament_sensor_env_state(short_name);
         initial_status[sensor] = {{"filament_detected", env.filament_detected},
                                   {"enabled", env.enabled}};
+    }
+
+    // On/off inputs: a door switch reads PRESSED (closed) unless
+    // HELIX_MOCK_DOOR_OPEN is set; every other button reads RELEASED.
+    {
+        const bool doors_open = std::getenv("HELIX_MOCK_DOOR_OPEN") != nullptr;
+        for (const auto& input : helix::sensors::InputSensorManager::inputs_in(
+                 discovery_.hardware().printer_objects())) {
+            const bool is_door = input.role == helix::sensors::InputSensorRole::DOOR;
+            initial_status[input.klipper_name] = {
+                {"state", is_door && !doors_open ? "PRESSED" : "RELEASED"}};
+        }
     }
 
     // The chamber and width sensors carry status only where the persona reports them.

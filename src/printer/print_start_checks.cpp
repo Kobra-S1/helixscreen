@@ -465,7 +465,95 @@ MaterialMismatchDetail external_spool_mismatch(const SlotInfo& spool, int tool_i
     return detail;
 }
 
+/// The database row for a slicer's material name: the name itself, else its
+/// base polymer ("PLA Matte Basic" reads as PLA).
+std::optional<filament::MaterialInfo> resolve_material_info(std::string_view name) {
+    if (name.empty()) {
+        return std::nullopt;
+    }
+    if (auto info = filament::find_material(name)) {
+        return info;
+    }
+    return filament::find_material(filament::extract_base_material(name));
+}
+
+/// The material the file assigns to @p tool: the mapping card's tool info,
+/// else the slicer palette. Empty when neither names one.
+std::string file_material_for_tool(const PrintStartContext& ctx, int tool) {
+    if (const auto* t = ui::FilamentMappingCard::find_by_tool_index(ctx.tool_info, tool)) {
+        if (!t->material.empty()) {
+            return t->material;
+        }
+    }
+    if (tool >= 0 && tool < static_cast<int>(ctx.filament_materials.size())) {
+        return ctx.filament_materials[tool];
+    }
+    return {};
+}
+
+CheckResult gate_mixed_temperature_materials(const PrintStartContext& ctx) {
+    const auto pair = mixed_temperature_materials_in(ctx);
+    if (!pair) {
+        return pass_result();
+    }
+
+    // The risk depends on where the two meet: separate nozzles share only the
+    // bed and chamber, one nozzle runs both through the same hot end.
+    std::string message;
+    if (ctx.multiple_toolheads) {
+        message = fmt::format(lv_tr("This file prints {0} and {1} together. The chamber and bed "
+                                    "heat {1} needs can soften {0} and jam its nozzle."),
+                              pair->cooler, pair->hotter);
+    } else {
+        message = fmt::format(lv_tr("This file prints {0} and {1} through one nozzle. {0} can "
+                                    "burn and clog the nozzle at {1} temperatures."),
+                              pair->cooler, pair->hotter);
+    }
+    message += "\n\n";
+    message += lv_tr("Start print anyway?");
+
+    return warn_result(lv_tr("Mixed-Temperature Materials"), std::move(message),
+                       lv_tr("Start Anyway"));
+}
+
 } // namespace
+
+/// "a", "a and b", "a, b and c": the list read as one phrase. Both joins are
+/// translated patterns, so a locale uses its own separator and final pair.
+static std::string spoken_list(const std::vector<std::string>& names) {
+    if (names.empty()) {
+        return {};
+    }
+    std::string head = names.front();
+    for (size_t i = 1; i + 1 < names.size(); ++i) {
+        head = fmt::format(fmt::runtime(lv_tr("{}, {}")), head, names[i]);
+    }
+    if (names.size() == 1) {
+        return head;
+    }
+    return fmt::format(fmt::runtime(lv_tr("{} and {}")), head, names.back());
+}
+
+CheckResult gate_door_open(const PrintStartContext& ctx) {
+    const auto material = door_warning_material(ctx.door_check_enabled, !ctx.open_doors.empty(),
+                                                materials_in_print(ctx));
+    if (!material) {
+        return pass_result();
+    }
+    const std::string names = spoken_list(ctx.open_doors);
+    spdlog::info("[PrintStartController] Door open ({}) on a {} print - showing pre-print warning",
+                 names, *material);
+    const char* body =
+        ctx.open_doors.size() == 1
+            ? lv_tr("{0} is open. {1} prints best in a warm, closed enclosure; an open door "
+                    "cools the chamber and can cause warping or layer splits. Close it, or "
+                    "start anyway.")
+            : lv_tr("{0} are open. {1} prints best in a warm, closed enclosure; an open door "
+                    "cools the chamber and can cause warping or layer splits. Close them, or "
+                    "start anyway.");
+    return warn_result(lv_tr("Door Open"), fmt::format(fmt::runtime(body), names, *material),
+                       lv_tr("Start Anyway"));
+}
 
 CheckResult gate_printer_stopping_command(const PrintStartContext& ctx) {
     const PrinterStopCheck& stop = ctx.printer_stop;
@@ -874,6 +962,94 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
     return mismatches;
 }
 
+bool materials_conflict_in_temperature(std::string_view a, std::string_view b) {
+    const auto info_a = resolve_material_info(a);
+    const auto info_b = resolve_material_info(b);
+    if (!info_a || !info_b) {
+        return false;
+    }
+    const bool a_hotter = info_a->nozzle_recommended() > info_b->nozzle_recommended();
+    const auto& hotter = a_hotter ? *info_a : *info_b;
+    const auto& cooler = a_hotter ? *info_b : *info_a;
+    // A hotter material printed without a heated chamber leaves the cooler one
+    // in room air, and two ranges that overlap have a nozzle temperature both
+    // print at.
+    return hotter.needs_enclosure() && cooler.nozzle_max < hotter.nozzle_min;
+}
+
+std::vector<std::string> materials_in_print(const PrintStartContext& ctx) {
+    if (!ctx.has_file_facts) {
+        return {};
+    }
+
+    std::set<int> used = ctx.tools_used;
+    if (used.empty() && ctx.metadata.has_value()) {
+        const auto& weights = ctx.metadata->filament_weights;
+        for (size_t i = 0; i < weights.size(); ++i) {
+            if (weights[i] > 0.0) {
+                used.insert(static_cast<int>(i));
+            }
+        }
+    }
+    // A single-material file needs no usage data to say what it prints. With
+    // several materials and none, which ones print is unknown.
+    if (used.empty() && ctx.filament_materials.size() == 1) {
+        used.insert(0);
+    }
+
+    std::vector<std::string> materials;
+    for (int tool : used) {
+        auto material = file_material_for_tool(ctx, tool);
+        if (!material.empty() &&
+            std::find(materials.begin(), materials.end(), material) == materials.end()) {
+            materials.push_back(std::move(material));
+        }
+    }
+    return materials;
+}
+
+std::optional<std::string> enclosure_material_in(const std::vector<std::string>& materials) {
+    std::optional<std::string> warmest;
+    int warmest_chamber_c = 0;
+    for (const auto& material : materials) {
+        const auto info = resolve_material_info(material);
+        if (info && info->needs_enclosure() && info->chamber_temp_c > warmest_chamber_c) {
+            warmest = material;
+            warmest_chamber_c = info->chamber_temp_c;
+        }
+    }
+    return warmest;
+}
+
+std::optional<std::string> door_warning_material(bool door_check_enabled, bool any_door_open,
+                                                 const std::vector<std::string>& materials) {
+    if (!door_check_enabled || !any_door_open) {
+        return std::nullopt;
+    }
+    return enclosure_material_in(materials);
+}
+
+std::optional<MixedTemperatureMaterials>
+mixed_temperature_materials_in(const PrintStartContext& ctx) {
+    const std::vector<std::string> materials = materials_in_print(ctx);
+    for (size_t i = 0; i < materials.size(); ++i) {
+        for (size_t j = i + 1; j < materials.size(); ++j) {
+            if (!materials_conflict_in_temperature(materials[i], materials[j])) {
+                continue;
+            }
+            const auto info_i = resolve_material_info(materials[i]);
+            const auto info_j = resolve_material_info(materials[j]);
+            const bool i_cooler = info_i->nozzle_recommended() < info_j->nozzle_recommended();
+            MixedTemperatureMaterials pair{i_cooler ? materials[i] : materials[j],
+                                           i_cooler ? materials[j] : materials[i]};
+            spdlog::info("[PrintStartController] Mixed-temperature materials: {} with {}",
+                         pair.cooler, pair.hotter);
+            return pair;
+        }
+    }
+    return std::nullopt;
+}
+
 const std::vector<PrintStartGate>& default_print_start_gates() {
     // Order is the order the questions are asked in: the file itself first, then
     // filament supply, then what is at the toolhead, then the mapping.
@@ -882,6 +1058,8 @@ const std::vector<PrintStartGate>& default_print_start_gates() {
         {"printer_stopping_command", gate_printer_stopping_command},
         // Then a file the printer cannot run as sliced.
         {"fit_check", gate_fit_check},
+        // Then a file whose materials cannot share one print.
+        {"mixed_temperature_materials", gate_mixed_temperature_materials},
         {"insufficient_spool_weight", gate_insufficient_spool_weight},
         // The lane-fed counterpart. Mutually exclusive with the spool check by
         // construction: that one returns early on a lane-fed AMS print, this
@@ -892,6 +1070,9 @@ const std::vector<PrintStartGate>& default_print_start_gates() {
         {"required_filament_present", gate_required_filament_present},
         {"unresolved_tools", gate_unresolved_tools},
         {"material_compatibility", gate_material_compatibility},
+        // Last: a door is closed in a second, so it is asked after anything
+        // that needs the user to think about the file or the filament.
+        {"door_open", gate_door_open},
     };
     return gates;
 }

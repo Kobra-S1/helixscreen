@@ -291,6 +291,8 @@ src/printer/toolchanger_addon.cpp
 src/printer/zmod_color_status.cpp
 src/printer/toolhead_homing.cpp
 src/printer/tool_offset_calibration.cpp
+src/printer/stepper_resonance_calibration.cpp
+src/printer/chamber_air_modes.cpp
 src/printer/pa_calibration.cpp
 src/printer/pa_tuning.cpp
 src/printer/tool_offsets.cpp
@@ -298,6 +300,7 @@ src/printer/tool_state.cpp
 src/printer/tool_offsets.cpp
 src/sensors/accel_sensor_manager.cpp
 src/sensors/humidity_sensor_manager.cpp
+src/sensors/input_sensor_manager.cpp
 src/sensors/load_cell_manager.cpp
 src/sensors/probe_sensor_manager.cpp
 src/sensors/temperature_sensor_manager.cpp

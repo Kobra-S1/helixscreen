@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/archive_transfers.h"
+#include "../test_helpers/stored_zip.h"
 #include "three_mf_reader.h"
 
 #include <atomic>
@@ -464,4 +465,88 @@ TEST_CASE_METHOD(ReaderFixture,
     CHECK(transfers.ranges == 1);
     REQUIRE(summarise("a.gcode.3mf", 1700000000.75).ok);
     CHECK(transfers.ranges == 2);
+}
+
+// ---------------------------------------------------------------------------
+// model_settings.config through the reader
+// ---------------------------------------------------------------------------
+
+namespace {
+
+const char* const kPointerSettings = R"(<config>
+  <plate>
+    <metadata key="plater_id" value="1"/>
+    <metadata key="plater_name" value="Brackets"/>
+    <metadata key="gcode_file" value="Metadata/brackets.gcode"/>
+  </plate>
+  <plate>
+    <metadata key="plater_id" value="2"/>
+    <metadata key="gcode_file" value="Metadata/missing.gcode"/>
+  </plate>
+</config>)";
+
+/// Two plates: plate 1's G-code under a name model_settings points at, plate 2
+/// under its plate_<N> name with a pointer to an entry that is not there.
+std::string pointer_archive() {
+    return helix::test::stored_zip({
+        {"Metadata/brackets.gcode", "; plate one\nG28\n"},
+        {"Metadata/plate_1.gcode", "; a stale plate one\n"},
+        {"Metadata/plate_2.gcode", "; plate two\nG28\n"},
+        {"Metadata/model_settings.config", kPointerSettings},
+    });
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ReaderFixture, "a summary follows model_settings to each plate's G-code and name",
+                 "[three_mf][reader][model_settings]") {
+    put("p.gcode.3mf", pointer_archive());
+    const auto r = summarise("p.gcode.3mf");
+    REQUIRE(r.ok);
+    REQUIRE(r.summary.plates.size() == 2);
+    CHECK(r.summary.plates[0].index == 1);
+    CHECK(r.summary.plates[0].name == "Brackets");
+    REQUIRE(r.summary.plates[0].gcode);
+    CHECK(r.summary.plates[0].gcode->name == "Metadata/brackets.gcode");
+    CHECK(r.summary.plates[1].index == 2);
+    CHECK(r.summary.plates[1].name.empty());
+    REQUIRE(r.summary.plates[1].gcode);
+    CHECK(r.summary.plates[1].gcode->name == "Metadata/plate_2.gcode");
+    // model_settings sat inside the tail read: no read beyond it.
+    CHECK(transfers.ranges == 1);
+}
+
+TEST_CASE_METHOD(ReaderFixture,
+                 "a model_settings read that fails answers named plates, keeps nothing",
+                 "[three_mf][reader][model_settings]") {
+    // Padding ahead of the tail puts model_settings outside it.
+    std::string padding(helix::zip::kZipTailReadBytes + 4096, 'x');
+    put("far.gcode.3mf", helix::test::stored_zip({
+                             {"Metadata/model_settings.config", kPointerSettings},
+                             {"Metadata/pad.bin", padding},
+                             {"Metadata/brackets.gcode", "; plate one\n"},
+                             {"Metadata/plate_1.gcode", "; a stale plate one\n"},
+                         }));
+    transfers.fail_from = 2;
+    const auto r = summarise("far.gcode.3mf");
+    REQUIRE(r.ok);
+    REQUIRE(r.summary.plates.size() == 1);
+    CHECK(r.summary.plates[0].gcode->name == "Metadata/plate_1.gcode");
+    // Not kept: the next read asks again.
+    transfers.fail_from = 0;
+    const auto again = summarise("far.gcode.3mf");
+    REQUIRE(again.summary.plates.size() == 1);
+    CHECK(again.summary.plates[0].gcode->name == "Metadata/brackets.gcode");
+    CHECK(again.summary.plates[0].name == "Brackets");
+}
+
+TEST_CASE("extract_plate writes the G-code model_settings points at",
+          "[three_mf][reader][extract][model_settings]") {
+    TempFile zip("ptr.gcode.3mf");
+    TempFile out("ptr.gcode");
+    write_file(zip.path, pointer_archive());
+    CHECK(ThreeMfReader::extract_plate(zip.path, 1, out.path) == ZipError::None);
+    CHECK(disk_text(out.path) == "; plate one\nG28\n");
+    CHECK(ThreeMfReader::extract_plate(zip.path, 2, out.path) == ZipError::None);
+    CHECK(disk_text(out.path) == "; plate two\nG28\n");
 }
