@@ -44,6 +44,15 @@
          holds three rows of action buttons under it only when it is compact. -->
     <style name="bypass_row" height="#button_height"/>
     <style name="bypass_row_compact" height="#button_height_sm"/>
+    <!-- While Cancel shares the status line, the text keeps at least half of it
+         and the line wraps where both do not fit (a 480x272 column, a long
+         locale): Cancel drops to a line of its own rather than the text
+         breaking mid-word. A growing item counts only its min width toward the
+         wrap, so the floor is what makes it wrap. The flow is bound both ways:
+         an inline flex_flow would override the bound one. -->
+    <style name="status_row" layout="flex" flex_flow="row"/>
+    <style name="status_wrap" layout="flex" flex_flow="row_wrap"/>
+    <style name="status_text_floor" min_width="50%"/>
   </styles>
   <view name="ams_sidebar"
         extends="lv_obj" width="100%" height="100%" style_pad_all="0" scrollable="true" scroll_dir="ver"
@@ -54,18 +63,22 @@
     <ams_loaded_card name="current_loaded_card"/>
     <!-- Status Section -->
     <lv_obj name="status_section"
-            width="100%" height="content" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+            width="100%" height="content" style_flex_main_place="center" style_flex_cross_place="center"
             style_pad_gap="#space_sm" scrollable="false">
       <bind_style_if_eq name="status_landscape" subject="ui_is_portrait" ref_value="0"/>
       <bind_style_if_eq name="status_portrait" subject="ui_is_portrait" ref_value="1"/>
+      <bind_style_if_eq name="status_row" subject="ams_sidebar_cancel_shown" ref_value="0"/>
+      <bind_style_if_eq name="status_wrap" subject="ams_sidebar_cancel_shown" ref_value="1"/>
       <!-- Status label - bound to ams_action_detail subject -->
-      <text_body name="status_label" bind_text="ams_action_detail" style_text_align="center" flex_grow="1"/>
+      <text_body name="status_label" bind_text="ams_action_detail" style_text_align="center" flex_grow="1">
+        <bind_style_if_eq name="status_text_floor" subject="ams_sidebar_cancel_shown" ref_value="1"/>
+      </text_body>
       <!-- Cancel rides at the end of the status line while an operation the
            backend can stop is running (AmsOperationSidebar::refresh_button_gating),
            so it takes no height from the steps and stays put while they scroll. -->
       <ui_button name="btn_cancel_operation"
-                 width="content" variant="danger" icon="stop" text="Cancel" long_mode="dots"
-                 style_min_height="#touch_target_min" style_max_height="#touch_target_min" style_pad_ver="#space_xxs">
+                 width="content" variant="danger" icon="stop" text="Cancel" style_min_height="#touch_target_min"
+                 style_max_height="#touch_target_min" style_pad_ver="#space_xxs">
         <bind_flag_if_eq subject="ams_sidebar_cancel_shown" flag="hidden" ref_value="0"/>
         <event_cb trigger="clicked" callback="ams_sidebar_cancel_clicked"/>
       </ui_button>
@@ -87,16 +100,19 @@
         </ui_switch>
       </lv_obj>
     </lv_obj>
-    <!-- Step Progress Stepper (shown during load operations). It scrolls inside
-         a share of the column, so a run of many steps never scrolls the column
-         and the status line above it off screen. -->
+    <!-- Step Progress Stepper (shown during load operations). It fills the
+         column's free height and scrolls inside it, so a run of many steps never
+         scrolls the column and the status line above it off screen. -->
     <lv_obj name="progress_stepper_container"
-            width="100%" height="content" style_max_height="55%" style_pad_all="0" scrollable="true" scroll_dir="ver"
+            width="100%" height="content" flex_grow="1" style_pad_all="0" scrollable="true" scroll_dir="ver"
             scrollbar_mode="auto" hidden="true">
       <!-- Step progress widget created dynamically by AmsOperationSidebar -->
     </lv_obj>
-    <!-- Flex spacer - pushes action buttons to bottom of column -->
-    <lv_obj width="1" style_pad_all="0" scrollable="false" flex_grow="1"/>
+    <!-- Flex spacer - pushes action buttons to bottom of column. During an
+         operation the stepper takes the free height instead. -->
+    <lv_obj width="1" style_pad_all="0" scrollable="false" flex_grow="1">
+      <bind_flag_if_not_eq subject="ams_action" flag="hidden" ref_value="0"/>
+    </lv_obj>
     <!-- Action Buttons Container - hidden during ANY operation (ams_action != IDLE) -->
     <!-- Two buttons to a row (styles.action_*), so every action stays on screen;
          a narrow portrait screen puts all four in one row. -->
