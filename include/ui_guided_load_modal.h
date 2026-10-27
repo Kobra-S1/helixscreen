@@ -8,6 +8,7 @@
 
 #include "filament_macro_profiles.h"
 #include "guided_load_flow.h"
+#include "print_lifecycle_state.h"
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
@@ -30,8 +31,13 @@ class GuidedLoadModal : public Modal {
         return "guided_load_modal";
     }
 
-    /// Show on the active screen and hand the instance to ModalStack.
+    /// Show on the active screen and hand the instance to ModalStack. Declines
+    /// while a print job holds the machine: the wizard's buttons move the
+    /// printer and its endings cool the nozzle and reset the printer's status.
     static bool show_owned(filament_macros::GuidedLoad steps, bool waits_for_push);
+
+    /// Whether the wizard may open with the print in @p lifecycle.
+    [[nodiscard]] static bool opens_during(PrintState lifecycle);
 
     /// The stage the XML binds, as GuidedLoadModal publishes it.
     enum class View : int { Push = 0, Working = 1, Confirm = 2 };

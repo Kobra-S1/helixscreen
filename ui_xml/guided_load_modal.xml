@@ -48,6 +48,12 @@
       <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="0"/>
     </modal_button_row>
 
+    <modal_button_row name="working_buttons"
+                      hide_secondary="true" primary_name="btn_cancel_working" primary_text="Cancel"
+                      primary_variant="secondary" primary_callback="on_guided_load_cancel">
+      <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="1"/>
+    </modal_button_row>
+
     <modal_button_row name="confirm_buttons"
                       secondary_name="btn_extrude_more" secondary_text="Extrude more"
                       secondary_callback="on_guided_load_extrude" primary_name="btn_done" primary_text="Done"

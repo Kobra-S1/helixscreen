@@ -7,6 +7,7 @@
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
 #include "observer_factory.h"
+#include "printer_state.h"
 
 #include <spdlog/spdlog.h>
 
@@ -39,7 +40,16 @@ GuidedLoadModal::View GuidedLoadModal::view_for(GuidedLoadStage stage) {
     }
 }
 
+bool GuidedLoadModal::opens_during(PrintState lifecycle) {
+    return !job_holds_machine(lifecycle);
+}
+
 bool GuidedLoadModal::show_owned(filament_macros::GuidedLoad steps, bool waits_for_push) {
+    const PrintState lifecycle = get_printer_state().print_state().get_print_lifecycle();
+    if (!opens_during(lifecycle)) {
+        spdlog::info("[Guided Load] Not opening: a print job holds the machine");
+        return false;
+    }
     auto modal = std::make_unique<GuidedLoadModal>(std::move(steps), waits_for_push);
     register_callbacks();
     modal->init_subjects();

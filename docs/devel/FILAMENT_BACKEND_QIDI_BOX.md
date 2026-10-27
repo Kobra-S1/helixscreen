@@ -173,6 +173,8 @@ Not implemented: `recover()` / `reset()` / `cancel()` (return `not_supported`), 
 2. `recover()` / `reset()` / `cancel()` — still `not_supported`; blocked on knowing the stock recovery flow.
 3. Bypass — unknown whether the Box has one; needs hardware inspection.
 4. Path visualization — segments return `NONE` today.
+5. The external spool with a box attached: the stock screen loads it as slot 16 (`MULTI_COLOR_LOAD SLOT=slot16`, or `M604`, whose box branch retracts box filament first with `E_LOAD SLOT=16`); the backend offers no external-spool target, so with a box it cannot be loaded from here. Needs a box to verify.
+6. `multi_color_controller.operation.is_waiting_user`: the 01.01.02 stock screen answers it with a confirm popup that sends `USER_CONFIRM_CONTINUE`. Nothing here watches it, so a box operation that stops for the user waits until it is answered from another client. Needs a box to verify.
 
 ---
 
