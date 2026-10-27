@@ -1376,7 +1376,7 @@ class ConfirmationModal : public Modal {
   public:
     ConfirmationModal(std::string title, std::string message, ModalSeverity severity,
                       std::string primary, std::string secondary, bool show_cancel,
-                      std::function<void()> on_dismiss,
+                      helix::SharedCallback<void()> on_dismiss,
                       std::optional<helix::LifetimeToken> owner_token)
         : attrs_(std::move(title), std::move(message), severity, std::move(primary),
                  std::move(secondary), show_cancel),
@@ -1385,8 +1385,8 @@ class ConfirmationModal : public Modal {
     /// The callbacks never touch a widget, so nothing of the caller's is
     /// attached to one and there is no user_data to outlive anything
     /// (prestonbrown/helixscreen#1383).
-    void set_callbacks(std::function<void()> on_confirm, std::function<void()> on_cancel,
-                       bool has_cancel) {
+    void set_callbacks(helix::SharedCallback<void()> on_confirm,
+                       helix::SharedCallback<void()> on_cancel, bool has_cancel) {
         fn_confirm_ = std::move(on_confirm);
         fn_cancel_ = std::move(on_cancel);
         has_cancel_ = has_cancel;
@@ -1522,10 +1522,10 @@ class ConfirmationModal : public Modal {
     }
 
     helix::ui::ModalDialogAttrs attrs_;
-    std::function<void()> on_dismiss_;
+    helix::SharedCallback<void()> on_dismiss_;
     std::optional<helix::LifetimeToken> owner_token_;
-    std::function<void()> fn_confirm_;
-    std::function<void()> fn_cancel_;
+    helix::SharedCallback<void()> fn_confirm_;
+    helix::SharedCallback<void()> fn_cancel_;
     bool has_cancel_ = false;
     bool answered_ = false;
 };
@@ -1533,7 +1533,7 @@ class ConfirmationModal : public Modal {
 /// The one build sequence behind both forms.
 lv_obj_t* build_confirmation(const char* title, const char* message, ModalSeverity severity,
                              const char* primary_text, const char* cancel_text, bool has_cancel,
-                             std::function<void()> on_dismiss,
+                             helix::SharedCallback<void()> on_dismiss,
                              std::optional<helix::LifetimeToken> owner_token,
                              const std::function<void(ConfirmationModal&)>& setup) {
     if (!title || !message) {
@@ -1564,7 +1564,8 @@ lv_obj_t* build_confirmation(const char* title, const char* message, ModalSeveri
 } // namespace
 
 lv_obj_t* helix::ui::modal_confirm(const char* title, const char* message, ModalSeverity severity,
-                                   const char* confirm_text, std::function<void()> on_confirm,
+                                   const char* confirm_text,
+                                   helix::SharedCallback<void()> on_confirm,
                                    const ConfirmOptions& options) {
     return build_confirmation(title, message, severity, confirm_text, options.cancel_text,
                               /*has_cancel=*/true, options.on_dismiss, options.owner_token,
@@ -1591,7 +1592,7 @@ std::string helix::ui::config_rewrite_message(std::string_view what) {
 
 lv_obj_t* helix::ui::confirm_config_rewrite(const char* title, std::string_view what,
                                             const char* confirm_text,
-                                            std::function<void()> on_confirm,
+                                            helix::SharedCallback<void()> on_confirm,
                                             const ConfirmOptions& options) {
     const std::string message = config_rewrite_message(what);
     return modal_confirm(title, message.c_str(), ModalSeverity::Warning, confirm_text,
@@ -1599,7 +1600,7 @@ lv_obj_t* helix::ui::confirm_config_rewrite(const char* title, std::string_view 
 }
 
 lv_obj_t* helix::ui::modal_alert(const char* title, const char* message, ModalSeverity severity,
-                                 const char* ok_text, std::function<void()> on_ok,
+                                 const char* ok_text, helix::SharedCallback<void()> on_ok,
                                  const AlertOptions& options) {
     return build_confirmation(title, message, severity, ok_text, nullptr, /*has_cancel=*/false,
                               options.on_dismiss, options.owner_token, [&](ConfirmationModal& m) {
@@ -1609,7 +1610,7 @@ lv_obj_t* helix::ui::modal_alert(const char* title, const char* message, ModalSe
 }
 
 lv_obj_t* helix::ui::show_resonance_memory_refusal(size_t headroom_mb,
-                                                   std::function<void()> on_close,
+                                                   helix::SharedCallback<void()> on_close,
                                                    const AlertOptions& options) {
     std::string msg = lv_tr("There is not enough free memory to run this test. Klipper's "
                             "analysis would run out of memory and leave the printer stuck "
@@ -1629,7 +1630,7 @@ lv_obj_t* helix::ui::show_resonance_memory_refusal(size_t headroom_mb,
 }
 
 lv_obj_t* helix::ui::show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** dialog_handle,
-                                                    std::function<void()> on_confirm,
+                                                    helix::SharedCallback<void()> on_confirm,
                                                     const ConfirmOptions& options) {
     // A mistranslated {} must never abort through the LVGL C dispatch frame:
     // the unformatted wording stands in if formatting fails.
@@ -1657,7 +1658,8 @@ lv_obj_t* helix::ui::show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** 
             *dialog_handle = nullptr;
         }
     };
-    auto lead_with_drop = [drop](std::function<void()> rest) -> std::function<void()> {
+    auto lead_with_drop =
+        [drop](helix::SharedCallback<void()> rest) -> helix::SharedCallback<void()> {
         if (!rest) {
             return drop;
         }
@@ -1668,7 +1670,7 @@ lv_obj_t* helix::ui::show_low_ram_resonance_warning(size_t total_mb, lv_obj_t** 
     };
     all.on_cancel = lead_with_drop(std::move(all.on_cancel));
     all.on_dismiss = lead_with_drop(std::move(all.on_dismiss));
-    std::function<void()> confirm = lead_with_drop(std::move(on_confirm));
+    helix::SharedCallback<void()> confirm = lead_with_drop(std::move(on_confirm));
     lv_obj_t* dialog = modal_confirm(lv_tr("Low Memory"), msg.c_str(), ModalSeverity::Warning,
                                      lv_tr("Continue"), std::move(confirm), all);
     if (dialog_handle) {
