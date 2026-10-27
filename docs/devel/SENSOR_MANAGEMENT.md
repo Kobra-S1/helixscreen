@@ -56,7 +56,7 @@ Klipper objects.list ──► MoonrakerDiscoverySequence (bucket names, build s
         │                         └─ configfile.config ──► queue_update ──► Probe/Accel discover_from_config()
         ▼
 PrinterDiscovery ──► init_subsystems_from_hardware()
-                         ├─ FilamentSensorManager::discover_sensors() + load_config_from_file()
+                         ├─ FilamentSensorManager::discover(hw) + load_settings()
                          ├─ TemperatureSensorManager::discover()
                          ├─ LoadCellManager::discover()
                          ├─ ProbeSensorManager::discover(hw) + load_settings()
@@ -78,7 +78,6 @@ The managers share a method vocabulary, not a base class. What ties them togethe
 ```cpp
 // include/sensor_managers.h
 template <typename Fn> void for_each_sensor_manager(Fn&& fn) {
-    fn(FilamentSensorManager::instance());
     fn(HumiditySensorManager::instance());
     fn(WidthSensorManager::instance());
     fn(ProbeSensorManager::instance());
@@ -101,7 +100,7 @@ Discovery is deliberately not on that list, because each manager reads a differe
 
 | Manager | Input | Persisted config loaded |
 |---------|-------|-------------------------|
-| Filament | `hardware.filament_sensor_names()`, only when `has_filament_sensors()` | `load_config_from_file()` |
+| Filament | `hardware.objects_of({FilamentSwitch, FilamentMotion})`, every connect, AMS-owned sensors included | `load_settings()` |
 | Temperature | `hardware.sensors()` | none |
 | Load cell | `hardware.load_cells()` | none |
 | Probe | `hardware.objects_of({Probe})` plus its config-only sections, re-run when the configfile arrives | `load_settings()` |
@@ -153,8 +152,9 @@ All values are integers so XML can bind them. Fixed-name subjects register globa
 | `filament_runout_detected`, `filament_toolhead_detected`, `filament_entry_detected` | Filament | -1 no sensor holds the role, 0 empty, 1 filament present, 2 configured but disabled |
 | `filament_runout_scoped` | Filament | same -1/0/1/2, scoped to the running print's tools; written by `PrintStatusPanel` via `set_scoped_runout()` |
 | `filament_any_runout` | Filament | 1 when `has_any_runout()` and outside the startup grace period |
-| `filament_motion_active`, `filament_master_enabled`, `filament_sensor_count` | Filament | 0/1, 0/1, count |
-| `filament_probe_triggered` | Filament (a switch sensor in the Z_PROBE role) | -1/0/1/2 |
+| `filament_master_enabled`, `filament_sensor_count` | Filament | 0/1, count |
+| `filament_motion_signature` | Filament | changes whenever an input of `clog_motion_sensor()` changes; the value means nothing |
+| `filament_sensor_config_revision` | Filament | ticks when a sensor's role or enabled flag, or the master switch, changes |
 | `probe_triggered` | Probe | -1/0/1 |
 | `temp_sensor_count` | Temperature | count; the per-sensor subjects carry decidegrees (°C x 10) |
 | `chamber_humidity`, `dryer_humidity` | Humidity | % x 10, -1 when no enabled sensor holds the role |
@@ -171,7 +171,7 @@ Each manager exposes `get_subjects_lifetime()`. Pass it as the fourth argument o
 
 ### Config persistence
 
-Three managers persist per-sensor config under the active printer's prefix (`Config::df()`): `filament_sensors`, `probe_sensors` and `width_sensors`. Each stores a `sensors` array of `{klipper_name, role, enabled, ...}` and the filament block adds `master_enabled` and an optional per-sensor `lane`. The UI writes through `save_config_to_file()` after each change (Settings > Sensors and the wizard).
+Three managers persist per-sensor config under the active printer's prefix (`Config::df()`): `filament_sensors`, `probe_sensors` and `width_sensors`. Each stores a `sensors` array of `{klipper_name, role, enabled, ...}` and the filament block adds `master_enabled` and a per-sensor `lane`, written only for a sensor that has one. The UI writes through `save_settings()` after each change (Settings > Sensors and the wizard). Reads are lenient: a wrong-typed field is skipped and the rest still applies.
 
 Temperature, humidity and accelerometer managers implement `load_config(json)` / `save_config()`, but nothing in `src/` calls them, and nothing in `src/` calls their `set_sensor_role()` either: the Settings overlay lists these sensors read-only. Their roles are therefore exactly what discovery derives from the names, plus the chamber promotion `PrinterState` applies from the saved chamber assignment, and a rediscovery reproduces them. Wire `load_config_from_file()` / `save_config_to_file()` the way width does when a UI starts assigning these roles. `LoadCellManager::load_config()` is a documented no-op.
 
@@ -188,13 +188,14 @@ enum class FilamentSensorRole {
     RUNOUT = 1,   ///< Primary runout detection sensor
     TOOLHEAD = 2, ///< Toolhead/nozzle proximity sensor
     ENTRY = 3,    ///< Entry point detection sensor
-    Z_PROBE = 10  ///< Z probing sensor (maps to Klipper "probe" object)
 };
 ```
 
-`FilamentSensorType` is `SWITCH` or `MOTION`, read off the object prefix. Motion sensors also report `detection_count`.
+A saved `"z_probe"` role reads as NONE: a filament switch is never the Z probe.
 
-Role assignment (`src/print/filament_sensor_manager.cpp#set_sensor_role`) keeps one holder per role, except RUNOUT, which keeps one holder per lane so multi-head printers can have a runout sensor per head. Discovery auto-assigns RUNOUT to the first sensor whose name contains `runout`; the wizard step assigns it when there is exactly one non-AMS sensor and asks when there are several.
+`FilamentSensorType` is `SWITCH` or `MOTION`, the hardware object table's type index for each prefix. Motion sensors also report `detection_count`.
+
+`FilamentSensorManager` derives from `SensorManager` and overrides two of its behaviors. Role assignment (`src/print/filament_sensor_manager.cpp#set_role`) keeps one holder per role, except RUNOUT, which keeps one holder per lane so multi-head printers can have a runout sensor per head. `update_from_status()` reads `AmsState` before taking the manager's mutex and fires toasts and the state-change callback after releasing it (below). Discovery auto-assigns RUNOUT to the first sensor whose name contains `runout`, only for a name new to the manager, so a rediscovery never undoes the user's choice; the wizard step assigns it when there is exactly one non-AMS sensor and asks when there are several. A sensor missing from a discovery keeps its last reading, marked unavailable, for a reconnect that brings it back.
 
 Sensors that belong to an AMS backend (lane, hub, buffer and toolhead sensors named by Happy Hare, AFC, AD5X IFS, CFS and others) are filtered out of the Settings list and the wizard by `PrinterHardware::is_ams_sensor()`, which defers per-backend names to `AmsBackend::sensor_belongs_to_backend()` (`include/ams_backend.h#"static bool sensor_belongs_to_backend("`). They are still discovered and still reported; they just are not offered for role assignment.
 
@@ -208,13 +209,12 @@ Two questions look alike and are answered differently.
 
 ```cpp
 // src/print/filament_sensor_manager.cpp#monitors_runout
-bool FilamentSensorManager::monitors_runout(const FilamentSensorConfig& config) const {
-    if (!config.enabled || config.role == FilamentSensorRole::NONE) {
+bool FilamentSensorManager::monitors_runout(const SensorEntry& sensor) const {
+    if (!sensor.enabled || filament_role(sensor) == FilamentSensorRole::NONE) {
         return false;
     }
-    auto it = states_.find(config.klipper_name);
-    return it != states_.end() &&
-           (it->second.enabled || observed_runouts_.count(config.klipper_name) > 0);
+    auto* st = state(sensor.klipper_name);
+    return st && (st->enabled || observed_runouts_.count(sensor.klipper_name) > 0);
 }
 ```
 
@@ -232,7 +232,7 @@ There are three runout queries, from coarse to fine:
 
 ### State defaults and the grace period
 
-`FilamentSensorState::filament_detected` defaults to `true`, so a read before the first status frame never looks like a runout. On top of that, `discover_sensors()` restarts a stabilization window (`helix::app_constants::startup::kSensorStabilizationPeriod`, 5 s) during which toasts are suppressed and `filament_any_runout` is held at 0. `has_any_runout()` itself ignores the window, so a print status panel opened right after a restart on an already-paused print still sees the runout.
+`FilamentSensorState::filament_detected` defaults to `true`, so a read before the first status frame never looks like a runout. On top of that, each discovery restarts a stabilization window (`helix::app_constants::startup::kSensorStabilizationPeriod`, 5 s) during which toasts are suppressed and `filament_any_runout` is held at 0. `has_any_runout()` itself ignores the window, so a print status panel opened right after a restart on an already-paused print still sees the runout.
 
 ### Toasts
 

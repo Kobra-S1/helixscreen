@@ -29,6 +29,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "../test_helpers/print_status_preview_fixture.h"
@@ -175,8 +176,8 @@ class StaleLoadFixture : public PrintStatusPreviewFixture {
         fsm.init_subjects();
         PostUnloadGraceTestAccess::reset(fsm);
         fsm.set_master_enabled(true);
-        fsm.discover_sensors({kRunoutSensor});
-        fsm.set_sensor_role(kRunoutSensor, FilamentSensorRole::RUNOUT);
+        discover_filament_sensors(fsm, {kRunoutSensor});
+        fsm.set_role(kRunoutSensor, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
         PostUnloadGraceTestAccess::clear_startup_grace(fsm);
         fsm.update_from_status(
             nlohmann::json{{kRunoutSensor, {{"filament_detected", true}, {"enabled", true}}}});
@@ -196,7 +197,8 @@ class StaleLoadFixture : public PrintStatusPreviewFixture {
     }
 
     int scoped_runout() {
-        return lv_subject_get_int(FilamentSensorManager::instance().get_scoped_runout_subject());
+        return lv_subject_get_int(FilamentSensorManagerTestAccess::scoped_runout_subject(
+            FilamentSensorManager::instance()));
     }
 
     int layer_total() {

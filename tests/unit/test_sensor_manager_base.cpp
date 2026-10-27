@@ -400,7 +400,7 @@ std::vector<FixtureCase> fixture_cases() {
         {"filament",
          "filament_sensors",
          {hw::ObjectKind::FilamentSwitch, hw::ObjectKind::FilamentMotion},
-         roles_from(kFilamentSensorRoles, {FilamentSensorRole::Z_PROBE}),
+         roles_from(kFilamentSensorRoles),
          types_from(kFilamentSensorTypes),
          Persona::Filament},
         {"probe",

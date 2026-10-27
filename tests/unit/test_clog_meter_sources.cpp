@@ -187,7 +187,7 @@ struct MotionSensorFixture : LVGLTestFixture {
     }
 
     void discover(std::vector<std::string> names) {
-        fsm.discover_sensors(names);
+        discover_filament_sensors(fsm, names);
     }
 
     /// The meter's observer is deferred through the UpdateQueue.
@@ -335,10 +335,10 @@ TEST_CASE_METHOD(MotionSensorFixture, "clog meter: which motion sensors make the
         discover({kEncoder});
         feed(motion_frame(kEncoder, true, true));
         REQUIRE(mode(ams) != 0);
-        fsm.set_sensor_enabled(kEncoder, false);
+        fsm.set_enabled(kEncoder, false);
         settle();
         CHECK(mode(ams) == 0);
-        fsm.set_sensor_enabled(kEncoder, true);
+        fsm.set_enabled(kEncoder, true);
         settle();
         CHECK(mode(ams) == static_cast<int>(ClogMeterMode::Motion));
     }

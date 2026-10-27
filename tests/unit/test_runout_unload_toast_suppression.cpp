@@ -40,6 +40,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
@@ -138,8 +139,8 @@ class UnloadToastFixture : public LVGLTestFixture {
         fsm.init_subjects();
         PostUnloadGraceTestAccess::reset(fsm);
         fsm.set_master_enabled(true);
-        fsm.discover_sensors({kToolheadSensor});
-        fsm.set_sensor_role(kToolheadSensor, FilamentSensorRole::TOOLHEAD);
+        discover_filament_sensors(fsm, {kToolheadSensor});
+        fsm.set_role(kToolheadSensor, static_cast<uint8_t>(FilamentSensorRole::TOOLHEAD));
 
         // Filament present. The prompt only arms when the sensor currently SEES
         // filament, so this baseline has to land before arm_manual_pull_prompt().

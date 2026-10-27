@@ -152,7 +152,7 @@
       ]
     },
     "filament": {
-      "count": 16,
+      "count": 8,
       "entries": [
         {
           "enabled": true,
@@ -202,62 +202,6 @@
           "role": "none",
           "sensor_name": "fd_ex3",
           "type": "switch"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "filament_motion_sensor fm_ex3",
-          "role": "none",
-          "sensor_name": "fm_ex3",
-          "type": "motion"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "filament_switch_sensor fd_ex0",
-          "role": "none",
-          "sensor_name": "fd_ex0",
-          "type": "switch"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "filament_switch_sensor fd_ex1",
-          "role": "none",
-          "sensor_name": "fd_ex1",
-          "type": "switch"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "filament_switch_sensor fd_ex2",
-          "role": "none",
-          "sensor_name": "fd_ex2",
-          "type": "switch"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "filament_switch_sensor fd_ex3",
-          "role": "none",
-          "sensor_name": "fd_ex3",
-          "type": "switch"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "filament_motion_sensor fm_ex0",
-          "role": "none",
-          "sensor_name": "fm_ex0",
-          "type": "motion"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "filament_motion_sensor fm_ex1",
-          "role": "none",
-          "sensor_name": "fm_ex1",
-          "type": "motion"
-        },
-        {
-          "enabled": true,
-          "klipper_name": "filament_motion_sensor fm_ex2",
-          "role": "none",
-          "sensor_name": "fm_ex2",
-          "type": "motion"
         },
         {
           "enabled": true,

@@ -114,7 +114,7 @@ Seven managers, all singletons: `TemperatureSensorManager`, `HumiditySensorManag
 
 | Manager | Source(s) | Discovers |
 |---------|-----------|-----------|
-| `FilamentSensorManager` | `discover_sensors()` | Filament sensors + runout state (feeds ch. 07's backends) |
+| `FilamentSensorManager` | `discover()` (SensorManager base) | Filament sensors + runout state (feeds ch. 07's backends) |
 | `LoadCellManager` | `discover()` | `load_cell` objects |
 | `TemperatureSensorManager` | `discover()` | `temperature_sensor` / `temperature_fan` objects (chamber, MCU, host; extruders and bed stay in `PrinterState`) |
 | `HumiditySensorManager` | `discover()` | BME280, HTU21D, SHT3X, AHT10/AHT20 |

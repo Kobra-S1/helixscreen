@@ -53,9 +53,9 @@ void FilamentInsertWatcher::start() {
     auto& sensors = FilamentSensorManager::instance();
     auto on_sensor = [](FilamentInsertWatcher* self, int) { self->on_sensor_changed(); };
     entry_observer_ = ui::observe<int>(sensors.get_entry_detected_subject(), this, on_sensor,
-                                       sensors.get_subjects_lifetime());
+                                       sensors.subjects_lifetime());
     toolhead_observer_ = ui::observe<int>(sensors.get_toolhead_detected_subject(), this, on_sensor,
-                                          sensors.get_subjects_lifetime());
+                                          sensors.subjects_lifetime());
 
     auto on_reseed = [](FilamentInsertWatcher* self, int) { self->reseed(); };
     auto& net = get_printer_state().network_state();
@@ -64,7 +64,7 @@ void FilamentInsertWatcher::start() {
     klippy_observer_ = ui::observe<int>(net.get_klippy_state_subject(), this, on_reseed,
                                         get_printer_state().get_subjects_lifetime());
     config_observer_ = ui::observe<int>(sensors.get_config_revision_subject(), this, on_reseed,
-                                        sensors.get_subjects_lifetime());
+                                        sensors.subjects_lifetime());
 }
 
 bool FilamentInsertWatcher::operation_busy() const {

@@ -25,6 +25,7 @@
 #include "ui_update_queue.h"
 
 #include "../helix_test_fixture.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
@@ -65,13 +66,13 @@ class RunoutScopeTestAccess {
     }
 
     // Set a sensor's role directly, the way load_config (settings.json restore)
-    // writes sensor->role per entry without going through set_sensor_role().
+    // writes sensor->role per entry without going through set_role().
     static void force_role(helix::FilamentSensorManager& mgr, const std::string& klipper,
                            helix::FilamentSensorRole role) {
-        std::lock_guard<std::recursive_mutex> lock(mgr.mutex_);
-        for (auto& s : mgr.sensors_) {
+        std::lock_guard<std::recursive_mutex> lock(mgr.mutex());
+        for (auto& s : mgr.entries_locked()) {
             if (s.klipper_name == klipper) {
-                s.role = role;
+                s.role = static_cast<uint8_t>(role);
                 s.enabled = true;
                 return;
             }
@@ -82,10 +83,13 @@ class RunoutScopeTestAccess {
     // period already expired) so each test starts deterministic despite the
     // process-singleton.
     static void reset(helix::FilamentSensorManager& mgr) {
-        std::lock_guard<std::recursive_mutex> lock(mgr.mutex_);
-        mgr.sensors_.clear();
+        mgr.set_sync_mode(true);
+        std::lock_guard<std::recursive_mutex> lock(mgr.mutex());
+        mgr.entries_locked().clear();
+        mgr.readings_.clear();
+        mgr.lanes_.clear();
+        mgr.known_.clear();
         mgr.master_enabled_ = true;
-        mgr.sync_mode_ = true;
         mgr.initial_status_received_ = false;
         mgr.startup_time_ = std::chrono::steady_clock::now() - std::chrono::seconds(10);
     }
@@ -155,7 +159,7 @@ void setup_four_lane_sensors(FilamentSensorManager& fsm) {
     for (int i = 0; i < 4; ++i) {
         names.push_back(fmt::format("filament_motion_sensor e{}_filament", i));
     }
-    fsm.discover_sensors(names);
+    discover_filament_sensors(fsm, names);
     for (int i = 0; i < 4; ++i) {
         std::string klipper = fmt::format("filament_motion_sensor e{}_filament", i);
         RunoutScopeTestAccess::force_role(fsm, klipper, FilamentSensorRole::RUNOUT);
@@ -174,7 +178,7 @@ void setup_four_lane_sensors_no_status(FilamentSensorManager& fsm) {
     for (int i = 0; i < 4; ++i) {
         names.push_back(fmt::format("filament_motion_sensor e{}_filament", i));
     }
-    fsm.discover_sensors(names);
+    discover_filament_sensors(fsm, names);
     for (int i = 0; i < 4; ++i) {
         RunoutScopeTestAccess::force_role(
             fsm, fmt::format("filament_motion_sensor e{}_filament", i), FilamentSensorRole::RUNOUT);
@@ -407,9 +411,10 @@ TEST_CASE("has_real_runout: no AMS backend -> behaves like has_any_runout", "[ru
     // A plain single-extruder runout sensor whose name does NOT encode a lane.
     RunoutScopeTestAccess::reset(fsm);
     fsm.set_master_enabled(true);
-    fsm.discover_sensors({"filament_switch_sensor fsensor"});
-    fsm.set_sensor_role("filament_switch_sensor fsensor", FilamentSensorRole::RUNOUT);
-    fsm.set_sensor_enabled("filament_switch_sensor fsensor", true);
+    discover_filament_sensors(fsm, {"filament_switch_sensor fsensor"});
+    fsm.set_role("filament_switch_sensor fsensor",
+                 static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+    fsm.set_enabled("filament_switch_sensor fsensor", true);
     fsm.update_from_status(
         json{{"filament_switch_sensor fsensor", json{{"filament_detected", true}}}});
     drain();
@@ -593,9 +598,10 @@ TEST_CASE("scoped runout: no AMS backend -> falls back to aggregate runout (unch
     // Plain single-extruder runout sensor, no lane mapping, no backend.
     RunoutScopeTestAccess::reset(fsm);
     fsm.set_master_enabled(true);
-    fsm.discover_sensors({"filament_switch_sensor fsensor"});
-    fsm.set_sensor_role("filament_switch_sensor fsensor", FilamentSensorRole::RUNOUT);
-    fsm.set_sensor_enabled("filament_switch_sensor fsensor", true);
+    discover_filament_sensors(fsm, {"filament_switch_sensor fsensor"});
+    fsm.set_role("filament_switch_sensor fsensor",
+                 static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+    fsm.set_enabled("filament_switch_sensor fsensor", true);
 
     // With no backend, find_empty_required_lanes returns empty (no lane truth to
     // consult) — the print-start controller falls back to the aggregate sensor

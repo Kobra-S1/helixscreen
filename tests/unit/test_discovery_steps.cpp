@@ -17,6 +17,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/breadcrumb_capture.h"
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/printer_capture.h"
 #include "../test_helpers/scoped_env.h"
 #include "app_globals.h"
@@ -256,7 +257,7 @@ class FreshInstallConfig {
         get_printer_state().set_printer_type_sync("");
     }
     ~FreshInstallConfig() {
-        helix::FilamentSensorManager::instance().discover_sensors({});
+        discover_filament_sensors(helix::FilamentSensorManager::instance(), {});
         helix::ConfigTestAccess::data(config_) = data_;
         helix::ConfigTestAccess::path(config_) = path_;
         helix::ConfigTestAccess::active_printer_id(config_) = id_;
@@ -289,8 +290,8 @@ void discover_cc1_sensor_without_preset(helix::PrinterDiscovery& hw) {
     hw.parse_objects(
         helix::test::load_printer_capture("elegoo_centauri_carbon_objects_list").at("objects"));
     auto& fsm = helix::FilamentSensorManager::instance();
-    fsm.discover_sensors(hw.filament_sensor_names());
-    fsm.load_config_from_file();
+    fsm.discover(hw);
+    fsm.load_settings();
 }
 
 } // namespace

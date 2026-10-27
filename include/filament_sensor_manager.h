@@ -3,14 +3,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
-#include "async_lifetime_guard.h"
 #include "filament_sensor_types.h"
-#include "json_fwd.h"
-#include "lvgl.h"
-#include "sensor_collection.h"
-#include "subject_managed_panel.h"
+#include "sensor_manager.h"
 
 #include "hv/json.hpp"
 
@@ -22,10 +16,10 @@ class IMoonrakerAPI;
 #include <chrono>
 #include <functional>
 #include <map>
-#include <mutex>
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -33,7 +27,7 @@ namespace helix {
 
 // Test-only friend (defined in tests/unit/test_runout_empty_lane_scope.cpp) used
 // to set per-sensor roles directly, the way a settings.json restore does, without
-// going through set_sensor_role().
+// going through set_role().
 class RunoutScopeTestAccess;
 class BypassArmingTestAccess;
 // Test-only friend (defined in tests/test_helpers/post_unload_grace_test_access.h)
@@ -61,31 +55,27 @@ enum class PrintJobState;
 [[nodiscard]] bool print_scopes_runout_badge(PrintJobState state);
 
 /**
- * @brief Central manager for filament sensor discovery, configuration, and state.
+ * @brief Filament sensors (filament_switch_sensor, filament_motion_sensor):
+ *        runout, presence, and the firmware-level arming around a bypass.
  *
- * Provides:
- * - Auto-discovery of sensors from Klipper objects list
- * - User configuration (role assignment, enable/disable)
- * - Real-time state tracking from Moonraker updates
- * - LVGL subjects for reactive UI binding
- * - Config persistence to settings.json
+ * Discovery, the entries, enabled state, persistence under "filament_sensors"
+ * and publishing come from SensorManager. This class owns what is filament's
+ * own: the per-sensor readings and lanes, the master switch, the runout and
+ * presence queries, lane scoping against the active AMS backend, the startup
+ * grace period, removal-dwell toasts, the state-change callback and bypass
+ * arming.
  *
- * Thread-safe for state updates from Moonraker callbacks.
+ * Two base behaviors are overridden. update_from_status() reads AmsState
+ * BEFORE taking the mutex (AmsState calls into this class from under its own
+ * lock, so the other order is an ABBA cycle) and fires toasts and the
+ * state-change callback after releasing it, on the calling thread.
+ * set_role() makes RUNOUT exclusive per lane (lane_index_for_sensor) rather
+ * than per printer.
  *
- * @code
- * // Initialize after Moonraker connection
- * auto& mgr = FilamentSensorManager::instance();
- * mgr.init_subjects();
- * mgr.discover_sensors(capabilities.get_filament_sensor_names());
- * mgr.load_config();
- *
- * // Check sensor state
- * if (mgr.is_filament_detected(FilamentSensorRole::RUNOUT)) {
- *     // Filament present
- * }
- * @endcode
+ * A name containing "runout" starts as RUNOUT when no sensor holds it. Saved
+ * settings carry the lane of a sensor that has one and the master switch.
  */
-class FilamentSensorManager {
+class FilamentSensorManager : public sensors::SensorManager {
   public:
     /// @brief Callback for sensor state change notifications
     using StateChangeCallback =
@@ -97,108 +87,17 @@ class FilamentSensorManager {
      */
     static FilamentSensorManager& instance();
 
-    // Prevent copying
-    FilamentSensorManager(const FilamentSensorManager&) = delete;
-    FilamentSensorManager& operator=(const FilamentSensorManager&) = delete;
-
-    // ========================================================================
-    // Discovery, Status and Config
-    // ========================================================================
-
-    // update_from_status() is declared below in "State Updates" section
-
-    /// @brief Save configuration to JSON
-    [[nodiscard]] nlohmann::json save_config() const;
-
-    // ========================================================================
-    // Initialization
-    // ========================================================================
-
-    /**
-     * @brief Initialize LVGL subjects for UI binding
-     *
-     * Must be called before creating any XML components that bind to sensor subjects.
-     * Safe to call multiple times (idempotent).
-     */
-    void init_subjects();
-
-    /**
-     * @brief Deinitialize LVGL subjects
-     *
-     * Must be called before lv_deinit() to properly disconnect observers.
-     * Called by StaticSubjectRegistry during application shutdown.
-     */
-    void deinit_subjects();
-
-    /**
-     * @brief Death signal for every subject this manager owns.
-     *
-     * deinit_subjects() frees the observer nodes on all of them at once, so an
-     * observer whose owner outlives this manager's teardown must pass this
-     * token to observe_*(). Without it the guard's reset() calls
-     * lv_observer_remove() on a freed node.
-     */
-    [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
-        return subjects_.get_subjects_lifetime();
-    }
-
-    /**
-     * @brief Discover sensors from PrinterCapabilities
-     *
-     * Populates internal sensor list from Klipper objects.
-     * Should be called after Moonraker connection established.
-     *
-     * @param klipper_sensor_names Full Klipper object names from PrinterCapabilities
-     */
-    void discover_sensors(const std::vector<std::string>& klipper_sensor_names);
-
-    /**
-     * @brief Check if any sensors have been discovered
-     */
-    [[nodiscard]] bool has_sensors() const;
-
-    /**
-     * @brief Get all discovered sensor configurations (thread-safe copy)
-     */
+    /// Typed view of the entries, with each sensor's configured lane.
     [[nodiscard]] std::vector<FilamentSensorConfig> get_sensors() const;
 
     /**
-     * @brief Get sensor count
-     */
-    [[nodiscard]] size_t sensor_count() const;
-
-    // ========================================================================
-    // Configuration
-    // ========================================================================
-
-    /**
-     * @brief Load configuration from settings.json
+     * @brief Give @p role to a sensor.
      *
-     * Merges saved config with discovered sensors. New sensors get default config,
-     * removed sensors are preserved in config (in case they come back).
+     * A role has one holder, except RUNOUT, which has one per lane: assigning
+     * it clears it from any other sensor watching the same lane, and from every
+     * sensor watching none.
      */
-    void load_config_from_file();
-
-    /**
-     * @brief Save current configuration to settings.json
-     */
-    void save_config_to_file();
-
-    /**
-     * @brief Set role for a specific sensor
-     *
-     * @param klipper_name Full Klipper object name
-     * @param role New role assignment
-     */
-    void set_sensor_role(const std::string& klipper_name, FilamentSensorRole role);
-
-    /**
-     * @brief Enable or disable a specific sensor
-     *
-     * @param klipper_name Full Klipper object name
-     * @param enabled Whether sensor should be monitored
-     */
-    void set_sensor_enabled(const std::string& klipper_name, bool enabled);
+    void set_role(std::string_view klipper_name, uint8_t role) override;
 
     /**
      * @brief Set master enable switch
@@ -248,11 +147,6 @@ class FilamentSensorManager {
      * @return number of sensors restored
      */
     int restore_runout_sensors_after_bypass(class IMoonrakerAPI* api);
-
-    /**
-     * @brief Whether any sensor is currently held armed by bypass
-     */
-    [[nodiscard]] bool has_bypass_armed_sensors() const;
 
     /**
      * @brief Bypass-transition entry point — arms on engage, restores on disengage.
@@ -307,15 +201,6 @@ class FilamentSensorManager {
      * @return true if sensor exists, is enabled, and is available in Klipper
      */
     [[nodiscard]] bool is_sensor_available(FilamentSensorRole role) const;
-
-    /**
-     * @brief Get current state for a sensor by role (thread-safe copy)
-     *
-     * @param role The sensor role to query
-     * @return State copy if sensor assigned to role, empty optional otherwise
-     */
-    [[nodiscard]] std::optional<FilamentSensorState>
-    get_sensor_state(FilamentSensorRole role) const;
 
     /**
      * @brief Check if any sensor reports runout (no filament)
@@ -413,15 +298,6 @@ class FilamentSensorManager {
                                                   const std::map<int, int>& remap) const;
 
     /**
-     * @brief Check if motion sensor encoder is active
-     *
-     * Only applicable for motion sensors during extrusion.
-     *
-     * @return true if motion sensor shows encoder activity
-     */
-    [[nodiscard]] bool is_motion_active() const;
-
-    /**
      * @brief The motion sensor that watches for jams, for the clog meter
      *
      * Only motion sensors Settings lists (not AMS-owned), that the user has
@@ -435,28 +311,19 @@ class FilamentSensorManager {
      */
     [[nodiscard]] std::optional<ClogMotionSensor> clog_motion_sensor(int active_lane) const;
 
-    /**
-     * @brief Check if Z probe is triggered
-     *
-     * Returns false if master disabled, probe sensor disabled, or no probe assigned.
-     *
-     * @return true if Z probe sensor is triggered
-     */
-    [[nodiscard]] bool is_probe_triggered() const;
-
     // ========================================================================
     // State Updates
     // ========================================================================
 
     /**
-     * @brief Update sensor states from Moonraker notification
+     * @brief Update sensor states from a Moonraker status frame
      *
-     * Called by PrinterState when receiving notify_status_update.
-     * Thread-safe.
+     * Any thread. Parses under the mutex, publishes, then fires the
+     * state-change callback and toasts with the mutex released.
      *
      * @param status JSON object containing sensor state updates
      */
-    void update_from_status(const nlohmann::json& status);
+    void update_from_status(const nlohmann::json& status) override;
 
     /**
      * @brief Register callback for state changes
@@ -476,26 +343,13 @@ class FilamentSensorManager {
     [[nodiscard]] lv_subject_t* get_runout_detected_subject();
 
     /**
-     * @brief Get subject for the print-scoped runout state.
-     *
-     * Same -1/0/1/2 encoding as get_runout_detected_subject(), but scoped to the
-     * active print's used tools using AMS lane truth. The in-print runout badge
-     * binds THIS subject so a tool whose filament is staged in the lane (motion
-     * sensor false) does not flag, and unused empty heads never flag. Drive it
-     * from the active context via set_scoped_runout() — the unscoped subject
-     * stays as-is for non-print contexts.
-     *
-     * @return Subject (int: -1=no opinion, 0=runout, 1=loaded, 2=disabled)
-     */
-    [[nodiscard]] lv_subject_t* get_scoped_runout_subject();
-
-    /**
      * @brief Publish a print-scoped runout value into the scoped subject.
      *
      * Computed by the owner of "the active print's used tools" (PrintStatusPanel)
      * via compute_scoped_runout_value(). MUST be called on the main LVGL thread.
      *
-     * @param value -1/0/1/2 (see get_scoped_runout_subject()).
+     * @param value -1/0/1/2: no opinion, runout, loaded, disabled. The
+     *        filament_runout_scoped subject; the in-print badge binds it.
      */
     void set_scoped_runout(int value);
 
@@ -512,39 +366,15 @@ class FilamentSensorManager {
     [[nodiscard]] lv_subject_t* get_entry_detected_subject();
 
     /**
-     * @brief Get subject for Z probe triggered state
-     * @return Subject (int: 0=not triggered, 1=triggered, -1=no sensor)
-     */
-    [[nodiscard]] lv_subject_t* get_probe_triggered_subject();
-
-    /**
      * @brief Get subject for any runout active (any sensor shows no filament)
      * @return Subject (int: 0=all OK, 1=runout detected)
      */
     [[nodiscard]] lv_subject_t* get_any_runout_subject();
 
-    /**
-     * @brief Get subject for motion sensor activity
-     * @return Subject (int: 0=idle, 1=motion detected)
-     */
-    [[nodiscard]] lv_subject_t* get_motion_active_subject();
-
     /// Changes whenever anything clog_motion_sensor() reads changes: a motion
     /// sensor's user enable, availability, armed state or reading, or the
     /// master switch. The value itself means nothing.
     [[nodiscard]] lv_subject_t* get_motion_signature_subject();
-
-    /**
-     * @brief Get subject for master enable state
-     * @return Subject (int: 0=disabled, 1=enabled)
-     */
-    [[nodiscard]] lv_subject_t* get_master_enabled_subject();
-
-    /**
-     * @brief Get subject for sensor count (for conditional UI visibility)
-     * @return Subject (int: number of discovered sensors)
-     */
-    [[nodiscard]] lv_subject_t* get_sensor_count_subject();
 
     /// Ticks when a sensor's role or enabled flag, or the master switch, changes.
     /// A reading that moves because of configuration is not a physical event.
@@ -560,23 +390,17 @@ class FilamentSensorManager {
      */
     [[nodiscard]] bool is_in_startup_grace_period() const;
 
-    /**
-     * @brief Enable synchronous mode for testing
-     *
-     * When enabled, update_from_status() calls update_subjects() synchronously
-     * instead of using queue_update(). This avoids LVGL timer dependencies in unit tests.
-     *
-     * @param enabled true to enable synchronous updates
-     */
-    void set_sync_mode(bool enabled);
-
-    /**
-     * @brief Update subjects on main LVGL thread (called by async callback)
-     *
-     * This is public to allow the async callback in the anonymous namespace
-     * to access it. Do not call directly - use update_from_status() instead.
-     */
-    void update_subjects_on_main_thread();
+  protected:
+    void register_subjects(SubjectManager& subjects) override;
+    void refresh_subjects() override;
+    /// Unused: update_from_status() is overridden and parses inline.
+    bool parse_status(const nlohmann::json& status) override;
+    void on_discovered(const PrinterDiscovery& hw) override;
+    void on_entries_changed() override;
+    void read_entry_extra(sensors::SensorEntry& entry, const nlohmann::json& saved) override;
+    void write_entry_extra(const sensors::SensorEntry& entry, nlohmann::json& out) const override;
+    void read_extra_settings(const nlohmann::json& saved) override;
+    void write_extra_settings(nlohmann::json& out) const override;
 
   private:
     friend class FilamentSensorManagerTestAccess;
@@ -585,18 +409,19 @@ class FilamentSensorManager {
     friend class PostUnloadGraceTestAccess;
 
     FilamentSensorManager();
-    ~FilamentSensorManager();
+    static Options make_options();
 
-    /**
-     * @brief Extract sensor name and type from Klipper object name
-     *
-     * @param klipper_name Full name like "filament_switch_sensor fsensor"
-     * @param[out] sensor_name Extracted short name
-     * @param[out] type Detected sensor type
-     * @return true if successfully parsed
-     */
-    bool parse_klipper_name(const std::string& klipper_name, std::string& sensor_name,
-                            FilamentSensorType& type) const;
+    /// The AMS slot a sensor watches, or -1 when it watches none (a
+    /// single-extruder runout sensor), in which case the caller must NOT
+    /// lane-scope it. Its saved "lane" wins; otherwise the Snapmaker U1 name
+    /// "e<N>_filament" (motion or switch form) encodes slot N. Caller holds
+    /// the mutex.
+    [[nodiscard]] int lane_index_for_sensor(const sensors::SensorEntry& sensor) const;
+
+    /// The reading for @p klipper_name, or nullptr when none is kept. Caller
+    /// holds the mutex.
+    [[nodiscard]] FilamentSensorState* state(const std::string& klipper_name);
+    [[nodiscard]] const FilamentSensorState* state(const std::string& klipper_name) const;
 
     /**
      * @brief Whether this sensor's reading counts for runout/presence decisions
@@ -608,18 +433,18 @@ class FilamentSensorManager {
      * neither do we. The state default is enabled=true, so a sensor that has
      * never reported the field counts as running. A runout observed while the
      * firmware ran the sensor keeps counting after a stand-down (see
-     * observed_runouts_). Caller MUST hold mutex_.
+     * observed_runouts_). Caller MUST hold the mutex.
      */
-    [[nodiscard]] bool monitors_runout(const FilamentSensorConfig& config) const;
+    [[nodiscard]] bool monitors_runout(const sensors::SensorEntry& sensor) const;
 
     /**
      * @brief First holder of @p role the firmware is running
      *
      * When every holder of the role is stood down, the first holder is
      * returned anyway, so a caller can still tell "configured but not
-     * running" from "no sensor holds this role". Caller MUST hold mutex_.
+     * running" from "no sensor holds this role". Caller MUST hold the mutex.
      */
-    [[nodiscard]] const FilamentSensorConfig*
+    [[nodiscard]] const sensors::SensorEntry*
     find_monitoring_config_by_role(FilamentSensorRole role) const;
 
     /// Result of one scoped lane scan — shared by find_empty_required_lanes()
@@ -635,7 +460,7 @@ class FilamentSensorManager {
         bool aggregate_detected = false;              ///< no-backend fallback sensor reading
     };
 
-    /// Shared scoped lane scan. Caller MUST hold mutex_ (recursive).
+    /// Shared scoped lane scan. Caller MUST hold the mutex (recursive).
     /// @p read_stood_down: whether a head sensor the firmware has stood down
     /// still counts as that head's reading. The pre-print check needs it (the
     /// firmware holds every head down between prints); the running-print badge
@@ -644,21 +469,21 @@ class FilamentSensorManager {
                                                        const std::map<int, int>& remap,
                                                        bool read_stood_down) const;
 
-    /**
-     * @brief Update all LVGL subjects from current state
-     */
-    void update_subjects();
-    void bump_config_revision();
-    /// Fingerprint of every input clog_motion_sensor() reads. Caller holds mutex_.
+    /// Fingerprint of every input clog_motion_sensor() reads. Caller holds the mutex.
     [[nodiscard]] int motion_signature() const;
+    /// Fingerprint of every sensor's role and enabled flag and the master
+    /// switch: config_revision ticks when it moves. Caller holds the mutex.
+    [[nodiscard]] uint32_t config_signature() const;
 
-    // Recursive mutex for thread-safe state access
-    // Recursive because update_subjects() calls has_any_runout()/is_motion_active()
-    mutable std::recursive_mutex mutex_;
-
-    // Configuration
     bool master_enabled_ = true;
-    sensors::SensorCollection<FilamentSensorConfig, FilamentSensorState> sensors_;
+    /// Readings by klipper_name. A sensor missing from a later discovery keeps
+    /// its entry, marked unavailable (Options::keep_missing_state).
+    std::map<std::string, FilamentSensorState> readings_;
+    /// Saved "lane" by klipper_name; absent when the sensor has none.
+    std::map<std::string, int> lanes_;
+    /// Names present at the last discovery: only a name new to this set gets
+    /// the RUNOUT name default, so a rediscovery never undoes the user's choice.
+    std::set<std::string> known_;
 
     /// Klipper names of sensors WE armed for bypass (restore set). Empty when
     /// no bypass arming is outstanding.
@@ -670,7 +495,7 @@ class FilamentSensorManager {
 
     /// One SET_FILAMENT_SENSOR send — shared by arm and restore so the
     /// command shape and error disposition stay identical.
-    void send_firmware_sensor_enable(class IMoonrakerAPI* api, const FilamentSensorConfig& sensor,
+    void send_firmware_sensor_enable(class IMoonrakerAPI* api, const sensors::SensorEntry& sensor,
                                      bool enabled);
 
     /// Runout-role sensors whose removal toast is serving
@@ -689,12 +514,8 @@ class FilamentSensorManager {
     // State change callback
     StateChangeCallback state_change_callback_;
 
-    // Test mode: when true, update_from_status() calls update_subjects() synchronously
-    // instead of using queue_update(). This avoids LVGL timer dependencies in unit tests.
-    bool sync_mode_ = false;
-
     // Tracks whether we've received the first status update from Moonraker.
-    // Ensures update_subjects() fires on initial status even when sensor state
+    // Ensures the subjects refresh on initial status even when sensor state
     // matches defaults (filament_detected=true), which wouldn't trigger any_changed.
     bool initial_status_received_ = false;
 
@@ -702,22 +523,17 @@ class FilamentSensorManager {
     // Reset when sensors are discovered (after Moonraker connects), not at app startup
     std::chrono::steady_clock::time_point startup_time_;
 
-    // LVGL subjects
-    bool subjects_initialized_ = false;
-    SubjectManager subjects_;
-    // Expires deferred subject updates when the subjects are torn down.
-    helix::AsyncLifetimeGuard lifetime_;
+    // LVGL subjects (main thread)
     lv_subject_t runout_detected_{};
     lv_subject_t scoped_runout_{}; ///< Print-scoped runout; driven by PrintStatusPanel
     lv_subject_t toolhead_detected_{};
     lv_subject_t entry_detected_{};
-    lv_subject_t probe_triggered_{};
     lv_subject_t any_runout_{};
-    lv_subject_t motion_active_{};
     lv_subject_t motion_signature_{};
     lv_subject_t master_enabled_subject_{};
-    lv_subject_t sensor_count_{};
     lv_subject_t config_revision_{};
+    /// config_signature() at the last refresh. Main thread only.
+    std::optional<uint32_t> published_config_signature_;
 };
 
 } // namespace helix

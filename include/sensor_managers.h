@@ -16,7 +16,6 @@ namespace helix::sensors {
 /// subject init and the status fan-out both walk it, so a manager added here
 /// gets both. Discovery is per manager, because each reads a different input.
 template <typename Fn> void for_each_sensor_manager(Fn&& fn) {
-    fn(FilamentSensorManager::instance());
     fn(TemperatureSensorManager::instance());
 }
 

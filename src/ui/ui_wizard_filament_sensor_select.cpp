@@ -379,8 +379,9 @@ void WizardFilamentSensorSelectStep::auto_configure_single_sensor() {
         if (!is_ams_sensor(sensor.sensor_name)) {
             spdlog::info("[{}] Auto-configuring single sensor '{}' as RUNOUT", get_name(),
                          sensor.sensor_name);
-            sensor_mgr.set_sensor_role(sensor.klipper_name, helix::FilamentSensorRole::RUNOUT);
-            sensor_mgr.save_config_to_file();
+            sensor_mgr.set_role(sensor.klipper_name,
+                                static_cast<uint8_t>(helix::FilamentSensorRole::RUNOUT));
+            sensor_mgr.save_settings();
             return;
         }
     }
@@ -404,7 +405,8 @@ void WizardFilamentSensorSelectStep::cleanup() {
         // Clear existing RUNOUT role assignments first
         for (const auto& sensor : standalone_sensors_) {
             if (sensor.role == helix::FilamentSensorRole::RUNOUT) {
-                sensor_mgr.set_sensor_role(sensor.klipper_name, helix::FilamentSensorRole::NONE);
+                sensor_mgr.set_role(sensor.klipper_name,
+                                    static_cast<uint8_t>(helix::FilamentSensorRole::NONE));
             }
         }
 
@@ -413,12 +415,13 @@ void WizardFilamentSensorSelectStep::cleanup() {
             get_klipper_name_for_index(lv_subject_get_int(&runout_sensor_selected_));
 
         if (!runout_name.empty()) {
-            sensor_mgr.set_sensor_role(runout_name, helix::FilamentSensorRole::RUNOUT);
+            sensor_mgr.set_role(runout_name,
+                                static_cast<uint8_t>(helix::FilamentSensorRole::RUNOUT));
             spdlog::info("[{}] Assigned RUNOUT role to: {}", get_name(), runout_name);
         }
 
         // Persist to disk
-        sensor_mgr.save_config_to_file();
+        sensor_mgr.save_settings();
     } else {
         spdlog::warn("[{}] Subjects not initialized, skipping role assignment", get_name());
     }
