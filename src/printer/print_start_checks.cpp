@@ -984,6 +984,11 @@ std::vector<std::string> materials_in_print(const PrintStartContext& ctx) {
             }
         }
     }
+    // A single-material file needs no usage data to say what it prints. With
+    // several materials and none, which ones print is unknown.
+    if (used.empty() && ctx.filament_materials.size() == 1) {
+        used.insert(0);
+    }
 
     std::vector<std::string> materials;
     for (int tool : used) {

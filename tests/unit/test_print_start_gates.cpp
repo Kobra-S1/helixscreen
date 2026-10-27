@@ -1561,6 +1561,9 @@ TEST_CASE("materials_in_print: used tools only, deduplicated, empty without file
     weights.metadata = FileMetadata{};
     weights.metadata->filament_weights = {0.0, 12.5};
     CHECK(materials_in_print(weights) == std::vector<std::string>{"ASA"});
+    // No scan and no weights: one material is the print's; several say nothing.
+    CHECK(materials_in_print(mixed_file({"ABS"}, {})) == std::vector<std::string>{"ABS"});
+    CHECK(materials_in_print(mixed_file({"PLA", "ABS"}, {})).empty());
 }
 
 namespace {

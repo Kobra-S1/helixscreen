@@ -3,7 +3,6 @@
 #include "chamber_air_modes.h"
 
 #include "printer_discovery.h"
-#include "toolchanger_addon.h"
 
 #include <array>
 #include <cstddef>
@@ -31,14 +30,16 @@ struct Provider {
 // c5pro_generic.cfg: AIR_CIRCULATION_INTERNAL runs chamber_heat_fan 0.9 and
 // chamber_loop_fan 0.3 with the exhaust fans off ("ABS");
 // AIR_CIRCULATION_EXTERNAL runs chamber_fan 0.5 and chamber_cool_fan 0.7 with
-// heat/loop off ("PLA, TPU"); AIR_CIRCULATION_STOP zeroes all four.
-bool zmod_c5_detect(const PrinterDiscovery& hw) {
-    return toolchanger_addon::zmod_c5_present(hw);
+// heat/loop off ("PLA, TPU"); AIR_CIRCULATION_STOP zeroes all four. The macros
+// themselves are the capability, whatever machine defines them.
+bool air_circulation_detect(const PrinterDiscovery& hw) {
+    return hw.has_macro("AIR_CIRCULATION_INTERNAL") || hw.has_macro("AIR_CIRCULATION_EXTERNAL") ||
+           hw.has_macro("AIR_CIRCULATION_STOP");
 }
 
 const Provider kProviders[] = {
-    {"Z-Mod Creator 5",
-     zmod_c5_detect,
+    {"Z-Mod AIR_CIRCULATION",
+     air_circulation_detect,
      {"AIR_CIRCULATION_INTERNAL", "AIR_CIRCULATION_EXTERNAL", "AIR_CIRCULATION_STOP"}},
 };
 

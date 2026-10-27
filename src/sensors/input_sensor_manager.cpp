@@ -182,7 +182,7 @@ void InputSensorManager::update_from_status(const nlohmann::json& status) {
         return;
     }
     if (sync_mode_) {
-        update_subjects();
+        update_subjects(/*status_changed=*/true);
     } else {
         lifetime_.token().defer("InputSensorManager::update_from_status", [] {
             InputSensorManager::instance().update_subjects_on_main_thread();
@@ -426,14 +426,14 @@ void InputSensorManager::set_sync_mode(bool enabled) {
 }
 
 void InputSensorManager::update_subjects_on_main_thread() {
-    update_subjects();
+    update_subjects(/*status_changed=*/true);
 }
 
 // ============================================================================
 // Private
 // ============================================================================
 
-void InputSensorManager::update_subjects() {
+void InputSensorManager::update_subjects(bool status_changed) {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (!subjects_initialized_) {
         return;
@@ -480,7 +480,8 @@ void InputSensorManager::update_subjects() {
     }
 
     // A door opening mid-print gets one toast per opening (rules in
-    // mid_print_door_warnings()).
+    // mid_print_door_warnings()). Only a status frame opens a door: a role or
+    // Invert change re-reads the same input and only re-seeds the open set.
     std::vector<std::string> open;
     for (const auto& sensor : sensors_) {
         const auto* state = sensors_.state(sensor.klipper_name);
@@ -490,7 +491,7 @@ void InputSensorManager::update_subjects() {
     }
     const bool printing =
         get_printer_state().print_state().get_print_lifecycle() == PrintState::Printing;
-    if (printing) {
+    if (printing && status_changed) {
         for (const auto& name :
              mid_print_door_warnings(doors_newly_open(open_doors_seen_, open),
                                      get_printer_state().print_state().print_materials())) {

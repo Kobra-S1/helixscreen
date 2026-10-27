@@ -9,10 +9,17 @@
  * Run with: ./build/bin/helix-tests "[input_sensors]"
  */
 
+#include "ui_toast_manager.h"
+#include "ui_update_queue.h"
+
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
+#include "app_globals.h"
 #include "config.h"
 #include "input_sensor_manager.h"
 #include "input_sensor_types.h"
+#include "printer_state.h"
 
 #include <string>
 #include <vector>
@@ -310,4 +317,65 @@ TEST_CASE_METHOD(InputSensorFixture,
         json{{"gcode_button frontDoor", {{"release_gcode", "RESPOND MSG=open"}}}});
     CHECK(mgr().mid_print_door_warnings({"gcode_button frontDoor", "gcode_button topDoor"},
                                         {"ABS"}) == std::vector<std::string>{"topDoor"});
+}
+
+namespace {
+/// PrinterState's print lifecycle needs the app's subjects, which only the UI
+/// fixture initialises.
+class InputSensorPrintFixture : public LVGLUITestFixture {
+  public:
+    InputSensorPrintFixture() {
+        InputSensorManager::instance().init_subjects();
+        InputSensorManagerTestAccess::reset(InputSensorManager::instance());
+    }
+    ~InputSensorPrintFixture() override {
+        InputSensorManagerTestAccess::reset(InputSensorManager::instance());
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(
+    InputSensorPrintFixture,
+    "InputSensorManager toasts a door opened mid-print and not a role or invert change",
+    "[input_sensors][door]") {
+    auto& ps = get_printer_state();
+    helix::test::set_wire_state(ps, PrintJobState::PRINTING);
+    helix::ui::UpdateQueue::instance().drain();
+    ps.print_state().set_print_materials({"ABS"});
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(ps.print_state().print_materials() == std::vector<std::string>{"ABS"});
+    struct Restore {
+        ~Restore() {
+            auto& st = get_printer_state();
+            st.print_state().set_print_materials({});
+            helix::test::set_wire_state(st, PrintJobState::STANDBY);
+            helix::ui::UpdateQueue::instance().drain();
+            ToastManager::instance().set_observer({});
+        }
+    } restore;
+    REQUIRE(ps.print_state().get_print_lifecycle() == PrintState::Printing);
+
+    std::vector<std::string> toasts;
+    ToastManager::instance().set_observer(
+        [&toasts](const ToastManager::Event& e) { toasts.push_back(e.message); });
+
+    InputSensorManager::instance().discover(kC5Objects);
+    InputSensorManager::instance().update_from_status(
+        json{{"gcode_button frontDoor", {{"state", "PRESSED"}}},
+             {"gcode_button extruder_pos1", {{"state", "RELEASED"}}}});
+    REQUIRE(toasts.empty());
+
+    // A released input set to Door now reads open, but nothing moved.
+    InputSensorManager::instance().set_sensor_role("gcode_button extruder_pos1",
+                                                   InputSensorRole::DOOR);
+    // Inverting a closed door makes it read open, and nothing moved either.
+    InputSensorManager::instance().set_sensor_inverted("gcode_button frontDoor", true);
+    CHECK(toasts.empty());
+
+    // The front door really opening is what warns.
+    InputSensorManager::instance().set_sensor_inverted("gcode_button frontDoor", false);
+    InputSensorManager::instance().update_from_status(
+        json{{"gcode_button frontDoor", {{"state", "RELEASED"}}}});
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0].find("frontDoor") != std::string::npos);
 }

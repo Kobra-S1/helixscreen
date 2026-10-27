@@ -79,11 +79,13 @@ TEST_CASE("chamber air: printers without the macros offer nothing", "[chamber_ai
     CHECK_FALSE(air::supported(bare_c5));
     CHECK(air::modes(bare_c5).empty());
 
-    // The macros on a printer no provider claims are not the capability.
-    const PrinterDiscovery stray =
+    // The macros are the capability on any printer, and only the defined
+    // ones are offered.
+    const PrinterDiscovery other =
         printer_with({"gcode_macro AIR_CIRCULATION_INTERNAL", "gcode_macro AIR_CIRCULATION_STOP"});
-    CHECK_FALSE(air::supported(stray));
-    CHECK(air::mode_gcode(stray, AirMode::Recirculate).empty());
+    CHECK(air::supported(other));
+    CHECK(air::mode_gcode(other, AirMode::Recirculate) == "AIR_CIRCULATION_INTERNAL");
+    CHECK(air::mode_gcode(other, AirMode::Exhaust).empty());
 
     const PrinterDiscovery bare = printer_with({});
     CHECK_FALSE(air::supported(bare));

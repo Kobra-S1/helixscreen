@@ -20,6 +20,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "macro_executor.h"
 #include "observer_factory.h"
 #include "ui/fan_spin_animation.h"
 #include "ui/ui_widget_helpers.h"
@@ -141,15 +142,11 @@ void on_chamber_air_mode_clicked(lv_event_t* e) {
         spdlog::warn("[FanControlOverlay] This printer does not offer chamber air mode '{}'", id);
         return;
     }
-    auto* api = get_moonraker_api();
-    if (!api) {
-        NOTIFY_WARNING(lv_tr("No printer connection"));
-        return;
-    }
-    spdlog::info("[FanControlOverlay] Chamber air mode {}: {}", id, gcode);
-    api->execute_gcode(gcode, nullptr, [](const MoonrakerError& err) {
-        helix::ui::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
-    });
+    helix::MachineGcode cmd;
+    cmd.gcode = gcode;
+    cmd.log_name = gcode;
+    cmd.display_name = lv_tr("Chamber air");
+    helix::execute_machine_gcode(get_moonraker_api(), cmd, "[FanControlOverlay]");
 }
 
 } // namespace

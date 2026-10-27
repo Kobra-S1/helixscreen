@@ -140,7 +140,9 @@ class InputSensorManager {
     ~InputSensorManager();
 
     /// @note Main LVGL thread only
-    void update_subjects();
+    /// @param status_changed a status frame changed an input, so a door that
+    ///        now reads open was opened and may be owed a mid-print toast
+    void update_subjects(bool status_changed = false);
 
     mutable std::recursive_mutex mutex_;
     SensorCollection<InputSensorConfig, InputSensorState> sensors_;
