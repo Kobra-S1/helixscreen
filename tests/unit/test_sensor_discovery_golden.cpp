@@ -112,8 +112,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     psm.discover(PrinterDiscovery{});
     hsm.discover(PrinterDiscovery{});
     wsm.discover(PrinterDiscovery{});
-    ism.discover({});
-    ism.discover_from_config(json::object());
+    ism.discover(PrinterDiscovery{});
     asm_.discover(PrinterDiscovery{});
 
     fsm.discover_sensors(hw.filament_sensor_names());
@@ -126,10 +125,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     psm.discover(probe_hw);
     hsm.discover(hw);
     wsm.discover(hw);
-    ism.discover(hw.printer_objects());
-    if (configfile != nullptr) {
-        ism.discover_from_config(*configfile);
-    }
+    ism.discover(hw);
 
     // Accelerometers are config sections: they reach the manager through the
     // discovery's classified sections.
@@ -196,9 +192,20 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     m["width"] = manager_entry(entries_of(
         width_rows, [](const auto& s) { return width_role_to_string(s.role); },
         [](const auto& s) { return width_type_to_string(s.type); }));
+    struct InputRow {
+        std::string klipper_name;
+        std::string sensor_name;
+        helix::sensors::InputSensorRole role;
+        bool enabled;
+    };
+    std::vector<InputRow> input_rows;
+    for (const auto& e : ism.entries()) {
+        input_rows.push_back(
+            {e.klipper_name, e.display_name, role_of<InputSensorRole>(e), e.enabled});
+    }
     m["input"] = manager_entry(entries_of(
-        ism.get_sensors(), [](const auto& s) { return input_role_to_string(s.role); },
-        [](const auto& s) { return input_type_to_string(s.type); }));
+        input_rows, [](const auto& s) { return input_role_to_string(s.role); },
+        [](const auto&) { return std::string("gcode_button"); }));
     struct AccelRow {
         std::string klipper_name;
         std::string sensor_name;
@@ -221,8 +228,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     psm.discover(PrinterDiscovery{});
     hsm.discover(PrinterDiscovery{});
     wsm.discover(PrinterDiscovery{});
-    ism.discover({});
-    ism.discover_from_config(json::object());
+    ism.discover(PrinterDiscovery{});
     asm_.discover(PrinterDiscovery{});
     return m;
 }

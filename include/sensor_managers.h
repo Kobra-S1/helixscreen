@@ -18,7 +18,6 @@ namespace helix::sensors {
 template <typename Fn> void for_each_sensor_manager(Fn&& fn) {
     fn(FilamentSensorManager::instance());
     fn(TemperatureSensorManager::instance());
-    fn(InputSensorManager::instance());
 }
 
 } // namespace helix::sensors

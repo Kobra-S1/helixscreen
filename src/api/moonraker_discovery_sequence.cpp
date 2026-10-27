@@ -20,7 +20,6 @@
 #include "hv/hssl.h"
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
-#include "input_sensor_manager.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "layer_pause.h"
@@ -900,15 +899,12 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                 // config sections (accelerometers, which have no get_status(),
                                 // and a probe's z_offset) are read on this one. Main thread:
                                 // discovery sets LVGL subjects.
-                                nlohmann::json cfg_for_sensors = cfg;
                                 helix::ui::queue_update(
                                     "MoonrakerDiscoverySequence::continue_discovery_objects",
-                                    [cfg_for_sensors, configured_hardware]() {
+                                    [configured_hardware]() {
                                         for (auto* manager : helix::sensors::sensor_managers()) {
                                             manager->discover(*configured_hardware);
                                         }
-                                        helix::sensors::InputSensorManager::instance()
-                                            .discover_from_config(cfg_for_sensors);
                                     });
 
                                 // Update LED controller with configfile data (effect targets +

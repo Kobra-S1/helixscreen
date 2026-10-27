@@ -5,6 +5,7 @@
 #include "accel_sensor_manager.h"
 #include "config.h"
 #include "humidity_sensor_manager.h"
+#include "input_sensor_manager.h"
 #include "json_utils.h"
 #include "load_cell_manager.h"
 #include "printer_discovery.h"
@@ -486,7 +487,7 @@ std::vector<SensorManager*>& detail::mutable_sensor_managers() {
     static std::vector<SensorManager*> managers = {
         &WidthSensorManager::instance(), &HumiditySensorManager::instance(),
         &ProbeSensorManager::instance(), &LoadCellManager::instance(),
-        &AccelSensorManager::instance()};
+        &AccelSensorManager::instance(), &InputSensorManager::instance()};
     return managers;
 }
 

@@ -8,7 +8,6 @@
 #include "app_globals.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_client.h"
-#include "input_sensor_manager.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "moonraker_api.h"
@@ -51,7 +50,6 @@ void reload_sensor_roles_after_preset() {
         m->load_settings();
     }
     FilamentSensorManager::instance().load_config_from_file();
-    helix::sensors::InputSensorManager::instance().load_config_from_file();
 }
 
 void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerAPI* api,
@@ -74,11 +72,6 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
         m->discover(hardware);
         m->load_settings();
     }
-
-    // On/off inputs (gcode_button: doors, buttons, dock sensors)
-    auto& ism = helix::sensors::InputSensorManager::instance();
-    ism.discover(hardware.printer_objects());
-    ism.load_config_from_file();
 
     // Initialize multi-extruder temperature tracking
     auto& printer_state = get_printer_state();

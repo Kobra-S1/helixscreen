@@ -62,9 +62,8 @@ void SensorSettingsOverlay::register_callbacks() {
              const auto name = input_sensor_for_event(e);
              if (!name.empty()) {
                  auto& mgr = helix::sensors::InputSensorManager::instance();
-                 mgr.set_sensor_role(
-                     name, static_cast<helix::sensors::InputSensorRole>(event_selected(e)));
-                 mgr.save_config_to_file();
+                 mgr.set_role(name, static_cast<uint8_t>(event_selected(e)));
+                 mgr.save_settings();
              }
          }},
         {"on_input_sensor_invert_changed",
@@ -72,15 +71,15 @@ void SensorSettingsOverlay::register_callbacks() {
              const auto name = input_sensor_for_event(e);
              if (!name.empty()) {
                  auto& mgr = helix::sensors::InputSensorManager::instance();
-                 mgr.set_sensor_inverted(name, event_checked(e));
-                 mgr.save_config_to_file();
+                 mgr.set_option(name, event_checked(e));
+                 mgr.save_settings();
              }
          }},
         {"on_input_door_check_changed",
          [](lv_event_t* e) {
              auto& mgr = helix::sensors::InputSensorManager::instance();
              mgr.set_door_check_enabled(event_checked(e));
-             mgr.save_config_to_file();
+             mgr.save_settings();
          }},
         {"on_switch_master_toggle_changed",
          [](lv_event_t* e) {

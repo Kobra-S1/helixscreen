@@ -419,7 +419,7 @@ std::vector<FixtureCase> fixture_cases() {
          "input_sensors",
          {hw::ObjectKind::Input},
          roles_from(kInputSensorRoles),
-         {{static_cast<uint8_t>(InputSensorType::GCODE_BUTTON), "gcode_button", "Button"}},
+         {{0, "gcode_button", "Button"}},
          Persona::Input},
     };
 }

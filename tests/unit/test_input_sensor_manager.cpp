@@ -3,8 +3,8 @@
 
 /**
  * @file test_input_sensor_manager.cpp
- * @brief InputSensorManager: discovery, default roles, state parsing, role
- *        persistence, the door-check default and the overlay row subjects.
+ * @brief InputSensorManager: discovery, default roles, state parsing, saved
+ *        settings, the door-check default and the overlay row subjects.
  *
  * Run with: ./build/bin/helix-tests "[input_sensors]"
  */
@@ -15,8 +15,10 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/golden_json.h"
 #include "../test_helpers/print_start_controller_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/sensor_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "config.h"
@@ -26,6 +28,7 @@
 #include "printer_state.h"
 #include "tool_state.h"
 
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -39,13 +42,20 @@ namespace helix::sensors {
 class InputSensorManagerTestAccess {
   public:
     static void reset(InputSensorManager& obj) {
-        std::lock_guard<std::recursive_mutex> lock(obj.mutex_);
-        obj.sensors_.clear();
+        obj.set_sync_mode(true);
+        SensorManagerTestAccess::reconcile(obj, {});
+        std::lock_guard<std::recursive_mutex> lock(obj.mutex());
+        obj.readings_.clear();
         obj.door_check_.reset();
+        obj.known_.clear();
         obj.config_reactions_.clear();
         obj.open_doors_seen_.clear();
-        obj.sync_mode_ = true;
-        obj.update_subjects();
+        obj.status_frame_ = false;
+    }
+
+    static bool inverted(InputSensorManager& obj, const std::string& klipper_name) {
+        std::lock_guard<std::recursive_mutex> lock(obj.mutex());
+        return obj.reading_locked(klipper_name).inverted;
     }
 };
 } // namespace helix::sensors
@@ -60,6 +70,18 @@ const std::vector<std::string> kC5Objects = {
     "gcode_button extruder_grab1",
     "filament_switch_sensor runout",
 };
+
+constexpr uint8_t kOther = static_cast<uint8_t>(InputSensorRole::NONE);
+constexpr uint8_t kDoor = static_cast<uint8_t>(InputSensorRole::DOOR);
+
+/// Objects as printer.objects.list reports them, config sections as configfile.config does.
+PrinterDiscovery discovery_of(const std::vector<std::string>& objects,
+                              const json& config = json::object()) {
+    PrinterDiscovery hw;
+    hw.parse_objects(json(objects));
+    hw.parse_config_keys(config);
+    return hw;
+}
 
 class InputSensorFixture : public LVGLTestFixture {
   public:
@@ -79,6 +101,18 @@ class InputSensorFixture : public LVGLTestFixture {
     }
     static json& config_slot() {
         return Config::get_instance()->get_json(Config::get_instance()->df() + "input_sensors");
+    }
+    static void discover(const std::vector<std::string>& objects,
+                         const json& config = json::object()) {
+        mgr().discover(discovery_of(objects, config));
+    }
+    static void set_role(const std::string& name, uint8_t role) {
+        mgr().set_role(name, role);
+    }
+    static uint8_t role_of_name(const std::string& name) {
+        SensorEntry e;
+        REQUIRE(mgr().find(name, e));
+        return e.role;
     }
     static void report(const std::string& name, const char* state) {
         mgr().update_from_status(json{{name, {{"state", state}}}});
@@ -106,51 +140,46 @@ TEST_CASE("default_input_role: door, lid and cover names are doors", "[input_sen
 }
 
 TEST_CASE("input_reads_open: a door reads open when released, unless inverted", "[input_sensors]") {
-    InputSensorConfig door("gcode_button d", "d", InputSensorType::GCODE_BUTTON);
-    door.role = InputSensorRole::DOOR;
-    InputSensorState state;
-    state.reported = true;
+    const auto door = InputSensorRole::DOOR;
+    InputReading reading;
+    reading.reported = true;
 
-    state.pressed = true;
-    CHECK_FALSE(input_reads_open(door, state));
-    state.pressed = false;
-    CHECK(input_reads_open(door, state));
+    reading.pressed = true;
+    CHECK_FALSE(input_reads_open(door, reading));
+    reading.pressed = false;
+    CHECK(input_reads_open(door, reading));
 
-    door.inverted = true;
-    CHECK_FALSE(input_reads_open(door, state));
-    state.pressed = true;
-    CHECK(input_reads_open(door, state));
+    reading.inverted = true;
+    CHECK_FALSE(input_reads_open(door, reading));
+    reading.pressed = true;
+    CHECK(input_reads_open(door, reading));
 
     // No state yet, or not a door: never open.
-    state.reported = false;
-    CHECK_FALSE(input_reads_open(door, state));
-    state.reported = true;
-    door.role = InputSensorRole::NONE;
-    CHECK_FALSE(input_reads_open(door, state));
+    reading.reported = false;
+    CHECK_FALSE(input_reads_open(door, reading));
+    reading.reported = true;
+    CHECK_FALSE(input_reads_open(InputSensorRole::NONE, reading));
 }
 
-TEST_CASE("InputSensorManager::inputs_in finds every gcode_button with default roles",
-          "[input_sensors]") {
-    const auto inputs = InputSensorManager::inputs_in(kC5Objects);
+TEST_CASE_METHOD(InputSensorFixture,
+                 "InputSensorManager discovers every gcode_button with default roles",
+                 "[input_sensors]") {
+    discover(kC5Objects);
+    const auto inputs = mgr().entries();
     REQUIRE(inputs.size() == 4);
-    CHECK(inputs[0].sensor_name == "frontDoor");
-    CHECK(inputs[0].role == InputSensorRole::DOOR);
-    CHECK(inputs[1].role == InputSensorRole::DOOR);
-    CHECK(inputs[2].sensor_name == "extruder_pos1");
-    CHECK(inputs[2].role == InputSensorRole::NONE);
-    CHECK(inputs[3].role == InputSensorRole::NONE);
-
-    const auto subs = InputSensorManager::required_status_objects(kC5Objects);
-    CHECK(subs.size() == 4);
-    CHECK(subs["gcode_button topDoor"] == json::array({"state"}));
-    CHECK_FALSE(subs.contains("filament_switch_sensor runout"));
-    // A bare prefix with no name is not an input.
-    CHECK(InputSensorManager::inputs_in({"gcode_button "}).empty());
+    CHECK(inputs[0].display_name == "frontDoor");
+    CHECK(inputs[0].role == kDoor);
+    CHECK(inputs[1].role == kDoor);
+    CHECK(inputs[2].display_name == "extruder_pos1");
+    CHECK(inputs[2].role == kOther);
+    CHECK(inputs[3].role == kOther);
+    SensorEntry other;
+    CHECK_FALSE(mgr().find("filament_switch_sensor runout", other));
 }
 
 TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager parses PRESSED/RELEASED into open doors",
                  "[input_sensors]") {
-    mgr().discover(kC5Objects);
+    discover(kC5Objects);
     // Nothing reported yet: no door reads open.
     CHECK(mgr().open_doors().empty());
 
@@ -176,11 +205,11 @@ TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager parses PRESSED/RELEASED
 
 TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager door check defaults to having a door",
                  "[input_sensors]") {
-    mgr().discover({"gcode_button extruder_grab1"});
+    discover({"gcode_button extruder_grab1"});
     CHECK_FALSE(mgr().has_door_input());
     CHECK_FALSE(mgr().door_check_enabled());
 
-    mgr().discover(kC5Objects);
+    discover(kC5Objects);
     CHECK(mgr().has_door_input());
     CHECK(mgr().door_check_enabled());
     CHECK(subject_int("input_door_check") == 1);
@@ -192,36 +221,79 @@ TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager door check defaults to 
 
 TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager persists roles, invert and door check",
                  "[input_sensors]") {
-    mgr().discover(kC5Objects);
-    mgr().set_sensor_role("gcode_button topDoor", InputSensorRole::NONE);
-    mgr().set_sensor_role("gcode_button extruder_pos1", InputSensorRole::DOOR);
-    mgr().set_sensor_inverted("gcode_button frontDoor", true);
+    discover(kC5Objects);
+    set_role("gcode_button topDoor", kOther);
+    set_role("gcode_button extruder_pos1", kDoor);
+    mgr().set_option("gcode_button frontDoor", true);
     mgr().set_door_check_enabled(false);
-    config_slot() = mgr().save_config();
+    mgr().save_settings();
+    const json saved = config_slot();
 
     // A fresh discovery restores the name defaults; the saved file overrides them.
     InputSensorManagerTestAccess::reset(mgr());
-    mgr().discover(kC5Objects);
-    CHECK(mgr().get_sensors()[1].role == InputSensorRole::DOOR);
-    CHECK_FALSE(mgr().get_sensors()[0].inverted);
+    config_slot() = saved;
+    discover(kC5Objects);
+    CHECK(role_of_name("gcode_button topDoor") == kDoor);
+    CHECK_FALSE(InputSensorManagerTestAccess::inverted(mgr(), "gcode_button frontDoor"));
     CHECK(mgr().door_check_enabled());
 
-    mgr().load_config_from_file();
-    const auto sensors = mgr().get_sensors();
-    CHECK(sensors[0].inverted);
-    CHECK(sensors[1].role == InputSensorRole::NONE);
-    CHECK(sensors[2].role == InputSensorRole::DOOR);
+    mgr().load_settings();
+    CHECK(InputSensorManagerTestAccess::inverted(mgr(), "gcode_button frontDoor"));
+    CHECK(role_of_name("gcode_button topDoor") == kOther);
+    CHECK(role_of_name("gcode_button extruder_pos1") == kDoor);
     CHECK_FALSE(mgr().door_check_enabled());
 
     // No saved door_check: back to the derived default.
     config_slot().erase("door_check");
-    mgr().load_config_from_file();
+    mgr().load_settings();
     CHECK(mgr().door_check_enabled());
+}
+
+TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager saved config reads back byte-identically",
+                 "[input_sensors]") {
+    std::ifstream in(helix::test::golden_path("sensor_settings", "input"));
+    REQUIRE(in.good());
+    const json fixture = json::parse(in, nullptr, false);
+    REQUIRE_FALSE(fixture.is_discarded());
+
+    discover(kC5Objects);
+    config_slot() = fixture;
+    mgr().load_settings();
+
+    // The saved "other" beats the door name rule, the saved door beats none.
+    CHECK(role_of_name("gcode_button frontDoor") == kDoor);
+    CHECK(role_of_name("gcode_button topDoor") == kOther);
+    CHECK(role_of_name("gcode_button extruder_pos1") == kDoor);
+    CHECK(role_of_name("gcode_button extruder_grab1") == kOther);
+    CHECK(InputSensorManagerTestAccess::inverted(mgr(), "gcode_button frontDoor"));
+    CHECK_FALSE(InputSensorManagerTestAccess::inverted(mgr(), "gcode_button topDoor"));
+    CHECK_FALSE(mgr().door_check_enabled());
+
+    config_slot() = json::object();
+    mgr().save_settings();
+    CHECK(config_slot().dump() == fixture.dump());
+}
+
+TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager rediscovery keeps the user's role choice",
+                 "[input_sensors]") {
+    discover(kC5Objects);
+    set_role("gcode_button topDoor", kOther);
+    set_role("gcode_button extruder_pos1", kDoor);
+
+    // The configfile pass runs discovery again without reloading settings.
+    discover(kC5Objects, json{{"gcode_button topDoor", {{"pin", "PB0"}}}});
+    CHECK(role_of_name("gcode_button topDoor") == kOther);
+    CHECK(role_of_name("gcode_button extruder_pos1") == kDoor);
+
+    // An input new to a later discovery gets the name default.
+    discover({"gcode_button topDoor", "gcode_button lid_switch"});
+    CHECK(role_of_name("gcode_button topDoor") == kOther);
+    CHECK(role_of_name("gcode_button lid_switch") == kDoor);
 }
 
 TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager fills the overlay row subjects",
                  "[input_sensors]") {
-    mgr().discover(kC5Objects);
+    discover(kC5Objects);
     CHECK(subject_int("input_sensor_count") == 4);
     CHECK(subject_string("input_sensor_name_0") == "frontDoor");
     CHECK(subject_int("input_sensor_role_0") == 1);
@@ -235,7 +307,7 @@ TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager fills the overlay row s
     CHECK(subject_string("input_sensor_state_3") == "Pressed");
     CHECK(subject_int("input_sensor_alert_3") == 0);
 
-    mgr().set_sensor_inverted("gcode_button frontDoor", true);
+    mgr().set_option("gcode_button frontDoor", true);
     CHECK(subject_string("input_sensor_state_0") == "Closed");
     CHECK(subject_int("input_sensor_alert_0") == 0);
     CHECK(subject_int("input_sensor_inverted_0") == 1);
@@ -277,32 +349,36 @@ TEST_CASE("firmware_reacts_to_opening: a door opens on release, or on press when
 
 TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager reads which doors the printer announces",
                  "[input_sensors]") {
-    mgr().discover(kC5Objects);
-    mgr().discover_from_config(json{
-        {"gcode_button frontDoor", {{"release_gcode", "\nRESPOND MSG=open"}}},
-        {"gcode_button topDoor", {{"release_gcode", ""}, {"press_gcode", "M117 closed"}}},
-        {"extruder", {{"release_gcode", "ignored: not a button"}}},
-    });
+    // Before the configfile arrives the printer says nothing.
+    discover(kC5Objects);
+    CHECK_FALSE(mgr().firmware_reacts_to_opening("gcode_button frontDoor"));
+
+    discover(kC5Objects,
+             json{
+                 {"gcode_button frontDoor", {{"release_gcode", "\nRESPOND MSG=open"}}},
+                 {"gcode_button topDoor", {{"release_gcode", ""}, {"press_gcode", "M117 closed"}}},
+                 {"extruder", {{"release_gcode", "ignored: not a button"}}},
+             });
     CHECK(mgr().firmware_reacts_to_opening("gcode_button frontDoor"));
     CHECK_FALSE(mgr().firmware_reacts_to_opening("gcode_button topDoor"));
     // No config section at all: the printer says nothing.
     CHECK_FALSE(mgr().firmware_reacts_to_opening("gcode_button extruder_grab1"));
 
     // Inverted, the top door opens on press, which its config does act on.
-    mgr().set_sensor_inverted("gcode_button topDoor", true);
+    mgr().set_option("gcode_button topDoor", true);
     CHECK(mgr().firmware_reacts_to_opening("gcode_button topDoor"));
-    mgr().set_sensor_inverted("gcode_button frontDoor", true);
+    mgr().set_option("gcode_button frontDoor", true);
     CHECK_FALSE(mgr().firmware_reacts_to_opening("gcode_button frontDoor"));
 
-    // A later config read replaces the earlier one.
-    mgr().discover_from_config(json::object());
+    // A later discovery replaces the earlier read.
+    discover(kC5Objects);
     CHECK_FALSE(mgr().firmware_reacts_to_opening("gcode_button topDoor"));
 }
 
 TEST_CASE_METHOD(InputSensorFixture,
                  "InputSensorManager warns mid-print only for enclosure materials",
                  "[input_sensors]") {
-    mgr().discover(kC5Objects);
+    discover(kC5Objects);
     const std::vector<std::string> opened = {"gcode_button frontDoor"};
 
     // A material that needs a warm chamber: warned, by short name.
@@ -318,8 +394,7 @@ TEST_CASE_METHOD(InputSensorFixture,
     mgr().set_door_check_enabled(true);
 
     // The printer announcing the door itself silences only that door.
-    mgr().discover_from_config(
-        json{{"gcode_button frontDoor", {{"release_gcode", "RESPOND MSG=open"}}}});
+    discover(kC5Objects, json{{"gcode_button frontDoor", {{"release_gcode", "RESPOND MSG=open"}}}});
     CHECK(mgr().mid_print_door_warnings({"gcode_button frontDoor", "gcode_button topDoor"},
                                         {"ABS"}) == std::vector<std::string>{"topDoor"});
 }
@@ -365,21 +440,20 @@ TEST_CASE_METHOD(
         toasts.push_back(message);
     });
 
-    InputSensorManager::instance().discover(kC5Objects);
+    InputSensorManager::instance().discover(discovery_of(kC5Objects));
     InputSensorManager::instance().update_from_status(
         json{{"gcode_button frontDoor", {{"state", "PRESSED"}}},
              {"gcode_button extruder_pos1", {{"state", "RELEASED"}}}});
     REQUIRE(toasts.empty());
 
     // A released input set to Door now reads open, but nothing moved.
-    InputSensorManager::instance().set_sensor_role("gcode_button extruder_pos1",
-                                                   InputSensorRole::DOOR);
+    InputSensorManager::instance().set_role("gcode_button extruder_pos1", kDoor);
     // Inverting a closed door makes it read open, and nothing moved either.
-    InputSensorManager::instance().set_sensor_inverted("gcode_button frontDoor", true);
+    InputSensorManager::instance().set_option("gcode_button frontDoor", true);
     CHECK(toasts.empty());
 
     // The front door really opening is what warns.
-    InputSensorManager::instance().set_sensor_inverted("gcode_button frontDoor", false);
+    InputSensorManager::instance().set_option("gcode_button frontDoor", false);
     InputSensorManager::instance().update_from_status(
         json{{"gcode_button frontDoor", {{"state", "RELEASED"}}}});
     REQUIRE(toasts.size() == 1);
@@ -390,7 +464,7 @@ TEST_CASE_METHOD(InputSensorPrintFixture,
                  "PrintStartController hands the start checks the open doors and the toolheads",
                  "[input_sensors][door][print_start_controller]") {
     auto& inputs = InputSensorManager::instance();
-    inputs.discover(kC5Objects);
+    inputs.discover(discovery_of(kC5Objects));
     inputs.update_from_status(json{{"gcode_button frontDoor", {{"state", "RELEASED"}}},
                                    {"gcode_button topDoor", {{"state", "PRESSED"}}}});
     REQUIRE(inputs.door_check_enabled());
