@@ -1649,7 +1649,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "the maze's cache lookup reads, never writes",
 
     CHECK(helix::ui::maze_cached_thumbnail(key) == "A:" + path);
     REQUIRE(fs::exists(path));
-    CHECK(fs::last_write_time(path) == old);
+    CHECK((fs::last_write_time(path) == old));
     CHECK(helix::ui::maze_cached_thumbnail("maze-test/not-cached.png").empty());
     CHECK(helix::ui::maze_cached_thumbnail("").empty());
     // A listing that names local files caches under that source; the lookup finds those too.
