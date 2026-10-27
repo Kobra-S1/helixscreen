@@ -18,6 +18,8 @@
 #include "hardware_fingerprint.h"
 #include "printer_discovery.h"
 
+#include <string>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
@@ -239,4 +241,19 @@ TEST_CASE("Hardware fingerprint covers every filament-system inventory", "[hardw
     CHECK(with({"AFC_buffer TN"}) != base);
     CHECK(with({"AFC_unit Turtle_1"}) != base);
     CHECK(with({"zmod_afclite"}) != base);
+    CHECK(with({"filament_detect"}) != base);
+}
+
+TEST_CASE("Hardware fingerprint detects a firmware change", "[hardware_fingerprint]") {
+    auto a = make_baseline_discovery();
+    auto b = make_baseline_discovery();
+    REQUIRE(std::string(a.firmware_name()) == std::string(b.firmware_name()));
+    REQUIRE(compute_hardware_fingerprint(a) == compute_hardware_fingerprint(b));
+
+    b.set_is_kalico(true);
+    REQUIRE(std::string(a.firmware_name()) != std::string(b.firmware_name()));
+    CHECK(compute_hardware_fingerprint(a) != compute_hardware_fingerprint(b));
+
+    a.set_is_kalico(true);
+    CHECK(compute_hardware_fingerprint(a) == compute_hardware_fingerprint(b));
 }

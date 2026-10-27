@@ -83,6 +83,57 @@ TEST_CASE_METHOD(MultiBackendFixture, "PrinterDiscovery: AFC + toolchanger prefe
     REQUIRE(hw.has_tool_changer());
 }
 
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: a toolchanger beside AFC is a coexisting filament system",
+                 "[ams][multi-backend]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "AFC",
+                                            "AFC_stepper lane1", "AFC_stepper lane2", "extruder",
+                                            "extruder1", "heater_bed", "gcode_move"}));
+
+    REQUIRE(hw.mmu_type() == helix::AmsType::AFC);
+    CHECK(hw.has_filament_system(helix::AmsType::AFC));
+    CHECK(hw.has_filament_system(helix::AmsType::TOOL_CHANGER));
+    CHECK_FALSE(hw.has_filament_system(helix::AmsType::HAPPY_HARE));
+    CHECK_FALSE(hw.has_filament_system(helix::AmsType::NONE));
+
+    // A re-parse of a printer without the toolchanger drops it again.
+    hw.parse_objects(nlohmann::json::array(
+        {"AFC", "AFC_stepper lane1", "extruder", "heater_bed", "gcode_move"}));
+    REQUIRE(hw.mmu_type() == helix::AmsType::AFC);
+    CHECK(hw.has_filament_system(helix::AmsType::AFC));
+    CHECK_FALSE(hw.has_filament_system(helix::AmsType::TOOL_CHANGER));
+}
+
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "PrinterDiscovery: the detected system row carries the type's display name",
+                 "[ams][multi-backend]") {
+    helix::PrinterDiscovery hw;
+
+    SECTION("Happy Hare") {
+        hw.parse_objects(nlohmann::json::array({"mmu", "extruder", "heater_bed"}));
+        const auto& systems = hw.detected_ams_systems();
+        REQUIRE(systems.size() == 1);
+        CHECK(systems[0].type == helix::AmsType::HAPPY_HARE);
+        CHECK(systems[0].name == "Happy Hare");
+    }
+    SECTION("AFC") {
+        hw.parse_objects(nlohmann::json::array({"AFC", "AFC_stepper lane1", "extruder"}));
+        const auto& systems = hw.detected_ams_systems();
+        REQUIRE(systems.size() == 1);
+        CHECK(systems[0].type == helix::AmsType::AFC);
+        CHECK(systems[0].name == "AFC");
+    }
+    SECTION("tool changer: one row") {
+        hw.parse_objects(nlohmann::json::array(
+            {"toolchanger", "tool T0", "tool T1", "extruder", "extruder1", "heater_bed"}));
+        const auto& systems = hw.detected_ams_systems();
+        REQUIRE(systems.size() == 1);
+        CHECK(systems[0].type == helix::AmsType::TOOL_CHANGER);
+        CHECK(systems[0].name == "Tool Changer");
+    }
+}
+
 TEST_CASE_METHOD(MultiBackendFixture, "PrinterDiscovery: no AMS detected returns empty",
                  "[ams][multi-backend]") {
     helix::PrinterDiscovery hw;

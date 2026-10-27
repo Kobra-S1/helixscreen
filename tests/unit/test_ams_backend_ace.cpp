@@ -375,6 +375,39 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE bypass macros are picked from device acti
     settings.set_ace_bypass_off_macro("auto");
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "ACE applies stored bypass macro choices on discovery",
+                 "[ams][ace][bypass][macro_choice]") {
+    helix::Config::get_instance();
+    auto& settings = helix::SettingsManager::instance();
+    const auto discovery = discovery_with({"configfile", "ace", "gcode_macro ACE_BYPASS_ON",
+                                           "gcode_macro ACE_BYPASS_OFF", "gcode_macro MY_BYPASS_ON",
+                                           "gcode_macro MY_BYPASS_OFF"});
+
+    SECTION("a stored choice overrides the detected macro") {
+        settings.set_ace_bypass_on_macro("MY_BYPASS_ON");
+        settings.set_ace_bypass_off_macro("MY_BYPASS_OFF");
+    }
+    SECTION("no stored choice: the detected macros") {
+        settings.set_ace_bypass_on_macro("auto");
+        settings.set_ace_bypass_off_macro("auto");
+    }
+    const bool overridden = settings.get_ace_bypass_on_macro() != "auto";
+
+    AmsBackendAceTestHelper helper;
+    helper.set_running(true);
+    helper.set_discovery(discovery);
+    AceTestAccess::parse_ace(helper, make_kobra_instance_object());
+    AceTestAccess::parse_ace(helper, make_kobra_manager_object(-1));
+
+    REQUIRE(helper.enable_bypass().success());
+    CHECK(helper.captured_gcodes.back() == (overridden ? "MY_BYPASS_ON" : "ACE_BYPASS_ON"));
+    REQUIRE(helper.disable_bypass().success());
+    CHECK(helper.captured_gcodes.back() == (overridden ? "MY_BYPASS_OFF" : "ACE_BYPASS_OFF"));
+
+    settings.set_ace_bypass_on_macro("auto");
+    settings.set_ace_bypass_off_macro("auto");
+}
+
 TEST_CASE("ACE names no bypass macros, so it offers no bypass", "[ams][ace][bypass][1677]") {
     AmsBackendAceTestHelper helper;
     helper.set_running(true);
