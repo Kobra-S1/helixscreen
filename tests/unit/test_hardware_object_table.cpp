@@ -112,9 +112,10 @@ TEST_CASE("hw table: output_pin keyword rule", "[hw_object_table]") {
     CHECK(obj("output_pin Buzzer").kind == ObjectKind::Speaker);
     CHECK(obj("output_pin speaker").kind == ObjectKind::Speaker);
     CHECK(obj("output_pin relay").kind == ObjectKind::Unknown);
-    // A word merely containing "fan" or "led" is not a token.
-    CHECK(obj("output_pin fanatic").kind == ObjectKind::Unknown);
-    CHECK(obj("output_pin pulled").kind == ObjectKind::Unknown);
+    // Matching is a substring, not a token.
+    CHECK(obj("output_pin caselight").kind == ObjectKind::OutputPinLed);
+    CHECK(obj("output_pin Enclosure_LEDs").kind == ObjectKind::OutputPinLed);
+    CHECK(obj("output_pin chamberfan").kind == ObjectKind::OutputPinFan);
 }
 
 TEST_CASE("hw table: bare and named neopixel and dotstar are LEDs", "[hw_object_table]") {

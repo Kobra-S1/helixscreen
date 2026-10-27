@@ -664,12 +664,12 @@ TEST_CASE("Capabilities characterization: various hardware detection patterns",
 
     SECTION("LED detected from output_pin with LIGHT in name") {
         PrinterDiscovery hardware;
-        nlohmann::json objects = {"output_pin case_light"};
+        nlohmann::json objects = {"output_pin caselight"};
         hardware.parse_objects(objects);
         state.set_hardware(hardware);
         UpdateQueueTestAccess::drain(helix::ui::UpdateQueue::instance());
 
-        // "light" is a whole `_`-separated token, so LED IS detected
+        // "caselight" contains "LIGHT", so LED IS detected
         REQUIRE(lv_subject_get_int(get_subject_by_name("printer_has_led")) == 1);
     }
 

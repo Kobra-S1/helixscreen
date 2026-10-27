@@ -132,50 +132,30 @@ bool row_matches(const Row& row, std::string_view name, std::string_view& instan
     return false;
 }
 
-/// Trailing digits are dropped so "fan0" and "led1" read as the words they begin with.
-std::string_view strip_trailing_digits(std::string_view t) {
-    while (!t.empty() && std::isdigit(static_cast<unsigned char>(t.back())))
-        t.remove_suffix(1);
-    return t;
-}
-
-bool equals_ci(std::string_view a, std::string_view b) {
-    if (a.size() != b.size())
-        return false;
-    for (size_t i = 0; i < a.size(); ++i) {
-        if (std::tolower(static_cast<unsigned char>(a[i])) != b[i])
-            return false;
-    }
-    return true;
-}
-
-/// Whether any `_`-separated token of @p name is one of @p words (lowercase).
-template <size_t N> bool has_token(std::string_view name, const std::string_view (&words)[N]) {
-    size_t pos = 0;
-    while (pos <= name.size()) {
-        size_t end = name.find('_', pos);
-        if (end == std::string_view::npos)
-            end = name.size();
-        const std::string_view token = strip_trailing_digits(name.substr(pos, end - pos));
-        for (const auto& w : words) {
-            if (equals_ci(token, w))
-                return true;
-        }
-        pos = end + 1;
+/// Whether @p name contains any of @p words (lowercase), ignoring case.
+template <size_t N>
+bool contains_word_ci(std::string_view name, const std::string_view (&words)[N]) {
+    std::string lower(name);
+    for (char& ch : lower)
+        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    for (const auto& w : words) {
+        if (lower.find(w) != std::string::npos)
+            return true;
     }
     return false;
 }
 
+/// Precedence fan > LED > speaker; matching is a case-insensitive substring
+/// ("caselight", "Enclosure_LEDs" and "fan0" all match).
 ObjectKind output_pin_kind(std::string_view pin_name) {
-    static constexpr std::string_view kFanWords[] = {"fan", "fans"};
-    static constexpr std::string_view kLedWords[] = {"light", "lights", "led",
-                                                     "leds",  "lamp",   "lamps"};
+    static constexpr std::string_view kFanWords[] = {"fan"};
+    static constexpr std::string_view kLedWords[] = {"light", "led", "lamp"};
     static constexpr std::string_view kSpeakerWords[] = {"beeper", "buzzer", "speaker"};
-    if (has_token(pin_name, kFanWords))
+    if (contains_word_ci(pin_name, kFanWords))
         return ObjectKind::OutputPinFan;
-    if (has_token(pin_name, kLedWords))
+    if (contains_word_ci(pin_name, kLedWords))
         return ObjectKind::OutputPinLed;
-    if (has_token(pin_name, kSpeakerWords))
+    if (contains_word_ci(pin_name, kSpeakerWords))
         return ObjectKind::Speaker;
     return ObjectKind::Unknown;
 }
