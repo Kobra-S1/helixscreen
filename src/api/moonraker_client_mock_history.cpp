@@ -4,6 +4,8 @@
 #include "ui_filename_utils.h"
 
 #include "env_knobs.h"
+#include "gcode_parser.h"
+#include "mock_planted_gcodes.h"
 #include "moonraker_client_mock_internal.h"
 #include "print_photos.h"
 #include "runtime_config.h"
@@ -145,6 +147,9 @@ void register_history_handlers(std::unordered_map<std::string, MethodHandler>& r
             std::string mock_uuid =
                 fmt::format("mock-uuid-{:08x}", static_cast<unsigned int>(i * 12345 + 67890));
             size_t file_size = get_test_file_size(filename);
+            const double object_height =
+                helix::gcode::extract_header_metadata(helix::mock::gcode_disk_path(filename))
+                    .object_height;
 
             // Generate mock filament usage based on duration
             int filament_mm = duration_minutes * 50; // ~50mm/minute
@@ -162,6 +167,7 @@ void register_history_handlers(std::unordered_map<std::string, MethodHandler>& r
                          {{"filament_type", "PLA"},
                           {"layer_count", duration_minutes * 2},
                           {"layer_height", 0.2},
+                          {"object_height", object_height},
                           {"first_layer_extr_temp", 210.0},
                           {"first_layer_bed_temp", 60.0},
                           {"uuid", mock_uuid},
