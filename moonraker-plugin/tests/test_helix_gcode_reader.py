@@ -493,6 +493,8 @@ def test_whole_file_analysis_policy(printing, cpus, allowed):
     assert whole_file_analysis_allowed(printing, cpus) is allowed
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"),
+                    reason="only Linux takes a thread id as a PRIO_PROCESS target")
 def test_lower_thread_priority_nices_only_the_calling_thread():
     import os
     before = os.getpriority(os.PRIO_PROCESS, 0)
@@ -507,6 +509,23 @@ def test_lower_thread_priority_nices_only_the_calling_thread():
     t.join()
     assert out["ok"] is True
     assert out["nice"] == min(19, before + 5)
+    assert os.getpriority(os.PRIO_PROCESS, 0) == before
+
+
+@pytest.mark.skipif(sys.platform.startswith("linux"),
+                    reason="Linux nices the thread; covered above")
+def test_lower_thread_priority_declines_where_a_thread_cannot_be_niced():
+    import os
+    before = os.getpriority(os.PRIO_PROCESS, 0)
+    out = {}
+
+    def worker():
+        out["ok"] = lower_thread_priority(5)
+
+    t = threading.Thread(target=worker)
+    t.start()
+    t.join()
+    assert out["ok"] is False
     assert os.getpriority(os.PRIO_PROCESS, 0) == before
 
 
