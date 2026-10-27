@@ -541,8 +541,8 @@ void AmsState::set_active_backend(int index) {
 
 bool AmsState::is_available() const {
     assert_main_thread();
-    auto* primary = get_backend(0);
-    return primary && primary->get_type() != AmsType::NONE;
+    const auto primary = system_info(0);
+    return primary && primary->presents_filament_system();
 }
 
 void AmsState::set_moonraker_api(IMoonrakerAPI* api) {
@@ -643,12 +643,13 @@ void AmsState::sync_from_backend() {
     sync_filament_runout(info);
     sync_bypass(backend, info);
     sync_feeder(backend);
-    lv_subject_set_int(&ams_slot_count_, info.total_slots);
+    const bool presented = info.presents_filament_system();
+    lv_subject_set_int(&ams_slot_count_, presented ? info.total_slots : 0);
     warn_if_slots_exceed_subjects(info.total_slots);
     // The overlay's Quick Actions, status line and bypass rows (the force-bypass
-    // row covers firmware that reports none) apply to every backend, so a
-    // backend being present is the whole condition.
-    lv_subject_set_int(&ams_has_device_ops_, 1);
+    // row covers firmware that reports none) apply to every backend that
+    // presents a system, so that is the whole condition.
+    lv_subject_set_int(&ams_has_device_ops_, presented ? 1 : 0);
 
     // Update tool change progress raw data (text formatting in UI layer)
     if (info.number_of_toolchanges > 0) {
@@ -726,14 +727,18 @@ void AmsState::sync_from_backend() {
 }
 
 void AmsState::sync_system_subjects(const AmsSystemInfo& info) {
-    // Update system-level subjects
-    int new_type = static_cast<int>(info.type);
+    // A backend presenting no filament system publishes the type of none, so
+    // every surface keyed on the type reads the printer as single-spool. Its
+    // action and loaded state below still flow: the filament panel's Load and
+    // Unload run through it and follow their progress there.
+    const AmsType presented = info.presents_filament_system() ? info.type : AmsType::NONE;
+    int new_type = static_cast<int>(presented);
     lv_subject_set_int(&ams_type_, new_type);
     // Published from the predicate, not the enum value, so a new tool-changer
     // type is picked up by XML without touching a binding.
-    int new_tool_changer = is_tool_changer(info.type) ? 1 : 0;
+    int new_tool_changer = is_tool_changer(presented) ? 1 : 0;
     lv_subject_set_int(&ams_is_tool_changer_, new_tool_changer);
-    int new_filament_system = is_filament_system(info.type) ? 1 : 0;
+    int new_filament_system = is_filament_system(presented) ? 1 : 0;
     lv_subject_set_int(&ams_is_filament_system_, new_filament_system);
     int new_action = static_cast<int>(info.action);
     if (optimistic_action_until_) {
@@ -782,7 +787,9 @@ void AmsState::sync_system_subjects(const AmsSystemInfo& info) {
 
     // Set system name from backend type_name or fallback to type string
     std::string sys_name;
-    if (!info.type_name.empty()) {
+    if (presented == AmsType::NONE) {
+        // No system shown, so no name or logo for one.
+    } else if (!info.type_name.empty()) {
         sys_name = info.type_name;
     } else {
         sys_name = ams_type_to_string(info.type);
@@ -985,7 +992,11 @@ void AmsState::sync_bypass(AmsBackend* backend, const AmsSystemInfo& info) {
             }
         }
     }
-    int new_supports_bypass = helix::bypass_available_for(info.supports_bypass) ? 1 : 0;
+    // With no system presented the external spool is the only path, so there
+    // is no bypass to switch to, forced or not.
+    int new_supports_bypass =
+        info.presents_filament_system() && helix::bypass_available_for(info.supports_bypass) ? 1
+                                                                                             : 0;
     lv_subject_set_int(&supports_bypass_, new_supports_bypass);
 
     // Update external spool color from persistent settings

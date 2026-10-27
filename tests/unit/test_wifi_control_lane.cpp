@@ -582,7 +582,7 @@ TEST_CASE_METHOD(ControlLaneFixture, "calls after the lane has closed are not ru
     }
 }
 
-// The wpa_supplicant backend is Linux-only (include/wifi_backend_wpa_supplicant.h).
+// The wpa_supplicant backend is Linux-only (wifi_backend_wpa_supplicant.h).
 #ifndef __APPLE__
 TEST_CASE_METHOD(ControlLaneFixture,
                  "the wpa_supplicant fallback does not hold the UI thread for the lane",
@@ -728,7 +728,7 @@ TEST_CASE_METHOD(ControlLaneFixture,
     CHECK(cached.ssid.empty());
 }
 
-// The wpa_supplicant backend is Linux-only (include/wifi_backend_wpa_supplicant.h).
+// The wpa_supplicant backend is Linux-only (wifi_backend_wpa_supplicant.h).
 #ifndef __APPLE__
 TEST_CASE_METHOD(ControlLaneFixture, "the wpa_supplicant fallback starts with the breaker closed",
                  "[wifi][wifi_control_lane][wifi_breaker]") {

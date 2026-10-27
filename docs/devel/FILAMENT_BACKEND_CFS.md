@@ -312,9 +312,10 @@ in the constructor and converges on the first full box frame in `handle_status`:
   AND the payload carries an `external: true` entry (`find_external_slot_index()`,
   latched into `external_slot_index_`). An unidentified Flat module keeps bypass off —
   same rule as `reject_if_flat_schema`, no verified command means no button.
-- **Stock schema:** true unconditionally on the first full box frame. Every stock CFS
-  machine pairs the external holder with the `filament_switch_sensor filament_sensor`
-  we already subscribe to, which is all the sensor-derived rule below needs.
+- **Stock schema:** true on the first full box frame that names a connected unit. Every
+  stock CFS machine pairs the external holder with the `filament_switch_sensor
+  filament_sensor` we already subscribe to, which is all the sensor-derived rule below
+  needs. A frame with no unit leaves it false: see § No CFS on the bus.
 
 `enable_bypass()` / `disable_bypass()` consult `bypass_available_for()` (the
 `force_bypass_controls` override folds in like every other backend):
@@ -352,6 +353,35 @@ The declaration survives restarts: `enable_bypass`/`disable_bypass` persist it t
 kept — and a full box frame reporting an explicit `enable == 1` drops it (someone
 re-armed the CFS through Creality's own screen; in-memory clear on the bg thread, the
 persisted flag re-clears idempotently on the next boot).
+
+### No CFS on the bus
+
+Stock K2 firmware registers `box` whether or not a CFS is attached. With none, every
+address `T1`..`T4` reads `state: "None"`, so the parse finds no unit (#1904). The backend
+still runs, because it owns the external-spool load and unload, and it reports the
+machine through `AmsSystemInfo::external_spool_only`:
+
+- `apply_box_units_locked()` sets it when a stock frame finds no unit and none has been
+  seen this session. A unit seen once keeps its place in the list when a later frame
+  drops it, so the flag cannot return on a unit that went briefly quiet. A unit coming
+  online clears it, and clears a `-2` the declaration does not hold.
+- `supports_bypass` stays false (the toggle would have no other side), and
+  `is_bypass_active()` is true. Load therefore falls through to `LOAD_MATERIAL` and
+  unload stays on the backend's bypass script, `QUIT_MATERIAL` plus the long retract
+  (§ CFS bypass in `FILAMENT_MANAGEMENT.md`).
+- `derive_stock_bypass_locked()` is armed without a declaration: with no bay to claim
+  the filament, the toolhead sensor alone says whether the spool is loaded.
+
+`AmsState` presents no filament system for such a backend
+(`AmsSystemInfo::presents_filament_system()`): `ams_type` reads `NONE`, `ams_slot_count`,
+`ams_supports_bypass` and `ams_has_device_ops` read 0, and `is_available()` is false. The
+filament panel then shows its external-spool row and the home grid drops the slot and
+bypass widgets, while `ams_action` and `ams_filament_loaded` stay live so the panel's
+Load and Unload track their progress.
+
+`box.enable == 0` is not this state. It is what the stock bypass declaration sends, and
+a box stood down that way still has its unit. `HELIX_MOCK_CFS_BOXES=none` reproduces the
+empty bus under `--test`.
 
 ### Known limitations on K1
 

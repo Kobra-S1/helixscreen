@@ -156,7 +156,7 @@ std::optional<FitMachine> current_fit_machine() {
     }
     AmsState& ams = AmsState::instance();
     return fit_machine_for_screen(*base, known_printer_model(state.profile_state().printer_type()),
-                                  ams.backend_count() > 0, ams.printable_y_shrink_mm());
+                                  ams.is_available(), ams.printable_y_shrink_mm());
 }
 
 PreflightResult preflight_for(const FileStartFacts& facts) {
