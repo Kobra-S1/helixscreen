@@ -832,6 +832,7 @@ src/ui/ui_gcode_viewer.cpp
 #   and call it ungated; its only deps are the ui_gcode_viewer_* API above (the
 #   no-op branch defines all of it), DisplaySettingsManager and RuntimeConfig.
 src/ui/gcode_preview_fetcher.cpp
+src/ui/gcode_preview_gate.cpp
 src/ui/gcode_preview_setup.cpp
 src/ui/print_preview_controller.cpp
 #   bed-mesh viewer, compiled-out branch (HELIX_HAS_BED_MESH_3D=0): same trick

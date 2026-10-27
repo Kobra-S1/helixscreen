@@ -885,6 +885,65 @@ TEST_CASE("open_file measures how fast this board scans the index",
     CHECK(std::isfinite(rate));
 }
 
+namespace {
+/// Enough lines that the index scan reports progress (it does every 20000).
+std::string make_long_gcode() {
+    std::string out = "G90\nM82\n";
+    double e = 0.0;
+    for (int layer = 0; layer < 50; ++layer) {
+        out += "G1 Z" + std::to_string(0.2 * (layer + 1)) + "\n";
+        for (int i = 0; i < 1000; ++i) {
+            e += 0.01;
+            out += "G1 X" + std::to_string(10 + i % 50) + " Y" + std::to_string(10 + i % 7) + " E" +
+                   std::to_string(e) + "\n";
+        }
+    }
+    return out;
+}
+} // namespace
+
+TEST_CASE("a cost guard that refuses stops the index scan and says why",
+          "[gcode][streaming][index_rate]") {
+    TempGCodeFile file(make_long_gcode());
+    GCodeStreamingController controller;
+    int calls = 0;
+    controller.set_index_cost_guard([&calls](float fraction, double cpu_s) {
+        ++calls;
+        CHECK(fraction > 0.0f);
+        CHECK(cpu_s >= 0.0);
+        return false;
+    });
+    CHECK_FALSE(controller.open_file(file.path()));
+    CHECK(calls == 1);
+    CHECK(controller.index_abandoned_for_cost());
+}
+
+TEST_CASE("a cost guard that allows the scan changes nothing", "[gcode][streaming][index_rate]") {
+    TempGCodeFile file(make_long_gcode());
+    GCodeStreamingController controller;
+    int calls = 0;
+    controller.set_index_cost_guard([&calls](float, double) {
+        ++calls;
+        return true;
+    });
+    REQUIRE(controller.open_file(file.path()));
+    CHECK(calls > 0);
+    CHECK_FALSE(controller.index_abandoned_for_cost());
+    CHECK(controller.get_layer_count() >= 49);
+}
+
+TEST_CASE("a fresh scan clears an earlier cost abandonment", "[gcode][streaming][index_rate]") {
+    TempGCodeFile file(make_long_gcode());
+    GCodeStreamingController controller;
+    bool refuse = true;
+    controller.set_index_cost_guard([&refuse](float, double) { return !refuse; });
+    CHECK_FALSE(controller.open_file(file.path()));
+    REQUIRE(controller.index_abandoned_for_cost());
+    refuse = false;
+    REQUIRE(controller.open_file(file.path()));
+    CHECK_FALSE(controller.index_abandoned_for_cost());
+}
+
 #ifdef __linux__
 TEST_CASE("the index scan runs below the UI thread's priority",
           "[gcode][streaming][thread_priority]") {

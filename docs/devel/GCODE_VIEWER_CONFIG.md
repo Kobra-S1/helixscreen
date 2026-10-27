@@ -35,6 +35,26 @@ degrades to 2D rather than reaching anything.
 `HELIX_GCODE_MODE=3D|2D` overrides for one run. `3D` on a build without a 3D
 renderer falls back to 2D and says so in the log.
 
+### Auto drops to the thumbnail when a preview would cost too much
+
+In Auto, and only there, a streamed preview also has to be affordable in CPU on
+this board, because on a printer's own board that CPU comes out of Klipper's
+cores. The projected cost is one index scan of the file plus a ghost pass of
+about the same size (`include/gcode_preview_cost.h`), against a budget of 15
+CPU-seconds with the printer idle and 5 while a print runs. Over budget, the
+slicer thumbnail is shown instead, silently: no toast, a single info line in the
+log. An explicit 2D or 3D choice is the user's and is never overridden.
+
+The projection needs this board's index-scan speed, in MB of G-code per CPU
+second. It is learned from the first idle scan and stored at
+`display/gcode_preview_rate` with the board's fingerprint and the app version;
+a stored rate from another board or version is ignored. From then on a file is
+judged before anything is downloaded (`helix::ui::preview_gate()`). Before a rate
+is learned, or with no rate for the current version, the scan judges itself from
+its first 2% and a quarter-second of CPU and stops early when the projection is
+over budget. A CC1 scans about 10 MB/cpu-s: a 41 MB file previews when idle and
+shows the thumbnail mid-print.
+
 ## Shading, and what it costs
 
 Two things travel under the name "enhanced shading", and they are priced very

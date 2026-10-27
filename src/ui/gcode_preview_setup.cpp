@@ -73,6 +73,12 @@ bool preview_viewer_enabled() {
     return live_preview_mode().uses_viewer();
 }
 
+bool preview_mode_is_auto() {
+    const auto decision = live_preview_mode();
+    return decision.source == PreviewModeSource::Settings &&
+           decision.mode == GcodeViewerRenderMode::Auto;
+}
+
 void set_preview_bottom_occluder(lv_obj_t* viewer, lv_obj_t* occluder) {
     if (!viewer) {
         return;

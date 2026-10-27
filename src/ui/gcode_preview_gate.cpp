@@ -1,0 +1,163 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "gcode_preview_gate.h"
+
+#include "app_globals.h"
+#include "config.h"
+#include "gcode_preview_cost.h"
+#include "gcode_preview_setup.h"
+#include "memory_utils.h"
+#include "printer_state.h"
+
+#if HELIX_HAS_GCODE_VIEWER
+#include "board_fingerprint.h"
+#include "helix_version.h"
+#include "platform_capabilities.h"
+#endif
+
+#include <spdlog/spdlog.h>
+
+namespace helix::ui {
+
+std::optional<PreviewRateEntry> parse_preview_rate(const nlohmann::json* node) {
+    if (node == nullptr || !node->is_object()) {
+        return std::nullopt;
+    }
+    const auto rate = node->find("rate");
+    const auto board = node->find("board");
+    const auto version = node->find("version");
+    if (rate == node->end() || !rate->is_number() || board == node->end() || !board->is_string() ||
+        version == node->end() || !version->is_string()) {
+        return std::nullopt;
+    }
+    const double value = rate->get<double>();
+    if (!(value > 0.0)) {
+        return std::nullopt;
+    }
+    return PreviewRateEntry{value, board->get<std::string>(), version->get<std::string>()};
+}
+
+nlohmann::json preview_rate_json(const PreviewRateEntry& entry) {
+    return nlohmann::json{
+        {"rate", entry.mb_per_cpu_s}, {"board", entry.board}, {"version", entry.version}};
+}
+
+double learned_preview_rate(const helix::Config& config, const std::string& board,
+                            const std::string& version) {
+    const auto entry = parse_preview_rate(config.try_get_json(kPreviewRatePath));
+    if (!entry || entry->board != board || entry->version != version) {
+        return 0.0;
+    }
+    return entry->mb_per_cpu_s;
+}
+
+void save_preview_rate(helix::Config& config, const PreviewRateEntry& entry) {
+    config.set<nlohmann::json>(kPreviewRatePath, preview_rate_json(entry));
+    config.save();
+}
+
+PreviewGate decide_preview_gate(uint64_t bytes, const PreviewGateInputs& in) {
+    if (!in.memory_safe) {
+        return PreviewGate::TooLarge;
+    }
+    if (in.auto_mode && helix::gcode::judge_preview(bytes, in.learned_rate, in.printing) ==
+                            helix::gcode::PreviewVerdict::TooExpensive) {
+        return PreviewGate::TooExpensive;
+    }
+    return PreviewGate::Build;
+}
+
+// A build without the viewer never streams a preview, so it has no rate to learn
+// or key; the board and version are empty and record_preview_rate() is inert.
+const std::string& preview_rate_board() {
+    static const std::string board = [] {
+#if HELIX_HAS_GCODE_VIEWER
+        // The display backend is left out: it does not change what the CPU
+        // scans in a second.
+        return board_fingerprint(current_board_facts(helix::PlatformCapabilities::detect(), ""));
+#else
+        return std::string();
+#endif
+    }();
+    return board;
+}
+
+const std::string& preview_rate_version() {
+#if HELIX_HAS_GCODE_VIEWER
+    static const std::string version = helix_version_full();
+#else
+    static const std::string version;
+#endif
+    return version;
+}
+
+namespace {
+
+bool print_holds_machine() {
+    return job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
+}
+
+} // namespace
+
+PreviewGateInputs current_preview_gate_inputs(uint64_t bytes) {
+    PreviewGateInputs in;
+    in.memory_safe = helix::is_gcode_2d_streaming_safe(static_cast<size_t>(bytes));
+    in.auto_mode = preview_mode_is_auto();
+    in.printing = print_holds_machine();
+    const helix::Config* config = helix::Config::get_instance();
+    if (config && !preview_rate_board().empty()) {
+        in.learned_rate =
+            learned_preview_rate(*config, preview_rate_board(), preview_rate_version());
+    }
+    return in;
+}
+
+PreviewGate preview_gate(uint64_t bytes, const char* log_tag) {
+    const PreviewGateInputs in = current_preview_gate_inputs(bytes);
+    const PreviewGate gate = decide_preview_gate(bytes, in);
+    switch (gate) {
+    case PreviewGate::TooLarge: {
+        const auto mem = helix::get_system_memory_info();
+        spdlog::warn("[{}] G-code too large for 2D streaming: file={} bytes, available RAM={}MB - "
+                     "using thumbnail only",
+                     log_tag, bytes, mem.available_mb());
+        break;
+    }
+    case PreviewGate::TooExpensive:
+        spdlog::info(
+            "[{}] G-code preview would cost ~{:.1f} CPU-s on this board (budget {:.0f}s{}) "
+            "- using thumbnail only",
+            log_tag, helix::gcode::projected_preview_cpu_s(bytes, in.learned_rate),
+            helix::gcode::preview_budget_s(in.printing), in.printing ? " while printing" : "");
+        break;
+    case PreviewGate::Build:
+        break;
+    }
+    return gate;
+}
+
+void record_preview_rate(double mb_per_cpu_s) {
+    if (!(mb_per_cpu_s > 0.0) || preview_rate_board().empty() || print_holds_machine()) {
+        return;
+    }
+    helix::Config* config = helix::Config::get_instance();
+    if (!config) {
+        return;
+    }
+    const PreviewRateEntry entry{mb_per_cpu_s, preview_rate_board(), preview_rate_version()};
+    const auto stored = parse_preview_rate(config->try_get_json(kPreviewRatePath));
+    if (stored && stored->board == entry.board && stored->version == entry.version) {
+        // A rate within a tenth of what is stored is the same board saying the
+        // same thing: skip the config write.
+        const double ratio = entry.mb_per_cpu_s / stored->mb_per_cpu_s;
+        if (ratio > 0.9 && ratio < 1.1) {
+            return;
+        }
+    }
+    spdlog::info("[PreviewGate] Learned index rate {:.1f} MB/cpu-s on {}", mb_per_cpu_s,
+                 entry.board);
+    save_preview_rate(*config, entry);
+}
+
+} // namespace helix::ui

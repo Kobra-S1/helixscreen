@@ -14,11 +14,15 @@
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
+#include "app_globals.h"
 #include "color_utils.h"
 #include "gcode_color_metadata.h"
 #include "gcode_gl_fallback.h"
 #include "gcode_parser.h"
 #include "gcode_pause_scan.h"
+#include "gcode_preview_cost.h"
+#include "gcode_preview_gate.h"
+#include "gcode_preview_setup.h"
 #include "gcode_render_schedule.h"
 #include "gcode_streaming_config.h"
 #include "gcode_streaming_controller.h"
@@ -26,6 +30,7 @@
 #include "geometry_budget_manager.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "print_status_preview_decision.h"
+#include "printer_state.h"
 #include "system/crash_handler.h"
 #include "system/telemetry_manager.h"
 #include "text_io.h"
@@ -345,6 +350,18 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         // Create streaming controller
         st->streaming_controller_ = std::make_unique<helix::gcode::GCodeStreamingController>();
         st->streaming_controller_->set_layer_index_sidecar(layer_index_sidecar);
+        // With no learned rate the preview gate could not judge this file, so the
+        // scan judges itself from its first slice. Auto only, like the gate; the
+        // print state is read here because the guard runs on the scanning thread.
+        if (helix::ui::preview_mode_is_auto()) {
+            const bool printing =
+                job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
+            st->streaming_controller_->set_index_cost_guard(
+                [printing](float fraction, double cpu_s) {
+                    return helix::gcode::judge_index_progress(fraction, cpu_s, printing) !=
+                           helix::gcode::PreviewVerdict::TooExpensive;
+                });
+        }
 
         // Launch async index building with completion callback
         // The callback can run on a background thread; queue_update marshals it to the UI thread
@@ -383,6 +400,8 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                         st->streaming_controller_->is_open()) {
                         spdlog::info("[GCode Viewer] Streaming mode: indexed {} layers",
                                      st->streaming_controller_->get_layer_count());
+                        helix::ui::record_preview_rate(
+                            st->streaming_controller_->index_throughput_mb_per_cpu_s());
 
                         // The layer scan collected this file's scheduled pauses on
                         // the same pass; remember them for the load callback.
@@ -447,6 +466,18 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                         // Invoke load callback
                         if (st->load_callback) {
                             st->load_callback(obj, st->load_callback_user_data, true);
+                        }
+                    } else if (st->streaming_controller_ &&
+                               st->streaming_controller_->index_abandoned_for_cost()) {
+                        // Not a failure: the preview would cost this board more CPU
+                        // than it is worth right now. The thumbnail stands in, quietly.
+                        spdlog::info("[GCode Viewer] Streaming mode: preview of {} would cost too "
+                                     "much CPU on this board - using thumbnail",
+                                     r->path);
+                        st->viewer_state = GcodeViewerState::Error;
+                        st->streaming_controller_.reset();
+                        if (st->load_callback) {
+                            st->load_callback(obj, st->load_callback_user_data, false);
                         }
                     } else {
                         spdlog::error("[GCode Viewer] Streaming mode: failed to index {}", r->path);

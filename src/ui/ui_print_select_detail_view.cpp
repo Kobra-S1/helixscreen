@@ -29,6 +29,7 @@
 #include "gcode_footer_summary.h"
 #include "gcode_parser.h"
 #include "gcode_preview_fetcher.h"
+#include "gcode_preview_gate.h"
 #include "gcode_preview_setup.h"
 #include "gcode_temp_reclaim.h"
 #include "host_identity.h"
@@ -2479,15 +2480,12 @@ void PrintSelectDetailView::load_gcode_for_preview() {
                         return;
                     }
 
-                    // Check if file is safe to render given available RAM. When
-                    // the shared file already loaded this same size passed the
+                    // Check the file against the preview's RAM and CPU limits.
+                    // When the shared file already loaded this same size passed the
                     // download's local gate below, so this only bites on the paths
                     // where the ensure-callback hadn't resolved yet.
-                    if (!helix::is_gcode_2d_streaming_safe(metadata.size)) {
-                        auto mem = helix::get_system_memory_info();
-                        spdlog::warn("[DetailView] G-code too large for streaming: file={} bytes, "
-                                     "available RAM={}MB - using thumbnail",
-                                     metadata.size, mem.available_mb());
+                    if (helix::ui::preview_gate(metadata.size, "DetailView") !=
+                        helix::ui::PreviewGate::Build) {
                         show_gcode_viewer(false);
                         return;
                     }
@@ -2515,7 +2513,7 @@ void PrintSelectDetailView::load_gcode_for_preview() {
     // here; now they get the real toolpath preview — with the effective
     // lane-matched colors (apply_preview_colors) — so the browser shows the
     // colors the print will actually use. Oversized files still degrade to the
-    // thumbnail below via is_gcode_2d_streaming_safe().
+    // thumbnail below via preview_gate().
     // A .3mf takes the same path: it is a zip with no layers for the viewer to
     // parse (prestonbrown/helixscreen#1713).
     if (!helix::ui::preview_viewer_enabled() || helix::gcode::is_3mf(current_filename_)) {
@@ -2542,11 +2540,7 @@ void PrintSelectDetailView::load_gcode_for_preview() {
 
         const size_t local_size =
             tio::open_file(path, "rb") ? static_cast<size_t>(tio::file_size(path).value_or(0)) : 0;
-        if (!helix::is_gcode_2d_streaming_safe(local_size)) {
-            auto mem = helix::get_system_memory_info();
-            spdlog::warn("[DetailView] G-code too large for streaming: file={} bytes, "
-                         "available RAM={}MB - using thumbnail",
-                         local_size, mem.available_mb());
+        if (helix::ui::preview_gate(local_size, "DetailView") != helix::ui::PreviewGate::Build) {
             // The viewer just rejected the file — remove the canonical copy
             // so oversize re-downloads can't pile up on disk (SD-card leak).
             // Gated on the scan having actually SETTLED, not on readiness:
