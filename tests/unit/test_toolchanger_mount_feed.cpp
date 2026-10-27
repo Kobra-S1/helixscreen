@@ -9,6 +9,7 @@
  */
 
 #include "ui_ams_device_operations_overlay.h"
+#include "ui_batch_filament_modal.h"
 #include "ui_update_queue.h"
 
 #include "../busy_guard_fixture.h"
@@ -2024,4 +2025,33 @@ TEST_CASE_METHOD(LVGLTestFixture, "Abort says Aborting before the backend report
 
     AmsState::instance().set_backend(nullptr);
     helix::ui::set_test_notification_info_hook(nullptr);
+}
+
+TEST_CASE("MedusaHC remembers which docked hot ends a completed load fed",
+          "[toolchanger][mount_feed][medusahc]") {
+    AckingChanger tc(4);
+    tc.feed_status("ready", 0);
+    CHECK_FALSE(tc.head_has_filament(2).has_value()); // nothing senses it
+    REQUIRE(tc.load_filament(2).success());
+    tc.ack(); // the prompt
+    ToolChangerTestAccess::feed_operator_reply(tc, mf::Reply::Continue);
+    tc.ack();                                         // mounted
+    tc.ack();                                         // heated
+    tc.ack();                                         // purged
+    CHECK_FALSE(tc.head_has_filament(2).has_value()); // not done until restored
+    tc.ack();                                         // tool 0 back on the carriage
+    REQUIRE(tc.get_current_action() == AmsAction::IDLE);
+    CHECK(tc.head_has_filament(2) == std::optional<bool>(true));
+    CHECK_FALSE(tc.head_has_filament(1).has_value());
+    // The Unload picker reads the docked tool as loaded, not ready to load.
+    CHECK(helix::ui::BatchFilamentModal::row_at_toolhead(tc, 2, 2));
+    CHECK_FALSE(helix::ui::BatchFilamentModal::row_at_toolhead(tc, 1, 1));
+
+    REQUIRE(tc.unload_filament(2).success());
+    tc.ack(); // mounted
+    tc.ack(); // heated
+    tc.ack(); // retracted
+    tc.ack(); // restored
+    REQUIRE(tc.get_current_action() == AmsAction::IDLE);
+    CHECK_FALSE(tc.head_has_filament(2).has_value());
 }

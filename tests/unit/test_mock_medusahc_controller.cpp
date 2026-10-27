@@ -86,6 +86,10 @@ TEST_CASE_METHOD(StockMedusaFixture, "MedusaHC mock: MHC_TOOL_OFFSET applies the
     MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
     REQUIRE(mock.gcode_script("SET_GCODE_VARIABLE MACRO=_TOOL_OFFSET VARIABLE=t0_off_z "
                               "VALUE=-0.250") == 0);
+    REQUIRE(mock.gcode_script("SET_GCODE_VARIABLE MACRO=_TOOL_OFFSET VARIABLE=t0_off_x "
+                              "VALUE=0.120") == 0);
+    REQUIRE(mock.gcode_script("SET_GCODE_VARIABLE MACRO=_TOOL_OFFSET VARIABLE=t0_off_y "
+                              "VALUE=-0.080") == 0);
 
     json origin;
     const auto sub = mock.register_notify_update([&origin](const json& notification) {
@@ -97,6 +101,9 @@ TEST_CASE_METHOD(StockMedusaFixture, "MedusaHC mock: MHC_TOOL_OFFSET applies the
     REQUIRE(mock.gcode_script("MHC_TOOL_OFFSET T=0 MOVE=0") == 0);
     mock.unsubscribe_notify_update(sub);
     REQUIRE(origin.is_array());
+    // The controller's _apply_offset() sets X, Y and Z.
+    CHECK(origin[0].get<double>() == Approx(0.12));
+    CHECK(origin[1].get<double>() == Approx(-0.08));
     CHECK(origin[2].get<double>() == Approx(-0.25));
 
     CHECK(mock.gcode_script("MHC_TOOL_OFFSET T=9 MOVE=0") != 0);
@@ -166,4 +173,42 @@ TEST_CASE_METHOD(StockMedusaFixture, "MedusaHC mock: a manual pause with the too
     REQUIRE(mock.gcode_script("RESUME") == 0);
     CHECK(mock.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PRINTING);
     CHECK(mock.medusa_status_json()["operation"] == "idle");
+}
+
+TEST_CASE_METHOD(StockMedusaFixture, "MedusaHC mock: a secondary hot end follows its own target",
+                 "[medusahc][mock][resume]") {
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+    const double primary_target = mock.extruder_target();
+    REQUIRE(mock.gcode_script("SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=230") == 0);
+    CHECK(mock.secondary_extruder_target(1) == Approx(230.0));
+    CHECK(mock.extruder_target() == Approx(primary_target)); // the primary is untouched
+
+    for (int i = 0; i < 200; ++i) {
+        MoonrakerClientMockTestAccess::advance_secondary_extruders(mock, 0.5);
+    }
+    CHECK(mock.secondary_extruder_temp(1) == Approx(230.0));
+
+    REQUIRE(mock.gcode_script("SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0") == 0);
+    for (int i = 0; i < 400; ++i) {
+        MoonrakerClientMockTestAccess::advance_secondary_extruders(mock, 0.5);
+    }
+    CHECK(mock.secondary_extruder_temp(1) == Approx(25.0));
+}
+
+TEST_CASE_METHOD(StockMedusaFixture, "MedusaHC mock: RESUME to a tool heated after the failure",
+                 "[medusahc][mock][resume]") {
+    ScopedEnv fail_env("HELIX_MOCK_MEDUSA_SWAP_FAIL", "1");
+    MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+    REQUIRE(mock.start_print_internal("3DBenchy.gcode"));
+    REQUIRE(mock.gcode_script("T1") == 0);
+    run_to_rest(mock);
+    REQUIRE(mock.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PAUSED);
+    REQUIRE(mock.gcode_script("RESUME") != 0); // T1 is cold
+
+    mock.medusa_place_tools_by_hand(-1);
+    REQUIRE(mock.gcode_script("SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=220") == 0);
+    for (int i = 0; i < 100; ++i) {
+        MoonrakerClientMockTestAccess::advance_secondary_extruders(mock, 0.5);
+    }
+    REQUIRE(mock.gcode_script("RESUME") == 0);
 }

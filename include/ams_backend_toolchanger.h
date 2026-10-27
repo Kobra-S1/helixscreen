@@ -197,10 +197,10 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
                                                       const AmsSystemInfo&) const override {
         return head_for_slot(head);
     }
-    /// Nothing here senses filament in a head.
-    [[nodiscard]] std::optional<bool> head_has_filament(int) const override {
-        return std::nullopt;
-    }
+    /// Nothing here senses filament in a head. A changer that mounts to feed
+    /// knows only what its own runs did: true for a head a completed Load fed,
+    /// until an Unload of it completes; nullopt otherwise.
+    [[nodiscard]] std::optional<bool> head_has_filament(int head) const override;
 
     /// Z-Mod's Creator 5 has no automatic unload: the user cuts the filament at
     /// the head and pulls it out by hand.
@@ -620,6 +620,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     void flush_owed_heaters_off();
     /// Add @p heads to owed_heaters_off_, keeping every head already owed.
     void owe_heaters_off(const std::vector<int>& heads);
+    /// Record what @p run, completed, left in its heads (fed_heads_). Takes
+    /// mutex_.
+    void record_fed_heads(const helix::mount_feed::Run& run);
     /// Drop the run and every piece of state that mirrors it, publish IDLE
     /// (or the sensor fault the run held back), and emit. Main thread.
     void reset_feed_run();
@@ -844,6 +847,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// it answers a different question: docked says where the HEAD is, this
     /// says whether there is filament in it.
     std::vector<std::optional<bool>> head_filament_;
+    /// Heads a completed mount-to-feed Load left filament in, by head; an
+    /// Unload that completes clears its heads. Guarded by mutex_.
+    std::vector<bool> fed_heads_;
     /// The afclite shim's standing fault text, set while its error_state flag
     /// reads true. Empty when the shim reports healthy (or is absent).
     std::string afclite_fault_message_;

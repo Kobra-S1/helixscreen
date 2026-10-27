@@ -2836,18 +2836,32 @@ nlohmann::json MoonrakerClientMock::medusa_macro_status_json() const {
     };
 }
 
-double MoonrakerClientMock::secondary_extruder_temp(int index) {
-    // Distinct readings so each heating state renders its own colour: extruder1
-    // HEATING, extruder2 AT-TEMP, extruder3 COOLING, the rest cold.
-    switch (index) {
-    case 1:
-        return 150.0;
-    case 2:
-        return 248.0;
-    case 3:
-        return 200.0;
-    default:
-        return 25.0;
+double MoonrakerClientMock::secondary_extruder_temp(int index) const {
+    std::lock_guard<std::mutex> lock(secondary_extruders_mutex_);
+    if (index < 1 || index >= static_cast<int>(secondary_extruders_.size())) {
+        return kRoomTemp;
+    }
+    return secondary_extruders_[static_cast<size_t>(index)].temperature;
+}
+
+double MoonrakerClientMock::secondary_extruder_target(int index) const {
+    std::lock_guard<std::mutex> lock(secondary_extruders_mutex_);
+    if (index < 1 || index >= static_cast<int>(secondary_extruders_.size())) {
+        return 0.0;
+    }
+    return secondary_extruders_[static_cast<size_t>(index)].target;
+}
+
+void MoonrakerClientMock::advance_secondary_extruders(double dt) {
+    std::lock_guard<std::mutex> lock(secondary_extruders_mutex_);
+    for (size_t i = 1; i < secondary_extruders_.size(); ++i) {
+        SecondaryExtruder& e = secondary_extruders_[i];
+        const double goal = e.target > 0 ? e.target : kRoomTemp;
+        if (e.temperature < goal) {
+            e.temperature = std::min(goal, e.temperature + kExtruderHeatRate * dt);
+        } else {
+            e.temperature = std::max(goal, e.temperature - kExtruderCoolRate * dt);
+        }
     }
 }
 
@@ -4848,7 +4862,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
          {{"gcode_position", {x, y, z, 0.0}}, // Commanded position (same as toolhead in mock)
           {"speed_factor", speed / 100.0},
           {"extrude_factor", flow / 100.0},
-          {"homing_origin", {0.0, 0.0, z_offset, 0.0}}}},
+          {"homing_origin", {gcode_offset_x_.load(), gcode_offset_y_.load(), z_offset, 0.0}}}},
         {"fan", {{"speed", fan / 255.0}}},
         {"webhooks",
          {{"state", klippy_str},
@@ -5474,6 +5488,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             }
         }
         extruder_temp_.store(ext_temp);
+        advance_secondary_extruders(effective_dt);
 
         // Simulate bed temperature change (scaled by speedup)
         if (bed_target_val > 0) {
@@ -5775,7 +5790,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
               {"speed", feed_mm_s},
               {"speed_factor", speed / 100.0},
               {"extrude_factor", flow / 100.0},
-              {"homing_origin", {0.0, 0.0, z_offset, 0.0}}}},
+              {"homing_origin", {gcode_offset_x_.load(), gcode_offset_y_.load(), z_offset, 0.0}}}},
             {"motion_report",
              {{"live_position", {x, y, z + z_offset, 0.0}},
               {"live_velocity", feed_mm_s * (speed / 100.0)},
@@ -5827,21 +5842,14 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                 {"Diameter", 1.75}, {"Raw", 500.0}, {"is_active", true}};
         }
 
-        // Toolchanger mock mode: keep the 3 extra extruder temps on the live
-        // subscription stream so they don't go stale. Static values (matching the
-        // initial query response) chosen for easy heating-state color eyeballing:
-        // extruder1 HEATING (150/250), extruder2 AT-TEMP (248/250),
-        // extruder3 COOLING (200/0). Not wired into the ramping atomics by design.
+        // Toolchanger mock mode: the extra extruders on the live subscription
+        // stream, each following its own target (secondary_extruder_temp()).
         if (is_mock_toolchanger() || is_mock_medusahc()) {
-            status_obj["extruder1"] = {{"temperature", secondary_extruder_temp(1)},
-                                       {"target", 250.0}};
-            status_obj["extruder2"] = {{"temperature", secondary_extruder_temp(2)},
-                                       {"target", 250.0}};
-            status_obj["extruder3"] = {{"temperature", secondary_extruder_temp(3)},
-                                       {"target", 0.0}};
-            for (int t = 4; is_mock_medusahc() && t < medusa_tool_count(); ++t) {
+            const int count = is_mock_medusahc() ? medusa_tool_count() : 4;
+            for (int t = 1; t < count; ++t) {
                 status_obj["extruder" + std::to_string(t)] = {
-                    {"temperature", secondary_extruder_temp(t)}, {"target", 0.0}};
+                    {"temperature", secondary_extruder_temp(t)},
+                    {"target", secondary_extruder_target(t)}};
             }
         }
 
@@ -6174,11 +6182,12 @@ void MoonrakerClientMock::dispatch_gcode_move_update() {
     double x, y, z;
     read_position_snapshot(x, y, z);
 
-    json gcode_move = {{"gcode_move",
-                        {{"gcode_position", {x, y, z, 0.0}},
-                         {"speed_factor", speed / 100.0},
-                         {"extrude_factor", flow / 100.0},
-                         {"homing_origin", {0.0, 0.0, z_offset, 0.0}}}}};
+    json gcode_move = {
+        {"gcode_move",
+         {{"gcode_position", {x, y, z, 0.0}},
+          {"speed_factor", speed / 100.0},
+          {"extrude_factor", flow / 100.0},
+          {"homing_origin", {gcode_offset_x_.load(), gcode_offset_y_.load(), z_offset, 0.0}}}}};
     dispatch_status_update(gcode_move);
 }
 

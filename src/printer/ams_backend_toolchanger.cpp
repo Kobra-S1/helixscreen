@@ -340,6 +340,28 @@ bool AmsBackendToolChanger::slot_is_mounted_locked(int slot_index) const {
     return system_info_.current_slot >= 0 && slot_index == system_info_.current_slot;
 }
 
+std::optional<bool> AmsBackendToolChanger::head_has_filament(int head) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (head >= 0 && static_cast<size_t>(head) < fed_heads_.size() &&
+        fed_heads_[static_cast<size_t>(head)]) {
+        return true;
+    }
+    return std::nullopt;
+}
+
+void AmsBackendToolChanger::record_fed_heads(const helix::mount_feed::Run& run) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (const auto& head : run.request().heads) {
+        if (head.head < 0) {
+            continue;
+        }
+        if (static_cast<size_t>(head.head) >= fed_heads_.size()) {
+            fed_heads_.resize(static_cast<size_t>(head.head) + 1, false);
+        }
+        fed_heads_[static_cast<size_t>(head.head)] = run.request().load;
+    }
+}
+
 bool AmsBackendToolChanger::can_unload_from_toolhead(int slot_index) const {
     std::lock_guard<std::mutex> lock(mutex_);
     return slot_is_mounted_locked(slot_index);
@@ -1920,6 +1942,9 @@ void AmsBackendToolChanger::send_feed_stage() {
         }
         spdlog::info("[AMS ToolChanger] Mount-to-feed run {}",
                      feed_run_->aborted() ? "cleaned up" : "complete");
+        if (!feed_run_->aborted()) {
+            record_fed_heads(*feed_run_);
+        }
         if (!feed_run_->aborted() && !feed_run_->request().load) {
             toast_unload_complete();
         }

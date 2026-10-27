@@ -1468,10 +1468,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// `save_variables`, keyed by object name. Empty when not a MedusaHC mock.
     nlohmann::json medusa_macro_status_json() const;
     /// The nozzle temperature of hot end @p tool: the live extruder for tool 0,
-    /// the fixed secondary-extruder readings the status serves for the rest.
+    /// secondary_extruder_temp() for the rest.
     [[nodiscard]] double medusa_nozzle_temp(int tool) const;
-    /// The fixed reading a secondary extruder @p index (1..5) reports.
-    [[nodiscard]] static double secondary_extruder_temp(int index);
+    /// Secondary extruder @p index (1..5)'s reading and target. They start
+    /// apart (extruder1 heating, extruder2 at temperature, extruder3 cooling,
+    /// the rest cold) so each heating state shows, and follow their targets
+    /// like the primary: SET_HEATER_TEMPERATURE HEATER=extruder<n> sets one.
+    [[nodiscard]] double secondary_extruder_temp(int index) const;
+    [[nodiscard]] double secondary_extruder_target(int index) const;
 
     /**
      * @brief U1 `defect_detection` status: the module's stored config, which
@@ -2307,6 +2311,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // G-code offset tracking
     std::atomic<double> gcode_offset_z_{0.0}; // Z offset from SET_GCODE_OFFSET
+    std::atomic<double> gcode_offset_x_{0.0}; // X offset (MHC_TOOL_OFFSET applies X/Y/Z)
+    std::atomic<double> gcode_offset_y_{0.0};
     /// Per-tool offsets, indexed by tool number then axis, driven by
     /// SET_TOOL_PARAMETER. Seeded DISTINCT rather than all-zero, per tool and
     /// per axis: an all-zero seed makes "every tool reads the same value" (or
@@ -2404,8 +2410,24 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // Simulation parameters (realistic heating rates)
     static constexpr double kRoomTemp = 25.0;
-    static constexpr double kExtruderHeatRate = 3.0;     // °C/sec when heating
-    static constexpr double kExtruderCoolRate = 1.5;     // °C/sec when cooling
+    static constexpr double kExtruderHeatRate = 3.0; // °C/sec when heating
+    static constexpr double kExtruderCoolRate = 1.5; // °C/sec when cooling
+    /// One simulation step of @p dt simulated seconds for every secondary
+    /// extruder: toward its target, or toward room temperature when off.
+    void advance_secondary_extruders(double dt);
+    struct SecondaryExtruder {
+        double temperature = kRoomTemp;
+        double target = 0.0;
+    };
+    /// Index 0 is the primary (extruder_temp_), unused here. Guarded by
+    /// secondary_extruders_mutex_.
+    std::array<SecondaryExtruder, 6> secondary_extruders_{{{kRoomTemp, 0.0},
+                                                           {150.0, 250.0},
+                                                           {248.0, 250.0},
+                                                           {200.0, 0.0},
+                                                           {kRoomTemp, 0.0},
+                                                           {kRoomTemp, 0.0}}};
+    mutable std::mutex secondary_extruders_mutex_;
     static constexpr double kBedHeatRate = 1.0;          // °C/sec when heating
     static constexpr double kBedCoolRate = 0.3;          // °C/sec when cooling
     static constexpr double kChamberHeatRate = 0.3;      // °C/sec when heating (slower than bed)

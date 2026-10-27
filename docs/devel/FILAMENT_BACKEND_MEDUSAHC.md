@@ -195,6 +195,11 @@ A tool already on the carriage skips Mount and Restore: Insert, Heat, Purge. A c
 Unload leaves the strand in the tube, so it ends on a success toast naming every tool it
 unloaded: "Unload complete. Pull the filament out of Tool 2, Tool 4." (`toast_unload_complete()`).
 
+Nothing senses filament in a hot end, so the backend remembers what its own runs did:
+`head_has_filament()` answers true for a head a completed Load fed, until a completed Unload of
+it, and nullopt otherwise. The Unload picker reads such a docked tool as loaded rather than
+ready to load (`BatchFilamentModal::row_at_toolhead()`). The record lives in memory only.
+
 Neither direction sends `OPEN`: the feeder buttons stay a separate control.
 
 Every temperature command names the tool's own heater by name (`extruder` / `extruder<n>`).
@@ -360,7 +365,10 @@ paused, and `supports_auto_heat_on_load/unload`, so the UI does not preheat the 
 before the backend mounts another.
 
 `HELIX_MOCK_AMS=medusahc` runs all of it against mock hardware: the mock client echoes
-`RESPOND` lines, so the prompt appears and its buttons drive the run. Tests:
+`RESPOND` lines, so the prompt appears and its buttons drive the run. Every mock hot end
+follows its own target (`SET_HEATER_TEMPERATURE HEATER=extruder<n>`), so the Heat readouts
+move and a Resume onto a heated secondary tool goes through; the persona's configfile carries
+upstream's example `RESUME`, which runs `MHC_RESUME`. Tests:
 `tests/unit/test_toolchanger_mount_feed.cpp`. **Unverified on hardware.**
 
 ## Overriding the feeder macros
@@ -521,7 +529,7 @@ runs.
 a write to the macro changes nothing on the head until the next swap. After writing the
 mounted tool's offset, HelixScreen sends `MHC_TOOL_OFFSET T=<n> MOVE=0`
 (`tool_offsets::activate_mounted_offset_gcode()`), which applies it now without moving the
-head. That same absolute write also replaces any babystep on the next swap: the controller
+head. The mock's `MHC_TOOL_OFFSET` applies X, Y and Z the same way. That same absolute write also replaces any babystep on the next swap: the controller
 treats the G-code offset as the tool's.
 
 ## Pause and resume after a failed swap

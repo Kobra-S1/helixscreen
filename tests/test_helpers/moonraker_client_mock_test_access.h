@@ -41,6 +41,9 @@ class MoonrakerClientMockTestAccess {
     }
 
     // One notification interval of the MedusaHC swap simulation.
+    static void advance_secondary_extruders(MoonrakerClientMock& c, double dt) {
+        c.advance_secondary_extruders(dt);
+    }
     static void advance_medusa(MoonrakerClientMock& c) {
         c.advance_medusa_swap();
     }

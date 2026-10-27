@@ -178,14 +178,19 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_medusa(const std::st
         if (tool < 0 || tool >= count) {
             return out_of_range(tool);
         }
-        double z = 0.0;
+        // The controller's _apply_offset(): SET_GCODE_OFFSET X Y Z, absolute.
+        std::array<double, 3> xyz{};
         {
             std::lock_guard<std::mutex> lock(medusa_mutex_);
-            z = medusa_.offsets[static_cast<size_t>(tool)][2];
+            xyz = medusa_.offsets[static_cast<size_t>(tool)];
         }
-        gcode_offset_z_.store(z);
-        dispatch_status_update(json{{"gcode_move", {{"homing_origin", {0.0, 0.0, z, 0.0}}}}});
-        spdlog::info("[MoonrakerClientMock] MHC_TOOL_OFFSET T{}: Z={:.3f}", tool, z);
+        gcode_offset_x_.store(xyz[0]);
+        gcode_offset_y_.store(xyz[1]);
+        gcode_offset_z_.store(xyz[2]);
+        dispatch_status_update(
+            json{{"gcode_move", {{"homing_origin", {xyz[0], xyz[1], xyz[2], 0.0}}}}});
+        spdlog::info("[MoonrakerClientMock] MHC_TOOL_OFFSET T{}: X={:.3f} Y={:.3f} Z={:.3f}", tool,
+                     xyz[0], xyz[1], xyz[2]);
         return 0;
     }
     if (cmd == "MHC_LAYER_SET" || cmd == "_LAYER_SET") {
@@ -482,7 +487,27 @@ MoonrakerClientMock::gcode_heater_temperature(const std::string& gcode) {
         target = std::stod(gcode.substr(target_pos + 7));
     }
 
-    if (gcode.find("HEATER=extruder") != std::string::npos) {
+    std::string heater_name;
+    if (size_t pos = gcode.find("HEATER="); pos != std::string::npos) {
+        const size_t start = pos + 7;
+        const size_t end = gcode.find_first_of(" \t\n", start);
+        heater_name = gcode.substr(start, end == std::string::npos ? end : end - start);
+    }
+    int secondary = -1;
+    if (heater_name.size() > 8 && heater_name.rfind("extruder", 0) == 0) {
+        secondary = helix::text_io::parse_leading<int>(heater_name.substr(8)).value_or(-1);
+    }
+    if (secondary >= 1) {
+        {
+            std::lock_guard<std::mutex> lock(secondary_extruders_mutex_);
+            if (secondary < static_cast<int>(secondary_extruders_.size())) {
+                secondary_extruders_[static_cast<size_t>(secondary)].target = target;
+            }
+        }
+        reset_idle_timeout();
+        spdlog::info("[MoonrakerClientMock] {} target set to {}°C", heater_name, target);
+        dispatch_status_update({{heater_name, {{"target", target}}}});
+    } else if (heater_name == "extruder") {
         set_extruder_target(target);
         reset_idle_timeout();
         spdlog::info("[MoonrakerClientMock] Extruder target set to {}°C", target);

@@ -69,6 +69,12 @@ class BatchFilamentModal : public Modal {
     };
     static std::string head_row_label(const HeadRowText& text);
 
+    /// Whether @p head's row reads its @p slot as loaded rather than ready to
+    /// load: the slot is at the toolhead, or, where each head has one slot, the
+    /// backend knows the head holds filament (a docked hot end keeps the strand
+    /// its load fed).
+    static bool row_at_toolhead(const AmsBackend& backend, int head, int slot);
+
     // Pure: the selected slots the backend says can take this operation,
     // plus the first one it refused and why. Eligibility is
     // direction-dependent, so this runs on button press, not when the rows
