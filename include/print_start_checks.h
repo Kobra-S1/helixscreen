@@ -144,6 +144,10 @@ struct PrintStartContext {
     bool runout_enabled = false;
     bool runout_available = false;
     bool runout_detected = false;
+
+    // ---- enclosure doors (InputSensorManager) ----
+    bool door_check_enabled = false;     ///< the user's door check, default on with a Door input
+    std::vector<std::string> open_doors; ///< names of Door inputs reading open
 };
 
 struct CheckResult {
@@ -169,6 +173,11 @@ struct PrintStartGate {
 /// blocking finding (out of bounds, over a heater limit, a missing tool), a
 /// warning with Start Anyway for a nozzle or model mismatch alone.
 [[nodiscard]] CheckResult gate_fit_check(const PrintStartContext& ctx);
+
+/// The dialog for a door or cover that reads open while the door check is on
+/// and the print has a material that needs a warm enclosure: a warning with
+/// Start Anyway naming that material. Pass otherwise.
+[[nodiscard]] CheckResult gate_door_open(const PrintStartContext& ctx);
 
 /// Per-tool material mismatch detail (ported verbatim from
 /// PrintStartController::MaterialMismatchDetail).
@@ -252,6 +261,28 @@ std::vector<MaterialMismatchDetail> material_mismatches_in(const PrintStartConte
  * through its base polymer, never conflicts.
  */
 [[nodiscard]] bool materials_conflict_in_temperature(std::string_view a, std::string_view b);
+
+/**
+ * @brief The materials the print extrudes, deduplicated, in tool order.
+ *
+ * Only tools the file extrudes from count: the scan's tools_used, else the
+ * slicer's per-tool weights. Each tool's material is the mapping card's tool
+ * info, else the slicer palette. Empty without file facts.
+ */
+[[nodiscard]] std::vector<std::string> materials_in_print(const PrintStartContext& ctx);
+
+/// The material among @p materials that needs a warm enclosure and wants the
+/// warmest chamber (filament::MaterialInfo::needs_enclosure()); nullopt when
+/// none does. A name the database cannot resolve never needs one.
+[[nodiscard]] std::optional<std::string>
+enclosure_material_in(const std::vector<std::string>& materials);
+
+/// Whether an open door is worth a warning, and for which material: the door
+/// check is on, a door reads open, and the print has a material that needs a
+/// warm enclosure. Shared by the print-start gate and the mid-print warning.
+[[nodiscard]] std::optional<std::string>
+door_warning_material(bool door_check_enabled, bool any_door_open,
+                      const std::vector<std::string>& materials);
 
 /// The first pair of materials the file uses that cannot share a print, the
 /// cooler one first.

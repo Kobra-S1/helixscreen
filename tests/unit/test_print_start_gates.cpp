@@ -6,10 +6,13 @@
  * Run with: ./build/bin/helix-tests "[print-start][gate-pipeline]"
  */
 
+#include "../lvgl_test_fixture.h"
 #include "ams_types.h"
 #include "filament_mapper.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_types.h"
 #include "print_start_checks.h"
+#include "translation_loader.h"
 
 #include <algorithm>
 
@@ -551,7 +554,7 @@ TEST_CASE("material_mismatches_in: bypass falls back to palette materials",
 
 TEST_CASE("default gate list: names in behavior-preserving order", "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 10);
+    REQUIRE(gates.size() == 11);
     CHECK(gates[0].name == "printer_stopping_command");
     CHECK(gates[1].name == "fit_check");
     CHECK(gates[2].name == "mixed_temperature_materials");
@@ -564,12 +567,13 @@ TEST_CASE("default gate list: names in behavior-preserving order", "[print-start
     CHECK(gates[7].name == "required_filament_present");
     CHECK(gates[8].name == "unresolved_tools");
     CHECK(gates[9].name == "material_compatibility");
+    CHECK(gates[10].name == "door_open");
 }
 
 TEST_CASE("default gate list: the two new gates keep their relative order",
           "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 10);
+    REQUIRE(gates.size() == 11);
     CHECK(gates[5].name == "bypass_engaged_lane_print");
     CHECK(gates[6].name == "unaccounted_toolhead_filament");
     CHECK(gates[7].name == "required_filament_present");
@@ -1460,4 +1464,129 @@ TEST_CASE("gate runner: a block shows a dialog and never starts the print",
     CHECK(PrintStartControllerTestAccess::print_gate_modal(fx.controller) == nullptr);
     CHECK(fx.button_updates == 1);
     CHECK(fx.cancelled == 1);
+}
+
+// ---------------------------------------------------------------------------
+// door_open: an open door only matters to a material that needs a warm enclosure
+// ---------------------------------------------------------------------------
+
+TEST_CASE("enclosure_material_in: only materials that want a warm chamber count",
+          "[print-start][gate-pipeline][door]") {
+    // Expectations come from the filament database, not hand-copied values.
+    REQUIRE_FALSE(filament::find_material("PLA")->needs_enclosure());
+    REQUIRE_FALSE(filament::find_material("PETG")->needs_enclosure());
+    REQUIRE(filament::find_material("ABS")->needs_enclosure());
+    REQUIRE(filament::find_material("ASA")->needs_enclosure());
+
+    CHECK_FALSE(enclosure_material_in({"PLA"}));
+    CHECK_FALSE(enclosure_material_in({"PETG"}));
+    CHECK(enclosure_material_in({"ABS"}) == std::optional<std::string>("ABS"));
+    CHECK(enclosure_material_in({"PLA", "ASA"}) == std::optional<std::string>("ASA"));
+    CHECK_FALSE(enclosure_material_in({"Unobtainium"}));
+    CHECK_FALSE(enclosure_material_in({}));
+    // A slicer's long name resolves through its base polymer, and keeps its own name.
+    CHECK(enclosure_material_in({"ABS Generic"}) == std::optional<std::string>("ABS Generic"));
+
+    // The material named is the one wanting the warmest chamber.
+    const auto abs = filament::find_material("ABS");
+    const auto pc = filament::find_material("PC");
+    REQUIRE(pc.has_value());
+    REQUIRE(pc->needs_enclosure());
+    if (pc->chamber_temp_c != abs->chamber_temp_c) {
+        const std::string warmer = pc->chamber_temp_c > abs->chamber_temp_c ? "PC" : "ABS";
+        CHECK(enclosure_material_in({"ABS", "PC"}) == std::optional<std::string>(warmer));
+        CHECK(enclosure_material_in({"PC", "ABS"}) == std::optional<std::string>(warmer));
+    }
+}
+
+TEST_CASE("door_warning_material: check on, a door open, and an enclosure material",
+          "[print-start][gate-pipeline][door]") {
+    CHECK(door_warning_material(true, true, {"ABS"}) == std::optional<std::string>("ABS"));
+    CHECK_FALSE(door_warning_material(false, true, {"ABS"}));
+    CHECK_FALSE(door_warning_material(true, false, {"ABS"}));
+    CHECK_FALSE(door_warning_material(true, true, {"PLA"}));
+    CHECK_FALSE(door_warning_material(true, true, {}));
+}
+
+TEST_CASE("materials_in_print: used tools only, deduplicated, empty without file facts",
+          "[print-start][gate-pipeline][door][mixed-temp]") {
+    CHECK(materials_in_print(mixed_file({"PLA", "ABS", "PLA"}, {0, 2})) ==
+          std::vector<std::string>{"PLA"});
+    CHECK(materials_in_print(mixed_file({"PLA", "ABS"}, {0, 1})) ==
+          std::vector<std::string>{"PLA", "ABS"});
+    auto no_facts = mixed_file({"ABS"}, {0});
+    no_facts.has_file_facts = false;
+    CHECK(materials_in_print(no_facts).empty());
+    // No scan: the slicer's per-tool weights say which tools print.
+    auto weights = mixed_file({"PLA", "ASA"}, {});
+    weights.metadata = FileMetadata{};
+    weights.metadata->filament_weights = {0.0, 12.5};
+    CHECK(materials_in_print(weights) == std::vector<std::string>{"ASA"});
+}
+
+namespace {
+PrintStartContext door_file(std::vector<std::string> palette, std::vector<std::string> doors) {
+    std::set<int> used;
+    for (size_t i = 0; i < palette.size(); ++i) {
+        used.insert(static_cast<int>(i));
+    }
+    auto ctx = mixed_file(std::move(palette), std::move(used));
+    ctx.door_check_enabled = true;
+    ctx.open_doors = std::move(doors);
+    return ctx;
+}
+} // namespace
+
+TEST_CASE("gate door_open: warns only when the print needs a warm enclosure",
+          "[print-start][gate-pipeline][door]") {
+    const auto& gate = gate_named("door_open");
+    using V = CheckResult::Verdict;
+    CHECK(gate.evaluate(door_file({"PLA"}, {"frontDoor"})).verdict == V::Pass);
+    CHECK(gate.evaluate(door_file({"PETG"}, {"frontDoor"})).verdict == V::Pass);
+    CHECK(gate.evaluate(door_file({"ABS"}, {"frontDoor"})).verdict == V::Warn);
+    CHECK(gate.evaluate(door_file({"PLA", "ASA"}, {"frontDoor"})).verdict == V::Warn);
+    CHECK(gate.evaluate(door_file({"Unobtainium"}, {"frontDoor"})).verdict == V::Pass);
+    auto no_facts = door_file({"ABS"}, {"frontDoor"});
+    no_facts.has_file_facts = false;
+    CHECK(gate.evaluate(no_facts).verdict == V::Pass);
+    // Closed doors, or the check off.
+    CHECK(gate.evaluate(door_file({"ABS"}, {})).verdict == V::Pass);
+    auto off = door_file({"ABS"}, {"frontDoor"});
+    off.door_check_enabled = false;
+    CHECK(gate.evaluate(off).verdict == V::Pass);
+}
+
+TEST_CASE("gate door_open: names the doors and the material, singular or plural",
+          "[print-start][gate-pipeline][door]") {
+    const auto& gate = gate_named("door_open");
+    const auto one = gate.evaluate(door_file({"PLA", "ASA"}, {"frontDoor"}));
+    CHECK(one.verdict == CheckResult::Verdict::Warn);
+    CHECK(one.severity == GateSeverity::Warning);
+    CHECK(one.proceed_label == "Start Anyway");
+    CHECK(one.title == "Door Open");
+    CHECK(one.body.rfind("frontDoor is open. ASA prints best in a warm, closed enclosure", 0) == 0);
+    CHECK(one.body.find("Close it,") != std::string::npos);
+
+    const auto two = gate.evaluate(door_file({"ABS"}, {"frontDoor", "topDoor"}));
+    CHECK(two.body.rfind("frontDoor and topDoor are open. ABS prints best", 0) == 0);
+    CHECK(two.body.find("Close them,") != std::string::npos);
+
+    const auto three = gate.evaluate(door_file({"ABS"}, {"frontDoor", "topDoor", "lid"}));
+    CHECK(three.body.rfind("frontDoor, topDoor and lid are open.", 0) == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "gate door_open: a locale's own list separator joins the doors",
+                 "[print-start][gate-pipeline][door][i18n]") {
+    struct RestoreLanguage {
+        ~RestoreLanguage() {
+            lv_translation_set_language(helix::ui::kIdentityLocale);
+        }
+    } restore;
+    helix::ui::ensure_translation_loaded("ja");
+    lv_translation_set_language("ja");
+
+    const auto body =
+        gate_named("door_open").evaluate(door_file({"ABS"}, {"frontDoor", "topDoor", "lid"})).body;
+    INFO(body);
+    CHECK(body.rfind("frontDoor\xe3\x80\x81topDoor\xe3\x81\xa8lid", 0) == 0); // 、 and と
 }

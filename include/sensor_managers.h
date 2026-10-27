@@ -6,6 +6,7 @@
 #include "accel_sensor_manager.h"
 #include "filament_sensor_manager.h"
 #include "humidity_sensor_manager.h"
+#include "input_sensor_manager.h"
 #include "load_cell_manager.h"
 #include "probe_sensor_manager.h"
 #include "temperature_sensor_manager.h"
@@ -24,6 +25,7 @@ template <typename Fn> void for_each_sensor_manager(Fn&& fn) {
     fn(AccelSensorManager::instance());
     fn(TemperatureSensorManager::instance());
     fn(LoadCellManager::instance());
+    fn(InputSensorManager::instance());
 }
 
 } // namespace helix::sensors

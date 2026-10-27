@@ -1266,6 +1266,13 @@ void PrinterPrintState::set_print_layer_heights(double layer_height, double firs
         });
 }
 
+void PrinterPrintState::set_print_materials(std::vector<std::string> materials) {
+    async_lifetime_.defer("PrinterPrintState::set_print_materials",
+                          [this, materials = std::move(materials)]() mutable {
+                              print_materials_ = std::move(materials);
+                          });
+}
+
 void PrinterPrintState::set_print_layer_current(int layer) {
     spdlog::debug("[LayerTracker] set_print_layer_current({}) via gcode fallback", layer);
     async_lifetime_.defer("PrinterPrintState::set_print_layer_current", [this, layer]() {

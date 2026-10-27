@@ -739,6 +739,7 @@ translations:
   Close: 关闭
   Close feeder: 关闭送料器
   Close feeder macro: 关闭送料器宏
+  Closed: 已关闭
   Closer: 更近
   Closer = more squish | Farther = less squish: 更近 = 更多挤压 | 更远 = 更少挤压
   Coarse: 粗调
@@ -1090,6 +1091,10 @@ translations:
   Don't Save: 不保存
   Don't ask again: 不再询问
   Done: 完成
+  Door: 门
+  Door Open: 门已打开
+  'Door opened during print: {}': 打印时门被打开：{}
+  Door switches, buttons, and other on/off inputs: 门开关、按钮及其他开/关输入
   Download update?: 下载更新？
   Download v{}?: 下载 v{}？
   Downloading...: 下载中...
@@ -1560,6 +1565,7 @@ translations:
   Follow active tool: 跟随当前工具
   Follow graph screen: 跟随图表屏幕
   'For a first Z home: claim the tool you put on the head': 首次Z轴归零时：登记您装在打印头上的工具
+  For materials that need a warm enclosure, like ABS or ASA: '适用于需要温暖机箱的材料，如 ABS 或 ASA'
   Force/weight sensors: '力/重量传感器'
   Forget: 忘记
   Forget Network?: 忘记网络？
@@ -1800,6 +1806,7 @@ translations:
   IMPORT FROM USB: 从 USB 导入
   INDX dock positions are not calibrated: "INDX 停靠位置未校准"
   INDX macros not recognized: "无法识别 INDX 宏"
+  INPUTS: 输入
   IP Address / Hostname: IP 地址 / 主机名
   'IP:': IP：
   'IPP error: {}': 'IPP 错误: {}'
@@ -1886,6 +1893,7 @@ translations:
   Invalid value: '值无效'
   Invalid value type: '值类型无效'
   Is new filament coming out of the nozzle?: "喷嘴是否有新耗材挤出？"
+  Invert: 反转
   Issue description: 问题描述
   It can be un-archived in Spoolman's web UI.: 可以在 Spoolman 的网页界面中取消归档。
   It has not reported its slots yet. Try again in a moment.: 尚未报告其料槽。请稍后再试。
@@ -2577,6 +2585,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: '请在打印文件中打开该 .3mf 以再次打印此板。'
   Open the CFS unit and remove the broken filament from the slot: 请打开 CFS 单元并从槽位中取出断裂的耗材
   Open the slot editor when you load a new spool: '装入新料盘时打开槽位编辑器'
+  Opened: 已打开
   Operation already in progress: 操作正在进行中
   Operation timed out: 操作超时
   Operations: 操作
@@ -2589,6 +2598,7 @@ translations:
   Or instead of turning the others: 或者，无需转动其他螺丝
   Original file location unknown: 原始文件位置未知
   Oscillating... cycle %d/%d: 振荡中... 循环 %d/%d
+  Other: 其他
   Outcome: 结果
   Output Device: 输出设备
   Output Mode: 输出模式
@@ -2766,6 +2776,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : '压力提前随测试塔升高而增加。查看角落: 随时点击-或+,自动步进就会停止,方便你判断自己的数值。'
   'Pressure:': '压力:'
+  Pressed: 按下
   Pressure Adv.: '压力提前'
   Pressure Advance: '压力提前'
   Pressure Advance Calibration: '压力提前校准'
@@ -3047,6 +3058,7 @@ translations:
   Release or grip the filament by hand: 手动松开或夹持耗材
   Release the filament: 松开耗材
   Release {}'s tensioner, let the spring settle, lock it: "松开 {} 的张紧器,让弹簧复位,再锁紧"
+  Released: 释放
   Reload the saved bed mesh?: 重新加载已保存的热床网格？
   Remaining: '剩余'
   Remaining (g): 剩余 (g)
@@ -4323,6 +4335,7 @@ translations:
   Warm up for a material in one tap: 一键为材料预热
   Warming Bed...: 正在预热热床...
   Warn: 警告
+  Warn if a door is open: 门打开时发出警告
   Warning: 警告
   Warnings & errors: '警告与错误'
   Watch the camera during a print for failed prints: 打印期间监视摄像头以发现打印失败
@@ -4567,6 +4580,10 @@ translations:
   within one bin: "在一个频点内"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant 未运行。WiFi 功能不可用。
   you have: 您有
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 约 {} 分钟'
@@ -4577,6 +4594,7 @@ translations:
   '{} LED strips available': '{} 条 LED 灯带可用'
   '{} MCUs': '{} 个 MCU'
   '{} Tools': '{} 个工具'
+  '{} and {}': '{} 和 {}'
   '{} and {} are both mapped here': '{} 和 {} 都映射到这里'
   '{} available': '{} 可用'
   '{} axes homed': '{} 轴已归位'
@@ -4655,6 +4673,7 @@ translations:
   '{} — response timed out': '{} — 响应超时'
   '{} → {}: no filament loaded.': '{} → {}: 未加载耗材。'
   "{}'s nozzle is still heating": '{}的喷嘴仍在加热'
+  '{}, {}': '{}、{}'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}：标签指定的 Spoolman 料盘 #{} 不存在'
   '{}:{:02} elapsed': 已用时 {}:{:02}
   '{}% left': '剩余 {}%'

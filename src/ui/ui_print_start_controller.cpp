@@ -30,6 +30,7 @@
 #include "filament_sensor_manager.h"
 #include "helix_fs.h"
 #include "i_moonraker_api.h"
+#include "input_sensor_manager.h"
 #include "json_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
@@ -801,6 +802,10 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
     ctx.runout_enabled = sensors.is_master_enabled();
     ctx.runout_available = sensors.is_sensor_available(helix::FilamentSensorRole::RUNOUT);
     ctx.runout_detected = sensors.is_filament_detected(helix::FilamentSensorRole::RUNOUT);
+
+    auto& inputs = helix::sensors::InputSensorManager::instance();
+    ctx.door_check_enabled = inputs.door_check_enabled();
+    ctx.open_doors = inputs.open_doors();
     return ctx;
 }
 

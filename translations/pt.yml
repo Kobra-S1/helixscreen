@@ -794,6 +794,7 @@ translations:
   Close: Fechar
   Close feeder: Fechar alimentador
   Close feeder macro: Macro de fechar alimentador
+  Closed: Fechada
   Closer: Mais Perto
   Closer = more squish | Farther = less squish: Mais perto = mais compressão | Mais
     longe = menos compressão
@@ -1161,6 +1162,10 @@ translations:
   Don't Save: Não Salvar
   Don't ask again: Não perguntar novamente
   Done: Concluído
+  Door: Porta
+  Door Open: Porta aberta
+  'Door opened during print: {}': 'Porta aberta durante a impressão: {}'
+  Door switches, buttons, and other on/off inputs: Interruptores de porta, botões e outras entradas liga/desliga
   Download update?: Baixar atualização?
   Download v{}?: Baixar v{}?
   Downloading...: Baixando...
@@ -1651,6 +1656,7 @@ translations:
   Follow active tool: Seguir ferramenta ativa
   Follow graph screen: Acompanhar tela do gráfico
   'For a first Z home: claim the tool you put on the head': 'Para a primeira referência de Z: registrar a ferramenta colocada no cabeçote'
+  For materials that need a warm enclosure, like ABS or ASA: 'Para materiais que precisam de um gabinete quente, como ABS ou ASA'
   Force/weight sensors: 'Sensores de força/peso'
   Forget: Esquecer
   Forget Network?: Esquecer Rede?
@@ -1905,6 +1911,7 @@ translations:
   IMPORT FROM USB: IMPORTAR DO USB
   INDX dock positions are not calibrated: "As posições das docas do INDX não estão calibradas"
   INDX macros not recognized: "Macros do INDX não reconhecidas"
+  INPUTS: ENTRADAS
   IP Address / Hostname: Endereço IP / Hostname
   'IP:': 'IP:'
   'IPP error: {}': 'Erro IPP: {}'
@@ -2002,6 +2009,7 @@ translations:
   Invalid value: 'Valor inválido'
   Invalid value type: 'Tipo de valor inválido'
   Is new filament coming out of the nozzle?: "O filamento novo está saindo pelo bico?"
+  Invert: Inverter
   Issue description: Descrição do problema
   It can be un-archived in Spoolman's web UI.: Pode ser desarquivado na interface web do Spoolman.
   It has not reported its slots yet. Try again in a moment.: Ainda não informou seus slots. Tente novamente em instantes.
@@ -2720,6 +2728,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Abra o .3mf em Arquivos de Impressão para imprimir esta placa novamente.'
   Open the CFS unit and remove the broken filament from the slot: Abra a unidade CFS e remova o filamento partido do slot
   Open the slot editor when you load a new spool: 'Abrir o editor de slot ao carregar um novo carretel'
+  Opened: Aberta
   Operation already in progress: Operação já em andamento
   Operation timed out: Tempo limite da operação esgotado
   Operations: Operações
@@ -2734,6 +2743,7 @@ translations:
   Or instead of turning the others: Ou, em vez de girar os outros
   Original file location unknown: Local do arquivo original desconhecido
   Oscillating... cycle %d/%d: Oscilando... ciclo %d/%d
+  Other: Outro
   Outcome: Resultado
   Output Device: Dispositivo de Saída
   Output Mode: Modo de Saída
@@ -2917,6 +2927,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'O Pressure Advance sobe à medida que a torre cresce. Observe os cantos: toque em - ou + quando quiser e a rampa para, para você julgar seu próprio valor.'
   'Pressure:': 'Pressão:'
+  Pressed: Pressionado
   Pressure Adv.: 'Pressure Adv.'
   Pressure Advance: 'Pressure Advance'
   Pressure Advance Calibration: 'Calibração do pressure advance'
@@ -3216,6 +3227,7 @@ translations:
   Release or grip the filament by hand: Soltar ou segurar o filamento manualmente
   Release the filament: Soltar o filamento
   Release {}'s tensioner, let the spring settle, lock it: "Solte o tensor de {}, deixe a mola assentar, trave-o"
+  Released: Liberado
   Reload the saved bed mesh?: Recarregar a malha salva?
   Remaining: 'Restante'
   Remaining (g): Restante (g)
@@ -4582,6 +4594,7 @@ translations:
   Warm up for a material in one tap: Pré-aquecer para um material em um toque
   Warming Bed...: Aquecendo Mesa...
   Warn: Aviso
+  Warn if a door is open: Avisar se uma porta estiver aberta
   Warning: Aviso
   Warnings & errors: 'Avisos e erros'
   Watch the camera during a print for failed prints: Observa a câmera durante a impressão para detectar impressões com falha
@@ -4836,6 +4849,10 @@ translations:
   within one bin: "dentro de um bin"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant não está em execução. Os recursos de WiFi estão indisponíveis.
   you have: você tem
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0} estão abertas. {1} imprime melhor em um gabinete quente e fechado; uma porta aberta esfria a câmara e pode causar empenamento ou separação de camadas. Feche-as ou inicie mesmo assim.'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0} está aberta. {1} imprime melhor em um gabinete quente e fechado; uma porta aberta esfria a câmara e pode causar empenamento ou separação de camadas. Feche-a ou inicie mesmo assim.'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} ressoa muito mais que {1} a {2:.0f} Hz. Isso indica uma diferença mecânica (parafusos da polia, rolamentos das polias livres, alinhamento da correia), não a tensão."
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · cerca de {} min'
@@ -4846,6 +4863,7 @@ translations:
   '{} LED strips available': '{} fitas de LED disponíveis'
   '{} MCUs': '{} MCUs'
   '{} Tools': '{} ferramentas'
+  '{} and {}': '{} e {}'
   '{} and {} are both mapped here': '{} e {} estão ambos atribuídos aqui'
   '{} available': '{} disponível'
   '{} axes homed': 'Eixos {} referenciados'
@@ -4925,6 +4943,7 @@ translations:
   '{} — response timed out': '{} — tempo esgotado'
   '{} → {}: no filament loaded.': '{} → {}: nenhum filamento carregado.'
   "{}'s nozzle is still heating": 'O bico de {} ainda está aquecendo'
+  '{}, {}': '{}, {}'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: a etiqueta indica o carretel #{} do Spoolman, que não existe'
   '{}:{:02} elapsed': '{}:{:02} decorrido'
   '{}% left': '{}% restante'

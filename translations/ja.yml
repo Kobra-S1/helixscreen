@@ -741,6 +741,7 @@ translations:
   Close: 閉じる
   Close feeder: フィーダーを閉じる
   Close feeder macro: フィーダーを閉じるマクロ
+  Closed: 閉
   Closer: 近く
   Closer = more squish | Farther = less squish: 近い = より圧縮 | 遠い = 圧縮少なめ
   Coarse: 粗動
@@ -1093,6 +1094,10 @@ translations:
   Don't Save: 保存しない
   Don't ask again: 今後表示しない
   Done: 完了
+  Door: ドア
+  Door Open: ドアが開いています
+  'Door opened during print: {}': '印刷中にドアが開きました: {}'
+  Door switches, buttons, and other on/off inputs: ドアスイッチ、ボタン、その他のオン/オフ入力
   Download update?: アップデートをダウンロードしますか？
   Download v{}?: v{}をダウンロードしますか？
   Downloading...: ダウンロード中...
@@ -1564,6 +1569,7 @@ translations:
   Follow active tool: アクティブツールに追従
   Follow graph screen: グラフ画面に追従
   'For a first Z home: claim the tool you put on the head': 初回のZホーミング用：ヘッドに取り付けたツールを登録
+  For materials that need a warm enclosure, like ABS or ASA: 'ABSやASAなど、暖かいエンクロージャーが必要な材料向け'
   Force/weight sensors: '力/重量センサー'
   Forget: 登録解除
   Forget Network?: ネットワークを登録解除しますか？
@@ -1805,6 +1811,7 @@ translations:
   IMPORT FROM USB: USBからインポート
   INDX dock positions are not calibrated: "INDXのドック位置がキャリブレーションされていません"
   INDX macros not recognized: "INDXマクロを認識できません"
+  INPUTS: 入力
   IP Address / Hostname: IPアドレス / ホスト名
   'IP:': 'IP:'
   'IPP error: {}': 'IPP エラー: {}'
@@ -1891,6 +1898,7 @@ translations:
   Invalid value: '無効な値です'
   Invalid value type: '値の型が無効です'
   Is new filament coming out of the nozzle?: "ノズルから新しいフィラメントが出ていますか？"
+  Invert: 反転
   Issue description: 問題の説明
   It can be un-archived in Spoolman's web UI.: Spoolman の Web 画面でアーカイブを解除できます。
   It has not reported its slots yet. Try again in a moment.: スロットがまだ報告されていません。しばらくしてからもう一度お試しください。
@@ -2584,6 +2592,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'このプレートを再印刷するには、印刷ファイルで .3mf を開いてください。'
   Open the CFS unit and remove the broken filament from the slot: CFS ユニットを開け、スロットから折れたフィラメントを取り除いてください
   Open the slot editor when you load a new spool: '新しいスプールを装填したときにスロットエディタを開く'
+  Opened: 開
   Operation already in progress: 操作がすでに進行中です
   Operation timed out: 操作がタイムアウトしました
   Operations: 操作
@@ -2596,6 +2605,7 @@ translations:
   Or instead of turning the others: 他のネジを回す代わりに
   Original file location unknown: 元のファイルの場所が不明です
   Oscillating... cycle %d/%d: 振動中... サイクル %d/%d
+  Other: その他
   Outcome: 結果
   Output Device: 出力デバイス
   Output Mode: 出力モード
@@ -2774,6 +2784,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。'
   'Pressure:': '圧力:'
+  Pressed: 押下
   Pressure Adv.: 'Pressure Adv.'
   Pressure Advance: 'Pressure Advance'
   Pressure Advance Calibration: 'プレッシャーアドバンスキャリブレーション'
@@ -3056,6 +3067,7 @@ translations:
   Release or grip the filament by hand: 手でフィラメントを解放または把持
   Release the filament: フィラメントを解放
   Release {}'s tensioner, let the spring settle, lock it: "{}のテンショナーを緩め、バネをなじませてから固定"
+  Released: 解放
   Reload the saved bed mesh?: 保存されたベッドメッシュを再読み込みしますか？
   Remaining: '残り'
   Remaining (g): 残量 (g)
@@ -4332,6 +4344,7 @@ translations:
   Warm up for a material in one tap: 素材に合わせてワンタップで予熱
   Warming Bed...: ベッド予熱中...
   Warn: 警告
+  Warn if a door is open: ドアが開いていたら警告
   Warning: 警告
   Warnings & errors: '警告とエラー'
   Watch the camera during a print for failed prints: 印刷中にカメラで印刷失敗を監視します
@@ -4577,6 +4590,10 @@ translations:
   within one bin: "1ビン以内"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant が動作していません。WiFi 機能は利用できません。
   you have: 現在は
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0}が開いています。{1}は暖かく閉じたエンクロージャーで最もよく印刷できます。ドアが開いているとチャンバーが冷え、反りやレイヤーの分離の原因になります。閉じるか、このまま開始してください。'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0}が開いています。{1}は暖かく閉じたエンクロージャーで最もよく印刷できます。ドアが開いているとチャンバーが冷え、反りやレイヤーの分離の原因になります。閉じるか、このまま開始してください。'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0}は{2:.0f} Hzで{1}よりはるかに強く共振しています。張力ではなく機械的な違い(プーリーのイモネジ、アイドラーのベアリング、ベルトの走行)を示しています。"
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 約{}分'
@@ -4587,6 +4604,7 @@ translations:
   '{} LED strips available': '{} 個の LED ストリップが利用可能です'
   '{} MCUs': '{} MCU'
   '{} Tools': '{} ツール'
+  '{} and {}': '{}と{}'
   '{} and {} are both mapped here': '{} と {} の両方がここに割り当てられています'
   '{} available': '{} が利用可能'
   '{} axes homed': '{} 軸がホーミング済み'
@@ -4665,6 +4683,7 @@ translations:
   '{} — response timed out': '{} — 応答タイムアウト'
   '{} → {}: no filament loaded.': '{} → {}: フィラメントが装填されていません。'
   "{}'s nozzle is still heating": '{}のノズルはまだ加熱中です'
+  '{}, {}': '{}、{}'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: タグが示す Spoolman スプール #{} は存在しません'
   '{}:{:02} elapsed': 経過 {}:{:02}
   '{}% left': '残り {}%'

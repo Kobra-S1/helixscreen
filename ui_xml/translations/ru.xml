@@ -764,6 +764,7 @@
   <translation tag="Close" ru="Закрыть"/>
   <translation tag="Close feeder" ru="Закрыть фидер"/>
   <translation tag="Close feeder macro" ru="Макрос для закрытия фидера"/>
+  <translation tag="Closed" ru="Закрыта"/>
   <translation tag="Closer" ru="Ближе"/>
   <translation tag="Closer = more squish | Farther = less squish" ru="Ближе = больше сжатие | Дальше = меньше сжатие"/>
   <translation tag="Coarse" ru="Грубо"/>
@@ -1093,6 +1094,10 @@
   <translation tag="Don&apos;t Save" ru="Не сохранять"/>
   <translation tag="Don&apos;t ask again" ru="Больше не спрашивать"/>
   <translation tag="Done" ru="Готово"/>
+  <translation tag="Door" ru="Дверь"/>
+  <translation tag="Door Open" ru="Дверь открыта"/>
+  <translation tag="Door opened during print: {}" ru="Дверь открыта во время печати: {}"/>
+  <translation tag="Door switches, buttons, and other on/off inputs" ru="Датчики дверей, кнопки и другие входы вкл/выкл"/>
   <translation tag="Download update?" ru="Загрузить обновление?"/>
   <translation tag="Download v{}?" ru="Загрузить v{}?"/>
   <translation tag="Downloading..." ru="Загрузка..."/>
@@ -1548,6 +1553,7 @@
   <translation tag="Follow active tool" ru="Следовать активному инструменту"/>
   <translation tag="Follow graph screen" ru="Следовать экрану графика"/>
   <translation tag="For a first Z home: claim the tool you put on the head" ru="Для первой парковки Z: закрепить инструмент, установленный на головку"/>
+  <translation tag="For materials that need a warm enclosure, like ABS or ASA" ru="Для материалов, которым нужен тёплый закрытый корпус, например ABS или ASA"/>
   <translation tag="Force/weight sensors" ru="Датчики силы/веса"/>
   <translation tag="Forget" ru="Забыть"/>
   <translation tag="Forget Network?" ru="Забыть сеть?"/>
@@ -1780,6 +1786,7 @@
   <translation tag="IMPORT FROM USB" ru="ИМПОРТ С USB"/>
   <translation tag="INDX dock positions are not calibrated" ru="Позиции доков INDX не откалиброваны"/>
   <translation tag="INDX macros not recognized" ru="Макросы INDX не распознаны"/>
+  <translation tag="INPUTS" ru="ВХОДЫ"/>
   <translation tag="IP Address / Hostname" ru="IP-адрес / Имя хоста"/>
   <translation tag="IP:" ru="IP:"/>
   <translation tag="IPP error: {}" ru="Ошибка IPP: {}"/>
@@ -1862,6 +1869,7 @@
   <translation tag="Invalid tool/slot" ru="Неверный инструмент/слот"/>
   <translation tag="Invalid value" ru="Неверное значение"/>
   <translation tag="Invalid value type" ru="Неверный тип значения"/>
+  <translation tag="Invert" ru="Инвертировать"/>
   <translation tag="Is new filament coming out of the nozzle?" ru="Выходит ли новый филамент из сопла?"/>
   <translation tag="Issue description" ru="Описание проблемы"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." ru="Это можно восстановить из архива в веб-интерфейсе Spoolman."/>
@@ -2530,6 +2538,7 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." ru="Откройте .3mf в разделе «Файлы Gcode», чтобы снова напечатать эту пластину."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" ru="Откройте блок CFS и извлеките сломанный филамент из слота"/>
   <translation tag="Open the slot editor when you load a new spool" ru="Открывать редактор слота при установке новой катушки"/>
+  <translation tag="Opened" ru="Открыта"/>
   <translation tag="Operation already in progress" ru="Операция уже выполняется"/>
   <translation tag="Operation timed out" ru="Время ожидания операции истекло"/>
   <translation tag="Operations" ru="Операции"/>
@@ -2541,6 +2550,7 @@
   <translation tag="Or instead of turning the others" ru="Или вместо вращения остальных винтов"/>
   <translation tag="Original file location unknown" ru="Расположение исходного файла неизвестно"/>
   <translation tag="Oscillating... cycle %d/%d" ru="Осцилляция... цикл %d/%d"/>
+  <translation tag="Other" ru="Другое"/>
   <translation tag="Outcome" ru="Результат"/>
   <translation tag="Output Device" ru="Устройство вывода"/>
   <translation tag="Output Mode" ru="Режим вывода"/>
@@ -2709,6 +2719,7 @@
   <translation tag="Presets come from the WLED device. Edit them in the WLED app." ru="Пресеты берутся с устройства WLED. Изменяйте их в приложении WLED."/>
   <translation tag="Press Abort to stop" ru="Нажмите «Прервать», чтобы остановить"/>
   <translation tag="Press Scan to search" ru="Нажмите «Поиск» для сканирования"/>
+  <translation tag="Pressed" ru="Нажата"/>
   <translation tag="Pressure Adv." ru="Pressure Adv."/>
   <translation tag="Pressure Advance" ru="Pressure Advance"/>
   <translation tag="Pressure Advance Calibration" ru="Калибровка Pressure Advance"/>
@@ -3000,6 +3011,7 @@
   <translation tag="Release or grip the filament by hand" ru="Отпустите или зажмите филамент вручную"/>
   <translation tag="Release the filament" ru="Отпустить филамент"/>
   <translation tag="Release {}&apos;s tensioner, let the spring settle, lock it" ru="Отпустите натяжитель {}, дайте пружине сесть, зафиксируйте"/>
+  <translation tag="Released" ru="Отпущена"/>
   <translation tag="Reload the saved bed mesh?" ru="Перезагрузить сохранённую сетку?"/>
   <translation tag="Remaining" ru="Осталось"/>
   <translation tag="Remaining (g)" ru="Осталось (г)"/>
@@ -4216,6 +4228,7 @@
   <translation tag="Warm up for a material in one tap" ru="Преднагрев под материал одним нажатием"/>
   <translation tag="Warming Bed..." ru="Прогрев стола..."/>
   <translation tag="Warn" ru="Предупреждение"/>
+  <translation tag="Warn if a door is open" ru="Предупреждать, если дверь открыта"/>
   <translation tag="Warning" ru="Предупреждение"/>
   <translation tag="Warnings &amp; errors" ru="Предупреждения и ошибки"/>
   <translation tag="Watch the camera during a print for failed prints" ru="Следит за камерой во время печати, выявляя неудачные печати"/>
@@ -4455,6 +4468,8 @@
   <translation tag="within one bin" ru="в пределах одного бина"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." ru="wpa_supplicant не запущен. Функции WiFi недоступны."/>
   <translation tag="you have" ru="у вас"/>
+  <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." ru="{0} открыты. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте их или начните всё равно."/>
+  <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." ru="{0} открыта. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте её или начните всё равно."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." ru="{0} резонирует на {2:.0f} Гц намного сильнее, чем {1}. Это указывает на механическое различие (установочные винты шкивов, подшипники роликов, ход ремня), а не на натяжение."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ru="{:.0f}-{:.0f} Гц · примерно {} мин"/>
   <translation tag="{} ({})" ru="{} ({})"/>
@@ -4464,6 +4479,7 @@
   <translation tag="{} LED strips available" ru="Доступно светодиодных лент: {}"/>
   <translation tag="{} MCUs" ru="{} MCU"/>
   <translation tag="{} Tools" ru="Инструментов: {}"/>
+  <translation tag="{} and {}" ru="{} и {}"/>
   <translation tag="{} and {} are both mapped here" ru="{} и {} оба назначены сюда"/>
   <translation tag="{} available" ru="Доступна версия {}"/>
   <translation tag="{} axes homed" ru="Оси {} запаркованы"/>
@@ -4561,6 +4577,7 @@
   <translation tag="{} → {}: no filament loaded." ru="{} → {}: филамент не загружен."/>
   <translation tag="{}% left" ru="Осталось {}%"/>
   <translation tag="{}&apos;s nozzle is still heating" ru="Сопло {} всё ещё нагревается"/>
+  <translation tag="{}, {}" ru="{}, {}"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" ru="{}: метка указывает катушку Spoolman #{}, которой не существует"/>
   <translation tag="{}:{:02} elapsed" ru="прошло {}:{:02}"/>
   <translation tag="~{:.1f} Hz / turn" ru="~{:.1f} Гц / оборот"/>

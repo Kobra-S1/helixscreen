@@ -838,6 +838,7 @@ translations:
   Close: Закрыть
   Close feeder: Закрыть фидер
   Close feeder macro: Макрос для закрытия фидера
+  Closed: Закрыта
   Closer: Ближе
   Closer = more squish | Farther = less squish: Ближе = больше сжатие | Дальше = меньше
     сжатие
@@ -1204,6 +1205,10 @@ translations:
   Don't Save: Не сохранять
   Don't ask again: Больше не спрашивать
   Done: Готово
+  Door: Дверь
+  Door Open: Дверь открыта
+  'Door opened during print: {}': 'Дверь открыта во время печати: {}'
+  Door switches, buttons, and other on/off inputs: Датчики дверей, кнопки и другие входы вкл/выкл
   Download update?: Загрузить обновление?
   Download v{}?: Загрузить v{}?
   Downloading...: Загрузка...
@@ -1690,6 +1695,7 @@ translations:
   Follow active tool: Следовать активному инструменту
   Follow graph screen: Следовать экрану графика
   'For a first Z home: claim the tool you put on the head': 'Для первой парковки Z: закрепить инструмент, установленный на головку'
+  For materials that need a warm enclosure, like ABS or ASA: 'Для материалов, которым нужен тёплый закрытый корпус, например ABS или ASA'
   Force/weight sensors: 'Датчики силы/веса'
   Forget: Забыть
   Forget Network?: Забыть сеть?
@@ -1944,6 +1950,7 @@ translations:
   IMPORT FROM USB: ИМПОРТ С USB
   INDX dock positions are not calibrated: "Позиции доков INDX не откалиброваны"
   INDX macros not recognized: "Макросы INDX не распознаны"
+  INPUTS: ВХОДЫ
   IP Address / Hostname: IP-адрес / Имя хоста
   'IP:': 'IP:'
   'IPP error: {}': 'Ошибка IPP: {}'
@@ -2041,6 +2048,7 @@ translations:
   Invalid value: 'Неверное значение'
   Invalid value type: 'Неверный тип значения'
   Is new filament coming out of the nozzle?: "Выходит ли новый филамент из сопла?"
+  Invert: Инвертировать
   Issue description: Описание проблемы
   It can be un-archived in Spoolman's web UI.: Это можно восстановить из архива в веб-интерфейсе Spoolman.
   It has not reported its slots yet. Try again in a moment.: Она ещё не сообщила о своих слотах. Повторите попытку через минуту.
@@ -2757,6 +2765,7 @@ translations:
   Open the .3mf in Print Files to print this plate again.: 'Откройте .3mf в разделе «Файлы Gcode», чтобы снова напечатать эту пластину.'
   Open the CFS unit and remove the broken filament from the slot: Откройте блок CFS и извлеките сломанный филамент из слота
   Open the slot editor when you load a new spool: 'Открывать редактор слота при установке новой катушки'
+  Opened: Открыта
   Operation already in progress: Операция уже выполняется
   Operation timed out: Время ожидания операции истекло
   Operations: Операции
@@ -2770,6 +2779,7 @@ translations:
   Or instead of turning the others: Или вместо вращения остальных винтов
   Original file location unknown: Расположение исходного файла неизвестно
   Oscillating... cycle %d/%d: Осцилляция... цикл %d/%d
+  Other: Другое
   Outcome: Результат
   Output Device: Устройство вывода
   Output Mode: Режим вывода
@@ -2956,6 +2966,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение.'
   'Pressure:': 'Давление:'
+  Pressed: Нажата
   Pressure Adv.: 'Pressure Adv.'
   Pressure Advance: 'Pressure Advance'
   Pressure Advance Calibration: 'Калибровка Pressure Advance'
@@ -3261,6 +3272,7 @@ translations:
   Release or grip the filament by hand: Отпустите или зажмите филамент вручную
   Release the filament: Отпустить филамент
   Release {}'s tensioner, let the spring settle, lock it: "Отпустите натяжитель {}, дайте пружине сесть, зафиксируйте"
+  Released: Отпущена
   Reload the saved bed mesh?: Перезагрузить сохранённую сетку?
   Remaining: 'Осталось'
   Remaining (g): Осталось (г)
@@ -4616,6 +4628,7 @@ translations:
   Warm up for a material in one tap: Преднагрев под материал одним нажатием
   Warming Bed...: Прогрев стола...
   Warn: Предупреждение
+  Warn if a door is open: Предупреждать, если дверь открыта
   Warning: Предупреждение
   Warnings & errors: 'Предупреждения и ошибки'
   Watch the camera during a print for failed prints: Следит за камерой во время печати, выявляя неудачные печати
@@ -4873,6 +4886,10 @@ translations:
   within one bin: "в пределах одного бина"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant не запущен. Функции WiFi недоступны.
   you have: у вас
+  ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
+  : '{0} открыты. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте их или начните всё равно.'
+  ? '{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway.'
+  : '{0} открыта. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте её или начните всё равно.'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} резонирует на {2:.0f} Гц намного сильнее, чем {1}. Это указывает на механическое различие (установочные винты шкивов, подшипники роликов, ход ремня), а не на натяжение."
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Гц · примерно {} мин'
@@ -4883,6 +4900,7 @@ translations:
   '{} LED strips available': 'Доступно светодиодных лент: {}'
   '{} MCUs': '{} MCU'
   '{} Tools': 'Инструментов: {}'
+  '{} and {}': '{} и {}'
   '{} and {} are both mapped here': '{} и {} оба назначены сюда'
   '{} available': Доступна версия {}
   '{} axes homed': 'Оси {} запаркованы'
@@ -4986,6 +5004,7 @@ translations:
   '{} — response timed out': '{} — время ожидания ответа истекло'
   '{} → {}: no filament loaded.': '{} → {}: филамент не загружен.'
   "{}'s nozzle is still heating": 'Сопло {} всё ещё нагревается'
+  '{}, {}': '{}, {}'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: метка указывает катушку Spoolman #{}, которой не существует'
   '{}:{:02} elapsed': прошло {}:{:02}
   '{}% left': 'Осталось {}%'

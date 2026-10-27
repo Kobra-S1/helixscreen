@@ -875,6 +875,19 @@ class PrinterPrintState {
     void set_print_layer_heights(double layer_height, double first_layer_height);
 
     /**
+     * @brief Set the materials the active print extrudes, from its file metadata
+     *
+     * Thread-safe like set_print_layer_heights(). Empty means not known. Like the
+     * layer heights they belong to the file, so a same-file reprint keeps them.
+     */
+    void set_print_materials(std::vector<std::string> materials);
+
+    /// The materials the active print extrudes; empty when not known. Main thread.
+    [[nodiscard]] const std::vector<std::string>& print_materials() const {
+        return print_materials_;
+    }
+
+    /**
      * @brief Set current layer number (gcode response fallback)
      *
      * Thread-safe: Uses helix::ui::queue_update() for main-thread execution.
@@ -1201,8 +1214,9 @@ class PrinterPrintState {
     // no virtual_sdcard.layer). These belong to the FILE, not the session: like
     // print_layer_total_ they survive reset_for_new_print() so same-file reprints
     // (whose metadata callback won't re-fire) keep working.
-    double layer_height_ = 0.0;       // slice layer height (mm)
-    double first_layer_height_ = 0.0; // slice first-layer height (mm)
+    double layer_height_ = 0.0;                // slice layer height (mm)
+    double first_layer_height_ = 0.0;          // slice first-layer height (mm)
+    std::vector<std::string> print_materials_; // active file's extruded materials
     // Last commanded Z (mm) from gcode_move.gcode_position, cached each status
     // update so the Z-derivation can run on any update (even one that only
     // carries virtual_sdcard). Reset per-print (motion belongs to the print).

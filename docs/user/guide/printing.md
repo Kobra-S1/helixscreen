@@ -165,6 +165,16 @@ How much HelixScreen can see depends on whether the [HelixPrint plugin](helixpri
 
 Files you start from the print queue get the same check. To have a slicer's own upload-and-print held as well, see [Hold slicer prints that do not fit](settings/safety.md#hold-slicer-prints-that-do-not-fit).
 
+### Door-open warning
+
+If your printer has a door or lid switch, HelixScreen checks it when you tap **Start Print**, but only for materials that print best in a warm, closed enclosure, such as ABS, ASA, PC and nylon. For those, an open door cools the chamber and can cause warping or layers splitting apart. With a door open you see **Door Open**, naming each open door and the material. Close the door and tap **Start Print** again, or tap **Start Anyway** to print with it open.
+
+PLA, PETG and other materials that like fresh air never trigger it, and neither does a file whose materials HelixScreen can't tell.
+
+This comes after the other pre-print checks, so you may see a filament warning first.
+
+Which inputs count as doors, and whether the check runs at all, is set in **Settings > Devices > Sensors > Inputs**. See [Inputs (Doors and Buttons)](sensors.md#inputs-doors-and-buttons). The check is on by default for any printer with a door switch. Printers with no door switch never show this warning.
+
 ### Before the print actually begins
 
 Some printers do a lot of work before the first layer: homing, heating a bed to

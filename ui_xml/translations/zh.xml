@@ -725,6 +725,7 @@
   <translation tag="Close" zh="关闭"/>
   <translation tag="Close feeder" zh="关闭送料器"/>
   <translation tag="Close feeder macro" zh="关闭送料器宏"/>
+  <translation tag="Closed" zh="已关闭"/>
   <translation tag="Closer" zh="更近"/>
   <translation tag="Closer = more squish | Farther = less squish" zh="更近 = 更多挤压 | 更远 = 更少挤压"/>
   <translation tag="Coarse" zh="粗调"/>
@@ -1051,6 +1052,10 @@
   <translation tag="Don&apos;t Save" zh="不保存"/>
   <translation tag="Don&apos;t ask again" zh="不再询问"/>
   <translation tag="Done" zh="完成"/>
+  <translation tag="Door" zh="门"/>
+  <translation tag="Door Open" zh="门已打开"/>
+  <translation tag="Door opened during print: {}" zh="打印时门被打开：{}"/>
+  <translation tag="Door switches, buttons, and other on/off inputs" zh="门开关、按钮及其他开/关输入"/>
   <translation tag="Download update?" zh="下载更新？"/>
   <translation tag="Download v{}?" zh="下载 v{}？"/>
   <translation tag="Downloading..." zh="下载中..."/>
@@ -1506,6 +1511,7 @@
   <translation tag="Follow active tool" zh="跟随当前工具"/>
   <translation tag="Follow graph screen" zh="跟随图表屏幕"/>
   <translation tag="For a first Z home: claim the tool you put on the head" zh="首次Z轴归零时：登记您装在打印头上的工具"/>
+  <translation tag="For materials that need a warm enclosure, like ABS or ASA" zh="适用于需要温暖机箱的材料，如 ABS 或 ASA"/>
   <translation tag="Force/weight sensors" zh="力/重量传感器"/>
   <translation tag="Forget" zh="忘记"/>
   <translation tag="Forget Network?" zh="忘记网络？"/>
@@ -1735,6 +1741,7 @@
   <translation tag="IMPORT FROM USB" zh="从 USB 导入"/>
   <translation tag="INDX dock positions are not calibrated" zh="INDX 停靠位置未校准"/>
   <translation tag="INDX macros not recognized" zh="无法识别 INDX 宏"/>
+  <translation tag="INPUTS" zh="输入"/>
   <translation tag="IP Address / Hostname" zh="IP 地址 / 主机名"/>
   <translation tag="IP:" zh="IP："/>
   <translation tag="IPP error: {}" zh="IPP 错误: {}"/>
@@ -1817,6 +1824,7 @@
   <translation tag="Invalid tool/slot" zh="无效的工具/槽位"/>
   <translation tag="Invalid value" zh="值无效"/>
   <translation tag="Invalid value type" zh="值类型无效"/>
+  <translation tag="Invert" zh="反转"/>
   <translation tag="Is new filament coming out of the nozzle?" zh="喷嘴是否有新耗材挤出？"/>
   <translation tag="Issue description" zh="问题描述"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." zh="可以在 Spoolman 的网页界面中取消归档。"/>
@@ -2485,6 +2493,7 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." zh="请在打印文件中打开该 .3mf 以再次打印此板。"/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" zh="请打开 CFS 单元并从槽位中取出断裂的耗材"/>
   <translation tag="Open the slot editor when you load a new spool" zh="装入新料盘时打开槽位编辑器"/>
+  <translation tag="Opened" zh="已打开"/>
   <translation tag="Operation already in progress" zh="操作正在进行中"/>
   <translation tag="Operation timed out" zh="操作超时"/>
   <translation tag="Operations" zh="操作"/>
@@ -2496,6 +2505,7 @@
   <translation tag="Or instead of turning the others" zh="或者，无需转动其他螺丝"/>
   <translation tag="Original file location unknown" zh="原始文件位置未知"/>
   <translation tag="Oscillating... cycle %d/%d" zh="振荡中... 循环 %d/%d"/>
+  <translation tag="Other" zh="其他"/>
   <translation tag="Outcome" zh="结果"/>
   <translation tag="Output Device" zh="输出设备"/>
   <translation tag="Output Mode" zh="输出模式"/>
@@ -2661,6 +2671,7 @@
   <translation tag="Presets come from the WLED device. Edit them in the WLED app." zh="预设来自 WLED 设备。请在 WLED 应用中编辑。"/>
   <translation tag="Press Abort to stop" zh="按中止以停止"/>
   <translation tag="Press Scan to search" zh="按扫描搜索"/>
+  <translation tag="Pressed" zh="按下"/>
   <translation tag="Pressure Adv." zh="压力提前"/>
   <translation tag="Pressure Advance" zh="压力提前"/>
   <translation tag="Pressure Advance Calibration" zh="压力提前校准"/>
@@ -2946,6 +2957,7 @@
   <translation tag="Release or grip the filament by hand" zh="手动松开或夹持耗材"/>
   <translation tag="Release the filament" zh="松开耗材"/>
   <translation tag="Release {}&apos;s tensioner, let the spring settle, lock it" zh="松开 {} 的张紧器,让弹簧复位,再锁紧"/>
+  <translation tag="Released" zh="释放"/>
   <translation tag="Reload the saved bed mesh?" zh="重新加载已保存的热床网格？"/>
   <translation tag="Remaining" zh="剩余"/>
   <translation tag="Remaining (g)" zh="剩余 (g)"/>
@@ -4156,6 +4168,7 @@
   <translation tag="Warm up for a material in one tap" zh="一键为材料预热"/>
   <translation tag="Warming Bed..." zh="正在预热热床..."/>
   <translation tag="Warn" zh="警告"/>
+  <translation tag="Warn if a door is open" zh="门打开时发出警告"/>
   <translation tag="Warning" zh="警告"/>
   <translation tag="Warnings &amp; errors" zh="警告与错误"/>
   <translation tag="Watch the camera during a print for failed prints" zh="打印期间监视摄像头以发现打印失败"/>
@@ -4392,6 +4405,8 @@
   <translation tag="within one bin" zh="在一个频点内"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." zh="wpa_supplicant 未运行。WiFi 功能不可用。"/>
   <translation tag="you have" zh="您有"/>
+  <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." zh="{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。"/>
+  <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." zh="{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." zh="{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" zh="{:.0f}-{:.0f} Hz · 约 {} 分钟"/>
   <translation tag="{} ({})" zh="{}（{}）"/>
@@ -4401,6 +4416,7 @@
   <translation tag="{} LED strips available" zh="{} 条 LED 灯带可用"/>
   <translation tag="{} MCUs" zh="{} 个 MCU"/>
   <translation tag="{} Tools" zh="{} 个工具"/>
+  <translation tag="{} and {}" zh="{} 和 {}"/>
   <translation tag="{} and {} are both mapped here" zh="{} 和 {} 都映射到这里"/>
   <translation tag="{} available" zh="{} 可用"/>
   <translation tag="{} axes homed" zh="{} 轴已归位"/>
@@ -4480,6 +4496,7 @@
   <translation tag="{} → {}: no filament loaded." zh="{} → {}: 未加载耗材。"/>
   <translation tag="{}% left" zh="剩余 {}%"/>
   <translation tag="{}&apos;s nozzle is still heating" zh="{}的喷嘴仍在加热"/>
+  <translation tag="{}, {}" zh="{}、{}"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" zh="{}：标签指定的 Spoolman 料盘 #{} 不存在"/>
   <translation tag="{}:{:02} elapsed" zh="已用时 {}:{:02}"/>
   <translation tag="~{:.1f} Hz / turn" zh="约 {:.1f} Hz / 圈"/>

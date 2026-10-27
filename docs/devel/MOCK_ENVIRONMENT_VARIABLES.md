@@ -27,6 +27,21 @@ HELIX_AMS_GATES=8 ./build/bin/helix-screen --test
 HELIX_AMS_GATES=16 ./build/bin/helix-screen --test
 ```
 
+### `HELIX_MOCK_DOOR_OPEN`
+
+Makes every door-named `gcode_button` (`frontDoor`, `topDoor` on the Creator 5 personas, or one added with `HELIX_MOCK_OBJECTS="gcode_button door"`) report `RELEASED`, which a Door input reads as open. Without it door buttons report `PRESSED` (closed); every other button reports `RELEASED`.
+
+| Property | Value |
+|----------|-------|
+| **Values** | any value (presence is what counts) |
+| **Default** | unset (doors closed) |
+| **File** | `src/api/moonraker_client_mock.cpp` |
+
+```bash
+# Exercise the door-open print-start warning and the Inputs section of Settings > Sensors
+HELIX_MOCK_PRINTER=creator5_zmod HELIX_MOCK_DOOR_OPEN=1 ./build/bin/helix-screen --test
+```
+
 ### `HELIX_MOCK_WIFI_COUNTRY`
 
 The regulatory country the mock WiFi radio reports at startup, standing in for one the device's own configuration set. With it unset the mock radio is in the world domain, so Network Settings shows the 5 GHz hint.

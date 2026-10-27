@@ -725,6 +725,7 @@
   <translation tag="Close" pt="Fechar"/>
   <translation tag="Close feeder" pt="Fechar alimentador"/>
   <translation tag="Close feeder macro" pt="Macro de fechar alimentador"/>
+  <translation tag="Closed" pt="Fechada"/>
   <translation tag="Closer" pt="Mais Perto"/>
   <translation tag="Closer = more squish | Farther = less squish" pt="Mais perto = mais compressão | Mais longe = menos compressão"/>
   <translation tag="Coarse" pt="Grosso"/>
@@ -1051,6 +1052,10 @@
   <translation tag="Don&apos;t Save" pt="Não Salvar"/>
   <translation tag="Don&apos;t ask again" pt="Não perguntar novamente"/>
   <translation tag="Done" pt="Concluído"/>
+  <translation tag="Door" pt="Porta"/>
+  <translation tag="Door Open" pt="Porta aberta"/>
+  <translation tag="Door opened during print: {}" pt="Porta aberta durante a impressão: {}"/>
+  <translation tag="Door switches, buttons, and other on/off inputs" pt="Interruptores de porta, botões e outras entradas liga/desliga"/>
   <translation tag="Download update?" pt="Baixar atualização?"/>
   <translation tag="Download v{}?" pt="Baixar v{}?"/>
   <translation tag="Downloading..." pt="Baixando..."/>
@@ -1506,6 +1511,7 @@
   <translation tag="Follow active tool" pt="Seguir ferramenta ativa"/>
   <translation tag="Follow graph screen" pt="Acompanhar tela do gráfico"/>
   <translation tag="For a first Z home: claim the tool you put on the head" pt="Para a primeira referência de Z: registrar a ferramenta colocada no cabeçote"/>
+  <translation tag="For materials that need a warm enclosure, like ABS or ASA" pt="Para materiais que precisam de um gabinete quente, como ABS ou ASA"/>
   <translation tag="Force/weight sensors" pt="Sensores de força/peso"/>
   <translation tag="Forget" pt="Esquecer"/>
   <translation tag="Forget Network?" pt="Esquecer Rede?"/>
@@ -1735,6 +1741,7 @@
   <translation tag="IMPORT FROM USB" pt="IMPORTAR DO USB"/>
   <translation tag="INDX dock positions are not calibrated" pt="As posições das docas do INDX não estão calibradas"/>
   <translation tag="INDX macros not recognized" pt="Macros do INDX não reconhecidas"/>
+  <translation tag="INPUTS" pt="ENTRADAS"/>
   <translation tag="IP Address / Hostname" pt="Endereço IP / Hostname"/>
   <translation tag="IP:" pt="IP:"/>
   <translation tag="IPP error: {}" pt="Erro IPP: {}"/>
@@ -1817,6 +1824,7 @@
   <translation tag="Invalid tool/slot" pt="Ferramenta/slot inválido"/>
   <translation tag="Invalid value" pt="Valor inválido"/>
   <translation tag="Invalid value type" pt="Tipo de valor inválido"/>
+  <translation tag="Invert" pt="Inverter"/>
   <translation tag="Is new filament coming out of the nozzle?" pt="O filamento novo está saindo pelo bico?"/>
   <translation tag="Issue description" pt="Descrição do problema"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." pt="Pode ser desarquivado na interface web do Spoolman."/>
@@ -2485,6 +2493,7 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." pt="Abra o .3mf em Arquivos de Impressão para imprimir esta placa novamente."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" pt="Abra a unidade CFS e remova o filamento partido do slot"/>
   <translation tag="Open the slot editor when you load a new spool" pt="Abrir o editor de slot ao carregar um novo carretel"/>
+  <translation tag="Opened" pt="Aberta"/>
   <translation tag="Operation already in progress" pt="Operação já em andamento"/>
   <translation tag="Operation timed out" pt="Tempo limite da operação esgotado"/>
   <translation tag="Operations" pt="Operações"/>
@@ -2496,6 +2505,7 @@
   <translation tag="Or instead of turning the others" pt="Ou, em vez de girar os outros"/>
   <translation tag="Original file location unknown" pt="Local do arquivo original desconhecido"/>
   <translation tag="Oscillating... cycle %d/%d" pt="Oscilando... ciclo %d/%d"/>
+  <translation tag="Other" pt="Outro"/>
   <translation tag="Outcome" pt="Resultado"/>
   <translation tag="Output Device" pt="Dispositivo de Saída"/>
   <translation tag="Output Mode" pt="Modo de Saída"/>
@@ -2661,6 +2671,7 @@
   <translation tag="Presets come from the WLED device. Edit them in the WLED app." pt="As predefinições vêm do dispositivo WLED. Edite-as no app WLED."/>
   <translation tag="Press Abort to stop" pt="Pressione Abortar para parar"/>
   <translation tag="Press Scan to search" pt="Pressione Escanear para buscar"/>
+  <translation tag="Pressed" pt="Pressionado"/>
   <translation tag="Pressure Adv." pt="Pressure Adv."/>
   <translation tag="Pressure Advance" pt="Pressure Advance"/>
   <translation tag="Pressure Advance Calibration" pt="Calibração do pressure advance"/>
@@ -2946,6 +2957,7 @@
   <translation tag="Release or grip the filament by hand" pt="Soltar ou segurar o filamento manualmente"/>
   <translation tag="Release the filament" pt="Soltar o filamento"/>
   <translation tag="Release {}&apos;s tensioner, let the spring settle, lock it" pt="Solte o tensor de {}, deixe a mola assentar, trave-o"/>
+  <translation tag="Released" pt="Liberado"/>
   <translation tag="Reload the saved bed mesh?" pt="Recarregar a malha salva?"/>
   <translation tag="Remaining" pt="Restante"/>
   <translation tag="Remaining (g)" pt="Restante (g)"/>
@@ -4156,6 +4168,7 @@
   <translation tag="Warm up for a material in one tap" pt="Pré-aquecer para um material em um toque"/>
   <translation tag="Warming Bed..." pt="Aquecendo Mesa..."/>
   <translation tag="Warn" pt="Aviso"/>
+  <translation tag="Warn if a door is open" pt="Avisar se uma porta estiver aberta"/>
   <translation tag="Warning" pt="Aviso"/>
   <translation tag="Warnings &amp; errors" pt="Avisos e erros"/>
   <translation tag="Watch the camera during a print for failed prints" pt="Observa a câmera durante a impressão para detectar impressões com falha"/>
@@ -4392,6 +4405,8 @@
   <translation tag="within one bin" pt="dentro de um bin"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." pt="wpa_supplicant não está em execução. Os recursos de WiFi estão indisponíveis."/>
   <translation tag="you have" pt="você tem"/>
+  <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." pt="{0} estão abertas. {1} imprime melhor em um gabinete quente e fechado; uma porta aberta esfria a câmara e pode causar empenamento ou separação de camadas. Feche-as ou inicie mesmo assim."/>
+  <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." pt="{0} está aberta. {1} imprime melhor em um gabinete quente e fechado; uma porta aberta esfria a câmara e pode causar empenamento ou separação de camadas. Feche-a ou inicie mesmo assim."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." pt="{0} ressoa muito mais que {1} a {2:.0f} Hz. Isso indica uma diferença mecânica (parafusos da polia, rolamentos das polias livres, alinhamento da correia), não a tensão."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" pt="{:.0f}-{:.0f} Hz · cerca de {} min"/>
   <translation tag="{} ({})" pt="{} ({})"/>
@@ -4401,6 +4416,7 @@
   <translation tag="{} LED strips available" pt="{} fitas de LED disponíveis"/>
   <translation tag="{} MCUs" pt="{} MCUs"/>
   <translation tag="{} Tools" pt="{} ferramentas"/>
+  <translation tag="{} and {}" pt="{} e {}"/>
   <translation tag="{} and {} are both mapped here" pt="{} e {} estão ambos atribuídos aqui"/>
   <translation tag="{} available" pt="{} disponível"/>
   <translation tag="{} axes homed" pt="Eixos {} referenciados"/>
@@ -4480,6 +4496,7 @@
   <translation tag="{} → {}: no filament loaded." pt="{} → {}: nenhum filamento carregado."/>
   <translation tag="{}% left" pt="{}% restante"/>
   <translation tag="{}&apos;s nozzle is still heating" pt="O bico de {} ainda está aquecendo"/>
+  <translation tag="{}, {}" pt="{}, {}"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" pt="{}: a etiqueta indica o carretel #{} do Spoolman, que não existe"/>
   <translation tag="{}:{:02} elapsed" pt="{}:{:02} decorrido"/>
   <translation tag="~{:.1f} Hz / turn" pt="~{:.1f} Hz / volta"/>

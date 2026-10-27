@@ -511,6 +511,43 @@ CheckResult gate_mixed_temperature_materials(const PrintStartContext& ctx) {
 
 } // namespace
 
+/// "a", "a and b", "a, b and c": the list read as one phrase. Both joins are
+/// translated patterns, so a locale uses its own separator and final pair.
+static std::string spoken_list(const std::vector<std::string>& names) {
+    if (names.empty()) {
+        return {};
+    }
+    std::string head = names.front();
+    for (size_t i = 1; i + 1 < names.size(); ++i) {
+        head = fmt::format(fmt::runtime(lv_tr("{}, {}")), head, names[i]);
+    }
+    if (names.size() == 1) {
+        return head;
+    }
+    return fmt::format(fmt::runtime(lv_tr("{} and {}")), head, names.back());
+}
+
+CheckResult gate_door_open(const PrintStartContext& ctx) {
+    const auto material = door_warning_material(ctx.door_check_enabled, !ctx.open_doors.empty(),
+                                                materials_in_print(ctx));
+    if (!material) {
+        return pass_result();
+    }
+    const std::string names = spoken_list(ctx.open_doors);
+    spdlog::info("[PrintStartController] Door open ({}) on a {} print - showing pre-print warning",
+                 names, *material);
+    const char* body =
+        ctx.open_doors.size() == 1
+            ? lv_tr("{0} is open. {1} prints best in a warm, closed enclosure; an open door "
+                    "cools the chamber and can cause warping or layer splits. Close it, or "
+                    "start anyway.")
+            : lv_tr("{0} are open. {1} prints best in a warm, closed enclosure; an open door "
+                    "cools the chamber and can cause warping or layer splits. Close them, or "
+                    "start anyway.");
+    return warn_result(lv_tr("Door Open"), fmt::format(fmt::runtime(body), names, *material),
+                       lv_tr("Start Anyway"));
+}
+
 CheckResult gate_printer_stopping_command(const PrintStartContext& ctx) {
     const PrinterStopCheck& stop = ctx.printer_stop;
     if (stop.state != PrinterStopCheck::State::Stops) {
@@ -933,10 +970,9 @@ bool materials_conflict_in_temperature(std::string_view a, std::string_view b) {
     return hotter.needs_enclosure() && cooler.nozzle_max < hotter.nozzle_min;
 }
 
-std::optional<MixedTemperatureMaterials>
-mixed_temperature_materials_in(const PrintStartContext& ctx) {
+std::vector<std::string> materials_in_print(const PrintStartContext& ctx) {
     if (!ctx.has_file_facts) {
-        return std::nullopt;
+        return {};
     }
 
     std::set<int> used = ctx.tools_used;
@@ -957,7 +993,33 @@ mixed_temperature_materials_in(const PrintStartContext& ctx) {
             materials.push_back(std::move(material));
         }
     }
+    return materials;
+}
 
+std::optional<std::string> enclosure_material_in(const std::vector<std::string>& materials) {
+    std::optional<std::string> warmest;
+    int warmest_chamber_c = 0;
+    for (const auto& material : materials) {
+        const auto info = resolve_material_info(material);
+        if (info && info->needs_enclosure() && info->chamber_temp_c > warmest_chamber_c) {
+            warmest = material;
+            warmest_chamber_c = info->chamber_temp_c;
+        }
+    }
+    return warmest;
+}
+
+std::optional<std::string> door_warning_material(bool door_check_enabled, bool any_door_open,
+                                                 const std::vector<std::string>& materials) {
+    if (!door_check_enabled || !any_door_open) {
+        return std::nullopt;
+    }
+    return enclosure_material_in(materials);
+}
+
+std::optional<MixedTemperatureMaterials>
+mixed_temperature_materials_in(const PrintStartContext& ctx) {
+    const std::vector<std::string> materials = materials_in_print(ctx);
     for (size_t i = 0; i < materials.size(); ++i) {
         for (size_t j = i + 1; j < materials.size(); ++j) {
             if (!materials_conflict_in_temperature(materials[i], materials[j])) {
@@ -996,6 +1058,9 @@ const std::vector<PrintStartGate>& default_print_start_gates() {
         {"required_filament_present", gate_required_filament_present},
         {"unresolved_tools", gate_unresolved_tools},
         {"material_compatibility", gate_material_compatibility},
+        // Last: a door is closed in a second, so it is asked after anything
+        // that needs the user to think about the file or the filament.
+        {"door_open", gate_door_open},
     };
     return gates;
 }

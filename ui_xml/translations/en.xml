@@ -725,6 +725,7 @@
   <translation tag="Close" en="Close"/>
   <translation tag="Close feeder" en="Close feeder"/>
   <translation tag="Close feeder macro" en="Close feeder macro"/>
+  <translation tag="Closed" en="Closed"/>
   <translation tag="Closer" en="Closer"/>
   <translation tag="Closer = more squish | Farther = less squish" en="Closer = more squish | Farther = less squish"/>
   <translation tag="Coarse" en="Coarse"/>
@@ -1051,6 +1052,10 @@
   <translation tag="Don&apos;t Save" en="Don&apos;t Save"/>
   <translation tag="Don&apos;t ask again" en="Don&apos;t ask again"/>
   <translation tag="Done" en="Done"/>
+  <translation tag="Door" en="Door"/>
+  <translation tag="Door Open" en="Door Open"/>
+  <translation tag="Door opened during print: {}" en="Door opened during print: {}"/>
+  <translation tag="Door switches, buttons, and other on/off inputs" en="Door switches, buttons, and other on/off inputs"/>
   <translation tag="Download update?" en="Download update?"/>
   <translation tag="Download v{}?" en="Download v{}?"/>
   <translation tag="Downloading..." en="Downloading..."/>
@@ -1506,6 +1511,7 @@
   <translation tag="Follow active tool" en="Follow active tool"/>
   <translation tag="Follow graph screen" en="Follow graph screen"/>
   <translation tag="For a first Z home: claim the tool you put on the head" en="For a first Z home: claim the tool you put on the head"/>
+  <translation tag="For materials that need a warm enclosure, like ABS or ASA" en="For materials that need a warm enclosure, like ABS or ASA"/>
   <translation tag="Force/weight sensors" en="Force/weight sensors"/>
   <translation tag="Forget" en="Forget"/>
   <translation tag="Forget Network?" en="Forget Network?"/>
@@ -1735,6 +1741,7 @@
   <translation tag="IMPORT FROM USB" en="IMPORT FROM USB"/>
   <translation tag="INDX dock positions are not calibrated" en="INDX dock positions are not calibrated"/>
   <translation tag="INDX macros not recognized" en="INDX macros not recognized"/>
+  <translation tag="INPUTS" en="INPUTS"/>
   <translation tag="IP Address / Hostname" en="IP Address / Hostname"/>
   <translation tag="IP:" en="IP:"/>
   <translation tag="IPP error: {}" en="IPP error: {}"/>
@@ -1817,6 +1824,7 @@
   <translation tag="Invalid tool/slot" en="Invalid tool/slot"/>
   <translation tag="Invalid value" en="Invalid value"/>
   <translation tag="Invalid value type" en="Invalid value type"/>
+  <translation tag="Invert" en="Invert"/>
   <translation tag="Is new filament coming out of the nozzle?" en="Is new filament coming out of the nozzle?"/>
   <translation tag="Issue description" en="Issue description"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." en="It can be un-archived in Spoolman&apos;s web UI."/>
@@ -2485,6 +2493,7 @@
   <translation tag="Open the .3mf in Print Files to print this plate again." en="Open the .3mf in Print Files to print this plate again."/>
   <translation tag="Open the CFS unit and remove the broken filament from the slot" en="Open the CFS unit and remove the broken filament from the slot"/>
   <translation tag="Open the slot editor when you load a new spool" en="Open the slot editor when you load a new spool"/>
+  <translation tag="Opened" en="Opened"/>
   <translation tag="Operation already in progress" en="Operation already in progress"/>
   <translation tag="Operation timed out" en="Operation timed out"/>
   <translation tag="Operations" en="Operations"/>
@@ -2496,6 +2505,7 @@
   <translation tag="Or instead of turning the others" en="Or instead of turning the others"/>
   <translation tag="Original file location unknown" en="Original file location unknown"/>
   <translation tag="Oscillating... cycle %d/%d" en="Oscillating... cycle %d/%d"/>
+  <translation tag="Other" en="Other"/>
   <translation tag="Outcome" en="Outcome"/>
   <translation tag="Output Device" en="Output Device"/>
   <translation tag="Output Mode" en="Output Mode"/>
@@ -2661,6 +2671,7 @@
   <translation tag="Presets come from the WLED device. Edit them in the WLED app." en="Presets come from the WLED device. Edit them in the WLED app."/>
   <translation tag="Press Abort to stop" en="Press Abort to stop"/>
   <translation tag="Press Scan to search" en="Press Scan to search"/>
+  <translation tag="Pressed" en="Pressed"/>
   <translation tag="Pressure Adv." en="Pressure Adv."/>
   <translation tag="Pressure Advance" en="Pressure Advance"/>
   <translation tag="Pressure Advance Calibration" en="Pressure Advance Calibration"/>
@@ -2946,6 +2957,7 @@
   <translation tag="Release or grip the filament by hand" en="Release or grip the filament by hand"/>
   <translation tag="Release the filament" en="Release the filament"/>
   <translation tag="Release {}&apos;s tensioner, let the spring settle, lock it" en="Release {}&apos;s tensioner, let the spring settle, lock it"/>
+  <translation tag="Released" en="Released"/>
   <translation tag="Reload the saved bed mesh?" en="Reload the saved bed mesh?"/>
   <translation tag="Remaining" en="Remaining"/>
   <translation tag="Remaining (g)" en="Remaining (g)"/>
@@ -4156,6 +4168,7 @@
   <translation tag="Warm up for a material in one tap" en="Warm up for a material in one tap"/>
   <translation tag="Warming Bed..." en="Warming Bed..."/>
   <translation tag="Warn" en="Warn"/>
+  <translation tag="Warn if a door is open" en="Warn if a door is open"/>
   <translation tag="Warning" en="Warning"/>
   <translation tag="Warnings &amp; errors" en="Warnings &amp; errors"/>
   <translation tag="Watch the camera during a print for failed prints" en="Watch the camera during a print for failed prints"/>
@@ -4392,6 +4405,8 @@
   <translation tag="within one bin" en="within one bin"/>
   <translation tag="wpa_supplicant is not running. WiFi features unavailable." en="wpa_supplicant is not running. WiFi features unavailable."/>
   <translation tag="you have" en="you have"/>
+  <translation tag="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway." en="{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway."/>
+  <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." en="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." en="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension."/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" en="{:.0f}-{:.0f} Hz · about {} min"/>
   <translation tag="{} ({})" en="{} ({})"/>
@@ -4401,6 +4416,7 @@
   <translation tag="{} LED strips available" en="{} LED strips available"/>
   <translation tag="{} MCUs" en="{} MCUs"/>
   <translation tag="{} Tools" en="{} Tools"/>
+  <translation tag="{} and {}" en="{} and {}"/>
   <translation tag="{} and {} are both mapped here" en="{} and {} are both mapped here"/>
   <translation tag="{} available" en="{} available"/>
   <translation tag="{} axes homed" en="{} axes homed"/>
@@ -4480,6 +4496,7 @@
   <translation tag="{} → {}: no filament loaded." en="{} → {}: no filament loaded."/>
   <translation tag="{}% left" en="{}% left"/>
   <translation tag="{}&apos;s nozzle is still heating" en="{}&apos;s nozzle is still heating"/>
+  <translation tag="{}, {}" en="{}, {}"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" en="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist"/>
   <translation tag="{}:{:02} elapsed" en="{}:{:02} elapsed"/>
   <translation tag="~{:.1f} Hz / turn" en="~{:.1f} Hz / turn"/>

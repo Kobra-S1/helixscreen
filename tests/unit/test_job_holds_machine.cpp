@@ -538,6 +538,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/home_panel.xml",
     "ui_xml/humidity_sensor_row.xml",
     "ui_xml/info_qr_modal.xml",
+    "ui_xml/input_sensor_row.xml",
     "ui_xml/input_shaper_panel.xml",
     "ui_xml/job_queue_modal.xml",
     "ui_xml/klipper_recovery_dialog.xml",
