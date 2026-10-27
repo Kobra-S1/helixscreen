@@ -45,8 +45,10 @@ class DetectionManager {
     /// false forever. Hooking add_connected_observer() runs it after every connect.
     void init(helix::IMoonrakerClient* client, helix::PrinterState* state);
 
-    /// (Re)scan printer.objects.list for "defect_detection" and update sources'
-    /// capability flags. Idempotent; safe to call on every reconnect.
+    /// Re-run each source's local capability probe, then hand every source
+    /// this printer's printer.objects.list answer
+    /// (DetectionSource::on_objects_listed). Idempotent; safe to call on every
+    /// reconnect.
     void refresh_capabilities();
 
     /// Take ownership of a source, route its events here, default its policy to
@@ -126,8 +128,8 @@ class DetectionManager {
     void reset_for_test();
 
     /// Test seam: feed a printer.objects.list "objects" array directly and apply
-    /// the same capability-detection logic the live probe uses (without a live
-    /// MoonrakerClient). Returns the detected "defect_detection" capability.
+    /// it the way the live probe does (without a live MoonrakerClient).
+    /// Returns any_available() afterwards.
     bool apply_objects_list_for_test(const nlohmann::json& objects);
 
   private:
@@ -135,8 +137,9 @@ class DetectionManager {
 
     void on_event(const DetectionEvent& e);
 
-    /// Apply a resolved capability flag to every source that consumes it.
-    void apply_capability(bool has_defect_detection);
+    /// Hand a printer.objects.list "objects" array to every source, then
+    /// republish availability.
+    void apply_objects_list(const nlohmann::json& objects);
 
     /// Init + register the availability subject on first use; re-init would
     /// wipe observers bound since the first call, so only the flag gates it.
