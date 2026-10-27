@@ -1395,6 +1395,13 @@ stores the slot's Material/HEX: upper-cased when the HEX is one of Z-Mod's 24
 palette colours, snapped to white (`FFFFFF`, palette index 0) when it is not,
 exactly as the firmware does. An unknown `TYPE` is refused with a gcode error.
 
+It also publishes Z-Mod's calibration and chamber air macros. `CALIBRATE_EXTRUDERS`
+answers with the firmware's action:prompt (plate warning, OK/Cancel) and its OK
+(`_T_CALIBRATE_EXTRUDERS`) closes it; `CALIBRATE_VFA T=<n>` narrates a grab and a
+finish line but does not restart (the real macro ends in `SAVE_CONFIG`);
+`AIR_CIRCULATION_INTERNAL` / `_EXTERNAL` / `_STOP` set the four chamber fans to the
+firmware's speeds through the mock's own `SET_FAN_SPEED`.
+
 **Unrecognized values fall back to Voron 2.4** with a warning listing the valid set — they are not fatal. K2 and CC1 have no dedicated mock type yet and hit that fallback.
 
 **Side effect on `settings.json`:** when this variable is set *at all* (even to an invalid value), `MoonrakerManager::init()` clears the saved printer type before detection runs, so a stale "Voron 2.4" from a previous launch cannot win over the env var. `PrinterDetector::auto_detect_and_save()` then re-resolves from the mock's reported identity on every launch. This writes to your config file — expect the persisted printer type to change.

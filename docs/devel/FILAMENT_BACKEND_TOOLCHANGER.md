@@ -355,3 +355,22 @@ macro measures against, how it heats, or where the sensor is — all of that is 
 | Timeout | the rpc ceiling is the panel's own `kCalibrationTimeoutMs` (15 min; ~30 s to measure plus heating from cold, per tool, sequentially). Moonraker never times out `printer.gcode.script`, so an expiry while `idle_timeout` still reads Printing is a macro that is still running: the run completes on the busy→idle edge, with one more ceiling as the backstop - `PrintPreparationManager`'s rule for a pre-start macro that outlives its ceiling |
 | Mock | `HELIX_MOCK_AMS=toolchanger` advertises the macro and simulates the run (see `docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`) |
 
+### A changer firmware's own calibration prompt
+
+A changer firmware without klipper-toolchanger can ship its own calibration that only opens
+an action:prompt and returns. Z-Mod on the Creator 5 is the one today: `CALIBRATE_EXTRUDERS`
+asks the user to remove the build plate, and the prompt's OK runs `_T_CALIBRATE_EXTRUDERS`
+for all four heads. Its rpc answers before anything moves, so the panel above cannot follow
+it: its completion and result rows would claim a finish that has not happened.
+
+| Piece | Where |
+|-------|-------|
+| Which firmware, which macro | the provider row's `offset_calibration_macro` in `src/printer/toolchanger_addon.cpp#providers`; `toolchanger_addon::resolve_offset_calibration(hw)` returns `OffsetCalibration { present, provider_name, prompt_gcode }`, present only when the macro is defined |
+| Capability | `tool_offset_calibration::supported(hw)` is true for it; `tool_offset_calibration::printer_prompt_gcode(hw)` returns the command, empty when a `CALIBRATE_TOOL_OFFSETS` toolchanger or a guided flow owns the entry. `calibrate_all_gcode()` never returns it |
+| Entry | `open_tool_offset_cal_panel()` (`src/ui/ui_panel_calibration_tool_offset.cpp#open_tool_offset_cal_panel`) sends the prompt gcode instead of showing the panel, refused while `machine_motion_blocked` is set. The printer's prompt renders through `ActionPromptManager` |
+| Results | none followed: no progress, no rows. The firmware keeps its own measurements |
+| Tests | `[tool_offset_cal]` in `tests/unit/test_tool_offset_calibration.cpp`: the Z-Mod row, a missing macro, the AD5X (no carriage buttons), precedence of `CALIBRATE_TOOL_OFFSETS`, and a bare printer |
+
+Adding a second firmware with a prompt-style calibration is one file: set
+`offset_calibration_macro` on its row in `toolchanger_addon.cpp`.
+

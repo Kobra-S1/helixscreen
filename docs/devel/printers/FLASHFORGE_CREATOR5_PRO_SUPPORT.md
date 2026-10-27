@@ -233,6 +233,34 @@ filament.json on the printer. **zmod ≥ 1.7.4 ships the export** (field-confirm
 `5WSPTZBL`); older Z-Mod builds keep the degraded behaviour. Hardware verification of the
 step-bar markers on a live swap remains open (prestonbrown/helixscreen#1714).
 
+### Calibration and chamber air macros
+
+HelixScreen drives three more Z-Mod macro families from `c5pro_generic.cfg`. Each is a row in
+a capability provider table, so the Creator 5 is named in one module per capability.
+
+| Macro | What it does on the printer | HelixScreen entry | Provider row |
+|-------|-----------------------------|-------------------|--------------|
+| `CALIBRATE_EXTRUDERS` | Opens an action:prompt ("Please remove the build plate first!"); OK runs `_T_CALIBRATE_EXTRUDERS`, measuring all four heads | Tool Offsets (Advanced row, Controls tile) sends it without opening the panel | `src/printer/toolchanger_addon.cpp#providers` (`offset_calibration_macro`); see [`FILAMENT_BACKEND_TOOLCHANGER.md`](../FILAMENT_BACKEND_TOOLCHANGER.md#a-changer-firmwares-own-calibration-prompt) |
+| `CALIBRATE_VFA T=<n>` | Mounts head n, zeroes the gcode offset, moves to X130 Y130, runs `STEPPER_RESONANCE_FACTORY_CALIBRATE`, parks the head, then `SAVE_CONFIG` | Advanced ▸ Vertical Artifact Compensation, with a tool picker | `kProviders` in `src/printer/stepper_resonance_calibration.cpp` |
+| `AIR_CIRCULATION_INTERNAL` / `_EXTERNAL` / `_STOP` | Recirculate (heat 0.9, loop 0.3), exhaust (chamber 0.5, cool 0.7), all four chamber fans off | **Chamber air** row on the fan overlay | `kProviders` in `src/printer/chamber_air_modes.cpp`; see [`CHAMBER_HEATER.md`](../CHAMBER_HEATER.md#chamber-air-modes) |
+
+**Stepper resonance calibration** (`include/stepper_resonance_calibration.h`,
+`helix::stepper_resonance_cal`): `bool supported(hw)`, `bool per_tool(hw)`,
+`std::string calibrate_gcode(hw, int tool)` (empty when unsupported, or for a negative tool
+on a per-tool routine), `bool restarts_klipper(hw)`, `const char* entry_name()`,
+`const char* entry_description()`, `std::string provider_name(hw)`. A row carries the macro,
+the tool parameter name (nullptr for a whole-machine routine) and whether it ends in
+`SAVE_CONFIG`. The subject is `printer_has_stepper_resonance_cal`. The entry
+(`src/ui/ui_stepper_resonance_cal_modal.cpp`) offers a tool dropdown when the routine is
+per-tool and the printer has more than one tool, else a plain confirmation, and refuses
+while `machine_motion_blocked` is set. The send uses `kMacroTimeoutMs` and
+`classify_macro_rpc_failure()`, so the rpc that `SAVE_CONFIG` drops arms
+`begin_expected_klippy_restart()` instead of reporting a failure. Adding a second firmware is
+one row. Tests: `[stepper_resonance_cal]` in `tests/unit/test_stepper_resonance_calibration.cpp`.
+
+All three rows detect the machine through `toolchanger_addon::zmod_c5_present(hw)` and
+require the macro itself, so a Creator 5 on an older Z-Mod without a macro shows no entry.
+
 ### The `creator5_zmod` mock persona
 
 `HELIX_MOCK_PRINTER=creator5_zmod ./build/bin/helix-screen --test` runs the real
@@ -241,8 +269,8 @@ step-bar markers on a live swap remains open (prestonbrown/helixscreen#1714).
 `extruder_grab1..4`, Z-Mod 1.7.4's afclite shim objects (`zmod_afclite`, `AFC`,
 `AFC_lane E0..E3`, `AFC_unit C5`) and the `fd_ex`/`fm_ex` sensor pairs, answers
 `_T_IN` / `_T_OUT` / `CHANGE_ZCOLOR` — narrating the swap markers the step bar parses —
-and implies `--real-ams` so the mock AMS gate does not stand a mock backend in front of
-it. The `creator5` persona models the Reforge side only. Details in
+answers the calibration and chamber air macros above, and implies `--real-ams` so the mock
+AMS gate does not stand a mock backend in front of it. The `creator5` persona models the Reforge side only. Details in
 [`MOCK_ENVIRONMENT_VARIABLES.md`](../MOCK_ENVIRONMENT_VARIABLES.md).
 
 ## On-device bring-up
