@@ -463,6 +463,7 @@
   <translation tag="Browse catalog..." zh="浏览目录..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." zh="浏览 HelixScreen 的指南、配置参考和故障排除资源。"/>
   <translation tag="Brush nozzle" zh="刷洗喷嘴"/>
+  <translation tag="Brush the mounted tool&apos;s nozzle clean" zh="用刷子清洁当前安装工具的喷嘴"/>
   <translation tag="Buffer Status" zh="缓冲区状态"/>
   <translation tag="Buffer tube problem" zh="缓冲管故障"/>
   <translation tag="Build Volume" zh="打印尺寸"/>
@@ -694,6 +695,7 @@
   <translation tag="Clean Brush" zh="清洁刷子"/>
   <translation tag="Clean Nozzle" zh="清洁喷嘴"/>
   <translation tag="Clean Up Storage" zh="清理存储"/>
+  <translation tag="Clean nozzle" zh="清洁喷嘴"/>
   <translation tag="Clean up" zh="清理"/>
   <translation tag="Clean {}" zh="清洁{}"/>
   <translation tag="Cleaning Nozzle..." zh="正在清洁喷嘴..."/>
@@ -2346,6 +2348,7 @@
   <translation tag="No target printer configured" zh="未配置目标打印机"/>
   <translation tag="No temperature sensors detected" zh="未检测到温度传感器"/>
   <translation tag="No timelapse videos found" zh="未找到延时视频"/>
+  <translation tag="No tool is mounted" zh="未安装工具"/>
   <translation tag="No tool on the head" zh="工具头上没有工具"/>
   <translation tag="No tools to calibrate" zh="没有可校准的工具"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" zh="未转动:差距移动了 {:.1f} Hz"/>
@@ -4196,6 +4199,7 @@
   <translation tag="Wifi" zh="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" zh="耗材用尽时不会切换料盘"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" zh="在硅胶清洁条上擦拭喷嘴"/>
+  <translation tag="Wipe the mounted nozzle on the brush" zh="在刷子上擦拭当前喷嘴"/>
   <translation tag="Wiping {}..." zh="正在擦拭{}..."/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" zh="在 {1:.0f} Hz 处相差 {0:.1f} Hz 以内"/>
   <translation tag="Wizard Error" zh="向导错误"/>

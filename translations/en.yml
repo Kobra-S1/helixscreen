@@ -486,6 +486,7 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Browse
     guides, configuration references, and troubleshooting resources for HelixScreen.
   Brush nozzle: Brush nozzle
+  Brush the mounted tool's nozzle clean: Brush the mounted tool's nozzle clean
   Buffer Status: Buffer Status
   Buffer tube problem: Buffer tube problem
   Build Volume: Build Volume
@@ -740,6 +741,7 @@ translations:
   Clean Brush: Clean Brush
   Clean Nozzle: Clean Nozzle
   Clean Up Storage: Clean Up Storage
+  Clean nozzle: Clean nozzle
   Clean up: Clean up
   Clean {}: Clean {}
   Cleaning Nozzle...: Cleaning Nozzle...
@@ -2509,6 +2511,7 @@ translations:
   No target printer configured: No target printer configured
   No temperature sensors detected: No temperature sensors detected
   No timelapse videos found: No timelapse videos found
+  No tool is mounted: No tool is mounted
   No tool on the head: No tool on the head
   No tools to calibrate: No tools to calibrate
   'No turn: the gap moved {:.1f} Hz': 'No turn: the gap moved {:.1f} Hz'
@@ -4526,6 +4529,7 @@ translations:
   Will not switch spools on runout: Will not switch spools on runout
   Wipe nozzle on silicone cleaning strip: Wipe nozzle on silicone cleaning strip
   Within {0:.1f} Hz of each other at {1:.0f} Hz: Within {0:.1f} Hz of each other at {1:.0f} Hz
+  Wipe the mounted nozzle on the brush: Wipe the mounted nozzle on the brush
   Wiping {}...: Wiping {}...
   Wizard Error: Wizard Error
   Working...: Working...

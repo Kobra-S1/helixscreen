@@ -503,6 +503,7 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Anleitungen,
     Konfigurationsreferenzen und Fehlerbehebungsressourcen für HelixScreen durchsuchen.
   Brush nozzle: 'Düse abbürsten'
+  Brush the mounted tool's nozzle clean: 'Düse des montierten Werkzeugs an der Bürste reinigen'
   Buffer Status: Pufferstatus
   Buffer tube problem: Problem mit dem Pufferschlauch
   Build Volume: 'Bauraum'
@@ -765,6 +766,7 @@ translations:
   Clean Brush: 'Bürste reinigen'
   Clean Nozzle: Düse reinigen
   Clean Up Storage: 'Speicher bereinigen'
+  Clean nozzle: 'Düse reinigen'
   Clean up: 'Bereinigen'
   Clean {}: '{} reinigen'
   Cleaning Nozzle...: Düse reinigen...
@@ -2578,6 +2580,7 @@ translations:
   No target printer configured: Kein Zieldrucker konfiguriert
   No temperature sensors detected: 'Keine Temperatursensoren erkannt'
   No timelapse videos found: Keine Zeitraffer-Videos gefunden
+  No tool is mounted: 'Kein Werkzeug montiert'
   No tool on the head: "Kein Werkzeug am Werkzeugkopf"
   No tools to calibrate: Keine Werkzeuge zum Kalibrieren
   'No turn: the gap moved {:.1f} Hz': "Keine Drehung: der Abstand bewegte sich um {:.1f} Hz"
@@ -4631,6 +4634,7 @@ translations:
   Will not switch spools on runout: Wechselt bei leerer Spule nicht die Spule
   Wipe nozzle on silicone cleaning strip: 'Düse am Silikon-Reinigungsstreifen abwischen'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "Bis auf {0:.1f} Hz gleich bei {1:.0f} Hz"
+  Wipe the mounted nozzle on the brush: 'Montierte Düse an der Bürste abwischen'
   Wiping {}...: '{} wird abgewischt...'
   Wizard Error: Assistentenfehler
   Working...: Wird verarbeitet...

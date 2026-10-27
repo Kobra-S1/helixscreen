@@ -463,6 +463,7 @@
   <translation tag="Browse catalog..." it="Sfoglia catalogo..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." it="Consulta guide, riferimenti di configurazione e risorse per la risoluzione dei problemi per HelixScreen."/>
   <translation tag="Brush nozzle" it="Spazzola l&apos;ugello"/>
+  <translation tag="Brush the mounted tool&apos;s nozzle clean" it="Pulire con la spazzola l&apos;ugello dell&apos;utensile montato"/>
   <translation tag="Buffer Status" it="Stato buffer"/>
   <translation tag="Buffer tube problem" it="Problema al tubo del buffer"/>
   <translation tag="Build Volume" it="Volume di stampa"/>
@@ -694,6 +695,7 @@
   <translation tag="Clean Brush" it="Pulisci la spazzola"/>
   <translation tag="Clean Nozzle" it="Pulisci ugello"/>
   <translation tag="Clean Up Storage" it="Pulisci archiviazione"/>
+  <translation tag="Clean nozzle" it="Pulisci ugello"/>
   <translation tag="Clean up" it="Pulisci"/>
   <translation tag="Clean {}" it="Pulisci {}"/>
   <translation tag="Cleaning Nozzle..." it="Pulizia ugello..."/>
@@ -2346,6 +2348,7 @@
   <translation tag="No target printer configured" it="Nessuna stampante di destinazione configurata"/>
   <translation tag="No temperature sensors detected" it="Nessun sensore di temperatura rilevato"/>
   <translation tag="No timelapse videos found" it="Nessun video timelapse trovato"/>
+  <translation tag="No tool is mounted" it="Nessun utensile montato"/>
   <translation tag="No tool on the head" it="Nessuno strumento sulla testina"/>
   <translation tag="No tools to calibrate" it="Nessuno strumento da calibrare"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" it="Nessuna rotazione: la differenza si è spostata di {:.1f} Hz"/>
@@ -4196,6 +4199,7 @@
   <translation tag="Wifi" it="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" it="Non cambierà bobina a filamento esaurito"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" it="Pulisci l&apos;ugello sulla striscia di pulizia in silicone"/>
+  <translation tag="Wipe the mounted nozzle on the brush" it="Pulire l&apos;ugello montato sulla spazzola"/>
   <translation tag="Wiping {}..." it="Pulizia {}..."/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" it="Entro {0:.1f} Hz l&apos;una dall&apos;altra a {1:.0f} Hz"/>
   <translation tag="Wizard Error" it="Errore procedura guidata"/>

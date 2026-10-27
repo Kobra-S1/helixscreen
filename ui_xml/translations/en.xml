@@ -463,6 +463,7 @@
   <translation tag="Browse catalog..." en="Browse catalog..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." en="Browse guides, configuration references, and troubleshooting resources for HelixScreen."/>
   <translation tag="Brush nozzle" en="Brush nozzle"/>
+  <translation tag="Brush the mounted tool&apos;s nozzle clean" en="Brush the mounted tool&apos;s nozzle clean"/>
   <translation tag="Buffer Status" en="Buffer Status"/>
   <translation tag="Buffer tube problem" en="Buffer tube problem"/>
   <translation tag="Build Volume" en="Build Volume"/>
@@ -694,6 +695,7 @@
   <translation tag="Clean Brush" en="Clean Brush"/>
   <translation tag="Clean Nozzle" en="Clean Nozzle"/>
   <translation tag="Clean Up Storage" en="Clean Up Storage"/>
+  <translation tag="Clean nozzle" en="Clean nozzle"/>
   <translation tag="Clean up" en="Clean up"/>
   <translation tag="Clean {}" en="Clean {}"/>
   <translation tag="Cleaning Nozzle..." en="Cleaning Nozzle..."/>
@@ -2346,6 +2348,7 @@
   <translation tag="No target printer configured" en="No target printer configured"/>
   <translation tag="No temperature sensors detected" en="No temperature sensors detected"/>
   <translation tag="No timelapse videos found" en="No timelapse videos found"/>
+  <translation tag="No tool is mounted" en="No tool is mounted"/>
   <translation tag="No tool on the head" en="No tool on the head"/>
   <translation tag="No tools to calibrate" en="No tools to calibrate"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" en="No turn: the gap moved {:.1f} Hz"/>
@@ -4196,6 +4199,7 @@
   <translation tag="Wifi" en="Wifi"/>
   <translation tag="Will not switch spools on runout" en="Will not switch spools on runout"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" en="Wipe nozzle on silicone cleaning strip"/>
+  <translation tag="Wipe the mounted nozzle on the brush" en="Wipe the mounted nozzle on the brush"/>
   <translation tag="Wiping {}..." en="Wiping {}..."/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" en="Within {0:.1f} Hz of each other at {1:.0f} Hz"/>
   <translation tag="Wizard Error" en="Wizard Error"/>

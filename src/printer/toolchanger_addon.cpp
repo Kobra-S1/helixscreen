@@ -54,6 +54,9 @@ struct Provider {
     /// The target tool's nozzle must be above this before the machine's own
     /// RESUME continues a print a failed swap paused; 0 for no such rule.
     int resume_min_nozzle_c;
+    /// Brushes the mounted nozzle clean; nullptr, or empty for this printer,
+    /// when there is no such command.
+    std::string (*clean_gcode)(const PrinterDiscovery& hw);
 };
 
 // --- MedusaHC ---------------------------------------------------------------
@@ -105,6 +108,12 @@ std::string medusa_unselect_gcode(const PrinterDiscovery& hw) {
         return "MHC_DROP\nMHC_CLOSE";
     }
     return "DROP_TOOL";
+}
+
+/// CLEAN is MHC_macros.cfg's [gcode_macro] wrapping the controller's MHC_CLEAN,
+/// which brushes the mounted nozzle and does nothing with the carriage empty.
+std::string medusa_clean_gcode(const PrinterDiscovery& hw) {
+    return hw.has_macro("CLEAN") ? "CLEAN" : "";
 }
 
 /// The plain OPEN/CLOSE names: every configuration has them (the controller's
@@ -193,10 +202,10 @@ const std::vector<Provider>& providers() {
         // klipper-toolchanger beside the controller.
         {"MedusaHC", medusa_detect, medusa_status_objects, medusa_open_gcode, medusa_close_gcode,
          "T", medusa_unselect_gcode, /*owns_swap=*/true, nullptr, nullptr,
-         /*feeds_through_mount=*/true, kMedusaResumeMinNozzleC},
+         /*feeds_through_mount=*/true, kMedusaResumeMinNozzleC, medusa_clean_gcode},
         {kZmodC5ProviderName, zmod_c5_detect, zmod_c5_status_objects, nullptr, nullptr,
          "_T_IN T=", zmod_c5_unselect_gcode, /*owns_swap=*/true, zmod_c5_material_write,
-         zmod_c5_feed_gcode, /*feeds_through_mount=*/false, /*resume_min_nozzle_c=*/0},
+         zmod_c5_feed_gcode, /*feeds_through_mount=*/false, /*resume_min_nozzle_c=*/0, nullptr},
     };
     return table;
 }
@@ -532,6 +541,11 @@ ToolSensor resolve_tool_sensor(const PrinterDiscovery& hw) {
         return {};
     }
     return ToolSensor{true, p->name};
+}
+
+std::string clean_nozzle_gcode(const PrinterDiscovery& hw) {
+    const Provider* p = match(hw);
+    return p && p->clean_gcode ? p->clean_gcode(hw) : std::string();
 }
 
 int resume_min_nozzle_c(const PrinterDiscovery& hw) {

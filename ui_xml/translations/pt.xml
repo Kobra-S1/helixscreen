@@ -463,6 +463,7 @@
   <translation tag="Browse catalog..." pt="Procurar no catálogo..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." pt="Consulte guias, referências de configuração e recursos de solução de problemas para o HelixScreen."/>
   <translation tag="Brush nozzle" pt="Escovar o bico"/>
+  <translation tag="Brush the mounted tool&apos;s nozzle clean" pt="Limpar com a escova o bico da ferramenta montada"/>
   <translation tag="Buffer Status" pt="Estado do Buffer"/>
   <translation tag="Buffer tube problem" pt="Problema no tubo do buffer"/>
   <translation tag="Build Volume" pt="Volume de impressão"/>
@@ -694,6 +695,7 @@
   <translation tag="Clean Brush" pt="Limpar escova"/>
   <translation tag="Clean Nozzle" pt="Limpar Bico"/>
   <translation tag="Clean Up Storage" pt="Limpar armazenamento"/>
+  <translation tag="Clean nozzle" pt="Limpar bico"/>
   <translation tag="Clean up" pt="Limpar"/>
   <translation tag="Clean {}" pt="Limpar {}"/>
   <translation tag="Cleaning Nozzle..." pt="Limpando bocal..."/>
@@ -2346,6 +2348,7 @@
   <translation tag="No target printer configured" pt="Nenhuma impressora de destino configurada"/>
   <translation tag="No temperature sensors detected" pt="Nenhum sensor de temperatura detectado"/>
   <translation tag="No timelapse videos found" pt="Nenhum vídeo timelapse encontrado"/>
+  <translation tag="No tool is mounted" pt="Nenhuma ferramenta montada"/>
   <translation tag="No tool on the head" pt="Nenhuma ferramenta no cabeçote"/>
   <translation tag="No tools to calibrate" pt="Nenhuma ferramenta para calibrar"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" pt="Sem volta: a diferença moveu {:.1f} Hz"/>
@@ -4196,6 +4199,7 @@
   <translation tag="Wifi" pt="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" pt="Não trocará de carretel ao acabar"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" pt="Limpar o bico na tira de limpeza de silicone"/>
+  <translation tag="Wipe the mounted nozzle on the brush" pt="Limpar o bico montado na escova"/>
   <translation tag="Wiping {}..." pt="Limpando {}..."/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" pt="A {0:.1f} Hz uma da outra em {1:.0f} Hz"/>
   <translation tag="Wizard Error" pt="Erro do assistente"/>

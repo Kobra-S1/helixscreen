@@ -444,6 +444,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// Refuses while a swap the controller failed mid-print leaves its target
     /// tool too cold for the machine's own RESUME.
     void prepare_for_resume(int slot_index, ResumeReadyCallback on_ready) override;
+    /// Sends the printer's nozzle-clean command; refused with no tool mounted,
+    /// or while a print or another operation holds the toolhead.
+    AmsError clean_nozzle();
     /// Also drops the optimistic dispatch, which would otherwise read the
     /// first idle frame after the restart as the middle of an operation, and
     /// retires its generation so a late ack resolves nothing. A mount-to-feed
@@ -511,6 +514,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// SELECT_TOOL/UNSELECT_TOOL in place.
     void set_tool_commands(helix::toolchanger_addon::ToolCommands commands) {
         tool_commands_ = std::move(commands);
+    }
+
+    /// toolchanger_addon::clean_nozzle_gcode(): empty offers no Clean nozzle.
+    void set_clean_nozzle_gcode(std::string gcode) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        clean_nozzle_gcode_ = std::move(gcode);
     }
 
     /// toolchanger_addon::resume_min_nozzle_c(): 0 for a machine whose RESUME
@@ -742,6 +751,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend {
     /// to, -1 for none. Persists across frames that do not name it. Guarded by
     /// mutex_.
     int controller_target_tool_ = -1;
+    /// See set_clean_nozzle_gcode(). Guarded by mutex_.
+    std::string clean_nozzle_gcode_;
     /// See set_resume_min_nozzle_c(). Guarded by mutex_.
     int resume_min_nozzle_c_ = 0;
     /// A toast apply_tool_sensor_locked() decided on, whole and ready to show

@@ -498,6 +498,7 @@ translations:
     guide, riferimenti di configurazione e risorse per la risoluzione dei problemi
     per HelixScreen.
   Brush nozzle: 'Spazzola l''ugello'
+  Brush the mounted tool's nozzle clean: 'Pulire con la spazzola l''ugello dell''utensile montato'
   Buffer Status: Stato buffer
   Buffer tube problem: Problema al tubo del buffer
   Build Volume: 'Volume di stampa'
@@ -756,6 +757,7 @@ translations:
   Clean Brush: 'Pulisci la spazzola'
   Clean Nozzle: Pulisci ugello
   Clean Up Storage: 'Pulisci archiviazione'
+  Clean nozzle: 'Pulisci ugello'
   Clean up: 'Pulisci'
   Clean {}: Pulisci {}
   Cleaning Nozzle...: Pulizia ugello...
@@ -2570,6 +2572,7 @@ translations:
   No target printer configured: Nessuna stampante di destinazione configurata
   No temperature sensors detected: 'Nessun sensore di temperatura rilevato'
   No timelapse videos found: Nessun video timelapse trovato
+  No tool is mounted: 'Nessun utensile montato'
   No tool on the head: "Nessuno strumento sulla testina"
   No tools to calibrate: Nessuno strumento da calibrare
   'No turn: the gap moved {:.1f} Hz': "Nessuna rotazione: la differenza si è spostata di {:.1f} Hz"
@@ -4625,6 +4628,7 @@ translations:
   Will not switch spools on runout: Non cambierà bobina a filamento esaurito
   Wipe nozzle on silicone cleaning strip: 'Pulisci l''ugello sulla striscia di pulizia in silicone'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "Entro {0:.1f} Hz l'una dall'altra a {1:.0f} Hz"
+  Wipe the mounted nozzle on the brush: 'Pulire l''ugello montato sulla spazzola'
   Wiping {}...: Pulizia {}...
   Wizard Error: Errore procedura guidata
   Working...: Elaborazione...

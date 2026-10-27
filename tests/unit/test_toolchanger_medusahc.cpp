@@ -47,6 +47,7 @@
 #include <algorithm>
 #include <chrono>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -194,6 +195,62 @@ TEST_CASE("Feeder actions send the provider's gcode", "[ams][toolchanger][feeder
     REQUIRE(h.sent().size() == 2);
     CHECK(h.sent()[0] == "OPEN");
     CHECK(h.sent()[1] == "CLOSE");
+}
+
+TEST_CASE("Clean nozzle is offered where the printer has a CLEAN macro",
+          "[ams][toolchanger][medusahc][clean]") {
+    PrinterDiscovery with_clean;
+    with_clean.parse_objects(
+        json::array({"pin_watch io", "medusahc", "gcode_macro CLEAN", "extruder", "extruder1"}));
+    CHECK(toolchanger_addon::clean_nozzle_gcode(with_clean) == "CLEAN");
+    // The controller's MHC_CLEAN is a native command nothing can detect; CLEAN
+    // is the [gcode_macro] MHC_macros.cfg wraps it in.
+    PrinterDiscovery without_clean;
+    without_clean.parse_objects(json::array({"pin_watch io", "medusahc", "extruder", "extruder1"}));
+    CHECK(toolchanger_addon::clean_nozzle_gcode(without_clean).empty());
+    PrinterDiscovery plain_with_clean;
+    plain_with_clean.parse_objects(
+        json::array({"toolchanger", "tool T0", "tool T1", "gcode_macro CLEAN", "extruder"}));
+    CHECK(toolchanger_addon::clean_nozzle_gcode(plain_with_clean).empty());
+}
+
+TEST_CASE("Clean nozzle runs only with a tool on the carriage",
+          "[ams][toolchanger][medusahc][clean]") {
+    const auto find_clean = [](const std::vector<helix::printer::DeviceAction>& actions) {
+        const auto it = std::find_if(actions.begin(), actions.end(),
+                                     [](const auto& a) { return a.id == "clean_nozzle"; });
+        return it == actions.end() ? std::optional<helix::printer::DeviceAction>{}
+                                   : std::optional<helix::printer::DeviceAction>{*it};
+    };
+
+    ToolChangerHelper none(4);
+    CHECK_FALSE(find_clean(none.get_device_actions()).has_value());
+
+    ToolChangerHelper tc(4);
+    tc.set_clean_nozzle_gcode("CLEAN");
+    tc.set_tool_sensor(toolchanger_addon::resolve_tool_sensor(medusahc_discovery()));
+    tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", -1}}}});
+
+    auto parked = find_clean(tc.get_device_actions());
+    REQUIRE(parked.has_value());
+    CHECK(parked->type == helix::printer::ActionType::BUTTON);
+    CHECK(parked->moves_machine); // greyed, and refused, while a print runs
+    CHECK_FALSE(parked->section.empty());
+    CHECK_FALSE(parked->enabled);
+    CHECK_FALSE(parked->disable_reason.empty());
+    CHECK_FALSE(tc.execute_device_action("clean_nozzle").success());
+    CHECK(tc.sent().empty());
+
+    tc.feed(json{{"medusahc", {{"current_tool", 2}}}});
+    auto mounted = find_clean(tc.get_device_actions());
+    REQUIRE(mounted.has_value());
+    CHECK(mounted->enabled);
+    REQUIRE(tc.execute_device_action("clean_nozzle").success());
+    REQUIRE(tc.sent().size() == 1);
+    CHECK(tc.sent().back() == "CLEAN");
+    const auto sections = tc.get_device_sections();
+    CHECK(std::any_of(sections.begin(), sections.end(),
+                      [&](const auto& s) { return s.id == mounted->section; }));
 }
 
 TEST_CASE("The feeder answers the generic feeder questions from its live state",

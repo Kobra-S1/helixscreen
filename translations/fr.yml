@@ -502,6 +502,7 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Parcourez
     les guides, références de configuration et ressources de dépannage pour HelixScreen.
   Brush nozzle: 'Brosser la buse'
+  Brush the mounted tool's nozzle clean: 'Nettoyer à la brosse la buse de l''outil monté'
   Buffer Status: État du tampon
   Buffer tube problem: Problème de tube tampon
   Build Volume: 'Volume d''impression'
@@ -765,6 +766,7 @@ translations:
   Clean Brush: 'Nettoyer la brosse'
   Clean Nozzle: Nettoyer la buse
   Clean Up Storage: 'Nettoyer le stockage'
+  Clean nozzle: 'Nettoyer la buse'
   Clean up: 'Nettoyer'
   Clean {}: Nettoyer {}
   Cleaning Nozzle...: Nettoyage de la buse...
@@ -2585,6 +2587,7 @@ translations:
   No target printer configured: Aucune imprimante cible configurée
   No temperature sensors detected: 'Aucun capteur de température détecté'
   No timelapse videos found: Aucune vidéo timelapse trouvée
+  No tool is mounted: 'Aucun outil n''est monté'
   No tool on the head: "Aucun outil sur la tête d'outil"
   No tools to calibrate: Aucun outil à calibrer
   'No turn: the gap moved {:.1f} Hz': "Sans rotation : l'écart a bougé de {:.1f} Hz"
@@ -4657,6 +4660,7 @@ translations:
   Will not switch spools on runout: Ne changera pas de bobine en fin de filament
   Wipe nozzle on silicone cleaning strip: 'Essuyer la buse sur la bande de nettoyage en silicone'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "À {0:.1f} Hz l'une de l'autre à {1:.0f} Hz"
+  Wipe the mounted nozzle on the brush: 'Essuyer la buse montée sur la brosse'
   Wiping {}...: Essuyage de {}...
   Wizard Error: Erreur de l'assistant
   Working...: En cours...

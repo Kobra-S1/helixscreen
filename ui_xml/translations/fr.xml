@@ -463,6 +463,7 @@
   <translation tag="Browse catalog..." fr="Parcourir le catalogue..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." fr="Parcourez les guides, références de configuration et ressources de dépannage pour HelixScreen."/>
   <translation tag="Brush nozzle" fr="Brosser la buse"/>
+  <translation tag="Brush the mounted tool&apos;s nozzle clean" fr="Nettoyer à la brosse la buse de l&apos;outil monté"/>
   <translation tag="Buffer Status" fr="État du tampon"/>
   <translation tag="Buffer tube problem" fr="Problème de tube tampon"/>
   <translation tag="Build Volume" fr="Volume d&apos;impression"/>
@@ -694,6 +695,7 @@
   <translation tag="Clean Brush" fr="Nettoyer la brosse"/>
   <translation tag="Clean Nozzle" fr="Nettoyer la buse"/>
   <translation tag="Clean Up Storage" fr="Nettoyer le stockage"/>
+  <translation tag="Clean nozzle" fr="Nettoyer la buse"/>
   <translation tag="Clean up" fr="Nettoyer"/>
   <translation tag="Clean {}" fr="Nettoyer {}"/>
   <translation tag="Cleaning Nozzle..." fr="Nettoyage de la buse..."/>
@@ -2346,6 +2348,7 @@
   <translation tag="No target printer configured" fr="Aucune imprimante cible configurée"/>
   <translation tag="No temperature sensors detected" fr="Aucun capteur de température détecté"/>
   <translation tag="No timelapse videos found" fr="Aucune vidéo timelapse trouvée"/>
+  <translation tag="No tool is mounted" fr="Aucun outil n&apos;est monté"/>
   <translation tag="No tool on the head" fr="Aucun outil sur la tête d&apos;outil"/>
   <translation tag="No tools to calibrate" fr="Aucun outil à calibrer"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" fr="Sans rotation : l&apos;écart a bougé de {:.1f} Hz"/>
@@ -4196,6 +4199,7 @@
   <translation tag="Wifi" fr="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" fr="Ne changera pas de bobine en fin de filament"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" fr="Essuyer la buse sur la bande de nettoyage en silicone"/>
+  <translation tag="Wipe the mounted nozzle on the brush" fr="Essuyer la buse montée sur la brosse"/>
   <translation tag="Wiping {}..." fr="Essuyage de {}..."/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" fr="À {0:.1f} Hz l&apos;une de l&apos;autre à {1:.0f} Hz"/>
   <translation tag="Wizard Error" fr="Erreur de l&apos;assistant"/>

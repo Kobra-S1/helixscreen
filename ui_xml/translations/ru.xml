@@ -502,6 +502,7 @@
   <translation tag="Browse catalog..." ru="Обзор каталога..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." ru="Руководства, справочники по настройке и ресурсы по устранению неполадок для HelixScreen."/>
   <translation tag="Brush nozzle" ru="Очистка сопла щёткой"/>
+  <translation tag="Brush the mounted tool&apos;s nozzle clean" ru="Очистить сопло установленного инструмента щёткой"/>
   <translation tag="Buffer Status" ru="Статус буфера"/>
   <translation tag="Buffer tube problem" ru="Проблема с буферной трубкой"/>
   <translation tag="Build Volume" ru="Область печати"/>
@@ -733,6 +734,7 @@
   <translation tag="Clean Brush" ru="Очистить щётку"/>
   <translation tag="Clean Nozzle" ru="Очистить сопло"/>
   <translation tag="Clean Up Storage" ru="Очистка хранилища"/>
+  <translation tag="Clean nozzle" ru="Очистить сопло"/>
   <translation tag="Clean up" ru="Очистить"/>
   <translation tag="Clean {}" ru="Очистите {}"/>
   <translation tag="Cleaning Nozzle..." ru="Очистка сопла..."/>
@@ -2391,6 +2393,7 @@
   <translation tag="No target printer configured" ru="Целевой принтер не настроен"/>
   <translation tag="No temperature sensors detected" ru="Датчики температуры не обнаружены"/>
   <translation tag="No timelapse videos found" ru="Таймлапс-видео не найдены"/>
+  <translation tag="No tool is mounted" ru="Инструмент не установлен"/>
   <translation tag="No tool on the head" ru="На печатающей головке нет инструмента"/>
   <translation tag="No tools to calibrate" ru="Нет инструментов для калибровки"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" ru="Без поворота: разница сдвинулась на {:.1f} Гц"/>
@@ -4256,6 +4259,7 @@
   <translation tag="Wifi" ru="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" ru="При обрыве катушка не переключится"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" ru="Очистить сопло о силиконовую полоску"/>
+  <translation tag="Wipe the mounted nozzle on the brush" ru="Протереть установленное сопло о щётку"/>
   <translation tag="Wiping {}..." ru="Очистка: {}..."/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" ru="В пределах {0:.1f} Гц друг от друга на {1:.0f} Гц"/>
   <translation tag="Wizard Error" ru="Ошибка мастера"/>

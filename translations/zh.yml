@@ -468,6 +468,7 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: 浏览
     HelixScreen 的指南、配置参考和故障排除资源。
   Brush nozzle: '刷洗喷嘴'
+  Brush the mounted tool's nozzle clean: '用刷子清洁当前安装工具的喷嘴'
   Buffer Status: 缓冲区状态
   Buffer tube problem: 缓冲管故障
   Build Volume: '打印尺寸'
@@ -705,6 +706,7 @@ translations:
   Clean Brush: '清洁刷子'
   Clean Nozzle: 清洁喷嘴
   Clean Up Storage: '清理存储'
+  Clean nozzle: '清洁喷嘴'
   Clean up: '清理'
   Clean {}: 清洁{}
   Cleaning Nozzle...: 正在清洁喷嘴...
@@ -2429,6 +2431,7 @@ translations:
   No target printer configured: 未配置目标打印机
   No temperature sensors detected: '未检测到温度传感器'
   No timelapse videos found: 未找到延时视频
+  No tool is mounted: '未安装工具'
   No tool on the head: "工具头上没有工具"
   No tools to calibrate: 没有可校准的工具
   'No turn: the gap moved {:.1f} Hz': "未转动:差距移动了 {:.1f} Hz"
@@ -4365,6 +4368,7 @@ translations:
   Will not switch spools on runout: 耗材用尽时不会切换料盘
   Wipe nozzle on silicone cleaning strip: '在硅胶清洁条上擦拭喷嘴'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "在 {1:.0f} Hz 处相差 {0:.1f} Hz 以内"
+  Wipe the mounted nozzle on the brush: '在刷子上擦拭当前喷嘴'
   Wiping {}...: 正在擦拭{}...
   Wizard Error: 向导错误
   Working...: 处理中...

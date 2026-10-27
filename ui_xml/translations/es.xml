@@ -463,6 +463,7 @@
   <translation tag="Browse catalog..." es="Explorar catálogo..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." es="Consulte guías, referencias de configuración y recursos de solución de problemas para HelixScreen."/>
   <translation tag="Brush nozzle" es="Cepillar la boquilla"/>
+  <translation tag="Brush the mounted tool&apos;s nozzle clean" es="Limpiar con el cepillo la boquilla de la herramienta montada"/>
   <translation tag="Buffer Status" es="Estado del búfer"/>
   <translation tag="Buffer tube problem" es="Problema con el tubo del búfer"/>
   <translation tag="Build Volume" es="Volumen de impresión"/>
@@ -694,6 +695,7 @@
   <translation tag="Clean Brush" es="Limpiar cepillo"/>
   <translation tag="Clean Nozzle" es="Limpiar Boquilla"/>
   <translation tag="Clean Up Storage" es="Limpiar almacenamiento"/>
+  <translation tag="Clean nozzle" es="Limpiar boquilla"/>
   <translation tag="Clean up" es="Limpiar"/>
   <translation tag="Clean {}" es="Limpiar {}"/>
   <translation tag="Cleaning Nozzle..." es="Limpiando boquilla..."/>
@@ -2346,6 +2348,7 @@
   <translation tag="No target printer configured" es="Ninguna impresora de destino configurada"/>
   <translation tag="No temperature sensors detected" es="No se detectaron sensores de temperatura"/>
   <translation tag="No timelapse videos found" es="No se encontraron videos timelapse"/>
+  <translation tag="No tool is mounted" es="No hay ninguna herramienta montada"/>
   <translation tag="No tool on the head" es="No hay herramienta en el cabezal"/>
   <translation tag="No tools to calibrate" es="No hay herramientas para calibrar"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" es="Sin giro: la diferencia se movió {:.1f} Hz"/>
@@ -4196,6 +4199,7 @@
   <translation tag="Wifi" es="Wifi"/>
   <translation tag="Will not switch spools on runout" es="No cambiará de bobina al agotarse"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" es="Limpiar la boquilla en la tira de limpieza de silicona"/>
+  <translation tag="Wipe the mounted nozzle on the brush" es="Limpiar la boquilla montada en el cepillo"/>
   <translation tag="Wiping {}..." es="Limpiando {}..."/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" es="A {0:.1f} Hz entre sí a {1:.0f} Hz"/>
   <translation tag="Wizard Error" es="Error del asistente"/>

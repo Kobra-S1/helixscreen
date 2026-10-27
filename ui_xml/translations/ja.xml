@@ -463,6 +463,7 @@
   <translation tag="Browse catalog..." ja="カタログを見る..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." ja="HelixScreen のガイド、設定リファレンス、トラブルシューティング資料を参照します。"/>
   <translation tag="Brush nozzle" ja="ノズルをブラシ清掃"/>
+  <translation tag="Brush the mounted tool&apos;s nozzle clean" ja="装着中のツールのノズルをブラシで清掃"/>
   <translation tag="Buffer Status" ja="バッファーステータス"/>
   <translation tag="Buffer tube problem" ja="バッファーチューブの問題"/>
   <translation tag="Build Volume" ja="造形ボリューム"/>
@@ -694,6 +695,7 @@
   <translation tag="Clean Brush" ja="ブラシを清掃"/>
   <translation tag="Clean Nozzle" ja="ノズル清掃"/>
   <translation tag="Clean Up Storage" ja="ストレージのクリーンアップ"/>
+  <translation tag="Clean nozzle" ja="ノズル清掃"/>
   <translation tag="Clean up" ja="クリーンアップ"/>
   <translation tag="Clean {}" ja="{}を清掃"/>
   <translation tag="Cleaning Nozzle..." ja="ノズル清掃中..."/>
@@ -2346,6 +2348,7 @@
   <translation tag="No target printer configured" ja="対象プリンターが設定されていません"/>
   <translation tag="No temperature sensors detected" ja="温度センサーが検出されません"/>
   <translation tag="No timelapse videos found" ja="タイムラプス動画が見つかりません"/>
+  <translation tag="No tool is mounted" ja="ツールが装着されていません"/>
   <translation tag="No tool on the head" ja="ツールヘッドにツールがありません"/>
   <translation tag="No tools to calibrate" ja="キャリブレートするツールがありません"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" ja="回していません: 差は{:.1f} Hz動きました"/>
@@ -4196,6 +4199,7 @@
   <translation tag="Wifi" ja="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" ja="フィラメント切れ時にスプールを切り替えません"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" ja="シリコン清掃ストリップでノズルを拭く"/>
+  <translation tag="Wipe the mounted nozzle on the brush" ja="装着中のノズルをブラシで拭く"/>
   <translation tag="Wiping {}..." ja="{}を拭き取り中..."/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" ja="{1:.0f} Hzで差は{0:.1f} Hz以内"/>
   <translation tag="Wizard Error" ja="ウィザードエラー"/>

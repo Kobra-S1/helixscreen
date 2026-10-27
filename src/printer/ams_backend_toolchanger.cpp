@@ -63,6 +63,7 @@ void AmsBackendToolChanger::set_discovery(const helix::PrinterDiscovery& discove
     set_tool_feed(addon::resolve_tool_feed(discovery));
     set_mounts_to_feed(addon::feeds_through_mount(discovery));
     set_resume_min_nozzle_c(addon::resume_min_nozzle_c(discovery));
+    set_clean_nozzle_gcode(addon::clean_nozzle_gcode(discovery));
     {
         std::lock_guard<std::mutex> lock(mutex_);
         purge_mm_ = helix::SettingsManager::instance().get_mount_feed_purge_mm();
@@ -3034,12 +3035,40 @@ std::vector<helix::printer::DeviceSection> AmsBackendToolChanger::get_device_sec
         sections.push_back(helix::printer::device_section(
             "purge", 1, TR_NOOP("How much a load pushes through the nozzle")));
     }
+    bool can_clean = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        can_clean = !clean_nozzle_gcode_.empty();
+    }
+    if (can_clean) {
+        sections.push_back(helix::printer::device_section(
+            "maintenance", 2, TR_NOOP("Brush the mounted tool's nozzle clean")));
+    }
     return sections;
 }
 
 std::vector<helix::printer::DeviceAction> AmsBackendToolChanger::get_device_actions() const {
     using DA = helix::printer::DeviceAction;
     std::vector<helix::printer::DeviceAction> actions;
+    bool can_clean = false;
+    bool tool_mounted = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        can_clean = !clean_nozzle_gcode_.empty();
+        tool_mounted = system_info_.current_tool >= 0;
+    }
+    if (can_clean) {
+        // The command brushes whatever is on the carriage and does nothing
+        // without a tool there.
+        auto clean = DA::button("clean_nozzle", "Clean nozzle", "maintenance", "nozzle",
+                                "Wipe the mounted nozzle on the brush")
+                         .with_machine_motion();
+        clean.enabled = tool_mounted;
+        if (!tool_mounted) {
+            clean.disable_reason = "No tool is mounted";
+        }
+        actions.push_back(std::move(clean));
+    }
     if (mounts_to_feed_) {
         int purge = 0;
         {
@@ -3097,6 +3126,29 @@ AmsError AmsBackendToolChanger::set_feeder_open(bool open) {
     return execute_gcode(gcode);
 }
 
+AmsError AmsBackendToolChanger::clean_nozzle() {
+    std::string gcode;
+    bool tool_mounted = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        gcode = clean_nozzle_gcode_;
+        tool_mounted = system_info_.current_tool >= 0;
+    }
+    if (gcode.empty()) {
+        return AmsErrorHelper::not_supported("Clean nozzle");
+    }
+    // It moves the toolhead to the brush: never under a print or a swap.
+    if (auto refused = check_preconditions(/*requires_toolhead_motion=*/true); !refused) {
+        return refused;
+    }
+    if (!tool_mounted) {
+        return AmsError(AmsResult::WRONG_STATE, "Clean nozzle refused: no tool mounted",
+                        lv_tr("No tool is mounted"), "");
+    }
+    spdlog::info("{} Cleaning the mounted nozzle: {}", backend_log_tag(), gcode);
+    return execute_gcode(gcode);
+}
+
 bool AmsBackendToolChanger::feeder_open() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return feeder_open_;
@@ -3121,6 +3173,9 @@ AmsError AmsBackendToolChanger::do_execute_device_action(const std::string& acti
     }
     if (feeder_.present && (action_id == "open_feeder" || action_id == "close_feeder")) {
         return set_feeder_open(action_id == "open_feeder");
+    }
+    if (action_id == "clean_nozzle") {
+        return clean_nozzle();
     }
     if (feeder_.present &&
         (action_id == "feeder_open_macro" || action_id == "feeder_close_macro")) {

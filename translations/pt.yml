@@ -496,6 +496,7 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Consulte
     guias, referências de configuração e recursos de solução de problemas para o HelixScreen.
   Brush nozzle: 'Escovar o bico'
+  Brush the mounted tool's nozzle clean: 'Limpar com a escova o bico da ferramenta montada'
   Buffer Status: Estado do Buffer
   Buffer tube problem: Problema no tubo do buffer
   Build Volume: 'Volume de impressão'
@@ -758,6 +759,7 @@ translations:
   Clean Brush: 'Limpar escova'
   Clean Nozzle: Limpar Bico
   Clean Up Storage: 'Limpar armazenamento'
+  Clean nozzle: 'Limpar bico'
   Clean up: 'Limpar'
   Clean {}: Limpar {}
   Cleaning Nozzle...: Limpando bocal...
@@ -2572,6 +2574,7 @@ translations:
   No target printer configured: Nenhuma impressora de destino configurada
   No temperature sensors detected: 'Nenhum sensor de temperatura detectado'
   No timelapse videos found: Nenhum vídeo timelapse encontrado
+  No tool is mounted: 'Nenhuma ferramenta montada'
   No tool on the head: "Nenhuma ferramenta no cabeçote"
   No tools to calibrate: Nenhuma ferramenta para calibrar
   'No turn: the gap moved {:.1f} Hz': "Sem volta: a diferença moveu {:.1f} Hz"
@@ -4628,6 +4631,7 @@ translations:
   Will not switch spools on runout: Não trocará de carretel ao acabar
   Wipe nozzle on silicone cleaning strip: 'Limpar o bico na tira de limpeza de silicone'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "A {0:.1f} Hz uma da outra em {1:.0f} Hz"
+  Wipe the mounted nozzle on the brush: 'Limpar o bico montado na escova'
   Wiping {}...: Limpando {}...
   Wizard Error: Erro do assistente
   Working...: Processando...

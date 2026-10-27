@@ -463,6 +463,7 @@
   <translation tag="Browse catalog..." de="Katalog durchsuchen..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." de="Anleitungen, Konfigurationsreferenzen und Fehlerbehebungsressourcen für HelixScreen durchsuchen."/>
   <translation tag="Brush nozzle" de="Düse abbürsten"/>
+  <translation tag="Brush the mounted tool&apos;s nozzle clean" de="Düse des montierten Werkzeugs an der Bürste reinigen"/>
   <translation tag="Buffer Status" de="Pufferstatus"/>
   <translation tag="Buffer tube problem" de="Problem mit dem Pufferschlauch"/>
   <translation tag="Build Volume" de="Bauraum"/>
@@ -694,6 +695,7 @@
   <translation tag="Clean Brush" de="Bürste reinigen"/>
   <translation tag="Clean Nozzle" de="Düse reinigen"/>
   <translation tag="Clean Up Storage" de="Speicher bereinigen"/>
+  <translation tag="Clean nozzle" de="Düse reinigen"/>
   <translation tag="Clean up" de="Bereinigen"/>
   <translation tag="Clean {}" de="{} reinigen"/>
   <translation tag="Cleaning Nozzle..." de="Düse reinigen..."/>
@@ -2346,6 +2348,7 @@
   <translation tag="No target printer configured" de="Kein Zieldrucker konfiguriert"/>
   <translation tag="No temperature sensors detected" de="Keine Temperatursensoren erkannt"/>
   <translation tag="No timelapse videos found" de="Keine Zeitraffer-Videos gefunden"/>
+  <translation tag="No tool is mounted" de="Kein Werkzeug montiert"/>
   <translation tag="No tool on the head" de="Kein Werkzeug am Werkzeugkopf"/>
   <translation tag="No tools to calibrate" de="Keine Werkzeuge zum Kalibrieren"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" de="Keine Drehung: der Abstand bewegte sich um {:.1f} Hz"/>
@@ -4196,6 +4199,7 @@
   <translation tag="Wifi" de="WLAN"/>
   <translation tag="Will not switch spools on runout" de="Wechselt bei leerer Spule nicht die Spule"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" de="Düse am Silikon-Reinigungsstreifen abwischen"/>
+  <translation tag="Wipe the mounted nozzle on the brush" de="Montierte Düse an der Bürste abwischen"/>
   <translation tag="Wiping {}..." de="{} wird abgewischt..."/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" de="Bis auf {0:.1f} Hz gleich bei {1:.0f} Hz"/>
   <translation tag="Wizard Error" de="Assistentenfehler"/>

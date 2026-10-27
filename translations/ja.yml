@@ -469,6 +469,7 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: HelixScreen
     のガイド、設定リファレンス、トラブルシューティング資料を参照します。
   Brush nozzle: 'ノズルをブラシ清掃'
+  Brush the mounted tool's nozzle clean: '装着中のツールのノズルをブラシで清掃'
   Buffer Status: バッファーステータス
   Buffer tube problem: バッファーチューブの問題
   Build Volume: '造形ボリューム'
@@ -706,6 +707,7 @@ translations:
   Clean Brush: 'ブラシを清掃'
   Clean Nozzle: ノズル清掃
   Clean Up Storage: 'ストレージのクリーンアップ'
+  Clean nozzle: 'ノズル清掃'
   Clean up: 'クリーンアップ'
   Clean {}: '{}を清掃'
   Cleaning Nozzle...: ノズル清掃中...
@@ -2436,6 +2438,7 @@ translations:
   No target printer configured: 対象プリンターが設定されていません
   No temperature sensors detected: '温度センサーが検出されません'
   No timelapse videos found: タイムラプス動画が見つかりません
+  No tool is mounted: 'ツールが装着されていません'
   No tool on the head: "ツールヘッドにツールがありません"
   No tools to calibrate: キャリブレートするツールがありません
   'No turn: the gap moved {:.1f} Hz': "回していません: 差は{:.1f} Hz動きました"
@@ -4374,6 +4377,7 @@ translations:
   Will not switch spools on runout: フィラメント切れ時にスプールを切り替えません
   Wipe nozzle on silicone cleaning strip: 'シリコン清掃ストリップでノズルを拭く'
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "{1:.0f} Hzで差は{0:.1f} Hz以内"
+  Wipe the mounted nozzle on the brush: '装着中のノズルをブラシで拭く'
   Wiping {}...: '{}を拭き取り中...'
   Wizard Error: ウィザードエラー
   Working...: 処理中...

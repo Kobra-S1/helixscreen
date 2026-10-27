@@ -274,6 +274,10 @@ std::optional<std::vector<AfcLaneSpool>> read_afc_lane_spools(const nlohmann::js
 /// The dock sensor this printer exposes, or an absent capability.
 ToolSensor resolve_tool_sensor(const PrinterDiscovery& hw);
 
+/// Gcode that brushes the mounted tool's nozzle clean, or empty when the
+/// printer has no such command.
+std::string clean_nozzle_gcode(const PrinterDiscovery& hw);
+
 /// The nozzle temperature the target tool must be ABOVE before a print paused
 /// by a failed swap may resume, because the machine's own RESUME refuses until
 /// then. 0 when the printer has no such rule.
