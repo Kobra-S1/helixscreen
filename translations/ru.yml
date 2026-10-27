@@ -2434,6 +2434,7 @@ translations:
   : "Moonraker перезапускается...\nОжидание переподключения..."
   Moonraker's Python is too old for this feature.: "Python в Moonraker слишком старый для этой функции."
   'Moonraker: ': 'Moonraker: '
+  More options…: 'Другие параметры…'
   More points = more accurate, but takes longer.: Больше точек — точнее, но дольше.
   Motion: Движение
   'Motion sensor stuck: filament is still at the feeder. Resume to feed it.': 'Датчик движения застрял: филамент всё ещё в фидере. Продолжите, чтобы подать его.'

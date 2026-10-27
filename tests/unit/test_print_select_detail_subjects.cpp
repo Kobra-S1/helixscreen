@@ -25,6 +25,7 @@
 #include "ui_button.h"
 #include "ui_callback_helpers.h"
 #include "ui_gcode_viewer.h"
+#include "ui_modal.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_subject_registry.h"
@@ -1274,6 +1275,82 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A tap on the filament card opens the remap 
 
     lv_obj_send_event(card, LV_EVENT_CLICKED, nullptr);
     CHECK(opens == 1);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "A chip tap runs the card's remap gate",
+                 "[print_select][detail_view][remap][filament_mapping][chip_tap]") {
+    CacheDirGuard guard;
+    ScopedAmsBackend ams(4);
+    register_xml_callbacks({
+        {"on_print_select_detail_backdrop", detail_noop_cb},
+        {"on_print_select_print_button", detail_noop_cb},
+        {"on_print_select_delete_button", detail_noop_cb},
+        {"on_print_select_more_button", detail_noop_cb},
+        {"on_print_detail_back_clicked", detail_noop_cb},
+        {"on_toggle_sliced_colors", detail_noop_cb},
+        {"on_print_select_detail_objects", detail_noop_cb},
+    });
+
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
+    REQUIRE(root != nullptr);
+    struct CloseOnExit {
+        helix::ui::PrintSelectDetailView& v;
+        ~CloseOnExit() {
+            v.hide();
+            helix::ui::UpdateQueue::instance().drain();
+            lv_timer_handler();
+        }
+    } closer{view};
+
+    int opens = 0;
+    view.set_on_remap_requested([&opens]() { ++opens; });
+
+    constexpr size_t kSize = 1123;
+    constexpr time_t kMtime = 3345;
+    helix::tools_used_cache().store("sub/chip_tap.gcode", {kSize, kMtime}, {0, 1});
+    ams.backend->set_remap_strategy(helix::AmsBackend::RemapStrategy::GcodeRewrite);
+
+    auto show_and_tap = [&] {
+        helix::ui::UpdateQueue::instance().drain();
+        view.show("chip_tap.gcode", "sub", "PLA", {"#FF0000", "#00FF00"}, {"PLA", "PETG"}, kSize,
+                  kMtime);
+        lv_obj_t* const chip = lv_obj_find_by_name(root, "filament_chip_1");
+        REQUIRE(chip != nullptr);
+        lv_obj_send_event(chip, LV_EVENT_CLICKED, nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    auto picker_open = [] {
+        return lv_obj_find_by_name(lv_screen_active(), "filament_picker_card") != nullptr;
+    };
+
+    SECTION("remap available: the chip's dropdown opens") {
+        get_printer_state().set_helix_plugin_installed(true);
+        show_and_tap();
+        REQUIRE(view.current_remap_block() == helix::printer::RemapBlock::None);
+        CHECK(picker_open());
+        CHECK(ModalStack::instance().top_dialog() == nullptr);
+        // The chip, not the card: the full modal's opener is not called.
+        CHECK(opens == 0);
+    }
+
+    SECTION("plugin missing: the help modal, and no dropdown") {
+        get_printer_state().set_helix_plugin_installed(false);
+        show_and_tap();
+        REQUIRE(view.current_remap_block() == helix::printer::RemapBlock::NeedsPlugin);
+        CHECK_FALSE(picker_open());
+        CHECK(ModalStack::instance().top_dialog() != nullptr);
+        CHECK(opens == 0);
+    }
+
+    SECTION("plugin probe unfinished: nothing at all") {
+        show_and_tap();
+        REQUIRE(view.current_remap_block() == helix::printer::RemapBlock::Probing);
+        CHECK_FALSE(picker_open());
+        CHECK(ModalStack::instance().top_dialog() == nullptr);
+        CHECK(opens == 0);
+    }
 }
 
 // ============================================================================

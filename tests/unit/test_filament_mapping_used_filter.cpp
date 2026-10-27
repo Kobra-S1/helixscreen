@@ -33,6 +33,7 @@
 #include "../mapping_card_render_fixture.h"
 #include "../test_helpers/mock_bypass.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "filament_chip_model.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "settings_manager.h"
 #include "system_settings_manager.h"
@@ -757,4 +758,124 @@ TEST_CASE("resolve_mapped_slot: a mapping that outlived its lane resolves to not
     ok.mapped_backend = 0;
     REQUIRE(helix::FilamentMapper::resolve_mapped_slot(ok, slots) == &slots[0]);
     CHECK(helix::FilamentMapper::mapped_lane_display_number(ok, slots) == 1);
+}
+
+// ============================================================================
+// A chip tap opens the slot dropdown
+// ============================================================================
+
+namespace {
+
+lv_obj_t* on_screen(const char* name) {
+    return lv_obj_find_by_name(lv_screen_active(), name);
+}
+
+std::string picker_string(const char* name) {
+    return lv_subject_get_string(lv_xml_get_subject(nullptr, name));
+}
+
+void tap(lv_obj_t* obj) {
+    REQUIRE(obj != nullptr);
+    lv_obj_send_event(obj, LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(MappingCardRenderFixture, "A chip tap opens that tool's ranked slot dropdown",
+                 "[filament_mapping][chip_tap]") {
+    load_lane(mock, 0, 0xFF0000, "PLA");
+    load_lane(mock, 1, 0x00FF00, "PETG");
+    load_lane(mock, 2, 0x0000FF, "PETG");
+    load_lane(mock, 3, 0x00FF00, "PLA");
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    card.set_mappings(mappings_to_slots({0, 2}));
+    REQUIRE(chip_count() == 2);
+
+    // No gate installed on the card: a tap goes straight to the dropdown.
+    tap(chip(1));
+    REQUIRE(card.slot_picker().is_visible());
+
+    CHECK(picker_string("filament_picker_title") == "T1 · PETG");
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_picker_offer_auto")) == 1);
+    CHECK(picker_string("filament_picker_extra_text") == "More options…");
+
+    // Rows in rank_slots_for_tool's order, each with slot_fit_text.
+    const auto ranked =
+        helix::rank_slots_for_tool(card.get_tool_info()[1], card.get_available_slots(),
+                                   card.get_tool_info(), card.get_mappings());
+    REQUIRE(ranked.size() == 4);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_picker_row_count")) == 4);
+    // Lane 2 (index 1) is the exact match; lane 3, mapped now, only differs in colour.
+    CHECK(ranked[0].slot_pos == 1);
+    for (size_t k = 0; k < ranked.size(); ++k) {
+        const std::string reason = "filament_picker_row_" + std::to_string(k) + "_reason";
+        CHECK(picker_string(reason.c_str()) == helix::slot_fit_text(ranked[k]));
+    }
+
+    // The current pick is highlighted, on screen and not only in its subject.
+    size_t current_row = ranked.size();
+    for (size_t k = 0; k < ranked.size(); ++k) {
+        if (ranked[k].slot_pos == 2) {
+            current_row = k;
+        }
+    }
+    REQUIRE(current_row < ranked.size());
+    const std::string row_name = "filament_picker_row_" + std::to_string(current_row);
+    lv_obj_t* const row = on_screen(row_name.c_str());
+    REQUIRE(row != nullptr);
+    CHECK(lv_obj_get_style_bg_opa(row, LV_PART_MAIN) == 40);
+    lv_obj_t* const other =
+        on_screen(current_row == 0 ? "filament_picker_row_1" : "filament_picker_row_0");
+    REQUIRE(other != nullptr);
+    CHECK(lv_obj_get_style_bg_opa(other, LV_PART_MAIN) == 0);
+
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(MappingCardRenderFixture, "Picking a row records it once, the way the modal does",
+                 "[filament_mapping][chip_tap]") {
+    load_lane(mock, 0, 0xFF0000, "PLA");
+    load_lane(mock, 1, 0x00FF00, "PETG");
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    card.set_mappings(mappings_to_slots({0, 3}));
+    int changed = 0;
+    card.set_on_mappings_changed([&changed] { ++changed; });
+
+    card.open_slot_picker(1, chip(1));
+    REQUIRE(card.slot_picker().is_visible());
+    // Row 0 is the best fit: lane 2, exactly T1's green PETG.
+    tap(on_screen("filament_picker_row_0"));
+
+    CHECK_FALSE(card.slot_picker().is_visible());
+    CHECK(changed == 1);
+    const auto mappings = card.get_mappings();
+    REQUIRE(mappings.size() == 2);
+    CHECK(mappings[1].mapped_slot == 1);
+    CHECK(mappings[1].user_picked);
+    CHECK_FALSE(mappings[1].is_auto);
+    CHECK(mappings[0].mapped_slot == 0); // the other tool is untouched
+    CHECK(chip_string(1, "_slot") == "2");
+    CHECK(chip_int(1, "_severity") == 0);
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(MappingCardRenderFixture, "More options opens the full mapping",
+                 "[filament_mapping][chip_tap]") {
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    const auto before = card.get_mappings();
+    int full = 0;
+    card.set_on_tap([&full] { ++full; });
+    int changed = 0;
+    card.set_on_mappings_changed([&changed] { ++changed; });
+
+    card.open_slot_picker(0, chip(0));
+    REQUIRE(card.slot_picker().is_visible());
+    tap(on_screen("extra_choice"));
+
+    CHECK(full == 1);
+    CHECK(changed == 0);
+    CHECK_FALSE(card.slot_picker().is_visible());
+    CHECK(card.get_mappings().size() == before.size());
+    process_lvgl(100);
 }

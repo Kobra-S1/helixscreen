@@ -235,6 +235,15 @@ class PrintSelectDetailView : public OverlayBase {
     void on_color_card_clicked();
 
     /**
+     * @brief Handle a tap on one filament chip.
+     *
+     * The same gate as on_color_card_clicked(): NeedsPlugin explains, any other
+     * block does nothing, and None opens chip @p chip's slot dropdown under
+     * @p trigger (FilamentMappingCard::open_slot_picker()).
+     */
+    void on_chip_clicked(size_t chip, lv_obj_t* trigger);
+
+    /**
      * @brief Why a tap on the filament card cannot open the picker, or None.
      *
      * The single answer behind the chevron, the card's clickable flag, the
@@ -248,6 +257,11 @@ class PrintSelectDetailView : public OverlayBase {
      * make and then refused.
      */
     [[nodiscard]] helix::printer::RemapBlock current_remap_block() const;
+
+    /// The remap gate a card or chip tap passes: false (after opening the help
+    /// modal for NeedsPlugin) unless current_remap_block() is None.
+    /// @param what "card" or "chip", for the log
+    bool remap_tap_allowed(const char* what);
 
     /**
      * @brief Explain the card's remap state, and offer the fix when there is one.

@@ -12,7 +12,8 @@
            colour that reads on the fill.
          - body: the mapped slot's spool (its colour, split and finish), a ring
            for an empty slot, the slot label ("3", "2·1", or "Pick" when no slot
-           is chosen) and a caret while a tap can remap.
+           is chosen) and a caret while a tap can remap. A tap reports the
+           chip index through filament_chip_clicked_cb.
          - outline: the one signal. Grey when matched, amber when only the
            colour differs, red when the material differs or the slot is empty or
            missing; the slot text turns red with it. -->
@@ -33,7 +34,7 @@
   <view extends="lv_obj"
         width="#filament_chip_width" height="100%" flex_flow="column" style_pad_all="0" style_pad_row="0"
         style_radius="#space_sm" style_bg_color="#card_bg" style_bg_opa="255" style_border_width="2"
-        style_border_post="true" style_clip_corner="true" scrollable="false" clickable="false" event_bubble="true">
+        style_border_post="true" style_clip_corner="true" scrollable="false" clickable="true">
     <style name="chip_ok"/>
     <bind_style_if_eq name="chip_warn" subject="filament_chip_${index}_severity" ref_value="1"/>
     <bind_style_if_eq name="chip_block" subject="filament_chip_${index}_severity" ref_value="2"/>
@@ -79,5 +80,8 @@
         <bind_flag_if_eq subject="color_card_remappable" flag="hidden" ref_value="0"/>
       </icon>
     </lv_obj>
+    <!-- A tap opens this tool's slot dropdown, through the card's remap gate.
+         The chip takes the tap itself rather than bubbling it to the card. -->
+    <event_cb trigger="clicked" callback="filament_chip_clicked_cb" user_data="$index"/>
   </view>
 </component>

@@ -2185,6 +2185,7 @@
   <translation tag="Moonraker&apos;s Python is too old for this feature." es="El Python de Moonraker es demasiado antiguo para esta función."/>
   <translation tag="Moonraker: " es="Moonraker: "/>
   <translation tag="More" es="Más"/>
+  <translation tag="More options…" es="Más opciones…"/>
   <translation tag="More points = more accurate, but takes longer." es="Más puntos = más preciso, pero tarda más."/>
   <translation tag="Motion" es="Movimiento"/>
   <translation tag="Motion sensor stuck: filament is still at the feeder. Resume to feed it." es="Sensor de movimiento atascado: el filamento sigue en el alimentador. Reanuda para alimentarlo."/>

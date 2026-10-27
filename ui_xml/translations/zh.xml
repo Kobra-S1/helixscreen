@@ -2185,6 +2185,7 @@
   <translation tag="Moonraker&apos;s Python is too old for this feature." zh="Moonraker 的 Python 版本太旧，无法使用此功能。"/>
   <translation tag="Moonraker: " zh="Moonraker: "/>
   <translation tag="More" zh="更多"/>
+  <translation tag="More options…" zh="更多选项…"/>
   <translation tag="More points = more accurate, but takes longer." zh="点数越多越精确，但耗时更长。"/>
   <translation tag="Motion" zh="运动"/>
   <translation tag="Motion sensor stuck: filament is still at the feeder. Resume to feed it." zh="运动传感器卡住：耗材仍在送料器中。继续即可送入。"/>

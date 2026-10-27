@@ -27,6 +27,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <set>
 
 namespace helix::ui {
@@ -40,6 +41,9 @@ HELIX_PSRAM_BSS lv_subject_t s_more_count{};
 HELIX_PSRAM_BSS lv_subject_t s_more_text{};
 HELIX_PSRAM_BSS char s_more_text_buf[16];
 helix::WidgetSubjects s_chip_subjects{"FilamentChipSubjects"};
+
+/// The card whose chips are on screen; the XML chip callback reaches it here.
+FilamentMappingCard* s_chip_card = nullptr;
 
 // Per chip, in display order: filament_chip_<i>_material and so on.
 IndexedSubjectPool s_chip_material{"filament_chip", IndexedSubjectPool::Type::String, 32,
@@ -87,6 +91,10 @@ void init_chip_subjects() {
                 pool->reclaim();
             }
         });
+    // Last write wins, so registering on every init survives an XML registry
+    // rebuilt between tests.
+    lv_xml_register_event_cb(nullptr, "filament_chip_clicked_cb",
+                             FilamentMappingCard::chip_clicked_cb);
 }
 
 void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::AvailableSlot* slot,
@@ -135,17 +143,13 @@ void FilamentMappingCard::create(lv_obj_t* card_widget, lv_obj_t* rows_container
         lv_obj_add_event_cb(
             card_,
             [](lv_event_t* e) {
-                auto* self = static_cast<FilamentMappingCard*>(lv_event_get_user_data(e));
-                if (self->on_tap_) {
-                    self->on_tap_();
-                } else {
-                    self->open_mapping_modal();
-                }
+                static_cast<FilamentMappingCard*>(lv_event_get_user_data(e))->open_full_mapping();
             },
             LV_EVENT_CLICKED, this);
     }
 
     init_chip_subjects();
+    s_chip_card = this;
     language_observer_ =
         observe_language_change(this, [](FilamentMappingCard* self) { self->publish_chips(); });
 
@@ -380,6 +384,10 @@ void FilamentMappingCard::on_ui_destroyed() {
     rows_container_ = nullptr;
     warning_container_ = nullptr;
     language_observer_.reset();
+    slot_picker_.hide();
+    if (s_chip_card == this) {
+        s_chip_card = nullptr;
+    }
 }
 
 // ============================================================================
@@ -469,6 +477,90 @@ void FilamentMappingCard::open_mapping_modal() {
     mapping_modal_.set_on_mappings_updated(
         [this](auto mappings) { set_mappings(std::move(mappings)); });
     mapping_modal_.show(lv_screen_active());
+}
+
+void FilamentMappingCard::open_full_mapping() {
+    if (on_tap_) {
+        on_tap_();
+    } else {
+        open_mapping_modal();
+    }
+}
+
+// ============================================================================
+// Chip dropdown
+// ============================================================================
+
+FilamentMappingCard::~FilamentMappingCard() {
+    if (s_chip_card == this) {
+        s_chip_card = nullptr;
+    }
+}
+
+void FilamentMappingCard::chip_clicked_cb(lv_event_t* e) {
+    const char* index = static_cast<const char*>(lv_event_get_user_data(e));
+    FilamentMappingCard* self = s_chip_card;
+    if (!self || !index) {
+        return;
+    }
+    const long chip = std::strtol(index, nullptr, 10);
+    if (chip < 0 || static_cast<size_t>(chip) >= self->tool_info_.size()) {
+        return;
+    }
+    lv_obj_t* trigger = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    if (self->on_chip_tap_) {
+        self->on_chip_tap_(static_cast<size_t>(chip), trigger);
+    } else {
+        self->open_slot_picker(static_cast<size_t>(chip), trigger);
+    }
+}
+
+void FilamentMappingCard::open_slot_picker(size_t chip, lv_obj_t* trigger) {
+    if (chip >= tool_info_.size() || chip >= mappings_.size() || !trigger) {
+        return;
+    }
+    const helix::GcodeToolInfo& tool = tool_info_[chip];
+    const ToolMapping& mapping = mappings_[chip];
+
+    FilamentSlotPicker::Options options;
+    options.title = tool.material.empty()
+                        ? helix::ui::tool_label(tool.tool_index)
+                        : helix::ui::tool_label(tool.tool_index) + " · " + tool.material;
+    // The chip's outline is its severity; the picker must not repaint it.
+    options.highlight_trigger = false;
+    options.offer_auto = true;
+    options.extra_choice = lv_tr("More options…");
+    for (const auto& ranked :
+         helix::rank_slots_for_tool(tool, available_slots_, tool_info_, mappings_)) {
+        options.order.push_back(ranked.slot_pos);
+        options.reasons.push_back(helix::slot_fit_text(ranked));
+    }
+
+    const FilamentSlotPicker::Selection current{mapping.mapped_slot, mapping.mapped_backend,
+                                                mapping.is_auto};
+    const int tool_index = tool.tool_index;
+    slot_picker_.show(
+        lv_screen_active(), trigger, available_slots_, current,
+        [this, tool_index](const FilamentSlotPicker::Selection& sel) {
+            if (sel.is_extra) {
+                open_full_mapping();
+                return;
+            }
+            // Looked up again: the tools may have been refiltered while it was open.
+            for (size_t i = 0; i < tool_info_.size() && i < mappings_.size(); ++i) {
+                if (tool_info_[i].tool_index != tool_index) {
+                    continue;
+                }
+                std::vector<ToolMapping> picked = mappings_;
+                helix::FilamentMapper::pick_slot(picked[i], tool_info_[i], available_slots_,
+                                                 sel.slot_index, sel.backend_index, sel.is_auto);
+                spdlog::info("[FilamentMapping] T{} picked: auto={}, slot={}, backend={}",
+                             tool_index, sel.is_auto, sel.slot_index, sel.backend_index);
+                set_mappings(std::move(picked));
+                return;
+            }
+        },
+        options);
 }
 
 // ============================================================================

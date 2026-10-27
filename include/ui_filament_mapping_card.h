@@ -2,6 +2,7 @@
 #pragma once
 
 #include "ui_filament_mapping_modal.h"
+#include "ui_filament_slot_picker.h"
 #include "ui_observer_guard.h"
 
 #include "filament_mapper.h"
@@ -38,7 +39,7 @@ namespace helix::ui {
 class FilamentMappingCard {
   public:
     FilamentMappingCard() = default;
-    ~FilamentMappingCard() = default;
+    ~FilamentMappingCard();
 
     // Non-copyable (holds LVGL widget pointers)
     FilamentMappingCard(const FilamentMappingCard&) = delete;
@@ -195,6 +196,38 @@ class FilamentMappingCard {
     void set_on_tap(TapCallback cb) {
         on_tap_ = std::move(cb);
     }
+
+    using ChipTapCallback = std::function<void(size_t chip, lv_obj_t* chip_obj)>;
+
+    /**
+     * @brief Decide what a tap on one chip does.
+     *
+     * The print detail view routes it through its remap gate and calls
+     * open_slot_picker() only when a remap is available. When unset, a chip tap
+     * opens the picker directly.
+     */
+    void set_on_chip_tap(ChipTapCallback cb) {
+        on_chip_tap_ = std::move(cb);
+    }
+
+    /**
+     * @brief Open the slot dropdown for chip @p chip, anchored under @p trigger.
+     *
+     * Headed "T4 · ABS-GF", offering Auto, then every slot ranked by
+     * rank_slots_for_tool() with its slot_fit_text(), then "More options…". A
+     * slot or Auto is recorded through FilamentMapper::pick_slot() and stored
+     * with set_mappings(); "More options…" opens the full mapping modal the way
+     * a tap on the card does.
+     */
+    void open_slot_picker(size_t chip, lv_obj_t* trigger);
+
+    /// The chip dropdown, for tests.
+    [[nodiscard]] const FilamentSlotPicker& slot_picker() const {
+        return slot_picker_;
+    }
+
+    /// filament_swatch.xml's chip tap: user_data is the chip index.
+    static void chip_clicked_cb(lv_event_t* e);
 
     /**
      * @brief Check if any mappings have material mismatches
@@ -401,7 +434,12 @@ class FilamentMappingCard {
     /// Republishes the chips on a language switch: "Pick" is translated in C++.
     ObserverGuard language_observer_;
 
+    /// The card's tap: on_tap_ when set, else the internal modal.
+    void open_full_mapping();
+
     FilamentMappingModal mapping_modal_;
+    FilamentSlotPicker slot_picker_;
+    ChipTapCallback on_chip_tap_;
     MappingsChangedCallback on_mappings_changed_;
     TapCallback on_tap_; ///< If set, tap fires this instead of opening the internal modal
 };

@@ -431,9 +431,10 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
             LV_EVENT_LAYOUT_CHANGED, this);
     }
 
-    // Look up and initialize the one filament card. Its children declare
-    // clickable=false + event_bubble=true in print_file_detail.xml (L071), so
-    // the card itself receives every tap landing on a chip. FilamentMappingCard
+    // Look up and initialize the one filament card. Its header and row
+    // declare clickable=false + event_bubble=true in print_file_detail.xml
+    // (L071), so the card receives every tap outside a chip; a chip takes its
+    // own tap (filament_chip_clicked_cb). FilamentMappingCard
     // ::create() installs the CLICKED handler (allowed exception) — deliberately
     // NOT a second lv_obj_add_event_cb here, which would fire the remap opener
     // twice per tap. Whether the card is clickable at all, and whether it shows
@@ -447,6 +448,9 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
     // for every backend (AFC/CFS card tap, U1 chip tap, preflight "Map Filament…" all
     // reach PrintSelectPanel::open_remap_modal()).
     filament_mapping_card_.set_on_tap([this]() { on_color_card_clicked(); });
+    // A chip takes its own tap: the same remap gate, then that tool's dropdown.
+    filament_mapping_card_.set_on_chip_tap(
+        [this](size_t chip, lv_obj_t* trigger) { on_chip_clicked(chip, trigger); });
     filament_mapping_card_.set_on_mappings_changed([this]() {
         // Fired by set_mappings() AFTER it repaints the chips, so this is only
         // the downstream work: re-colour the preview and re-gate pre-flight.
@@ -1912,24 +1916,39 @@ void PrintSelectDetailView::publish_rewrite_availability() {
     lv_subject_set_int(&gcode_rewrite_available_, helix::gcode_rewrite_available(rewrite_block()));
 }
 
-void PrintSelectDetailView::on_color_card_clicked() {
-    // The filament card is the remap entry point on EVERY backend that has one,
-    // including those whose mapping is not editable inline (Snapmaker U1).
+bool PrintSelectDetailView::remap_tap_allowed(const char* what) {
     // Kept as a guard even though the XML clears the card's clickable flag on a
     // non-remappable backend: the flag can only be as fresh as the last publish,
     // and this is the cheap way to make a stale one harmless.
     const auto block = current_remap_block();
     if (block == helix::printer::RemapBlock::NeedsPlugin) {
-        // The whole card is the help target here, not just the 24px cue: the
-        // card carries no remap to open, and a tap that explains beats a tap
-        // that silently does nothing. The Install button lives in that modal.
-        spdlog::debug("[PrintSelect] filament card tap -> remap help");
+        // The tap is the help target here, not just the 24px cue: there is no
+        // remap to open, and a tap that explains beats a tap that silently does
+        // nothing. The Install button lives in that modal.
+        spdlog::debug("[PrintSelect] filament {} tap -> remap help", what);
         show_remap_help_modal();
-        return;
+        return false;
     }
     if (block != helix::printer::RemapBlock::None) {
-        spdlog::debug("[PrintSelect] filament card tap ignored: {}",
+        spdlog::debug("[PrintSelect] filament {} tap ignored: {}", what,
                       helix::printer::remap_block_name(block));
+        return false;
+    }
+    return true;
+}
+
+void PrintSelectDetailView::on_chip_clicked(size_t chip, lv_obj_t* trigger) {
+    if (!remap_tap_allowed("chip")) {
+        return;
+    }
+    spdlog::debug("[PrintSelect] filament chip {} tap -> slot picker", chip);
+    filament_mapping_card_.open_slot_picker(chip, trigger);
+}
+
+void PrintSelectDetailView::on_color_card_clicked() {
+    // The filament card is the remap entry point on EVERY backend that has one,
+    // including those whose mapping is not editable inline (Snapmaker U1).
+    if (!remap_tap_allowed("card")) {
         return;
     }
     spdlog::debug("[PrintSelect] filament card tap -> remap modal");

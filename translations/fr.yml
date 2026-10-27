@@ -2408,6 +2408,7 @@ translations:
   : "Redémarrage de Moonraker...\nEn attente de reconnexion..."
   Moonraker's Python is too old for this feature.: "Le Python de Moonraker est trop ancien pour cette fonction."
   'Moonraker: ': 'Moonraker : '
+  More options…: "Plus d'options…"
   More points = more accurate, but takes longer.: Plus de points = plus précis, mais
     prend plus de temps.
   Motion: Mouvement
