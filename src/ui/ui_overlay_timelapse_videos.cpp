@@ -17,6 +17,7 @@
 
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "helix-xml/src/xml/parsers/lv_xml_responsive_grid_parser.h"
 #include "lv_draw_buf_guard.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
@@ -236,13 +237,10 @@ void TimelapseVideosOverlay::fetch_video_list() {
 // VIDEO GRID MANAGEMENT
 // ============================================================================
 
-// Card sizing constants (same as print select)
-static constexpr int kCardMinWidth = 140;
-static constexpr int kCardMaxWidth = 230;
 static constexpr int kCardDefaultHeight = 220;
 
 TimelapseCardDimensions TimelapseVideosOverlay::calculate_card_dimensions() {
-    TimelapseCardDimensions dims{kCardMinWidth, kCardDefaultHeight};
+    TimelapseCardDimensions dims{0, kCardDefaultHeight};
 
     if (!video_grid_container_ || !overlay_root_) {
         spdlog::debug("[{}] Cannot calculate dimensions: container or root is null", get_name());
@@ -300,26 +298,9 @@ TimelapseCardDimensions TimelapseVideosOverlay::calculate_card_dimensions() {
                   get_name(), overlay_height, header_height, content_pad_top, content_pad_bottom,
                   render_height, grid_pad_top, content_gap, available_height, dims.card_height);
 
-    // Calculate card width: try column counts from 10 down to 1
-    lv_coord_t container_width = lv_obj_get_content_width(video_grid_container_);
-    int col_gap = lv_obj_get_style_pad_column(video_grid_container_, LV_PART_MAIN);
-
-    for (int cols = 10; cols >= 1; cols--) {
-        int total_gaps = (cols - 1) * col_gap;
-        int card_width = (container_width - total_gaps) / cols;
-
-        if (card_width >= kCardMinWidth && card_width <= kCardMaxWidth) {
-            dims.card_width = card_width;
-            spdlog::debug("[{}] Card layout: {} columns, card={}x{}", get_name(), cols,
-                          dims.card_width, dims.card_height);
-            return dims;
-        }
-    }
-
-    // Fallback
-    dims.card_width = kCardMinWidth;
-    spdlog::debug("[{}] Card layout fallback: card={}x{}", get_name(), dims.card_width,
-                  dims.card_height);
+    // The grid's columns decide the width; the gradient buffer is sized per cell.
+    dims.card_width = lv_xml_responsive_grid_get_fit(video_grid_container_).col_w;
+    spdlog::debug("[{}] Card layout: card={}x{}", get_name(), dims.card_width, dims.card_height);
     return dims;
 }
 
@@ -395,10 +376,7 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
             continue;
         }
 
-        // Apply responsive card dimensions
-        lv_obj_set_width(card, dims.card_width);
         lv_obj_set_height(card, dims.card_height);
-        lv_obj_set_style_flex_grow(card, 0, LV_PART_MAIN);
 
         // Apply shared gradient buffer to card
         ensure_gradient_cache(dims.card_width, dims.card_height);

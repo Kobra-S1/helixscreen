@@ -1197,6 +1197,21 @@ button outgrows a small panel. Both need the button to carry an icon and a label
 
 Give each label one writer: a widget that measures whether its label fits should fold the breakpoint rule into its own subject rather than set both attributes. The same holds for stacking: set `stacked_if_bp_lte` or `stacked_subject`, never both, or the two observers fight over the layout.
 
+#### responsive_grid
+
+Equal-width columns, as many as fit: `min_col_width`, `max_col_width`, `max_cols`,
+`fit_items`, with `style_pad_column` / `style_pad_row` as the gaps. Children are
+stretched to the column width. The canonical way to lay a list out in columns; see
+`UI_CONTRIBUTOR_GUIDE.md` § "Equal columns, as many as fit".
+
+```xml
+<responsive_grid min_col_width="#belt_layout_choice_min" max_cols="2"
+                 style_pad_row="#space_xs" style_pad_column="#space_xs">
+  <ui_button text="A left, B right"/>
+  <ui_button text="A right, B left"/>
+</responsive_grid>
+```
+
 #### divider_vertical / divider_horizontal
 
 Visual separators with theme-aware colors.
