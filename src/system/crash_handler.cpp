@@ -5,6 +5,7 @@
 
 #include "helix_thread.h"
 #include "helix_version.h"
+#include "system/crash_record.h"
 
 #include <spdlog/spdlog.h>
 
@@ -278,10 +279,7 @@ static size_t copy_truncated(char* dst, size_t dst_size, const char* src) noexce
     return i;
 }
 
-/// The fatal signals the handler records. SIGILL is what a jump into non-code
-/// bytes raises on ARM (a zero word is `udf #0`), SIGTRAP what `__builtin_trap`
-/// raises there, SIGSYS a syscall a seccomp filter refuses.
-static constexpr int kCrashSignals[] = {SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGTRAP, SIGSYS};
+using helix::crash_record::kCrashSignals;
 static constexpr size_t kCrashSignalCount = sizeof(kCrashSignals) / sizeof(kCrashSignals[0]);
 
 /// Saved previous signal actions for restoration, one per kCrashSignals entry
@@ -443,28 +441,6 @@ static char* ptr_to_hex(char* buf, size_t buf_size, uintptr_t value) {
     *p = '0';
 
     return p;
-}
-
-/// Async-signal-safe: get the signal name string
-static const char* signal_name(int sig) {
-    switch (sig) {
-    case SIGSEGV:
-        return "SIGSEGV";
-    case SIGABRT:
-        return "SIGABRT";
-    case SIGBUS:
-        return "SIGBUS";
-    case SIGFPE:
-        return "SIGFPE";
-    case SIGILL:
-        return "SIGILL";
-    case SIGTRAP:
-        return "SIGTRAP";
-    case SIGSYS:
-        return "SIGSYS";
-    default:
-        return "UNKNOWN";
-    }
 }
 
 /// Async-signal-safe: map signal + code to a human-readable name
@@ -728,7 +704,7 @@ static void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
 
     // Write signal name
     safe_write(fd, "name:");
-    safe_write(fd, signal_name(sig));
+    safe_write(fd, helix::crash_record::signal_name(sig));
     safe_write(fd, "\n");
 
     // Write version
@@ -1918,6 +1894,8 @@ nlohmann::json crash_handler::read_crash_file(const std::string& crash_file_path
                 }
             } else if (key == "name") {
                 result["signal_name"] = value;
+            } else if (key == "recorded_by") {
+                result["recorded_by"] = value;
             } else if (key == "version") {
                 result["app_version"] = value;
             } else if (key == "timestamp") {
