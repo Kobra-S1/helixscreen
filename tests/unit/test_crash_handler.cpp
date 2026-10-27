@@ -269,8 +269,8 @@ TEST_CASE_METHOD(CrashTestFixture,
 
 TEST_CASE_METHOD(CrashTestFixture, "Crash: an external record reads back as a crash",
                  "[telemetry][crash]") {
-    REQUIRE(
-        helix::crash_record::write_external(crash_path(), SIGILL, "1.2.3", 1707350400, "watchdog"));
+    REQUIRE(helix::crash_record::write_external(crash_path(), SIGILL, "1.2.3", 1707350400,
+                                                "watchdog", 0));
 
     auto result = crash_handler::read_crash_file(crash_path());
     REQUIRE_FALSE(result.is_null());
@@ -286,9 +286,25 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: an external record never replaces the
     const auto before = crash_handler::read_crash_file(crash_path());
     REQUIRE_FALSE(before.is_null());
 
-    CHECK_FALSE(
-        helix::crash_record::write_external(crash_path(), SIGILL, "1.2.3", 1707350400, "watchdog"));
+    // Written after the process started: the app's own record.
+    const long started = static_cast<long>(time(nullptr)) - 60;
+    CHECK_FALSE(helix::crash_record::write_external(crash_path(), SIGILL, "1.2.3", 1707350400,
+                                                    "watchdog", started));
     CHECK(crash_handler::read_crash_file(crash_path()) == before);
+}
+
+TEST_CASE_METHOD(CrashTestFixture, "Crash: an external record replaces a previous run's leftover",
+                 "[telemetry][crash]") {
+    write_realistic_crash_file();
+    REQUIRE(crash_handler::read_crash_file(crash_path())["signal_name"] == "SIGSEGV");
+
+    // The process started after the file was last written.
+    const long started = static_cast<long>(time(nullptr)) + 60;
+    REQUIRE(helix::crash_record::write_external(crash_path(), SIGILL, "1.2.3", 1707350400,
+                                                "watchdog", started));
+    auto result = crash_handler::read_crash_file(crash_path());
+    CHECK(result["signal_name"] == "SIGILL");
+    CHECK(result["recorded_by"] == "watchdog");
 }
 
 TEST_CASE("Crash: stop requests are not crash signals", "[telemetry][crash]") {

@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 namespace helix::crash_record {
@@ -40,8 +41,12 @@ const char* signal_name(int sig) {
 }
 
 bool write_external(const std::string& path, int sig, const char* version, long timestamp,
-                    const char* writer) {
-    // O_EXCL: the app's own handler may have written its record already.
+                    const char* writer, long process_started) {
+    struct stat st {};
+    if (stat(path.c_str(), &st) == 0 && static_cast<long>(st.st_mtime) < process_started) {
+        unlink(path.c_str());
+    }
+    // O_EXCL: a record that survived the check above is the dying process's own.
     const int fd = open(path.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0644);
     if (fd < 0) {
         return false;

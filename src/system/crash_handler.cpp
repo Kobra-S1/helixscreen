@@ -489,6 +489,15 @@ static const char* get_fault_code_name(int sig, int code) {
         default:
             return "UNKNOWN";
         }
+    } else if (sig == SIGTRAP) {
+        switch (code) {
+        case TRAP_BRKPT:
+            return "TRAP_BRKPT";
+        case TRAP_TRACE:
+            return "TRAP_TRACE";
+        default:
+            return "UNKNOWN";
+        }
     }
     return "UNKNOWN";
 }
