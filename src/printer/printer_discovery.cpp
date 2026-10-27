@@ -11,7 +11,6 @@
 #include "input_sensor_manager.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
-#include "load_cell_manager.h"
 #include "moonraker_api.h"
 #include "printer_name_sync.h"
 #include "runtime_config.h"
@@ -70,11 +69,6 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
 
     auto& tsm = helix::sensors::TemperatureSensorManager::instance();
     tsm.discover(temperature_sensor_objects(hardware));
-
-    // Initialize load cell manager
-    // hardware.load_cells() returns load_cell objects
-    auto& lcm = helix::sensors::LoadCellManager::instance();
-    lcm.discover(hardware.load_cells());
 
     for (auto* m : helix::sensors::sensor_managers()) {
         m->discover(hardware);
