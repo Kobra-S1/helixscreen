@@ -501,6 +501,7 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Parcourez
     les guides, références de configuration et ressources de dépannage pour HelixScreen.
   Brush nozzle: 'Brosser la buse'
+  Buffer: Tampon
   Buffer Status: État du tampon
   Buffer tube problem: Problème de tube tampon
   Build Volume: 'Volume d''impression'
@@ -1364,6 +1365,7 @@ translations:
   'Extrude failed: {}': 'Échec de l''extrusion : {}'
   Extrude may still be running — response timed out: Extrusion peut-être encore en
     cours — délai dépassé
+  Extrude more: "Extruder plus"
   Extrude/retract feedrate (Saved): Vitesse d'extrusion/rétraction (Sauvegardée)
   Extruded past the nozzle after each load: 'Extrudé par la buse après chaque chargement'
   Extruder: Extrudeur
@@ -1380,6 +1382,7 @@ translations:
   Extruder to Nozzle: 'Extrudeur à la buse'
   Extruder too cold: Extrudeur trop froid
   Extruding prime line...: Extrusion de la ligne d'amorçage...
+  Extruding...: "Extrusion..."
   FAILED: ÉCHOUÉ
   FILAMENT: FILAMENT
   FILAMENT & TOOLHEAD: 'FILAMENT & TÊTE D''OUTIL'
@@ -2006,6 +2009,7 @@ translations:
   Invalid tool/slot: 'Outil/slot non valide'
   Invalid value: 'Valeur non valide'
   Invalid value type: 'Type de valeur non valide'
+  Is new filament coming out of the nozzle?: "Le nouveau filament sort-il de la buse ?"
   Issue description: Description du problème
   It can be un-archived in Spoolman's web UI.: Elle peut être désarchivée dans l'interface web de Spoolman.
   It has not reported its slots yet. Try again in a moment.: Il n'a pas encore signalé ses emplacements. Réessayez dans un instant.
@@ -3110,6 +3114,7 @@ translations:
   Purging: Purge en cours
   Purging nozzle: Purge de la buse
   Purging...: Purge...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Poussez le filament dans l'extrudeur jusqu'en butée. Il est saisi automatiquement, ou appuyez sur Extruder."
   QGL: QGL
   'QGL failed: {}': 'Échec du QGL : {}'
   QGL may still be running — response timed out: QGL peut-être encore en cours — délai

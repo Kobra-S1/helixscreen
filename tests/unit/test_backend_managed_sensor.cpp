@@ -258,3 +258,19 @@ TEST_CASE("backend-managed sensor: keyword substring path is type-independent",
     CHECK_FALSE(PrinterHardware::is_ams_sensor("filament_switch_sensor toolhead", none));
     CHECK_FALSE(PrinterHardware::is_ams_sensor("filament_switch_sensor filament_sensor", none));
 }
+
+TEST_CASE("backend-managed sensor: each system's own keywords, with nothing detected",
+          "[ams][sensor-ownership]") {
+    auto none = make_no_mmu_discovery();
+    REQUIRE_FALSE(none.has_mmu());
+
+    for (const char* bare : {"ercf_gear", "tradrack_sel", "boxturtle_1", "happy_sensor",
+                             "hare_sensor", "quiet_switch", "AFC_prep"}) {
+        CAPTURE(bare);
+        CHECK(PrinterHardware::is_ams_sensor(std::string("filament_switch_sensor ") + bare, none));
+    }
+    // The question itself is the backends' and type-independent.
+    CHECK(helix::AmsBackend::sensor_name_names_filament_system("ercf_gear"));
+    CHECK(helix::AmsBackend::sensor_name_names_filament_system("my_afc_hub"));
+    CHECK_FALSE(helix::AmsBackend::sensor_name_names_filament_system("runout"));
+}

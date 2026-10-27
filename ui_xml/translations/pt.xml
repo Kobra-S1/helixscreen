@@ -462,6 +462,7 @@
   <translation tag="Browse catalog..." pt="Procurar no catálogo..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." pt="Consulte guias, referências de configuração e recursos de solução de problemas para o HelixScreen."/>
   <translation tag="Brush nozzle" pt="Escovar o bico"/>
+  <translation tag="Buffer" pt="Buffer"/>
   <translation tag="Buffer Status" pt="Estado do Buffer"/>
   <translation tag="Buffer tube problem" pt="Problema no tubo do buffer"/>
   <translation tag="Build Volume" pt="Volume de impressão"/>
@@ -1228,6 +1229,7 @@
   <translation tag="Extrude Speed" pt="Velocidade de extrusão"/>
   <translation tag="Extrude failed: {}" pt="Falha ao extrudar: {}"/>
   <translation tag="Extrude may still be running — response timed out" pt="A extrusão pode ainda estar em execução — tempo esgotado"/>
+  <translation tag="Extrude more" pt="Extrudar mais"/>
   <translation tag="Extrude/retract feedrate (Saved)" pt="Velocidade de extrusão/retração (Salva)"/>
   <translation tag="Extruded past the nozzle after each load" pt="Extrudado pelo bico após cada carregamento"/>
   <translation tag="Extruder" pt="Extrusor"/>
@@ -1243,6 +1245,7 @@
   <translation tag="Extruder to Nozzle" pt="Extrusor ao bico"/>
   <translation tag="Extruder too cold" pt="Extrusor frio demais"/>
   <translation tag="Extruding prime line..." pt="Extrudando linha de preparação..."/>
+  <translation tag="Extruding..." pt="Extrudando..."/>
   <translation tag="FAILED" pt="FALHOU"/>
   <translation tag="FILAMENT" pt="FILAMENTO"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" pt="FILAMENTO E CABEÇOTE"/>
@@ -1810,6 +1813,7 @@
   <translation tag="Invalid tool/slot" pt="Ferramenta/slot inválido"/>
   <translation tag="Invalid value" pt="Valor inválido"/>
   <translation tag="Invalid value type" pt="Tipo de valor inválido"/>
+  <translation tag="Is new filament coming out of the nozzle?" pt="O filamento novo está saindo pelo bico?"/>
   <translation tag="Issue description" pt="Descrição do problema"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." pt="Pode ser desarquivado na interface web do Spoolman."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." pt="Ainda não informou seus slots. Tente novamente em instantes."/>
@@ -2832,6 +2836,7 @@
   <translation tag="Purging" pt="Purgando"/>
   <translation tag="Purging nozzle" pt="Purgando bico"/>
   <translation tag="Purging..." pt="Purgando..."/>
+  <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." pt="Empurre o filamento no extrusor até parar. Ele é puxado automaticamente, ou toque em Extrudar."/>
   <translation tag="QGL" pt="QGL"/>
   <translation tag="QGL failed: {}" pt="Falha no QGL: {}"/>
   <translation tag="QGL may still be running — response timed out" pt="QGL pode ainda estar em execução — tempo esgotado"/>

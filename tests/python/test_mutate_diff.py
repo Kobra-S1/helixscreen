@@ -32,6 +32,12 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 import mutate_diff as md  # noqa: E402
 
+# Orphan detection follows Linux reparenting, the jobserver handoff reopens its
+# descriptors through /proc/self/fd, and parallel workers copy the tree with GNU
+# cp --reflink. The test host runs these; a macOS checkout has none of the three.
+linux_only = pytest.mark.skipif(sys.platform != "linux",
+                                reason="needs /proc, GNU cp --reflink and Linux reparenting")
+
 
 # ---------------------------------------------------------------------------
 # The classifier, as a pure function of two file versions
@@ -360,6 +366,7 @@ def test_max_minutes_zero_is_no_cap(tmp_path):
 # ---------------------------------------------------------------------------
 # A run whose parent exits
 # ---------------------------------------------------------------------------
+@linux_only
 def test_an_orphaned_run_stops_before_its_next_hunk(tmp_path):
     work, base = _two_hunk_fixture(tmp_path, SLOW_MUTANT_MAKEFILE.replace("{secs}", "3"))
     out = work / "orphan.out"
@@ -602,6 +609,7 @@ def test_not_covered_paths_ride_along_with_the_proof(tmp_path):
     assert "VERDICT: CLEAN" not in r.stdout
 
 
+@linux_only
 def test_a_tracked_child_does_not_start_with_stop_signals_blocked(tmp_path):
     rc, out = md.run_tracked(["grep", "^SigBlk", "/proc/self/status"], str(tmp_path))
     mask = int(out.split()[1], 16)
@@ -651,6 +659,7 @@ def test_case_count_is_read_from_the_catch2_listing(tmp_path, footer, expected):
 # The job budget: every make the run starts is handed the jobserver it joined,
 # and a slot beside the run's own is a token taken from it.
 # ---------------------------------------------------------------------------
+@linux_only
 def test_a_child_is_handed_the_jobserver_descriptors(monkeypatch, tmp_path):
     r, w = os.pipe()
     os.set_inheritable(r, False)
@@ -711,6 +720,7 @@ def test_bats_takes_the_free_slots_as_jobs(monkeypatch, tmp_path):
     assert cmd[cmd.index('--jobs') + 1] == '3'
 
 
+@linux_only
 def test_slots_beside_the_runs_own_are_tokens_and_go_back():
     budget = md.JobBudget()
     env = {}
@@ -726,6 +736,7 @@ def test_slots_beside_the_runs_own_are_tokens_and_go_back():
     assert budget.try_token() is not None
 
 
+@linux_only
 def test_a_waiting_worker_gives_up_when_the_run_stops():
     budget = md.JobBudget()
     assert budget.make_private(1, {})
@@ -911,6 +922,7 @@ def _verdicts(out):
             if ln.startswith("  ") and ":" in ln and "src/" in ln]
 
 
+@linux_only
 def test_parallel_verdicts_match_serial(tmp_path):
     work, base, seen = _parallel_fixture(tmp_path)
     before = {p: p.read_bytes() for p in (work / "src").iterdir()}
@@ -933,6 +945,7 @@ def test_parallel_verdicts_match_serial(tmp_path):
     assert not list(tmp_path.glob(".repo.mutate-w*")), "a worker copy was left behind"
 
 
+@linux_only
 def test_no_two_mutants_share_a_tree_and_the_original_holds_none(tmp_path):
     work, base, seen = _parallel_fixture(tmp_path)
     r = subprocess.run(
@@ -953,6 +966,7 @@ def test_no_two_mutants_share_a_tree_and_the_original_holds_none(tmp_path):
     assert [str(work)] in runs
 
 
+@linux_only
 def test_a_stop_signal_mid_parallel_run_restores_every_tree(tmp_path):
     work, base, seen = _parallel_fixture(tmp_path, PARALLEL_SLOW_MAKEFILE)
     before = {p: p.read_bytes() for p in (work / "src").iterdir()}
@@ -1023,6 +1037,7 @@ def test_without_reflink_a_parallel_request_runs_serial_and_says_why(tmp_path):
     assert r.returncode == 1
 
 
+@linux_only
 def test_a_worker_copy_points_its_build_files_at_itself(tmp_path):
     src = tmp_path / "tree"
     (src / "build" / "obj").mkdir(parents=True)

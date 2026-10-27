@@ -202,6 +202,20 @@ bool PrintStartProfile::try_match_pattern(const std::string& line, MatchResult& 
     return match_pattern_list(response_patterns_, line, result);
 }
 
+bool PrintStartProfile::try_match_tag(const std::string& line, MatchResult& result) const {
+    return match_pattern_list(tag_patterns_, line, result);
+}
+
+int PrintStartProfile::percent_from_report(double value) {
+    if (!std::isfinite(value) || value < 0.0) {
+        return -1;
+    }
+    const float v = static_cast<float>(value);
+    // Bounded before the cast; the result clamps to 100 anyway.
+    const float scaled = (v <= 1.5f) ? v * 100.0f : std::min(v, 1000.0f);
+    return std::clamp(static_cast<int>(scaled + 0.5f), 0, 100);
+}
+
 bool PrintStartProfile::try_match_state(const std::string& state, MatchResult& result) const {
     // A profile that declares a phase object but no state patterns matches its
     // state text with the response patterns instead: both feeds carry the same
@@ -228,6 +242,12 @@ bool PrintStartProfile::match_pattern_list(const std::vector<ResponsePattern>& p
             result.hold_seconds = 0;
             result.narrates = rp.narrates;
             result.counts_probes = rp.counts_probes;
+            result.reported_percent = -1;
+            if (rp.progress_group > 0 && static_cast<size_t>(rp.progress_group) < match.size()) {
+                if (auto value = helix::text_io::parse_double(match[rp.progress_group].view)) {
+                    result.reported_percent = percent_from_report(*value);
+                }
+            }
             if (rp.hold_minutes_group > 0 &&
                 static_cast<size_t>(rp.hold_minutes_group) < match.size()) {
                 // Firmware prints the number with a '.' whatever the UI locale.
@@ -323,11 +343,6 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
     // Adaptive bed-mesh probing (optional, defaults to false)
     if (j.contains("adaptive_meshing") && j["adaptive_meshing"].is_boolean()) {
         adaptive_meshing_ = j["adaptive_meshing"].get<bool>();
-    }
-
-    // Creality tag stream in gcode_response (optional, defaults to false)
-    if (j.contains("cfs_signals") && j["cfs_signals"].is_boolean()) {
-        cfs_signals_ = j["cfs_signals"].get<bool>();
     }
 
     // Start sequence inlined in the print file (optional, defaults to false)
@@ -432,6 +447,12 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
     if (j.contains("response_patterns") && j["response_patterns"].is_array()) {
         parse_pattern_array(j["response_patterns"], response_patterns_, "response_pattern",
                             source_path);
+    }
+
+    // Tag patterns (optional) — lines that announce a step outright, matched
+    // ahead of the response patterns. Same entry shape.
+    if (j.contains("tag_patterns") && j["tag_patterns"].is_array()) {
+        parse_pattern_array(j["tag_patterns"], tag_patterns_, "tag_pattern", source_path);
     }
 
     // Phase object (optional) — a status object whose field carries structured
@@ -547,9 +568,20 @@ void PrintStartProfile::parse_pattern_array(const nlohmann::json& array,
 
         ResponsePattern rp;
 
-        // Compile regex with case-insensitive flag
+        // Case-insensitive unless the entry asks otherwise
         std::string pattern_str = rp_json["pattern"].get<std::string>();
-        rp.pattern = helix::Regex(pattern_str, helix::Regex::ICase);
+        bool case_sensitive = false;
+        if (rp_json.contains("case_sensitive")) {
+            if (rp_json["case_sensitive"].is_boolean()) {
+                case_sensitive = rp_json["case_sensitive"].get<bool>();
+            } else {
+                spdlog::warn(
+                    "[PrintStartProfile] Ignoring non-boolean case_sensitive for {} '{}' in {}",
+                    kind, pattern_str, source_path);
+            }
+        }
+        rp.pattern =
+            helix::Regex(pattern_str, case_sensitive ? helix::Regex::None : helix::Regex::ICase);
         if (!rp.pattern.ok()) {
             spdlog::warn("[PrintStartProfile] Invalid regex '{}' in {}: {}", pattern_str,
                          source_path, rp.pattern.error());
@@ -603,6 +635,19 @@ void PrintStartProfile::parse_pattern_array(const nlohmann::json& array,
                 rp.hold_minutes_group = group.get<int>();
             } else {
                 spdlog::warn("[PrintStartProfile] Ignoring hold_minutes_group for {} '{}' in {}: "
+                             "not a capture group of the pattern",
+                             kind, pattern_str, source_path);
+            }
+        }
+
+        // Progress the text reports, from a capture group (optional)
+        if (rp_json.contains("progress_group")) {
+            const auto& group = rp_json["progress_group"];
+            if (group.is_number_integer() && group.get<int>() >= 1 &&
+                static_cast<unsigned>(group.get<int>()) <= rp.pattern.mark_count()) {
+                rp.progress_group = group.get<int>();
+            } else {
+                spdlog::warn("[PrintStartProfile] Ignoring progress_group for {} '{}' in {}: "
                              "not a capture group of the pattern",
                              kind, pattern_str, source_path);
             }

@@ -97,69 +97,106 @@ enum class AmsType {
     INDX = 10    ///< Bondtech INDX: docked passive nozzles, one extruder and heater
 };
 
+/// Which rows of its own a filament system adds to the buffer status modal,
+/// beside the generic reading (BufferReading) every buffer has.
+enum class AmsBufferRows : int {
+    None = 0,       ///< No rows of its own
+    SyncDrive = 1,  ///< System level: spool motor, gear sync, flow rate
+    UnitBuffer = 2, ///< Per unit: what the buffer is doing, distance to fault
+};
+
+/**
+ * @brief What generic code needs to know about one AmsType, without naming it
+ *
+ * One row per type in kAmsTypeTraits. A new filament system adds its row and
+ * every name, persisted key and capability below follows from it.
+ */
+struct AmsTypeTraits {
+    AmsType type;
+    /// Short display name: "AFC", "Happy Hare".
+    const char* name;
+    /// Full product wording, for the setup wizard: "AFC (Armored Turtle)".
+    const char* product_name;
+    /// The type's name in the telemetry hardware profile (`ams.type`). A
+    /// published schema the telemetry dashboard groups by: never rename one.
+    const char* telemetry_slug;
+    /// The entry setup records in hardware/expected so the hardware validator
+    /// can warn when the system disappears. Persisted in users' settings:
+    /// never rename one. Empty for no entry.
+    const char* expected_hardware;
+    AmsBufferRows buffer_rows;
+    /// The clog meter's name for this system's buffer fault counter; nullptr
+    /// for the generic wording. Translated at the point of use.
+    const char* buffer_fault_label;
+};
+
+// i18n: do not translate - the names below are product names
+inline constexpr AmsTypeTraits kAmsTypeTraits[] = {
+    {AmsType::NONE, "None", "", "unknown", "", AmsBufferRows::None, nullptr},
+    {AmsType::HAPPY_HARE, "Happy Hare", "Happy Hare MMU", "happy_hare", "mmu",
+     AmsBufferRows::SyncDrive, nullptr},
+    {AmsType::AFC, "AFC", "AFC (Armored Turtle)", "afc", "AFC", AmsBufferRows::UnitBuffer,
+     TR_NOOP("AFC buffer")},
+    {AmsType::ACE, "ACE", "ACE", "ace", "ace", AmsBufferRows::None, nullptr},
+    {AmsType::TOOL_CHANGER, "Tool Changer", "Tool Changer", "tool_changer", "toolchanger",
+     AmsBufferRows::None, nullptr},
+    {AmsType::AD5X_IFS, "AD5X IFS", "FlashForge IFS", "ifs", "ifs", AmsBufferRows::None, nullptr},
+    {AmsType::CFS, "CFS", "Creality CFS", "cfs", "cfs", AmsBufferRows::None, nullptr},
+    {AmsType::SNAPMAKER, "Snapmaker", "Snapmaker SnapSwap", "snapmaker", "snapmaker",
+     AmsBufferRows::None, nullptr},
+    {AmsType::QIDI_BOX, "QIDI Box", "QIDI Box", "qidi_box", "qidi_box", AmsBufferRows::None,
+     nullptr},
+    {AmsType::OPENAMS, "OpenAMS", "OpenAMS", "openams", "openams", AmsBufferRows::None, nullptr},
+    {AmsType::INDX, "INDX", "INDX", "indx", "indx", AmsBufferRows::None, nullptr},
+};
+
+/// The row for @p type; the NONE row for a value with none.
+inline const AmsTypeTraits& ams_type_traits(AmsType type) {
+    for (const auto& row : kAmsTypeTraits) {
+        if (row.type == type) {
+            return row;
+        }
+    }
+    return kAmsTypeTraits[0];
+}
+
 /**
  * @brief Get string name for AMS type
  * @param type The AMS type enum value
- * @return Human-readable string for the type
+ * @return Human-readable string for the type; "None" for no system
  */
 inline const char* ams_type_to_string(AmsType type) {
-    switch (type) {
-    case AmsType::HAPPY_HARE:
-        return "Happy Hare";
-    case AmsType::AFC:
-        return "AFC";
-    case AmsType::ACE:
-        return "ACE";
-    case AmsType::TOOL_CHANGER:
-        return "Tool Changer";
-    case AmsType::AD5X_IFS:
-        return "AD5X IFS";
-    case AmsType::CFS:
-        return "CFS";
-    case AmsType::SNAPMAKER:
-        return "Snapmaker";
-    case AmsType::QIDI_BOX:
-        return "QIDI Box"; // i18n: do not translate - product name
-    case AmsType::OPENAMS:
-        return "OpenAMS"; // i18n: do not translate - product name
-    case AmsType::INDX:
-        return "INDX"; // i18n: do not translate - product name
-    default:
-        return "None";
-    }
+    return ams_type_traits(type).name;
 }
 
 /**
  * @brief The type's name in the telemetry hardware profile (`ams.type`)
  *
- * The values are a published schema the telemetry dashboard groups by: never
- * rename one. "unknown" when there is no filament system.
+ * "unknown" when there is no filament system.
  */
 inline const char* ams_type_telemetry_slug(AmsType type) {
-    switch (type) {
-    case AmsType::HAPPY_HARE:
-        return "happy_hare";
-    case AmsType::AFC:
-        return "afc";
-    case AmsType::ACE:
-        return "ace";
-    case AmsType::TOOL_CHANGER:
-        return "tool_changer";
-    case AmsType::AD5X_IFS:
-        return "ifs";
-    case AmsType::CFS:
-        return "cfs";
-    case AmsType::SNAPMAKER:
-        return "snapmaker";
-    case AmsType::QIDI_BOX:
-        return "qidi_box";
-    case AmsType::OPENAMS:
-        return "openams";
-    case AmsType::INDX:
-        return "indx";
-    default:
-        return "unknown";
+    return ams_type_traits(type).telemetry_slug;
+}
+
+/**
+ * @brief The filament system a hardware/expected entry stands for
+ *
+ * Expected-hardware entries naming a filament system are must-be-present: the
+ * validator warns when that system is not detected, and a preset merge must
+ * never add one.
+ *
+ * @return The type whose expected_hardware is @p name exactly, else NONE
+ */
+inline AmsType ams_type_for_expected_hardware(std::string_view name) {
+    if (name.empty()) {
+        return AmsType::NONE;
     }
+    for (const auto& row : kAmsTypeTraits) {
+        if (name == row.expected_hardware) {
+            return row.type;
+        }
+    }
+    return AmsType::NONE;
 }
 
 /**
@@ -927,6 +964,23 @@ struct AmsAlert {
     int slot_index = -1; ///< For SLOT level (-1 = N/A)
 };
 
+/// Which way a filament buffer is driving filament, translated by the backend
+/// from its firmware's own vocabulary.
+enum class BufferMotion : int {
+    Unknown = 0,   ///< Not reported, or a state with no direction (idle, neutral)
+    Advancing = 1, ///< Feeding filament forward: the buffer is compressed
+    Trailing = 2,  ///< Pulling filament back: the buffer is in tension
+};
+
+/// What a spool motor (Happy Hare's eSpooler) is doing, translated by the
+/// backend from its firmware's own vocabulary.
+enum class SpoolMotorAction : int {
+    None = 0,      ///< Not reported, or idle
+    Rewinding = 1, ///< Winding filament back onto the spool
+    Assisting = 2, ///< Turning the spool to ease the feed
+    Other = 3,     ///< A state with no wording of its own: AmsSystemInfo::espooler_state
+};
+
 /**
  * @brief Buffer health data for AFC buffer fault detection
  *
@@ -938,7 +992,10 @@ struct BufferHealth {
     bool fault_detection_enabled = false; ///< Whether buffer fault detection is active
     float distance_to_fault = -1.0f;      ///< Distance to fault in mm (-1 = not tracking/null)
     float error_sensitivity = 0.0f;       ///< AFC sensitivity (1-10), 0 = not reported
-    std::string state;                    ///< Buffer state (e.g., "Advancing", "Trailing")
+    /// The firmware's own word for the buffer's state, shown verbatim when
+    /// motion has no meaning for it.
+    std::string state;
+    BufferMotion motion = BufferMotion::Unknown; ///< state, translated by the backend
 
     /// Lane the buffer is currently regulating. AFC only names one while the
     /// buffer is enabled AND a lane is loaded; empty otherwise (AFC v1.2.0+).
@@ -1782,10 +1839,15 @@ struct AmsSystemInfo {
 
     std::string espooler_state;      ///< eSpooler state: "rewind"/"assist"/""
     std::string sync_feedback_state; ///< Sync feedback: "compressed"/"tension"/"neutral"/"disabled"
-    bool sync_drive = false;         ///< Gear synced to extruder motor
-    int clog_detection = 0;          ///< Clog detection: 0=off, 1=manual, 2=auto
-    int encoder_flow_rate = -1;      ///< Encoder flow rate (-1=unavailable)
-    EncoderClogInfo encoder_info;    ///< Encoder-based clog detection state
+    /// espooler_state, translated by the backend.
+    SpoolMotorAction spool_motor = SpoolMotorAction::None;
+    /// A buffer serving the whole system (Happy Hare's sync feedback),
+    /// translated by the backend; nullopt when there is none or it is disabled.
+    std::optional<BufferMotion> system_buffer_motion;
+    bool sync_drive = false;      ///< Gear synced to extruder motor
+    int clog_detection = 0;       ///< Clog detection: 0=off, 1=manual, 2=auto
+    int encoder_flow_rate = -1;   ///< Encoder flow rate (-1=unavailable)
+    EncoderClogInfo encoder_info; ///< Encoder-based clog detection state
     TanglePreventionInfo tangle_prevention;
     FlowguardInfo flowguard_info;       ///< Flowguard clog/tangle detection state
     float sync_feedback_flow_rate = -1; ///< Sync feedback flow rate
@@ -2045,7 +2107,7 @@ struct AmsSystemInfo {
     struct ClogSources {
         bool flowguard = false;
         bool encoder = false;
-        bool afc_buffer = false;
+        bool buffer_fault = false; ///< A unit's buffer counts down to a fault
     };
     [[nodiscard]] ClogSources clog_sources() const {
         ClogSources s;
@@ -2053,7 +2115,7 @@ struct AmsSystemInfo {
         s.encoder = encoder_info.enabled;
         for (const auto& unit : units) {
             if (unit.buffer_health && unit.buffer_health->fault_detection_enabled) {
-                s.afc_buffer = true;
+                s.buffer_fault = true;
                 break;
             }
         }

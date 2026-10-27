@@ -4,6 +4,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace helix::detection {
 
@@ -89,6 +90,13 @@ class DetectionSource {
     /// type) can change without a restart. Sources whose capability arrives
     /// over the wire keep the base no-op.
     virtual void refresh_capability() {}
+    /// Take this connection's printer.objects.list answer (every Klipper
+    /// object name). Called on every connect, on the main thread. Sources
+    /// whose capability is a Klipper module decide it here; the rest keep
+    /// the base no-op.
+    virtual void on_objects_listed(const std::vector<std::string>& objects) {
+        (void)objects;
+    }
     /// The printer's stored preference, or nullopt when this source has none
     /// (settings then keep their defaults: on, pause on detect).
     virtual std::optional<DetectionPreference> printer_preference() const {

@@ -11,9 +11,16 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+
 #include "hv/json.hpp"
 
 namespace helix::detection {
+
+void U1StockSource::on_objects_listed(const std::vector<std::string>& objects) {
+    capable_ = std::find(objects.begin(), objects.end(), "defect_detection") != objects.end();
+    spdlog::info("[U1StockSource] defect_detection capability = {}", capable_);
+}
 
 void U1StockSource::tune() {
     // Null callbacks, not empty lambdas: a non-null error_cb reads as "this

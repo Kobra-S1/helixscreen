@@ -474,26 +474,16 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     bool check_helix_phase_signal(const std::string& line);
 
     /**
-     * @brief Check for K2/CFS-specific gcode tag stream signals
+     * @brief Check the line against the profile's tag patterns
      *
-     * Creality K2 and CFS-equipped printers emit a richer gcode tag stream
-     * than stock Klipper. These tags carry phase info that universal probe-
-     * line / regex heuristics can't extract precisely. Currently:
+     * Tag patterns (PrintStartProfile::try_match_tag) are lines a firmware
+     * prints to announce a step outright. A match sets the phase directly;
+     * when the line reports its own progress the message carries it and the
+     * progress follows it.
      *
-     * - `// num: N, velocity: V, percent F` (purge percent, fraction or int)
-     * - `// [box] cut sensor detected` / `// [box] cut to return` /
-     *   `BOX_LOAD_MATERIAL` (CFS filament-load events)
-     *
-     * Mapped onto the existing PrintStartPhase enum (PURGING, INITIALIZING)
-     * so the legacy `preparing_overlay` UI binds without change.
-     *
-     * Only consulted when the active profile declares cfs_signals — the
-     * vocabulary is vendor-specific and must not fire on another printer's
-     * coincidental "percent" plus "num:" output.
-     *
-     * @return true if a K2/CFS signal was detected and handled
+     * @return true if a tag pattern matched and was applied
      */
-    bool check_k2_cfs_signal(const std::string& line);
+    bool check_tag_signal(const std::string& line);
 
     /**
      * @brief Reset mesh probe counters on BED_MESH entry / sub-phase change
@@ -1023,7 +1013,7 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     size_t silent_progression_idx_ = 0;
 
     // Set true the moment any real firmware signal is observed for this print
-    // (HELIX:PHASE, K2/CFS tag, profile signal/pattern/state match, PRINT_START
+    // (HELIX:PHASE, profile tag/signal/pattern/state match, PRINT_START
     // marker, or RESPOND completion). Status-signal rules are excluded: they
     // infer from the same frames the heuristic below reads, not from narration.
     // Gates the proactive temperature heuristic: once the firmware is actively

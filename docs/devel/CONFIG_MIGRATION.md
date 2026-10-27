@@ -82,10 +82,16 @@ The current head of the ladder:
   lenient on its own, so a hand edit or an old backup restored at the current
   version still reads correctly.
 
+- **v29 -> v30** moves each printer's `ams/qidi_eject_distance` and `ams/qidi_eject_velocity`
+  to the backend-neutral `ams/eject_distance` and `ams/eject_velocity`. The new keys default to
+  0, which the ejecting backend reads as "use my own default", so a printer that never chose a
+  value keeps the QIDI Box's 878 mm / 100 mm/s.
+
 Each has a dedicated test: `tests/unit/test_config_migration_v24.cpp`,
 `tests/unit/test_config_migration_v25.cpp`,
-`tests/unit/test_config_migration_v26.cpp` and
-`tests/unit/test_config_migration_v28.cpp`.
+`tests/unit/test_config_migration_v26.cpp`,
+`tests/unit/test_config_migration_v28.cpp` and
+`tests/unit/test_config_migration_v30.cpp`.
 
 ### Fresh Install vs. Upgrade
 

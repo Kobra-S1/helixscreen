@@ -48,6 +48,7 @@ using helix::AmsAction;
 using helix::AmsError;
 using helix::AmsResult;
 using helix::AmsType;
+using helix::BufferMotion;
 using helix::EncoderClogInfo;
 using helix::path_segment_from_happy_hare_pos;
 using helix::PathSegment;
@@ -57,6 +58,7 @@ using helix::SlotStatus;
 using helix::spoolman_mode_from_string;
 using helix::spoolman_mode_to_string;
 using helix::SpoolmanMode;
+using helix::SpoolMotorAction;
 using helix::StepOperationType;
 
 namespace helix {
@@ -1838,6 +1840,34 @@ TEST_CASE("Happy Hare parses v4 status fields", "[ams][happy_hare][v4]") {
     REQUIRE(info.clog_detection == 2);
     REQUIRE(info.encoder_flow_rate == 95);
     REQUIRE(info.toolchange_purge_volume == Catch::Approx(150.5f));
+}
+
+TEST_CASE("Happy Hare translates espooler and sync feedback into capability fields",
+          "[ams][happy_hare][v4][buffer]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
+    AmsBackendHappyHareTestHelper& helper = *helper_reg;
+    helper.initialize_test_gates(4);
+
+    struct Case {
+        const char* espooler;
+        SpoolMotorAction action;
+        const char* sync;
+        std::optional<BufferMotion> motion;
+    };
+    const Case cases[] = {
+        {"rewind", SpoolMotorAction::Rewinding, "compressed", BufferMotion::Advancing},
+        {"assist", SpoolMotorAction::Assisting, "tension", BufferMotion::Trailing},
+        {"wiggle", SpoolMotorAction::Other, "neutral", BufferMotion::Unknown},
+        {"", SpoolMotorAction::None, "disabled", std::nullopt},
+    };
+    for (const auto& c : cases) {
+        CAPTURE(c.espooler, c.sync);
+        helper.test_parse_mmu_state(
+            {{"espooler_active", c.espooler}, {"sync_feedback_state", c.sync}});
+        const auto info = helper.get_system_info();
+        CHECK(info.spool_motor == c.action);
+        CHECK(info.system_buffer_motion == c.motion);
+    }
 }
 
 TEST_CASE("Happy Hare v4 status fields have safe defaults", "[ams][happy_hare][v4]") {

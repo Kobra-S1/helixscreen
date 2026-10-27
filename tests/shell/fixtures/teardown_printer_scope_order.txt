@@ -17,7 +17,7 @@ upgrade_banner.shutdown()
 UpdateChecker::instance().shutdown()
 TelemetryManager::instance().shutdown()
 CrashHistory::instance().shutdown()
-AfcMessageDedup::instance().shutdown()
+AmsBackend::shutdown_persistent_state()
 SoundManager::instance().shutdown()
 PostOpCooldownManager::instance().shutdown()
 "notify_filelist_changed"

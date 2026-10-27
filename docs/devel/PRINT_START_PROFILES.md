@@ -93,7 +93,7 @@ Every G-code response line is checked in this order. First match wins, and a mat
 | Priority | Source | Description |
 |----------|--------|-------------|
 | 1 | `HELIX:PHASE:*` | Universal override. Emitted by HelixScreen macros. Always checked, never profile-specific. |
-| 2 | Profile CFS tag stream | Creality tag lines (`// num: N, velocity: V, percent F` purge progress, `[box]` CFS load events). Only checked when the profile sets `cfs_signals: true` - the vocabulary is vendor-specific and must not fire on another printer's coincidental output. |
+| 2 | Profile tag patterns | `tag_patterns`: lines a firmware prints to announce a step outright (the K2's `// num: N, velocity: V, percent F` purge progress and `[box]` load events). A match sets the phase directly; a `progress_group` makes the line's own number the progress. Only the profile that declares a pattern matches it, so another printer's coincidental output stays inert. |
 | 3 | RESPOND completion | Regex matching `print` adjacent to `start`/`started`/`starting` in either word order. Many users end PRINT_START with `RESPOND MSG="Print started!"` - an authoritative COMPLETE. |
 | 4 | Profile signal formats | Exact prefix + value lookup (e.g. Forge-X `// State: HOMING...`). |
 | 5 | PRINT_START marker | Regex: `PRINT_START\|START_PRINT\|_PRINT_START` (case-insensitive). Sets INITIALIZING once per session. |
@@ -194,10 +194,10 @@ Profiles live in `assets/config/print_start_profiles/{name}.json`. Every key exc
   // OPTIONAL: "weighted" (default) or "sequential"
   "progress_mode": "weighted",
 
-  // OPTIONAL: Opt in to Creality's tag-stream matchers (purge
-  // "// num: N, velocity: V, percent F" lines, "[box]" CFS load events).
-  // Without the flag those lines are inert on every profile.
-  "cfs_signals": false,
+  // OPTIONAL: Lines that announce a step outright, checked right after
+  // HELIX:PHASE and applied directly (no weight arbitration). Same entry
+  // shape as response_patterns, plus progress_group (below).
+  "tag_patterns": [],
 
   // OPTIONAL: This printer's prep chain goes silent (no gcode_response
   // markers) while it homes Z, validates the mesh at its corners, and
@@ -324,6 +324,10 @@ Malformed entries warn in the log and are skipped - one bad rule never takes dow
 
 **`hold_minutes_group`** - For text that announces a wait nobody will narrate, such as a heat soak printed before a silent `G4`. Set on a `response_patterns` or `state_patterns` entry, it names the capture group holding a number of minutes (`.` decimal, e.g. `10.0`); a group the pattern does not have is ignored with a warning, a zero or unparseable capture holds nothing, and a hold longer than a day is read as a day. Until the hold ends the printer counts as talking, so no timeout fires, and the held time is left out of the elapsed time the ceiling measures (the backstop leaves out at most one ceiling of it). A console line and its `display_status` copy announce one hold, not two. Declare it only for a wait of known length: a wait on a sensor (`M191`, `TEMPERATURE_WAIT`) has none.
 
+**`tag_patterns`** - Same entry shape as `response_patterns`, for lines whose meaning is definitive: checked right after `HELIX:PHASE` (priority 2 above), ahead of RESPOND completion and the weighted patterns, and applied straight to the phase. With `progress_group` naming a capture group, the captured number is the step's progress: a value at or below 1.5 reads as a 0-1 fraction, anything larger as a percent, clamped to 0-100, and the message carries the percent after the pattern's own text.
+
+**`case_sensitive`** - `true` on any pattern entry compiles it case-sensitive; patterns are case-insensitive by default.
+
 **`counts_probes`** - `false` on a BED_MESH `response_patterns` or `state_patterns` entry whose probing only checks a stored mesh, such as Forge-X's `mesh_validation/CHECKING MESH` (five probes against a 25-point mesh). Its probe lines still count as the printer working, but the label carries no "(N/M)" and no point total is fetched, so it never reads "(5/25)". Default `true`.
 
 **`narrates`** - `false` on a `response_patterns` or `state_patterns` entry whose text names a target rather than a step, such as a macro's `SET_DISPLAY_TEXT MSG="Bed: 90c"`. The match still sets the phase, but like a `status_signals` match it does not count as the printer narrating, so the collector's own homing and heating inference stays on. Default `true`.
@@ -340,7 +344,7 @@ A context-qualified state is the step running now, not a line that arrived, so i
 
 **`status_signals`** - Edge-triggered physical predicates, for windows nobody narrates (a filament-change move, a heater coming up from cold). `when` is an AND-list over one object's status fields: `field` is a dot-path into the object, `index` optionally selects an array element, `op` is one of `eq ne gt lt near` (`tolerance` is read by `near`). The right-hand side is either a literal `value` or a sibling field of the same object (`ref_field`, plus optional `offset`) - which is how "temperature is more than 2 below target" is expressed. A rule fires on the false->true transition and re-arms when the predicate drops: physical states hold for windows while the frame keeps re-delivering them, console lines are events, and the engine treats them accordingly. A malformed rule is skipped **whole** - an AND that silently dropped one condition would widen the match. `after_heat: true` holds a rule back until every heater with a target is within 2C of it (the collector's at-target band, read at its fallback tick), for evidence that also appears earlier in a start: the generic profile's extrusion rule uses it, since a bucket purge before the mesh or a tool load also moves filament. As with `phase_object`, a profile with no `status_signals` block never evaluates a frame.
 
-**`adaptive_meshing` / `position_signals` / `cfs_signals`** - Toggles for the engine's built-in heuristic families (adaptive bed-mesh probe counting, nozzle-position inference through a silent prep window, Creality CFS tag lines). Only enable what you have verified on the hardware.
+**`adaptive_meshing` / `position_signals`** - Toggles for the engine's built-in heuristic families (adaptive bed-mesh probe counting, nozzle-position inference through a silent prep window). Only enable what you have verified on the hardware.
 
 **`scripted_start`** - For a printer whose slicer profile writes the whole start sequence into the file (the Snapmaker U1), so the commands that do the work never pass through a macro and say nothing on the console. The first `virtual_sdcard.file_position` frame of a run reads the print file's first `kStartBlockHeadBytes` (200 KB) with a ranged read and scans it with `GCodeOpsDetector` keeping every occurrence (`include/start_block_steps.h#scan_start_block`). Each line that runs a step becomes one, at its byte offset, up to the first layer marker:
 
@@ -554,7 +558,7 @@ Run the app with `-vv`: `PrintStartProfile` logs every signal-format match (`Sig
 | **Forge-X** | `forge_x.json` | weighted | FlashForge AD5M / AD5M Pro on Forge-X | `phase_object` on `operation_context` qualified by `context_types` (16 anchored `<context>/<STATE>` patterns; only `print/PRINTING` completes) for 1.4.x, 14 `// State:` signal mappings for older versions, 3 response patterns (priming line, clean moves, bed wait). No `status_signals`: the AD5M has no cutter or chute, and its bed runs -110..110, so a negative-corner rule fires on the mesh's first point |
 | **AD5M stock** | `ad5m.json` | weighted | FlashForge Adventurer 5M, AD5M Pro (stock firmware) | 1 signal format + 7 regex patterns |
 | **Creality K1 family** | `creality_k1.json` | weighted | K1, K1C, K1 Max (+ CFS variants) | `position_signals` for the silent prep window |
-| **Creality K2** | `creality_k2.json` | weighted | K2 Plus, K2 Pro | `cfs_signals` + `position_signals` + `adaptive_meshing` - all three heuristic families |
+| **Creality K2** | `creality_k2.json` | weighted | K2 Plus, K2 Pro `tag_patterns` (purge percent, `[box]` load events) + `position_signals` + `adaptive_meshing` |
 | **QIDI** | `qidi.json` | weighted | Q1 Pro, X-Max 3, Plus 4, Max 4, ... | 9 regex patterns |
 | **Anycubic Kobra** | `anycubic_kobra.json`, `anycubic_kobra_s1.json` | weighted | Kobra 2 Pro / 3 family, Kobra S1 (+ Max) | 6 regex patterns each |
 | **Artillery M1** | `artillery_m1.json` | sequential | Artillery M1 Pro | 1 signal format + 4 regex patterns |

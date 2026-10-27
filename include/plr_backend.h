@@ -37,29 +37,29 @@ enum class PlrPluginBackend {
 };
 
 /// Capability markers harvested from the Moonraker status payload and the
-/// discovery snapshot.
+/// discovery snapshot. Each field names a recovery MECHANISM; which firmware
+/// publishes it, and under which key, is plr_backend's knowledge alone.
 struct PlrCapabilitySignals {
-    /// virtual_sdcard.pl_env_valid arrived as a JSON boolean AND is true.
-    /// Snapmaker's fork is the only firmware that emits this key, and the value
-    /// itself is the "a validated snapshot exists" signal, so capability and
-    /// availability coincide for this backend.
-    bool snapmaker_pl_env_valid = false;
-    /// print_stats.power_loss arrived as a JSON NUMBER. Presence — not value —
-    /// is the marker: the key exists only in Creality's fork and normally reads
-    /// 0. Mainline Klipper omits it, and Moonraker answers a subscribed-but-
-    /// unpopulated field with an explicit null, so "present and numeric" is what
-    /// distinguishes the fork from everything else.
-    bool creality_power_loss_field = false;
-    /// Discovery found Qidi's recovery macros (plr_resume_macro_present()).
-    /// They identify Qidi's stock firmware; without them a was_interrupted
-    /// save_variable is just a user-writable name any Klipper could carry.
-    bool qidi_resume_macro = false;
-    /// save_variables.variables.was_interrupted arrived as a JSON boolean AND
-    /// is true. The stock macros keep it true from PRINT_START until a normal
-    /// end or cancel, so it is ALSO true during every normal print; the
-    /// printer_idle input of the offer decision is what scopes it to a boot
-    /// after power loss.
-    bool qidi_was_interrupted = false;
+    /// The firmware reports a snapshot it validated itself (plr_parse_snapshot_valid
+    /// read 1). Capability and availability coincide for this mechanism.
+    bool snapshot_valid = false;
+    /// The firmware carries the active recovery probe (plr_parse_power_loss_signal).
+    /// Presence, not value, is the marker; availability takes the probe itself.
+    bool probe_capable = false;
+    /// Discovery found a resume macro the PLR module knows
+    /// (plr_resume_macro_present()). Without it the interrupted flag is just a
+    /// user-writable name any Klipper could carry.
+    bool resume_macro = false;
+    /// The firmware's interrupted flag reads true (plr_parse_interrupted_flag).
+    /// It is ALSO true during every normal print on the firmware that keeps
+    /// it; the printer_idle input of the offer decision is what scopes it to a
+    /// boot after power loss.
+    bool interrupted_flag = false;
+    /// The recovery file the status payload names (plr_parse_recovery_file),
+    /// empty when none arrived.
+    std::string status_recovery_file;
+    /// The plugin's snapshot filename, empty when it reported none.
+    std::string plugin_recovery_file;
     /// server.helix.plr.status `backend`; None until the plugin has answered.
     PlrPluginBackend plugin_backend = PlrPluginBackend::None;
     /// server.helix.plr.status `offer.available`: the plugin's own verdict that
@@ -70,8 +70,9 @@ struct PlrCapabilitySignals {
     PluginFeatureState plr_feature = PluginFeatureState::Absent;
 };
 
-/// Pick the backend. Passive markers outrank probe-based ones: SNAPMAKER
-/// first, QIDI before CREALITY. No firmware carries more than one marker set,
+/// Pick the backend: the first provider-table row whose markers are present.
+/// Passive markers outrank probe-based ones: SNAPMAKER first, QIDI before
+/// CREALITY. No firmware carries more than one marker set,
 /// so the ordering only makes a tie deterministic, and a passive signal
 /// chosen by mistake costs no side-effectful probe.
 ///
@@ -93,12 +94,46 @@ struct PlrDetectResult {
     bool eeprom_state = false; ///< bl24c16f EEPROM snapshot present and coherent
 };
 
-/// A Creality recovery is offerable only when the probe completed AND BOTH
+/// A probed recovery is offerable only when the probe completed AND BOTH
 /// states are true. Do not weaken: without `eeprom_state` the Klipper-side
 /// resume branch silently restarts the print FROM THE BEGINNING (the
 /// `bl24c16f` object is absent, so `ISCONTINUEPRINT=1` degrades to a fresh
 /// print rather than failing).
-bool plr_creality_recovery_available(const PlrDetectResult& r);
+bool plr_probe_recovery_available(const PlrDetectResult& r);
+
+/// The active probe's state for one connection. The caller owns it and resets
+/// it on every disconnect: `result.completed` must never survive into a
+/// session whose probe has not run.
+struct PlrProbeSession {
+    bool fired = false;        ///< the one probe of this connection was sent
+    PlrDetectResult result{};  ///< set only from the probe's parsed reply
+    std::string recovery_file; ///< the file the probed recovery would resume
+};
+
+/// What the current signals say about an offer, before the offer's own
+/// self-guards (plr_should_offer) and the plan's safety gate (plr_build_plan).
+struct PlrOfferAvailability {
+    PlrBackendType backend = PlrBackendType::NONE;
+    /// A resumable snapshot exists by this backend's own rule.
+    bool available = false;
+    /// The file the recovery would resume; may be empty (display-only for the
+    /// backends whose resume takes no filename).
+    std::string recovery_file;
+};
+
+/// Select the backend and apply its availability and recovery-file rules.
+/// Pure.
+PlrOfferAvailability plr_offer_availability(const PlrCapabilitySignals& caps,
+                                            const PlrProbeSession& probe);
+
+/// Short backend name for logs.
+const char* plr_backend_name(PlrBackendType backend);
+
+/// Whether a job dropping straight to Idle should re-evaluate the offer for
+/// `backend`. Only a backend whose availability a normal print end cannot fake
+/// does: a flag that lags the standby frame of a print that finished would
+/// otherwise offer to resume it.
+bool plr_reoffers_after_job_drop(PlrBackendType backend);
 
 /// Parse a `printer.pause_resume.check_continue_print_state` JSON-RPC response
 /// into `out`. Sets `out.completed` only on a well-formed
@@ -119,6 +154,9 @@ struct PlrRecoveryPlan {
     std::string discard_gcode;      ///< gcode-based discard (Snapmaker)
     std::string discard_rpc_method; ///< JSON-RPC discard (Creality, plugin)
     std::string recovery_file;      ///< raw path/name, for the prompt body
+    /// The resumed layer may land off the interrupted one (the restore re-homes
+    /// and does not re-probe Z), so the prompt must not promise an exact resume.
+    bool resume_layer_approximate = false;
     /// Plugin-driven resume: the RPC that opens the guided resume (the plan
     /// request). Set for GENERIC instead of resume_gcode: that resume moves the
     /// machine only through the plugin's prepare/commit steps, after the user's
@@ -133,8 +171,9 @@ struct PlrRecoveryPlan {
     }
 };
 
-/// Build the plan for `backend`. `detect` is consulted for CREALITY only, and
-/// is the ONLY thing that can authorize a Creality resume — see PlrDetectResult.
+/// Build the plan for `backend`. `detect` is consulted for the probed backend
+/// only, and is the ONLY thing that can authorize its resume — see
+/// PlrDetectResult.
 /// An unsafe or empty `recovery_file` also suppresses the Creality resume,
 /// since its gcode embeds the name as a parameter.
 PlrRecoveryPlan plr_build_plan(PlrBackendType backend, const std::string& recovery_file,
@@ -158,11 +197,11 @@ std::string plr_creality_sdcard_relative_name(const std::string& path);
 /// empty string for malformed input or a missing/non-string key.
 std::string plr_parse_creality_sidecar(const std::string& json_text);
 
-/// Best-effort read of the Creality recovery filename from the on-device
-/// sidecar. HelixScreen runs on the printer, so this normally succeeds; when it
-/// does not the caller must degrade (no Creality resume is possible without a
-/// filename). Never writes to the sidecar.
-std::string plr_read_creality_recovery_filename();
+/// Best-effort read of the probed recovery's filename from the firmware's
+/// on-device sidecar. HelixScreen runs on the printer, so this normally
+/// succeeds; when it does not the caller must degrade (no probed resume is
+/// possible without a filename). Never writes to the sidecar.
+std::string plr_read_probe_recovery_filename();
 
 // --- Wire constants -------------------------------------------------------
 
@@ -223,11 +262,20 @@ inline constexpr const char* kQidiDetectMacro = "DETECT_INTERRUPTION";
 /// PrinterDiscovery dependency.
 bool plr_resume_macro_present(const PrinterDiscovery& hw);
 
-/// Status objects the PLR backends need subscribed for the discovered
-/// firmware, empty when none do (the subscription builder loops over this and
-/// never learns the vendor). Currently: save_variables, whose
-/// variables.was_interrupted the passive Qidi backend reads.
-std::vector<std::string> plr_required_status_objects(const PrinterDiscovery& hw);
+/// Status fields the PLR backends read on the discovered firmware, as a
+/// printer.objects.subscribe objects map (object -> field list, or null for
+/// every field), for the subscription builder to merge with
+/// merge_subscription_objects. It never learns the vendor.
+nlohmann::json plr_required_status_fields(const PrinterDiscovery& hw);
+
+/// Read the firmware's own validated-snapshot flag out of a status payload:
+/// 1/0 when it arrived as a JSON boolean, -1 when this frame says nothing about
+/// it (absent, or Moonraker's null for a field this firmware never populates).
+int plr_parse_snapshot_valid(const nlohmann::json& status);
+
+/// The recovery file this status payload names, or nullptr when the frame
+/// carries none as a string. Points into `status`.
+const std::string* plr_parse_recovery_file(const nlohmann::json& status);
 
 /// Read the passive backend's interrupted flag out of a status payload:
 /// 1/0 when save_variables.variables.was_interrupted arrived as a JSON boolean,

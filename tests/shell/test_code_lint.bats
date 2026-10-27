@@ -3505,13 +3505,16 @@ CPP
 @test "every boot path registers the guided device flows" {
     local f fn
     local -a families
-    mapfile -t families < <(grep -oE 'register_[a-z0-9_]+_device_flows\(\);' include/ui_guided_device_flow.h)
+    mapfile -t families < <(grep -oE 'register_[a-z0-9_]+_device_flows\(\);' include/ui_guided_device_flow.h |
+        grep -v '^register_builtin_')
     [ "${#families[@]}" -ge 2 ] || fail "found ${#families[@]} flow families in include/ui_guided_device_flow.h"
+    for fn in "${families[@]}"; do
+        run grep -cE "^[[:space:]]*${fn%();},\$" src/ui/ui_guided_device_flow.cpp
+        [ "$output" = "1" ] || fail "register_builtin_guided_device_flows() does not run ${fn%;}"
+    done
     for f in src/application/application.cpp firmware/helixscreen-esp32/components/helixapp/app_boot.cpp; do
-        for fn in "${families[@]}"; do
-            run grep -cF "$fn" "$f"
-            [ "$output" = "1" ] || fail "$f does not call ${fn%;}"
-        done
+        run grep -cF "register_builtin_guided_device_flows();" "$f"
+        [ "$output" = "1" ] || fail "$f does not call register_builtin_guided_device_flows()"
     done
 }
 

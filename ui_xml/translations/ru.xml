@@ -501,6 +501,7 @@
   <translation tag="Browse catalog..." ru="Обзор каталога..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." ru="Руководства, справочники по настройке и ресурсы по устранению неполадок для HelixScreen."/>
   <translation tag="Brush nozzle" ru="Очистка сопла щёткой"/>
+  <translation tag="Buffer" ru="Буфер"/>
   <translation tag="Buffer Status" ru="Статус буфера"/>
   <translation tag="Buffer tube problem" ru="Проблема с буферной трубкой"/>
   <translation tag="Build Volume" ru="Область печати"/>
@@ -1270,6 +1271,7 @@
   <translation tag="Extrude Speed" ru="Скорость экструзии"/>
   <translation tag="Extrude failed: {}" ru="Ошибка экструзии: {}"/>
   <translation tag="Extrude may still be running — response timed out" ru="Экструзия может ещё выполняться — время ожидания истекло"/>
+  <translation tag="Extrude more" ru="Ещё экструзия"/>
   <translation tag="Extrude/retract feedrate (Saved)" ru="Скорость экструзии/ретракции (Сохранено)"/>
   <translation tag="Extruded past the nozzle after each load" ru="Выдавливается через сопло после каждой загрузки"/>
   <translation tag="Extruder" ru="Экструдер"/>
@@ -1285,6 +1287,7 @@
   <translation tag="Extruder to Nozzle" ru="Экструдер до сопла"/>
   <translation tag="Extruder too cold" ru="Экструдер слишком холодный"/>
   <translation tag="Extruding prime line..." ru="Экструзия линии подготовки..."/>
+  <translation tag="Extruding..." ru="Экструзия..."/>
   <translation tag="FAILED" ru="ОШИБКА"/>
   <translation tag="FILAMENT" ru="ФИЛАМЕНТ"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" ru="ФИЛАМЕНТ И ГОЛОВКА"/>
@@ -1855,6 +1858,7 @@
   <translation tag="Invalid tool/slot" ru="Неверный инструмент/слот"/>
   <translation tag="Invalid value" ru="Неверное значение"/>
   <translation tag="Invalid value type" ru="Неверный тип значения"/>
+  <translation tag="Is new filament coming out of the nozzle?" ru="Выходит ли новый филамент из сопла?"/>
   <translation tag="Issue description" ru="Описание проблемы"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." ru="Это можно восстановить из архива в веб-интерфейсе Spoolman."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." ru="Она ещё не сообщила о своих слотах. Повторите попытку через минуту."/>
@@ -2886,6 +2890,7 @@
   <translation tag="Purging" ru="Продувка"/>
   <translation tag="Purging nozzle" ru="Продувка сопла"/>
   <translation tag="Purging..." ru="Продувка..."/>
+  <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ru="Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."/>
   <translation tag="QGL" ru="QGL"/>
   <translation tag="QGL failed: {}" ru="Ошибка QGL: {}"/>
   <translation tag="QGL may still be running — response timed out" ru="QGL может ещё выполняться — время ожидания истекло"/>

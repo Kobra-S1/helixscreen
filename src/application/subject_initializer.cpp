@@ -437,9 +437,8 @@ void SubjectInitializer::init_observers() {
     m_observers.push_back(helix::init_print_start_navigation_observer());
 
     // Power-loss-recovery offer controller. Registered unconditionally — the
-    // pure plr_should_offer() self-guards non-Snapmaker printers (pl_env_valid
-    // stays false on every other backend). Owns its own observers; RAII cleanup
-    // on SubjectInitializer teardown.
+    // pure plr_should_offer() self-guards printers without a recovery backend.
+    // Owns its own observers; RAII cleanup on SubjectInitializer teardown.
     m_plr_offer_controller = std::make_unique<helix::ui::PlrOfferController>();
 
     // A print held by a chamber wait while the chamber heater is not heating

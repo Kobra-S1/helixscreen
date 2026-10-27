@@ -542,6 +542,7 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Руководства,
     справочники по настройке и ресурсы по устранению неполадок для HelixScreen.
   Brush nozzle: 'Очистка сопла щёткой'
+  Buffer: Буфер
   Buffer Status: Статус буфера
   Buffer tube problem: Проблема с буферной трубкой
   Build Volume: 'Область печати'
@@ -1396,6 +1397,7 @@ translations:
   'Extrude failed: {}': 'Ошибка экструзии: {}'
   Extrude may still be running — response timed out: Экструзия может ещё выполняться
     — время ожидания истекло
+  Extrude more: "Ещё экструзия"
   Extrude/retract feedrate (Saved): Скорость экструзии/ретракции (Сохранено)
   Extruded past the nozzle after each load: 'Выдавливается через сопло после каждой загрузки'
   Extruder: Экструдер
@@ -1412,6 +1414,7 @@ translations:
   Extruder to Nozzle: 'Экструдер до сопла'
   Extruder too cold: Экструдер слишком холодный
   Extruding prime line...: Экструзия линии подготовки...
+  Extruding...: "Экструзия..."
   FAILED: ОШИБКА
   FILAMENT: ФИЛАМЕНТ
   FILAMENT & TOOLHEAD: 'ФИЛАМЕНТ И ГОЛОВКА'
@@ -2033,6 +2036,7 @@ translations:
   Invalid tool/slot: 'Неверный инструмент/слот'
   Invalid value: 'Неверное значение'
   Invalid value type: 'Неверный тип значения'
+  Is new filament coming out of the nozzle?: "Выходит ли новый филамент из сопла?"
   Issue description: Описание проблемы
   It can be un-archived in Spoolman's web UI.: Это можно восстановить из архива в веб-интерфейсе Spoolman.
   It has not reported its slots yet. Try again in a moment.: Она ещё не сообщила о своих слотах. Повторите попытку через минуту.
@@ -3140,6 +3144,7 @@ translations:
   Purging: Продувка
   Purging nozzle: Продувка сопла
   Purging...: Продувка...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."
   QGL: QGL
   'QGL failed: {}': 'Ошибка QGL: {}'
   QGL may still be running — response timed out: QGL может ещё выполняться — время

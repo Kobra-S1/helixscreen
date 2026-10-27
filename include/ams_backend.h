@@ -3406,20 +3406,6 @@ class AmsBackend {
         return is_tool_changer(get_type());
     }
 
-    /**
-     * @brief Klipper object / expected-hardware name for this backend.
-     *
-     * Used when recording expected hardware during wizard setup so the hardware
-     * validator can warn if the AMS disappears. Matches the firmware object name
-     * (e.g. "AFC", "mmu", "toolchanger"). Empty string => not a tracked Klipper
-     * object (e.g. REST-based systems). Default empty; backends override.
-     *
-     * @return Klipper object name, or "" if none
-     */
-    [[nodiscard]] virtual const char* get_klipper_object_name() const {
-        return "";
-    }
-
 #ifdef HELIX_ENABLE_MOCKS
     /**
      * @brief This backend as an AmsBackendMock, or nullptr if it is not one
@@ -3904,8 +3890,8 @@ class AmsBackend {
      * pattern matching with no per-instance state, so it needs no backend object.
      *
      * Keyword-bearing sensor names (mmu_*, afc_*, lane*, gate*, ...) are handled
-     * by the type-independent substring path in PrinterHardware and are NOT this
-     * method's concern.
+     * by the type-independent keyword paths (sensor_name_names_filament_system()
+     * and PrinterHardware's generic keywords) and are NOT this method's concern.
      *
      * @param type      Detected AMS/MMU backend type
      * @param bare_name Sensor name with the Klipper object-type prefix stripped
@@ -3914,6 +3900,18 @@ class AmsBackend {
      */
     static bool sensor_belongs_to_backend(AmsType type, const std::string& bare_name,
                                           const helix::PrinterDiscovery& discovery);
+
+    /**
+     * @brief Whether @p lower_name carries a filament system's own keyword.
+     *
+     * Type-independent: a sensor named for a system's hardware ("ercf_gate",
+     * "afc_hub") is that system's even when the system itself was not
+     * detected. Each backend lists its keywords (kSensorNameKeywords) in its
+     * own header; this asks every one of them.
+     *
+     * @param lower_name Sensor name, lowercased
+     */
+    static bool sensor_name_names_filament_system(std::string_view lower_name);
 
     /**
      * @brief Every Klipper status object the filament systems in @p hw need pushed.
@@ -3970,6 +3968,21 @@ class AmsBackend {
      * @return Unique pointer to mock backend instance
      */
     static std::unique_ptr<AmsBackend> create_mock(int slot_count = 4);
+
+    /**
+     * @brief Load the state filament backends keep across sessions
+     *
+     * Process-scoped and independent of which backend this printer runs: a
+     * backend reads it when it is constructed, and a printer switch keeps it.
+     * Call once at startup, before any backend is created; a backend built
+     * before this treats every remembered fact as unknown.
+     *
+     * @param config_dir Writable directory the state is persisted under
+     */
+    static void init_persistent_state(const std::string& config_dir);
+
+    /// Release what init_persistent_state() loaded, at process exit.
+    static void shutdown_persistent_state();
 
   private:
     /// Tool -> slot aimed from our UI, for as long as this backend lives.

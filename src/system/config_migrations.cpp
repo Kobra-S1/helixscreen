@@ -1290,6 +1290,25 @@ static void migrate_v28_to_v29(json& config, const std::string& /*config_path*/)
     }
 }
 
+/// Move each printer's lane eject distance and speed off the QIDI-named keys to
+/// the backend-neutral ams/eject_distance and ams/eject_velocity. A printer that
+/// already holds a new key keeps it.
+static void migrate_v29_to_v30(json& config, const std::string& /*config_path*/) {
+    if (!config.contains("printers") || !config["printers"].is_object()) {
+        return;
+    }
+    for (auto& [printer_id, printer] : config["printers"].items()) {
+        if (!printer.is_object()) {
+            continue;
+        }
+        if (migrate_config_keys(printer, {{"/ams/qidi_eject_distance", "/ams/eject_distance"},
+                                          {"/ams/qidi_eject_velocity", "/ams/eject_velocity"}})) {
+            spdlog::info("[Config] Migration v30: ams/qidi_eject_* -> ams/eject_* for printer '{}'",
+                         printer_id);
+        }
+    }
+}
+
 using MigrationFn = void (*)(json& config, const std::string& config_path);
 
 /// The ladder, oldest first. A row runs when the document's stamp is below
@@ -1304,7 +1323,7 @@ constexpr struct {
     {19, migrate_v18_to_v19}, {20, migrate_v19_to_v20}, {21, migrate_v20_to_v21},
     {22, migrate_v21_to_v22}, {23, migrate_v22_to_v23}, {24, migrate_v23_to_v24},
     {25, migrate_v24_to_v25}, {26, migrate_v25_to_v26}, {27, migrate_v26_to_v27},
-    {28, migrate_v27_to_v28}, {29, migrate_v28_to_v29},
+    {28, migrate_v27_to_v28}, {29, migrate_v28_to_v29}, {30, migrate_v29_to_v30},
 };
 
 static_assert(kMigrations[std::size(kMigrations) - 1].to_version == kCurrentConfigVersion,

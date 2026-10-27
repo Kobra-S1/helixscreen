@@ -463,6 +463,21 @@ TEST_CASE_METHOD(LVGLTestFixture,
         REQUIRE(afc.get_last_error_msg().empty());
     }
 
+    SECTION("The generic startup hook loads the seed and the exit hook releases it") {
+        DedupSeedDir seed(latched);
+        helix::AfcMessageDedup::instance().shutdown();
+        REQUIRE(helix::AfcMessageDedup::instance().last_error_text().empty());
+
+        AmsBackend::init_persistent_state(seed.dir());
+        AfcErrorHandlingHelper afc;
+        ToastCapture toasts;
+        afc.feed_afc_message(latched, "error");
+        REQUIRE(toasts.count("error") == 0);
+
+        AmsBackend::shutdown_persistent_state();
+        REQUIRE(helix::AfcMessageDedup::instance().last_error_text().empty());
+    }
+
     SECTION("A text the previous session never saw is a live error and is recorded") {
         DedupSeedDir seed(""); // first boot
         AfcErrorHandlingHelper afc;

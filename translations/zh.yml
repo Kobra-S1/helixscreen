@@ -467,6 +467,7 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: 浏览
     HelixScreen 的指南、配置参考和故障排除资源。
   Brush nozzle: '刷洗喷嘴'
+  Buffer: 缓冲区
   Buffer Status: 缓冲区状态
   Buffer tube problem: 缓冲管故障
   Build Volume: '打印尺寸'
@@ -1273,6 +1274,7 @@ translations:
   Extrude Speed: 挤出速度
   'Extrude failed: {}': '挤出失败: {}'
   Extrude may still be running — response timed out: 挤出可能仍在运行 — 响应超时
+  Extrude more: "继续挤出"
   Extrude/retract feedrate (Saved): 挤出/回抽速度（已保存）
   Extruded past the nozzle after each load: '每次装载后从喷嘴挤出的长度'
   Extruder: 挤出机
@@ -1288,6 +1290,7 @@ translations:
   Extruder to Nozzle: '挤出机至喷嘴'
   Extruder too cold: 挤出机温度过低
   Extruding prime line...: 正在挤出引导线...
+  Extruding...: "正在挤出..."
   FAILED: 失败
   FILAMENT: 耗材
   FILAMENT & TOOLHEAD: '耗材与工具头'
@@ -1878,6 +1881,7 @@ translations:
   Invalid tool/slot: '无效的工具/槽位'
   Invalid value: '值无效'
   Invalid value type: '值类型无效'
+  Is new filament coming out of the nozzle?: "喷嘴是否有新耗材挤出？"
   Issue description: 问题描述
   It can be un-archived in Spoolman's web UI.: 可以在 Spoolman 的网页界面中取消归档。
   It has not reported its slots yet. Try again in a moment.: 尚未报告其料槽。请稍后再试。
@@ -2932,6 +2936,7 @@ translations:
   Purging: 正在清料
   Purging nozzle: 正在清洗喷嘴
   Purging...: 正在清料...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "将耗材推入挤出机直到推不动为止。挤出机会自动咬入，或点击“挤出”。"
   QGL: QGL
   'QGL failed: {}': 'QGL 失败: {}'
   QGL may still be running — response timed out: QGL 可能仍在运行 — 响应超时

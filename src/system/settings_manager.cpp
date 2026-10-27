@@ -140,12 +140,13 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     {"settings_motion_layout", "motion/layout", Scope::PerPrinter, false, 0, 0,
      kMotionLayoutCount - 1, "motion_layout"},
     // Lane eject distance magnitude in mm, negated when the backend assembles its
-    // eject move. The stored paths are the ones existing configs already carry.
-    {"settings_ams_eject_distance", "ams/qidi_eject_distance", Scope::PerPrinter, false, 878, 100,
-     2000, "qidi_eject_distance"},
-    // mm/s
-    {"settings_ams_eject_velocity", "ams/qidi_eject_velocity", Scope::PerPrinter, false, 100, 10,
-     300, "qidi_eject_velocity"},
+    // eject move. 0 = not chosen: the backend ejecting the lane supplies its own
+    // default and range. The telemetry keys keep the analytics series' original names.
+    {"settings_ams_eject_distance", "ams/eject_distance", Scope::PerPrinter, false, 0, 0, 2000,
+     "qidi_eject_distance"},
+    // mm/s, 0 = the backend's default
+    {"settings_ams_eject_velocity", "ams/eject_velocity", Scope::PerPrinter, false, 0, 0, 300,
+     "qidi_eject_velocity"},
     // Per-printer: AUTO resolves from this printer's type, so the manual
     // override follows the same printer.
     {"settings_toolhead_style", "appearance/toolhead_style", Scope::PerPrinter, false, 0, 0, 7,

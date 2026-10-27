@@ -813,7 +813,8 @@ state, constructed with representative sample data and the real lifecycle:
 `action-prompt-afc-cal`, `recovery-fault-afc`, `recovery-fault-hh` (the filament fault
 dialog, with AFC's position diagram or all four of Happy Hare's recovery buttons),
 `spaghetti-detection`, `bed-check` (the modal a printer bed check raises when it stops a
-print).
+print), `guided-load` and `guided-load-confirm` (the steps a stock load wizard leaves to
+the screen, opened on the hand-push step or on the extrusion question).
 `spaghetti-detection` fetches its camera still from the mock's unreachable webcam, so set
 `HELIX_DEMO_SNAPSHOT_URL` to a JPEG URL to see the preview.
 

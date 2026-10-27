@@ -462,6 +462,7 @@
   <translation tag="Browse catalog..." en="Browse catalog..."/>
   <translation tag="Browse guides, configuration references, and troubleshooting resources for HelixScreen." en="Browse guides, configuration references, and troubleshooting resources for HelixScreen."/>
   <translation tag="Brush nozzle" en="Brush nozzle"/>
+  <translation tag="Buffer" en="Buffer"/>
   <translation tag="Buffer Status" en="Buffer Status"/>
   <translation tag="Buffer tube problem" en="Buffer tube problem"/>
   <translation tag="Build Volume" en="Build Volume"/>
@@ -1228,6 +1229,7 @@
   <translation tag="Extrude Speed" en="Extrude Speed"/>
   <translation tag="Extrude failed: {}" en="Extrude failed: {}"/>
   <translation tag="Extrude may still be running — response timed out" en="Extrude may still be running — response timed out"/>
+  <translation tag="Extrude more" en="Extrude more"/>
   <translation tag="Extrude/retract feedrate (Saved)" en="Extrude/retract feedrate (Saved)"/>
   <translation tag="Extruded past the nozzle after each load" en="Extruded past the nozzle after each load"/>
   <translation tag="Extruder" en="Extruder"/>
@@ -1243,6 +1245,7 @@
   <translation tag="Extruder to Nozzle" en="Extruder to Nozzle"/>
   <translation tag="Extruder too cold" en="Extruder too cold"/>
   <translation tag="Extruding prime line..." en="Extruding prime line..."/>
+  <translation tag="Extruding..." en="Extruding..."/>
   <translation tag="FAILED" en="FAILED"/>
   <translation tag="FILAMENT" en="FILAMENT"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" en="FILAMENT &amp; TOOLHEAD"/>
@@ -1810,6 +1813,7 @@
   <translation tag="Invalid tool/slot" en="Invalid tool/slot"/>
   <translation tag="Invalid value" en="Invalid value"/>
   <translation tag="Invalid value type" en="Invalid value type"/>
+  <translation tag="Is new filament coming out of the nozzle?" en="Is new filament coming out of the nozzle?"/>
   <translation tag="Issue description" en="Issue description"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." en="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." en="It has not reported its slots yet. Try again in a moment."/>
@@ -2832,6 +2836,7 @@
   <translation tag="Purging" en="Purging"/>
   <translation tag="Purging nozzle" en="Purging nozzle"/>
   <translation tag="Purging..." en="Purging..."/>
+  <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." en="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude."/>
   <translation tag="QGL" en="QGL"/>
   <translation tag="QGL failed: {}" en="QGL failed: {}"/>
   <translation tag="QGL may still be running — response timed out" en="QGL may still be running — response timed out"/>

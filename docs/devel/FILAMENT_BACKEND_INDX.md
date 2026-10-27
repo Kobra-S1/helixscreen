@@ -14,9 +14,9 @@ with one `[extruder]`: `heater_pin: indx:heater`, `sensor_type: indx`.
 |---|---|
 | Macro contract (what is read and sent) | `include/indx_contract.h`, `src/printer/indx_contract.cpp` |
 | Backend | `include/ams_backend_indx.h`, `src/printer/ams_backend_indx.cpp` (derives `AmsBackendToolChanger`) |
-| Detection | `src/printer/printer_discovery_parse.cpp#PrinterDiscovery/parse_objects`, `#PrinterDiscovery/parse_config_keys` |
+| Detection | `src/printer/printer_discovery_parse.cpp#parse_objects`, `#parse_config_keys` |
 | Shared heater in ToolState | `ToolTopology::heads_share_heater`, `include/tool_state.h#ToolState/names_mounted_nozzle` |
-| Heat gate | `AmsBackend::nozzle_heat_blocked_reason()`, enforced in `src/ui/temperature_controller.cpp#TemperatureController/set_target` |
+| Heat gate | `AmsBackend::nozzle_heat_blocked_reason()`, enforced in `src/ui/temperature_controller.cpp#"void TemperatureController::set_target(HeaterType type"` |
 | Mock | `HELIX_MOCK_AMS=indx`, `src/api/moonraker_client_mock_indx.cpp` |
 
 ## The macro contract

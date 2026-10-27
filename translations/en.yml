@@ -485,6 +485,7 @@ translations:
   Browse guides, configuration references, and troubleshooting resources for HelixScreen.: Browse
     guides, configuration references, and troubleshooting resources for HelixScreen.
   Brush nozzle: Brush nozzle
+  Buffer: Buffer
   Buffer Status: Buffer Status
   Buffer tube problem: Buffer tube problem
   Build Volume: Build Volume
@@ -1314,6 +1315,7 @@ translations:
   'Extrude failed: {}': 'Extrude failed: {}'
   Extrude may still be running — response timed out: Extrude may still be running
     — response timed out
+  Extrude more: Extrude more
   Extrude/retract feedrate (Saved): Extrude/retract feedrate (Saved)
   Extruded past the nozzle after each load: Extruded past the nozzle after each load
   Extruder: Extruder
@@ -1330,6 +1332,7 @@ translations:
   Extruder to Nozzle: Extruder to Nozzle
   Extruder too cold: Extruder too cold
   'Extruding prime line...': 'Extruding prime line...'
+  Extruding...: Extruding...
   FAILED: FAILED
   FILAMENT: FILAMENT
   FILAMENT & TOOLHEAD: FILAMENT & TOOLHEAD
@@ -1941,6 +1944,7 @@ translations:
   Invalid tool/slot: Invalid tool/slot
   Invalid value: Invalid value
   Invalid value type: Invalid value type
+  Is new filament coming out of the nozzle?: Is new filament coming out of the nozzle?
   Issue description: Issue description
   It can be un-archived in Spoolman's web UI.: It can be un-archived in Spoolman's web UI.
   It has not reported its slots yet. Try again in a moment.: It has not reported its slots yet. Try again in a moment.
@@ -3023,6 +3027,7 @@ translations:
   Purging: Purging
   Purging nozzle: Purging nozzle
   Purging...: Purging...
+  Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.
   QGL: QGL
   'QGL failed: {}': 'QGL failed: {}'
   QGL may still be running — response timed out: QGL may still be running — response

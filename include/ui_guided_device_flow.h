@@ -36,6 +36,14 @@ void unregister_guided_device_flow(const std::string& id);
 /// register/unregister call.
 const GuidedDeviceFlow* find_guided_device_flow(const std::string& id);
 
+/// Registers every built-in vendor flow. Startup calls this once, before any overlay
+/// builds; the table of vendor registrars behind it lives in ui_guided_device_flow.cpp,
+/// so adding a vendor's flows adds a row there and no startup code changes.
+void register_builtin_guided_device_flows();
+
+// The per-vendor registrars register_builtin_guided_device_flows() runs. Each is
+// idempotent, since a registration replaces an earlier one under the same id.
+
 /// Registers the Creality CFS calibration flows (`cfs_purge_chute`, `cfs_cutter`). Does
 /// nothing in a build without CFS support.
 void register_cfs_device_flows();
