@@ -1372,10 +1372,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// it: the docks' tool when they name one, -1 (UNSELECT_TOOL) when they do
     /// not, and while printing an unnamed reading leaves it alone.
     int sync_medusa_toolchanger_tool();
-    /// Tools the MedusaHC variant carries: six on the T<n>-macro controller,
-    /// four on the klipper-toolchanger one.
+    /// Tools the MedusaHC variant carries: six on medusahc-tn, four otherwise.
     [[nodiscard]] static int medusa_tool_count();
     static constexpr int kMedusaMaxTools = 6;
+    /// MHC_RESUME refuses to re-pick a tool whose nozzle is at or below this.
+    static constexpr int kMedusaResumeMinNozzleC = 190;
 
     /// The U1 persona's extruder_offset for head @p head (0-3), as the
     /// objects query reports it.
@@ -1462,6 +1463,15 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * Empty object for NONE.
      */
     nlohmann::json pin_watch_status_json() const;
+    /// The macro state the MedusaHC controller keeps beside [medusahc]:
+    /// `gcode_macro _TOOL_OFFSET`, `gcode_macro _GLOBAL_STATE` and
+    /// `save_variables`, keyed by object name. Empty when not a MedusaHC mock.
+    nlohmann::json medusa_macro_status_json() const;
+    /// The nozzle temperature of hot end @p tool: the live extruder for tool 0,
+    /// the fixed secondary-extruder readings the status serves for the rest.
+    [[nodiscard]] double medusa_nozzle_temp(int tool) const;
+    /// The fixed reading a secondary extruder @p index (1..5) reports.
+    [[nodiscard]] static double secondary_extruder_temp(int index);
 
     /**
      * @brief U1 `defect_detection` status: the module's stored config, which
@@ -1556,7 +1566,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /**
      * @brief MedusaHC variant selected by HELIX_MOCK_AMS, or NONE.
      *
-     * "medusahc"/"medusa"/"mhc" select CONTROLLER and "medusahc-tn" CONTROLLER_TN
+     * "medusahc"/"medusa"/"mhc" select CONTROLLER, "medusahc-ktc" CONTROLLER_KTC and
+     * "medusahc-tn" CONTROLLER_TN
      * (helix::mock::medusa_variant). Unlike
      * is_mock_toolchanger(), these values do NOT build an AmsBackendMock:
      * try_create_mock() declines them so real discovery runs and the production
@@ -2485,6 +2496,19 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         int toolchanger_tool = 0;
         int toolchanger_reading = 0;
         bool toolchanger_synced = false;
+        /// [medusahc].layer, from MHC_LAYER_SET.
+        int layer = 0;
+        /// `_GLOBAL_STATE`: the tool RESUME re-picks (PAUSE saves the mounted
+        /// one, SET and DROP their own), and the failed-change flag MHC_ERROR
+        /// sets while a print is active.
+        int global_target_tool = -1;
+        int error_state = 0;
+        /// The swap MHC_RESUME started: the print continues once it succeeds.
+        bool resume_after_swap = false;
+        /// `_TOOL_OFFSET` t<n>_off_{x,y,z}, by tool then axis.
+        std::array<std::array<double, 3>, kMedusaMaxTools> offsets{};
+        /// save_variables' variables (t<n>_gcode_<axis>_offset and anything else saved).
+        nlohmann::json saved_variables = nlohmann::json::object();
     };
     /// A printer.gcode.script reply held until the swap its script started ends.
     struct MedusaReply {

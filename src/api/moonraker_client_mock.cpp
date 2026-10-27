@@ -1464,7 +1464,7 @@ void MoonrakerClientMock::populate_capabilities() {
         mock_objects.push_back("gcode_macro CALIBRATE_TOOL_OFFSETS");
     }
 
-    // MedusaHC mock mode (HELIX_MOCK_AMS=medusahc[-tn]): a hotend changer
+    // MedusaHC mock mode (HELIX_MOCK_AMS=medusahc[-ktc|-tn]): a hotend changer
     // bolted onto klipper-toolchanger. Unlike the toolchanger mode above this
     // does NOT build an AmsBackendMock - try_create_mock() declines these values
     // - so the objects pushed here are what real discovery sees, and the
@@ -1476,37 +1476,37 @@ void MoonrakerClientMock::populate_capabilities() {
     if (const MedusaVariant variant = mock_medusa_variant(); variant != MedusaVariant::NONE) {
         // The controller reads the docks through [pin_watch io].
         mock_objects.push_back("pin_watch io");
-        if (variant == MedusaVariant::CONTROLLER) {
-            // klipper-toolchanger runs alongside (pin_watch sync_toolchanger: 1)
-            // and registers T<n> itself.
+        if (variant == MedusaVariant::CONTROLLER_KTC) {
+            // The optional klipper-toolchanger (pin_watch sync_toolchanger: 1),
+            // configured as the README's minimal [toolchanger] + [tool Tn].
             mock_objects.push_back("toolchanger");
             for (int i = 0; i < medusa_tool_count(); ++i) {
                 mock_objects.push_back("tool T" + std::to_string(i));
             }
-        } else {
-            // No [tool N] objects: the tools are named from the extruder heaters
-            // (one hot end per extruder), and T<n> drives the swap. On Irbis3D's
-            // controller each T<n> macro runs SET T=<n>, which runs MHC_SET.
-            for (int i = 0; i < medusa_tool_count(); ++i) {
-                mock_objects.push_back("gcode_macro T" + std::to_string(i));
-            }
         }
-        // The Python controller registers [medusahc] on both variants.
+        // The tools are named from the extruder heaters (one hot end per
+        // extruder) where no [tool N] exists. Each T<n> macro runs SET T=<n>,
+        // which runs MHC_SET; klipper-toolchanger keeps these when it is there.
+        for (int i = 0; i < medusa_tool_count(); ++i) {
+            mock_objects.push_back("gcode_macro T" + std::to_string(i));
+        }
         mock_objects.push_back("medusahc");
-        // Sibling object on a real controller. Present so the exact-match rule
-        // in PrinterDiscovery (which must NOT claim it) has something to not
-        // claim.
-        mock_objects.push_back("medusahc_calibrate");
         // The Irbis3D controller registers MHC_* as native commands, which
         // printer.objects.list never shows; its MHC_macros.cfg wraps them in
-        // these macros.
-        mock_objects.push_back("gcode_macro SET");
-        mock_objects.push_back("gcode_macro _DROP");
-        mock_objects.push_back("gcode_macro DROP_TOOL");
-        mock_objects.push_back("gcode_macro OPEN");
-        mock_objects.push_back("gcode_macro CLOSE");
+        // these macros, and MHC_variables.cfg holds its state in the `_` ones.
+        for (const char* macro :
+             {"SET", "_DROP", "DROP_TOOL", "OPEN", "CLOSE", "CLEAN", "_ERROR", "_TOOL_OFFSET_T",
+              "_LAYER_SET", "_TOOL_CFG", "_GLOBAL_STATE", "_TOOL_OFFSET"}) {
+            mock_objects.push_back(std::string("gcode_macro ") + macro);
+        }
+        if (std::find(mock_objects.begin(), mock_objects.end(), "save_variables") ==
+            mock_objects.end()) {
+            mock_objects.push_back("save_variables");
+        }
         spdlog::info("[MoonrakerClientMock] MedusaHC mock: variant={}",
-                     variant == MedusaVariant::CONTROLLER ? "controller" : "controller-tn");
+                     variant == MedusaVariant::CONTROLLER       ? "controller"
+                     : variant == MedusaVariant::CONTROLLER_KTC ? "controller-ktc"
+                                                                : "controller-tn");
     }
 
     // multiACE mock hardware (HELIX_MOCK_AMS=multiace): the U1's own feed
@@ -2775,7 +2775,7 @@ nlohmann::json MoonrakerClientMock::medusa_status_json() const {
     obj["tool_count"] = count;
     obj["target_tool"] = m.target_tool;
     obj["feeder_open"] = m.feeder_open;
-    obj["layer"] = 0;
+    obj["layer"] = m.layer;
 
     // Irbis3D medusahc.py get_status(). current_tool is pin_watch's, live
     // from the pins; sensor_error is the operation latch, a separate signal.
@@ -2793,6 +2793,51 @@ nlohmann::json MoonrakerClientMock::medusa_status_json() const {
     return obj;
 }
 
+nlohmann::json MoonrakerClientMock::medusa_macro_status_json() const {
+    if (mock_medusa_variant() == MedusaVariant::NONE) {
+        return nlohmann::json::object();
+    }
+    std::lock_guard<std::mutex> lock(medusa_mutex_);
+    const MedusaSim& m = medusa_;
+    const int count = medusa_tool_count();
+    nlohmann::json offsets = nlohmann::json::object();
+    for (int t = 0; t < count; ++t) {
+        for (int a = 0; a < 3; ++a) {
+            offsets["t" + std::to_string(t) + "_off_" + "xyz"[a]] =
+                m.offsets[static_cast<size_t>(t)][static_cast<size_t>(a)];
+        }
+    }
+    return nlohmann::json{
+        {"gcode_macro _TOOL_OFFSET", offsets},
+        {"gcode_macro _GLOBAL_STATE",
+         {{"max_tool", count},
+          {"layer", m.layer},
+          {"target_tool", m.global_target_tool},
+          {"error_state", m.error_state},
+          {"feeder_open", m.feeder_open ? 1 : 0}}},
+        {"save_variables", {{"variables", m.saved_variables}}},
+    };
+}
+
+double MoonrakerClientMock::secondary_extruder_temp(int index) {
+    // Distinct readings so each heating state renders its own colour: extruder1
+    // HEATING, extruder2 AT-TEMP, extruder3 COOLING, the rest cold.
+    switch (index) {
+    case 1:
+        return 150.0;
+    case 2:
+        return 248.0;
+    case 3:
+        return 200.0;
+    default:
+        return 25.0;
+    }
+}
+
+double MoonrakerClientMock::medusa_nozzle_temp(int tool) const {
+    return tool == 0 ? extruder_temp_.load() : secondary_extruder_temp(tool);
+}
+
 void MoonrakerClientMock::start_medusa_swap(int tool, bool close_after) {
     std::lock_guard<std::mutex> lock(medusa_mutex_);
     MedusaSim& m = medusa_;
@@ -2805,6 +2850,8 @@ void MoonrakerClientMock::start_medusa_swap(int tool, bool close_after) {
     if (tool >= 0) {
         // MHC_SET homes and hops Z as "changing" before it reads the docks.
         m.target_tool = tool;
+        m.global_target_tool = tool;
+        m.error_state = 0;
         m.phase = MedusaPhase::Changing;
         m.phase_ticks = kMedusaChangingNotifications;
         m.swap_armed = true;
@@ -2812,6 +2859,9 @@ void MoonrakerClientMock::start_medusa_swap(int tool, bool close_after) {
         // MHC_DROP targets the tool it parks, and an empty head has none.
         const int reading = medusa_pin_tool_locked();
         m.target_tool = reading;
+        if (reading >= 0) {
+            m.global_target_tool = reading;
+        }
         if (reading == -1) {
             if (close_after) {
                 m.feeder_open = false;
@@ -2928,13 +2978,30 @@ void MoonrakerClientMock::advance_medusa_swap() {
             message = m.last_error;
         }
     }
-    if (mock_medusa_variant() == MedusaVariant::CONTROLLER) {
+    if (mock_medusa_variant() == MedusaVariant::CONTROLLER_KTC) {
         sync_medusa_toolchanger_tool();
     }
-    // MHC_ERROR pauses a running print.
+    // MHC_ERROR flags the failed change while a print is active and pauses a
+    // running one; MHC_RESUME's swap continues the print once it succeeds.
     const MockPrintPhase phase = print_phase_.load();
-    if (failed && (phase == MockPrintPhase::PRINTING || phase == MockPrintPhase::PREHEAT)) {
+    const bool print_running =
+        phase == MockPrintPhase::PRINTING || phase == MockPrintPhase::PREHEAT;
+    bool resume_now = false;
+    {
+        std::lock_guard<std::mutex> lock(medusa_mutex_);
+        if (failed && (print_running || phase == MockPrintPhase::PAUSED)) {
+            medusa_.error_state = 1;
+        }
+        if (medusa_.phase == MedusaPhase::Idle && medusa_.resume_after_swap) {
+            medusa_.resume_after_swap = false;
+            resume_now = !failed;
+        }
+    }
+    if (failed && print_running) {
         pause_print_internal();
+    }
+    if (resume_now) {
+        resume_print_internal();
     }
     if (reply) {
         // _fail() raises _OperationPaused while print_stats reads printing or
@@ -5749,12 +5816,15 @@ void MoonrakerClientMock::temperature_simulation_loop() {
         // extruder1 HEATING (150/250), extruder2 AT-TEMP (248/250),
         // extruder3 COOLING (200/0). Not wired into the ramping atomics by design.
         if (is_mock_toolchanger() || is_mock_medusahc()) {
-            status_obj["extruder1"] = {{"temperature", 150.0}, {"target", 250.0}};
-            status_obj["extruder2"] = {{"temperature", 248.0}, {"target", 250.0}};
-            status_obj["extruder3"] = {{"temperature", 200.0}, {"target", 0.0}};
+            status_obj["extruder1"] = {{"temperature", secondary_extruder_temp(1)},
+                                       {"target", 250.0}};
+            status_obj["extruder2"] = {{"temperature", secondary_extruder_temp(2)},
+                                       {"target", 250.0}};
+            status_obj["extruder3"] = {{"temperature", secondary_extruder_temp(3)},
+                                       {"target", 0.0}};
             for (int t = 4; is_mock_medusahc() && t < medusa_tool_count(); ++t) {
-                status_obj["extruder" + std::to_string(t)] = {{"temperature", 25.0},
-                                                              {"target", 0.0}};
+                status_obj["extruder" + std::to_string(t)] = {
+                    {"temperature", secondary_extruder_temp(t)}, {"target", 0.0}};
             }
         }
 
@@ -5770,8 +5840,12 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             if (auto pw = pin_watch_status_json(); !pw.empty()) {
                 status_obj["pin_watch io"] = pw;
             }
-            if (mock_medusa_variant() == MedusaVariant::CONTROLLER) {
+            if (mock_medusa_variant() == MedusaVariant::CONTROLLER_KTC) {
                 status_obj["toolchanger"] = {{"tool_number", sync_medusa_toolchanger_tool()}};
+            }
+            const auto medusa_macros = medusa_macro_status_json();
+            for (const auto& [name, value] : medusa_macros.items()) {
+                status_obj[name] = value;
             }
         }
 

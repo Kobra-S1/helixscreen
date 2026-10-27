@@ -639,7 +639,7 @@ Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace` |
+| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace` |
 | **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare, LINEAR, 4 slots on every other persona |
 | **File** | `src/printer/ams_backend.cpp` |
 
@@ -657,8 +657,9 @@ Select the mock AMS topology/type.
 | `ifs` | 1 | AD5X IFS, 4 slots, LINEAR. Aliases: `ad5x`, `ad5x_ifs` |
 | `htlf_toolchanger` | 2 | AFC HTLF + Toolchanger: 4 HTLF lanes (2 direct, 2 hub→shared extruder) + 3 standalone toolheads. Tests MIXED topology. Aliases: `htlf_tc`, `htlf` |
 | `snapmaker` | 1 | Snapmaker U1, 4 slots, PARALLEL, non-editable mapping. Aliases: `snapswap`, `u1` |
-| `medusahc` | 1 | **MedusaHC hotend changer - mock HARDWARE, real backend.** Irbis3D controller. Aliases: `medusa`, `mhc`. See below |
-| `medusahc-tn` | 1 | MedusaHC on the Irbis3D controller without klipper-toolchanger. Alias: `medusa-tn` |
+| `medusahc` | 1 | **MedusaHC hotend changer - mock HARDWARE, real backend.** The stock Irbis3D install: controller + dock sensors, no klipper-toolchanger. Aliases: `medusa`, `mhc`. See below |
+| `medusahc-ktc` | 1 | The same controller with the optional klipper-toolchanger beside it. Alias: `medusa-ktc` |
+| `medusahc-tn` | 1 | A six-tool MedusaHC on the controller alone (topi's machine). Alias: `medusa-tn` |
 | `ifs-module` | 1 | **Standalone AD5X IFS module - mock HARDWARE, real backend.** The Forge-X drop-in's `ifs`/`ifs_materials` objects + stock-named sensors. Aliases: `ifs_module`, `ad5x-module`. See below |
 | `cfs` | 1 | **Creality CFS, K1 stock dialect - mock HARDWARE, real backend.** The stock `box` status object plus the calibration command surface. Alias: `cfs-k1`. See below |
 | `openams` | 1 | **OpenAMS hub - mock HARDWARE, real backend.** Lists and pushes the `oams_manager` status object (4-bay hub unit, FPS lane, groups T0/T1/T2, slot 4 loaded) so real discovery claims OpenAMS and the production `AmsBackendOpenAms` runs. Slots 3 and 4 get ASA identity seeded into `lane_data`; `OPENAMS_UNLOAD` / `OPENAMS_LOAD GROUP=Tn` flip the loaded slot |
@@ -767,20 +768,41 @@ They imply `--real-ams` (`cli_args.cpp`), so no second flag is needed:
 HELIX_MOCK_AMS=medusahc ./build/bin/helix-screen --test -vv
 ```
 
-The two values map to the shipping configurations in
+The three values map to the configurations in
 [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md), so detection and the swap
 command route are exercised at runtime and not only in the unit tests:
 
 | Value | Objects | Phase key | Feeder | Step bar |
 |-------|---------|-----------|--------|----------|
-| `medusahc` | `pin_watch io` + `toolchanger` + `tool T0..3` + `medusahc`, the `SET`/`DROP_TOOL`/`OPEN`/`CLOSE` macros | `operation`: idle/changing/dropping/picking | `feeder_open` | 4 steps |
-| `medusahc-tn` | six tools: `pin_watch io` + `medusahc` + `gcode_macro T0..5` + `extruder`..`extruder5`, no `toolchanger`: the swap is `T<n>`, the park `DROP_TOOL` | as `medusahc` | `feeder_open` | 4 steps |
+| `medusahc` | four tools: `pin_watch io` + `medusahc` + `gcode_macro T0..3` + `extruder`..`extruder3`, MHC_macros.cfg's `SET`/`DROP_TOOL`/`OPEN`/`CLOSE`/`CLEAN` and MHC_variables.cfg's `_TOOL_OFFSET`/`_GLOBAL_STATE`, `save_variables`; no `toolchanger` | `operation`: idle/changing/dropping/picking | `feeder_open` | 4 steps |
+| `medusahc-ktc` | as `medusahc`, plus `toolchanger` + `tool T0..3` | as `medusahc` | `feeder_open` | 4 steps |
+| `medusahc-tn` | as `medusahc` with six tools (`T0..5`, `extruder`..`extruder5`) | as `medusahc` | `feeder_open` | 4 steps |
+
+Every variant swaps with `T<n>` and parks with `DROP_TOOL`, the machine's own commands.
 
 A swap advances through its phases on the simulation thread over ~7s, so they arrive as
 separate status frames rather than collapsing into one update. `MHC_SET`/`SET`,
 `SELECT_TOOL`, bare `T<n>`, `MHC_DROP`/`_DROP` (parks and leaves the gripper open),
 `DROP_TOOL`/`UNSELECT_TOOL` (parks and re-grips) and the feeder commands are all handled.
-`medusahc` carries four tools, `medusahc-tn` six.
+`medusahc` and `medusahc-ktc` carry four tools, `medusahc-tn` six.
+
+The controller's state macros are served too: `gcode_macro _TOOL_OFFSET` (`t<n>_off_x/y/z`,
+written by `SET_GCODE_VARIABLE MACRO=_TOOL_OFFSET`), `save_variables` (written by
+`SAVE_VARIABLE`) and `gcode_macro _GLOBAL_STATE` (`max_tool`, `target_tool`, `error_state`,
+`layer`, `feeder_open`). `MHC_TOOL_OFFSET T=<n>` applies tool `n`'s Z to `gcode_move` (the
+mock models Z only), `MHC_LAYER_SET L=` / `_LAYER_SET L=` sets `medusahc.layer`, and
+`CLEAN` / `MHC_CLEAN` brush the mounted nozzle without changing `operation` (with the head
+empty they answer `MHC_CLEAN: no tool installed`).
+
+Pause and resume follow upstream's [recovery guide](https://github.com/Irbis3D/MedusaHC/blob/main/docs/recovery.md): a failed swap while a print is active
+sets `_GLOBAL_STATE.error_state`, a manual `PAUSE` saves the mounted tool as
+`target_tool`, and `RESUME` while paused runs `MHC_RESUME T=<target_tool>`. That re-picks the
+target (seat the hot ends first, or the pick reads the docks as ambiguous) and continues the
+print once the swap succeeds, and it refuses with `MHC_RESUME: heat T<n> above 190C before
+resuming` while that nozzle is at or below 190C. The mock's secondary nozzles hold fixed
+readings (extruder1 150C, extruder2 248C, extruder3 200C, the rest 25C), so a recovery to T1
+is refused and one to T2 goes through. A manual pause with the target still mounted resumes
+at once. `tests/unit/test_mock_medusahc_controller.cpp` pins these.
 
 A swap's `printer.gcode.script` reply waits for the swap to end, as the controller's
 `_wait_for_tool()` blocks the command: lines after the swap run only then. A failure with no
@@ -788,7 +810,7 @@ print running answers with the controller's message as an error (`MHC_SET: senso
 confirm T<n>`, `MHC_SET: ambiguous sensor state`, `MHC_DROP: ...`) and runs nothing after it;
 during a print the failure pauses it and the reply succeeds, as `_OperationPaused` does. A
 swap command sent while another runs is refused with `MedusaHC is busy: <operation>`.
-Beside klipper-toolchanger (`medusahc`), `toolchanger.tool_number` follows the docks as
+Beside klipper-toolchanger (`medusahc-ktc`), `toolchanger.tool_number` follows the docks as
 pin_watch's `sync_toolchanger` keeps it: the docks' tool, -1 when they name none, and left
 alone mid-print.
 
@@ -804,7 +826,7 @@ stand a second AMS backend up alongside the changer.
 
 `HELIX_MOCK_MEDUSA_SENSOR_ERROR=1` starts as if a pick of T0 failed before the screen
 connected: T0 is on the carriage with its dock switch still reading seated, so
-`current_tool` is -2 (`error: true` in the fork), and the controller holds `sensor_error:
+`current_tool` is -2, and the controller holds `sensor_error:
 true` with `last_error` set, so the backend raises the changer fault. A swap retried in
 that state fails at once with `MHC_SET: ambiguous sensor state`, as the controller does.
 

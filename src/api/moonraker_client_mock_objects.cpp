@@ -544,12 +544,18 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["mmu"] = get_mock_mmu_status();
             }
 
-            // MedusaHC (HELIX_MOCK_AMS=medusahc[-tn]). Emitted only for
+            // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for
             // the objects this variant actually ships, so a consumer that reads
             // the wrong schema finds nothing rather than a convenient default.
             if (objects.contains("medusahc")) {
                 if (auto medusa = self->medusa_status_json(); !medusa.empty()) {
                     status_obj["medusahc"] = medusa;
+                }
+            }
+            const auto medusa_macros = self->medusa_macro_status_json();
+            for (const auto& [name, value] : medusa_macros.items()) {
+                if (objects.contains(name)) {
+                    status_obj[name] = value;
                 }
             }
             // INDX (HELIX_MOCK_AMS=indx): only the objects asked for.
@@ -783,7 +789,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             //   self-limiting: these heaters only exist in toolchanger mode.
             if (objects.contains("extruder1")) {
                 status_obj["extruder1"] = {
-                    {"temperature", 150.0},
+                    {"temperature", MoonrakerClientMock::secondary_extruder_temp(1)},
                     {"target", 250.0},
                     {"power", 0.8},
                     {"pressure_advance", self->pressure_advance_for("extruder1").advance},
@@ -791,7 +797,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             }
             if (objects.contains("extruder2")) {
                 status_obj["extruder2"] = {
-                    {"temperature", 248.0},
+                    {"temperature", MoonrakerClientMock::secondary_extruder_temp(2)},
                     {"target", 250.0},
                     {"power", 0.2},
                     {"pressure_advance", self->pressure_advance_for("extruder2").advance},
@@ -799,7 +805,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             }
             if (objects.contains("extruder3")) {
                 status_obj["extruder3"] = {
-                    {"temperature", 200.0},
+                    {"temperature", MoonrakerClientMock::secondary_extruder_temp(3)},
                     {"target", 0.0},
                     {"power", 0.0},
                     {"pressure_advance", self->pressure_advance_for("extruder3").advance},
@@ -809,7 +815,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             for (const char* ext : {"extruder4", "extruder5"}) {
                 if (objects.contains(ext)) {
                     status_obj[ext] = {
-                        {"temperature", 25.0},
+                        {"temperature", MoonrakerClientMock::secondary_extruder_temp(ext[8] - '0')},
                         {"target", 0.0},
                         {"power", 0.0},
                         {"pressure_advance", self->pressure_advance_for(ext).advance},
@@ -879,12 +885,18 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["oams_manager"] = self->openams_status_json();
             }
 
-            // MedusaHC (HELIX_MOCK_AMS=medusahc[-tn]). Emitted only for
+            // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for
             // the objects this variant actually ships, so a consumer that reads
             // the wrong schema finds nothing rather than a convenient default.
             if (objects.contains("medusahc")) {
                 if (auto medusa = self->medusa_status_json(); !medusa.empty()) {
                     status_obj["medusahc"] = medusa;
+                }
+            }
+            const auto medusa_macros = self->medusa_macro_status_json();
+            for (const auto& [name, value] : medusa_macros.items()) {
+                if (objects.contains(name)) {
+                    status_obj[name] = value;
                 }
             }
             // INDX (HELIX_MOCK_AMS=indx): only the objects asked for.

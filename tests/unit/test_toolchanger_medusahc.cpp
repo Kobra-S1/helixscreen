@@ -1469,7 +1469,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "A MedusaHC swap answers its gcode script only
 
 TEST_CASE_METHOD(LVGLTestFixture, "Beside klipper-toolchanger, tool_number follows the docks",
                  "[ams][toolchanger][medusahc][mock]") {
-    ScopedEnv ams_env("HELIX_MOCK_AMS", "medusahc");
+    ScopedEnv ams_env("HELIX_MOCK_AMS", "medusahc-ktc");
     ScopedEnv printer_env("HELIX_MOCK_PRINTER", nullptr);
     ScopedEnv fail_env("HELIX_MOCK_MEDUSA_SWAP_FAIL", "3");
     MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
@@ -1573,7 +1573,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "The MedusaHC mock's live frames carry its who
         }));
     }
     SECTION("klipper-toolchanger's tool_number beside the controller") {
-        ScopedEnv ams_env("HELIX_MOCK_AMS", "medusahc");
+        ScopedEnv ams_env("HELIX_MOCK_AMS", "medusahc-ktc");
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
         const auto frames = live_frames(mock);
         CHECK(any_frame(frames, [](const json& f) {
@@ -1591,16 +1591,46 @@ TEST_CASE("Each MedusaHC mock variant lists its configuration's objects",
         return std::find(objs.begin(), objs.end(), name) != objs.end();
     };
 
-    SECTION("controller with klipper-toolchanger") {
+    SECTION("the stock controller: no klipper-toolchanger, four tools") {
         ScopedEnv ams_env("HELIX_MOCK_AMS", "medusahc");
         MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+        REQUIRE(mock.mock_medusa_variant() == MoonrakerClientMock::MedusaVariant::CONTROLLER);
+        const auto hw = mock.hardware();
+        CHECK(has(hw, "pin_watch io"));
+        CHECK(has(hw, "medusahc"));
+        CHECK_FALSE(has(hw, "toolchanger"));
+        CHECK_FALSE(has(hw, "tool T0"));
+        CHECK(has(hw, "gcode_macro T3"));
+        CHECK_FALSE(has(hw, "gcode_macro T4"));
+        // MHC_* are native commands, never a [gcode_macro].
+        CHECK_FALSE(has(hw, "gcode_macro MHC_OPEN"));
+        for (const char* macro :
+             {"gcode_macro OPEN", "gcode_macro CLOSE", "gcode_macro CLEAN", "gcode_macro DROP_TOOL",
+              "gcode_macro _TOOL_OFFSET", "gcode_macro _GLOBAL_STATE", "save_variables"}) {
+            CAPTURE(macro);
+            CHECK(has(hw, macro));
+        }
+        // A separate project's object, not Irbis3D Core's.
+        CHECK_FALSE(has(hw, "medusahc_calibrate"));
+        CHECK(hw.tool_names().size() == 4);
+        const auto cmds = toolchanger_addon::resolve_tool_commands(hw);
+        CHECK(cmds.select_prefix == "T");
+        CHECK(cmds.unselect == "DROP_TOOL");
+        CHECK_FALSE(cmds.initialize_available);
+        CHECK(mock.medusa_status_json()["tool_count"].get<int>() == 4);
+    }
+    SECTION("controller with klipper-toolchanger") {
+        ScopedEnv ams_env("HELIX_MOCK_AMS", "medusahc-ktc");
+        MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+        REQUIRE(mock.mock_medusa_variant() == MoonrakerClientMock::MedusaVariant::CONTROLLER_KTC);
         const auto hw = mock.hardware();
         CHECK(has(hw, "pin_watch io"));
         CHECK(has(hw, "toolchanger"));
-        // MHC_* are native commands, never a [gcode_macro].
-        CHECK_FALSE(has(hw, "gcode_macro MHC_OPEN"));
+        CHECK(has(hw, "tool T3"));
         CHECK(has(hw, "gcode_macro OPEN"));
-        CHECK(toolchanger_addon::resolve_tool_commands(hw).select_prefix == "T");
+        const auto cmds = toolchanger_addon::resolve_tool_commands(hw);
+        CHECK(cmds.select_prefix == "T");
+        CHECK(cmds.initialize_available);
     }
     SECTION("controller alone, T<n> macros") {
         ScopedEnv ams_env("HELIX_MOCK_AMS", "medusahc-tn");
