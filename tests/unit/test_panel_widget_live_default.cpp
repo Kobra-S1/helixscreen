@@ -59,6 +59,22 @@ using helix::test::ScopedIntSubject;
 
 namespace {
 
+#if defined(__APPLE__)
+timespec stat_atime(const struct stat& st) {
+    return st.st_atimespec;
+}
+timespec stat_mtime(const struct stat& st) {
+    return st.st_mtimespec;
+}
+#else
+timespec stat_atime(const struct stat& st) {
+    return st.st_atim;
+}
+timespec stat_mtime(const struct stat& st) {
+    return st.st_mtim;
+}
+#endif
+
 constexpr int kConnected = static_cast<int>(ConnectionState::CONNECTED);
 constexpr int kDisconnected = static_cast<int>(ConnectionState::DISCONNECTED);
 constexpr int kReady = static_cast<int>(KlippyState::READY);
@@ -932,7 +948,7 @@ TEST_CASE_METHOD(LiveDefaultFixture,
     struct stat before {};
     REQUIRE(::stat(path.c_str(), &before) == 0);
     auto restore = helix::ScopeExit([&]() {
-        struct timespec times[2] = {before.st_atim, before.st_mtim};
+        struct timespec times[2] = {stat_atime(before), stat_mtime(before)};
         ::utimensat(AT_FDCWD, path.c_str(), times, 0);
     });
 
@@ -943,7 +959,7 @@ TEST_CASE_METHOD(LiveDefaultFixture,
     CHECK(PanelWidgetConfig::default_table_reads() == reads);
     CHECK(table->is_object());
 
-    struct timespec bumped[2] = {before.st_atim, before.st_mtim};
+    struct timespec bumped[2] = {stat_atime(before), stat_mtime(before)};
     bumped[1].tv_sec += 7;
     REQUIRE(::utimensat(AT_FDCWD, path.c_str(), bumped, 0) == 0);
     PanelWidgetConfig::load_default_table();
