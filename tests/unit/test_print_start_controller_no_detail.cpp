@@ -186,6 +186,9 @@ TEST_CASE_METHOD(NoDetailFixture, "a filament operation under way refuses the st
         helix::AmsAction get_current_action() const override {
             return helix::AmsAction::UNLOADING;
         }
+        std::optional<helix::StepOperationType> running_step_operation() const override {
+            return helix::StepOperationType::UNLOAD;
+        }
     };
     helix::AmsState::instance().set_backend(std::make_unique<UnloadingBackend>());
     struct Unset {
