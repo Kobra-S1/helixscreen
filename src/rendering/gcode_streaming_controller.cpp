@@ -788,22 +788,18 @@ std::vector<ToolpathSegment> GCodeStreamingController::load_layer(size_t layer_i
     // move for vase-mode G-code.
     parser.set_use_layer_markers(index_.uses_layer_markers());
 
-    // Walk lines directly out of the byte buffer into a reused scratch string. Feeding an
-    // istringstream instead would hold three copies of the layer bytes simultaneously
-    // (vector + temporary std::string + the stream's internal buffer).
+    // Hand the parser views straight into the byte buffer: no copy per line.
     // Line splitting matches std::getline: '\n' terminated and excluded, any trailing '\r'
     // left on the line for the parser to trim, final line without a newline still parsed.
     const char* data = reinterpret_cast<const char*>(bytes.data());
     const size_t byte_count = bytes.size();
-    std::string line;
     size_t pos = 0;
 
     while (pos < byte_count) {
         const void* nl = std::memchr(data + pos, '\n', byte_count - pos);
         size_t line_end =
             nl ? static_cast<size_t>(static_cast<const char*>(nl) - data) : byte_count;
-        line.assign(data + pos, line_end - pos);
-        parser.parse_line(line);
+        parser.parse_line(std::string_view(data + pos, line_end - pos));
         pos = nl ? line_end + 1 : byte_count;
     }
 
