@@ -279,3 +279,30 @@ TEST_CASE("CFS action completion runs from the UpdateQueue, not the answering th
     REQUIRE(ran);
     CHECK(ran_from != nullptr);
 }
+
+TEST_CASE("The k2 persona with HELIX_MOCK_CFS_BOXES=none publishes an empty bus",
+          "[mock][persona][k2][cfs][1904]") {
+    helix::test::PersonaEnv env("k2");
+    auto frame_for = [](const char* boxes) {
+        helix::ScopedEnv cfs_boxes("HELIX_MOCK_CFS_BOXES", boxes);
+        MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::CREALITY_K2_PLUS);
+        return helix::MoonrakerClientMockTestAccess::cfs_box_status(mock);
+    };
+    // What the backend makes of the frame: the real parse, not the JSON shape.
+    auto external_spool_only = [](const json& box) {
+        helix::printer::AmsBackendCfs cfs(nullptr, nullptr);
+        helix::CfsTestAccess::handle_status(cfs,
+                                            json{{"params", json::array({{{"box", box}}, 0})}});
+        return cfs.get_system_info().external_spool_only;
+    };
+
+    const json empty_bus = frame_for("none");
+    for (const char* unit : {"T1", "T2", "T3", "T4"}) {
+        CAPTURE(unit);
+        CHECK(empty_bus[unit].value("state", "") == "None");
+    }
+    CHECK(external_spool_only(empty_bus));
+
+    // The default bus has box 1 on it.
+    CHECK_FALSE(external_spool_only(frame_for(nullptr)));
+}

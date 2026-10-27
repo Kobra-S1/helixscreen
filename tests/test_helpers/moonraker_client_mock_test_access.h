@@ -36,6 +36,10 @@ class MoonrakerClientMockTestAccess {
     static nlohmann::json ifs_module_vars(const MoonrakerClientMock& c) {
         return c.ifs_module_vars_json();
     }
+    // The CFS `box` frame the mock publishes, as HELIX_MOCK_CFS_BOXES shapes it.
+    static nlohmann::json cfs_box_status(const MoonrakerClientMock& c) {
+        return c.cfs_box_status_json();
+    }
     static bool ifs_module_head_loaded(const MoonrakerClientMock& c) {
         return c.ifs_module_head_loaded_.load();
     }
