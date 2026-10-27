@@ -912,6 +912,16 @@
     <string name="font_xs_xlarge" value="noto_sans_light_16"/>
     <string name="font_xs_xxlarge" value="noto_sans_light_20"/>
     <!-- NO BASE font_xs - registered at runtime -->
+    <!-- font_chip_material variants (a FILAMENTS-card chip's material header) - Bold where the
+         chip is wide enough to hold "ABS-GF" in it, Light below that -->
+    <string name="font_chip_material_micro" value="noto_sans_light_10"/>
+    <string name="font_chip_material_tiny" value="noto_sans_light_10"/>
+    <string name="font_chip_material_small" value="noto_sans_light_10"/>
+    <string name="font_chip_material_medium" value="noto_sans_bold_14"/>
+    <string name="font_chip_material_large" value="noto_sans_bold_14"/>
+    <string name="font_chip_material_xlarge" value="noto_sans_bold_16"/>
+    <string name="font_chip_material_xxlarge" value="noto_sans_bold_20"/>
+    <!-- NO BASE font_chip_material - registered at runtime -->
     <!-- font_mono variants (monospace for console/terminal displays) - Source Code Pro -->
     <string name="font_mono_micro" value="source_code_pro_10"/>
     <string name="font_mono_tiny" value="source_code_pro_10"/>

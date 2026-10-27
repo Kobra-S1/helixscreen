@@ -53,7 +53,7 @@
       </swatch_paint>
       <lv_label name="chip_material"
                 width="100%" align="center" bind_text="filament_chip_${index}_material" long_mode="clip"
-                style_text_align="center" style_text_font="#font_xs" clickable="false" event_bubble="true">
+                style_text_align="center" style_text_font="#font_chip_material" clickable="false" event_bubble="true">
         <style name="theme_ink"/>
         <bind_style_if_eq name="ink_dark" subject="filament_chip_${index}_ink" ref_value="1"/>
         <bind_style_if_eq name="ink_light" subject="filament_chip_${index}_ink" ref_value="2"/>
