@@ -16,7 +16,8 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
-#include "bed_grid.h"
+#include "bed_occupancy_state.h"
+#include "bed_plate_draw.h"
 #include "config.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
@@ -594,7 +595,7 @@ void MotionPanel::register_callbacks() {
          [](lv_event_t*) { get_global_motion_panel().layout_bed_map(); }},
         {"on_motion_bed_home", [](lv_event_t*) { get_global_motion_panel().home('A'); }},
         {"on_motion_bed_plate_draw",
-         [](lv_event_t* e) { get_global_motion_panel().draw_bed_grid(e); }},
+         [](lv_event_t* e) { get_global_motion_panel().draw_bed_plate(e); }},
     });
 }
 
@@ -639,6 +640,29 @@ void MotionPanel::on_activate() {
     refresh_step_list();
     // The clearance setting can change while this panel sits on the stack.
     refresh_bed_readout();
+    observe_bed_occupancy();
+}
+
+void MotionPanel::observe_bed_occupancy() {
+    // The state belongs to the printer session, which a printer switch replaces, so the
+    // observer is taken fresh on every open.
+    bed_occupancy_observer_.reset();
+    auto* occupancy = helix::get_bed_occupancy_state();
+    if (!occupancy) {
+        return;
+    }
+    bed_occupancy_observer_ = helix::ui::observe<int>(
+        occupancy->get_version_subject(), this,
+        [](MotionPanel* self, int) {
+            if (!self->subjects_initialized_ || !self->overlay_root_) {
+                return;
+            }
+            if (lv_obj_t* plate = lv_obj_find_by_name(self->overlay_root_, "bed_map_plate")) {
+                lv_obj_invalidate(plate);
+            }
+            self->refresh_bed_readout();
+        },
+        occupancy->get_subjects_lifetime());
 }
 
 void MotionPanel::on_deactivating(DeactivateReason reason) {
@@ -651,6 +675,7 @@ void MotionPanel::on_deactivating(DeactivateReason reason) {
     stop_hold_repeat();
     // A release arriving after the panel comes back belongs to no gesture.
     end_bed_gesture();
+    bed_occupancy_observer_.reset();
 }
 
 void MotionPanel::on_ui_destroyed() {
@@ -1763,42 +1788,39 @@ void MotionPanel::fit_jog_layout(lv_obj_t* root) {
                   portrait ? "portrait" : "landscape");
 }
 
-void MotionPanel::draw_bed_grid(lv_event_t* e) const {
+void MotionPanel::draw_bed_plate(lv_event_t* e) const {
     lv_obj_t* plate_obj = lv_event_get_current_target_obj(e);
     lv_obj_t* area = plate_obj ? lv_obj_get_parent(plate_obj) : nullptr;
     const auto plate = bed_plate();
     if (!area || !plate) {
         return;
     }
-    const auto mapper = bed_surface_mapper(area, plate->area);
+    const auto& a = plate->area;
+    helix::BedPlateLayersInput in;
+    in.x_min = a.x_min;
+    in.x_max = a.x_max;
+    in.y_min = a.y_min;
+    in.y_max = a.y_max;
+    in.circular = plate->circular;
+    if (const auto* occupancy = helix::get_bed_occupancy_state()) {
+        in.outlines = occupancy->outlines();
+    }
+    const auto layers = helix::plan_bed_plate_layers(in, bed_surface_mapper(area, a));
+
     lv_area_t coords;
     lv_obj_get_coords(area, &coords);
-    const float left =
-        static_cast<float>(coords.x1 + lv_obj_get_style_pad_left(area, LV_PART_MAIN));
-    const float top = static_cast<float>(coords.y1 + lv_obj_get_style_pad_top(area, LV_PART_MAIN));
+    const lv_point_t origin{coords.x1 + lv_obj_get_style_pad_left(area, LV_PART_MAIN),
+                            coords.y1 + lv_obj_get_style_pad_top(area, LV_PART_MAIN)};
 
     // The plate's own border color, faded: the grid follows the live/dim
     // styling the XML gives the plate.
     constexpr lv_opa_t kGridOpaFraction = LV_OPA_30;
-    lv_draw_line_dsc_t dsc;
-    lv_draw_line_dsc_init(&dsc);
-    dsc.color = lv_obj_get_style_border_color(plate_obj, LV_PART_MAIN);
-    dsc.opa = static_cast<lv_opa_t>(lv_obj_get_style_border_opa(plate_obj, LV_PART_MAIN) *
-                                    kGridOpaFraction / LV_OPA_COVER);
-    dsc.width = 1;
-
-    lv_layer_t* layer = lv_event_get_layer(e);
-    const auto& a = plate->area;
-    for (const auto& seg : helix::bed_grid_lines(a.x_min, a.x_max, a.y_min, a.y_max,
-                                                 helix::kBedGridSpacingMm, plate->circular)) {
-        const auto [x1, y1] =
-            mapper.mm_to_px(static_cast<float>(seg.x1), static_cast<float>(seg.y1));
-        const auto [x2, y2] =
-            mapper.mm_to_px(static_cast<float>(seg.x2), static_cast<float>(seg.y2));
-        dsc.p1 = {left + x1, top + y1};
-        dsc.p2 = {left + x2, top + y2};
-        lv_draw_line(layer, &dsc);
-    }
+    helix::BedPlateStyle style;
+    style.grid_color = lv_obj_get_style_border_color(plate_obj, LV_PART_MAIN);
+    style.grid_opa = static_cast<lv_opa_t>(lv_obj_get_style_border_opa(plate_obj, LV_PART_MAIN) *
+                                           kGridOpaFraction / LV_OPA_COVER);
+    style.outline_color = theme_manager_get_color("warning");
+    helix::draw_bed_plate_layers(lv_event_get_layer(e), origin, layers, style);
 }
 
 void MotionPanel::update_bed_marker() {

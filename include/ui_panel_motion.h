@@ -285,8 +285,9 @@ class MotionPanel : public OverlayBase {
     /// SIZE_CHANGED event calls this, and so does a change in the step count.
     void fit_jog_layout(lv_obj_t* root);
 
-    /// Bed tab: draw the reference grid on the plate (its DRAW_MAIN hook).
-    void draw_bed_grid(lv_event_t* e) const;
+    /// Bed tab: draw the reference grid and the print's outlines on the plate
+    /// (its DRAW_MAIN hook).
+    void draw_bed_plate(lv_event_t* e) const;
 
     /// Clamp one axis against its bounds. Partial travel is silent; a fully
     /// clamped FRESH press (anything but a hold repeat tick) warns every time
@@ -473,6 +474,10 @@ class MotionPanel : public OverlayBase {
     ObserverGuard homed_axes_observer_;
     ObserverGuard jog_ready_observer_;
     ObserverGuard layout_observer_;
+    /// Redraws the plate when the bed-occupancy verdict or outlines change.
+    ObserverGuard bed_occupancy_observer_;
+    /// (Re)take bed_occupancy_observer_ on the current session's state.
+    void observe_bed_occupancy();
 
     // Actual (live) positions in mm; the readouts show these when the
     // coordinate preference is "actual", the commanded current_x_/y_/z_

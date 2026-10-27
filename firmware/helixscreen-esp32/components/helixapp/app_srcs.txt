@@ -630,6 +630,7 @@ src/ui/ui_panel_home.cpp
 src/ui/ui_panel_macros.cpp
 src/bed_grid.cpp
 src/motion_presets.cpp
+src/ui/bed_plate_draw.cpp
 src/ui/ui_panel_motion.cpp
 src/ui/ui_panel_power.cpp
 src/ui/ui_panel_print_select.cpp
