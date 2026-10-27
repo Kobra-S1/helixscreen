@@ -614,6 +614,7 @@
   <translation tag="Chamber Heater Fan" en="Chamber Heater Fan"/>
   <translation tag="Chamber Sensor" en="Chamber Sensor"/>
   <translation tag="Chamber Temperature" en="Chamber Temperature"/>
+  <translation tag="Chamber air" en="Chamber air"/>
   <translation tag="Chamber and dryer humidity monitoring" en="Chamber and dryer humidity monitoring"/>
   <translation tag="Chamber at %d°C" en="Chamber at %d°C"/>
   <translation tag="Chamber heater didn&apos;t start" en="Chamber heater didn&apos;t start"/>
@@ -1816,8 +1817,8 @@
   <translation tag="It has not reported its slots yet. Try again in a moment." en="It has not reported its slots yet. Try again in a moment."/>
   <translation tag="It homes and heats on its own (no start macro found)." en="It homes and heats on its own (no start macro found)."/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" en="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying"/>
-  <translation tag="It starts with your {} macro." en="It starts with your {} macro."/>
   <translation tag="It saves the result and restarts Klipper when it finishes." en="It saves the result and restarts Klipper when it finishes."/>
+  <translation tag="It starts with your {} macro." en="It starts with your {} macro."/>
   <translation tag="It&apos;s a new spool" en="It&apos;s a new spool"/>
   <translation tag="Its home tile" en="Its home tile"/>
   <translation tag="Jammed" en="Jammed"/>
@@ -2905,6 +2906,7 @@
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." en="Received oversized data from printer ({} bytes). This may indicate a communication error."/>
   <translation tag="Recent Prints" en="Recent Prints"/>
   <translation tag="Recently Printed" en="Recently Printed"/>
+  <translation tag="Recirculate" en="Recirculate"/>
   <translation tag="Reconnect" en="Reconnect"/>
   <translation tag="Record Timelapse" en="Record Timelapse"/>
   <translation tag="Record timelapses of your prints" en="Record timelapses of your prints"/>
@@ -3729,9 +3731,9 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." en="The printer lost power during a print. The resumed layer may not line up exactly."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" en="The printer lost power while printing {}. Resume where it left off?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." en="The printer lost power while printing {}. The resumed layer may not line up exactly."/>
+  <translation tag="The printer moves the toolhead and measures its motors." en="The printer moves the toolhead and measures its motors."/>
   <translation tag="The printer no longer has a print to resume." en="The printer no longer has a print to resume."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." en="The printer reads the file up to the last saved position. A large file can take a minute."/>
-  <translation tag="The printer moves the toolhead and measures its motors." en="The printer moves the toolhead and measures its motors."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" en="The printer records lane {} in the toolhead, not this one"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." en="The printer refused that port: check the port (Moonraker is usually 7125)."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." en="The printer rejected the filament configuration. The print was not started."/>
@@ -3904,11 +3906,11 @@
   <translation tag="Tool cycle finished" en="Tool cycle finished"/>
   <translation tag="Tool is seated" en="Tool is seated"/>
   <translation tag="Tool may be half seated" en="Tool may be half seated"/>
+  <translation tag="Tool offset calibration failed: {}" en="Tool offset calibration failed: {}"/>
   <translation tag="Tool offsets (mm)" en="Tool offsets (mm)"/>
   <translation tag="Tool offsets saved" en="Tool offsets saved"/>
   <translation tag="Tool swap" en="Tool swap"/>
   <translation tag="Toolchange purge" en="Toolchange purge"/>
-  <translation tag="Tool offset calibration failed: {}" en="Tool offset calibration failed: {}"/>
   <translation tag="Toolhead" en="Toolhead"/>
   <translation tag="Toolhead Calibration Running" en="Toolhead Calibration Running"/>
   <translation tag="Toolhead LED" en="Toolhead LED"/>
@@ -3945,9 +3947,9 @@
   <translation tag="Trying again..." en="Trying again..."/>
   <translation tag="Tune" en="Tune"/>
   <translation tag="Tune Belts" en="Tune Belts"/>
+  <translation tag="Tune the motors to remove fine vertical lines" en="Tune the motors to remove fine vertical lines"/>
   <translation tag="Tuner" en="Tuner"/>
   <translation tag="Tuning tower enabled - start a print to test" en="Tuning tower enabled - start a print to test"/>
-  <translation tag="Tune the motors to remove fine vertical lines" en="Tune the motors to remove fine vertical lines"/>
   <translation tag="Turbo" en="Turbo"/>
   <translation tag="Turbo Inner" en="Turbo Inner"/>
   <translation tag="Turbo Outer" en="Turbo Outer"/>
@@ -4096,9 +4098,9 @@
   <translation tag="Version and what the plugin runs" en="Version and what the plugin runs"/>
   <translation tag="Version {}" en="Version {}"/>
   <translation tag="Vertical" en="Vertical"/>
+  <translation tag="Vertical Artifact Compensation" en="Vertical Artifact Compensation"/>
   <translation tag="Vibration" en="Vibration"/>
   <translation tag="Vibration compensation active" en="Vibration compensation active"/>
-  <translation tag="Vertical Artifact Compensation" en="Vertical Artifact Compensation"/>
   <translation tag="Video playback speed" en="Video playback speed"/>
   <translation tag="View" en="View"/>
   <translation tag="View Changelog" en="View Changelog"/>

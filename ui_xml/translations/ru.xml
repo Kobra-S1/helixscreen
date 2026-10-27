@@ -653,6 +653,7 @@
   <translation tag="Chamber Heater Fan" ru="Вентилятор нагревателя камеры"/>
   <translation tag="Chamber Sensor" ru="Датчик камеры"/>
   <translation tag="Chamber Temperature" ru="Температура камеры"/>
+  <translation tag="Chamber air" ru="Воздух камеры"/>
   <translation tag="Chamber and dryer humidity monitoring" ru="Мониторинг влажности камеры и сушилки"/>
   <translation tag="Chamber at %d°C" ru="Камера при %d°C"/>
   <translation tag="Chamber heater didn&apos;t start" ru="Нагреватель камеры не запустился"/>
@@ -1861,8 +1862,8 @@
   <translation tag="It has not reported its slots yet. Try again in a moment." ru="Она ещё не сообщила о своих слотах. Повторите попытку через минуту."/>
   <translation tag="It homes and heats on its own (no start macro found)." ru="Парковка и нагрев выполняются самостоятельно (стартовый макрос не найден)."/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" ru="Он зажат между датчиком хаба и его шестернёй. Откройте CFS, освободите хаб и повторите"/>
-  <translation tag="It starts with your {} macro." ru="Начинается с вашего макроса {}."/>
   <translation tag="It saves the result and restarts Klipper when it finishes." ru="По завершении результат сохраняется, и Klipper перезапускается."/>
+  <translation tag="It starts with your {} macro." ru="Начинается с вашего макроса {}."/>
   <translation tag="It&apos;s a new spool" ru="Это новая катушка"/>
   <translation tag="Its home tile" ru="Его плитка на главном экране"/>
   <translation tag="Jammed" ru="Замятие"/>
@@ -2959,6 +2960,7 @@
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." ru="От принтера получены слишком большие данные ({} байт). Возможна ошибка связи."/>
   <translation tag="Recent Prints" ru="Недавние печати"/>
   <translation tag="Recently Printed" ru="Недавно напечатано"/>
+  <translation tag="Recirculate" ru="Рециркуляция"/>
   <translation tag="Reconnect" ru="Переподключиться"/>
   <translation tag="Record Timelapse" ru="Записать таймлапс"/>
   <translation tag="Record timelapses of your prints" ru="Записывайте таймлапсы ваших печатей"/>
@@ -3789,9 +3791,9 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." ru="Принтер потерял питание во время печати. Возобновлённый слой может не совпасть точно."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ru="Принтер потерял питание при печати {}. Продолжить с места остановки?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ru="Принтер потерял питание при печати {}. Возобновлённый слой может не совпасть точно."/>
+  <translation tag="The printer moves the toolhead and measures its motors." ru="Принтер перемещает печатающую головку и измеряет моторы."/>
   <translation tag="The printer no longer has a print to resume." ru="У принтера больше нет печати для продолжения."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." ru="Принтер читает файл до последней сохранённой позиции. Большой файл может занять минуту."/>
-  <translation tag="The printer moves the toolhead and measures its motors." ru="Принтер перемещает печатающую головку и измеряет моторы."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" ru="По записи принтера в печатающей головке канал {}, а не этот"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." ru="Принтер отклонил этот порт: проверьте порт (Moonraker обычно использует 7125)."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." ru="Принтер отклонил конфигурацию филамента. Печать не была запущена."/>
@@ -3964,11 +3966,11 @@
   <translation tag="Tool cycle finished" ru="Перебор инструментов завершён"/>
   <translation tag="Tool is seated" ru="Инструмент установлен"/>
   <translation tag="Tool may be half seated" ru="Инструмент может быть установлен не полностью"/>
+  <translation tag="Tool offset calibration failed: {}" ru="Ошибка калибровки смещений инструментов: {}"/>
   <translation tag="Tool offsets (mm)" ru="Смещения инструментов (мм)"/>
   <translation tag="Tool offsets saved" ru="Смещения инструментов сохранены"/>
   <translation tag="Tool swap" ru="Смена инструмента"/>
   <translation tag="Toolchange purge" ru="Продувка при смене инструмента"/>
-  <translation tag="Tool offset calibration failed: {}" ru="Ошибка калибровки смещений инструментов: {}"/>
   <translation tag="Toolhead" ru="Печатающая головка"/>
   <translation tag="Toolhead Calibration Running" ru="Идёт калибровка головок"/>
   <translation tag="Toolhead LED" ru="LED печатающей головки"/>
@@ -4005,9 +4007,9 @@
   <translation tag="Trying again..." ru="Повторная попытка..."/>
   <translation tag="Tune" ru="Настройка"/>
   <translation tag="Tune Belts" ru="Настроить"/>
+  <translation tag="Tune the motors to remove fine vertical lines" ru="Настроить моторы, чтобы убрать тонкие вертикальные полосы"/>
   <translation tag="Tuner" ru="Настройка"/>
   <translation tag="Tuning tower enabled - start a print to test" ru="Башня настройки включена — начните печать для теста"/>
-  <translation tag="Tune the motors to remove fine vertical lines" ru="Настроить моторы, чтобы убрать тонкие вертикальные полосы"/>
   <translation tag="Turbo" ru="Турбо"/>
   <translation tag="Turbo Inner" ru="Турбо (внутренний)"/>
   <translation tag="Turbo Outer" ru="Турбо (внешний)"/>
@@ -4156,9 +4158,9 @@
   <translation tag="Version and what the plugin runs" ru="Версия и что выполняет плагин"/>
   <translation tag="Version {}" ru="Версия {}"/>
   <translation tag="Vertical" ru="Вертикально"/>
+  <translation tag="Vertical Artifact Compensation" ru="Компенсация вертикальных артефактов"/>
   <translation tag="Vibration" ru="Вибрация"/>
   <translation tag="Vibration compensation active" ru="Компенсация вибраций активна"/>
-  <translation tag="Vertical Artifact Compensation" ru="Компенсация вертикальных артефактов"/>
   <translation tag="Video playback speed" ru="Скорость воспроизведения видео"/>
   <translation tag="View" ru="Просмотр"/>
   <translation tag="View Changelog" ru="Просмотр изменений"/>

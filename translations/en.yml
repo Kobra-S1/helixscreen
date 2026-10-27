@@ -651,6 +651,7 @@ translations:
   Chamber Heater Fan: Chamber Heater Fan
   Chamber Sensor: Chamber Sensor
   Chamber Temperature: Chamber Temperature
+  Chamber air: Chamber air
   Chamber and dryer humidity monitoring: Chamber and dryer humidity monitoring
   Chamber at %d°C: Chamber at %d°C
   Chamber heater didn't start: Chamber heater didn't start
@@ -1947,8 +1948,8 @@ translations:
   It has not reported its slots yet. Try again in a moment.: It has not reported its slots yet. Try again in a moment.
   It homes and heats on its own (no start macro found).: It homes and heats on its own (no start macro found).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying
-  It starts with your {} macro.: It starts with your {} macro.
   It saves the result and restarts Klipper when it finishes.: It saves the result and restarts Klipper when it finishes.
+  It starts with your {} macro.: It starts with your {} macro.
   It's a new spool: It's a new spool
   Its home tile: Its home tile
   Jammed: Jammed
@@ -3101,6 +3102,7 @@ translations:
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Received oversized data from printer ({} bytes). This may indicate a communication error.
   Recent Prints: Recent Prints
   Recently Printed: Recently Printed
+  Recirculate: Recirculate
   Reconnect: Reconnect
   Record Timelapse: Record Timelapse
   Record timelapses of your prints: Record timelapses of your prints
@@ -4005,9 +4007,9 @@ translations:
   The printer lost power during a print. The resumed layer may not line up exactly.: The printer lost power during a print. The resumed layer may not line up exactly.
   The printer lost power while printing {}. Resume where it left off?: The printer lost power while printing {}. Resume where it left off?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: The printer lost power while printing {}. The resumed layer may not line up exactly.
+  The printer moves the toolhead and measures its motors.: The printer moves the toolhead and measures its motors.
   The printer no longer has a print to resume.: The printer no longer has a print to resume.
   The printer reads the file up to the last saved position. A large file can take a minute.: The printer reads the file up to the last saved position. A large file can take a minute.
-  The printer moves the toolhead and measures its motors.: The printer moves the toolhead and measures its motors.
   The printer records lane {} in the toolhead, not this one: The printer records lane {} in the toolhead, not this one
   'The printer refused that port: check the port (Moonraker is usually 7125).': 'The printer refused that port: check the port (Moonraker is usually 7125).'
   The printer rejected the filament configuration. The print was not started.: The
@@ -4223,11 +4225,11 @@ translations:
   Tool cycle finished: Tool cycle finished
   Tool is seated: Tool is seated
   Tool may be half seated: Tool may be half seated
+  'Tool offset calibration failed: {}': 'Tool offset calibration failed: {}'
   Tool offsets (mm): Tool offsets (mm)
   Tool offsets saved: Tool offsets saved
   Tool swap: Tool swap
   Toolchange purge: Toolchange purge
-  'Tool offset calibration failed: {}': 'Tool offset calibration failed: {}'
   Toolhead: Toolhead
   Toolhead Calibration Running: Toolhead Calibration Running
   Toolhead LED: Toolhead LED
@@ -4265,9 +4267,9 @@ translations:
   Trying again...: Trying again...
   Tune: Tune
   Tune Belts: Tune Belts
+  Tune the motors to remove fine vertical lines: Tune the motors to remove fine vertical lines
   Tuner: Tuner
   Tuning tower enabled - start a print to test: Tuning tower enabled - start a print
-  Tune the motors to remove fine vertical lines: Tune the motors to remove fine vertical lines
     to test
   Turbo: Turbo
   Turbo Inner: Turbo Inner
@@ -4419,9 +4421,9 @@ translations:
   Version and what the plugin runs: Version and what the plugin runs
   Version {}: Version {}
   Vertical: Vertical
+  Vertical Artifact Compensation: Vertical Artifact Compensation
   Vibration: Vibration
   Vibration compensation active: Vibration compensation active
-  Vertical Artifact Compensation: Vertical Artifact Compensation
   Video playback speed: Video playback speed
   View: View
   View Changelog: View Changelog

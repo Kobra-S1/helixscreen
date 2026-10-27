@@ -624,6 +624,7 @@ translations:
   Chamber Heater Fan: チャンバーヒーターファン
   Chamber Sensor: チャンバーセンサー
   Chamber Temperature: チャンバー温度
+  Chamber air: 'チャンバー空気'
   Chamber and dryer humidity monitoring: チャンバーとドライヤーの湿度監視
   Chamber at %d°C: チャンバー温度：%d°C
   Chamber heater didn't start: 'チャンバーヒーターが起動しませんでした'
@@ -1889,8 +1890,8 @@ translations:
   It has not reported its slots yet. Try again in a moment.: スロットがまだ報告されていません。しばらくしてからもう一度お試しください。
   It homes and heats on its own (no start macro found).: ホーミングと加熱を自分で行います(開始マクロが見つかりません)。
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: ハブセンサーとハブギアの間で詰まっています。CFS を開けてハブを取り除いてから再試行してください
-  It starts with your {} macro.: '{}マクロで開始します。'
   It saves the result and restarts Klipper when it finishes.: '完了すると結果を保存し、Klipperを再起動します。'
+  It starts with your {} macro.: '{}マクロで開始します。'
   It's a new spool: 新しいスプールです
   Its home tile: 'ホームのタイル'
   Jammed: 詰まり
@@ -3016,6 +3017,7 @@ translations:
   Received oversized data from printer ({} bytes). This may indicate a communication error.: プリンターからサイズ超過のデータを受信しました ({} バイト)。通信エラーの可能性があります。
   Recent Prints: 最近の印刷
   Recently Printed: 最近印刷されたもの
+  Recirculate: '循環'
   Reconnect: 再接続
   Record Timelapse: タイムラプスを録画
   Record timelapses of your prints: 印刷のタイムラプスを録画
@@ -3887,9 +3889,9 @@ translations:
   The printer lost power during a print. The resumed layer may not line up exactly.: 印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。
   The printer lost power while printing {}. Resume where it left off?: '{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？'
   The printer lost power while printing {}. The resumed layer may not line up exactly.: '{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。'
+  The printer moves the toolhead and measures its motors.: 'プリンターがツールヘッドを動かし、モーターを測定します。'
   The printer no longer has a print to resume.: プリンターに再開できる印刷がありません。
   The printer reads the file up to the last saved position. A large file can take a minute.: プリンターは最後に保存された位置までファイルを読み込みます。大きなファイルでは1分かかることがあります。
-  The printer moves the toolhead and measures its motors.: 'プリンターがツールヘッドを動かし、モーターを測定します。'
   The printer records lane {} in the toolhead, not this one: 'プリンターの記録ではツールヘッドにあるのはレーン{}で、このレーンではありません'
   'The printer refused that port: check the port (Moonraker is usually 7125).': "プリンターがそのポートを拒否しました: ポートを確認してください(Moonrakerは通常7125)。"
   The printer rejected the filament configuration. The print was not started.: プリンターがフィラメント設定を拒否しました。印刷は開始されませんでした。
@@ -4085,11 +4087,11 @@ translations:
   Tool cycle finished: ツールの順次交換が完了しました
   Tool is seated: ツールは装着済み
   Tool may be half seated: "ツールが半分しか装着されていない可能性があります"
+  'Tool offset calibration failed: {}': 'ツールオフセットのキャリブレーションに失敗しました: {}'
   Tool offsets (mm): ツールオフセット (mm)
   Tool offsets saved: ツールオフセットを保存しました
   Tool swap: ツール交換
   Toolchange purge: 'ツール交換パージ'
-  'Tool offset calibration failed: {}': 'ツールオフセットのキャリブレーションに失敗しました: {}'
   Toolhead: 'ツールヘッド'
   Toolhead Calibration Running: 'ツールヘッドのキャリブレーション実行中'
   Toolhead LED: 'ツールヘッドLED'
@@ -4127,9 +4129,9 @@ translations:
   Trying again...: '再試行中...'
   Tune: チューニング
   Tune Belts: "ベルト調整"
+  Tune the motors to remove fine vertical lines: 'モーターを調整して細かい垂直の線を除去'
   Tuner: 調整
   Tuning tower enabled - start a print to test: チューニングタワー有効 - 印刷を開始してテストしてください
-  Tune the motors to remove fine vertical lines: 'モーターを調整して細かい垂直の線を除去'
   Turbo: ターボ
   Turbo Inner: ターボ・内側
   Turbo Outer: ターボ・外側
@@ -4272,9 +4274,9 @@ translations:
   Version and what the plugin runs: 'バージョンとプラグインが実行する機能'
   Version {}: バージョン {}
   Vertical: 垂直
+  Vertical Artifact Compensation: '垂直アーティファクト補正'
   Vibration: 振動
   Vibration compensation active: 振動補正が有効です
-  Vertical Artifact Compensation: '垂直アーティファクト補正'
   Video playback speed: 動画再生速度
   View: 表示
   View Changelog: 変更履歴を表示

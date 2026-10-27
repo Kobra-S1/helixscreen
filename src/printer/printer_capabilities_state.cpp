@@ -12,14 +12,15 @@
 
 #include "ui_update_queue.h"
 
+#include "chamber_air_modes.h"
 #include "layer_pause.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "pa_calibration.h"
 #include "printer_fan_state.h"
 #include "sound_manager.h"
 #include "state/subject_macros.h"
-#include "tool_offset_calibration.h"
 #include "stepper_resonance_calibration.h"
+#include "tool_offset_calibration.h"
 #include "webcam_selection.h"
 
 #include <spdlog/spdlog.h>
@@ -61,6 +62,9 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::HasChamberTargetRoute, "printer_has_chamber_target_route", 0},
     {Capability::HasChamberElementTemp, "printer_has_chamber_element_temp", 0},
     {Capability::HasChamberDryer, "printer_has_chamber_dryer", 0},
+    {Capability::HasChamberAirRecirculate, "printer_has_chamber_air_recirculate", 0},
+    {Capability::HasChamberAirExhaust, "printer_has_chamber_air_exhaust", 0},
+    {Capability::HasChamberAirOff, "printer_has_chamber_air_off", 0},
     {Capability::HasChamber, "printer_has_chamber", 0},
     {Capability::HasScrewsTilt, "printer_has_screws_tilt", 0},
     {Capability::HasExcludeObject, "printer_has_exclude_object", 0},
@@ -68,11 +72,11 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::HasToolOffsetCal, "printer_has_tool_offset_cal", 0},
     {Capability::HideManualZCalibration, "hide_manual_z_calibration", 0},
     {Capability::HasPaCal, "printer_has_pa_cal", 0},
+    {Capability::HasStepperResonanceCal, "printer_has_stepper_resonance_cal", 0},
     {Capability::HasWebcam, "printer_has_webcam", 0},
     {Capability::WebcamCount, "webcam_count", 0},
     {Capability::HasExtraFans, "printer_has_extra_fans", 0},
     {Capability::PowerDeviceCount, "power_device_count", 0},
-    {Capability::HasStepperResonanceCal, "printer_has_stepper_resonance_cal", 0},
     {Capability::SensorCount, "sensor_count", 0},
     {Capability::HasShakeTune, "printer_has_shaketune", 0},
     {Capability::HasHeatSoak, "printer_has_heat_soak", 0},
@@ -258,6 +262,15 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     set_capability(Capability::HasChamber,
                    (hardware.has_chamber_sensor() || hardware.has_chamber_heater()) ? 1 : 0);
 
+    // Chamber air modes: helix::chamber_air owns which printers offer which.
+    using helix::chamber_air::AirMode;
+    set_capability(Capability::HasChamberAirRecirculate,
+                   helix::chamber_air::offers(hardware, AirMode::Recirculate) ? 1 : 0);
+    set_capability(Capability::HasChamberAirExhaust,
+                   helix::chamber_air::offers(hardware, AirMode::Exhaust) ? 1 : 0);
+    set_capability(Capability::HasChamberAirOff,
+                   helix::chamber_air::offers(hardware, AirMode::Off) ? 1 : 0);
+
     // Screws tilt adjust capability
     set_capability(Capability::HasScrewsTilt, hardware.has_screws_tilt() ? 1 : 0);
     set_capability(Capability::HasExcludeObject, hardware.has_exclude_object() ? 1 : 0);
@@ -272,6 +285,8 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     // Automatic pressure advance calibration. Which firmwares can measure it,
     // and how, belongs to helix::pacal - this only asks whether one matched.
     set_capability(Capability::HasPaCal, helix::pacal::is_supported(hardware) ? 1 : 0);
+    set_capability(Capability::HasStepperResonanceCal,
+                   helix::stepper_resonance_cal::supported(hardware) ? 1 : 0);
 
     // Spoolman requires async check - default to 0, updated separately via set_spoolman_available()
 
@@ -285,8 +300,6 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     bump_hardware_generation();
 }
 
-    set_capability(Capability::HasStepperResonanceCal,
-                   helix::stepper_resonance_cal::supported(hardware) ? 1 : 0);
 void PrinterCapabilitiesState::render_tool_offset_cal_description() {
     if (!subjects_initialized_) {
         return;

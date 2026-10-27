@@ -614,6 +614,7 @@
   <translation tag="Chamber Heater Fan" de="Kammer-Heizlüfter"/>
   <translation tag="Chamber Sensor" de="Kammersensor"/>
   <translation tag="Chamber Temperature" de="Kammertemperatur"/>
+  <translation tag="Chamber air" de="Kammerluft"/>
   <translation tag="Chamber and dryer humidity monitoring" de="Kammer- und Trockner-Feuchtigkeitsüberwachung"/>
   <translation tag="Chamber at %d°C" de="Kammer bei %d°C"/>
   <translation tag="Chamber heater didn&apos;t start" de="Kammerheizung ist nicht gestartet"/>
@@ -1816,8 +1817,8 @@
   <translation tag="It has not reported its slots yet. Try again in a moment." de="Es hat seine Slots noch nicht gemeldet. Versuchen Sie es gleich noch einmal."/>
   <translation tag="It homes and heats on its own (no start macro found)." de="Er fährt die Referenz an und heizt selbst (kein Startmakro gefunden)."/>
   <translation tag="It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying" de="Es klemmt zwischen Hub-Sensor und Hub-Antriebsrad. CFS öffnen, den Hub frei machen und erneut versuchen"/>
-  <translation tag="It starts with your {} macro." de="Er startet mit deinem Makro {}."/>
   <translation tag="It saves the result and restarts Klipper when it finishes." de="Am Ende wird das Ergebnis gespeichert und Klipper neu gestartet."/>
+  <translation tag="It starts with your {} macro." de="Er startet mit deinem Makro {}."/>
   <translation tag="It&apos;s a new spool" de="Es ist eine neue Spule"/>
   <translation tag="Its home tile" de="Seine Startseiten-Kachel"/>
   <translation tag="Jammed" de="Stau"/>
@@ -2905,6 +2906,7 @@
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." de="Zu große Daten vom Drucker empfangen ({} Bytes). Das kann auf einen Kommunikationsfehler hinweisen."/>
   <translation tag="Recent Prints" de="Letzte Drucke"/>
   <translation tag="Recently Printed" de="Zuletzt gedruckt"/>
+  <translation tag="Recirculate" de="Umwälzen"/>
   <translation tag="Reconnect" de="Erneut verbinden"/>
   <translation tag="Record Timelapse" de="Zeitraffer aufnehmen"/>
   <translation tag="Record timelapses of your prints" de="Zeitraffer Ihrer Drucke aufnehmen"/>
@@ -3729,9 +3731,9 @@
   <translation tag="The printer lost power during a print. The resumed layer may not line up exactly." de="Der Drucker hatte während eines Drucks einen Stromausfall. Die fortgesetzte Schicht passt möglicherweise nicht exakt."/>
   <translation tag="The printer lost power while printing {}. Resume where it left off?" de="Der Drucker hatte einen Stromausfall während des Drucks von {}. Dort fortsetzen, wo er aufgehört hat?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." de="Der Drucker hatte einen Stromausfall während des Drucks von {}. Die fortgesetzte Schicht passt möglicherweise nicht exakt."/>
+  <translation tag="The printer moves the toolhead and measures its motors." de="Der Drucker bewegt den Druckkopf und vermisst seine Motoren."/>
   <translation tag="The printer no longer has a print to resume." de="Der Drucker hat keinen Druck mehr zum Fortsetzen."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." de="Der Drucker liest die Datei bis zur letzten gespeicherten Position. Eine große Datei kann eine Minute dauern."/>
-  <translation tag="The printer moves the toolhead and measures its motors." de="Der Drucker bewegt den Druckkopf und vermisst seine Motoren."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" de="Der Drucker verzeichnet Spur {} im Druckkopf, nicht diese"/>
   <translation tag="The printer refused that port: check the port (Moonraker is usually 7125)." de="Der Drucker hat diesen Port abgelehnt: Prüfe den Port (Moonraker nutzt meist 7125)."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." de="Der Drucker hat die Filamentkonfiguration abgelehnt. Der Druck wurde nicht gestartet."/>
@@ -3904,11 +3906,11 @@
   <translation tag="Tool cycle finished" de="Werkzeugwechsel-Durchlauf abgeschlossen"/>
   <translation tag="Tool is seated" de="Werkzeug sitzt"/>
   <translation tag="Tool may be half seated" de="Werkzeug sitzt möglicherweise nur halb"/>
+  <translation tag="Tool offset calibration failed: {}" de="Werkzeug-Offset-Kalibrierung fehlgeschlagen: {}"/>
   <translation tag="Tool offsets (mm)" de="Werkzeug-Offsets (mm)"/>
   <translation tag="Tool offsets saved" de="Werkzeug-Offsets gespeichert"/>
   <translation tag="Tool swap" de="Werkzeugwechsel"/>
   <translation tag="Toolchange purge" de="Werkzeugwechsel-Entlüftung"/>
-  <translation tag="Tool offset calibration failed: {}" de="Werkzeug-Offset-Kalibrierung fehlgeschlagen: {}"/>
   <translation tag="Toolhead" de="Werkzeugkopf"/>
   <translation tag="Toolhead Calibration Running" de="Werkzeugkopf-Kalibrierung läuft"/>
   <translation tag="Toolhead LED" de="Werkzeugkopf-LED"/>
@@ -3945,9 +3947,9 @@
   <translation tag="Trying again..." de="Erneuter Versuch..."/>
   <translation tag="Tune" de="Abstimmen"/>
   <translation tag="Tune Belts" de="Einstellen"/>
+  <translation tag="Tune the motors to remove fine vertical lines" de="Motoren abstimmen, um feine vertikale Linien zu entfernen"/>
   <translation tag="Tuner" de="Tuner"/>
   <translation tag="Tuning tower enabled - start a print to test" de="Tuning-Tower aktiviert - starten Sie einen Druck zum Testen"/>
-  <translation tag="Tune the motors to remove fine vertical lines" de="Motoren abstimmen, um feine vertikale Linien zu entfernen"/>
   <translation tag="Turbo" de="Turbo"/>
   <translation tag="Turbo Inner" de="Turbo Innen"/>
   <translation tag="Turbo Outer" de="Turbo Außen"/>
@@ -4096,9 +4098,9 @@
   <translation tag="Version and what the plugin runs" de="Version und was das Plugin ausführt"/>
   <translation tag="Version {}" de="Version {}"/>
   <translation tag="Vertical" de="Vertikal"/>
+  <translation tag="Vertical Artifact Compensation" de="Kompensation vertikaler Artefakte"/>
   <translation tag="Vibration" de="Vibration"/>
   <translation tag="Vibration compensation active" de="Vibrationskompensation aktiv"/>
-  <translation tag="Vertical Artifact Compensation" de="Kompensation vertikaler Artefakte"/>
   <translation tag="Video playback speed" de="Videowiedergabegeschwindigkeit"/>
   <translation tag="View" de="Ansicht"/>
   <translation tag="View Changelog" de="Changelog anzeigen"/>

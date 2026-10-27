@@ -668,6 +668,7 @@ translations:
   Chamber Heater Fan: Ventilador del calentador de cámara
   Chamber Sensor: Sensor de Cámara
   Chamber Temperature: Temperatura de la cámara
+  Chamber air: 'Aire de la cámara'
   Chamber and dryer humidity monitoring: Monitoreo de humedad de cámara y secador
   Chamber at %d°C: Cámara a %d°C
   Chamber heater didn't start: 'El calentador de la cámara no arrancó'
@@ -1998,8 +1999,8 @@ translations:
   It has not reported its slots yet. Try again in a moment.: Aún no ha informado de sus ranuras. Inténtelo de nuevo en un momento.
   It homes and heats on its own (no start macro found).: Hace homing y calienta por su cuenta (no se encontró macro de inicio).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Está atascado entre el sensor del concentrador y su engranaje. Abra el CFS y despeje el concentrador antes de reintentar
-  It starts with your {} macro.: Empieza con tu macro {}.
   It saves the result and restarts Klipper when it finishes.: 'Al terminar, guarda el resultado y reinicia Klipper.'
+  It starts with your {} macro.: Empieza con tu macro {}.
   It's a new spool: Es una bobina nueva
   Its home tile: 'Su mosaico de inicio'
   Jammed: Atascado
@@ -3171,6 +3172,7 @@ translations:
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Se recibieron datos demasiado grandes de la impresora ({} bytes). Puede indicar un error de comunicación.
   Recent Prints: Impresiones recientes
   Recently Printed: Impresas recientemente
+  Recirculate: 'Recircular'
   Reconnect: Reconectar
   Record Timelapse: Grabar Timelapse
   Record timelapses of your prints: Grabe timelapses de sus impresiones
@@ -4100,9 +4102,9 @@ translations:
   The printer lost power while printing {}. Resume where it left off?: La impresora
     perdió corriente mientras imprimía {}. ¿Reanudar donde se quedó?
   The printer lost power while printing {}. The resumed layer may not line up exactly.: La impresora perdió corriente mientras imprimía {}. La capa reanudada puede no alinearse con exactitud.
+  The printer moves the toolhead and measures its motors.: 'La impresora mueve el cabezal y mide sus motores.'
   The printer no longer has a print to resume.: La impresora ya no tiene una impresión para reanudar.
   The printer reads the file up to the last saved position. A large file can take a minute.: La impresora lee el archivo hasta la última posición guardada. Un archivo grande puede tardar un minuto.
-  The printer moves the toolhead and measures its motors.: 'La impresora mueve el cabezal y mide sus motores.'
   The printer records lane {} in the toolhead, not this one: 'La impresora registra el carril {} en el cabezal, no este'
   'The printer refused that port: check the port (Moonraker is usually 7125).': "La impresora rechazó ese puerto: comprueba el puerto (Moonraker suele usar el 7125)."
   The printer rejected the filament configuration. The print was not started.: La
@@ -4323,11 +4325,11 @@ translations:
   Tool cycle finished: Ciclo de herramientas terminado
   Tool is seated: La herramienta está asentada
   Tool may be half seated: "La herramienta puede estar mal asentada"
+  'Tool offset calibration failed: {}': 'Error en la calibración de offsets de herramienta: {}'
   Tool offsets (mm): Offsets de herramienta (mm)
   Tool offsets saved: Offsets de herramienta guardados
   Tool swap: Cambio de herramienta
   Toolchange purge: 'Purga de cambio de herramienta'
-  'Tool offset calibration failed: {}': 'Error en la calibración de offsets de herramienta: {}'
   Toolhead: 'Cabezal'
   Toolhead Calibration Running: 'Calibración de cabezales en curso'
   Toolhead LED: 'LED del cabezal'
@@ -4365,9 +4367,9 @@ translations:
   Trying again...: 'Reintentando...'
   Tune: Ajustar
   Tune Belts: "Ajustar"
+  Tune the motors to remove fine vertical lines: 'Ajusta los motores para eliminar líneas verticales finas'
   Tuner: Ajuste
   Tuning tower enabled - start a print to test: Torre de ajuste activada - inicie
-  Tune the motors to remove fine vertical lines: 'Ajusta los motores para eliminar líneas verticales finas'
     una impresión para probar
   Turbo: Turbo
   Turbo Inner: Turbo interior
@@ -4516,9 +4518,9 @@ translations:
   Version and what the plugin runs: 'Versión y lo que ejecuta el plugin'
   Version {}: Versión {}
   Vertical: Vertical
+  Vertical Artifact Compensation: 'Compensación de artefactos verticales'
   Vibration: Vibración
   Vibration compensation active: Compensación de vibración activa
-  Vertical Artifact Compensation: 'Compensación de artefactos verticales'
   Video playback speed: Velocidad de reproducción de video
   View: Ver
   View Changelog: Ver registro de cambios

@@ -45,6 +45,9 @@ enum class Capability : uint8_t {
     HasChamberTargetRoute,       ///< chamber target settable around the gcode queue
     HasChamberElementTemp,       ///< backend reports the heating element's temperature
     HasChamberDryer,             ///< backend runs a filament-drying cycle
+    HasChamberAirRecirculate,    ///< firmware offers the recirculate chamber air mode
+    HasChamberAirExhaust,        ///< firmware offers the exhaust chamber air mode
+    HasChamberAirOff,            ///< firmware offers the chamber air off mode
     HasChamber,                  ///< chamber sensor OR heater
     HasScrewsTilt,               ///< screws_tilt_adjust
     HasExcludeObject,            ///< [exclude_object]
@@ -52,10 +55,10 @@ enum class Capability : uint8_t {
     HasToolOffsetCal,            ///< automatic tool offset calibration
     HideManualZCalibration,      ///< tool offset calibration also sets the reference tool's Z
     HasPaCal,                    ///< firmware measures pressure advance
+    HasStepperResonanceCal,      ///< firmware calibrates stepper resonance (vertical artifacts)
     HasWebcam,                   ///< an enabled webcam is configured
     WebcamCount,                 ///< named webcams (what a picker can offer)
     HasExtraFans,                ///< controllable fans beyond part cooling
-    HasStepperResonanceCal,      ///< firmware calibrates stepper resonance (vertical artifacts)
     PowerDeviceCount,            ///< power devices (0 = none)
     SensorCount,                 ///< Moonraker sensors (0 = none)
     HasShakeTune,                ///< Klippain Shake&Tune macros
