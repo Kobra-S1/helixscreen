@@ -2,6 +2,7 @@
 
 #include "sensor_manager.h"
 
+#include "accel_sensor_manager.h"
 #include "config.h"
 #include "humidity_sensor_manager.h"
 #include "json_utils.h"
@@ -484,7 +485,8 @@ std::vector<SensorManager*>& detail::mutable_sensor_managers() {
     // accel, temperature, load cell, input, SensorState.
     static std::vector<SensorManager*> managers = {
         &WidthSensorManager::instance(), &HumiditySensorManager::instance(),
-        &ProbeSensorManager::instance(), &LoadCellManager::instance()};
+        &ProbeSensorManager::instance(), &LoadCellManager::instance(),
+        &AccelSensorManager::instance()};
     return managers;
 }
 

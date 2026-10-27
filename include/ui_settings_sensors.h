@@ -38,7 +38,6 @@ struct FilamentSensorConfig;
 
 namespace helix::sensors {
 struct ProbeSensorConfig;
-struct AccelSensorConfig;
 struct TemperatureSensorConfig;
 } // namespace helix::sensors
 

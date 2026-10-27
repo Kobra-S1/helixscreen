@@ -114,7 +114,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     wsm.discover(PrinterDiscovery{});
     ism.discover({});
     ism.discover_from_config(json::object());
-    asm_.discover_from_config(json::object());
+    asm_.discover(PrinterDiscovery{});
 
     fsm.discover_sensors(hw.filament_sensor_names());
     tsm.discover(helix::temperature_sensor_objects(hw));
@@ -128,9 +128,16 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     wsm.discover(hw);
     ism.discover(hw.printer_objects());
     if (configfile != nullptr) {
-        asm_.discover_from_config(*configfile);
         ism.discover_from_config(*configfile);
     }
+
+    // Accelerometers are config sections: they reach the manager through the
+    // discovery's classified sections.
+    PrinterDiscovery with_config = hw;
+    if (configfile != nullptr) {
+        with_config.parse_config_keys(*configfile);
+    }
+    asm_.discover(with_config);
 
     json m;
     m["filament"] = manager_entry(entries_of(
@@ -192,8 +199,19 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     m["input"] = manager_entry(entries_of(
         ism.get_sensors(), [](const auto& s) { return input_role_to_string(s.role); },
         [](const auto& s) { return input_type_to_string(s.type); }));
+    struct AccelRow {
+        std::string klipper_name;
+        std::string sensor_name;
+        AccelSensorType type;
+        bool enabled;
+    };
+    std::vector<AccelRow> accel_rows;
+    for (const auto& e : asm_.entries()) {
+        accel_rows.push_back(
+            {e.klipper_name, e.display_name, static_cast<AccelSensorType>(e.type), e.enabled});
+    }
     m["accel"] = manager_entry(entries_of(
-        asm_.get_sensors(), [](const auto& s) { return accel_role_to_string(s.role); },
+        accel_rows, [](const auto&) { return std::string("none"); },
         [](const auto& s) { return accel_type_to_string(s.type); }));
 
     // Leave nothing behind for the next test in this process.
@@ -205,7 +223,7 @@ json run_managers(const PrinterDiscovery& hw, const json* configfile) {
     wsm.discover(PrinterDiscovery{});
     ism.discover({});
     ism.discover_from_config(json::object());
-    asm_.discover_from_config(json::object());
+    asm_.discover(PrinterDiscovery{});
     return m;
 }
 

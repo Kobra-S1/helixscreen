@@ -599,7 +599,7 @@ void SensorSettingsOverlay::populate_accel_sensors() {
     }
 
     auto& mgr = helix::sensors::AccelSensorManager::instance();
-    auto sensors = mgr.get_sensors();
+    auto sensors = mgr.entries();
 
     spdlog::debug("[{}] Populating accel sensor list with {} sensors", get_name(), sensors.size());
 
@@ -614,33 +614,21 @@ void SensorSettingsOverlay::populate_accel_sensors() {
         lv_obj_set_style_flex_cross_place(row, LV_FLEX_ALIGN_CENTER, 0);
 
         auto* name_label = lv_label_create(row);
-        lv_label_set_text(name_label, sensor.sensor_name.c_str());
+        lv_label_set_text(name_label, sensor.display_name.c_str());
         lv_obj_set_style_text_color(name_label, theme_manager_get_color("text"), 0);
         lv_obj_set_flex_grow(name_label, 1);
 
         auto* type_label = lv_label_create(row);
         const char* type_str = "ADXL345";
-        switch (sensor.type) {
-        case helix::sensors::AccelSensorType::LIS2DW:
-            type_str = "LIS2DW";
-            break;
-        case helix::sensors::AccelSensorType::LIS3DH:
-            type_str = "LIS3DH";
-            break;
-        case helix::sensors::AccelSensorType::MPU9250:
-            type_str = "MPU9250";
-            break;
-        case helix::sensors::AccelSensorType::ICM20948:
-            type_str = "ICM20948";
-            break;
-        default:
-            type_str = "ADXL345";
-            break;
+        for (const auto& t : helix::sensors::kAccelSensorTypes) {
+            if (static_cast<uint8_t>(t.value) == sensor.type) {
+                type_str = t.display;
+            }
         }
         lv_label_set_text(type_label, type_str);
         lv_obj_set_style_text_color(type_label, theme_manager_get_color("text_muted"), 0);
 
-        spdlog::debug("[{}]   Created row for accel sensor: {}", get_name(), sensor.sensor_name);
+        spdlog::debug("[{}]   Created row for accel sensor: {}", get_name(), sensor.display_name);
     }
 }
 

@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "accel_sensor_manager.h"
 #include "filament_sensor_manager.h"
 #include "input_sensor_manager.h"
 #include "load_cell_manager.h"
@@ -18,7 +17,6 @@ namespace helix::sensors {
 /// gets both. Discovery is per manager, because each reads a different input.
 template <typename Fn> void for_each_sensor_manager(Fn&& fn) {
     fn(FilamentSensorManager::instance());
-    fn(AccelSensorManager::instance());
     fn(TemperatureSensorManager::instance());
     fn(InputSensorManager::instance());
 }

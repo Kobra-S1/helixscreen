@@ -896,25 +896,17 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                 MacroParamCache::instance().populate_from_configfile(
                                     cfg, macros_snapshot);
 
-                                // Accelerometers have no get_status(), so configfile.config
-                                // is the ONLY place they appear — this is the sole caller
-                                // that fills AccelSensorManager, which Settings > Sensors,
-                                // telemetry and detect_belt_hardware() all read.
-                                // Both must run on main thread: they set LVGL subjects
-                                // (accel_count). discover_from_config() rebuilds
-                                // its list from scratch, so a reconnect re-run cannot duplicate.
+                                // The first sensor pass ran before the configfile arrived, so
+                                // config sections (accelerometers, which have no get_status(),
+                                // and a probe's z_offset) are read on this one. Main thread:
+                                // discovery sets LVGL subjects.
                                 nlohmann::json cfg_for_sensors = cfg;
                                 helix::ui::queue_update(
                                     "MoonrakerDiscoverySequence::continue_discovery_objects",
                                     [cfg_for_sensors, configured_hardware]() {
-                                        // The first sensor pass ran before the configfile
-                                        // arrived; config sections (a probe's z_offset) are
-                                        // read on this one.
                                         for (auto* manager : helix::sensors::sensor_managers()) {
                                             manager->discover(*configured_hardware);
                                         }
-                                        helix::sensors::AccelSensorManager::instance()
-                                            .discover_from_config(cfg_for_sensors);
                                         helix::sensors::InputSensorManager::instance()
                                             .discover_from_config(cfg_for_sensors);
                                     });
