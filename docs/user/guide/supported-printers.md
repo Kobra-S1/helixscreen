@@ -203,7 +203,7 @@ Some filament systems aren't tied to a specific printer model — HelixScreen de
 - **AFC-Klipper** (Box Turtle, OpenAMS, ViViD)
 - **OpenAMS** on its own (klipper_openams without AFC, with its UI API installed)
 - **klipper-toolchanger** (multi-toolhead setups)
-- **MedusaHC** (hotend changer, commonly on a Duender) - detected on top of klipper-toolchanger
+- **MedusaHC** (hotend changer, commonly on a Duender) - detected from its controller and dock sensors, with or without klipper-toolchanger
 
 Full details on each are in [Filament Management](filament.md#ams--multi-material-systems).
 

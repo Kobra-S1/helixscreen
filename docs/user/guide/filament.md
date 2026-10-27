@@ -362,7 +362,7 @@ Tap **Done** to keep your mapping, or **Cancel** to discard it.
 
 <a id="printers-that-remap-by-rewriting-the-file"></a>
 
-Most filament systems carry out your mapping themselves: HelixScreen tells the printer "tool 0 comes from slot 2" and the printer does the rest. A few can't, because their firmware has no mapping table. On those, HelixScreen rewrites a copy of the G-code with the new tool numbers and prints that copy. Today that means a tool changer running without klipper-toolchanger, such as the [MedusaHC fork](#medusahc-hotend-changer) that drops `[toolchanger]`.
+Most filament systems carry out your mapping themselves: HelixScreen tells the printer "tool 0 comes from slot 2" and the printer does the rest. A few can't, because their firmware has no mapping table. On those, HelixScreen rewrites a copy of the G-code with the new tool numbers and prints that copy. Today that means a tool changer that swaps with its own `T<n>` macros, such as a [MedusaHC](#medusahc-hotend-changer).
 
 This needs the **HelixPrint plugin** on your printer. Without it the mapping card offers to install it instead. A current plugin makes the rewritten copy on the printer itself; with an older one, the screen downloads the file, rewrites it and uploads the copy. With it, the finished job is listed in print history under its original name ([details](print-history.md)).
 
@@ -611,12 +611,14 @@ Tapping **Cancel** or leaving the screen stops the calibration and turns the hea
 
 ## MedusaHC (Hotend Changer)
 
-MedusaHC swaps only the **hot end** — heater, thermistor and fan — rather than a whole
-toolhead. It runs on top of klipper-toolchanger, so HelixScreen shows it as a tool changer
-with **parallel** topology: each tool is its own independent path, with no hub or selector.
+MedusaHC swaps only the **hot end** (heater, thermistor and fan) rather than a whole
+toolhead. HelixScreen shows it as a tool changer with **parallel** topology: each tool is
+its own independent path, with no hub or selector.
 
-You don't need to configure anything. HelixScreen recognizes a MedusaHC automatically when
-your Klipper config has both a tool changer and MedusaHC's own dock sensors.
+You don't need to configure anything. HelixScreen recognizes a MedusaHC automatically from
+its controller (`[medusahc]`) and dock sensors (`[pin_watch io]`), whether or not you also
+run the optional klipper-toolchanger. Tool changes always use your printer's own `T0`, `T1`,
+... macros and `DROP_TOOL`.
 
 ### Which tool is mounted
 
@@ -626,14 +628,30 @@ toolchanger will still report the tool it was told to fetch, while the docks kno
 arrived.
 
 If the sensors can't agree on what's on the head, HelixScreen shows an error rather than
-guessing. That state is deliberately not shown as "no tool" — starting a tool change from
-an unknown position risks driving the carriage into a dock. Clear it by running a tool
-change or your printer's error-recovery macro from the console.
+guessing. That state is deliberately not shown as "no tool", because starting a tool change
+from an unknown position risks driving the carriage into a dock. Seat the hot ends by hand,
+and the error clears once the sensors agree.
 
-When a tool change fails, the error dialog quotes the controller's own message, for example
-"sensors did not confirm T1". A failure that HelixScreen isn't showing as an error (the docks
-agree again, or it happened before the screen connected) appears once as a **Tool change
-failed:** message instead, until the next tool change or filament operation.
+When a tool change fails, the error names the tool and quotes the controller's own message,
+for example "Tool change to Tool 2 (T1) failed: MHC_SET: sensors did not confirm T1". A
+failure that HelixScreen isn't showing as an error (the docks agree again, or it happened
+before the screen connected) appears once as a message instead. If the controller itself
+failed to start, you see **Tool changer error:** with its message; check `klippy.log`.
+
+### When a tool change fails during a print
+
+The controller pauses the print. The message tells you what to do: seat the hot ends in
+their docks (or the right one on the head), heat the tool it was changing to above 190°C,
+then tap **Resume**. The printer then picks that tool up again, primes and cleans it, and
+carries on. HelixScreen won't send Resume while that tool is still at or below 190°C, and
+says so, because the printer would refuse it. This needs the PAUSE and RESUME macros from
+MedusaHC's recovery guide.
+
+### Cleaning the nozzle
+
+**Clean nozzle**, under **Maintenance** in Device Operations, wipes the mounted tool's nozzle
+on the brush with your printer's `CLEAN` macro. It needs a tool on the head, and it is not
+available while a print is running.
 
 ### The filament feeder
 
@@ -647,8 +665,7 @@ spool by hand, then **Close feeder** to grip it again.
 > **Note:** These are refused while a print is running. The gripper is the only thing
 > holding your filament — releasing it mid-print drops the strand and ruins the job.
 
-HelixScreen picks the right macro for your setup automatically, whether you're on the
-original MedusaHC config or the newer Python controller.
+HelixScreen picks the right macro for your setup automatically.
 
 If your setup uses different macro names — you've renamed them, or you're part-way through
 migrating to the Python controller — you can choose them yourself. In the same Device
@@ -662,16 +679,18 @@ You can point a G-code tool number at a different physical tool, which is useful
 slicer project expects a different tool order than your machine is loaded with. See
 [Filament Mapping](#filament-mapping) above for the dialog itself.
 
-How the mapping reaches the printer depends on your setup:
+Your printer's own `T0`, `T1`, ... macros decide which hot end each tool number picks, and
+nothing can remap them (klipper-toolchanger's mapping does not reach them either). So
+HelixScreen rewrites the file instead. That needs the HelixPrint plugin, and any per-tool
+temperatures you pass to `PRINT_START` stay as sliced. Read
+[Printers that map filament by rewriting the file](#printers-that-map-filament-by-rewriting-the-file)
+before your first print that maps filament; it has start G-code that heats the right tools.
 
-- **Original MedusaHC config or the Python controller** (your config has `[toolchanger]`):
-  HelixScreen tells klipper-toolchanger the mapping and the file is printed as sliced,
-  like any klipper-toolchanger machine.
-- **The Python controller without klipper-toolchanger** (no `[toolchanger]`): there is no mapping table to write, so
-  HelixScreen rewrites the file instead. That needs the HelixPrint plugin, and any
-  per-tool temperatures you pass to `PRINT_START` stay as sliced. Read
-  [Printers that map filament by rewriting the file](#printers-that-map-filament-by-rewriting-the-file)
-  before your first print that maps filament; it has start G-code that heats the right tools.
+### Tool offsets
+
+The tool offset screens edit X, Y and Z for each tool in the controller's own store, and
+saving keeps them across restarts. A change to the tool on the head applies at once; the
+others apply the next time they are picked up.
 
 ### What HelixScreen remembers per tool
 

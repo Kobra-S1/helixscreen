@@ -125,7 +125,7 @@ non-settled states are easy to get wrong:
 | Slot metadata | Yes | Persisted via `FilamentSlotOverrideStore` (`lane_data`, `T<n>` keys). The firmware supplies none of it, so the store is the sole source - see [FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out) |
 | Auto-Heat on Load | No | -- |
 | Dryer | No | -- |
-| Device Actions | Machine-dependent | None by default. A tool changer with an add-on feeder exposes `open_feeder`/`close_feeder` - see [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md) |
+| Device Actions | Machine-dependent | None by default. A tool changer with an add-on feeder exposes `open_feeder`/`close_feeder`, and one with a nozzle-clean command `clean_nozzle` - see [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md) |
 | Operation step bar | Machine-dependent | Suppressed unless the machine reports phases. A plain klipper-toolchanger has only `toolchanger.status == "changing"`, which is not a sequence, so it renders no step bar rather than the legacy Heat/Feed/Purge one - nothing heats, feeds or purges when the whole hot end is swapped. A changer with an add-on phase source gets a real bar; see [FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md) § "The operation step bar" |
 
 ### Discovery Sequence
@@ -135,7 +135,9 @@ Tool names must be provided via `set_discovered_tools()` before calling `start()
 ---
 
 Hotend changers (MedusaHC) run on this backend with add-ons layered on top - see
-[FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md).
+[FILAMENT_BACKEND_MEDUSAHC.md](FILAMENT_BACKEND_MEDUSAHC.md). A MedusaHC swaps with its own
+`T<n>` / `DROP_TOOL` and maps tools by rewriting the file even where klipper-toolchanger
+runs beside its controller: klipper-toolchanger only mirrors the docks' tool there.
 
 ## Z-Mod on the Creator 5 Pro
 

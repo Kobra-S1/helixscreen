@@ -1,38 +1,39 @@
 # MedusaHC (Tool-Changer Add-On)
 
 MedusaHC is a budget **hotend changer**: it swaps only the hot end (heater, thermistor,
-fan), not a whole toolhead. It is not its own `AmsType` and has no backend of its own.
-It is a klipper-toolchanger printer, so `AmsBackendToolChanger` drives it, and everything
-MedusaHC adds on top lives in one module.
+fan), not a whole toolhead. It is not its own `AmsType` and has no backend of its own:
+`AmsBackendToolChanger` drives it, and everything MedusaHC adds on top lives in one module.
 
-- Hardware / config: [Irbis3D/MedusaHC](https://github.com/Irbis3D/MedusaHC)
-- Experimental Python controller: [Irbis3D/MedusaHC-Python-Controller](https://github.com/Irbis3D/MedusaHC-Python-Controller)
+- Hardware, config and controller: [Irbis3D/MedusaHC](https://github.com/Irbis3D/MedusaHC).
+  The controller is the Klipper extra medusahc.py there, beside the dock-sensor extra
+  pin_watch.py; the old macro controller is frozen on the repo's `legacy-macros` branch.
 
 ## Why it is not a backend
 
-Upstream `printer.cfg` has an uncommented `[include toolchanger.cfg]`, and that file
-declares `[toolchanger]` plus `[tool T0..T3]`. Those are exactly the objects
-`AmsBackendToolChanger` already reads, so a stock MedusaHC is detected and driven with no
-MedusaHC-specific code at all. Adding a ninth `AmsType` would have forked a working
-backend for no gain.
+A stock install is `[medusahc]` + `[pin_watch io]` with `T<n>` macros running `SET`, and
+no `[toolchanger]`. klipper-toolchanger is optional: pin_watch's `sync_toolchanger`
+defaults to 0, and the `[toolchanger]` settings (`verify_tool_pickup: False` and the rest)
+exist only in the README's optional minimal config, for other plugins that want the active
+tool mirrored. Either way the machine is what `AmsBackendToolChanger` already models: a
+parallel set of tools, one of them on the carriage. Adding a ninth `AmsType` would have
+forked a working backend for no gain.
 
-What a hotend changer genuinely adds is two things klipper-toolchanger cannot answer, and
-those are the whole content of `include/toolchanger_addon.h` +
-`src/printer/toolchanger_addon.cpp`.
+What a hotend changer genuinely adds is what klipper-toolchanger cannot answer, and that is
+the whole content of `include/toolchanger_addon.h` + `src/printer/toolchanger_addon.cpp`.
 
-## The two add-ons
+## The add-ons
 
 ### 1. Dock sensors are the authority on which tool is mounted
 
-`Macros/toolchanger.cfg` ships `verify_tool_pickup: False` and
-`require_tool_present: False`, so klipper-toolchanger never verifies a pickup.
-`toolchanger.tool_number` is **only ever "what `SELECT_TOOL` last set"** - after a failed
-or partial pickup it names a tool that is not on the head.
+Where klipper-toolchanger runs beside the controller, its minimal config sets
+`verify_tool_pickup: False` and `require_tool_present: False`, so it never verifies a
+pickup: `toolchanger.tool_number` is only what pin_watch last mirrored into it, and after a
+failed or partial pickup it can name a tool that is not on the head.
 
 The physical answer comes off dock sensors through MedusaHC's own pin_watch Klipper extra
-(Scripts/pin_watch.py upstream). It is not a stock Klipper module - it is absent from all
+(its pin_watch.py in the same repository). It is not a stock Klipper module - it is absent from all
 136 files in Klipper3d/klipper's klippy/extras - so the object name is a real signature.
-The official controller agrees: its `_current_tool()` returns `pin_watch.current_tool`.
+The controller agrees: its `_current_tool()` returns `pin_watch.current_tool`.
 
 So once a dock sensor is present, `parse_toolchanger_state()` never takes the carriage from
 `toolchanger.tool_number` at all: Moonraker sends it in deltas of its own, so it cannot be
@@ -52,13 +53,34 @@ reads `-2` for a moment between the head sensor and the dock sensor changing, so
 unreported `-2` is a fault only outside one (`toolchanger_addon::sensor_error_is_fault()`);
 a mount-to-feed run's Mount and Restore stages count as a swap. A `sensor_error` the
 firmware itself reports is a fault during a swap, and at rest unless a definite
-`current_tool` (-1 or a tool) sits beside it. Irbis3D's flag latches the last operation's
-failure until the next operation begins, while `current_tool` follows the dock pins live,
-so a definite reading at rest, or one arriving after the flag, means the docks agree. The controller's `last_error` names the failed operation: the fault dialog shows it while
-the fault is up, and a failure the screen is not showing as a fault (withdrawn, or left from
-before this connection) toasts once as "Tool change failed: <last_error>", until the next
-operation clears it. Irbis3D's `operation` opens a swap with `changing` before `dropping` and
-`picking`; that frame lights the bar's first step.
+`current_tool` (-1 or a tool) sits beside it.
+
+Upstream's [sensor-status.md](https://github.com/Irbis3D/MedusaHC/blob/main/docs/sensor-status.md) defines the two signals. `sensor_error` (with
+`last_error` explaining it) latches when SET or DROP rejects an ambiguous starting state or
+the sensors do not confirm the pick or drop; only the next SET or DROP the controller
+accepts clears it, or a Klipper restart. Moving tools by hand does **not** clear it.
+`current_tool` follows the dock pins live, and -2 alone means "undetermined", not an error,
+during a swap or while someone rearranges hot ends. So the rule above, that a definite
+`current_tool` at rest (or one arriving after the flag) means the docks agree and the flag
+describes a past failure, is our choice, not upstream's: it lets the screen withdraw the
+fault once the hot ends are seated, while the latch still names the failure.
+
+The controller's `last_error` and `target_tool` name the failed operation: the fault dialog
+reads "Tool change to Tool 3 (T2) failed: <last_error>" while the fault is up, and a failure
+the screen is not showing as a fault (withdrawn, or left from before this connection)
+toasts that sentence once, until the next operation clears it
+(`AmsBackendToolChanger::controller_failure_text_locked()`). `target_tool` is the tool being
+picked, or for a park the tool being parked. A `last_error` with `sensor_error` false has
+no failed operation behind it: the controller sets it when its own startup fails
+("Initialization failed; see klippy.log"), and it toasts once as "Tool changer error:
+<last_error>", never as a tool change failure.
+
+`operation` takes exactly `idle`, `changing`, `dropping` and `picking`. MHC_SET opens with
+`changing` (homing and a Z hop before it reads the docks), then `dropping` when a tool is on
+the head, then `picking`; that first frame lights the bar's first step. MHC_DROP goes
+straight to `dropping`, with no `changing` frame. MHC_OPEN, MHC_CLOSE and MHC_CLEAN never
+change `operation`. During a print, or a resume, priming and brush cleaning happen inside
+`picking`, so that phase is long there.
 
 ### 1a. And which tools are in their docks
 
@@ -88,27 +110,43 @@ Operations overlay. They are gated by
 holding the filament, so opening it mid-print drops the strand and kills the job, and the
 overlay itself has no print gate.
 
-## Two shipping configurations
+### 3. Nozzle cleaning
 
-One machine, one Python extra run two ways. `[medusahc]` lives outside the hardware repo
-([Irbis3D/MedusaHC](https://github.com/Irbis3D/MedusaHC), which is `Macros/`, STLs and STEP
-files), in [Irbis3D/MedusaHC-Python-Controller](https://github.com/Irbis3D/MedusaHC-Python-Controller)
-`klippy/extras/medusahc.py`.
+`CLEAN` (a `[gcode_macro]` in `MHC_macros.cfg` wrapping the controller's `MHC_CLEAN`)
+brushes the mounted tool's nozzle. `toolchanger_addon::clean_nozzle_gcode()` answers it
+when the macro exists, and the backend offers **Clean nozzle** under Maintenance in Device
+Operations. It moves the machine (`with_machine_motion()`), so it greys during a print and
+`AmsBackendToolChanger::clean_nozzle()` refuses it under a print or another operation; it
+is disabled with no tool on the carriage, where `MHC_CLEAN` only answers "no tool
+installed".
+
+## Two configurations
+
+One controller, run with or without klipper-toolchanger.
 
 | | Objects | Swap command |
 |---|---|---|
-| **With klipper-toolchanger** (`sync_toolchanger: 1`) | `[pin_watch io]`, `[medusahc]`, `[toolchanger]` + `[tool Tn]` | `SELECT_TOOL` / `UNSELECT_TOOL` |
-| **Without klipper-toolchanger** | `[pin_watch io]`, `[medusahc]`, `gcode_macro T<n>` | `T<n>` macros running `SET T=<n>`, `DROP_TOOL` to park |
+| **Stock** | `[pin_watch io]`, `[medusahc]`, `gcode_macro T<n>` | `T<n>` (runs `SET T=<n>`, which runs `MHC_SET`), `DROP_TOOL` to park |
+| **With klipper-toolchanger** (`sync_toolchanger: 1`) | the same, plus `[toolchanger]` + `[tool Tn]` | the same: `T<n>`, `DROP_TOOL` |
+
+klipper-toolchanger never moves this hardware. It keeps an existing `[gcode_macro T<n>]`
+rather than registering its own, its `UNSELECT_TOOL` runs only `dropoff_gcode` (empty in
+the minimal config), and `ASSIGN_TOOL` never changes a `T<n>` macro. So the swap and the
+park are the machine's own on both, and `toolchanger_addon::resolve_tool_commands()`
+answers them whenever the MedusaHC row matches. `DROP_TOOL` is a `[gcode_macro]` in
+`MHC_macros.cfg` (it also re-grips the filament); a config without it parks with
+`MHC_DROP` then `MHC_CLOSE`. A plain klipper-toolchanger with no MedusaHC keeps
+`SELECT_TOOL TOOL="tool Tn"` / `UNSELECT_TOOL`.
 
 The status schema is the same on both: `operation`, `current_tool`, `target_tool`,
 `last_error`, `feeder_open`, `layer`, `sensor_error`, `tool_count`, `sensors`. The feeder
-runs on `MHC_OPEN` / `MHC_CLOSE` (native commands, absent from `printer.objects.list`), plus
-the `OPEN` / `CLOSE` aliases HelixScreen sends.
+runs on `MHC_OPEN` / `MHC_CLOSE` (native commands, absent from `printer.objects.list`), and
+`OPEN` / `CLOSE` are the `[gcode_macro]` wrappers `MHC_macros.cfg` defines around them,
+which HelixScreen sends.
 
 ### The phase word
 
-`operation` takes `idle`, `changing` (MHC_SET homing before it reads the docks),
-`dropping` and `picking`. It names the swap **direction**, which klipper-toolchanger's own
+`operation` (above) names the swap **direction**, which klipper-toolchanger's own
 `status` does not: there a swap is one undifferentiated `changing`.
 `ToolReading::phase_names_direction` records that a direction-naming word arrived, because
 callers need it *before* a swap starts - the phase words themselves only appear once one is
@@ -124,9 +162,9 @@ the macro may still be running.
 **`feeder_open` is published on both configurations**, so the gripper phases are drivable on
 every machine carrying `[medusahc]`.
 
-The feeder buttons send the plain `OPEN` / `CLOSE` on every configuration. The controller
-ships them as aliases forwarding to its `MHC_*` commands, the stock config registers only
-those names, and they work on a parked tool.
+The feeder buttons send the plain `OPEN` / `CLOSE` on every configuration: the stock
+`MHC_macros.cfg` defines them as macros around `MHC_OPEN` / `MHC_CLOSE`, and they work on
+a parked tool.
 
 ## Loading and unloading filament
 
@@ -143,10 +181,10 @@ operation whose step bar is the stage list:
 
 | Load | Gcode | Unload | Gcode |
 |------|-------|--------|-------|
-| Insert filament | an action prompt: "Insert filament into the hot end of Tool N while it is docked, then tap Continue", with Continue and Cancel. It comes first, while the tool is still in its dock: once the hot end is on the carriage, the extruder's gears stand between the operator and the nozzle. A tool already on the carriage gets "Insert filament into Tool N, then tap Continue", and a Load of several with the first one mounted names both cases in one sentence | Mount tool | `SELECT_TOOL TOOL="tool T<n>"` (or the machine's own `T<n>`); skipped when already mounted |
+| Insert filament | an action prompt: "Insert filament into the hot end of Tool N while it is docked, then tap Continue", with Continue and Cancel. It comes first, while the tool is still in its dock: once the hot end is on the carriage, the extruder's gears stand between the operator and the nozzle. A tool already on the carriage gets "Insert filament into Tool N, then tap Continue", and a Load of several with the first one mounted names both cases in one sentence | Mount tool | the machine's own `T<n>`, the same swap the Tool buttons send; skipped when already mounted |
 | Mount tool | same as Unload's; it closes the prompt | Heat nozzle | `SET_HEATER_TEMPERATURE HEATER=<tool's extruder> TARGET=<t>`, then `TEMPERATURE_WAIT SENSOR=<tool's extruder> MINIMUM=<t-2>` (`t` is the target slot's material temperature, else 220) |
 | Heat nozzle | same as Unload's | Retract filament | `M83`, `G1 E-25 F1800`, `G1 E-150 F1200` (until the strand is fully out), `SET_HEATER_TEMPERATURE HEATER=<tool's extruder> TARGET=0` |
-| Purge | `M83`, `G1 E5 F60` (slow draw), `G1 E50 F300` (tip to the nozzle), `G1 E<purge> F300` (the `purge_length` device action, 0-200mm, default 50, omitted at 0; persisted per printer as `toolchanger/purge_length_mm`), `G1 E-10 F1800`, `SET_HEATER_TEMPERATURE HEATER=<tool's extruder> TARGET=0` | Restore tool | remount the tool that was on the carriage, or park if none was |
+| Purge | `M83`, `G1 E5 F60` (slow draw), `G1 E50 F300` (tip to the nozzle), `G1 E<purge> F300` (the `purge_length` device action, 0-200mm, default 50, omitted at 0; persisted per printer as `toolchanger/purge_length_mm`), `G1 E-10 F1800`, `SET_HEATER_TEMPERATURE HEATER=<tool's extruder> TARGET=0` | Restore tool | remount the tool that was on the carriage (`T<n>`), or park (`DROP_TOOL`) if none was |
 | Restore tool | same as Unload's | | |
 
 A tool already on the carriage skips Mount and Restore: Insert, Heat, Purge. A completed
@@ -396,28 +434,21 @@ filament-system vocabulary; `AmsBackendToolChanger` overrides it with
 `has_pin_watch() && (has_tool_changer() || has_medusahc())`.
 
 `pin_watch` is required, and alone it is just the extra; `[toolchanger]` alone is any of the
-many klipper-toolchanger builds. `[medusahc]` stands in for `[toolchanger]` on a controller
-that owns the swap itself. It is matched exactly, because `[medusahc_calibrate]` is a sibling
+many klipper-toolchanger builds. `[medusahc]` + `[pin_watch io]` with no `[toolchanger]` is
+the stock install and the main case; `[toolchanger]` beside pin_watch covers the optional
+klipper-toolchanger setup and the frozen legacy-macros config. `[medusahc]` is matched
+exactly, because `[medusahc_calibrate]` (the separate MedusaHC-Calibrate project) is another
 object and not this one.
 
-A changer without klipper-toolchanger has two gaps, and both are filled in this module
-rather than in the backend. Neither is reached beside klipper-toolchanger, which supplies
-both:
+Without klipper-toolchanger there are **no `[tool N]` objects to name the tools**.
+`PrinterDiscovery` enumerates the extruder heaters instead (one hot end per extruder is what
+a hotend changer is) and keeps the G-code tool numbers as the names, `T0`..`T5`. Real
+`tool N` objects win where they exist.
 
-- **No `[tool N]` objects to name the tools.** `PrinterDiscovery` enumerates the extruder
-  heaters instead - one hot end per extruder is what a hotend changer is - and keeps the
-  G-code tool numbers as the names, `T0`..`T5`. Real `tool N` objects always win: a
-  klipper-toolchanger name is arbitrary and `ASSIGN_TOOL` can remap it.
-- **No `SELECT_TOOL`.** `resolve_tool_commands()` answers with the machine's own commands
-  (`T<n>` to mount, `DROP_TOOL` to unmount) and an absent capability when `[toolchanger]` is
-  there to own the swap. `DROP_TOOL` is a bare registered command, not a `[gcode_macro]`, so
-  unlike the feeder macros it cannot be capability-checked - naming it in the provider table
-  is the point of the table.
-
-The backend owes one more: there is no `INITIALIZE_TOOLCHANGER`. `reset()` and `recover()`
-send it only beside klipper-toolchanger; without it they answer NOT_SUPPORTED, and
-`reset_available()` / `recover_available()` disable the Device Operations Home and Recover
-buttons.
+There is no `INITIALIZE_TOOLCHANGER` on a stock install either. `reset()` and `recover()`
+send it only where klipper-toolchanger runs (`ToolCommands::initialize_available`); without
+it they answer NOT_SUPPORTED, and `reset_available()` / `recover_available()` disable the
+Device Operations Home and Recover buttons.
 
 **It deliberately does not touch `has_mmu_` / `mmu_type_`.** Those pick which AMS backend
 gets built. An unguarded write there replaces a working backend on any printer that
@@ -432,17 +463,13 @@ add-on module's business - see the vendor-abstraction rule in the root `CLAUDE.m
 
 ## Tool mapping
 
-Which remap route a MedusaHC takes follows from the same fact as the tool names above:
-whether `[toolchanger]` is there.
-
-| Configuration | `[toolchanger]` | Route | How a remap lands |
-|---------------|-----------------|-------|-------------------|
-| Irbis3D Python controller with klipper-toolchanger | Yes | `RemapStrategy::Native` | `ASSIGN_TOOL TOOL="tool T{n}" N={tool}`; the file is untouched |
-| Irbis3D Python controller alone (`T<n>` macros) | No | `RemapStrategy::GcodeRewrite` | The job file is rewritten and printed through the HelixPrint plugin |
-
-`AmsBackendToolChanger::get_remap_strategy()` asks `tool_commands_.present`, which
-`resolve_tool_commands()` sets exactly when `[toolchanger]` is absent. The provider row
-does not decide it: any changer without klipper-toolchanger rewrites.
+A MedusaHC always takes `RemapStrategy::GcodeRewrite`: the job file is rewritten and
+printed through the HelixPrint plugin. Its `T<n>` macros name the physical tool, and even
+with klipper-toolchanger beside the controller `ASSIGN_TOOL` never moves a tool there (it
+keeps the existing `T<n>` macro), so the `Native` route would print on the firmware's own
+mapping. `AmsBackendToolChanger::get_remap_strategy()` asks `tool_commands_.present`, which
+`resolve_tool_commands()` sets for every MedusaHC and for any changer without
+klipper-toolchanger.
 
 On the rewrite route the file is the only thing that moves, so a start macro that takes
 per-tool values (`EXTRUDER_TEMP`, `EXTRUDER1_TEMP`, ...) keeps heating the tools the slicer
@@ -452,8 +479,45 @@ chose while the rewritten body selects others. The rewrite handles `INITIAL_TOOL
 G-code for these machines is in the user guide,
 [Printers that map filament by rewriting the file](../user/guide/filament.md#printers-that-map-filament-by-rewriting-the-file).
 
-`HELIX_MOCK_AMS=medusahc-tn` runs the rewrite route end to end in `--test`; set
+Any `HELIX_MOCK_AMS=medusahc*` variant runs the rewrite route end to end in `--test`; set
 `helix_plugin_installed` to `1` with `ctl set` to get past the plugin gate.
+
+## Tool offsets
+
+The controller keeps the runtime offsets as variables on one macro,
+`[gcode_macro _TOOL_OFFSET]` (`t<n>_off_x`, `t<n>_off_y`, `t<n>_off_z`; its `_macro_name()`
+prefers the `_` name and accepts a plain `TOOL_OFFSET`), and the durable copy in
+`save_variables` as `t<n>_gcode_{x,y,z}_offset`, which `_restore_saved_offsets()` loads
+into the macro at startup. The `TOOL_OFFSET macro` row in `src/printer/tool_offsets.cpp`
+resolves the macro the same way, reads and writes all three axes, and a save writes both
+stores. klipper-toolchanger's own offset model is not the authority here, even where it
+runs.
+
+`_apply_offset()` sets X, Y and Z **absolutely** with `SET_GCODE_OFFSET` on every swap, so
+a write to the macro changes nothing on the head until the next swap. After writing the
+mounted tool's offset, HelixScreen sends `MHC_TOOL_OFFSET T=<n> MOVE=0`
+(`tool_offsets::activate_mounted_offset_gcode()`), which applies it now without moving the
+head. That same absolute write also replaces any babystep on the next swap: the controller
+treats the G-code offset as the tool's.
+
+## Pause and resume after a failed swap
+
+Upstream's [recovery guide](https://github.com/Irbis3D/MedusaHC/blob/main/docs/recovery.md)
+describes it. A failed swap during a print runs `MHC_ERROR`, which sets
+`_GLOBAL_STATE.error_state` and pauses the print, with no gcode error (the command handler
+swallows `_OperationPaused`). The documented `PAUSE` macro saves the mounted tool as
+`_GLOBAL_STATE.target_tool` on a manual pause and leaves the swap's own target after a
+failure. `RESUME`, while paused, runs only `MHC_RESUME T=<target_tool>`: after a failure,
+or when another tool is mounted, it homes XY, closes the feeder and picks the target again
+(priming and brushing it inside `picking`), and it refuses while that tool's nozzle is at
+or below 190C.
+
+The screen supports it with the least new UI. While a print is held, the failure's dialog
+or toast adds "Seat the hot ends, heat Tool 3 (T2) above 190°C, then tap Resume.", and
+`AmsBackendToolChanger::prepare_for_resume()` (the hook the Resume button already runs)
+refuses with "Heat Tool 3 (T2) above 190°C before resuming" while the target's own heater
+reads at or below `toolchanger_addon::resume_min_nozzle_c()`. Both key on the controller's
+latched failure and its `target_tool`; a manual pause resumes as before.
 
 ## Adding another hotend changer
 
@@ -499,23 +563,14 @@ Not yet reconciled, and worth knowing before extending this:
 (Per-tool spool metadata used to be listed here. It is now persisted - see
 [FILAMENT_SLOT_METADATA.md](FILAMENT_SLOT_METADATA.md#tool-changer-is-the-odd-one-out).)
 
-- **Tool offsets have two stores**, and upstream has now said which wins: `save_variables`
-  (`t{N}_gcode_{x,y,z}_offset`) is the persistent source, loaded into `TOOL_OFFSET` at
-  startup, and MedusaHC works off the runtime `TOOL_OFFSET` values. A temporary nudge means
-  writing `TOOL_OFFSET`; a permanent one means writing both. klipper-toolchanger's own
-  offset model is not the authority. The Z half is handled: the `TOOL_OFFSET macro` row in
-  `src/printer/tool_offsets.cpp` reads `t{N}_off_z` and writes both stores. X and Y are
-  currently **declined** (`supports_axis()` is false for them), because only the Z runtime
-  variable names are confirmed against a machine — not because MedusaHC lacks the axes: the
-  durable store already names `t{N}_gcode_{x,y}_offset`. Verifying the X/Y runtime names
-  (presumably `t{N}_off_x` / `t{N}_off_y`) is all that `supports_axis_tool_offset_macro()`
-  needs to widen; the rest of the row is already axis-agnostic. Until then the tool
-  object's `gcode_x_offset` is not consulted on this printer either.
-- **`layer`, `PRIME_FLAGS_*`, `MHC_CLEAN`** - per-tool priming and cleaning scheduled
-  against layer number. No analogue in the toolchanger model, unused today.
-
-The Python controller is marked experimental and is moving; prefer widening the provider
-table over hardcoding against any single revision of it.
+- **`layer` and the prime flags** - per-tool priming scheduled against the layer number.
+  The layer command is `_LAYER_SET L=` (wrapping `MHC_LAYER_SET`), the first-use flags are
+  `_PRIME_FLAGS_SET` and `PRIME_FLAGS_CLEAR`. No analogue in the toolchanger model, unused
+  today. The old aliases `DROP`, `TOOL_OFFSET_T`, `LAYER_SET` and `PRIME_FLAGS_SET` are gone
+  upstream; nothing here sends them.
+- **No schema version.** `get_status()` still carries no version field, so a renamed key
+  reads as an absent one. Prefer widening the provider table over hardcoding against any
+  single revision of the controller.
 
 ## What upstream has committed to (Sergei / Irbis3D, 2026-08-24)
 
@@ -539,6 +594,10 @@ Answers to the questions this document raised. Treat as intent, not contract.
 - **The klipper-toolchanger dependency is meant to go away** eventually, so MedusaHC runs
   standalone. No major behaviour changes are planned in the meantime, and he will give
   advance notice.
+
+Since then (Irbis3D/MedusaHC, 2026-08-30 onward): the Python controller is the default
+and described as proven reliable, the klipper-toolchanger dependency is dropped (it is now
+optional), and `get_status()` still has no schema version field.
 
 ---
 
