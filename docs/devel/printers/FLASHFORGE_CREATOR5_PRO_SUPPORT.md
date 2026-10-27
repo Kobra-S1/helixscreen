@@ -17,6 +17,10 @@ prestonbrown/helixscreen#1714), and Reforge (`Klipper4FlashForge/firmware`) ship
 over SSH with the NaN2008 toolchain; the kernel refuses legacy-NaN executables with
 ENOEXEC (see "NaN encoding").
 
+Stock firmware packages, what each release changed (2.0.0 in detail), and the stock UI's
+features against HelixScreen's are recorded in
+[`../printer-research/FLASHFORGE_CREATOR5_FIRMWARE.md`](../printer-research/FLASHFORGE_CREATOR5_FIRMWARE.md).
+
 **Status: the toolchanger is implemented and verified against the `creator5_zmod` mock**:
 the four heads are driven by the tool changer backend through Z-Mod's own objects, with
 mount/unmount and per-head colour and material (see "Z-Mod tool changer support" below).
