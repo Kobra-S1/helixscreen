@@ -1097,7 +1097,8 @@ SOURCES = {
 
 def test_auto_filter_is_the_test_files_naming_the_stem_as_a_word():
     filt = md.auto_tests_filter("src/utils/network_validation.cpp", SOURCES)
-    assert filt == "[#test_moonraker_connect_failure],[#test_network_validation]"
+    assert filt == ("[#test_moonraker_connect_failure]~[.]~[slow],"
+                    "[#test_network_validation]~[.]~[slow]")
 
 
 def test_auto_filter_ignores_a_short_stem_and_a_stem_nothing_names():
@@ -1185,3 +1186,22 @@ def test_a_surviving_group_makes_the_whole_run_fail(tmp_path):
     assert r.returncode == 1, r.stdout
     assert "exit 1  [oth]" in r.stdout
     assert "exit 0  [feat]" in r.stdout
+
+
+# The mutant's build SIGKILLs the group child that started it (make's parent),
+# so the child never runs its own restore.
+KILL_CHILD_MAKEFILE = """test-build:
+\t@if ! grep -q NEW_BEHAVIOR src/feature.cpp; then kill -9 $$(ps -o ppid= -p $$PPID); fi
+\t@[ -e build/bin/helix-tests ] && printf '\\n# relinked\\n' >> build/bin/helix-tests || true
+"""
+
+
+def test_a_group_child_killed_mid_mutant_has_its_file_put_back(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, KILL_CHILD_MAKEFILE)
+    (work / ".mutant-expect-other").write_text("")
+    before = (work / "src" / "feature.cpp").read_bytes()
+    r = _mutate(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                "--tests-for", "src/other.cpp=[oth]")
+    assert (work / "src" / "feature.cpp").read_bytes() == before, r.stdout
+    assert "RESTORED      src/feature.cpp" in r.stdout
+    assert r.returncode == 137, r.stdout

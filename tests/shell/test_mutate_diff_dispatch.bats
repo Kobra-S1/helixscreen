@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # scripts/mutate-diff.sh (make mutate-diff) runs the mutation gate locally only
-# where parallel workers can work: a host whose cp makes reflink copies. Anywhere
+# where mutate_diff.py says parallel workers can run (--probe-workers). Anywhere
 # else it hands the run to the test host, which mutates the PUSHED HEAD, so it
 # refuses when that would judge something other than the tree here.
 
@@ -13,7 +13,7 @@ setup() {
     mkdir -p "$REPO/scripts/lib" "$REPO/src"
     cp "$BATS_TEST_DIRNAME/../../scripts/mutate-diff.sh" "$REPO/scripts/"
     cp "$BATS_TEST_DIRNAME/../../scripts/lib/build_hosts.sh" "$REPO/scripts/lib/"
-    printf '#!/bin/sh\necho "TEST-HOST-RUN: $*"\n' > "$REPO/scripts/test-host-run.sh"
+    printf '#!/bin/bash\nprintf "TEST-HOST-RUN:"; printf " <%%s>" "$@"; echo\n' > "$REPO/scripts/test-host-run.sh"
     chmod +x "$REPO/scripts/test-host-run.sh" "$REPO/scripts/mutate-diff.sh"
     echo 'int f() { return 1; }' > "$REPO/src/a.cpp"
     git -C "$REPO" init -q -b main
@@ -22,19 +22,20 @@ setup() {
     # No build-hosts file of the user's: only what each case exports.
     export XDG_CONFIG_HOME="$BATS_TEST_TMPDIR/config"
     unset HELIX_TEST_HOST
-    mock_command_script python3 'echo "LOCAL: $*"'
     cd "$REPO" || return 1
 }
 
-no_reflink() { mock_command_script cp 'case "$*" in *--reflink*) exit 1 ;; esac; exec /bin/cp "$@"'; }
-reflink() { mock_command_script cp 'case "$*" in *--reflink*) : > "${@: -1}"; exit 0 ;; esac; exec /bin/cp "$@"'; }
+# python3 stands in for mutate_diff.py: --probe-workers answers the parallel
+# question, any other call is the run itself.
+no_reflink() { mock_command_script python3 'case "$*" in *--probe-workers*) echo "no reflink copies"; exit 1 ;; esac; echo "LOCAL: $*"'; }
+reflink() { mock_command_script python3 'case "$*" in *--probe-workers*) exit 0 ;; esac; echo "LOCAL: $*"'; }
 pushed() { git update-ref refs/remotes/origin/main HEAD; }
 
-@test "a host with reflink copies runs the gate here" {
+@test "a host where workers run in parallel runs the gate here, in parallel" {
     reflink
     run scripts/mutate-diff.sh --tests '[x]'
     [ "$status" -eq 0 ]
-    contains "LOCAL: scripts/mutate_diff.py --tests [x]" "$output"
+    contains "LOCAL: scripts/mutate_diff.py --workers auto --tests [x]" "$output"
     lacks "TEST-HOST-RUN" "$output"
 }
 
@@ -42,9 +43,10 @@ pushed() { git update-ref refs/remotes/origin/main HEAD; }
     no_reflink
     pushed
     export HELIX_TEST_HOST=zeus.invalid
-    run scripts/mutate-diff.sh --tests '[x]'
+    run scripts/mutate-diff.sh --tests '[x]' --tests-for 'src/a b.cpp=[one case]'
     [ "$status" -eq 0 ]
-    contains "TEST-HOST-RUN: mutate --tests [x]" "$output"
+    # Each argument arrives whole, spaces included.
+    contains "TEST-HOST-RUN: <mutate> <--tests> <[x]> <--tests-for> <src/a b.cpp=[one case]>" "$output"
     lacks "LOCAL:" "$output"
 }
 
@@ -66,6 +68,18 @@ pushed() { git update-ref refs/remotes/origin/main HEAD; }
     run scripts/mutate-diff.sh
     [ "$status" -eq 2 ]
     contains "src/a.cpp" "$output"
+    lacks "TEST-HOST-RUN" "$output"
+}
+
+@test "an uncommitted test is refused too: the survivor it kills would not be seen" {
+    no_reflink
+    pushed
+    export HELIX_TEST_HOST=zeus.invalid
+    mkdir -p tests/unit
+    echo 'TEST_CASE("x") {}' > tests/unit/test_new.cpp
+    run scripts/mutate-diff.sh
+    [ "$status" -eq 2 ]
+    contains "tests/unit/test_new.cpp" "$output"
     lacks "TEST-HOST-RUN" "$output"
 }
 

@@ -388,7 +388,7 @@ exit 0'
 # docker exec runs the mutate job's bash -lc script here for real, against a
 # python3 that prints the scheduling it inherited and the jobserver it was handed.
 run_mutate_for_real() {
-    mock_command_script make 'echo "MAKE: $*"'
+    mock_command_script make 'echo "MAKE: $*" >> "$BATS_TEST_TMPDIR/make.log"'
     mock_command_script python3 'echo "POLICY: $(chrt -p $$)"; echo "NICE: $(nice)"; echo "MAKEFLAGS=${MAKEFLAGS:-}"'
     mock_command_script docker '
 case "$1" in
@@ -411,12 +411,22 @@ esac
 exit 0'
 }
 
+@test "mutate hands each argument through whole, spaces included" {
+    run_mutate_for_real
+    mock_command_script python3 'case "$*" in *import*) exit 0 ;; esac; printf "ARG<%s>\n" "$@"'
+    cd "$BATS_TEST_TMPDIR" || return 1
+    run "$SCRIPT" mutate --tests-for 'src/a b.cpp=[one case]'
+    [ "$status" -eq 0 ]
+    contains "ARG<src/a b.cpp=[one case]>" "$output"
+}
+
 @test "mutate makes the checkout's venv when it cannot import pytest" {
     run_mutate_for_real
     # The job's script runs in this directory: one with no venv of its own.
     cd "$BATS_TEST_TMPDIR" || return 1
     run "$SCRIPT" mutate --tests '[x]'
     [ "$status" -eq 0 ]
+    run cat "$BATS_TEST_TMPDIR/make.log"
     contains "MAKE: venv-setup" "$output"
 }
 
@@ -428,7 +438,7 @@ exit 0'
     chmod +x .venv/bin/python3
     run "$SCRIPT" mutate --tests '[x]'
     [ "$status" -eq 0 ]
-    lacks "MAKE: venv-setup" "$output"
+    [ ! -e "$BATS_TEST_TMPDIR/make.log" ] || fail "venv-setup ran: $(cat "$BATS_TEST_TMPDIR/make.log")"
 }
 
 @test "mutate beside a jobpool runs outside it, at SCHED_IDLE and nice 19" {

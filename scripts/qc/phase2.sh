@@ -350,14 +350,20 @@ if [ "$STAGED_ONLY" = true ]; then
   # job: its clang gate syntax-checks every changed unit and the header's
   # dependents, and land-gate builds and tests the result.
   # HELIX_QC_FULL_BUILD=1 builds the app here instead.
-  STAGED_CXX=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+  STAGED_CXX=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null \
     | grep -E '\.(cpp|cc|cxx|mm)$' || true)
-  STAGED_HDR=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+  STAGED_HDR=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null \
     | grep -E '\.(h|hh|hpp|hxx|inc)$' || true)
   CHECK_UNITS="$STAGED_CXX"
+  UNREACHED_HDR=""
   for hdr in $STAGED_HDR; do
-    CHECK_UNITS="$CHECK_UNITS
-$(qc_one_includer "$hdr")"
+    unit=$(qc_one_includer "$hdr")
+    if [ -n "$unit" ]; then
+      CHECK_UNITS="$CHECK_UNITS
+$unit"
+    else
+      UNREACHED_HDR="$UNREACHED_HDR $hdr"
+    fi
   done
   CHECK_UNITS=$(printf '%s\n' "$CHECK_UNITS" | sed '/^$/d' | sort -u)
 
@@ -380,7 +386,11 @@ $(qc_one_includer "$hdr")"
   elif [ -z "$CHECK_UNITS" ]; then
     section_time $SECTION_START
     echo ""
-    echo "✅ No staged source to compile"
+    if [ -n "$UNREACHED_HDR" ]; then
+      echo "ℹ️  No source includes${UNREACHED_HDR} directly, so nothing was compiled; pre-push checks its dependents"
+    else
+      echo "✅ No staged source to compile"
+    fi
   elif [ ! -f compile_commands.json ]; then
     section_time $SECTION_START
     echo ""
@@ -389,6 +399,7 @@ $(qc_one_includer "$hdr")"
     section_time $SECTION_START
     echo ""
     echo "✅ $(grep '^summary:' /tmp/qc_syntax.out || echo 'staged sources compile') - pre-push checks the rest"
+    [ -z "$UNREACHED_HDR" ] || echo "ℹ️  No source includes${UNREACHED_HDR} directly; pre-push checks its dependents"
   else
     section_time $SECTION_START
     echo ""

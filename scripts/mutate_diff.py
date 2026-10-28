@@ -451,7 +451,7 @@ def _test_sources(root):
 
 
 def auto_tests_filter(path, test_sources):
-    """`[#test_a],[#test_b]` for the test files naming `path`'s stem, or ''.
+    """`[#test_a]~[.]~[slow],...` for the test files naming `path`'s stem, or ''.
 
     The stem is matched as a whole word, so `foo` finds `foo.h`, `"foo"` and
     `foo_modal` callers' includes but not `foobar`. A stem named by more than
@@ -464,7 +464,9 @@ def auto_tests_filter(path, test_sources):
     hits = [name for name, text in test_sources.items() if word.search(text)]
     if not hits or len(hits) > AUTO_TESTS_MAX_FILES:
         return ''
-    return ','.join(f'[#{name}]' for name in sorted(hits))
+    # A required term makes Catch2 consider hidden cases too, so each term carries
+    # the exclusions --tests' default has: [.] and [slow] stay out.
+    return ','.join(f'[#{name}]~[.]~[slow]' for name in sorted(hits))
 
 
 def filter_for(path, tests_for, auto, test_sources, default):
@@ -2730,6 +2732,10 @@ def main():
                     help='do not give a file the test files that name its stem; '
                          'every file without --tests-for gets --tests')
     ap.add_argument('--group-child', action='store_true', help=argparse.SUPPRESS)
+    ap.add_argument('--group-files', default=None, help=argparse.SUPPRESS)
+    ap.add_argument('--probe-workers', action='store_true',
+                    help='exit 0 when --workers auto would run in parallel here, else '
+                         'print why not and exit 1 (scripts/mutate-diff.sh asks this)')
     ap.add_argument('--jobs', type=int, default=6, help='make -j (link is memory-gated; 6 is safe here)')
     ap.add_argument('--shards', type=int, default=8,
                     help='test processes run at once per mutant (the filter is cut into '
@@ -2777,6 +2783,13 @@ def main():
         return 2
 
     root = repo_root()
+    if args.probe_workers:
+        args.workers = 'auto'
+        workers, why = plan_workers(root, args)
+        if workers > 1:
+            return 0
+        print(why or f'--workers auto is 1 on {os.cpu_count()} core(s)')
+        return 1
     guard = TreeGuard(root)
     guards = [guard]      # and one per worker copy, once they exist
     log_holder = []
@@ -2864,6 +2877,11 @@ def main():
     # --only and --limit are deliberate narrowings, but a narrowed run still did
     # not examine the whole change, so what they set aside is counted too.
     deferred = 0
+    if args.group_files is not None:
+        # A group child mutates exactly its own files, never a path that merely
+        # contains one of them.
+        wanted = set(args.group_files.split('\n'))
+        mutable = [h for h in mutable if h['file'] in wanted]
     if args.only:
         keep = select_only(mutable, args.only)
         deferred += len(mutable) - len(keep)
@@ -2930,19 +2948,35 @@ def main():
     # ---- per-file filters: one child run per filter --------------------
     if not args.group_child:
         sources = {} if args.no_auto_tests else _test_sources(root)
-        filter_of, why_of = {}, {}
+        filter_of, why_of, catch2_free = {}, {}, []
         for h in mutable:
-            if h['file'] not in filter_of:
-                filter_of[h['file']], why_of[h['file']] = filter_for(
-                    h['file'], tests_for, not args.no_auto_tests, sources, args.tests)
-        groups = group_by_filter([h['file'] for h in mutable], filter_of)
+            path = h['file']
+            if path in filter_of or path in catch2_free:
+                continue
+            if 'catch2' not in STRATEGIES[verdict_of[path][1]]['suites']:
+                catch2_free.append(path)      # bats and pytest judge it; no filter applies
+                continue
+            filter_of[path], why_of[path] = filter_for(
+                path, tests_for, not args.no_auto_tests, sources, args.tests)
+        groups = group_by_filter([h['file'] for h in mutable if h['file'] in filter_of],
+                                 filter_of)
+        if catch2_free:
+            # They ignore the filter, so they ride with the first group rather than
+            # paying for a child run of their own.
+            if groups:
+                groups[0] = (groups[0][0], groups[0][1] + catch2_free)
+            else:
+                groups = [(args.tests, catch2_free)]
         if groups:
             print('\ntests per file:')
             for filt, paths in groups:
                 for path in paths:
-                    print(f'  {path}  {filt}  ({why_of[path]})')
+                    if path in catch2_free:
+                        print(f'  {path}  bats + pytest')
+                    else:
+                        print(f'  {path}  {filt}  ({why_of[path]})')
         if len(groups) > 1 and not args.list_only:
-            return run_groups(root, args, base, groups, started, incomplete,
+            return run_groups(root, guard, args, base, groups, started, incomplete,
                               uncovered, deferred)
         if len(groups) == 1:
             args.tests = groups[0][0]
@@ -3223,12 +3257,17 @@ def main():
     return 0
 
 
-def run_groups(root, args, base, groups, started, incomplete, uncovered, deferred):
+def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, deferred):
     """Run each (filter, paths) group as its own child run; the worst exit wins.
 
     A child gets the parent's base, its own files and filter, and what is left of
     the parent's time budget. Children record no proof: none of them saw the
     whole change.
+
+    A child mutates its group's files in this tree, so the parent marks them in
+    its own guard while the child runs: the parent's stop handler then restores
+    them even when a child dies before its own restore, and a child that exits
+    leaving a file changed has it put back and named here.
     """
     passthrough = ['--jobs', str(args.jobs), '--shards', str(args.shards),
                    '--workers', str(args.workers), '--timeout', str(args.timeout),
@@ -3250,15 +3289,22 @@ def run_groups(root, args, base, groups, started, incomplete, uncovered, deferre
             continue
         print(f'\n=== group {i}/{len(groups)}: {filt}  ({len(paths)} file(s)) ===', flush=True)
         cmd = [sys.executable, str(Path(__file__).resolve()), '--group-child', '--no-record',
-               '--base', base, '--only', ','.join(paths), '--tests', filt,
+               '--base', base, '--group-files', '\n'.join(paths), '--tests', filt,
                '--max-hunks', '0', '--log', f'{args.log}.g{i}',
                '--max-minutes', f'{left:.2f}' if args.max_minutes > 0 else '0'] + passthrough
+        for path in paths:
+            guard.capture(path)
+            guard.mark(path)
         sys.stdout.flush()
         p = tracked_proc(cmd, root, stdout=sys.stdout)
         try:
             p.wait()
         finally:
             untrack_proc(p)
+        for path in paths:
+            if restore_file(root, path, guard.pristine[path]):
+                print(f'  RESTORED      {path}: the group left it changed', flush=True)
+            guard.dirty.discard(path)
         codes.append(p.returncode if p.returncode >= 0 else 128 - p.returncode)
     print('\n' + '=' * 68)
     for (filt, paths), code in zip(groups, codes):

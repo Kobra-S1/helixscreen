@@ -694,7 +694,7 @@ case "$WHAT" in
     # Script hunks are judged by bats AND pytest, and the image has no pytest:
     # without the checkout's own venv (requirements.txt) every one of them is
     # NOT COVERED, however narrowly --shell-tests scopes them.
-    mutate) CMD='{ [ -x .venv/bin/python3 ] && .venv/bin/python3 -c "import pytest" 2>/dev/null || make venv-setup >/dev/null; }; '"$YIELD_PRIORITY"'python3 scripts/mutate_diff.py --jobs $HELIX_J --workers auto '"$*"
+    mutate) CMD='{ [ -x .venv/bin/python3 ] && .venv/bin/python3 -c "import pytest" 2>/dev/null || make venv-setup >/dev/null; }; '"$YIELD_PRIORITY"'python3 scripts/mutate_diff.py --jobs $HELIX_J --workers auto '"$(printf '%q ' "$@")"
             YIELD=1 ;;
     asan)   _tag="${1:-}"; [ $# -gt 0 ] && shift
             # Trailing args become make overrides, so ASAN_RUN_OPTIONS can be
