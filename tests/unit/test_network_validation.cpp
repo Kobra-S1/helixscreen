@@ -125,6 +125,18 @@ TEST_CASE("Connect failure: ENOTCONN defers to the socket's pending error",
     CHECK(classify_connect_failure(ETIMEDOUT, ECONNREFUSED) == ConnectFailureKind::Timeout);
 }
 
+TEST_CASE("Connect failure: the BSDs' EINVAL defers to the pending error like ENOTCONN",
+          "[validation][network][connect_failure]") {
+    // getpeername() after a failed connect fails with EINVAL on macOS.
+    CHECK(helix::connect_failure_reads_socket_error(ENOTCONN));
+    CHECK(helix::connect_failure_reads_socket_error(EINVAL));
+    CHECK_FALSE(helix::connect_failure_reads_socket_error(ETIMEDOUT));
+    CHECK_FALSE(helix::connect_failure_reads_socket_error(0));
+    CHECK(classify_connect_failure(EINVAL, ECONNREFUSED) == ConnectFailureKind::Refused);
+    CHECK(classify_connect_failure(EINVAL, ETIMEDOUT) == ConnectFailureKind::Timeout);
+    CHECK(classify_connect_failure(EINVAL, 0) == ConnectFailureKind::Unknown);
+}
+
 TEST_CASE("Connect failure: each kind gets its own hint, mobile data on Android only",
           "[validation][network][connect_failure]") {
     const std::string timeout_desktop = connect_failure_hint(ConnectFailureKind::Timeout, false);

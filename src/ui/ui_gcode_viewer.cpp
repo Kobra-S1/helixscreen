@@ -1450,7 +1450,9 @@ int helix::ui::gcode_viewer_get_max_layer(lv_obj_t* obj) {
 #ifdef ENABLE_3D_RENDERER
     return st->renderer_->get_max_layer_index();
 #else
-    return -1;
+    // The 2D renderer is made on its first draw; until then the parsed file it
+    // will read answers, so a caller asking at load time gets the real count.
+    return st->gcode_file ? static_cast<int>(st->gcode_file->layers.size()) - 1 : -1;
 #endif
 }
 

@@ -614,6 +614,32 @@ case " $* " in *" --files-from="*) exit "${MOCK_RSYNC_RC:-0}" ;; esac'
     [ ! -e "$BATS_TEST_TMPDIR/ssh-called" ]
 }
 
+@test "a candidate-list test host runs on the first host that answers, never the list itself" {
+    export HELIX_TEST_HOST=dead.local,good.lan
+    local t hosts="$BATS_TEST_TMPDIR/ssh-hosts"
+    t=$(make_tree tree-a)
+    cd "$t"
+    # The setup mock, recording each host it is asked for; dead.local refuses.
+    mock_command_script ssh '
+while [ $# -gt 0 ]; do
+    case "$1" in -o) shift 2 ;; -*) shift ;; *) break ;; esac
+done
+echo "$1" >> "'"$hosts"'"
+case "$1" in
+    dead.local) echo "ssh: connect to host dead.local port 22: Connection refused" >&2; exit 255 ;;
+esac
+shift
+exec bash -c "$*"'
+
+    run "$TEST_HOST_RUN" test '[x]'
+    [ "$status" -eq 0 ]
+    contains "HELIX_TEST_HOST=good.lan (not answering: dead.local: refused)" "$output"
+    contains "good.lan:helix-test" "$output"
+    # Past the one refused probe, every ssh goes to good.lan.
+    [ "$(head -1 "$hosts")" = dead.local ]
+    [ "$(tail -n +2 "$hosts" | sort -u)" = good.lan ]
+}
+
 # --- content-compared sync, seeding a new mirror, per-tree mutate checkouts ---
 
 mtime_of() { stat -c %Y "$1"; }

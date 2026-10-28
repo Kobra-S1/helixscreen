@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <limits>
 #include <optional>
 #include <random>
 #include <string>
@@ -761,6 +762,24 @@ bool same(helix::ui::SaverVec3 a, HandVec b) {
            screensaver_same_bits(a.z, b.z);
 }
 
+/// `a + b * s` rounds twice through the operators, while the hand form is one
+/// expression a compiler may contract into a fused multiply-add (clang does on
+/// arm64), which rounds once. They differ by at most the product's rounding,
+/// one epsilon of the terms, however much the sum cancels.
+bool within_one_rounding(float sum, float addend, float product, float hand) {
+    if (screensaver_same_bits(sum, hand))
+        return true;
+    const float bound =
+        std::numeric_limits<float>::epsilon() * (std::fabs(addend) + std::fabs(product));
+    return std::fabs(sum - hand) <= bound;
+}
+bool add_scaled_matches(helix::ui::SaverVec3 a, helix::ui::SaverVec3 b, float s, HandVec hand) {
+    const helix::ui::SaverVec3 sum = a + b * s;
+    return within_one_rounding(sum.x, a.x, b.x * s, hand.x) &&
+           within_one_rounding(sum.y, a.y, b.y * s, hand.y) &&
+           within_one_rounding(sum.z, a.z, b.z * s, hand.z);
+}
+
 } // namespace
 
 TEST_CASE("a whole rect spans the frame and clipping keeps only what lies inside",
@@ -870,7 +889,7 @@ TEST_CASE("SaverVec3 computes what the pipes and fireflies vector code computes"
         REQUIRE(same(a + b, {ha.x + hb.x, ha.y + hb.y, ha.z + hb.z}));
         REQUIRE(same(a - b, {ha.x - hb.x, ha.y - hb.y, ha.z - hb.z}));
         REQUIRE(same(a * s, {ha.x * s, ha.y * s, ha.z * s}));
-        REQUIRE(same(a + b * s, pipes_add_scaled(ha, hb, s)));
+        REQUIRE(add_scaled_matches(a, b, s, pipes_add_scaled(ha, hb, s)));
         REQUIRE(same(helix::ui::cross(a, b), pipes_cross(ha, hb)));
         REQUIRE(
             screensaver_same_bits(helix::ui::dot(a, b), ha.x * hb.x + ha.y * hb.y + ha.z * hb.z));

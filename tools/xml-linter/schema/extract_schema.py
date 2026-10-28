@@ -619,6 +619,7 @@ def extract_schema(xml_src_dir: Path) -> dict[str, Any]:
     # Map parser file -> widget name -> apply function name
     widget_parser_map: dict[str, list[tuple[str, str]]] = {
         "lv_xml_label_parser.c": [("lv_label", "lv_xml_label_apply")],
+        "lv_xml_responsive_grid_parser.c": [("responsive_grid", "lv_xml_responsive_grid_apply")],
         "lv_xml_button_parser.c": [("lv_button", "lv_xml_button_apply")],
         "lv_xml_image_parser.c": [("lv_image", "lv_xml_image_apply")],
         "lv_xml_bar_parser.c": [("lv_bar", "lv_xml_bar_apply")],

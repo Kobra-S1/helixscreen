@@ -60,11 +60,19 @@ std::string resolve_moonraker_host_default(const std::string& stored_host, bool 
 namespace helix {
 
 /**
+ * @brief Whether a failed attempt's io error only says "never connected"
+ *
+ * A non-blocking connect that fails surfaces from getpeername(): ENOTCONN on
+ * Linux, EINVAL on the BSDs (macOS). The socket's pending SO_ERROR then holds
+ * the real cause, so it is read for these and only these.
+ */
+bool connect_failure_reads_socket_error(int io_error);
+
+/**
  * @brief Classify why a connection attempt that never opened failed
  *
- * A non-blocking connect that fails surfaces from getpeername() as ENOTCONN;
- * the socket's pending SO_ERROR then holds the real cause, so it is consulted
- * in that case only.
+ * When connect_failure_reads_socket_error(io_error), the socket's pending
+ * SO_ERROR is the cause; otherwise the io error stands.
  *
  * @param io_error     The transport's error for the closed socket (errno value, 0 if none)
  * @param socket_error The socket's pending SO_ERROR (0 if none or unread)

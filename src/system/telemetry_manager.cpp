@@ -1964,15 +1964,14 @@ nlohmann::json TelemetryManager::build_hw_macros_section(const helix::PrinterDis
                                hw.has_macro("INTRO_LINE") || hw.has_macro("LINE_PURGE");
     macros["led_macro_count"] = static_cast<int>(hw.led_macros().size());
 
-    // Name-level data for printer detection analysis
-    json names = json::array();
+    // Name-level data for printer detection analysis. Sorted, so the report and
+    // which names the cap keeps do not depend on the set's hash order.
+    std::vector<std::string> sorted(hw.macros().begin(), hw.macros().end());
+    std::sort(sorted.begin(), sorted.end());
     constexpr size_t cap = 200;
-    for (const auto& macro_name : hw.macros()) {
-        if (names.size() >= cap)
-            break;
-        names.push_back(macro_name);
-    }
-    macros["names"] = std::move(names);
+    if (sorted.size() > cap)
+        sorted.resize(cap);
+    macros["names"] = sorted;
 
     return macros;
 }

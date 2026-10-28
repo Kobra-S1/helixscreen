@@ -185,6 +185,23 @@
         }
       }
     },
+    "responsive_grid": {
+      "inherits": "lv_obj",
+      "attributes": {
+        "min_col_width": {
+          "type": "int"
+        },
+        "max_col_width": {
+          "type": "int"
+        },
+        "max_cols": {
+          "type": "int"
+        },
+        "fit_items": {
+          "type": "bool"
+        }
+      }
+    },
     "lv_button": {
       "inherits": "lv_obj",
       "attributes": {}
@@ -2939,6 +2956,7 @@
   ],
   "registered_widgets": [
     "lv_obj",
+    "responsive_grid",
     "lv_button",
     "lv_label",
     "lv_image",
@@ -3295,6 +3313,14 @@
     "belt_chart_max_h_small",
     "belt_chart_max_h_xlarge",
     "belt_chart_max_h_xxlarge",
+    "belt_layout_choice_min",
+    "belt_layout_choice_min_large",
+    "belt_layout_choice_min_medium",
+    "belt_layout_choice_min_micro",
+    "belt_layout_choice_min_small",
+    "belt_layout_choice_min_tiny",
+    "belt_layout_choice_min_xlarge",
+    "belt_layout_choice_min_xxlarge",
     "belt_path_a_dark",
     "belt_path_a_light",
     "belt_path_b_dark",
@@ -3945,6 +3971,22 @@
     "macro_dropdown_width_medium",
     "macro_dropdown_width_small",
     "macro_dropdown_width_tiny",
+    "macro_param_card_wide_max",
+    "macro_param_card_wide_max_large",
+    "macro_param_card_wide_max_medium",
+    "macro_param_card_wide_max_micro",
+    "macro_param_card_wide_max_small",
+    "macro_param_card_wide_max_tiny",
+    "macro_param_card_wide_max_xlarge",
+    "macro_param_card_wide_max_xxlarge",
+    "macro_param_col_min",
+    "macro_param_col_min_large",
+    "macro_param_col_min_medium",
+    "macro_param_col_min_micro",
+    "macro_param_col_min_small",
+    "macro_param_col_min_tiny",
+    "macro_param_col_min_xlarge",
+    "macro_param_col_min_xxlarge",
     "mesh_high",
     "mesh_low",
     "mesh_mid",
@@ -4455,6 +4497,8 @@
     "tile_icon_xxl_size_tiny",
     "tile_icon_xxl_size_xlarge",
     "tile_icon_xxl_size_xxlarge",
+    "timelapse_card_max_w",
+    "timelapse_card_min_w",
     "toolhead_body",
     "touch_target_min",
     "tray_back_dark",
