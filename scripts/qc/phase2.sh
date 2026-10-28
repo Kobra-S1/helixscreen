@@ -350,22 +350,7 @@ if [ "$STAGED_ONLY" = true ]; then
   # job: its clang gate syntax-checks every changed unit and the header's
   # dependents, and land-gate builds and tests the result.
   # HELIX_QC_FULL_BUILD=1 builds the app here instead.
-  STAGED_CXX=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null \
-    | grep -E '\.(cpp|cc|cxx|mm)$' || true)
-  STAGED_HDR=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null \
-    | grep -E '\.(h|hh|hpp|hxx|inc)$' || true)
-  CHECK_UNITS="$STAGED_CXX"
-  UNREACHED_HDR=""
-  for hdr in $STAGED_HDR; do
-    unit=$(qc_one_includer "$hdr")
-    if [ -n "$unit" ]; then
-      CHECK_UNITS="$CHECK_UNITS
-$unit"
-    else
-      UNREACHED_HDR="$UNREACHED_HDR $hdr"
-    fi
-  done
-  CHECK_UNITS=$(printf '%s\n' "$CHECK_UNITS" | sed '/^$/d' | sort -u)
+  qc_staged_compile_units "$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)"
 
   if [ -n "${HELIX_QC_FULL_BUILD:-}" ]; then
     # Bounded -j (qc_build_jobs): this build runs from a commit hook.
