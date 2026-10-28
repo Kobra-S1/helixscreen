@@ -78,6 +78,9 @@ class CrashReporter {
         std::string signal_name;
         std::string app_version;
         std::string timestamp;
+        /// "watchdog" when the supervisor wrote the record because the app could not;
+        /// empty for the app's own handler.
+        std::string recorded_by;
         int uptime_sec = 0;
         std::vector<std::string> backtrace;
 

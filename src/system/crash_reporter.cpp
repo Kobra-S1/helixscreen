@@ -187,6 +187,7 @@ CrashReporter::CrashReport CrashReporter::collect_report() {
     report.signal_name = crash_data.value("signal_name", "UNKNOWN");
     report.app_version = crash_data.value("app_version", "unknown");
     report.timestamp = crash_data.value("timestamp", "");
+    report.recorded_by = crash_data.value("recorded_by", "");
     report.uptime_sec = crash_data.value("uptime_sec", 0);
 
     if (crash_data.contains("exception"))
@@ -413,6 +414,9 @@ nlohmann::json CrashReporter::report_to_json(const CrashReport& report) {
     j["signal_name"] = report.signal_name;
     j["app_version"] = report.app_version;
     j["timestamp"] = report.timestamp;
+    if (!report.recorded_by.empty()) {
+        j["recorded_by"] = report.recorded_by;
+    }
     j["uptime_seconds"] = report.uptime_sec;
     j["backtrace"] = report.backtrace;
     j["platform"] = report.platform;
@@ -582,6 +586,9 @@ std::string CrashReporter::report_to_text(const CrashReport& report) {
     ss << "Version:   " << report.app_version << "\n";
     ss << "Timestamp: " << report.timestamp << "\n";
     ss << "Uptime:    " << report.uptime_sec << " seconds\n";
+    if (!report.recorded_by.empty()) {
+        ss << "Recorded:  by the " << report.recorded_by << " (no backtrace)\n";
+    }
     if (!report.exception_what.empty()) {
         ss << "Exception: " << report.exception_what << "\n";
     }
@@ -730,6 +737,9 @@ std::string CrashReporter::generate_github_url(const CrashReport& report) {
     body << "- **Platform:** " << report.platform << " / " << report.board << " ("
          << report.mod_flavor << ")\n";
     body << "- **Uptime:** " << report.uptime_sec << "s\n";
+    if (!report.recorded_by.empty()) {
+        body << "- **Recorded by:** " << report.recorded_by << " (no backtrace)\n";
+    }
     if (!report.exception_what.empty()) {
         body << "- **Exception:** " << report.exception_what << "\n";
     }

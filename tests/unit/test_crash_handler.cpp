@@ -17,6 +17,7 @@
 #include "helix_thread.h"
 #include "system/crash_error_log_sink.h"
 #include "system/crash_handler.h"
+#include "system/crash_record.h"
 #include "system/telemetry_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -238,6 +239,83 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: parse handles all signal types", "[te
         REQUIRE_FALSE(result.is_null());
         REQUIRE(result["signal"] == sig.number);
         REQUIRE(result["signal_name"] == sig.name);
+    }
+}
+
+TEST_CASE_METHOD(CrashTestFixture,
+                 "Crash: illegal instruction and trap and bad syscall leave a crash file",
+                 "[telemetry][crash][subprocess]") {
+    const int sig = GENERATE(SIGILL, SIGTRAP, SIGSYS);
+    const char* const expected = sig == SIGILL ? "SIGILL" : sig == SIGTRAP ? "SIGTRAP" : "SIGSYS";
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        crash_handler::install(crash_path());
+        raise(sig);
+        _exit(99);
+    }
+    REQUIRE(pid > 0);
+
+    int status = 0;
+    REQUIRE(waitpid(pid, &status, 0) == pid);
+    REQUIRE(WIFEXITED(status));
+    CHECK(WEXITSTATUS(status) == 128 + sig);
+
+    auto result = crash_handler::read_crash_file(crash_path());
+    REQUIRE_FALSE(result.is_null());
+    CHECK(result["signal"] == sig);
+    CHECK(result["signal_name"] == expected);
+}
+
+TEST_CASE_METHOD(CrashTestFixture, "Crash: an external record reads back as a crash",
+                 "[telemetry][crash]") {
+    REQUIRE(helix::crash_record::write_external(crash_path(), SIGILL, "1.2.3", 1707350400,
+                                                "watchdog", 0));
+
+    auto result = crash_handler::read_crash_file(crash_path());
+    REQUIRE_FALSE(result.is_null());
+    CHECK(result["signal"] == SIGILL);
+    CHECK(result["signal_name"] == "SIGILL");
+    CHECK(result["app_version"] == "1.2.3");
+    CHECK(result["recorded_by"] == "watchdog");
+}
+
+TEST_CASE_METHOD(CrashTestFixture, "Crash: an external record never replaces the app's own",
+                 "[telemetry][crash]") {
+    write_realistic_crash_file();
+    const auto before = crash_handler::read_crash_file(crash_path());
+    REQUIRE_FALSE(before.is_null());
+
+    // Written after the process started: the app's own record.
+    const long started = static_cast<long>(time(nullptr)) - 60;
+    CHECK_FALSE(helix::crash_record::write_external(crash_path(), SIGILL, "1.2.3", 1707350400,
+                                                    "watchdog", started));
+    CHECK(crash_handler::read_crash_file(crash_path()) == before);
+}
+
+TEST_CASE_METHOD(CrashTestFixture, "Crash: an external record replaces a previous run's leftover",
+                 "[telemetry][crash]") {
+    write_realistic_crash_file();
+    REQUIRE(crash_handler::read_crash_file(crash_path())["signal_name"] == "SIGSEGV");
+
+    // The process started after the file was last written.
+    const long started = static_cast<long>(time(nullptr)) + 60;
+    REQUIRE(helix::crash_record::write_external(crash_path(), SIGILL, "1.2.3", 1707350400,
+                                                "watchdog", started));
+    auto result = crash_handler::read_crash_file(crash_path());
+    CHECK(result["signal_name"] == "SIGILL");
+    CHECK(result["recorded_by"] == "watchdog");
+}
+
+TEST_CASE("Crash: stop requests are not crash signals", "[telemetry][crash]") {
+    for (const int sig : helix::crash_record::kCrashSignals) {
+        CAPTURE(sig);
+        CHECK(helix::crash_record::is_crash_signal(sig));
+        CHECK(std::string(helix::crash_record::signal_name(sig)) != "UNKNOWN");
+    }
+    for (const int sig : {SIGTERM, SIGKILL, SIGINT, SIGHUP}) {
+        CAPTURE(sig);
+        CHECK_FALSE(helix::crash_record::is_crash_signal(sig));
     }
 }
 

@@ -11,6 +11,7 @@
  */
 
 #include "system/crash_history.h"
+#include "system/crash_record.h"
 #include "system/crash_reporter.h"
 #include "system/diagnostics.h"
 #include "test_helpers/scoped_board.h"
@@ -164,6 +165,19 @@ TEST_CASE_METHOD(CrashReporterTestFixture,
     REQUIRE(report.backtrace.empty());
     REQUIRE(report.printer_model.empty());
     REQUIRE(report.klipper_version.empty());
+}
+
+TEST_CASE_METHOD(CrashReporterTestFixture,
+                 "CrashReporter: a watchdog-written record says so in the report",
+                 "[crash_reporter]") {
+    REQUIRE(helix::crash_record::write_external((temp_dir_ / "crash.txt").string(), SIGILL, "1.2.3",
+                                                1707350400, "watchdog", 0));
+
+    auto report = cr.collect_report();
+    CHECK(report.signal_name == "SIGILL");
+    CHECK(report.recorded_by == "watchdog");
+    CHECK(cr.report_to_json(report)["recorded_by"] == "watchdog");
+    CHECK(cr.report_to_text(report).find("by the watchdog") != std::string::npos);
 }
 
 // Regression: bundle CHUQCNAE (2026-05-05, AD5X v0.99.53) shipped a crash.txt

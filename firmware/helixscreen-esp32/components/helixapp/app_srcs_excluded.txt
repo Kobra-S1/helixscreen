@@ -203,6 +203,7 @@ src/system/camera_stream.cpp  # not in the v1 Core+AMS cut
 src/system/cli_args.cpp  # not in the v1 Core+AMS cut
 src/system/crash_error_log_sink.cpp  # not in the v1 Core+AMS cut
 src/system/crash_handler.cpp  # not in the v1 Core+AMS cut
+src/system/crash_record.cpp  # not in the v1 Core+AMS cut
 src/system/crash_history.cpp  # not in the v1 Core+AMS cut
 src/system/crash_reporter.cpp  # not in the v1 Core+AMS cut
 src/system/debug_bundle_collector.cpp  # not in the v1 Core+AMS cut
