@@ -781,7 +781,9 @@ def test_a_hung_shard_is_measured_against_its_own_baseline(tmp_path):
 
 
 def test_the_baseline_records_each_shard_and_orders_the_next_run(tmp_path):
-    exe = _shard_bin(tmp_path, 'sleep "0.$((i * 3))"\n'
+    # Whole seconds apart: on a loaded host a process can take hundreds of
+    # milliseconds just to start, which would reorder shards spaced closer.
+    exe = _shard_bin(tmp_path, 'sleep "$i"\n'
                                'echo "All tests passed (1 assertion in 1 test case)"\n')
     plan = md.Catch2Plan(3, 1)
     state, _, _ = md.run_catch2(tmp_path, exe, '[x]', plan, open(os.devnull, 'w'))
