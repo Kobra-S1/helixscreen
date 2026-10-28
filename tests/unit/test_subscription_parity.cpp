@@ -11,7 +11,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/golden_json.h"
-#include "klipper_extruder_naming.h"
+#include "hardware_object_table.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_discovery_sequence.h"
 #include "printer_discovery.h"
@@ -218,7 +218,7 @@ TEST_CASE_METHOD(HelixTestFixture, "discovery and the hardware snapshot share on
          "extruder_offset_calibration", "heater_bedx", "fan"});
     std::vector<std::string> expected;
     for (const auto& o : objects) {
-        if (helix::is_heater_object_name(o.get<std::string>())) {
+        if (helix::hw::is_heater(helix::hw::classify_object(o.get<std::string>()).kind)) {
             expected.push_back(o.get<std::string>());
         }
     }

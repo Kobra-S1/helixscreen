@@ -235,24 +235,26 @@ bool resonance_tester_names_beacon(const nlohmann::json& body) {
     return false;
 }
 
-const std::vector<std::string> kNone;
-const std::vector<std::string> kHeater = {"temperature", "target", "power"};
-const std::vector<std::string> kTemperatureHumidity = {"temperature", "humidity"};
-const std::vector<std::string> kTemperatureFan = {"temperature", "target", "speed"};
-const std::vector<std::string> kSpeed = {"speed"};
-const std::vector<std::string> kValue = {"value"};
-const std::vector<std::string> kColorData = {"color_data"};
-const std::vector<std::string> kEnabled = {"enabled"};
-const std::vector<std::string> kFanFeedback = {
-    "fan0_speed", "fan1_speed", "fan2_speed", "fan3_speed", "fan4_speed",
-    "fan5_speed", "fan6_speed", "fan7_speed", "fan8_speed", "fan9_speed"};
-const std::vector<std::string> kFilamentSensor = {"filament_detected", "enabled",
-                                                  "detection_count"};
-const std::vector<std::string> kWidth = {"Diameter", "Raw"};
-const std::vector<std::string> kForce = {"force_g"};
-const std::vector<std::string> kState = {"state"};
-const std::vector<std::string> kWhole = {"*"};
-const std::vector<std::string> kMcu = {"last_stats"};
+constexpr std::string_view kHeater[] = {"temperature", "target", "power"};
+constexpr std::string_view kTemperatureHumidity[] = {"temperature", "humidity"};
+constexpr std::string_view kTemperatureFan[] = {"temperature", "target", "speed"};
+constexpr std::string_view kSpeed[] = {"speed"};
+constexpr std::string_view kValue[] = {"value"};
+constexpr std::string_view kColorData[] = {"color_data"};
+constexpr std::string_view kEnabled[] = {"enabled"};
+constexpr std::string_view kFanFeedback[] = {"fan0_speed", "fan1_speed", "fan2_speed", "fan3_speed",
+                                             "fan4_speed", "fan5_speed", "fan6_speed", "fan7_speed",
+                                             "fan8_speed", "fan9_speed"};
+constexpr std::string_view kFilamentSensor[] = {"filament_detected", "enabled", "detection_count"};
+constexpr std::string_view kWidth[] = {"Diameter", "Raw"};
+constexpr std::string_view kForce[] = {"force_g"};
+constexpr std::string_view kState[] = {"state"};
+constexpr std::string_view kWhole[] = {"*"};
+constexpr std::string_view kMcu[] = {"last_stats"};
+
+template <size_t N> constexpr FieldList fields(const std::string_view (&list)[N]) {
+    return FieldList{list, N};
+}
 
 } // namespace
 
@@ -280,53 +282,53 @@ ObjectClass classify_section(std::string_view section, const nlohmann::json& bod
     return classify(section, true);
 }
 
-const std::vector<std::string>& status_fields(ObjectKind kind) {
+FieldList status_fields(ObjectKind kind) {
     switch (kind) {
     case ObjectKind::Heater:
     case ObjectKind::GenericHeater:
-        return kHeater;
+        return fields(kHeater);
     case ObjectKind::TemperatureSensor:
     case ObjectKind::HumidityChip:
     case ObjectKind::DriverTemperature:
-        return kTemperatureHumidity;
+        return fields(kTemperatureHumidity);
     case ObjectKind::TemperatureFan:
-        return kTemperatureFan;
+        return fields(kTemperatureFan);
     case ObjectKind::Fan:
     case ObjectKind::HeaterFan:
     case ObjectKind::ControllerFan:
     case ObjectKind::GenericFan:
-        return kSpeed;
+        return fields(kSpeed);
     case ObjectKind::OutputPinFan:
     case ObjectKind::OutputPinLed:
-        return kValue;
+        return fields(kValue);
     case ObjectKind::Led:
-        return kColorData;
+        return fields(kColorData);
     case ObjectKind::LedEffect:
-        return kEnabled;
+        return fields(kEnabled);
     case ObjectKind::FanFeedback:
-        return kFanFeedback;
+        return fields(kFanFeedback);
     case ObjectKind::FilamentSwitch:
     case ObjectKind::FilamentMotion:
     case ObjectKind::BackendFilamentSensor:
-        return kFilamentSensor;
+        return fields(kFilamentSensor);
     case ObjectKind::WidthSensor:
-        return kWidth;
+        return fields(kWidth);
     case ObjectKind::LoadCell:
-        return kForce;
+        return fields(kForce);
     case ObjectKind::Input:
-        return kState;
+        return fields(kState);
     case ObjectKind::PowerLossMonitor:
-        return kWhole;
+        return fields(kWhole);
     case ObjectKind::Mcu:
-        return kMcu;
+        return fields(kMcu);
     case ObjectKind::Unknown:
     case ObjectKind::Probe:
     case ObjectKind::Stepper:
     case ObjectKind::Speaker:
     case ObjectKind::Accelerometer:
-        return kNone;
+        return {};
     }
-    return kNone;
+    return {};
 }
 
 bool is_heater(ObjectKind kind) {

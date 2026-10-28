@@ -9,6 +9,7 @@
 
 #include "app_globals.h"
 #include "display_numbering.h"
+#include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "helix_psram_attr.h"
@@ -602,15 +603,9 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
     if (klipper_name == "chamber")
         return lv_tr("Chamber");
 
-    // Strip common prefixes for auxiliary sensors
-    std::string display = klipper_name;
-    const char* prefixes[] = {"temperature_sensor ", "temperature_fan ", "heater_generic "};
-    for (const char* prefix : prefixes) {
-        if (display.find(prefix) == 0) {
-            display = display.substr(strlen(prefix));
-            break;
-        }
-    }
+    // The object table strips the type prefix ("temperature_sensor ", "bme280 ", ...).
+    const auto cls = helix::hw::classify_object(klipper_name);
+    std::string display = cls.instance.empty() ? klipper_name : cls.instance;
 
     // Capitalize first letter
     if (!display.empty()) {

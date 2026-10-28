@@ -6,7 +6,7 @@
 #include "chamber_heater_backend.h" // chamber::match, chamber::keyword_confidence
 #include "display_numbering.h"      // helix::ui::tool_label
 #include "json_utils.h"
-#include "klipper_extruder_naming.h" // count_extruder_names, is_heater_object_name
+#include "klipper_extruder_naming.h" // count_extruder_names
 #include "macro_patterns.h"
 #include "printer_discovery.h"
 #include "text_io.h"
@@ -942,10 +942,14 @@ void PrinterDiscovery::parse_probe_xy_offset(const nlohmann::json& settings) {
         return;
     }
     // Klipper allows one Z probe, so the first probe section present is the
-    // one PROBE_CALIBRATE uses. Section names arrive lowercased.
+    // one PROBE_CALIBRATE uses. Section names arrive lowercased. The name alone
+    // decides: a RevH [beacon] also carries its onboard accelerometer, which its
+    // body classifies as, and it is still the probe.
+    static const nlohmann::json kNameOnly = nlohmann::json::object();
     const nlohmann::json* section = nullptr;
     for (const auto& [name, value] : settings.items()) {
-        if (value.is_object() && hw::classify_section(name, value).kind == hw::ObjectKind::Probe) {
+        if (value.is_object() &&
+            hw::classify_section(name, kNameOnly).kind == hw::ObjectKind::Probe) {
             section = &value;
             break;
         }

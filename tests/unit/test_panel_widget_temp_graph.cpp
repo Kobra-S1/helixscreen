@@ -768,6 +768,11 @@ TEST_CASE("sensor_display_name maps Klipper names to user-facing labels",
     // populated in the global test PrinterState — these labels are derived
     // unconditionally).
     REQUIRE(TempGraphWidgetTestAccess::sensor_display_name("heater_bed") == "Bed");
+    // Every listed kind loses its type prefix, humidity chips included.
+    REQUIRE(TempGraphWidgetTestAccess::sensor_display_name("temperature_sensor mcu_temp") ==
+            "Mcu temp");
+    REQUIRE(TempGraphWidgetTestAccess::sensor_display_name("bme280 chamber_air") == "Chamber air");
+    REQUIRE(TempGraphWidgetTestAccess::sensor_display_name("tmc2240 stepper_x") == "Stepper x");
     REQUIRE(TempGraphWidgetTestAccess::sensor_display_name("chamber") == "Chamber");
 
     // Pre-discovery / no extruder yet known: derived from suffix.

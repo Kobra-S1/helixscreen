@@ -226,34 +226,43 @@ TEST_CASE("hw table: vendor and unknown names", "[hw_object_table]") {
     CHECK(obj("temperature_sensor").kind == ObjectKind::Unknown);
 }
 
+namespace {
+std::vector<std::string> fields_of(ObjectKind kind) {
+    std::vector<std::string> out;
+    for (const auto field : status_fields(kind)) {
+        out.emplace_back(field);
+    }
+    return out;
+}
+} // namespace
+
 TEST_CASE("hw table: status fields per kind", "[hw_object_table]") {
     using V = std::vector<std::string>;
-    CHECK(status_fields(ObjectKind::LoadCell) == V{"force_g"});
-    CHECK(status_fields(ObjectKind::Input) == V{"state"});
-    CHECK(status_fields(ObjectKind::PowerLossMonitor) == V{"*"});
-    CHECK(status_fields(ObjectKind::Accelerometer).empty());
-    CHECK(status_fields(ObjectKind::Heater) == V{"temperature", "target", "power"});
-    CHECK(status_fields(ObjectKind::TemperatureSensor) == V{"temperature", "humidity"});
-    CHECK(status_fields(ObjectKind::HumidityChip) == V{"temperature", "humidity"});
-    CHECK(status_fields(ObjectKind::TemperatureFan) == V{"temperature", "target", "speed"});
-    CHECK(status_fields(ObjectKind::Fan) == V{"speed"});
-    CHECK(status_fields(ObjectKind::OutputPinFan) == V{"value"});
-    CHECK(status_fields(ObjectKind::OutputPinLed) == V{"value"});
-    CHECK(status_fields(ObjectKind::Led) == V{"color_data"});
-    CHECK(status_fields(ObjectKind::LedEffect) == V{"enabled"});
-    CHECK(status_fields(ObjectKind::FanFeedback).size() == 10);
-    CHECK(status_fields(ObjectKind::FanFeedback).front() == "fan0_speed");
-    CHECK(status_fields(ObjectKind::FanFeedback).back() == "fan9_speed");
-    CHECK(status_fields(ObjectKind::FilamentSwitch) ==
+    CHECK(fields_of(ObjectKind::LoadCell) == V{"force_g"});
+    CHECK(fields_of(ObjectKind::Input) == V{"state"});
+    CHECK(fields_of(ObjectKind::PowerLossMonitor) == V{"*"});
+    CHECK(fields_of(ObjectKind::Accelerometer).empty());
+    CHECK(fields_of(ObjectKind::Heater) == V{"temperature", "target", "power"});
+    CHECK(fields_of(ObjectKind::TemperatureSensor) == V{"temperature", "humidity"});
+    CHECK(fields_of(ObjectKind::HumidityChip) == V{"temperature", "humidity"});
+    CHECK(fields_of(ObjectKind::TemperatureFan) == V{"temperature", "target", "speed"});
+    CHECK(fields_of(ObjectKind::Fan) == V{"speed"});
+    CHECK(fields_of(ObjectKind::OutputPinFan) == V{"value"});
+    CHECK(fields_of(ObjectKind::OutputPinLed) == V{"value"});
+    CHECK(fields_of(ObjectKind::Led) == V{"color_data"});
+    CHECK(fields_of(ObjectKind::LedEffect) == V{"enabled"});
+    CHECK(fields_of(ObjectKind::FanFeedback).size() == 10);
+    CHECK(fields_of(ObjectKind::FanFeedback).front() == "fan0_speed");
+    CHECK(fields_of(ObjectKind::FanFeedback).back() == "fan9_speed");
+    CHECK(fields_of(ObjectKind::FilamentSwitch) ==
           V{"filament_detected", "enabled", "detection_count"});
-    CHECK(status_fields(ObjectKind::BackendFilamentSensor) ==
-          status_fields(ObjectKind::FilamentMotion));
-    CHECK(status_fields(ObjectKind::WidthSensor) == V{"Diameter", "Raw"});
-    CHECK(status_fields(ObjectKind::Mcu) == V{"last_stats"});
-    CHECK(status_fields(ObjectKind::Probe).empty());
-    CHECK(status_fields(ObjectKind::Speaker).empty());
-    CHECK(status_fields(ObjectKind::Stepper).empty());
-    CHECK(status_fields(ObjectKind::Unknown).empty());
+    CHECK(fields_of(ObjectKind::BackendFilamentSensor) == fields_of(ObjectKind::FilamentMotion));
+    CHECK(fields_of(ObjectKind::WidthSensor) == V{"Diameter", "Raw"});
+    CHECK(fields_of(ObjectKind::Mcu) == V{"last_stats"});
+    CHECK(fields_of(ObjectKind::Probe).empty());
+    CHECK(fields_of(ObjectKind::Speaker).empty());
+    CHECK(fields_of(ObjectKind::Stepper).empty());
+    CHECK(fields_of(ObjectKind::Unknown).empty());
 }
 
 TEST_CASE("hw table: family predicates", "[hw_object_table]") {

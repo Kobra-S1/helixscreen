@@ -92,15 +92,6 @@ namespace helix {
 }
 
 /**
- * @brief Whether Klipper object @p name is a heater discovery lists: an
- *        extruder, `heater_bed`, or a `heater_generic`.
- */
-[[nodiscard]] inline bool is_heater_object_name(std::string_view name) {
-    return is_extruder_name(name) || name == "heater_bed" ||
-           name.substr(0, 15) == "heater_generic ";
-}
-
-/**
  * @brief The Klipper extruder object name for a tool number: "extruder" for 0,
  *        "extruderN" for N.
  *

@@ -70,10 +70,35 @@ struct ObjectClass {
 /// a few rules read fields (Beacon's onboard accelerometer).
 [[nodiscard]] ObjectClass classify_section(std::string_view section, const nlohmann::json& body);
 
+/// A fixed list of status field names in static storage: nothing is built at boot.
+struct FieldList {
+    const std::string_view* first = nullptr;
+    size_t count = 0;
+
+    [[nodiscard]] const std::string_view* begin() const {
+        return first;
+    }
+    [[nodiscard]] const std::string_view* end() const {
+        return first + count;
+    }
+    [[nodiscard]] size_t size() const {
+        return count;
+    }
+    [[nodiscard]] bool empty() const {
+        return count == 0;
+    }
+    [[nodiscard]] std::string_view front() const {
+        return first[0];
+    }
+    [[nodiscard]] std::string_view back() const {
+        return first[count - 1];
+    }
+};
+
 /// The fields to subscribe for a kind. Empty: subscribe nothing. A single "*"
 /// entry: subscribe the whole object (Moonraker null). Probe is empty: its fields vary
 /// per probe type and ProbeSensorManager supplies them.
-[[nodiscard]] const std::vector<std::string>& status_fields(ObjectKind kind);
+[[nodiscard]] FieldList status_fields(ObjectKind kind);
 
 [[nodiscard]] bool is_heater(ObjectKind kind);      ///< Heater, GenericHeater
 [[nodiscard]] bool is_fan(ObjectKind kind);         ///< every fan kind incl. TemperatureFan

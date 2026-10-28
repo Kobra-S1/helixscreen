@@ -172,6 +172,15 @@ TEST_CASE("PrinterDiscovery: the probe XY offset comes from the probe's config s
         REQUIRE(hw.probe_xy_offset().has_value());
         CHECK(hw.probe_xy_offset()->y == Catch::Approx(25.0));
     }
+    SECTION("a RevH [beacon] that also carries its accelerometer") {
+        hw.parse_probe_xy_offset(json{{"beacon",
+                                       {{"x_offset", 0.0},
+                                        {"y_offset", 20.0},
+                                        {"accel_scale", "2g"},
+                                        {"accel_axes_map", "x,y,z"}}}});
+        REQUIRE(hw.probe_xy_offset().has_value());
+        CHECK(hw.probe_xy_offset()->y == Catch::Approx(20.0));
+    }
     SECTION("no probe section") {
         hw.parse_probe_xy_offset(json{{"stepper_x", {{"position_max", 235.0}}}});
         CHECK_FALSE(hw.probe_xy_offset().has_value());
