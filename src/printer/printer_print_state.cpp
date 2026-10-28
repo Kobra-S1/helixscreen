@@ -405,6 +405,8 @@ void PrinterPrintState::reset_for_new_print() {
     // reprint (whose metadata callback won't re-fire).
     have_gcode_z_ = false;
     last_gcode_z_mm_ = 0.0;
+    print_clock_s_ = 0.0;
+    height_layer_pending_ = {};
     layer_z_derived_ = false;
     slicer_progress_ = 0.0;
     slicer_progress_active_ = false;
@@ -778,7 +780,8 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
 
         // Update print time tracking (elapsed and remaining)
         if (stats.contains("print_duration") && stats["print_duration"].is_number()) {
-            int print_seconds = static_cast<int>(stats["print_duration"].get<double>());
+            print_clock_s_ = stats["print_duration"].get<double>();
+            int print_seconds = static_cast<int>(print_clock_s_);
             lv_subject_set_int(&print_duration_, print_seconds);
         }
 
@@ -1047,7 +1050,10 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
     //   round((z - first_layer_height) / layer_height) + 1
     // While printing layer N the commanded Z sits at first + (N-1)*height, so
     // rel = (z-first)/height = N-1 and round(rel)+1 = N. round() (not ceil)
-    // tolerates +-1/2 layer of commanded-Z float noise / z-hop symmetrically.
+    // absorbs +-1/2 layer of commanded-Z float noise. A Z-hop lifts Z several
+    // layers for each travel move, so a new layer is shown only once Z has
+    // held it for kHeightLayerDwellSeconds of print time
+    // (decide_height_layer()); the first derived layer of a print shows at once.
     //
     // Gated on the STICKY printer_reports_layers_ (a printer that ever reports a
     // real layer field must never fabricate one), known geometry, and a cached
@@ -1078,14 +1084,19 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
                 derived = 1;
             if (derived > total)
                 derived = total;
+            const int shown = lv_subject_get_int(&print_layer_current_);
+            const HeightLayerDecision decision = decide_height_layer(
+                !layer_z_derived_, shown, derived, height_layer_pending_, print_clock_s_);
+            height_layer_pending_ = decision.pending;
             // Mark the source BEFORE writing the subject so the label observer
             // reads the correct accuracy state on the change it triggers.
             layer_z_derived_ = true;
-            if (derived != lv_subject_get_int(&print_layer_current_)) {
+            if (decision.show != shown) {
                 spdlog::debug("[LayerTracker] Derived layer {}/{} from Z={:.3f}mm "
                               "(first={:.3f}, height={:.3f})",
-                              derived, total, last_gcode_z_mm_, first_layer_height_, layer_height_);
-                apply_layer_current(derived, LayerSource::Estimate, "z-height derivation");
+                              decision.show, total, last_gcode_z_mm_, first_layer_height_,
+                              layer_height_);
+                apply_layer_current(decision.show, LayerSource::Estimate, "z-height derivation");
             }
         }
     }

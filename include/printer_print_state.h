@@ -5,6 +5,7 @@
 
 #include "async_lifetime_guard.h"
 #include "gcode_pause_scan.h"
+#include "height_layer_dwell.h"
 #include "layer_pause.h"
 #include "print_eta_estimator.h"
 #include "print_job_ref.h"
@@ -1222,6 +1223,13 @@ class PrinterPrintState {
     // carries virtual_sdcard). Reset per-print (motion belongs to the print).
     double last_gcode_z_mm_ = 0.0;
     bool have_gcode_z_ = false;
+    // print_stats.print_duration unrounded: the clock the Z-derived layer's
+    // dwell runs on. It is the printer's own print time, so it stands still
+    // while paused (a pause park never becomes a layer) and follows the mock's
+    // --sim-speed. Reset per-print.
+    double print_clock_s_ = 0.0;
+    // A Z-derived layer waiting out kHeightLayerDwellSeconds. Reset per-print.
+    HeightLayerPending height_layer_pending_;
 
     // Print time tracking subjects (in seconds)
     lv_subject_t print_duration_{};      // Extrusion-only elapsed time (Moonraker print_duration)
