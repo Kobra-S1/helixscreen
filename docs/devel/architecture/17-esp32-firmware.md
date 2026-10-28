@@ -65,10 +65,11 @@ records each file left out with its reason. What stays out is the Linux shell ar
 `DisplayManager`, `PrinterSession`, `main.cpp`, the libhv `MoonrakerClient`, crash handling, mDNS, Bluetooth,
 remote screen and the ctl server) and the subsystems the panel cannot afford or has no hardware for. Those
 subsystems compile out through the definitions in `components/helixapp/CMakeLists.txt`: `HELIX_HAS_CAMERA`,
-`GCODE_VIEWER`, `BED_MESH_3D`, `LABEL_PRINTER`, `PLUGINS`, `TIMELAPSE_VIEWER`, `SOUND`, `BELT_TUNER`, `HIDPI_FONTS`,
-`TOOLHEAD_WIDGET` (the home Toolhead widget; the Motion panel stays) and `CJK` are 0, `HELIX_ENABLE_SCREENSAVER` is 0, and the filament backends (`CFS`, `IFS`, `ACE`, `QIDI`,
-`SNAPMAKER`) are 1. Every gate is written out even when its value is the obvious one, because an undefined
-`HELIX_HAS_X` reads as 0 in `#if` and would drop a feature with nobody deciding to. Shared code that needs a
+`GCODE_VIEWER`, `BED_MESH_3D`, `LABEL_PRINTER`, `PLUGINS`, `TIMELAPSE_VIEWER`, `BELT_TUNER`, `HIDPI_FONTS`,
+`TOOLHEAD_WIDGET` (the home Toolhead widget; the Motion panel stays), `IMAGE_TAGGER` and `CJK` are 0, and
+`HELIX_ENABLE_SCREENSAVER` is 0. Every other gate, the filament backends (`CFS`, `IFS`, `ACE`, `QIDI`,
+`SNAPMAKER`) among them, keeps its default from `include/helix_features.h`, which `lvgl_pch.h` brings into every
+source. `HELIX_HAS_SOUND` is a presence flag and is left undefined, so the sound paths compile to their stubs. Shared code that needs a
 firmware arm tests `HELIX_PLATFORM_ESP32`, or `ESP_PLATFORM` where an IDF header is involved.
 
 Excluded files leave holes that kept files still reach. Three kinds of filler cover them, and the difference

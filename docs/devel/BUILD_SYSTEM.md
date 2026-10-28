@@ -2213,11 +2213,8 @@ for the high-DPI UI scale factor to step into on phone-class panels. No printer 
 declares the `xxlarge` tier, so none of them links these (~11MB of `.rodata`). Android
 does not build through this Makefile at all: `android/app/jni/CMakeLists.txt` globs
 `assets/fonts/*.c` wholesale, so every face including these six is linked, and its
-`target_compile_definitions` declares `HELIX_MAX_FONT_TIER=6` and
-`HELIX_HAS_HIDPI_FONTS=1` to match, since both macros default to a conservative fallback
-when a build path leaves them undefined (`HELIX_HAS_HIDPI_FONTS` to 0), which would
-otherwise drop these six faces' mappings and asset registrations for a build that
-did link them.
+`target_compile_definitions` declares `HELIX_MAX_FONT_TIER=6` to match, and
+`HELIX_HAS_HIDPI_FONTS` keeps its default of 1 from `include/helix_features.h`.
 
 ### Feature gates
 
@@ -2229,13 +2226,18 @@ did link them.
 | `ENABLE_SCREENSAVER` | yes (desktop/Pi) | Flying toasters |
 | `ENABLE_MOCKS` | yes (no on `cc1`/`ad5m`/`ad5m-br`) | Mock backends for development |
 | `ENABLE_SSL` | per target | OpenSSL for HTTPS/WSS |
-| `HELIX_HAS_LABEL_PRINTER` | 1 | Label printer feature |
-| `HELIX_HAS_CFS` | 1 | CFS feature |
-| `HELIX_HAS_IFS` | 1 | IFS feature |
-| `HELIX_HAS_ACE` | 1 | ACE vendor backend (0 on non-Anker cross targets) |
-| `HELIX_HAS_QIDI` | 1 | QIDI Box vendor backend (0 on non-QIDI cross targets) |
-| `HELIX_HAS_SNAPMAKER` | 1 | SnapSwap vendor backend (0 except `snapmaker-u1`) |
 | `HELIX_BACKLIGHT_FLOOR_PERCENT` | 0 | Lowest visible raw backlight level, percent of the raw range. 20 on `k2`, applied only by the sysfs and Sonic Pad CLI backends (the sysfs panel on community K2 firmware renders lower levels as off, #1709); the Allwinner `/dev/disp` backend ignores it. `/display/backlight_floor_percent` in settings.json overrides it on every backend |
+
+The `HELIX_HAS_*` compile-out gates (label printing, the vendor filament systems, the G-code
+viewer, the 3D bed mesh, plugins, timelapse viewing, Belt Tension, the Toolhead widget, the
+image tagger, the hi-DPI font rungs, CJK) take their defaults from `include/helix_features.h`,
+one `#ifndef` block each. `lvgl_pch.h` brings that header into every C++ source in all three
+builds, so a gate a build does not pass keeps its default instead of reading as 0 in `#if`.
+The Makefile reads the defaults from it into make variables, `mk/cross.mk` turns gates off per
+platform, and the Android and firmware CMakeLists list only what they change.
+`scripts/check_feature_gates.py` (`qc_feature_gates`) keeps the header the one place a default
+lives. Presence flags the build sets by probing the host (`HELIX_HAS_SOUND`, `HELIX_HAS_ALSA`,
+`HELIX_HAS_SYSTEMD`, ...) are tested with `#ifdef` and are never passed as `=0`.
 
 ### Linker flags by platform
 
