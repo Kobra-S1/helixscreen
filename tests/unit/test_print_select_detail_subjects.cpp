@@ -1328,14 +1328,45 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A chip tap runs the card's remap gate",
         return lv_obj_find_by_name(lv_screen_active(), "filament_picker_card") != nullptr;
     };
 
-    SECTION("remap available: the chip's dropdown opens") {
+    SECTION("job rewrite: the chip opens the full mapping modal, no dropdown") {
+        // A stored pick is printed only by the modal's own apply, never by Print.
         get_printer_state().set_helix_plugin_installed(true);
+        helix::ui::UpdateQueue::instance().drain();
+        view.show("chip_tap.gcode", "sub", "PLA", {"#FF0000", "#00FF00"}, {"PLA", "PETG"}, kSize,
+                  kMtime);
+        const auto before = view.get_filament_mappings();
+        lv_obj_t* const chip = lv_obj_find_by_name(root, "filament_chip_1");
+        REQUIRE(chip != nullptr);
+        lv_obj_send_event(chip, LV_EVENT_CLICKED, nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(view.current_remap_block() == helix::printer::RemapBlock::None);
+        CHECK_FALSE(picker_open());
+        CHECK(opens == 1);
+        const auto after = view.get_filament_mappings();
+        REQUIRE(after.size() == before.size());
+        for (size_t i = 0; i < after.size(); ++i) {
+            CHECK(after[i].mapped_slot == before[i].mapped_slot);
+            CHECK(after[i].is_auto == before[i].is_auto);
+            CHECK_FALSE(after[i].user_picked);
+        }
+    }
+
+    SECTION("the printer's table or a pre-print send: the chip's dropdown opens") {
+        const auto strategy = GENERATE(helix::AmsBackend::RemapStrategy::Native,
+                                       helix::AmsBackend::RemapStrategy::PrePrintSend);
+        ams.backend->set_remap_strategy(strategy);
         show_and_tap();
         REQUIRE(view.current_remap_block() == helix::printer::RemapBlock::None);
         CHECK(picker_open());
         CHECK(ModalStack::instance().top_dialog() == nullptr);
         // The chip, not the card: the full modal's opener is not called.
         CHECK(opens == 0);
+
+        // The view going away, even only for a blanked screen, closes the dropdown.
+        view.on_deactivating(DeactivateReason::Suspended);
+        helix::ui::UpdateQueue::instance().drain();
+        lv_timer_handler();
+        CHECK_FALSE(picker_open());
     }
 
     SECTION("plugin missing: the help modal, and no dropdown") {

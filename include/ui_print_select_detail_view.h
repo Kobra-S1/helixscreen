@@ -239,7 +239,9 @@ class PrintSelectDetailView : public OverlayBase {
      *
      * The same gate as on_color_card_clicked(): NeedsPlugin explains, any other
      * block does nothing, and None opens chip @p chip's slot dropdown under
-     * @p trigger (FilamentMappingCard::open_slot_picker()).
+     * @p trigger (FilamentMappingCard::open_slot_picker()), or the full mapping
+     * modal where Print would not carry out a stored pick
+     * (print_carries_out_chip_pick()).
      */
     void on_chip_clicked(size_t chip, lv_obj_t* trigger);
 
@@ -262,6 +264,11 @@ class PrintSelectDetailView : public OverlayBase {
     /// modal for NeedsPlugin) unless current_remap_block() is None.
     /// @param what "card" or "chip", for the log
     bool remap_tap_allowed(const char* what);
+
+    /// Whether the active backend's Print carries out a pick the chip dropdown
+    /// stores (helix::printer::print_carries_out_stored_pick()). When it does not,
+    /// a chip tap opens the full mapping modal instead.
+    [[nodiscard]] bool print_carries_out_chip_pick() const;
 
     /**
      * @brief Explain the card's remap state, and offer the fix when there is one.

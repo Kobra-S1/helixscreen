@@ -132,6 +132,21 @@ void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::Avail
     s_chip_severity.set_int(i, static_cast<int>(helix::chip_severity(tool, slot)));
 }
 
+/// Whether two slot lists show the user the same lanes: what the dropdown lists
+/// and what a pick from it is recorded against.
+bool same_slots(const std::vector<helix::AvailableSlot>& a,
+                const std::vector<helix::AvailableSlot>& b) {
+    return std::equal(a.begin(), a.end(), b.begin(), b.end(),
+                      [](const helix::AvailableSlot& x, const helix::AvailableSlot& y) {
+                          return x.key() == y.key() && x.color_rgb == y.color_rgb &&
+                                 x.material == y.material && x.is_empty == y.is_empty &&
+                                 x.unit_index == y.unit_index &&
+                                 x.local_slot_index == y.local_slot_index &&
+                                 x.unit_display_name == y.unit_display_name &&
+                                 x.multi_color_hexes == y.multi_color_hexes && x.finish == y.finish;
+                      });
+}
+
 /// What the extruder holds on a printer with no filament system: known only when the
 /// external spool record names a material or a colour.
 helix::LoadedFilament loaded_filament_from(const std::optional<helix::SlotInfo>& spool) {
@@ -191,8 +206,12 @@ void FilamentMappingCard::create(lv_obj_t* card_widget, lv_obj_t* rows_container
 
     init_chip_subjects();
     s_chip_card = this;
-    language_observer_ =
-        observe_language_change(this, [](FilamentMappingCard* self) { self->publish_chips(); });
+    // An open dropdown holds rows and reasons in the old language and slots as
+    // they were: it closes rather than answer for either.
+    language_observer_ = observe_language_change(this, [](FilamentMappingCard* self) {
+        self->slot_picker_.hide();
+        self->publish_chips();
+    });
 
     spdlog::debug("[FilamentMapping] Card created");
 }
@@ -384,26 +403,36 @@ bool FilamentMappingCard::recompute_visibility_or_clear() {
 
 void FilamentMappingCard::refresh_slot_data() {
     if (!card_ || !rows_container_) {
+        slot_picker_.hide();
         return;
     }
     // The slots can take away what made the card worth showing (the backend
     // going away, bypass engaging), so the rule runs again first.
     if (!recompute_visibility_or_clear()) {
+        slot_picker_.hide();
         publish_chips();
         return;
     }
     if (shows_loaded_) {
         // What is loaded is read afresh on every publish.
+        slot_picker_.hide();
         publish_chips();
         return;
     }
     if (!AmsState::instance().is_available()) {
         return;
     }
-    available_slots_ = AmsState::instance().collect_available_slots();
+    std::vector<helix::AvailableSlot> fresh_slots = AmsState::instance().collect_available_slots();
+    const bool slots_moved = !same_slots(available_slots_, fresh_slots);
+    available_slots_ = std::move(fresh_slots);
     const Mapping fresh = compute_mapping(palette_colors_, palette_materials_, used_tools_);
     const bool followed =
         fresh.shows && helix::FilamentMapper::follow_seed(mappings_, fresh.mappings);
+    // The dropdown lists the slots and picks it was opened with; a pick from it
+    // would be recorded against lanes that have since moved.
+    if (slots_moved || followed) {
+        slot_picker_.hide();
+    }
     publish_chips();
     if (followed && on_mappings_changed_) {
         on_mappings_changed_();
@@ -618,6 +647,11 @@ void FilamentMappingCard::open_slot_picker(size_t chip, lv_obj_t* trigger) {
         [this, tool_index](const FilamentSlotPicker::Selection& sel) {
             if (sel.is_extra) {
                 open_full_mapping();
+                return;
+            }
+            if (pick_gate_ && !pick_gate_()) {
+                spdlog::debug("[FilamentMapping] T{} pick dropped: remap no longer available",
+                              tool_index);
                 return;
             }
             // Looked up again: the tools may have been refiltered while it was open.

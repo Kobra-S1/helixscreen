@@ -883,3 +883,46 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "More options opens the full mapping"
     CHECK(card.get_mappings().size() == before.size());
     process_lvgl(100);
 }
+
+TEST_CASE_METHOD(MappingCardRenderFixture, "Fresh slot data closes an open dropdown",
+                 "[filament_mapping][chip_tap]") {
+    load_lane(mock, 0, 0xFF0000, "PLA");
+    load_lane(mock, 1, 0x00FF00, "PETG");
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    card.open_slot_picker(0, chip(0));
+    REQUIRE(card.slot_picker().is_visible());
+
+    // Nothing moved: the dropdown stays.
+    card.refresh_slot_data();
+    REQUIRE(card.slot_picker().is_visible());
+
+    load_lane(mock, 1, 0x0000FF, "PETG");
+    card.refresh_slot_data();
+    CHECK_FALSE(card.slot_picker().is_visible());
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(MappingCardRenderFixture, "A pick the gate refuses is not recorded",
+                 "[filament_mapping][chip_tap]") {
+    load_lane(mock, 0, 0xFF0000, "PLA");
+    load_lane(mock, 1, 0x00FF00, "PETG");
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    const auto before = card.get_mappings();
+    int changed = 0;
+    card.set_on_mappings_changed([&changed] { ++changed; });
+    bool allowed = true;
+    card.set_pick_gate([&allowed] { return allowed; });
+
+    card.open_slot_picker(1, chip(1));
+    REQUIRE(card.slot_picker().is_visible());
+    allowed = false; // the remap went away while the dropdown was open
+    tap(on_screen("filament_picker_row_0"));
+
+    CHECK_FALSE(card.slot_picker().is_visible());
+    CHECK(changed == 0);
+    const auto after = card.get_mappings();
+    REQUIRE(after.size() == before.size());
+    CHECK_FALSE(after[1].user_picked);
+    CHECK(after[1].mapped_slot == before[1].mapped_slot);
+    process_lvgl(100);
+}

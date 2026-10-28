@@ -228,6 +228,19 @@ class FilamentMappingCard {
      */
     void open_slot_picker(size_t chip, lv_obj_t* trigger);
 
+    using PickGate = std::function<bool()>;
+
+    /// Asked when a dropdown pick lands, before it is recorded; false drops it.
+    /// Unset records every pick.
+    void set_pick_gate(PickGate gate) {
+        pick_gate_ = std::move(gate);
+    }
+
+    /// Close the chip dropdown if it is open.
+    void hide_slot_picker() {
+        slot_picker_.hide();
+    }
+
     /// The chip dropdown, for tests.
     [[nodiscard]] const FilamentSlotPicker& slot_picker() const {
         return slot_picker_;
@@ -460,6 +473,7 @@ class FilamentMappingCard {
     FilamentMappingModal mapping_modal_;
     FilamentSlotPicker slot_picker_;
     ChipTapCallback on_chip_tap_;
+    PickGate pick_gate_;
     MappingsChangedCallback on_mappings_changed_;
     TapCallback on_tap_; ///< If set, tap fires this instead of opening the internal modal
 };

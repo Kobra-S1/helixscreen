@@ -458,6 +458,10 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
     // A chip takes its own tap: the same remap gate, then that tool's dropdown.
     filament_mapping_card_.set_on_chip_tap(
         [this](size_t chip, lv_obj_t* trigger) { on_chip_clicked(chip, trigger); });
+    // The gate is asked again when a pick lands: the backend or the plugin may
+    // have changed while the dropdown was open.
+    filament_mapping_card_.set_pick_gate(
+        [this]() { return remap_tap_allowed("chip pick") && print_carries_out_chip_pick(); });
     filament_mapping_card_.set_on_mappings_changed([this]() {
         // Fired by set_mappings() AFTER it repaints the chips, so this is only
         // the downstream work: re-colour the preview and re-gate pre-flight.
@@ -992,6 +996,7 @@ void PrintSelectDetailView::on_deactivating(DeactivateReason reason) {
     // live in exclude_objects_; a blanked screen keeps them, leaving the file
     // drops them, unless they are held for the print start that hid this view.
     exclude_mode_.hide();
+    filament_mapping_card_.hide_slot_picker();
     if ((reason == DeactivateReason::NavigateAway && !picks_held_for_start_) ||
         reason == DeactivateReason::Shutdown) {
         exclude_objects_.clear_objects();
@@ -1967,8 +1972,23 @@ bool PrintSelectDetailView::remap_tap_allowed(const char* what) {
     return true;
 }
 
+bool PrintSelectDetailView::print_carries_out_chip_pick() const {
+    const auto* backend = AmsState::instance().get_backend();
+    return backend != nullptr &&
+           helix::printer::print_carries_out_stored_pick(backend->get_remap_strategy());
+}
+
 void PrintSelectDetailView::on_chip_clicked(size_t chip, lv_obj_t* trigger) {
     if (!remap_tap_allowed("chip")) {
+        return;
+    }
+    // A pick the Print button would not carry out is never recorded inline: the
+    // full mapping modal applies it itself.
+    if (!print_carries_out_chip_pick()) {
+        spdlog::debug("[PrintSelect] filament chip {} tap -> remap modal", chip);
+        if (on_remap_requested_) {
+            on_remap_requested_();
+        }
         return;
     }
     spdlog::debug("[PrintSelect] filament chip {} tap -> slot picker", chip);
