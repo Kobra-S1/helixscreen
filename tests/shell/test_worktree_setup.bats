@@ -154,6 +154,30 @@ build_fixture_repo() {
     rm -rf "$tmp"
 }
 
+@test "installed tool dependencies are linked from the main tree, the telemetry worker's included" {
+    tmp="$(cd "$(mktemp -d)" && pwd -P)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+    mkdir -p "$tmp/main/server/telemetry-worker"
+    echo '{}' > "$tmp/main/server/telemetry-worker/package.json"
+    git -C "$tmp/main" add server && git -C "$tmp/main" commit -qm worker
+    mkdir -p "$tmp/main/node_modules" "$tmp/main/.venv" "$tmp/main/server/telemetry-worker/node_modules"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD --no-build feat/deps
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+
+    wt="$tmp/main/.worktrees/deps"
+    for rel in node_modules .venv server/telemetry-worker/node_modules; do
+        [ -L "$wt/$rel" ] || { echo "$rel is not a symlink" >&2; return 1; }
+        [ "$(readlink "$wt/$rel")" = "$tmp/main/$rel" ] || { echo "$rel -> $(readlink "$wt/$rel")" >&2; return 1; }
+    done
+    rm -rf "$tmp"
+}
+
+@test "the usage text names the telemetry worker's node_modules link" {
+    run bash "$SCRIPT" --help
+    [[ "$output" == *"telemetry worker's node_modules"* ]] || { echo "$output" >&2; return 1; }
+}
+
 @test "lib/lua is a private checkout, not a symlink into the main tree" {
     tmp="$(mktemp -d)"
     export CCACHE_CONFIGPATH="$tmp/ccache.conf"
