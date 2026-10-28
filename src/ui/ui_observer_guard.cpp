@@ -71,8 +71,7 @@ void ObserverGuard::reset() {
         // free → UAF on the next notify (#449TVQ82, #X3RA4252). An
         // observer created during/after the window (e.g. a widget built
         // mid-reinit) is on a LIVE subject and is removed normally —
-        // created_epoch_ distinguishes the two cases; the old global
-        // boolean could not.
+        // created_epoch_ distinguishes the two cases.
         bool freed_by_deinit =
             (!owner_token || s_process_exit.load(std::memory_order_acquire)) &&
             created_epoch_ < s_invalidation_epoch.load(std::memory_order_acquire) &&
@@ -92,9 +91,8 @@ void ObserverGuard::reset() {
     // null still leaves us owning it -- and lv_subject_add_observer_obj()
     // returns null for a subject whose type is still LV_SUBJECT_TYPE_INVALID,
     // i.e. any observer installed before its subject's init_subjects() ran.
-    // Skipping the cleanup there stranded the context for the process
-    // lifetime and showed up as observe_int_*<Owner> origins in the ASan
-    // leak ratchet (#1279).
+    // Skipping the cleanup there would leak the context for the process
+    // lifetime (#1279).
     //
     // Safe for every other path: a normal reset() has just removed the
     // observer above, a second reset() finds cleanup_ already null, and

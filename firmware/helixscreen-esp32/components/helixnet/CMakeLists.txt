@@ -59,7 +59,7 @@ target_compile_options(${COMPONENT_LIB} PRIVATE
     $<$<COMPILE_LANGUAGE:CXX>:-std=gnu++17>
     # GCC clones inline functions per translation unit ($isra, $constprop, $part)
     # as local symbols the linker cannot merge, so every TU carries its own copy of
-    # the same std::string, json and ObserverGuard helpers.
+    # the same std::string and json helpers.
     $<$<COMPILE_LANGUAGE:CXX>:-fno-ipa-sra>
     $<$<COMPILE_LANGUAGE:CXX>:-fno-ipa-cp-clone>
     $<$<COMPILE_LANGUAGE:CXX>:-fno-partial-inlining>
