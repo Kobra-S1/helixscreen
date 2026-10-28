@@ -396,14 +396,26 @@ void FilamentMappingCard::seed_from_palette(const std::vector<std::string>& gcod
 }
 
 bool FilamentMappingCard::recompute_visibility_or_clear() {
-    if (recompute_visibility()) {
+    if (recompute_visibility() && !shows_loaded_) {
         return true;
     }
     // A hidden card has no mappings of its own: whatever it held (the previous
     // file's, or picks made before bypass engaged) must not reach print start.
+    // Nor does one showing what is loaded, which has no lane to map.
     available_slots_.clear();
     mappings_.clear();
-    return false;
+    return should_show_;
+}
+
+bool FilamentMappingCard::seed_if_unseeded() {
+    if (!should_show_ || shows_loaded_ || !mappings_.empty()) {
+        return false;
+    }
+    Mapping m = compute_mapping(palette_colors_, palette_materials_, used_tools_);
+    tool_info_ = std::move(m.tool_info);
+    available_slots_ = std::move(m.slots);
+    mappings_ = std::move(m.mappings);
+    return true;
 }
 
 void FilamentMappingCard::refresh_slot_data() {
@@ -425,6 +437,16 @@ void FilamentMappingCard::refresh_slot_data() {
         return;
     }
     if (!AmsState::instance().is_available()) {
+        return;
+    }
+    // A card that was showing what is loaded, or was hidden, holds no mappings
+    // to follow: the filament system it now maps is seeded from the palette.
+    if (seed_if_unseeded()) {
+        slot_picker_.hide();
+        publish_chips();
+        if (on_mappings_changed_) {
+            on_mappings_changed_();
+        }
         return;
     }
     std::vector<helix::AvailableSlot> fresh_slots = AmsState::instance().collect_available_slots();
@@ -458,12 +480,9 @@ void FilamentMappingCard::set_used_tools(std::optional<std::set<int>> used) {
     // Callers must re-publish afterwards; PrintSelectDetailView does that from
     // publish_card_visibility(), which is why this does not reach for a subject
     // itself - the card has never owned one.
-    if (recompute_visibility_or_clear() && mappings_.empty()) {
+    if (recompute_visibility_or_clear()) {
         // Shown again after a narrower set hid it (and cleared it): seed afresh.
-        Mapping m = compute_mapping(palette_colors_, palette_materials_, used_tools_);
-        tool_info_ = std::move(m.tool_info);
-        available_slots_ = std::move(m.slots);
-        mappings_ = std::move(m.mappings);
+        seed_if_unseeded();
     }
 
     // Then compact the card's current tool_info_/mappings_ in lockstep. This

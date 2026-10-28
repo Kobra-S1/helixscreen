@@ -446,8 +446,14 @@ class FilamentMappingCard {
     bool recompute_visibility();
 
     /// recompute_visibility(), clearing mappings_ and available_slots_ when the
-    /// card is hidden. Every path that can hide the card goes through this.
+    /// card is hidden or shows what is loaded. Every path that can hide the card
+    /// or switch it to loaded goes through this. @return should_show_
     bool recompute_visibility_or_clear();
+
+    /// Seed mappings_, available_slots_ and tool_info_ from the stored palette
+    /// when the card maps lanes and holds no mappings (shown again after being
+    /// hidden, or switched from showing what is loaded). @return true if seeded
+    bool seed_if_unseeded();
 
     /// update()'s body. @p keep_picks: the user's picks laid over the fresh seed
     /// (empty for a new file).

@@ -201,6 +201,52 @@ TEST_CASE_METHOD(NoFilamentSystemCardFixture,
     process_lvgl(100);
 }
 
+TEST_CASE_METHOD(NoFilamentSystemCardFixture,
+                 "A filament system arriving seeds the card; one leaving clears its mappings",
+                 "[filament_mapping][visibility][loaded]") {
+    load("PLA", 0xFF0000);
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    REQUIRE(card.should_show());
+    REQUIRE(card.shows_loaded());
+    REQUIRE(card.get_mappings().empty());
+
+    auto& ams = AmsState::instance();
+    auto owned = std::make_unique<helix::AmsBackendMock>(2);
+    helix::AmsBackendMock* const backend = owned.get();
+    backend->set_operation_delay(0);
+    ams.set_backend(std::move(owned));
+    backend->start();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(ams.is_available());
+
+    int changed = 0;
+    card.set_on_mappings_changed([&changed] { ++changed; });
+    card.refresh_slot_data();
+    REQUIRE(card.should_show());
+    CHECK_FALSE(card.shows_loaded());
+    const auto mappings = card.get_mappings();
+    REQUIRE(mappings.size() == 2);
+    CHECK_FALSE(card.get_available_slots().empty());
+    CHECK(changed == 1);
+    // Seeded onto the mock's lanes, so neither chip is the red no-lane state.
+    REQUIRE(Chip::chip_count() == 2);
+    CHECK(Chip::chip_int(0, "_slot_state") != 0);
+    CHECK(Chip::chip_int(1, "_slot_state") != 0);
+    CHECK_FALSE(Chip::chip_string(0, "_slot").empty());
+
+    helix::ui::UpdateQueue::instance().drain();
+    backend->stop();
+    ams.clear_backends();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE_FALSE(ams.is_available());
+    card.refresh_slot_data();
+    REQUIRE(card.should_show());
+    CHECK(card.shows_loaded());
+    CHECK(card.get_mappings().empty());
+    CHECK(card.get_available_slots().empty());
+    process_lvgl(100);
+}
+
 TEST_CASE_METHOD(MappingCardRenderFixture, "Card shows on a backend whose mapping is not editable",
                  "[filament_mapping][visibility]") {
     // snapmaker_mode_ is the U1 case: RemapStrategy::PrePrintSend, so the
