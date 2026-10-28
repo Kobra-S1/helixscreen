@@ -412,6 +412,14 @@ class FilamentMapper {
     [[nodiscard]] static const AvailableSlot*
     resolve_mapped_slot(const ToolMapping& mapping, const std::vector<AvailableSlot>& slots);
 
+    /// The lane @p mapping prints from: resolve_mapped_slot() for a pick, and for
+    /// Auto the lane @p routing sends the tool to on the primary backend, whose
+    /// routing it is. nullptr when that lane is not among @p slots. Aliases
+    /// @p slots like resolve_mapped_slot().
+    [[nodiscard]] static const AvailableSlot*
+    resolve_printing_slot(const ToolMapping& mapping, const std::vector<AvailableSlot>& slots,
+                          const FirmwareRouting& routing);
+
     static constexpr int kColorMatchTolerance = 50;
 };
 

@@ -24,6 +24,14 @@ ChipSeverity chip_severity(const GcodeToolInfo& tool, const AvailableSlot* resol
     return flags.color_mismatch ? ChipSeverity::Warn : ChipSeverity::Ok;
 }
 
+ChipSeverity mapping_severity(const GcodeToolInfo& tool, const ToolMapping& mapping,
+                              const AvailableSlot* lane) {
+    if (!lane && mapping.is_auto) {
+        return ChipSeverity::Ok;
+    }
+    return chip_severity(tool, lane);
+}
+
 std::string chip_slot_label(const AvailableSlot& slot,
                             const std::vector<AvailableSlot>& all_slots) {
     std::vector<std::pair<int, int>> units; // (backend_index, unit_index), first-seen order

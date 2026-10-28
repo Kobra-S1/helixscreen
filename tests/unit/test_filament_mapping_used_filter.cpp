@@ -926,3 +926,42 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "A pick the gate refuses is not recor
     CHECK(after[1].mapped_slot == before[1].mapped_slot);
     process_lvgl(100);
 }
+
+TEST_CASE_METHOD(MappingCardRenderFixture, "Picking Auto shows the lane the tool routes to",
+                 "[filament_mapping][chip_tap]") {
+    load_lane(mock, 0, 0xFF0000, "PLA");
+    load_lane(mock, 1, 0x00FF00, "PETG");
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    card.set_mappings(mappings_to_slots({0, 0}));
+    REQUIRE(chip_int(1, "_severity") == 2); // T1's PETG on lane 1's PLA
+
+    card.open_slot_picker(1, chip(1));
+    REQUIRE(card.slot_picker().is_visible());
+    tap(on_screen("auto_choice"));
+
+    REQUIRE(card.get_mappings()[1].is_auto);
+    // The mock routes lane-per-tool: T1 prints from lane 2, its own PETG.
+    CHECK(chip_int(1, "_severity") != 2);
+    CHECK(chip_int(1, "_severity") == 0);
+    CHECK(chip_string(1, "_slot") == "2");
+    CHECK(chip_int(1, "_slot_state") == 1);
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(MappingCardRenderFixture, "An Auto that routes to no lane is grey, not red",
+                 "[filament_mapping][chip_tap]") {
+    // T5 on four lanes: identity routing gives it head 5, which no lane is.
+    card.set_used_tools(std::set<int>{0, 5});
+    card.update({"#FF0000", "#00FF00", "#0000FF", "#FFFFFF", "#000000", "#00FFFF"},
+                {"PLA", "PLA", "PLA", "PLA", "PLA", "PLA"});
+    auto mappings = card.get_mappings();
+    REQUIRE(mappings.size() == 2);
+    REQUIRE(mappings[1].tool_index == 5);
+    helix::FilamentMapper::pick_slot(mappings[1], card.get_tool_info()[1],
+                                     card.get_available_slots(), -1, -1, true);
+    card.set_mappings(mappings);
+    REQUIRE(chip_count() == 2);
+    CHECK(chip_int(1, "_severity") == 0);
+    CHECK(chip_int(1, "_slot_state") == 5);
+    process_lvgl(100);
+}

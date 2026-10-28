@@ -74,8 +74,9 @@ enum ChipSlotState : int {
     kNoSlot = 0,
     kLoadedSlot = 1,
     kEmptySlot = 2,
-    kSwapSlot = 3,   ///< no filament system, a tool the print swaps in later
-    kUnknownSlot = 4 ///< no filament system, nothing says what is loaded
+    kSwapSlot = 3,    ///< no filament system, a tool the print swaps in later
+    kUnknownSlot = 4, ///< no filament system, nothing says what is loaded
+    kAutoSlot = 5     ///< Auto, and the routing names no lane: the body is blank
 };
 
 /// filament_chip_<i>_ink: the header label's colour.
@@ -120,7 +121,9 @@ void publish_chip_header(size_t i, const helix::GcodeToolInfo& tool) {
     s_chip_ink.set_int(i, ink);
 }
 
-void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::AvailableSlot* slot,
+/// @p slot is the lane @p mapping prints from (FilamentMapper::resolve_printing_slot()).
+void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::ToolMapping& mapping,
+                  const helix::AvailableSlot* slot,
                   const std::vector<helix::AvailableSlot>& all_slots) {
     publish_chip_header(i, tool);
     s_chip_slot.set_string(i, slot ? helix::chip_slot_label(*slot, all_slots) : std::string{});
@@ -128,8 +131,10 @@ void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::Avail
     s_chip_slot_colors.set_string(i, slot ? slot->multi_color_hexes : std::string{});
     s_chip_slot_finish.set_string(i, slot ? std::string(helix::filament_finish_name(slot->finish))
                                           : std::string{});
-    s_chip_slot_state.set_int(i, !slot ? kNoSlot : (slot->is_empty ? kEmptySlot : kLoadedSlot));
-    s_chip_severity.set_int(i, static_cast<int>(helix::chip_severity(tool, slot)));
+    s_chip_slot_state.set_int(i, slot              ? (slot->is_empty ? kEmptySlot : kLoadedSlot)
+                                 : mapping.is_auto ? kAutoSlot
+                                                   : kNoSlot);
+    s_chip_severity.set_int(i, static_cast<int>(helix::mapping_severity(tool, mapping, slot)));
 }
 
 /// Whether two slot lists show the user the same lanes: what the dropdown lists
@@ -529,15 +534,17 @@ void FilamentMappingCard::publish_chips() {
                                 i == 0 ? helix::LoadedRole::Loaded : helix::LoadedRole::Swap);
         }
     } else {
+        const helix::FirmwareRouting routing = AmsState::instance().collect_firmware_routing();
         for (size_t i = 0; i < visible; ++i) {
             // mappings_ is built parallel to tool_info_ and compacted in lockstep by
             // apply_used_tools_filter, so index i is this tool's mapping.
             const ToolMapping mapping = (i < mappings_.size()) ? mappings_[i] : ToolMapping{};
             // Judged against the slots as they are now, never a cached verdict:
             // refresh_slot_data() replaces available_slots_ while a pick stays put.
-            publish_chip(i, tool_info_[i],
-                         helix::FilamentMapper::resolve_mapped_slot(mapping, available_slots_),
-                         available_slots_);
+            publish_chip(
+                i, tool_info_[i], mapping,
+                helix::FilamentMapper::resolve_printing_slot(mapping, available_slots_, routing),
+                available_slots_);
         }
     }
 

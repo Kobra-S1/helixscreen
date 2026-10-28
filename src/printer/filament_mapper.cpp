@@ -48,6 +48,24 @@ const AvailableSlot* FilamentMapper::resolve_mapped_slot(const ToolMapping& mapp
     return nullptr;
 }
 
+const AvailableSlot* FilamentMapper::resolve_printing_slot(const ToolMapping& mapping,
+                                                           const std::vector<AvailableSlot>& slots,
+                                                           const FirmwareRouting& routing) {
+    if (!mapping.is_auto) {
+        return resolve_mapped_slot(mapping, slots);
+    }
+    const int head = routing.head(mapping.tool_index);
+    if (head < 0) {
+        return nullptr;
+    }
+    for (const auto& s : slots) {
+        if (s.backend_index == 0 && s.slot_index == head) {
+            return &s;
+        }
+    }
+    return nullptr;
+}
+
 int FilamentMapper::mapped_lane_display_number(const ToolMapping& mapping,
                                                const std::vector<AvailableSlot>& slots) {
     const AvailableSlot* const s = resolve_mapped_slot(mapping, slots);

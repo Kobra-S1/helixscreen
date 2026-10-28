@@ -12,7 +12,8 @@
            colour that reads on the fill.
          - body: the mapped slot's spool (its colour, split and finish) or a
            ring for an empty slot, with the slot label ("3", "2·1"); an
-           empty-spool icon when no slot is chosen; a caret while a tap can
+           empty-spool icon when no slot is chosen; only the caret for an Auto
+           whose routing names no lane (slot_state 5); a caret while a tap can
            remap. On a printer with no filament system
            the body is what is loaded: its spool, a question-mark icon when
            nothing says, or a swap icon for a later tool; no caret and no remap.
