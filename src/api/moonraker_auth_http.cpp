@@ -6,13 +6,15 @@
 #include "hv/HttpClient.h"
 #include "moonraker_auth.h"
 
+#include <utility>
+
 namespace helix::moonraker_auth {
 
 void apply_to_request(HttpRequest& req) {
-    const std::string current = req.GetHeader(kApiKeyHeader);
-    switch (header_action(req.host, req.port, current)) {
+    HeaderDecision decision = header_action(req.host, req.port, req.GetHeader(kApiKeyHeader));
+    switch (decision.action) {
     case HeaderAction::Set:
-        req.headers[kApiKeyHeader] = key_for(req.host, req.port);
+        req.headers[kApiKeyHeader] = std::move(decision.key);
         break;
     case HeaderAction::Remove:
         req.headers.erase(kApiKeyHeader);

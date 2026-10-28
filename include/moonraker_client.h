@@ -779,6 +779,10 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     mutable std::mutex state_callback_mutex_; // Protect state_change_callback_ during destruction
     uint32_t connection_timeout_ms_;
 
+    // The upgrade request libhv sends, handed over once before any open(). open() only
+    // merges headers into it, so connect() sets or erases the API key here itself.
+    HttpRequestPtr upgrade_request_ = std::make_shared<HttpRequest>();
+
     // Connection parameters (from config)
     uint32_t keepalive_interval_ms_;
     uint32_t reconnect_min_delay_ms_;

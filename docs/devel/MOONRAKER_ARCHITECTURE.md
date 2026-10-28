@@ -173,13 +173,14 @@ A Moonraker with `force_logins` refuses every request without a credential, trus
 
 | Piece | Role |
 |-------|------|
-| `include/moonraker_auth.h` | The pure rules: `credential_from_printer()` reads a printer entry, `set_credential()` records it, `key_for()` / `key_for_url()` answer what key a host:port gets, `header_action()` decides Set / Leave / Remove for a request's header. Built for the desktop and the ESP32 firmware alike |
-| `src/application/printer_retarget.cpp#connect_printer` | Records the active printer's credential before every connect (startup, printer switch, Change Host) |
+| `include/moonraker_auth.h` | The pure rules: `set_credential()` records the active printer's credential, `key_for()` / `key_for_url()` answer what key a host:port gets, `header_action()` decides Set / Leave / Remove for a request's header. Built for the desktop and the ESP32 firmware alike |
+| `src/application/printer_retarget.cpp#connect_printer` | Records `active_printer_credential()`, built from the same host and port the connection URL uses, before every connect (startup, printer switch, Change Host) |
 | `src/api/moonraker_auth_http.cpp` | Installs `apply_to_request()` as libhv's request hook (`patches/libhv-http-request-hook.patch`), so every libhv HTTP request, sync, async or upload, built from any URL, gets the key when it is bound for that printer |
 | `MoonrakerClient::connect()` | Adds the header to the WebSocket upgrade, which libhv sends without the hook |
 | `EspMoonrakerClient::create_transport()` | The firmware's WebSocket upgrade, through `esp_websocket_client_config_t::headers` |
+| `EspHttpLane::run_one()` | The firmware's HTTP file reads, through `esp_http_client_set_header()` |
 
-**The key goes only to the host and port it was configured for.** Moonraker refuses a wrong key even from a trusted address, so a key sent to a different printer (the connection wizard testing a typed address, a CLI override) would break a connection that works without one. A redirect that carries the recorded key to another host has it removed; an `X-Api-Key` another caller set for its own service (telemetry) is left alone.
+**The key goes only to the host and port saved with it.** Moonraker refuses a wrong key even from a trusted address, so a key sent to a different printer (the connection wizard testing a typed address, a CLI override) would break a connection that works without one. Change Host moves a printer entry to a new address and keeps its key, since it is still that printer. A synchronous redirect re-runs the hook, so the key comes off at another host; libhv's async client follows redirects without the hook, and nothing in the app sends HTTP through it. An `X-Api-Key` another caller set for its own service (telemetry) is left alone. The WebSocket upgrade request is created once per `MoonrakerClient` and reused by every connect, so `connect()` erases the previous key before it sets the current one.
 
 ### Event System
 

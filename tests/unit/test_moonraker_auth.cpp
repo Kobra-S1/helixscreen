@@ -18,6 +18,7 @@
 #include "moonraker_auth_http.h"
 #include "moonraker_client.h"
 #include "printer_retarget.h"
+#include "utils/network_validation.h"
 
 #include <chrono>
 #include <memory>
@@ -40,25 +41,6 @@ struct CredentialGuard {
 };
 
 } // namespace
-
-TEST_CASE("moonraker auth: a printer entry's key", "[moonraker-auth]") {
-    SECTION("a string key is trimmed") {
-        const auto c = credential_from_printer({{"moonraker_host", "printer.local"},
-                                                {"moonraker_port", 7125},
-                                                {"moonraker_api_key", "  abc123  "}});
-        CHECK(c.host == "printer.local");
-        CHECK(c.port == 7125);
-        CHECK(c.api_key == "abc123");
-    }
-    SECTION("false, absent and blank all mean no key") {
-        CHECK(credential_from_printer({{"moonraker_api_key", false}}).api_key.empty());
-        CHECK(credential_from_printer({{"moonraker_host", "h"}}).api_key.empty());
-        CHECK(credential_from_printer({{"moonraker_api_key", "   "}}).api_key.empty());
-    }
-    SECTION("not an object") {
-        CHECK(credential_from_printer(nullptr).host.empty());
-    }
-}
 
 TEST_CASE("moonraker auth: the key goes only to its own printer", "[moonraker-auth]") {
     CredentialGuard guard;
@@ -85,14 +67,16 @@ TEST_CASE("moonraker auth: what a request does with its header", "[moonraker-aut
     CredentialGuard guard;
     set_credential({"printer.lan", 7125, "k"});
 
-    CHECK(header_action("printer.lan", 7125, "") == HeaderAction::Set);
-    CHECK(header_action("printer.lan", 7125, "stale") == HeaderAction::Set);
-    CHECK(header_action("printer.lan", 7125, "k") == HeaderAction::Leave);
-    CHECK(header_action("webcam.lan", 80, "") == HeaderAction::Leave);
+    const HeaderDecision set = header_action("printer.lan", 7125, "");
+    CHECK(set.action == HeaderAction::Set);
+    CHECK(set.key == "k");
+    CHECK(header_action("printer.lan", 7125, "stale").action == HeaderAction::Set);
+    CHECK(header_action("printer.lan", 7125, "k").action == HeaderAction::Leave);
+    CHECK(header_action("webcam.lan", 80, "").action == HeaderAction::Leave);
     // Another service's key belongs to the caller that set it.
-    CHECK(header_action("telemetry.example", 443, "other") == HeaderAction::Leave);
+    CHECK(header_action("telemetry.example", 443, "other").action == HeaderAction::Leave);
     // Ours, carried to a host it does not belong to (a redirect), comes off.
-    CHECK(header_action("elsewhere.example", 443, "k") == HeaderAction::Remove);
+    CHECK(header_action("elsewhere.example", 443, "k").action == HeaderAction::Remove);
 }
 
 TEST_CASE("moonraker auth: every libhv request to the printer carries the key",
@@ -154,6 +138,24 @@ TEST_CASE("moonraker auth: the WebSocket upgrade carries the key",
     REQUIRE(server.connection_count() > 0);
     CHECK(server.last_upgrade_header(kApiKeyHeader) == "ws-secret");
 
+    SECTION("a reconnect to a printer with no key sends none") {
+        client->disconnect();
+        const auto closed_by = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+        while (std::chrono::steady_clock::now() < closed_by && server.connection_count() > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        REQUIRE(server.connection_count() == 0);
+
+        set_credential({"127.0.0.1", server.port() + 1, "other-printers"});
+        client->connect(server.url().c_str(), []() {}, []() {});
+        const auto open_by = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+        while (std::chrono::steady_clock::now() < open_by && server.connection_count() == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        REQUIRE(server.connection_count() > 0);
+        CHECK(server.last_upgrade_header(kApiKeyHeader).empty());
+    }
+
     client->disconnect();
     loop->stop();
     loop->join();
@@ -163,16 +165,30 @@ TEST_CASE("moonraker auth: the WebSocket upgrade carries the key",
 TEST_CASE("moonraker auth: the active printer's saved key", "[moonraker-auth]") {
     Config* config = Config::get_instance();
     const std::string df = config->df();
-    const nlohmann::json* before = config->try_get_json(df + "moonraker_api_key");
-    const nlohmann::json saved = before ? *before : nlohmann::json(false);
+    nlohmann::json& printer = config->get_json(df.substr(0, df.size() - 1));
+    const nlohmann::json saved = printer;
 
-    config->set<std::string>(df + "moonraker_api_key", "from-settings");
-    const Credential c = active_printer_credential();
-    CHECK(c.api_key == "from-settings");
-    CHECK(c.host == config->get<std::string>(df + "moonraker_host", ""));
+    printer["moonraker_host"] = "printer.lan";
+    printer.erase("moonraker_port");
 
-    config->set<bool>(df + "moonraker_api_key", false);
-    CHECK(active_printer_credential().api_key.empty());
+    SECTION("a string key is trimmed, at the address the URL uses") {
+        printer["moonraker_api_key"] = "  from-settings  ";
+        const Credential c = active_printer_credential();
+        CHECK(c.api_key == "from-settings");
+        CHECK(c.host == "printer.lan");
+        // No saved port: the default the connection URL also falls back to.
+        CHECK(c.port == helix::kDefaultMoonrakerPort);
+        CHECK(active_printer_ws_url() ==
+              "ws://printer.lan:" + std::to_string(helix::kDefaultMoonrakerPort) + "/websocket");
+    }
+    SECTION("false, absent and blank all mean no key") {
+        printer["moonraker_api_key"] = false;
+        CHECK(active_printer_credential().api_key.empty());
+        printer.erase("moonraker_api_key");
+        CHECK(active_printer_credential().api_key.empty());
+        printer["moonraker_api_key"] = "   ";
+        CHECK(active_printer_credential().api_key.empty());
+    }
 
-    config->get_json(df + "moonraker_api_key") = saved;
+    printer = saved;
 }

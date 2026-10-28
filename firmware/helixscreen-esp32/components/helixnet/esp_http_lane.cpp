@@ -9,6 +9,7 @@
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "moonraker_auth.h"
 #include "psram_thread_stack.h"
 
 #include <algorithm>
@@ -184,6 +185,9 @@ void EspHttpLane::run_one(const Job& job) {
     std::string range =
         "bytes=" + std::to_string(job.offset) + "-" + std::to_string(job.offset + job.cap - 1);
     esp_http_client_set_header(client, "Range", range.c_str());
+    if (const std::string key = helix::moonraker_auth::key_for_url(job.url); !key.empty()) {
+        esp_http_client_set_header(client, helix::moonraker_auth::kApiKeyHeader, key.c_str());
+    }
 
     esp_err_t err = esp_http_client_open(client, 0);
     if (err != ESP_OK) {

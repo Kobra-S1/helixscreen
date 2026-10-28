@@ -5,8 +5,6 @@
 #include <string>
 #include <string_view>
 
-#include "hv/json.hpp"
-
 /// The Moonraker API key, and the one printer it belongs to.
 ///
 /// A Moonraker with `force_logins` refuses every request that carries no
@@ -23,11 +21,6 @@ struct Credential {
     int port = 0;
     std::string api_key; ///< Empty: this printer takes no key.
 };
-
-/// The credential a printer entry in settings carries: its `moonraker_host`,
-/// `moonraker_port` and `moonraker_api_key`. A key that is `false`, absent or
-/// blank means none.
-[[nodiscard]] Credential credential_from_printer(const nlohmann::json& printer);
 
 /// Records the active printer's credential, replacing the previous one.
 void set_credential(Credential credential);
@@ -47,7 +40,15 @@ enum class HeaderAction {
     Remove, ///< Carries the recorded key to a host it does not belong to.
 };
 
+struct HeaderDecision {
+    HeaderAction action = HeaderAction::Leave;
+    std::string key; ///< The value to send when action is Set.
+};
+
 /// @p current is the header's present value, empty when the request has none.
-[[nodiscard]] HeaderAction header_action(std::string_view host, int port, std::string_view current);
+/// Decided under one lock, so a credential replaced mid-request cannot pair Set
+/// with an empty key.
+[[nodiscard]] HeaderDecision header_action(std::string_view host, int port,
+                                           std::string_view current);
 
 } // namespace helix::moonraker_auth

@@ -14,6 +14,7 @@
 #include "print_history_manager.h"
 #include "printer_state.h"
 #include "sound_manager.h"
+#include "text_io.h"
 #include "utils/network_validation.h"
 
 #include <spdlog/spdlog.h>
@@ -41,10 +42,8 @@ IMoonrakerClient* disconnect_for_retarget() {
 
 /// The active printer's Moonraker as "host:port".
 std::string active_printer_host_port(const std::string& default_host) {
-    Config* config = Config::get_instance();
-    return config->get<std::string>(config->df() + "moonraker_host", default_host) + ":" +
-           std::to_string(
-               config->get<int>(config->df() + "moonraker_port", helix::kDefaultMoonrakerPort));
+    const moonraker_auth::Credential c = active_printer_credential(default_host);
+    return c.host + ":" + std::to_string(c.port);
 }
 
 /// The new printer's first status replaces the live values; an unreachable one never sends
@@ -76,12 +75,18 @@ std::string active_printer_http_url(const std::string& default_host) {
     return "http://" + active_printer_host_port(default_host);
 }
 
-moonraker_auth::Credential active_printer_credential() {
+moonraker_auth::Credential active_printer_credential(const std::string& default_host) {
     Config* config = Config::get_instance();
-    std::string printer = config->df();
-    printer.pop_back(); // "/printers/<id>/" names the entry's children; the entry has no slash
-    const nlohmann::json* node = config->try_get_json(printer);
-    return node ? moonraker_auth::credential_from_printer(*node) : moonraker_auth::Credential{};
+    const std::string df = config->df();
+    moonraker_auth::Credential c;
+    c.host = config->get<std::string>(df + "moonraker_host", default_host);
+    c.port = config->get<int>(df + "moonraker_port", helix::kDefaultMoonrakerPort);
+    // false, absent or blank: this printer takes no key.
+    if (const nlohmann::json* key = config->try_get_json(df + "moonraker_api_key");
+        key && key->is_string()) {
+        c.api_key = std::string(text_io::trim(key->get<std::string>()));
+    }
+    return c;
 }
 
 bool connect_printer(MoonrakerManager& manager, const std::string& ws_url,

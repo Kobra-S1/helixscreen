@@ -22,27 +22,16 @@ Credential& stored_credential() {
     return c;
 }
 
-} // namespace
-
-Credential credential_from_printer(const nlohmann::json& printer) {
-    Credential c;
-    if (!printer.is_object()) {
-        return c;
+/// Caller holds credential_mutex().
+const std::string* key_for_locked(std::string_view host, int port) {
+    const Credential& c = stored_credential();
+    if (c.api_key.empty() || c.port != port || !text_io::equals_ignore_case(c.host, host)) {
+        return nullptr;
     }
-    const auto host = printer.find("moonraker_host");
-    if (host != printer.end() && host->is_string()) {
-        c.host = host->get<std::string>();
-    }
-    const auto port = printer.find("moonraker_port");
-    if (port != printer.end() && port->is_number_integer()) {
-        c.port = port->get<int>();
-    }
-    const auto key = printer.find("moonraker_api_key");
-    if (key != printer.end() && key->is_string()) {
-        c.api_key = std::string(text_io::trim(key->get<std::string>()));
-    }
-    return c;
+    return &c.api_key;
 }
+
+} // namespace
 
 void set_credential(Credential credential) {
     std::lock_guard<std::mutex> lock(credential_mutex());
@@ -51,11 +40,8 @@ void set_credential(Credential credential) {
 
 std::string key_for(std::string_view host, int port) {
     std::lock_guard<std::mutex> lock(credential_mutex());
-    const Credential& c = stored_credential();
-    if (c.api_key.empty() || c.port != port || !text_io::equals_ignore_case(c.host, host)) {
-        return {};
-    }
-    return c.api_key;
+    const std::string* key = key_for_locked(host, port);
+    return key ? *key : std::string{};
 }
 
 std::string key_for_url(std::string_view url) {
@@ -94,19 +80,21 @@ std::string key_for_url(std::string_view url) {
     return key_for(host, port_number);
 }
 
-HeaderAction header_action(std::string_view host, int port, std::string_view current) {
-    const std::string key = key_for(host, port);
-    if (!key.empty()) {
-        return current == key ? HeaderAction::Leave : HeaderAction::Set;
-    }
-    if (current.empty()) {
-        return HeaderAction::Leave;
+HeaderDecision header_action(std::string_view host, int port, std::string_view current) {
+    std::lock_guard<std::mutex> lock(credential_mutex());
+    if (const std::string* key = key_for_locked(host, port)) {
+        if (current == *key) {
+            return {};
+        }
+        return {HeaderAction::Set, *key};
     }
     // Another service's key is that caller's own business; the recorded key
     // reaching a host it does not belong to (a redirect) is ours to take back.
-    std::lock_guard<std::mutex> lock(credential_mutex());
     const std::string& recorded = stored_credential().api_key;
-    return !recorded.empty() && current == recorded ? HeaderAction::Remove : HeaderAction::Leave;
+    if (!current.empty() && !recorded.empty() && current == recorded) {
+        return {HeaderAction::Remove, {}};
+    }
+    return {};
 }
 
 } // namespace helix::moonraker_auth

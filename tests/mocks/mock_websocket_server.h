@@ -184,15 +184,15 @@ class MockWebSocketServer {
     /**
      * @brief Get number of currently connected clients
      */
+    int connection_count() const {
+        return connection_count_.load();
+    }
+
     /// @p name from the most recent connection's upgrade request, "" if it had none.
     std::string last_upgrade_header(const std::string& name) const {
         std::lock_guard<std::mutex> lock(channels_mutex_);
         const auto it = last_upgrade_headers_.find(name);
         return it == last_upgrade_headers_.end() ? std::string{} : it->second;
-    }
-
-    int connection_count() const {
-        return connection_count_.load();
     }
 
     /**
