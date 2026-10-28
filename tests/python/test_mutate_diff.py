@@ -1397,9 +1397,13 @@ def test_a_pytest_case_red_at_baseline_is_deselected_and_the_rest_judge(tmp_path
     base = _git(work, "rev-parse", "HEAD").strip()
     (work / "scripts" / "tool.py").write_text("VALUE = 'NEW'\n")
     # The run judges with the repo's own venv when it has one; this interpreter has
-    # pytest, where a bare python3 on PATH (a CI runner's) may not.
-    (work / ".venv" / "bin").mkdir(parents=True)
-    (work / ".venv" / "bin" / "python3").symlink_to(sys.executable)
+    # pytest, where a bare python3 on PATH (a CI runner's) may not. A wrapper, not a
+    # symlink: a venv's python started through a link elsewhere finds no pyvenv.cfg
+    # beside it and runs as the bare base interpreter.
+    venv_python = work / ".venv" / "bin" / "python3"
+    venv_python.parent.mkdir(parents=True)
+    venv_python.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
+    venv_python.chmod(0o755)
     r = _mutate(work, "--base", base, "--no-auto-tests", "--shell-tests", "",
                 "--python-tests", "tests/python/test_tool.py")
     assert r.returncode == 0, r.stdout
