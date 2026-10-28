@@ -125,54 +125,56 @@ ProbeSensorManager::ProbeSensorManager() : SensorManager(make_options()) {}
 // ============================================================================
 
 void ProbeSensorManager::on_entries_changed() {
-    for (auto it = readings_.begin(); it != readings_.end();) {
-        const auto& name = it->first;
-        const bool known =
-            std::any_of(entries_locked().begin(), entries_locked().end(),
-                        [&](const SensorEntry& e) { return e.klipper_name == name; });
-        it = known ? std::next(it) : readings_.erase(it);
-    }
+    prune_vanished_locked(readings_);
 }
 
-void ProbeSensorManager::on_discovered(const PrinterDiscovery& hw) {
-    auto& entries = entries_locked();
-    const auto objects = hw.objects_of({hw::ObjectKind::Probe});
-    const auto is_object = [&objects](const std::string& name) {
-        return std::find(objects.begin(), objects.end(), name) != objects.end();
+namespace {
+
+/// Config-only probe sections folded into the probe object they describe.
+struct FoldedSections {
+    std::string probe;                 ///< the probe object that took them
+    std::vector<std::string> sections; ///< load_cell_probe, dockable_probe, ...
+};
+
+// A config-only probe section (load_cell_probe, dockable_probe) describes the
+// generic probe object its module registers. Beside a probe object it refines
+// that probe's type and supplies its z_offset instead of adding a second
+// sensor; with no probe object it is the sensor.
+FoldedSections fold_config_sections(std::vector<SensorEntry>& entries,
+                                    const std::vector<std::string>& objects) {
+    const auto is_object = [&objects](const SensorEntry& e) {
+        return std::find(objects.begin(), objects.end(), e.klipper_name) != objects.end();
     };
-
-    // A config-only probe section (load_cell_probe, dockable_probe) describes the
-    // generic probe object its module registers. Beside a probe object it refines
-    // that probe's type and supplies its z_offset instead of adding a second
-    // sensor; with no probe object it is the sensor.
-    std::vector<std::pair<std::string, std::string>> alias_sections; ///< {probe, section}
-    const auto primary = std::find_if(entries.begin(), entries.end(), [&](const SensorEntry& e) {
-        return e.klipper_name == "probe" && is_object(e.klipper_name);
+    auto target = std::find_if(entries.begin(), entries.end(), [&](const SensorEntry& e) {
+        return e.klipper_name == "probe" && is_object(e);
     });
-    auto target = primary != entries.end()
-                      ? primary
-                      : std::find_if(entries.begin(), entries.end(), [&](const SensorEntry& e) {
-                            return is_object(e.klipper_name);
-                        });
-    if (target != entries.end()) {
-        const std::string target_name = target->klipper_name;
-        for (const auto& entry : entries) {
-            if (is_object(entry.klipper_name)) {
-                continue;
-            }
-            alias_sections.emplace_back(target_name, entry.klipper_name);
-            if (type_of(*target) == ProbeSensorType::STANDARD &&
-                type_of(entry) != ProbeSensorType::STANDARD) {
-                target->type = entry.type;
-            }
-        }
-        entries.erase(
-            std::remove_if(entries.begin(), entries.end(),
-                           [&](const SensorEntry& e) { return !is_object(e.klipper_name); }),
-            entries.end());
+    if (target == entries.end()) {
+        target = std::find_if(entries.begin(), entries.end(), is_object);
     }
+    FoldedSections folded;
+    if (target == entries.end()) {
+        return folded;
+    }
+    folded.probe = target->klipper_name;
+    for (const auto& entry : entries) {
+        if (is_object(entry)) {
+            continue;
+        }
+        folded.sections.push_back(entry.klipper_name);
+        if (type_of(*target) == ProbeSensorType::STANDARD &&
+            type_of(entry) != ProbeSensorType::STANDARD) {
+            target->type = entry.type;
+        }
+    }
+    entries.erase(std::remove_if(entries.begin(), entries.end(),
+                                 [&](const SensorEntry& e) { return !is_object(e); }),
+                  entries.end());
+    return folded;
+}
 
+void drop_alias_objects(std::vector<SensorEntry>& entries) {
     std::vector<ProbeSensorType> types;
+    types.reserve(entries.size());
     for (const auto& entry : entries) {
         types.push_back(type_of(entry));
     }
@@ -181,42 +183,58 @@ void ProbeSensorManager::on_discovered(const PrinterDiscovery& hw) {
     entries.erase(std::remove_if(entries.begin(), entries.end(),
                                  [&](const SensorEntry&) { return !keep[index++]; }),
                   entries.end());
+}
 
-    // Post-discovery refinement: upgrade STANDARD probes to KLICKY when the
-    // characteristic deploy/dock macros are present.
-    if (has_klicky_macros(hw.printer_objects())) {
-        for (auto& entry : entries) {
-            if (type_of(entry) == ProbeSensorType::STANDARD) {
-                spdlog::debug("[ProbeSensorManager] Upgrading standard probe '{}' to KLICKY "
-                              "(deploy/dock macros present)",
-                              entry.display_name);
-                entry.type = static_cast<uint8_t>(ProbeSensorType::KLICKY);
+// Klicky probes register as a plain [probe]; their deploy/dock macros tell them apart.
+void upgrade_klicky(std::vector<SensorEntry>& entries, const PrinterDiscovery& hw) {
+    if (!has_klicky_macros(hw.printer_objects())) {
+        return;
+    }
+    for (auto& entry : entries) {
+        if (type_of(entry) == ProbeSensorType::STANDARD) {
+            spdlog::debug("[ProbeSensorManager] Upgrading standard probe '{}' to KLICKY",
+                          entry.display_name);
+            entry.type = static_cast<uint8_t>(ProbeSensorType::KLICKY);
+        }
+    }
+}
+
+/// The configured z_offset of @p name, or of a section folded into it.
+std::optional<float> seeded_z_offset(const std::string& name, const FoldedSections& folded,
+                                     const PrinterDiscovery& hw) {
+    std::vector<std::string> sections = {name};
+    if (name == folded.probe) {
+        sections.insert(sections.end(), folded.sections.begin(), folded.sections.end());
+    }
+    for (const auto& section_name : sections) {
+        const nlohmann::json* section = hw.section(section_name);
+        if (section != nullptr && section->is_object()) {
+            if (const auto z_offset = configured_z_offset(*section)) {
+                return z_offset;
             }
         }
     }
+    return std::nullopt;
+}
 
+} // namespace
+
+void ProbeSensorManager::on_discovered(const PrinterDiscovery& hw) {
+    auto& entries = entries_locked();
+    const FoldedSections folded =
+        fold_config_sections(entries, hw.objects_of({hw::ObjectKind::Probe}));
+    drop_alias_objects(entries);
+    upgrade_klicky(entries, hw);
+    apply_type_override_locked();
     on_entries_changed();
 
     // Seed z_offset from the configfile for probes whose runtime status reports
     // null (flashforge_loadcell); the configfile always has the persisted value.
     for (const auto& entry : entries) {
-        std::vector<std::string> sections = {entry.klipper_name};
-        for (const auto& [probe, section] : alias_sections) {
-            if (probe == entry.klipper_name) {
-                sections.push_back(section);
-            }
-        }
-        for (const auto& section_name : sections) {
-            const nlohmann::json* section = hw.section(section_name);
-            if (section == nullptr || !section->is_object()) {
-                continue;
-            }
-            if (const auto z_offset = configured_z_offset(*section)) {
-                readings_[entry.klipper_name].z_offset = *z_offset;
-                spdlog::debug("[ProbeSensorManager] Seeded z_offset={:.3f}mm from config for {}",
-                              *z_offset, entry.display_name);
-                break;
-            }
+        if (const auto z_offset = seeded_z_offset(entry.klipper_name, folded, hw)) {
+            readings_[entry.klipper_name].z_offset = *z_offset;
+            spdlog::debug("[ProbeSensorManager] Seeded z_offset={:.3f}mm from config for {}",
+                          *z_offset, entry.display_name);
         }
     }
 
@@ -352,20 +370,28 @@ lv_subject_t* ProbeSensorManager::get_probe_z_offset_subject() {
     return &z_offset_;
 }
 
+bool ProbeSensorManager::apply_type_override_locked() {
+    if (type_override_ == ProbeSensorType::STANDARD) {
+        return false;
+    }
+    for (auto& entry : entries_locked()) {
+        if (type_of(entry) == ProbeSensorType::STANDARD) {
+            spdlog::info("[ProbeSensorManager] Overriding probe type from STANDARD to {} "
+                         "(printer database)",
+                         probe_type_to_string(type_override_));
+            entry.type = static_cast<uint8_t>(type_override_);
+            return true;
+        }
+    }
+    return false;
+}
+
 void ProbeSensorManager::set_probe_type_override(ProbeSensorType type) {
     bool changed = false;
     {
         std::lock_guard<std::recursive_mutex> lock(mutex());
-        for (auto& entry : entries_locked()) {
-            if (type_of(entry) == ProbeSensorType::STANDARD) {
-                spdlog::info("[ProbeSensorManager] Overriding probe type from STANDARD to {} "
-                             "(printer database)",
-                             probe_type_to_string(type));
-                entry.type = static_cast<uint8_t>(type);
-                changed = true;
-                break;
-            }
-        }
+        type_override_ = type;
+        changed = apply_type_override_locked();
     }
     if (changed) {
         publish();

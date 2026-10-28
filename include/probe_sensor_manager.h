@@ -47,7 +47,8 @@ class ProbeSensorManager : public SensorManager {
     /// Override the probe type for the primary probe sensor.
     /// Called by PrinterState after printer detection identifies a specific probe type
     /// that can't be inferred from Klipper object names alone (e.g., prtouch_v2 registers
-    /// as generic "probe").
+    /// as generic "probe"). The override is kept and applied again on every later
+    /// discover(), which re-derives types from object names; STANDARD clears it.
     void set_probe_type_override(ProbeSensorType type);
 
     /// Every probe subscription: the per-type object and its fields. Each probe the
@@ -72,8 +73,14 @@ class ProbeSensorManager : public SensorManager {
     /// Mutex held: the enabled, available Z_PROBE holder's reading, or nullptr.
     [[nodiscard]] const ProbeSensorState* z_probe_reading_locked() const;
 
+    /// Mutex held: give the first STANDARD probe the printer database's type.
+    /// Returns whether an entry changed.
+    bool apply_type_override_locked();
+
     std::map<std::string, ProbeSensorState> readings_; ///< by klipper_name
     lv_subject_t z_offset_{};
+    /// From the printer database; STANDARD = none.
+    ProbeSensorType type_override_ = ProbeSensorType::STANDARD;
 };
 
 } // namespace helix::sensors

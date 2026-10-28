@@ -97,6 +97,14 @@ TemperatureSensorConfig config_of(const SensorEntry& entry) {
     return config;
 }
 
+/// Settings and widget order: priority, then display name.
+bool sorts_before(const TemperatureSensorConfig& a, const TemperatureSensorConfig& b) {
+    if (a.priority != b.priority) {
+        return a.priority < b.priority;
+    }
+    return a.display_name < b.display_name;
+}
+
 } // namespace
 
 TemperatureSensorManager::Options TemperatureSensorManager::make_options() {
@@ -109,6 +117,8 @@ TemperatureSensorManager::Options TemperatureSensorManager::make_options() {
     o.revision_subject = "temp_sensor_revision";
     o.settings_section = "temp";
     o.row_toggle = RowToggle::None;
+    // Readings go to the temperature subjects; Settings rows show none.
+    o.rows_show_readings = false;
     for (const auto& r : kTemperatureSensorRoles) {
         if (r.value == TemperatureSensorRole::NONE) {
             continue;
@@ -130,6 +140,20 @@ SensorRowView TemperatureSensorManager::row(size_t index) const {
         view.name = config_of(all[index]).display_name;
     }
     return view;
+}
+
+std::vector<size_t> TemperatureSensorManager::settings_rows() const {
+    auto rows = SensorManager::settings_rows();
+    const auto all = entries();
+    std::vector<TemperatureSensorConfig> configs;
+    configs.reserve(all.size());
+    for (const auto& e : all) {
+        configs.push_back(config_of(e));
+    }
+    std::stable_sort(rows.begin(), rows.end(), [&configs](size_t a, size_t b) {
+        return sorts_before(configs[a], configs[b]);
+    });
+    return rows;
 }
 
 TemperatureSensorManager& TemperatureSensorManager::instance() {
@@ -272,12 +296,7 @@ std::vector<TemperatureSensorConfig> TemperatureSensorManager::get_sensors() con
 
 std::vector<TemperatureSensorConfig> TemperatureSensorManager::get_sensors_sorted() const {
     auto sorted = get_sensors();
-    std::sort(sorted.begin(), sorted.end(), [](const auto& a, const auto& b) {
-        if (a.priority != b.priority) {
-            return a.priority < b.priority;
-        }
-        return a.display_name < b.display_name;
-    });
+    std::sort(sorted.begin(), sorted.end(), sorts_before);
     return sorted;
 }
 

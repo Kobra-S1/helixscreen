@@ -35,6 +35,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "static_panel_registry.h"
+#include "temperature_sensor_manager.h"
 
 #include <algorithm>
 #include <cstring>
@@ -504,11 +505,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         process_lvgl(20);
         lv_obj_t* held = lv_obj_find_by_name(row, "held_role_label");
         lv_obj_t* dd = lv_obj_find_by_name(row, "role_dropdown");
+        lv_obj_t* unset = lv_obj_find_by_name(row, "unset_role_dropdown");
         REQUIRE(held != nullptr);
         REQUIRE(dd != nullptr);
+        REQUIRE(unset != nullptr);
         CHECK_FALSE(hidden_up_to(held, row));
         CHECK(std::string(lv_label_get_text(held)) == "Hidden");
-        CHECK_FALSE(hidden_up_to(dd, row));
+        // No offered role reads as chosen: the placeholder after them is selected.
+        CHECK(hidden_up_to(dd, row));
+        CHECK_FALSE(hidden_up_to(unset, row));
+        CHECK(lv_dropdown_get_selected(unset) == 3);
+        CHECK(selected_text(unset) == "-");
 
         // A refill (any revision) leaves the held role alone.
         section.fill(manager);
@@ -516,13 +523,19 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(manager.entries()[0].role == RowTestManager::kHidden);
         CHECK(std::string(lv_label_get_text(held)) == "Hidden");
 
-        // The user's pick replaces it.
-        select_option(dd, 2);
-        CHECK(manager.entries()[0].role == RowTestManager::kFirst);
+        // Picking the placeholder changes nothing.
+        select_option(unset, 3);
+        CHECK(manager.entries()[0].role == RowTestManager::kHidden);
+
+        // Any offered option replaces it.
+        select_option(unset, 1);
+        CHECK(manager.entries()[0].role == RowTestManager::kThird);
         section.fill(manager);
         process_lvgl(10);
         CHECK(hidden_up_to(held, row));
-        CHECK(lv_dropdown_get_selected(dd) == 2);
+        CHECK(hidden_up_to(unset, row));
+        CHECK_FALSE(hidden_up_to(dd, row));
+        CHECK(lv_dropdown_get_selected(dd) == 1);
         lv_obj_delete(row);
     }
     manager.deinit_subjects();
@@ -565,4 +578,74 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::sensors::InputSensorManager::instance().discover(every_kind_discovery());
     ScopedSensorManagers::drain();
     CHECK(lv_obj_has_flag(placeholder, LV_OBJ_FLAG_HIDDEN));
+}
+
+// Temperature rows show no reading, so a status frame refills nothing; a change
+// to the entries still does.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Sensor settings: a temperature status update does not refill the section",
+                 "[sensors][settings][temperature]") {
+    ScopedSensorManagers sensors(every_kind_discovery());
+    activate_overlay(test_screen());
+    ScopedSensorManagers::drain();
+    lv_subject_t* name0 = lv_xml_get_subject(nullptr, "sensor_temp_row_name_0");
+    REQUIRE(name0 != nullptr);
+    const std::string filled = lv_subject_get_string(name0);
+    REQUIRE_FALSE(filled.empty());
+    lv_subject_copy_string(name0, "untouched");
+
+    auto& temps = helix::sensors::TemperatureSensorManager::instance();
+    temps.update_from_status({{"temperature_sensor mcu_temp", {{"temperature", 41.5}}}});
+    ScopedSensorManagers::drain();
+    CHECK(std::string(lv_subject_get_string(name0)) == "untouched");
+
+    temps.set_enabled("temperature_sensor mcu_temp", false);
+    ScopedSensorManagers::drain();
+    CHECK(std::string(lv_subject_get_string(name0)) == filled);
+}
+
+// Rows follow get_sensors_sorted(): chamber, MCU, host, drivers, then auxiliary.
+TEST_CASE_METHOD(LVGLUITestFixture, "Sensor settings: temperature rows are in priority order",
+                 "[sensors][settings][temperature]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(
+        nlohmann::json::array({"temperature_sensor zz_aux", "tmc2240 stepper_x",
+                               "temperature_sensor raspberry_pi", "temperature_sensor mcu_temp"}));
+    ScopedSensorManagers sensors(hw);
+    auto& temps = helix::sensors::TemperatureSensorManager::instance();
+    const auto sorted = temps.get_sensors_sorted();
+    std::vector<std::string> expected;
+    for (const auto& s : sorted) {
+        expected.push_back(s.klipper_name);
+    }
+    REQUIRE(expected.front() != "temperature_sensor zz_aux");
+
+    const auto all = temps.entries();
+    std::vector<std::string> rows;
+    for (const size_t i : temps.settings_rows()) {
+        rows.push_back(all[i].klipper_name);
+    }
+    CHECK(rows == expected);
+}
+
+// No card ends in a divider with nothing below it.
+TEST_CASE_METHOD(LVGLUITestFixture, "Sensor settings: no section's last row draws a divider",
+                 "[sensors][settings]") {
+    ScopedSensorManagers sensors(every_kind_discovery());
+    lv_obj_t* root = activate_overlay(test_screen());
+    ScopedSensorManagers::drain();
+    process_lvgl(20);
+    for (const char* list : {"switch_sensors_list", "input_sensors_list", "temp_sensors_list"}) {
+        INFO(list);
+        lv_obj_t* container = lv_obj_find_by_name(root, list);
+        REQUIRE(container != nullptr);
+        const uint32_t n = lv_obj_get_child_count(container);
+        REQUIRE(n > 0);
+        for (uint32_t i = 0; i < n; ++i) {
+            lv_obj_t* divider = lv_obj_find_by_name(
+                lv_obj_get_child(container, static_cast<int32_t>(i)), "row_divider");
+            REQUIRE(divider != nullptr);
+            CHECK(hidden_up_to(divider, root) == (i + 1 == n));
+        }
+    }
 }

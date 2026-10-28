@@ -4496,6 +4496,7 @@
   <translation tag="{} turns" pt="{} voltas"/>
   <translation tag="{} updated" pt="Atualização de {}"/>
   <translation tag="{} widgets" pt="{} widgets"/>
+  <translation tag="{} width sensor" pt="Sensor de largura {}"/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." pt="{} mudará para um slot cujo tipo de filamento E cor correspondam ao carretel ativo e cujo próprio sensor de porta detecte filamento presente."/>
   <translation tag="{} · {}" pt="{} · {}"/>
   <translation tag="{} · {} · {}" pt="{} · {} · {}"/>

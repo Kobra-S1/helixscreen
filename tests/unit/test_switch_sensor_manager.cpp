@@ -832,9 +832,9 @@ TEST_CASE_METHOD(FilamentSensorTestFixture,
     mgr().load_settings();
     filament_settings_slot() = previous;
 
+    // A role that is not a string reads as none, like an unknown role name.
     const auto configs = mgr().get_sensors();
-    CHECK(find_config(configs, "filament_switch_sensor runout")->role ==
-          FilamentSensorRole::RUNOUT);
+    CHECK(find_config(configs, "filament_switch_sensor runout")->role == FilamentSensorRole::NONE);
     CHECK(find_config(configs, "filament_switch_sensor toolhead")->role ==
           FilamentSensorRole::TOOLHEAD);
     CHECK(find_config(configs, "filament_switch_sensor toolhead")->enabled);

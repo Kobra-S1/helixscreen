@@ -4837,6 +4837,7 @@ translations:
   '{} widgets': '{} widgets'
   ? '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
   : '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
+  '{} width sensor': '{} width sensor'
   '{} · {}': '{} · {}'
   '{} · {} · {}': '{} · {} · {}'
   '{} — response timed out': '{} — response timed out'

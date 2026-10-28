@@ -296,7 +296,7 @@ TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager rows carry state, role 
     discover(kC5Objects);
     REQUIRE(mgr().sensor_count() == 4);
     CHECK(mgr().row(0).name == "frontDoor");
-    CHECK(mgr().row(0).role_labels == std::vector<std::string>{"Other", "Door"});
+    CHECK(mgr().row(0).role_count == 2);
     CHECK(mgr().row(0).selected_role == 1);
     CHECK(mgr().row(2).selected_role == 0);
     CHECK(mgr().row(0).state == "--");

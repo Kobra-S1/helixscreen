@@ -6,7 +6,6 @@
 
 #include "lvgl.h"
 
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,7 +25,8 @@ namespace helix::sensors {
  * ObserverGuard holding a copy of the token sees it dead before
  * lv_subject_deinit() frees the observers it would otherwise remove.
  *
- * Main thread only. Subject addresses are stable until the key is removed.
+ * Main thread only. Subject addresses are stable until the key is removed:
+ * each slot is its own allocation, found by a linear scan (a few dozen keys).
  */
 class DynamicSubjectMap {
   public:
@@ -54,12 +54,14 @@ class DynamicSubjectMap {
 
   private:
     struct Slot {
+        std::string key;
         lv_subject_t subject{};
         SubjectLifetime lifetime;
     };
     static void release(Slot& slot);
+    [[nodiscard]] Slot* slot_for(const std::string& key) const;
 
-    std::map<std::string, std::unique_ptr<Slot>> slots_;
+    std::vector<std::unique_ptr<Slot>> slots_;
 };
 
 } // namespace helix::sensors

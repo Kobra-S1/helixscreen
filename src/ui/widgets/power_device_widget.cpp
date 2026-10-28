@@ -491,7 +491,7 @@ void PowerDeviceWidget::DevicePicker::on_created(lv_obj_t* backdrop) {
         add_row(sensor_grid, "picker_chip", "chip_label", lv_tr("None"), "",
                 owner_.sensor_id_.empty(), pick_sensor);
         for (const auto& sid : energy_ids) {
-            auto* info = SensorState::instance().get_sensor_info(sid);
+            const auto info = SensorState::instance().get_sensor_info(sid);
             add_row(sensor_grid, "picker_chip", "chip_label", info ? info->friendly_name : sid, sid,
                     sid == owner_.sensor_id_, pick_sensor);
         }
@@ -736,7 +736,7 @@ void PowerDeviceWidget::setup_carousel() {
         return;
 
     // Verify sensor exists
-    auto* info = SensorState::instance().get_sensor_info(sensor_id_);
+    const auto info = SensorState::instance().get_sensor_info(sensor_id_);
     if (!info) {
         spdlog::debug("[PowerDeviceWidget] Sensor '{}' not found, skipping carousel", sensor_id_);
         return;

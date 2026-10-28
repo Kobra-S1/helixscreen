@@ -74,19 +74,19 @@ TEST_CASE_METHOD(LVGLTestFixture, "SensorState tracks sensors", "[sensor_state]"
     }
 
     SECTION("get_sensor_info returns correct info") {
-        auto* info = state.get_sensor_info("tasmota_power");
-        REQUIRE(info != nullptr);
+        const auto info = state.get_sensor_info("tasmota_power");
+        REQUIRE(info.has_value());
         REQUIRE(info->friendly_name == "Tasmota Power Meter");
         REQUIRE(info->type == "MQTT");
         REQUIRE(info->value_keys.size() == 4);
 
-        auto* temp_info = state.get_sensor_info("temp_probe");
-        REQUIRE(temp_info != nullptr);
+        const auto temp_info = state.get_sensor_info("temp_probe");
+        REQUIRE(temp_info.has_value());
         REQUIRE(temp_info->friendly_name == "Chamber Probe");
         REQUIRE(temp_info->type == "DS18B20");
         REQUIRE(temp_info->value_keys.size() == 1);
 
-        REQUIRE(state.get_sensor_info("nonexistent") == nullptr);
+        REQUIRE_FALSE(state.get_sensor_info("nonexistent").has_value());
     }
 
     SECTION("re-discovery replaces sensors") {
@@ -249,7 +249,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "SensorState reconnect with fewer sensors remo
     CHECK(state.get_value_subject("meter_b", "power", lt) == nullptr);
     CHECK(state.get_value_subject("meter_a", "voltage", lt) == nullptr);
     CHECK(state.get_value_subject("meter_a", "power", lt) == kept);
-    CHECK(state.get_sensor_info("meter_b") == nullptr);
+    CHECK_FALSE(state.get_sensor_info("meter_b").has_value());
 
     state.deinit_subjects();
 }

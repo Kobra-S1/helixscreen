@@ -889,14 +889,12 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
     }
     refresh_bed_drying_capability();
 
-    // Apply probe type override from database (e.g., prtouch_v2 for K1 series)
-    std::string probe_type_str = PrinterDetector::get_probe_type(type);
-    if (!probe_type_str.empty()) {
-        auto probe_type = helix::sensors::probe_type_from_string(probe_type_str);
-        if (probe_type != helix::sensors::ProbeSensorType::STANDARD) {
-            helix::sensors::ProbeSensorManager::instance().set_probe_type_override(probe_type);
-        }
-    }
+    // Probe type override from the database (e.g., prtouch_v2 for K1 series). A type
+    // without one sends STANDARD, which clears the previous printer's override.
+    const std::string probe_type_str = PrinterDetector::get_probe_type(type);
+    helix::sensors::ProbeSensorManager::instance().set_probe_type_override(
+        probe_type_str.empty() ? helix::sensors::ProbeSensorType::STANDARD
+                               : helix::sensors::probe_type_from_string(probe_type_str));
 
     // Update printer_has_purge_line_ based on the option set.
     // "priming" is the option id for purge/prime line in the database (also accept legacy

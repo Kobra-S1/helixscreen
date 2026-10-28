@@ -4496,6 +4496,7 @@
   <translation tag="{} turns" en="{} turns"/>
   <translation tag="{} updated" en="{} updated"/>
   <translation tag="{} widgets" en="{} widgets"/>
+  <translation tag="{} width sensor" en="{} width sensor"/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." en="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present."/>
   <translation tag="{} · {}" en="{} · {}"/>
   <translation tag="{} · {} · {}" en="{} · {} · {}"/>

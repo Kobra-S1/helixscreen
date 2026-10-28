@@ -43,9 +43,10 @@ struct SensorRowSection::Row {
     static constexpr size_t kStateLen = 48;
 
     std::string name_id, detail_id, has_detail_id, state_id, has_state_id, alert_id, role_id,
-        has_role_id, held_role_id, has_held_role_id, toggle_kind_id, toggle_id;
+        has_role_id, role_set_id, held_role_id, has_held_role_id, toggle_kind_id, toggle_id,
+        has_next_id;
     lv_subject_t name{}, detail{}, has_detail{}, state{}, has_state{}, alert{}, role{}, has_role{},
-        held_role{}, has_held_role{}, toggle_kind{}, toggle{};
+        role_set{}, held_role{}, has_held_role{}, toggle_kind{}, toggle{}, has_next{};
     char name_buf[kNameLen]{};
     char detail_buf[kNameLen]{};
     char state_buf[kStateLen]{};
@@ -123,10 +124,12 @@ void SensorRowSection::grow(size_t rows) {
         row->alert_id = id("alert");
         row->role_id = id("role");
         row->has_role_id = id("has_role");
+        row->role_set_id = id("role_set");
         row->held_role_id = id("held_role");
         row->has_held_role_id = id("has_held_role");
         row->toggle_kind_id = id("toggle_kind");
         row->toggle_id = id("toggle");
+        row->has_next_id = id("has_next");
         UI_MANAGED_SUBJECT_STRING(row->name, row->name_buf, "", row->name_id.c_str(), subjects_);
         UI_MANAGED_SUBJECT_STRING(row->detail, row->detail_buf, "", row->detail_id.c_str(),
                                   subjects_);
@@ -136,24 +139,24 @@ void SensorRowSection::grow(size_t rows) {
         UI_MANAGED_SUBJECT_INT(row->alert, 0, row->alert_id.c_str(), subjects_);
         UI_MANAGED_SUBJECT_INT(row->role, -1, row->role_id.c_str(), subjects_);
         UI_MANAGED_SUBJECT_INT(row->has_role, 0, row->has_role_id.c_str(), subjects_);
+        UI_MANAGED_SUBJECT_INT(row->role_set, 0, row->role_set_id.c_str(), subjects_);
         UI_MANAGED_SUBJECT_STRING(row->held_role, row->held_role_buf, "", row->held_role_id.c_str(),
                                   subjects_);
         UI_MANAGED_SUBJECT_INT(row->has_held_role, 0, row->has_held_role_id.c_str(), subjects_);
         UI_MANAGED_SUBJECT_INT(row->toggle_kind, 0, row->toggle_kind_id.c_str(), subjects_);
         UI_MANAGED_SUBJECT_INT(row->toggle, 0, row->toggle_id.c_str(), subjects_);
+        UI_MANAGED_SUBJECT_INT(row->has_next, 0, row->has_next_id.c_str(), subjects_);
         rows_.push_back(std::move(row));
     }
 }
 
 void SensorRowSection::fill(const SensorManager& manager) {
     const auto entries = manager.entries();
-    std::vector<size_t> listed;
+    filled_entries_ = entries;
+    const std::vector<size_t> listed = manager.settings_rows();
     slots_.clear();
-    for (size_t i = 0; i < entries.size(); ++i) {
-        if (manager.listed_in_settings(entries[i])) {
-            listed.push_back(i);
-            slots_.push_back({entries[i].klipper_name, RowToggle::None});
-        }
+    for (const size_t i : listed) {
+        slots_.push_back({entries[i].klipper_name, RowToggle::None});
     }
 
     // Grow before the count moves: the <repeat> rebuild it triggers binds by name.
@@ -168,16 +171,34 @@ void SensorRowSection::fill(const SensorManager& manager) {
         set_if_changed(row.state, view.state);
         set_if_changed(row.has_state, view.state.empty() ? 0 : 1);
         set_if_changed(row.alert, view.alert ? 1 : 0);
-        set_if_changed(row.has_role, view.role_labels.empty() ? 0 : 1);
-        // -1 leaves the dropdown alone; a held role that is not offered shows as text.
-        set_if_changed(row.role, view.selected_role);
+        set_if_changed(row.has_role, view.role_count == 0 ? 0 : 1);
+        // A role that is not offered selects unset_role_dropdown's trailing "-",
+        // one past the offered roles, and a held one also shows as text.
+        const bool role_set = view.selected_role >= 0;
+        set_if_changed(row.role_set, role_set ? 1 : 0);
+        set_if_changed(row.role, role_set ? view.selected_role : static_cast<int>(view.role_count));
         const bool held = view.selected_role < 0 && !view.held_role_label.empty();
         set_if_changed(row.held_role, held ? view.held_role_label : std::string{});
         set_if_changed(row.has_held_role, held ? 1 : 0);
         set_if_changed(row.toggle_kind, static_cast<int>(view.toggle));
         set_if_changed(row.toggle, view.toggle_value ? 1 : 0);
+        set_if_changed(row.has_next, k + 1 < listed.size() ? 1 : 0);
     }
     set_if_changed(count_, static_cast<int>(listed.size()));
+}
+
+bool SensorRowSection::rows_may_have_changed() const {
+    if (manager_->rows_show_readings()) {
+        return true;
+    }
+    const auto now = manager_->entries();
+    return !std::equal(now.begin(), now.end(), filled_entries_.begin(), filled_entries_.end(),
+                       [](const sensors::SensorEntry& a, const sensors::SensorEntry& b) {
+                           return a.klipper_name == b.klipper_name &&
+                                  a.display_name == b.display_name && a.type == b.type &&
+                                  a.role == b.role && a.enabled == b.enabled &&
+                                  a.available == b.available;
+                       });
 }
 
 void SensorRowSection::pick_role(size_t row, int option) {
@@ -219,6 +240,9 @@ void SensorRowSection::watch(std::function<void()> after_fill) {
     revision_observer_ = helix::ui::observe<int>(
         manager_->revision_subject(), this,
         [](SensorRowSection* self, int /*revision*/) {
+            if (!self->rows_may_have_changed()) {
+                return;
+            }
             self->fill(*self->manager_);
             if (self->after_fill_) {
                 self->after_fill_();

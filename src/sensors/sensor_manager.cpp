@@ -297,7 +297,8 @@ std::string saved_klipper_name(const nlohmann::json& item) {
 } // namespace
 
 void SensorManager::apply_settings_locked(const nlohmann::json& saved) {
-    // Lenient: a wrong-typed field is skipped and the rest still applies.
+    // Lenient: a wrong-typed field is skipped and the rest still applies. A role
+    // that is present reads as none unless it names a role.
     if (const auto sensors = saved.find("sensors"); sensors != saved.end() && sensors->is_array()) {
         for (const auto& item : *sensors) {
             const std::string klipper_name = saved_klipper_name(item);
@@ -310,8 +311,9 @@ void SensorManager::apply_settings_locked(const nlohmann::json& saved) {
             if (entry == entries_.end()) {
                 continue;
             }
-            if (const auto role = item.find("role"); role != item.end() && role->is_string()) {
-                entry->role = role_from_config_name(json_util::as_string(*role));
+            if (const auto role = item.find("role"); role != item.end()) {
+                entry->role =
+                    role->is_string() ? role_from_config_name(json_util::as_string(*role)) : 0;
             }
             if (const auto enabled = item.find("enabled");
                 enabled != item.end() && enabled->is_boolean()) {
@@ -485,9 +487,16 @@ SensorRowView SensorManager::row(size_t index) const {
     if (const TypeSpec* type = type_spec(entry.type)) {
         view.detail = lv_tr(type->label_key);
     }
+    // An object whose name carries no instance ("bltouch", "adxl345") is named
+    // by its type, with the Klipper name underneath.
+    if (entry.display_name == entry.klipper_name && !view.detail.empty()) {
+        view.name = view.detail;
+        view.detail = entry.klipper_name;
+    }
+    view.role = entry.role;
     const auto offered = offered_roles();
+    view.role_count = offered.size();
     for (size_t i = 0; i < offered.size(); ++i) {
-        view.role_labels.emplace_back(lv_tr(role_spec(offered[i])->label_key));
         if (offered[i] == entry.role) {
             view.selected_role = static_cast<int>(i);
         }
@@ -520,6 +529,21 @@ const char* SensorManager::settings_section() const {
 
 bool SensorManager::listed_in_settings(const SensorEntry& /*entry*/) const {
     return true;
+}
+
+bool SensorManager::rows_show_readings() const {
+    return options_.rows_show_readings;
+}
+
+std::vector<size_t> SensorManager::settings_rows() const {
+    const auto all = entries();
+    std::vector<size_t> rows;
+    for (size_t i = 0; i < all.size(); ++i) {
+        if (listed_in_settings(all[i])) {
+            rows.push_back(i);
+        }
+    }
+    return rows;
 }
 
 std::recursive_mutex& SensorManager::mutex() const {
@@ -562,7 +586,10 @@ const std::vector<SensorManager*>& sensor_managers() {
 void rediscover_from_config(const PrinterDiscovery& hw) {
     for (auto* manager : sensor_managers()) {
         if (manager->rediscovers_on_config()) {
+            // on_discovered() may auto-assign roles again; saved settings win, as
+            // they do on the first pass.
             manager->discover(hw);
+            manager->load_settings();
         }
     }
 }

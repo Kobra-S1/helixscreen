@@ -4496,6 +4496,7 @@
   <translation tag="{} turns" ja="{}回転"/>
   <translation tag="{} updated" ja="{} を更新しました"/>
   <translation tag="{} widgets" ja="ウィジェット {} 個"/>
+  <translation tag="{} width sensor" ja="{} 幅センサー"/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." ja="{} は、フィラメントの種類と色の両方がアクティブなスプールと一致し、かつ自身のポートセンサーがフィラメントを検知しているスロットに切り替えます。"/>
   <translation tag="{} · {}" ja="{} · {}"/>
   <translation tag="{} · {} · {}" ja="{} · {} · {}"/>

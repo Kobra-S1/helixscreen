@@ -3,6 +3,7 @@
 
 #include "width_sensor_manager.h"
 
+#include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
 
 #include <algorithm>
@@ -32,6 +33,26 @@ WidthSensorManager::Options WidthSensorManager::make_options() {
         o.types.push_back({static_cast<uint8_t>(t.value), t.id, t.display});
     }
     return o;
+}
+
+SensorRowView WidthSensorManager::row(size_t index) const {
+    SensorRowView view = SensorManager::row(index);
+    const auto all = entries();
+    if (index >= all.size()) {
+        return view;
+    }
+    const SensorEntry& entry = all[index];
+    std::string type;
+    for (const auto& t : kWidthSensorTypes) {
+        if (static_cast<uint8_t>(t.value) == entry.type) {
+            type = lv_tr(t.display);
+        }
+    }
+    if (!type.empty()) {
+        view.name = fmt::format(fmt::runtime(lv_tr("{} width sensor")), type);
+        view.detail = type + " \u00b7 " + entry.klipper_name;
+    }
+    return view;
 }
 
 WidthSensorManager& WidthSensorManager::instance() {
@@ -93,6 +114,10 @@ bool WidthSensorManager::parse_status(const nlohmann::json& status) {
         }
     }
     return changed;
+}
+
+void WidthSensorManager::on_entries_changed() {
+    prune_vanished_locked(readings_);
 }
 
 void WidthSensorManager::on_discovered(const PrinterDiscovery& /*hw*/) {

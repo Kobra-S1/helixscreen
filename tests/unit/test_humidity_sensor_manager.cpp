@@ -344,6 +344,14 @@ TEST_CASE_METHOD(HumiditySensorTestFixture, "HumiditySensorManager - chamber hum
         discover({"htu21d dryer"});
         CHECK(chamber() == -1);
     }
+
+    SECTION("A chamber sensor that comes back starts without its old reading") {
+        discover_test_sensors();
+        update_sensor_state("bme280 chamber", 45.5f, 25.0f);
+        discover({"htu21d dryer"});
+        discover_test_sensors();
+        CHECK(chamber() == 0);
+    }
 }
 
 // Outside sync mode a status update reaches the subject only through the queue,

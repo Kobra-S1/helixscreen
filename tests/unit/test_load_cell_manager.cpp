@@ -329,3 +329,18 @@ TEST_CASE_METHOD(LoadCellTestFixture,
         REQUIRE(raw_weight() == 300.0f);
     }
 }
+
+// A reading belongs to the sensor discovery lists; when the cell vanishes its
+// reading goes too, so a later printer's cell of the same name starts empty.
+TEST_CASE_METHOD(LoadCellTestFixture,
+                 "LoadCellManager - a reconnect without the load cell drops its reading",
+                 "[load_cell][state]") {
+    discover({"load_cell"});
+    update_sensor_state("load_cell", 300.0);
+    REQUIRE(ams_state_spool_info().remaining_weight_g == 300.0);
+
+    discover({});
+    AmsState::instance().clear_external_spool_info();
+    discover({"load_cell"});
+    CHECK_FALSE(has_external_spool());
+}
