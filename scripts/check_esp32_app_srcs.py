@@ -181,6 +181,14 @@ def firmware_defines(cmake_text: str, repo: Path | None = None) -> dict[str, str
     if repo is not None:
         defines.update(dict.fromkeys(native_only_flags(repo, cmake_text)))
     defines.update(FIRMWARE_TOOLCHAIN_DEFINES)
+    if repo is not None:
+        # Every feature gate's default, which the CMake definitions below override:
+        # lvgl_pch.h brings include/helix_features.h into every firmware source.
+        features = repo / "include" / "helix_features.h"
+        if features.is_file():
+            for gate, value in re.findall(r"^#define (HELIX_HAS_\w+) (\d+)$",
+                                          features.read_text(errors="replace"), re.M):
+                defines[gate] = value
     m = re.search(r"target_compile_definitions\(\$\{COMPONENT_LIB\} PRIVATE(.*?)\)\s*$",
                   cmake_text, re.S | re.M)
     if m:

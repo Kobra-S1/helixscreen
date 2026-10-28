@@ -303,6 +303,30 @@ CPP
     [ "$status" -eq 0 ]
 }
 
+@test "a gate the firmware leaves at its include/helix_features.h default is decided by that default" {
+    decide_all
+    mkdir -p "$ROOT/include"
+    printf '#ifndef HELIX_HAS_ACE\n#define HELIX_HAS_ACE 1\n#endif\n#ifndef HELIX_HAS_VIEWER\n#define HELIX_HAS_VIEWER 1\n#endif\n' \
+        > "$ROOT/include/helix_features.h"
+    printf 'target_compile_definitions(${COMPONENT_LIB} PRIVATE\n    HELIX_HAS_VIEWER=0)\n' > "$ROOT/CMakeLists.txt"
+    cat > "$ROOT/src/printer/compiled.cpp" <<'CPP'
+#if !HELIX_HAS_ACE
+    throw 1;
+#endif
+#if HELIX_HAS_VIEWER
+    try { build(); } catch (...) {}
+#endif
+#if HELIX_HAS_ACE
+    try { load(); } catch (...) {}
+#endif
+CPP
+    run_gate
+    [ "$status" -eq 1 ]
+    contains "src/printer/compiled.cpp:8: try" "$output"
+    lacks "compiled.cpp:2:" "$output"
+    lacks "compiled.cpp:5:" "$output"
+}
+
 @test "a branch under a macro the gate cannot evaluate is checked" {
     decide_all
     cat > "$ROOT/src/printer/compiled.cpp" <<'CPP'
