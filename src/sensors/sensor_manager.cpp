@@ -130,14 +130,20 @@ void SensorManager::discover(const PrinterDiscovery& hw) {
     }
 
     size_t count = 0;
+    bool had_entries = false;
     {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
+        had_entries = !entries_.empty();
         replace_entries_locked(std::move(found));
         on_discovered(hw);
         count = entries_.size();
     }
     spdlog::debug("[{}] Discovered {} sensors", options_.name, count);
-    publish();
+    // A printer with none of this manager's sensors, discovered over a manager that
+    // already tracked none, leaves every subject at the value it already holds.
+    if (had_entries || count > 0) {
+        publish();
+    }
 }
 
 bool SensorManager::rediscovers_on_config() const {

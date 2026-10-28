@@ -5,6 +5,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
+#include "../test_helpers/sensors_forget.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "moonraker_client.h"
@@ -19,6 +20,8 @@
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
+
+using helix::test::SensorsForget;
 
 using namespace helix;
 using namespace helix::ui;
@@ -1487,6 +1490,7 @@ TEST_CASE("PrinterState: firmware name reads Klipper before any discovery",
 }
 
 TEST_CASE("PrinterState::set_hardware publishes the firmware name", "[state][hardware][firmware]") {
+    SensorsForget forget;
     lv_init_safe();
     PrinterState& state = get_printer_state();
     PrinterStateTestAccess::reset(state);
@@ -1723,6 +1727,7 @@ TEST_CASE("PrinterState::set_hardware propagates auto-detected chamber sensor na
 
 TEST_CASE("PrinterState::set_hardware gives the chamber to its heater",
           "[state][hardware][chamber]") {
+    SensorsForget forget;
     lv_init_safe();
     PrinterState& state = get_printer_state();
     PrinterStateTestAccess::reset(state);
@@ -1746,6 +1751,7 @@ TEST_CASE("PrinterState::set_hardware gives the chamber to its heater",
 
 TEST_CASE("PrinterState::set_hardware respects 'none' override for chamber",
           "[state][hardware][chamber]") {
+    SensorsForget forget;
     lv_init_safe();
     PrinterState& state = get_printer_state();
     PrinterStateTestAccess::reset(state);
@@ -1823,15 +1829,6 @@ int has_chamber_heater(PrinterState& state) {
 int has_chamber_sensor(PrinterState& state) {
     return lv_subject_get_int(PrinterStateTestAccess::has_chamber_sensor_subject(state));
 }
-
-/// The temperature sensor manager is a singleton shared across test cases: any
-/// case that discovers sensors into it leaves it holding none for later cases.
-struct SensorsForget {
-    ~SensorsForget() {
-        helix::sensors::TemperatureSensorManager::instance().discover({});
-        helix::ui::UpdateQueue::instance().drain();
-    }
-};
 
 /// A sensor's role, or nothing when the manager is not tracking that object.
 std::optional<helix::sensors::TemperatureSensorRole>
@@ -1961,6 +1958,7 @@ TEST_CASE("PrinterState::set_hardware: an unreported chamber heater name falls b
 
 TEST_CASE("PrinterState: chamber heater presence follows each discovery, never the assignment",
           "[state][hardware][chamber]") {
+    SensorsForget forget;
     ChamberAssignmentsRestore restore;
     PrinterState& state = state_before_discovery(kPresetChamberHeater);
     lv_subject_t* presence = state.capabilities_state().subject(Capability::HasChamberHeater);
@@ -2029,6 +2027,7 @@ constexpr const char* kStaleChamberSensor = "temperature_sensor box";
 TEST_CASE("PrinterState::set_hardware: a chamber sensor the printer does not report yields "
           "discovery's",
           "[state][hardware][chamber]") {
+    SensorsForget forget;
     ChamberAssignmentsRestore restore;
     PrinterState& state = state_before_discovery("auto", kStaleChamberSensor);
 

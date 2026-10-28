@@ -349,7 +349,7 @@ class EventIntegrationFixture {
     ~EventIntegrationFixture() {
         // Drain while printer_state_ is still alive — discover_printer() in the
         // ctor leaves PrinterCapabilitiesState's deferred setters queued (#1166).
-        helix::ui::UpdateQueue::instance().drain();
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 
         client_.stop_temperature_simulation();
         client_.disconnect();

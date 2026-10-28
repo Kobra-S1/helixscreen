@@ -18,6 +18,7 @@
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/sensor_manager_test_access.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "device_display_name.h"
 #include "temperature_sensor_manager.h"
@@ -88,6 +89,8 @@ class TemperatureSensorTestFixture {
     }
 
     ~TemperatureSensorTestFixture() {
+        // Refreshes the test queued run while the subjects are alive.
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
         // Reset after each test
         TemperatureSensorManagerTestAccess::reset(mgr());
     }

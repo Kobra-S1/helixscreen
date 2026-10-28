@@ -13,6 +13,7 @@
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../lvgl/lvgl.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include "../catch_amalgamated.hpp"
@@ -57,7 +58,7 @@ class ProxyTestFixture {
         // routes hardware results into PrinterCapabilitiesState's deferred
         // setters; without this they sit in the queue for whichever test drains
         // next, which is what the cross-test leak report keys on (#1166).
-        helix::ui::UpdateQueue::instance().drain();
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 
         mock_client.stop_temperature_simulation();
         mock_client.disconnect();
