@@ -176,3 +176,25 @@ wait'
     [ "$status" -eq 0 ]
     contains "unit sweep on fromenv.invalid" "$output"
 }
+
+@test "a candidate-list test host is resolved once, and the gate works on the pick" {
+    mock_command_script ssh 'for a; do [ "$a" = true ] && break; h=$a; done
+echo "$h" >> "$BATS_TEST_TMPDIR/ssh-log"
+case "$h" in up.*) exit 0 ;; *) exit 255 ;; esac'
+    HELIX_TEST_HOST=dead.invalid,up.invalid HOST_PROBE_RC=0 run "$GATE"
+    [ "$status" -eq 0 ]
+    contains "→ HELIX_TEST_HOST=up.invalid" "$output"
+    contains "unit sweep on up.invalid" "$output"
+    grep -qx "host-run sweep" "$CALLS"
+    [ "$(cat "$BATS_TEST_TMPDIR/ssh-log")" = "$(printf 'dead.invalid\nup.invalid')" ]
+}
+
+@test "automatic mode with no candidate answering runs here, without probing the link" {
+    mock_command_script ssh 'exit 255'
+    HELIX_TEST_HOST=dead.invalid,dead2.invalid HOST_PROBE_RC=0 run "$GATE"
+    [ "$status" -eq 0 ]
+    contains "no candidate answered" "$output"
+    contains "the test host is unreachable" "$output"
+    grep -qx "make unit-sweep" "$CALLS"
+    refute_grep "host-run" "$CALLS"
+}
