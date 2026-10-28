@@ -38,19 +38,58 @@ using sensors::SensorRowView;
 // SensorRowSection
 // ============================================================================
 
-struct SensorRowSection::Row {
-    static constexpr size_t kNameLen = 96;
-    static constexpr size_t kStateLen = 48;
+namespace {
 
-    std::string name_id, detail_id, has_detail_id, state_id, has_state_id, alert_id, role_id,
-        has_role_id, role_set_id, held_role_id, has_held_role_id, toggle_kind_id, toggle_id,
-        has_next_id;
-    lv_subject_t name{}, detail{}, has_detail{}, state{}, has_state{}, alert{}, role{}, has_role{},
-        role_set{}, held_role{}, has_held_role{}, toggle_kind{}, toggle{}, has_next{};
-    char name_buf[kNameLen]{};
-    char detail_buf[kNameLen]{};
-    char state_buf[kStateLen]{};
-    char held_role_buf[kStateLen]{};
+/// The subjects of one row, in sensor_row's sensor_<slug>_row_<field>_<i> naming.
+enum RowField : uint8_t {
+    kName,
+    kDetail,
+    kHasDetail,
+    kState,
+    kHasState,
+    kAlert,
+    kRole,
+    kHasRole,
+    kRoleSet,
+    kHeldRole,
+    kHasHeldRole,
+    kToggleKind,
+    kToggle,
+    kHasNext,
+    kRowFieldCount
+};
+
+constexpr size_t kNameLen = 96;
+constexpr size_t kStateLen = 48;
+
+struct RowFieldSpec {
+    const char* name;
+    int8_t initial;      ///< int fields only
+    uint8_t buf_len;     ///< string fields: buffer size; 0 for an int field
+    uint16_t buf_offset; ///< string fields: offset into Row::bufs
+};
+
+constexpr RowFieldSpec kRowFields[kRowFieldCount] = {
+    {"name", 0, kNameLen, 0},   {"detail", 0, kNameLen, kNameLen},
+    {"has_detail", 0, 0, 0},    {"state", 0, kStateLen, 2 * kNameLen},
+    {"has_state", 0, 0, 0},     {"alert", 0, 0, 0},
+    {"role", -1, 0, 0},         {"has_role", 0, 0, 0},
+    {"role_set", 0, 0, 0},      {"held_role", 0, kStateLen, 2 * kNameLen + kStateLen},
+    {"has_held_role", 0, 0, 0}, {"toggle_kind", 0, 0, 0},
+    {"toggle", 0, 0, 0},        {"has_next", 0, 0, 0},
+};
+
+/// The order fill() writes a row's subjects in.
+constexpr uint8_t kRowFillOrder[kRowFieldCount] = {
+    kName,    kDetail, kHasDetail, kState,       kHasState,   kAlert,  kHasRole,
+    kRoleSet, kRole,   kHeldRole,  kHasHeldRole, kToggleKind, kToggle, kHasNext};
+
+} // namespace
+
+struct SensorRowSection::Row {
+    std::string ids[kRowFieldCount];
+    lv_subject_t subjects[kRowFieldCount]{};
+    char bufs[2 * kNameLen + 2 * kStateLen]{};
 };
 
 namespace {
@@ -66,9 +105,9 @@ void set_if_changed(lv_subject_t& subject, int value) {
     }
 }
 
-void set_if_changed(lv_subject_t& subject, const std::string& value) {
-    if (std::strcmp(lv_subject_get_string(&subject), value.c_str()) != 0) {
-        lv_subject_copy_string(&subject, value.c_str());
+void set_if_changed(lv_subject_t& subject, const char* value) {
+    if (std::strcmp(lv_subject_get_string(&subject), value) != 0) {
+        lv_subject_copy_string(&subject, value);
     }
 }
 
@@ -113,39 +152,28 @@ SensorRowSection* SensorRowSection::find(const std::string& slug) {
 void SensorRowSection::grow(size_t rows) {
     while (rows_.size() < rows) {
         auto row = std::make_unique<Row>();
-        const auto id = [this, i = rows_.size()](const char* field) {
-            return "sensor_" + slug_ + "_row_" + field + "_" + std::to_string(i);
-        };
-        row->name_id = id("name");
-        row->detail_id = id("detail");
-        row->has_detail_id = id("has_detail");
-        row->state_id = id("state");
-        row->has_state_id = id("has_state");
-        row->alert_id = id("alert");
-        row->role_id = id("role");
-        row->has_role_id = id("has_role");
-        row->role_set_id = id("role_set");
-        row->held_role_id = id("held_role");
-        row->has_held_role_id = id("has_held_role");
-        row->toggle_kind_id = id("toggle_kind");
-        row->toggle_id = id("toggle");
-        row->has_next_id = id("has_next");
-        UI_MANAGED_SUBJECT_STRING(row->name, row->name_buf, "", row->name_id.c_str(), subjects_);
-        UI_MANAGED_SUBJECT_STRING(row->detail, row->detail_buf, "", row->detail_id.c_str(),
-                                  subjects_);
-        UI_MANAGED_SUBJECT_INT(row->has_detail, 0, row->has_detail_id.c_str(), subjects_);
-        UI_MANAGED_SUBJECT_STRING(row->state, row->state_buf, "", row->state_id.c_str(), subjects_);
-        UI_MANAGED_SUBJECT_INT(row->has_state, 0, row->has_state_id.c_str(), subjects_);
-        UI_MANAGED_SUBJECT_INT(row->alert, 0, row->alert_id.c_str(), subjects_);
-        UI_MANAGED_SUBJECT_INT(row->role, -1, row->role_id.c_str(), subjects_);
-        UI_MANAGED_SUBJECT_INT(row->has_role, 0, row->has_role_id.c_str(), subjects_);
-        UI_MANAGED_SUBJECT_INT(row->role_set, 0, row->role_set_id.c_str(), subjects_);
-        UI_MANAGED_SUBJECT_STRING(row->held_role, row->held_role_buf, "", row->held_role_id.c_str(),
-                                  subjects_);
-        UI_MANAGED_SUBJECT_INT(row->has_held_role, 0, row->has_held_role_id.c_str(), subjects_);
-        UI_MANAGED_SUBJECT_INT(row->toggle_kind, 0, row->toggle_kind_id.c_str(), subjects_);
-        UI_MANAGED_SUBJECT_INT(row->toggle, 0, row->toggle_id.c_str(), subjects_);
-        UI_MANAGED_SUBJECT_INT(row->has_next, 0, row->has_next_id.c_str(), subjects_);
+        const std::string prefix = "sensor_" + slug_ + "_row_";
+        const std::string suffix = "_" + std::to_string(rows_.size());
+        for (size_t f = 0; f < kRowFieldCount; ++f) {
+            const RowFieldSpec& spec = kRowFields[f];
+            std::string& id = row->ids[f];
+            id.reserve(prefix.size() + std::strlen(spec.name) + suffix.size());
+            id.append(prefix).append(spec.name).append(suffix);
+            lv_subject_t& subject = row->subjects[f];
+            // UI_MANAGED_SUBJECT_INT/STRING, written once for every field.
+            const bool is_string = spec.buf_len != 0;
+            if (is_string) {
+                lv_subject_init_string(&subject, row->bufs + spec.buf_offset, nullptr, spec.buf_len,
+                                       "");
+            } else {
+                lv_subject_init_int(&subject, spec.initial);
+            }
+            helix::xml::register_subject_in_current_scope(id.c_str(), &subject);
+            subjects_.register_subject(&subject, id.c_str());
+            SubjectDebugRegistry::instance().register_subject(
+                &subject, id.c_str(), is_string ? LV_SUBJECT_TYPE_STRING : LV_SUBJECT_TYPE_INT,
+                __FILE__, __LINE__);
+        }
         rows_.push_back(std::move(row));
     }
 }
@@ -165,24 +193,33 @@ void SensorRowSection::fill(const SensorManager& manager) {
         const SensorRowView view = manager.row(listed[k]);
         Row& row = *rows_[k];
         slots_[k].toggle = view.toggle;
-        set_if_changed(row.name, view.name);
-        set_if_changed(row.detail, view.detail);
-        set_if_changed(row.has_detail, view.detail.empty() ? 0 : 1);
-        set_if_changed(row.state, view.state);
-        set_if_changed(row.has_state, view.state.empty() ? 0 : 1);
-        set_if_changed(row.alert, view.alert ? 1 : 0);
-        set_if_changed(row.has_role, view.role_count == 0 ? 0 : 1);
         // A role that is not offered selects unset_role_dropdown's trailing "-",
         // one past the offered roles, and a held one also shows as text.
         const bool role_set = view.selected_role >= 0;
-        set_if_changed(row.role_set, role_set ? 1 : 0);
-        set_if_changed(row.role, role_set ? view.selected_role : static_cast<int>(view.role_count));
-        const bool held = view.selected_role < 0 && !view.held_role_label.empty();
-        set_if_changed(row.held_role, held ? view.held_role_label : std::string{});
-        set_if_changed(row.has_held_role, held ? 1 : 0);
-        set_if_changed(row.toggle_kind, static_cast<int>(view.toggle));
-        set_if_changed(row.toggle, view.toggle_value ? 1 : 0);
-        set_if_changed(row.has_next, k + 1 < listed.size() ? 1 : 0);
+        const bool held = !role_set && !view.held_role_label.empty();
+        int ints[kRowFieldCount] = {};
+        ints[kHasDetail] = view.detail.empty() ? 0 : 1;
+        ints[kHasState] = view.state.empty() ? 0 : 1;
+        ints[kAlert] = view.alert ? 1 : 0;
+        ints[kHasRole] = view.role_count == 0 ? 0 : 1;
+        ints[kRoleSet] = role_set ? 1 : 0;
+        ints[kRole] = role_set ? view.selected_role : static_cast<int>(view.role_count);
+        ints[kHasHeldRole] = held ? 1 : 0;
+        ints[kToggleKind] = static_cast<int>(view.toggle);
+        ints[kToggle] = view.toggle_value ? 1 : 0;
+        ints[kHasNext] = k + 1 < listed.size() ? 1 : 0;
+        const char* strings[kRowFieldCount] = {};
+        strings[kName] = view.name.c_str();
+        strings[kDetail] = view.detail.c_str();
+        strings[kState] = view.state.c_str();
+        strings[kHeldRole] = held ? view.held_role_label.c_str() : "";
+        for (const uint8_t f : kRowFillOrder) {
+            if (kRowFields[f].buf_len != 0) {
+                set_if_changed(row.subjects[f], strings[f]);
+            } else {
+                set_if_changed(row.subjects[f], ints[f]);
+            }
+        }
     }
     set_if_changed(count_, static_cast<int>(listed.size()));
 }

@@ -8,7 +8,7 @@
 #include "text_io.h"
 
 #include <algorithm>
-#include <set>
+#include <string_view>
 
 namespace helix::sensors {
 
@@ -34,41 +34,47 @@ bool publishes_last_query(ProbeSensorType type) {
     return type != ProbeSensorType::BEACON && type != ProbeSensorType::EDDY_CURRENT;
 }
 
+/// The status fields a probe is subscribed to; last_query first, for the types
+/// that publish it.
+constexpr const char* kProbeStatusFields[] = {"last_query", "last_z_result", "z_offset"};
+
 // One physical probe can register several objects: Klipper's probe modules,
 // Beacon and Cartographer all also register the generic probe object. Keep the
 // most specific object only, so a single probe reads as one sensor and is
 // subscribed once. An eddy object beside a named scanner is dropped too.
-std::vector<bool> keep_most_specific(const std::vector<ProbeSensorType>& types) {
-    const auto has_type = [&types](ProbeSensorType t) {
-        return std::find(types.begin(), types.end(), t) != types.end();
-    };
-    const bool has_named_scanner =
-        has_type(ProbeSensorType::CARTOGRAPHER) || has_type(ProbeSensorType::BEACON);
-    const bool has_specific = std::any_of(types.begin(), types.end(), [](ProbeSensorType t) {
-        return t != ProbeSensorType::STANDARD;
-    });
-    std::vector<bool> keep;
-    keep.reserve(types.size());
-    for (const ProbeSensorType t : types) {
-        const bool alias = (has_specific && t == ProbeSensorType::STANDARD) ||
-                           (has_named_scanner && t == ProbeSensorType::EDDY_CURRENT);
-        keep.push_back(!alias);
+// note() every type of the set first, then ask alias() of each.
+struct AliasRule {
+    bool has_specific = false;
+    bool has_named_scanner = false;
+
+    void note(ProbeSensorType t) {
+        has_specific |= t != ProbeSensorType::STANDARD;
+        has_named_scanner |= t == ProbeSensorType::CARTOGRAPHER || t == ProbeSensorType::BEACON;
     }
-    return keep;
-}
+    [[nodiscard]] bool alias(ProbeSensorType t) const {
+        return (has_specific && t == ProbeSensorType::STANDARD) ||
+               (has_named_scanner && t == ProbeSensorType::EDDY_CURRENT);
+    }
+};
 
 // Klicky probes register as a plain [probe] and are told apart by their
 // deploy/dock macro pair.
 bool has_klicky_macros(const std::vector<std::string>& klipper_objects) {
-    const std::string macro_prefix = "gcode_macro ";
-    std::set<std::string> macros;
+    constexpr std::string_view kMacroPrefix = "gcode_macro ";
+    constexpr std::string_view kMacros[] = {"ATTACH_PROBE", "DOCK_PROBE", "_Probe_Deploy",
+                                            "_Probe_Stow"};
+    bool found[4] = {};
     for (const auto& obj : klipper_objects) {
-        if (obj.rfind(macro_prefix, 0) == 0 && obj.size() > macro_prefix.size()) {
-            macros.insert(obj.substr(macro_prefix.size()));
+        const std::string_view name(obj);
+        if (name.substr(0, kMacroPrefix.size()) != kMacroPrefix) {
+            continue;
+        }
+        const std::string_view macro = name.substr(kMacroPrefix.size());
+        for (size_t i = 0; i < 4; ++i) {
+            found[i] = found[i] || macro == kMacros[i];
         }
     }
-    return (macros.count("ATTACH_PROBE") && macros.count("DOCK_PROBE")) ||
-           (macros.count("_Probe_Deploy") && macros.count("_Probe_Stow"));
+    return (found[0] && found[1]) || (found[2] && found[3]);
 }
 
 // Config values are strings in configfile.config.
@@ -173,15 +179,12 @@ FoldedSections fold_config_sections(std::vector<SensorEntry>& entries,
 }
 
 void drop_alias_objects(std::vector<SensorEntry>& entries) {
-    std::vector<ProbeSensorType> types;
-    types.reserve(entries.size());
+    AliasRule rule;
     for (const auto& entry : entries) {
-        types.push_back(type_of(entry));
+        rule.note(type_of(entry));
     }
-    const auto keep = keep_most_specific(types);
-    size_t index = 0;
     entries.erase(std::remove_if(entries.begin(), entries.end(),
-                                 [&](const SensorEntry&) { return !keep[index++]; }),
+                                 [&rule](const SensorEntry& e) { return rule.alias(type_of(e)); }),
                   entries.end());
 }
 
@@ -202,14 +205,19 @@ void upgrade_klicky(std::vector<SensorEntry>& entries, const PrinterDiscovery& h
 /// The configured z_offset of @p name, or of a section folded into it.
 std::optional<float> seeded_z_offset(const std::string& name, const FoldedSections& folded,
                                      const PrinterDiscovery& hw) {
-    std::vector<std::string> sections = {name};
-    if (name == folded.probe) {
-        sections.insert(sections.end(), folded.sections.begin(), folded.sections.end());
-    }
-    for (const auto& section_name : sections) {
+    const auto from_section = [&hw](const std::string& section_name) -> std::optional<float> {
         const nlohmann::json* section = hw.section(section_name);
         if (section != nullptr && section->is_object()) {
-            if (const auto z_offset = configured_z_offset(*section)) {
+            return configured_z_offset(*section);
+        }
+        return std::nullopt;
+    };
+    if (const auto z_offset = from_section(name)) {
+        return z_offset;
+    }
+    if (name == folded.probe) {
+        for (const auto& section_name : folded.sections) {
+            if (const auto z_offset = from_section(section_name)) {
                 return z_offset;
             }
         }
@@ -253,20 +261,24 @@ void ProbeSensorManager::on_discovered(const PrinterDiscovery& hw) {
 nlohmann::json ProbeSensorManager::extra_subscriptions(const PrinterDiscovery& hw) const {
     const auto names = hw.objects_of({hw::ObjectKind::Probe});
     std::vector<ProbeSensorType> types;
+    types.reserve(names.size());
+    AliasRule rule;
     for (const auto& name : names) {
         types.push_back(static_cast<ProbeSensorType>(hw::classify_object(name).chip));
+        rule.note(types.back());
     }
-    const auto keep = keep_most_specific(types);
 
     nlohmann::json objects = nlohmann::json::object();
     for (size_t i = 0; i < names.size(); ++i) {
-        if (!keep[i]) {
+        if (rule.alias(types[i])) {
             continue;
         }
-        objects[status_object(types[i], names[i])] =
-            publishes_last_query(types[i])
-                ? nlohmann::json::array({"last_query", "last_z_result", "z_offset"})
-                : nlohmann::json::array({"last_z_result", "z_offset"});
+        nlohmann::json fields = nlohmann::json::array();
+        const size_t first = publishes_last_query(types[i]) ? 0 : 1;
+        for (size_t f = first; f < std::size(kProbeStatusFields); ++f) {
+            fields.push_back(nlohmann::json(kProbeStatusFields[f]));
+        }
+        objects[status_object(types[i], names[i])] = std::move(fields);
     }
     return objects;
 }
