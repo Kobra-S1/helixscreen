@@ -438,7 +438,7 @@ std::vector<WiFiNetwork> WiFiManager::scan_once() {
 }
 
 void WiFiManager::start_scan(
-    std::function<void(const std::vector<WiFiNetwork>&)> on_networks_updated) {
+    helix::SharedCallback<void(const std::vector<WiFiNetwork>&)> on_networks_updated) {
     if (!backend_) {
         NOTIFY_ERROR("{}", lv_tr("WiFi unavailable. Cannot scan for networks."));
         return;
@@ -496,7 +496,7 @@ void WiFiManager::answer_scan_waiter() {
 }
 
 void WiFiManager::deliver_last_scan_results() {
-    std::function<void(const std::vector<WiFiNetwork>&)> cb;
+    helix::SharedCallback<void(const std::vector<WiFiNetwork>&)> cb;
     {
         std::lock_guard<std::mutex> lock(callback_mutex_);
         cb = scan_callback_;
@@ -733,7 +733,7 @@ void WiFiManager::connect(const std::string& ssid, const std::string& password,
     // the events once the backend accepts the join.
     submit_user_op(
         "connect_network", user_op_timeouts_.connect_ms,
-        [this, generation, ssid, password, is_hidden]() -> std::function<void()> {
+        [this, generation, ssid, password, is_hidden]() -> helix::Callback<void()> {
             WiFiError result = backend_->connect_network(ssid, password, is_hidden);
             return [this, generation, ssid, result]() {
                 apply_connect_result(generation, ssid, result);
@@ -810,7 +810,7 @@ void WiFiManager::disconnect() {
 
     submit_user_op(
         "disconnect_network", user_op_timeouts_.other_ms,
-        [this]() -> std::function<void()> {
+        [this]() -> helix::Callback<void()> {
             if (backend_->disconnect_network().success()) {
                 return nullptr;
             }
@@ -819,8 +819,9 @@ void WiFiManager::disconnect() {
         []() { notify_unresponsive(); });
 }
 
-void WiFiManager::forget(const std::string& ssid,
-                         std::function<void(bool success, const std::string& error)> on_complete) {
+void WiFiManager::forget(
+    const std::string& ssid,
+    helix::SharedCallback<void(bool success, const std::string& error)> on_complete) {
     if (!backend_) {
         NOTIFY_ERROR("{}", lv_tr("WiFi unavailable. Cannot forget network."));
         if (on_complete) {
@@ -836,7 +837,7 @@ void WiFiManager::forget(const std::string& ssid,
 
     submit_user_op(
         "forget_network", user_op_timeouts_.other_ms,
-        [this, ssid, on_complete]() -> std::function<void()> {
+        [this, ssid, on_complete]() -> helix::Callback<void()> {
             WiFiError result = backend_->forget_network(ssid);
             return
                 [ssid, result, on_complete]() { report_forget_result(ssid, result, on_complete); };
@@ -846,7 +847,7 @@ void WiFiManager::forget(const std::string& ssid,
 
 void WiFiManager::report_forget_result(
     const std::string& ssid, const WiFiError& result,
-    const std::function<void(bool success, const std::string& error)>& on_complete) {
+    const helix::SharedCallback<void(bool success, const std::string& error)>& on_complete) {
     if (!result.success()) {
         // Two of these are not failures the user caused, and neither may
         // reach the red "Failed to forget" toast:
@@ -956,7 +957,7 @@ bool WiFiManager::supports_country() {
 }
 
 void WiFiManager::get_country_async(helix::LifetimeToken token,
-                                    std::function<void(const CountryState&)> on_done) {
+                                    helix::SharedCallback<void(const CountryState&)> on_done) {
     if (!on_done) {
         return;
     }
@@ -970,7 +971,7 @@ void WiFiManager::get_country_async(helix::LifetimeToken token,
     }
     submit_user_op(
         "get_country", user_op_timeouts_.other_ms,
-        [this, token, on_done, unread]() -> std::function<void()> {
+        [this, token, on_done, unread]() -> helix::Callback<void()> {
             CountryState state = unread;
             state.read_ok = backend_->get_country(state.system).success();
             state.display = helix::wifi::country::plan(state.stored, state.system).display;
@@ -988,7 +989,7 @@ void WiFiManager::get_country_async(helix::LifetimeToken token,
 }
 
 void WiFiManager::set_country_async(const std::string& code, helix::LifetimeToken token,
-                                    std::function<void(bool success)> on_done) {
+                                    helix::SharedCallback<void(bool success)> on_done) {
     const std::string clean = helix::wifi::country::normalize(code);
     auto answer = [token, on_done](bool success) {
         if (on_done && !token.expired()) {
@@ -1008,7 +1009,7 @@ void WiFiManager::set_country_async(const std::string& code, helix::LifetimeToke
     spdlog::info("[WiFiManager] Setting WiFi country to {}", clean);
     submit_user_op(
         "set_country", user_op_timeouts_.other_ms,
-        [this, clean, answer]() -> std::function<void()> {
+        [this, clean, answer]() -> helix::Callback<void()> {
             const WiFiError result = backend_->set_country(clean);
             if (result.success()) {
                 // Saved only once the radio took it, since a choice it refuses
@@ -1180,7 +1181,7 @@ void WiFiManager::persist_radio_expectation(bool requested, bool success, bool a
 }
 
 void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
-                                    std::function<void(bool, bool)> on_complete) {
+                                    helix::SharedCallback<void(bool, bool)> on_complete) {
     spdlog::debug("[WiFiManager] set_enabled_async({})", enabled);
 
     if (!backend_) {
@@ -1216,7 +1217,7 @@ void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
 
     submit_user_op(
         "set_radio_enabled", user_op_timeouts_.other_ms,
-        [this, enabled, answer]() -> std::function<void()> {
+        [this, enabled, answer]() -> helix::Callback<void()> {
             WiFiError result = apply_radio_enabled(enabled);
             const bool success = result.success();
             const bool actual = backend_->is_running() && backend_->is_radio_enabled();
@@ -1238,7 +1239,8 @@ void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
 }
 
 void WiFiManager::get_status_async(
-    helix::LifetimeToken token, std::function<void(const WifiBackend::ConnectionStatus&)> on_done) {
+    helix::LifetimeToken token,
+    helix::SharedCallback<void(const WifiBackend::ConnectionStatus&)> on_done) {
     if (!on_done) {
         return;
     }
@@ -1337,8 +1339,8 @@ bool WiFiManager::cached_connected() {
 // Control lane
 // ============================================================================
 
-void WiFiManager::submit_control(const char* tag, ControlKind kind, std::function<void()> work,
-                                 std::function<void()> on_dropped) {
+void WiFiManager::submit_control(const char* tag, ControlKind kind, helix::Callback<void()> work,
+                                 helix::Callback<void()> on_dropped) {
     if (!helix::http::HttpExecutor::fast().running()) {
         if (!lane_pooled_) {
             // No pool to run on (ESP32): its backend answers from memory.
@@ -1518,8 +1520,8 @@ void WiFiManager::notify_unresponsive() {
 }
 
 void WiFiManager::submit_user_op(const char* tag, uint32_t deadline_ms,
-                                 std::function<std::function<void()>()> work,
-                                 std::function<void()> on_unanswered) {
+                                 helix::Callback<helix::Callback<void()>()> work,
+                                 helix::SharedCallback<void()> on_unanswered) {
     if (control_unresponsive()) {
         spdlog::warn("[WiFiManager] WiFi control is not answering — '{}' not sent", tag);
         async_lifetime_.defer(tag, std::move(on_unanswered));
@@ -1551,7 +1553,7 @@ void WiFiManager::submit_user_op(const char* tag, uint32_t deadline_ms,
             if (!phase->compare_exchange_strong(expected, Running)) {
                 return; // the caller was already told it failed; do not act now
             }
-            std::function<void()> apply = work();
+            helix::Callback<void()> apply = work();
             tok.defer(tag, [this, tag, phase, apply = std::move(apply)]() {
                 if (phase->exchange(Answered) != Answered) {
                     if (apply) {
@@ -1568,13 +1570,13 @@ void WiFiManager::submit_user_op(const char* tag, uint32_t deadline_ms,
         [tok, tag, answer_unanswered]() { tok.defer(tag, answer_unanswered); });
 }
 
-void WiFiManager::after_ms(uint32_t ms, std::function<void()> fn) {
+void WiFiManager::after_ms(uint32_t ms, helix::Callback<void()> fn) {
     if (!lv_is_initialized()) {
         return;
     }
     struct Pending {
         helix::LifetimeToken token;
-        std::function<void()> fn;
+        helix::Callback<void()> fn;
     };
     // TIMER_DTOR_OK: the timer owns its context and checks the manager's token
     // before acting, so one outliving the manager runs nothing.
@@ -1696,7 +1698,7 @@ void WiFiManager::handle_scan_complete(const std::string& event_data) {
                                             manager->scan_scheduler_.next_interval_ms());
                     }
 
-                    std::function<void(const std::vector<WiFiNetwork>&)> cb;
+                    helix::SharedCallback<void(const std::vector<WiFiNetwork>&)> cb;
                     {
                         std::lock_guard<std::mutex> lock(manager->callback_mutex_);
                         cb = manager->scan_callback_;
@@ -2089,7 +2091,8 @@ void WiFiManager::connect_timeout_timer_cb(lv_timer_t* timer) {
 // State Observers
 // ============================================================================
 
-void WiFiManager::add_state_observer(helix::LifetimeToken token, std::function<void()> on_change) {
+void WiFiManager::add_state_observer(helix::LifetimeToken token,
+                                     helix::SharedCallback<void()> on_change) {
     if (!on_change) {
         return;
     }
@@ -2098,7 +2101,7 @@ void WiFiManager::add_state_observer(helix::LifetimeToken token, std::function<v
 }
 
 void WiFiManager::add_country_observer(helix::LifetimeToken token,
-                                       std::function<void()> on_change) {
+                                       helix::SharedCallback<void()> on_change) {
     if (!on_change) {
         return;
     }
