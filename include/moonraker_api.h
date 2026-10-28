@@ -45,6 +45,7 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "helix_shared_callback.h"
 #include "http_request_epoch.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
@@ -531,7 +532,7 @@ class MoonrakerAPI : public helix::IMoonrakerAPI {
 
     /// Subscribe to status update notifications (mirrors MoonrakerClient::register_notify_update)
     helix::SubscriptionId
-    subscribe_notifications(std::function<void(const json&)> callback) override;
+    subscribe_notifications(helix::SharedCallback<void(const json&)> callback) override;
 
     /// Unsubscribe from status update notifications
     bool unsubscribe_notifications(helix::SubscriptionId id) override;
@@ -545,7 +546,7 @@ class MoonrakerAPI : public helix::IMoonrakerAPI {
 
     /// Register a persistent callback for a specific notification method
     void register_method_callback(const std::string& method, const std::string& name,
-                                  std::function<void(const json&)> callback) override;
+                                  helix::SharedCallback<void(const json&)> callback) override;
 
     /// Unregister a method-specific callback
     bool unregister_method_callback(const std::string& method, const std::string& name) override;
@@ -556,7 +557,7 @@ class MoonrakerAPI : public helix::IMoonrakerAPI {
     /// Retrieve recent G-code commands/responses from Moonraker's store
     void get_gcode_store(int count,
                          std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
-                         std::function<void(const MoonrakerError&)> on_error) override;
+                         helix::SharedCallback<void(const MoonrakerError&)> on_error) override;
 
     // ========================================================================
     // Database Operations
@@ -564,23 +565,23 @@ class MoonrakerAPI : public helix::IMoonrakerAPI {
 
     /// Get a value from Moonraker's database
     void database_get_item(const std::string& namespace_name, const std::string& key,
-                           std::function<void(const json&)> on_success,
+                           helix::SharedCallback<void(const json&)> on_success,
                            ErrorCallback on_error = nullptr) override;
 
     /// Store a value in Moonraker's database
     void database_post_item(const std::string& namespace_name, const std::string& key,
-                            const json& value, std::function<void()> on_success = nullptr,
+                            const json& value, helix::SharedCallback<void()> on_success = nullptr,
                             ErrorCallback on_error = nullptr) override;
 
     /// Get all keys in a namespace
     void database_get_namespace(const std::string& namespace_name,
-                                std::function<void(const json&)> on_success,
+                                helix::SharedCallback<void(const json&)> on_success,
                                 ErrorCallback on_error = nullptr) override;
 
     /// Delete a key from Moonraker's database. Absent key is not an error in
     /// Moonraker's semantics; on_success fires either way.
     void database_delete_item(const std::string& namespace_name, const std::string& key,
-                              std::function<void()> on_success = nullptr,
+                              helix::SharedCallback<void()> on_success = nullptr,
                               ErrorCallback on_error = nullptr) override;
 
     // ========================================================================

@@ -388,7 +388,7 @@ struct QueueTileSeed : helix::JobQueueTileSeed {
 /// The print stats tile at its widest numbers: a week of prints and lifetime totals at
 /// the largest values the tile budgets for.
 struct StatsTileSeed : helix::PrintHistorySeed {
-    StatsTileSeed(helix::PrinterState& state, std::function<void()> settle)
+    StatsTileSeed(helix::PrinterState& state, helix::SharedCallback<void()> settle)
         : PrintHistorySeed(state, std::move(settle)) {
         PrintHistoryTotals totals;
         totals.total_jobs = 88888;

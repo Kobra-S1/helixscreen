@@ -75,6 +75,7 @@ template <typename F> constexpr CallbackStorage callback_storage() {
 }
 
 template <typename Sig> class Callback;
+template <typename Sig> class SharedCallback;
 
 template <typename R, typename... Args> class Callback<R(Args...)> {
     template <typename F>
@@ -84,6 +85,14 @@ template <typename R, typename... Args> class Callback<R(Args...)> {
   public:
     Callback() noexcept = default;
     Callback(std::nullptr_t) noexcept {}
+    /// Never converts implicitly into a std::function: an empty one would become a
+    /// non-empty std::function, and calling that aborts. Under libc++ (the macOS
+    /// build) argument passing and copy-initialization are compile errors, so a
+    /// Mac build lists every such site; libstdc++ (Linux, ESP32) prefers
+    /// std::function's own constructor and refuses nothing, and direct-initialization,
+    /// emplace and assignment wrap on both. Hand a std::function a lambda that
+    /// tests this first.
+    template <typename S> operator std::function<S>() const = delete;
 
     template <typename F, typename = EnableIfCallable<F>> Callback(F&& f) {
         using D = std::decay_t<F>;
@@ -155,6 +164,7 @@ template <typename R, typename... Args> class Callback<R(Args...)> {
     template <typename T> struct is_callback_like : std::false_type {};
     template <typename S> struct is_callback_like<std::function<S>> : std::true_type {};
     template <typename S> struct is_callback_like<Callback<S>> : std::true_type {};
+    template <typename S> struct is_callback_like<SharedCallback<S>> : std::true_type {};
 
     template <typename D> static R invoke_inline(void* storage, Args&&... args) {
         return std::invoke(*std::launder(static_cast<D*>(storage)), std::forward<Args>(args)...);

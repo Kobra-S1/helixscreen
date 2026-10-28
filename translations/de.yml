@@ -446,7 +446,6 @@ translations:
   Bed mesh operation timed out: Bettnetz-Vorgang Zeitüberschreitung
   Bed mesh...: Bettnetz...
   Bed size unknown: 'Bettgröße unbekannt'
-  Bed tab moves lift to this height first: Bewegungen im Heizbett-Tab heben zuerst auf diese Höhe an
   Bed target set to {}°C: Bett-Zieltemperatur auf {}°C gesetzt
   Bed temp must be 0-%d°C: Betttemperatur muss 0-%d°C betragen
   Bed warming timed out: Bettaufheizung Zeitüberschreitung
@@ -790,6 +789,7 @@ translations:
 
   Clear the extruder?: 'Extruder leeren?'
   Clear the plate and load {}. The tower prints in the middle of the bed.: Räume das Heizbett und lade {}. Der Turm wird in der Mitte des Betts gedruckt.
+  Cleared: Geräumt
   Cleared from settings — system unpair failed, may need OS Bluetooth: Aus Einstellungen
     entfernt – System-Entkopplung fehlgeschlagen, ggf. OS-Bluetooth nötig
   Clipboard unavailable - use SSH: Zwischenablage nicht verfügbar - verwenden Sie
@@ -872,6 +872,7 @@ translations:
   Confirm PIN: PIN bestätigen
   Confirm before running macros: Vor dem Ausführen von Makros bestätigen
   Confirm clearing the extruder to unload it: 'Bestätige das Leeren des Extruders, um zu entladen'
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Nur bestätigen, wenn der letzte Druck vom Heizbett entfernt ist. Danach heben Bewegungen nicht mehr darüber an."
   Confirm tool changes: 'Werkzeugwechsel bestätigen'
   Connect: Verbinden
   Connect a USB label printer first: Zuerst einen USB-Etikettendrucker anschließen
@@ -2018,6 +2019,7 @@ translations:
   Invalid value type: 'Ungültiger Werttyp'
   Is new filament coming out of the nozzle?: "Kommt neues Filament aus der Düse?"
   Invert: Invertieren
+  Is the bed clear?: "Ist das Heizbett frei?"
   Issue description: Problembeschreibung
   It can be un-archived in Spoolman's web UI.: Sie kann in der Weboberfläche von Spoolman wiederhergestellt werden.
   It has not reported its slots yet. Try again in a moment.: Es hat seine Slots noch nicht gemeldet. Versuchen Sie es gleich noch einmal.
@@ -2420,6 +2422,7 @@ translations:
   Mount which tool?: 'Welches Werkzeug montieren?'
   Mount...: 'Montieren...'
   Move: Bewegen
+  Move here: Hierhin bewegen
   Move out of range: 'Bewegung außerhalb des Bereichs'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Bewegen
     Sie das Papier während der Einstellung hin und her. Stoppen Sie, wenn das Papier
@@ -2859,6 +2862,7 @@ translations:
   Place the spools: Spulen einlegen
 
   Placed: Platziert
+  Plate moves and presets lift to this height first: Bewegungen über das Heizbett und Voreinstellungen heben zuerst auf diese Höhe an
   Plate {}: 'Platte {}'
   Platform: Plattform
   'Platform: ': 'Plattform: '
@@ -3514,6 +3518,7 @@ translations:
   Screen Blank: Bildschirm aus
   Screen Dim: Bildschirm dimmen
   Screen Rotation: Bildschirmdrehung
+  Screen Sharing: 'Bildschirmfreigabe'
   Screen dims to lower brightness after period of inactivity: Bildschirm dimmt nach
     Inaktivitätszeitraum auf niedrigere Helligkeit
   Screen lock and PIN settings: Bildschirmsperre und PIN-Einstellungen
@@ -4080,6 +4085,7 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : Die Düse ist heiß. Bürste sie mit der mitgelieferten Drahtbürste sauber, halte die Parkposition sauber und tippe dann auf Weiter.
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "Die Düse ist vom Druck abgehoben und X und Y sind referenziert. Beim Fortsetzen senkt sie sich wieder auf die Höhe, an der sie stoppte."
+  The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'Das Teil auf dem Bett ist zu hoch, um es zu überfahren. Entferne es und tippe dann auf „Geräumt“.'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "Die Spitze von {0} hat die Zone verlassen. Prüfe, dass nur der Spanner von {1} gedreht wurde. Unsicher, welcher welcher ist? Tippe auf den Stift, um die Riemen zu identifizieren."
   The peak of {} moved out of the zone. Widening it.: "Die Spitze von {} hat die Zone verlassen. Sie wird erweitert."
@@ -4607,6 +4613,7 @@ translations:
   Warn if a door is open: Warnen, wenn eine Tür offen ist
   Warning: Warnung
   Warnings & errors: 'Warnungen & Fehler'
+  Watch and control this screen from a browser: 'Diesen Bildschirm im Browser ansehen und bedienen'
   Watch the camera during a print for failed prints: Überwacht die Kamera während des Drucks auf fehlgeschlagene Drucke
   Watch which motor turns: "Achte darauf, welcher Motor sich dreht"
   Weak battery: Schwache Batterie
@@ -4725,6 +4732,7 @@ translations:
   Z tilt: Z-Neigung
   Z {:.2f} mm: Z {:.2f} mm
   Z {}, will lift to {}mm: 'Z {}, hebt auf {}mm an'
+  'Z {}, will lift to {}mm: last print is {}mm tall': 'Z {}, hebt auf {}mm an: letzter Druck ist {}mm hoch'
   'Z-Off:': 'Z-Off:'
   Z-Offset: Z-Offset
   Z-Offset Calibration: Z-Offset-Kalibrierung

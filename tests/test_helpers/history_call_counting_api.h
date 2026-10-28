@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "moonraker_api.h"
 #include "moonraker_error.h"
 #include "moonraker_file_api.h"
@@ -48,7 +49,7 @@ class MetadataTableFileAPI : public MoonrakerFileAPI {
                            ErrorCallback on_error, bool /*silent*/ = false) override {
         ++calls;
         // The answer is decided when the request is made, as a server would.
-        std::function<void()> answer;
+        helix::SharedCallback<void()> answer;
         auto it = table.find(filename);
         if (it != table.end()) {
             answer = [on_success, meta = it->second]() { on_success(meta); };
@@ -90,7 +91,7 @@ class MetadataTableFileAPI : public MoonrakerFileAPI {
     std::map<std::string, FileMetadata> table;
     int calls = 0;
     bool hold = false;
-    std::vector<std::function<void()>> held;
+    std::vector<helix::SharedCallback<void()>> held;
 };
 
 class HistoryCallCountingMoonrakerAPI : public MoonrakerAPI {

@@ -128,7 +128,7 @@ class AfcOptimisticBackend : public AmsBackendAfc {
         sent.push_back(gcode);
         return AmsErrorHelper::success();
     }
-    AmsError execute_gcode(const std::string& gcode, std::function<void()>) override {
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()>) override {
         sent.push_back(gcode);
         return AmsErrorHelper::success();
     }

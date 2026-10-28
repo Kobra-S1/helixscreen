@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "i_moonraker_sub_apis.h"
 #include "moonraker_error.h"
 
@@ -42,9 +43,9 @@ class IMoonrakerClient;
  */
 class MoonrakerFileTransferAPI : public helix::ITransfersAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
-    using StringCallback = std::function<void(const std::string&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
+    using StringCallback = helix::SharedCallback<void(const std::string&)>;
 
     /**
      * @brief Progress callback for file transfer operations

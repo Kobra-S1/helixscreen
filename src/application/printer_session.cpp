@@ -29,6 +29,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "bed_mesh_state.h"
+#include "bed_occupancy_state.h"
 #include "cjk_font_manager.h"
 #include "cli_args.h"
 #include "config.h"
@@ -269,6 +270,12 @@ bool PrinterSession::init_moonraker() {
     m_history_manager->hold_until_discovery();
     set_print_history_manager(m_history_manager.get());
     spdlog::debug("[Application] PrintHistoryManager created");
+
+    // Whether a finished print may still be on the bed, for the plate and its lift
+    m_bed_occupancy_state =
+        std::make_unique<BedOccupancyState>(get_printer_state(), m_history_manager.get());
+    m_bed_occupancy_state->init_subjects();
+    set_bed_occupancy_state(m_bed_occupancy_state.get());
 
     // Create job queue state manager
     m_job_queue_state = std::make_unique<JobQueueState>(m_moonraker->api(), get_moonraker_client());
@@ -689,7 +696,8 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     set_moonraker_manager(nullptr);
     set_moonraker_api(nullptr);
     set_moonraker_client(nullptr);
-    set_job_queue_state(nullptr); // the object itself dies after deinit_all(), below
+    set_job_queue_state(nullptr);     // the object itself dies after deinit_all(), below
+    set_bed_occupancy_state(nullptr); // likewise
     set_print_history_manager(nullptr);
     set_temperature_history_manager(nullptr);
 
@@ -743,6 +751,9 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     // unregistration). JobQueueState is reset AFTER deinit_all() because it owns LVGL
     // subjects that panels still observe: destroying it early frees subject memory while
     // panel ObserverGuards still hold observer pointers into those lists.
+    if (m_bed_occupancy_state) {
+        m_bed_occupancy_state->detach_history();
+    }
     m_history_manager.reset();
     m_temp_history_manager.reset();
 
@@ -849,6 +860,7 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     // After deinit_all() so JobQueueState's registered cleanup lambda runs on a live
     // object; before m_moonraker.reset() so client unregistration works.
     m_job_queue_state.reset();
+    m_bed_occupancy_state.reset();
 
     if (exiting) {
         // Destroy runtime CJK fonts before LVGL shutdown

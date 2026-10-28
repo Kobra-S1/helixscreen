@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "helix_shared_callback.h"
+
 // Real backend with gcode captured. client_ is null, so ensure_homed_then()
 // routes straight to execute_gcode().
 
@@ -43,7 +45,8 @@ template <typename Base> class GcodeCaptureBackend : public Base {
         return AmsErrorHelper::success();
     }
 
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete) override {
+    AmsError execute_gcode(const std::string& gcode,
+                           helix::SharedCallback<void()> on_complete) override {
         sent_.push_back(gcode);
         (void)on_complete;
         if (fail_gcode_) {
@@ -52,8 +55,8 @@ template <typename Base> class GcodeCaptureBackend : public Base {
         return AmsErrorHelper::success();
     }
 
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                           std::function<void(const MoonrakerError&)> on_error,
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
                            bool silent) override {
         sent_.push_back(gcode);
         (void)on_complete;
@@ -98,7 +101,7 @@ template <typename Base> class GcodeCaptureBackend : public Base {
     /// read an empty history of everything else.
     std::vector<std::string> sent_;
     bool fail_gcode_ = false;
-    std::function<void(const MoonrakerError&)> last_on_error_;
+    helix::SharedCallback<void(const MoonrakerError&)> last_on_error_;
 };
 
 class ToolChangerHelper : public GcodeCaptureBackend<AmsBackendToolChanger> {

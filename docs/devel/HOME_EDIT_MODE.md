@@ -70,7 +70,7 @@ Rules that hold throughout:
 
 A hold on the home grid enters edit mode (`src/ui/ui_panel_home.cpp#on_home_grid_long_press`).
 The handler does nothing when `should_suppress_edit_mode()` refuses (the Touch & Input kill
-switch, the lock screen, a scroll in progress, an arc or slider under the finger), when the
+switch, the lock screen, a scroll in progress, a drag surface under the finger), when the
 carousel is not resting on the page the handlers act on (`carousel_on_scoped_page()`), or when
 the finger drifted from where it landed (`finger_drifted_since_press()`). Otherwise it:
 
@@ -80,6 +80,19 @@ the finger drifted from where it landed (`finger_drifted_since_press()`). Otherw
 4. states the swipe policy for a session with no gesture, the policy outside edit mode: the pages
    swipe by their count and the next-page slot stays out of reach;
 5. selects the widget under the finger with `handle_click()`.
+
+A drag surface is a control the user drags for a value or a position, so a hold on it is the
+start of a drag, not a request to edit. `helix::ui::is_drag_surface_hit()`
+(`src/ui/ui_drag_surface.cpp#is_drag_surface_hit`) walks from the press target up to the
+widget and answers true for an `lv_arc`, an `lv_slider`, or any object a widget marked with
+`helix::ui::mark_drag_surface()` (`include/ui_drag_surface.h`). Marking sets
+`kDragSurfaceFlag` (`LV_OBJ_FLAG_USER_1`) and the input flags a drag needs: clickable, not
+scrollable, no scroll chaining (so a horizontal drag never adopts the page carousel), press
+lock and no gesture bubbling. A widget opts in by marking the object from `attach()`; the
+toolhead plate is the worked example (`src/ui/panel_widgets/toolhead_widget.cpp#attach`). To
+make a surface inert, clear its `clickable` flag: the press then lands on the tile, and a hold
+there enters edit mode as anywhere else. The fan control overlay asks the same question
+(`src/ui/ui_fan_control_overlay.cpp#press_consumed_by_value_widget`).
 
 `enter()` sets `home_edit_mode` to 1, marks the entering hold inert (`gesture_inert_`, see below)
 when it runs inside a pointer read, and runs `attach_to_current_page()`: it disarms the

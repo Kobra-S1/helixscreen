@@ -12,6 +12,7 @@
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/display_manager_test_access.h"
 #include "../test_helpers/raw_http_client.h"
+#include "app_globals.h"
 #include "config.h"
 #include "display_manager.h"
 #include "moonraker_api.h"
@@ -24,6 +25,7 @@
 #include "remote_screen_service.h"
 #include "remote_screen_settings_manager.h"
 #include "remote_screen_webcam.h"
+#include "static_subject_registry.h"
 #include "system/debug_bundle_collector.h"
 #include "webcam_selection.h"
 
@@ -53,6 +55,9 @@ struct RemoteScreenFixture : LVGLTestFixture {
         data.erase("remote_screen");
         Config::get_instance()->set<int>("/remote_screen/port", 0);
         auto& m = RemoteScreenSettingsManager::instance();
+        m.set_available(false);
+        m.set_lan_mode(false);
+        m.set_control_active(false);
         m.deinit_subjects();
         m.init_subjects();
     }
@@ -101,6 +106,62 @@ TEST_CASE_METHOD(RemoteScreenFixture,
     m.deinit_subjects();
     m.init_subjects();
     CHECK_FALSE(m.get_control());
+}
+
+// The service decides these once per process and binds the control indicator to
+// them once, so a printer switch must leave the subjects and their observers alone.
+TEST_CASE_METHOD(
+    RemoteScreenFixture,
+    "settings: the screen sharing subjects and their observers outlive a printer switch",
+    "[remote_screen][settings]") {
+    auto& m = RemoteScreenSettingsManager::instance();
+    m.set_available(true);
+    m.set_lan_mode(true);
+    lv_subject_t* active = lv_xml_get_subject(nullptr, "remote_screen_control_active");
+    REQUIRE(active != nullptr);
+    int seen = -1;
+    lv_observer_t* observer = lv_subject_add_observer(
+        active,
+        [](lv_observer_t* o, lv_subject_t* subj) {
+            *static_cast<int*>(lv_observer_get_user_data(o)) = lv_subject_get_int(subj);
+        },
+        &seen);
+
+    REQUIRE(StaticSubjectRegistry::instance().deinit_one(
+        "RemoteScreenSettingsManager", StaticSubjectRegistry::Scope::PrinterSwitch));
+    m.init_subjects(); // the rebuild path runs it again
+
+    const auto value = [](const char* name) {
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
+        REQUIRE(subject != nullptr);
+        return lv_subject_get_int(subject);
+    };
+    CHECK(value("remote_screen_available") == 1);
+    CHECK(value("remote_screen_lan_mode") == 1);
+    m.set_control_active(true);
+    CHECK(seen == 1);
+    lv_observer_remove(observer);
+}
+
+// A switch rebuilds the print subjects; the next connect's apply_settings() must
+// observe the new ones, or the frame rate cap never sees another print.
+TEST_CASE_METHOD(RemoteScreenFixture, "service: print tracking survives a printer switch",
+                 "[remote_screen][settings]") {
+    auto& svc = RemoteScreenService::instance();
+    auto& ps = get_printer_state();
+    ps.init_subjects(false);
+    svc.watch_print_state();
+
+    ps.deinit_subjects();
+    ps.init_subjects(false);
+    svc.apply_settings();
+
+    lv_subject_set_int(ps.print_state().get_print_active_subject(), 1);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(svc.printing());
+    lv_subject_set_int(ps.print_state().get_print_active_subject(), 0);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(svc.printing());
 }
 
 TEST_CASE("route: missing, blank and present route files", "[remote_screen][settings]") {

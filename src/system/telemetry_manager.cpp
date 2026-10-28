@@ -1274,9 +1274,9 @@ nlohmann::json TelemetryManager::build_crash_event(const nlohmann::json& crash_d
 
     // Copy crash-specific fields (signal info, backtrace, register state).
     // "app_version" is in this list on purpose: it carries the version that crashed.
-    for (const char* key :
-         {"signal", "signal_name", "app_version", "uptime_sec", "backtrace", "fault_addr",
-          "fault_code", "fault_code_name", "reg_pc", "reg_sp", "reg_lr", "reg_bp", "load_base"}) {
+    for (const char* key : {"signal", "signal_name", "app_version", "uptime_sec", "recorded_by",
+                            "backtrace", "fault_addr", "fault_code", "fault_code_name", "reg_pc",
+                            "reg_sp", "reg_lr", "reg_bp", "load_base"}) {
         if (crash_data.contains(key)) {
             event[key] = crash_data[key];
         }

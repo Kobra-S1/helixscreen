@@ -18,6 +18,7 @@
 
 #include "esp_timer.h"
 #include "esp_websocket_client.h"
+#include "helix_shared_callback.h"
 #include "i_moonraker_client.h"
 #include "klippy_state.h"
 #include "reconnect_backoff.h"
@@ -56,8 +57,8 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     static constexpr uint32_t kWsTaskStackBytes = 10 * 1024;
 
     // --- Connection lifecycle ---
-    int connect(const char* url, std::function<void()> on_connected,
-                std::function<void()> on_disconnected) override;
+    int connect(const char* url, helix::SharedCallback<void()> on_connected,
+                helix::SharedCallback<void()> on_disconnected) override;
     void disconnect() override;
     const std::string& get_last_url() const override {
         return url_;
@@ -85,24 +86,25 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     int send_jsonrpc(const std::string& method) override;
     int send_jsonrpc(const std::string& method, const json& params) override;
     RequestId send_jsonrpc(const std::string& method, const json& params,
-                           std::function<void(const json&)> cb) override;
+                           helix::SharedCallback<void(const json&)> cb) override;
     RequestId
     send_jsonrpc(const std::string& method, const json& params,
-                 std::function<void(const json&)> success_cb,
-                 std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
-                 bool silent = false,
+                 helix::SharedCallback<void(const json&)> success_cb,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb,
+                 uint32_t timeout_ms = 0, bool silent = false,
                  std::optional<rpc_error_policy::CallerIntent> intent = std::nullopt) override;
     int gcode_script(const std::string& gcode) override;
     void get_gcode_store(int count,
                          std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
-                         std::function<void(const MoonrakerError&)> on_error) override;
-    void get_temperature_store(std::function<void(const TemperatureStore&)> on_success,
-                               std::function<void(const MoonrakerError&)> on_error) override;
+                         helix::SharedCallback<void(const MoonrakerError&)> on_error) override;
+    void
+    get_temperature_store(std::function<void(const TemperatureStore&)> on_success,
+                          helix::SharedCallback<void(const MoonrakerError&)> on_error) override;
 
     // --- Discovery (Plan 4 fills the real sequence) ---
-    void
-    discover_printer(std::function<void()> on_complete,
-                     std::function<void(const std::string& reason)> on_error = nullptr) override;
+    void discover_printer(
+        helix::SharedCallback<void()> on_complete,
+        helix::SharedCallback<void(const std::string& reason)> on_error = nullptr) override;
     PrinterDiscovery hardware() const override;
     void parse_objects(const json& objects) override;
     void clear_discovery_cache() override;
@@ -111,13 +113,13 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     void set_on_discovery_complete(
         std::function<void(const helix::PrinterDiscovery&, const json& initial_status)> cb)
         override;
-    void set_bed_mesh_callback(std::function<void(const json&)> callback) override;
+    void set_bed_mesh_callback(helix::SharedCallback<void(const json&)> callback) override;
 
     // --- Subscriptions & method callbacks ---
-    SubscriptionId register_notify_update(std::function<void(const json&)> cb) override;
+    SubscriptionId register_notify_update(helix::SharedCallback<void(const json&)> cb) override;
     bool unsubscribe_notify_update(SubscriptionId id) override;
     void register_method_callback(const std::string& method, const std::string& handler_name,
-                                  std::function<void(const json&)> cb) override;
+                                  helix::SharedCallback<void(const json&)> cb) override;
     bool unregister_method_callback(const std::string& method,
                                     const std::string& handler_name) override;
     void dispatch_status_update(const json& status, bool from_cached_snapshot = false,
@@ -128,7 +130,8 @@ class EspMoonrakerClient final : public IMoonrakerClient {
 
     // --- Connection state & observers ---
     ConnectionState get_connection_state() const override;
-    void add_connected_observer(const std::string& handler_name, std::function<void()> cb) override;
+    void add_connected_observer(const std::string& handler_name,
+                                helix::SharedCallback<void()> cb) override;
     bool remove_connected_observer(const std::string& handler_name) override;
     void force_reconnect() override;
 
@@ -167,7 +170,7 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     /// Called once, from the transport worker or the housekeeping task, when a transport
     /// job could not finish: its websocket task would not stop, or a start was refused.
     /// Process-wide: set once at boot, before the first connect.
-    static void set_transport_stall_handler(std::function<void()> handler);
+    static void set_transport_stall_handler(helix::SharedCallback<void()> handler);
 
   private:
     // --- Transport worker ---
@@ -176,7 +179,7 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     static constexpr uint32_t kTransportWorkerStackBytes = 6 * 1024;
     static constexpr int64_t kTransportStallUs = 10LL * 1000 * 1000;
     static constexpr int64_t kTransportStallUnconnectedUs = 30LL * 1000 * 1000;
-    void post_transport_job(const char* what, std::function<void()> job);
+    void post_transport_job(const char* what, helix::SharedCallback<void()> job);
     static void* transport_worker_main(void* self);
     void transport_worker_loop();
     esp_websocket_client_handle_t create_transport(const std::string& url);
@@ -186,7 +189,7 @@ class EspMoonrakerClient final : public IMoonrakerClient {
 
     std::mutex transport_mutex_;
     std::condition_variable transport_cv_;
-    std::deque<std::pair<const char*, std::function<void()>>> transport_jobs_;
+    std::deque<std::pair<const char*, helix::SharedCallback<void()>>> transport_jobs_;
     pthread_t transport_worker_{};
     bool transport_worker_started_ = false;
     bool transport_quit_ = false;
@@ -273,7 +276,7 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     std::atomic<uint32_t> stale_frames_dropped_{0};
     /// connection_lost callbacks for requests a disconnect failed, delivered by
     /// process_timeouts(); guarded by requests_mutex_.
-    std::vector<std::function<void()>> failed_callbacks_;
+    std::vector<helix::SharedCallback<void()>> failed_callbacks_;
     static constexpr int64_t kRxStallLogUs = 5 * 1000 * 1000;
     static_assert(kPingPongTimeoutSec * 1000u < kDefaultRequestTimeoutMs,
                   "ping/pong must detect a dead link before the per-request timeout fires — "
@@ -282,8 +285,8 @@ class EspMoonrakerClient final : public IMoonrakerClient {
 
     struct Pending {
         std::string method;
-        std::function<void(const json&)> success_cb;
-        std::function<void(const MoonrakerError&)> error_cb;
+        helix::SharedCallback<void(const json&)> success_cb;
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb;
         int64_t sent_us = 0;
         uint32_t timeout_ms = 0;
         bool silent = false;
@@ -331,16 +334,16 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     // (>=0) or negative on failure. Safe to call from any task.
     int send_envelope(const json& envelope);
     RequestId track_and_send(const std::string& method, const json& params,
-                             std::function<void(const json&)> success_cb,
-                             std::function<void(const MoonrakerError&)> error_cb,
+                             helix::SharedCallback<void(const json&)> success_cb,
+                             helix::SharedCallback<void(const MoonrakerError&)> error_cb,
                              uint32_t timeout_ms, bool silent);
     bool is_connected() const;
 
     // --- Discovery chain (Task 7). discover_printer() is the entry point; each
     // step below runs on the websocket_task and threads the shared user callbacks
     // through. Split out of discover_printer for readability. ---
-    using DiscoveryDone = std::shared_ptr<std::function<void()>>;
-    using DiscoveryFail = std::shared_ptr<std::function<void(const std::string&)>>;
+    using DiscoveryDone = std::shared_ptr<helix::SharedCallback<void()>>;
+    using DiscoveryFail = std::shared_ptr<helix::SharedCallback<void(const std::string&)>>;
     // `generation` is the connection_generation_ snapshot captured at
     // discover_printer() entry (R3). Every step re-checks it as the first
     // thing it does; a mismatch means a reconnect landed mid-chain and this
@@ -373,8 +376,8 @@ class EspMoonrakerClient final : public IMoonrakerClient {
     esp_timer_handle_t housekeeping_timer_ = nullptr;
     std::string url_;
 
-    std::function<void()> on_connected_;
-    std::function<void()> on_disconnected_;
+    helix::SharedCallback<void()> on_connected_;
+    helix::SharedCallback<void()> on_disconnected_;
 
     // Flipped false in the dtor BEFORE esp_websocket_client_stop() so any event
     // still in flight on the WS task early-outs instead of touching torn-down
@@ -456,18 +459,18 @@ class EspMoonrakerClient final : public IMoonrakerClient {
 
     // Callback maps.
     std::mutex callbacks_mutex_;
-    std::map<SubscriptionId, std::function<void(const json&)>> notify_callbacks_;
+    std::map<SubscriptionId, helix::SharedCallback<void(const json&)>> notify_callbacks_;
     std::atomic<uint64_t> next_subscription_id_{0};
-    std::map<std::string, std::map<std::string, std::function<void(const json&)>>>
+    std::map<std::string, std::map<std::string, helix::SharedCallback<void(const json&)>>>
         method_callbacks_;
     // Discovery / bed-mesh callbacks (guarded by callbacks_mutex_). In v1 these
     // pair with the discover_printer stub; Plan 4 drives them from real discovery.
     std::function<void(const helix::PrinterDiscovery&)> on_hardware_discovered_;
     std::function<void(const helix::PrinterDiscovery&, const json&)> on_discovery_complete_;
-    std::function<void(const json&)> bed_mesh_callback_;
+    helix::SharedCallback<void(const json&)> bed_mesh_callback_;
 
     std::mutex observers_mutex_;
-    std::map<std::string, std::function<void()>> connected_observers_;
+    std::map<std::string, helix::SharedCallback<void()>> connected_observers_;
 
     std::mutex event_mutex_;
     MoonrakerEventCallback event_handler_;

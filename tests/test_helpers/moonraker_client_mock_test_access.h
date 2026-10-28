@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "moonraker_client_mock.h"
 
 namespace helix {
@@ -95,8 +96,8 @@ class MoonrakerClientMockTestAccess {
         set_method_handler(
             c, "server.files.get_directory",
             [](MoonrakerClientMock*, const nlohmann::json&,
-               std::function<void(const nlohmann::json&)> success_cb,
-               std::function<void(const MoonrakerError&)>) -> bool {
+               helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+               helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
                 if (success_cb) {
                     success_cb(nlohmann::json{
                         {"result",

@@ -10,9 +10,9 @@ namespace helix {
 
 void post_item_if_changed(IMoonrakerAPI& api, const std::string& namespace_name,
                           const std::string& key, const nlohmann::json& value,
-                          std::function<void()> on_written,
-                          std::function<void(const MoonrakerError&)> on_error,
-                          std::function<void()> on_current) {
+                          helix::SharedCallback<void()> on_written,
+                          helix::SharedCallback<void(const MoonrakerError&)> on_error,
+                          helix::SharedCallback<void()> on_current) {
     auto post = [&api, namespace_name, key, value, on_written, on_error]() {
         api.database_post_item(namespace_name, key, value, on_written, on_error);
     };

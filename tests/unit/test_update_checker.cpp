@@ -3165,7 +3165,7 @@ class CountingTransfers : public MoonrakerFileTransferAPIMock {
     int uploads = 0;
     int downloads = 0;
     /// Runs after each download has delivered its result.
-    std::function<void()> after_download;
+    helix::SharedCallback<void()> after_download;
     void download_file(const std::string& root, const std::string& path, StringCallback on_success,
                        ErrorCallback on_error) override {
         ++downloads;

@@ -2027,7 +2027,7 @@ class RecordingQidiWithApi : public AmsBackendQidi {
         return helix::AmsErrorHelper::success();
     }
     helix::AmsError execute_gcode(const std::string& gcode,
-                                  std::function<void()> on_complete) override {
+                                  helix::SharedCallback<void()> on_complete) override {
         sent.push_back(gcode);
         (void)on_complete;
         return helix::AmsErrorHelper::success();

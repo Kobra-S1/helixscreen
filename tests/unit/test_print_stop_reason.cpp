@@ -50,7 +50,7 @@ class StoreClient : public test::FakeMoonrakerClient {
   public:
     void get_gcode_store(int count,
                          std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
-                         std::function<void(const MoonrakerError&)>) override {
+                         helix::SharedCallback<void(const MoonrakerError&)>) override {
         ++reads;
         last_count = count;
         reply = std::move(on_success);

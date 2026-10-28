@@ -118,6 +118,8 @@ Edit Mode is how you customize your dashboard layout. While in Edit Mode, all no
 
 The widget you long-pressed is selected, not picked up, however long you keep holding. To move it, lift your finger and press it again.
 
+A long press on a control you drag does not enter Edit Mode: the arc on a Fan Speeds carousel, and the plate of a homed [Toolhead widget](#toolhead-widget). Long-press another part of the widget, or another widget, instead.
+
 ![Edit Mode — widget selected with gear and trash icons, toolbar at top](../../images/user/home-edit-mode.png)
 
 ### Selecting a Widget
@@ -244,6 +246,7 @@ Some widgets have settings you can change directly from Edit Mode. When you sele
 | **Filament Sensor** | Opens the sensor source picker - choose which sensor the tile follows: Auto, Runout, Toolhead, or Entry |
 | **Power** | Opens the device picker - choose which power device to bind, its icon and its color |
 | **Z-Offset** | The live Z-offset in millimeters, with baby steps and Save when there is room (see [Z-Offset Widget](#z-offset-widget) below). It turns the warning color while there is an adjustment you have not saved. Tap anywhere else on the widget to open the Print Tune overlay. | 2x1 | 0.5x0.5 | 4x2 | Yes | - |
+| **Toolhead** | Opens the preset picker - choose what each of the three preset buttons does (see [Toolhead Widget](#toolhead-widget)) |
 | **Camera** | Opens the camera configuration modal - pick which webcam the widget shows (Automatic, or one of your printer's named webcams), and set rotation and flip |
 | **Clog Detection** | Opens the Clog Detection config modal — set detection source, mode, and thresholds |
 
@@ -345,7 +348,7 @@ These are the same 5 groups the Widget Catalog uses on the device.
 | **Macros** | One-tap shortcut to open the [Macros](advanced.md#macro-execution) panel for browsing and executing Klipper macros. | 1x1 | 0.5x1 | Full grid | Yes | — |
 | **G-code Console** | One-tap shortcut to open the [G-code Console](advanced.md#g-code-console) overlay for sending commands and viewing Klipper responses. See [G-code Console Widget](#g-code-console-widget) below. | 1x1 | 0.5x1 | Full grid | Yes | — |
 | **Motion** | One-tap shortcut to open the [Motion](motion.md) panel for jogging the toolhead and homing. | 1x1 | 0.5x1 | Full grid | Yes | — |
-| **Toolhead** | Where the toolhead is: X, Y and Z, each shown as `--` until that axis is homed. At 0.5x1 and 1x1 it lists the axes; from 1.5x1 it draws the print bed with a crosshair for the nozzle and a bar for Z. During a print the small sizes show the Z height instead. At 2x2 and larger a **Home All** button appears while an axis is not homed, and during a print the active tool and live speed take its place. Tap anywhere else to open the [Motion](motion.md) panel. | 2x2 | 0.5x0.5 | 4x4 | Yes | - |
+| **Toolhead** | Where the toolhead is: X, Y and Z, each shown as `--` until that axis is homed. At 0.5x1 and 1x1 it lists the axes; from 1.5x1 it draws the print bed with a crosshair for the nozzle and a bar for Z, and once the printer is homed you can tap or drag on that plate to move the toolhead. During a print the small sizes show the Z height instead. At 2x2 and larger a **Home All** button appears while an axis is not homed, and during a print the active tool and live speed take its place. At 2x3 a row of three preset buttons sits under the plate, set from the gear icon in Edit Mode. See [Toolhead Widget](#toolhead-widget). | 2x2 | 0.5x0.5 | 4x4 | Yes | - |
 | **Bed Mesh** | The active bed mesh as a color heatmap, with how flat it is: the Z range is green below 0.15 mm, amber below 0.30 mm and red above. Wider sizes add the profile name, the lowest and highest point and the grid size, then a color scale and the number of saved profiles. Tap to open the Bed Mesh screen. See [Bed Mesh Widget](#bed-mesh-widget) below. | 2x2 | 0.5x0.5 | 6x4 | Yes | Bed mesh support |
 | **Tool Switcher** | Quick tool switching for multi-tool printers (IDEX, toolchangers, multi-head). Shows each tool with its loaded filament color, lets you switch the active tool with one tap, and parks the mounted tool on printers that support it. See [Tool Switcher Widget](#tool-switcher-widget) below. | 1x1 | 1x1 | 2x2 | Yes | Multi-tool printer |
 | **Power** | Toggle a Moonraker power device (PSU, lights, etc.) with one tap. You can add multiple instances, each bound to a different device. Shows the device name, state, and a customizable icon. Pick a color in the device picker and the tile shows it while the device is on, and a faded version of it while off; a device locked during a print keeps its gray locked look. With no color picked, the tile uses red for on and gray for off. | 1x1 | 1x1 | Full grid | Yes | Power devices |
@@ -471,7 +474,7 @@ While **not** in Edit Mode, widgets respond to taps and other gestures:
 | Macros | Opens the Macros panel overlay |
 | G-code Console | Opens the G-code Console overlay |
 | Motion | Opens the Motion panel overlay |
-| Toolhead | Opens the Motion panel. The **Home All** button homes the printer instead |
+| Toolhead | Opens the Motion panel. Once the printer is homed and idle, a tap on the plate picks a spot to move to and a drag moves the toolhead instead. **Home All** homes the printer, and a preset button runs its preset ([details](#toolhead-widget)) |
 | Bed Mesh | Opens the Bed Mesh screen. With no mesh loaded and nothing printing, 2x2 and larger offers **Calibrate** and **Load profile** |
 | Tool Switcher | Switches to the tapped tool, asking first unless [Confirm tool changes](settings/printing.md#confirm-tool-changes) is off; tapping the mounted tool, or the single large button on small widgets, opens the tool picker. **Park** docks the mounted tool |
 | Power | Toggles the bound power device |
@@ -829,8 +832,49 @@ The Toolhead widget shows where the toolhead is without opening Motion. Each axi
 | 0.5x1, 1x1 | One row per axis with its position |
 | 1.5x1 to 2x1 | The plate with a crosshair for the nozzle and a bar for Z, beside the three values |
 | 2x2 and larger | The same, with **Home All** underneath while an axis is not homed. During a print, the active tool and live speed take its place |
+| 2x3 and larger | The plate grows, and a row of three preset buttons sits under it with a line saying how high the next move will lift |
 
-**Home All** homes the printer straight away. **Tap** anywhere else to open the [Motion](motion.md) panel.
+**Home All** homes the printer straight away. It is the only thing on the widget that homes.
+
+### Moving the toolhead from the plate
+
+From 1.5x1 up, the plate moves the toolhead once the printer is homed and idle:
+
+1. **Tap** a spot on the plate. A target marker appears there, with a **Move here** button and an **x** at the top of the plate. The line under the plate shows where the toolhead will go and how high it will lift first, for example "-> X60 Y61" and "Z 0.20, will lift to 5mm". Nothing moves yet.
+2. Tap **Move here** to send the toolhead there, or **x** to cancel. If you do neither, the target disappears by itself after about five seconds.
+
+To move the toolhead live, **drag** on the plate instead: the toolhead follows your finger, just like the [Bed tab](motion.md#bed-tab) of the Motion screen. Start the drag on the plate itself; a drag that starts there does not swipe the home page.
+
+Before any move across the plate, the nozzle lifts to the **Bed Map Clearance** height if it is lower ([Motion Settings](motion.md#motion-settings), 5 mm by default). While your last print may still be on the bed, it lifts above that print instead, the plate outlines the print's objects, and a **Cleared** button appears in the plate's top-right corner. Tap it once you have removed the part, and confirm when HelixScreen asks **Is the bed clear?**. See [A print on the bed](motion.md#a-print-on-the-bed).
+
+On a small plate the **Move here** and **Cleared** buttons show only their icons.
+
+The plate does not move anything while:
+
+- any axis is not homed (use **Home All**, or home from the Motion screen)
+- a print is running or paused (the plate shows the live toolhead over the print's objects)
+- the printer is not ready, or something else is using the toolhead
+- you are in Edit Mode
+
+Then a tap on the plate opens the Motion panel, like a tap anywhere else on the widget. A tap on the Z bar or the X, Y and Z values always opens the Motion panel.
+
+### Preset buttons
+
+At 2x3 and larger, three preset buttons sit under the plate. By default they are **Front**, **Center** and **Park**. To change them:
+
+1. Enter Edit Mode and tap the Toolhead widget.
+2. Tap the **gear icon** in the upper-left corner. The **Presets** picker opens with a tab for each of the three buttons.
+3. Pick a tab, then pick what that button does. Your choice is saved straight away.
+
+| Choice | What the button does |
+|--------|----------------------|
+| One of the nine positions (Rear Left to Front Right) | Moves the toolhead there, the same as the [Move tab](motion.md#move-tab) |
+| **Park** | Parks the toolhead, the same as [Park](motion.md#park) on the Motion screen |
+| **Z +10** / **Z -10** | Moves Z by 10 mm. While your last print may still be on the bed, **Z -10** stops at the height that clears it |
+| **Macro** | Runs a macro you pick from the list that follows, asking for its parameters or a confirmation first, the way a [Macro Button](#macro-button-confirmation) with **Require Confirmation?** turned on does |
+| **Empty** | Hides the button |
+
+The position, **Park** and Z buttons are grayed out until the printer is homed, and while a print is running or paused. A macro button works whenever the printer is connected.
 
 ---
 

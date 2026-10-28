@@ -138,9 +138,10 @@ bool MoonrakerClientMock::mock_plr_interrupted() const {
     return mock_plr_config().active && !plr_snapshot_cleared_;
 }
 
-void MoonrakerClientMock::mock_plr_request(const std::string& method, const json& params,
-                                           std::function<void(const json&)> success_cb,
-                                           std::function<void(const MoonrakerError&)> error_cb) {
+void MoonrakerClientMock::mock_plr_request(
+    const std::string& method, const json& params,
+    helix::SharedCallback<void(const json&)> success_cb,
+    helix::SharedCallback<void(const MoonrakerError&)> error_cb) {
     const MockPlrConfig cfg = mock_plr_config();
     auto reply = [success_cb](json result) {
         if (success_cb) {
@@ -303,8 +304,8 @@ void MoonrakerClientMock::mock_plr_request(const std::string& method, const json
         // Bed and nozzle heat where the nozzle stopped before anything moves,
         // and the nozzle drops to standby once it has let go; only the generic
         // backend's prepare moves the toolhead.
-        std::vector<std::function<void()>> steps = {progress("bed_wait"),
-                                                    progress("nozzle_in_place")};
+        std::vector<helix::SharedCallback<void()>> steps = {progress("bed_wait"),
+                                                            progress("nozzle_in_place")};
         if (cfg.backend == "generic") {
             steps.push_back(progress("lift"));
             steps.push_back(progress("nozzle_standby"));
@@ -334,7 +335,7 @@ void MoonrakerClientMock::mock_plr_request(const std::string& method, const json
             }
         }
         // The plugin re-heats the bed after restoring the print state.
-        std::vector<std::function<void()>> steps = {
+        std::vector<helix::SharedCallback<void()>> steps = {
             progress("z_reference"), progress("restore"), progress("bed_wait"),
             progress("heat_nozzle"), progress("purge"),   progress("move_to_resume"),
             progress("start")};
@@ -359,9 +360,10 @@ void register_plr_handlers(std::unordered_map<std::string, MethodHandler>& regis
     for (const char* method :
          {helix::kPlrStatusRpc, helix::kPlrPlanRpc, helix::kPlrPrepareRpc, helix::kPlrCommitRpc,
           helix::kPlrAbortRpc, helix::kPlrDiscardRpc, helix::kPlrMeshIncludeRpc}) {
-        registry[method] = [method](MoonrakerClientMock* self, const json& params,
-                                    std::function<void(const json&)> success_cb,
-                                    std::function<void(const MoonrakerError&)> error_cb) -> bool {
+        registry[method] =
+            [method](MoonrakerClientMock* self, const json& params,
+                     helix::SharedCallback<void(const json&)> success_cb,
+                     helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
             self->mock_plr_request(method, params, std::move(success_cb), std::move(error_cb));
             return true;
         };

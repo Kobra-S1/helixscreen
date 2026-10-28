@@ -63,7 +63,7 @@ whose default digest was MD5.
 | `auth/` | `passwd`, `shadow` (at the top level in 1.9.x) |
 | `firmwareExe.zip` | the stock screen app |
 
-`run.sh` installs every component unconditionally, so any full image installs over any
+run.sh installs every component unconditionally, so any full image installs over any
 version. That is the changelog's "firmware version rollback support": nothing on the
 printer manages versions.
 
@@ -82,7 +82,7 @@ and disassembly (capstone).
 
 ### Multi-plate print files
 
-`preBuild.cpp` (the pre-print screen) reads `Metadata/model_settings.config` from the 3MF:
+preBuild.cpp (the pre-print screen) reads `Metadata/model_settings.config` from the 3MF:
 `plater_id`, `gcode_file`, `thumbnail_file` per `<plate>`, adds previous/next plate
 buttons, and starts the print with the chosen `platerId`. The file layout is the standard
 Bambu/Orca one: `Metadata/plate_<N>.gcode`, `slice_info.config` (with per-plate
@@ -131,13 +131,13 @@ These reach Z-Mod users, because Z-Mod runs the stock klippy.
 
 | File | Change |
 |------|--------|
-| `toolhead.py` | Short-move limits apply only when command density is high: a sliding window of the last 100 move times scales the limit between 80 and 200 moves/s (`dynamic_short_move_*` options). Static defaults loosened. |
-| `virtual_sdcard.py` | Comment runs consumed in one batch; F-only `G0/G1` lines deferred to the next real move; no fixed 1 ms sleep per 5 ms batch; `EXCLUDE_OBJECT_END`/`START` wrapped around each tool change. |
-| `gcode_arcs.py`, `gcode_move.py` | A Z-hop arc's capped feedrate no longer becomes the modal feedrate. |
-| `heaters.py` | Setting `chamber_heater` above 25 °C runs `SET_IDLE_TIMEOUT TIMEOUT=3000`; reaching target runs `TIMEOUT=600`. Any user idle timeout is overwritten. |
-| `fan.py` | `M106` forces `DC24V_CTL` on. |
-| `idle_timeout.py` | Idle also turns off `chamber_heat_fan` and `chamber_loop_fan`. |
-| `e_stop.py` | The probe-triggered-before-move error is a plain string instead of FlashForge's JSON error. |
+| toolhead.py | Short-move limits apply only when command density is high: a sliding window of the last 100 move times scales the limit between 80 and 200 moves/s (`dynamic_short_move_*` options). Static defaults loosened. |
+| virtual_sdcard.py | Comment runs consumed in one batch; F-only `G0/G1` lines deferred to the next real move; no fixed 1 ms sleep per 5 ms batch; `EXCLUDE_OBJECT_END`/`START` wrapped around each tool change. |
+| gcode_arcs.py, gcode_move.py | A Z-hop arc's capped feedrate no longer becomes the modal feedrate. |
+| heaters.py | Setting `chamber_heater` above 25 °C runs `SET_IDLE_TIMEOUT TIMEOUT=3000`; reaching target runs `TIMEOUT=600`. Any user idle timeout is overwritten. |
+| fan.py | `M106` forces `DC24V_CTL` on. |
+| idle_timeout.py | Idle also turns off `chamber_heat_fan` and `chamber_loop_fan`. |
+| e_stop.py | The probe-triggered-before-move error is a plain string instead of FlashForge's JSON error. |
 
 The changelog's "extended print time" fix is most likely the toolhead and
 `virtual_sdcard` throughput work.

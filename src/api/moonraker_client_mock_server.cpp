@@ -115,8 +115,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // true-branch UI behaviour is reachable in a --test run.
     registry["server.config"] =
         []([[maybe_unused]] MoonrakerClientMock* self, [[maybe_unused]] const json& params,
-           std::function<void(const json&)> success_cb,
-           [[maybe_unused]] std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           [[maybe_unused]] helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         const bool automatic_transition =
             helix::env_flag("HELIX_MOCK_JOB_QUEUE_AUTOMATIC_TRANSITION");
 
@@ -137,8 +137,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // as "nothing stored yet".
     registry["server.database.get_item"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         if (!params.contains("namespace") || !params["namespace"].is_string() ||
             (params.contains("key") && !params["key"].is_string())) {
             if (error_cb) {
@@ -181,8 +181,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // server.database.post_item - write one key to the mock database.
     registry["server.database.post_item"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         if (!params.contains("namespace") || !params["namespace"].is_string() ||
             !params.contains("key") || !params["key"].is_string() || !params.contains("value")) {
             if (error_cb) {
@@ -210,8 +210,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // callback, because unimplemented methods invoke neither.
     registry["server.database.delete_item"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         if (!params.contains("namespace") || !params["namespace"].is_string() ||
             !params.contains("key") || !params["key"].is_string()) {
             if (error_cb) {
@@ -254,8 +254,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // https://moonraker.readthedocs.io/en/latest/web_api/#identify-connection
     registry["server.connection.identify"] =
         [](MoonrakerClientMock* /*self*/, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         // Log the identification for debugging
         std::string client_name = params.value("client_name", "unknown");
         std::string version = params.value("version", "unknown");
@@ -280,8 +280,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // discovery sequence whenever the component appears in server.info.
     registry["server.spoolman.status"] =
         [](MoonrakerClientMock* self, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         const int active = self->spoolman_mock().get_mock_active_spool_id();
         json response = {{"jsonrpc", "2.0"},
                          {"result",
@@ -297,8 +297,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // server.spoolman.post_spool_id - set the active spool.
     registry["server.spoolman.post_spool_id"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         if (!self->is_mock_spoolman_enabled()) {
             if (error_cb) {
                 error_cb(method_not_found("server.spoolman.post_spool_id"));
@@ -320,8 +320,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // Spoolman server with the JSON Spoolman returns.
     registry["server.spoolman.proxy"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         if (!self->is_mock_spoolman_enabled()) {
             if (error_cb) {
                 error_cb(method_not_found("server.spoolman.proxy"));
@@ -366,8 +366,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // server.webcams.list - HELIX_MOCK_WEBCAMS, or one unnamed MJPEG feed
     registry["server.webcams.list"] =
         [](MoonrakerClientMock* self, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         json webcams = json::array();
         for (const auto& cam : self->mock_webcams()) {
             webcams.push_back({{"name", cam.name},
@@ -410,7 +410,7 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                             [&](const json& e) { return webcam_str(e, key) == want; });
     };
     // Moonraker's JSON-RPC layer reports its 404 as -32601 with the message kept.
-    auto not_found = [](const std::function<void(const MoonrakerError&)>& error_cb,
+    auto not_found = [](const helix::SharedCallback<void(const MoonrakerError&)>& error_cb,
                         const char* method) {
         if (error_cb) {
             MoonrakerError err;
@@ -423,9 +423,10 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         return true;
     };
     registry["server.webcams.post_item"] =
-        [find_webcam, not_found](MoonrakerClientMock* self, const json& params,
-                                 std::function<void(const json&)> success_cb,
-                                 std::function<void(const MoonrakerError&)> error_cb) -> bool {
+        [find_webcam,
+         not_found](MoonrakerClientMock* self, const json& params,
+                    helix::SharedCallback<void(const json&)> success_cb,
+                    helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         json stored;
         {
             auto& posted = self->posted_webcams();
@@ -456,9 +457,10 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         return true;
     };
     registry["server.webcams.delete_item"] =
-        [find_webcam, not_found](MoonrakerClientMock* self, const json& params,
-                                 std::function<void(const json&)> success_cb,
-                                 std::function<void(const MoonrakerError&)> error_cb) -> bool {
+        [find_webcam,
+         not_found](MoonrakerClientMock* self, const json& params,
+                    helix::SharedCallback<void(const json&)> success_cb,
+                    helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         json removed;
         {
             auto& posted = self->posted_webcams();
@@ -480,8 +482,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // machine.device_power.devices - four devices, none with MOCK_EMPTY_POWER
     registry["machine.device_power.devices"] =
         [](MoonrakerClientMock* /*self*/, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         json devices = json::array();
         if (!helix::env_flag("MOCK_EMPTY_POWER")) {
             auto device = [](const char* name, const char* type, const char* status, bool locked) {
@@ -511,8 +513,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // unreachable in a mock run.
     registry["server.helix.status"] =
         [](MoonrakerClientMock* self, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         const char* mode = std::getenv("HELIX_MOCK_HELIX_PLUGIN");
         const bool disabled = mode && std::string(mode) == "disabled";
         const bool installed = disabled || helix::env_flag("HELIX_MOCK_HELIX_PLUGIN");
@@ -617,8 +619,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // pending, as one the plugin has not reached yet.
     registry["server.helix.analysis"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         const std::string filename = helix::json_util::safe_string(params, "filename");
         json result = self->mock_file_analysis(filename);
         if (result.is_null()) {
@@ -635,8 +637,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // spools from two tools.
     registry["server.helix.filament_usage"] =
         [](MoonrakerClientMock* /*self*/, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         const char* mode = std::getenv("HELIX_MOCK_HELIX_PLUGIN");
         if (!(mode && std::string(mode) == "disabled") &&
             !helix::env_flag("HELIX_MOCK_HELIX_PLUGIN")) {
@@ -669,8 +671,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // `!!` line counted twelve times.
     registry["server.helix.journal"] =
         [](MoonrakerClientMock* /*self*/, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         const char* mode = std::getenv("HELIX_MOCK_HELIX_PLUGIN");
         if (!(mode && std::string(mode) == "disabled") &&
             !helix::env_flag("HELIX_MOCK_HELIX_PLUGIN")) {
@@ -726,8 +728,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // disk, its print copies shrinking to nothing once cleaned up.
     registry["server.helix.storage"] =
         [](MoonrakerClientMock* self, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         if (!helix::env_flag("HELIX_MOCK_HELIX_PLUGIN")) {
             if (error_cb) {
                 error_cb(MoonrakerError::unknown("Method not found", "server.helix.storage"));
@@ -774,8 +776,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // consumer reports nothing removed.
     registry["server.helix.storage_cleanup"] =
         [](MoonrakerClientMock* self, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         const std::string consumer = helix::json_util::safe_string(params, "consumer");
         uint64_t freed = 0;
         if (consumer == "helix_temp") {
@@ -798,8 +800,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // the config editor down its file-API route, which the mock serves.
     registry["server.helix.config"] =
         [](MoonrakerClientMock* /*self*/, const json& /*params*/,
-           std::function<void(const json&)> /*success_cb*/,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+           helix::SharedCallback<void(const json&)> /*success_cb*/,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
         if (error_cb) {
             error_cb(MoonrakerError::unknown("Method not found", "server.helix.config"));
         }
@@ -810,8 +812,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // start to the plugin's print hooks; the mock has no hooks to skip.
     registry["server.helix.print_hooks.screen_start"] =
         [](MoonrakerClientMock* /*self*/, const json& params,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         if (success_cb) {
             success_cb(json{{"result", {{"filename", params.value("filename", "")}}}});
         }
@@ -820,9 +822,10 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
 
     // server.info - Get Moonraker server information
     // https://moonraker.readthedocs.io/en/latest/web_api/#get-server-info
-    registry["server.info"] = [](MoonrakerClientMock* self, const json& /*params*/,
-                                 std::function<void(const json&)> success_cb,
-                                 std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+    registry["server.info"] =
+        [](MoonrakerClientMock* self, const json& /*params*/,
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         // Map KlippyState enum to string
         std::string klippy_state_str;
         bool klippy_connected = false;
@@ -879,9 +882,10 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
 
     // printer.info - Get Klipper printer information
     // https://moonraker.readthedocs.io/en/latest/web_api/#get-printer-info
-    registry["printer.info"] = [](MoonrakerClientMock* self, const json& /*params*/,
-                                  std::function<void(const json&)> success_cb,
-                                  std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+    registry["printer.info"] =
+        [](MoonrakerClientMock* self, const json& /*params*/,
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         // Map KlippyState enum to string and state message
         std::string state_str;
         std::string state_message;
@@ -937,8 +941,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // https://moonraker.readthedocs.io/en/latest/web_api/#get-system-info
     registry["machine.system_info"] =
         [](MoonrakerClientMock* /*self*/, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         spdlog::debug("[MoonrakerClientMock] machine.system_info");
 
         json response = {
@@ -968,8 +972,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // https://moonraker.readthedocs.io/en/latest/web_api/#get-update-status
     registry["machine.update.status"] =
         [](MoonrakerClientMock* self, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         json response = {{"jsonrpc", "2.0"},
                          {"result",
                           {{"busy", self->update_manager_busy()},
@@ -985,8 +989,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // https://moonraker.readthedocs.io/en/latest/web_api/#restart-server
     registry["server.restart"] =
         [](MoonrakerClientMock* /*self*/, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         spdlog::info("[MoonrakerClientMock] server.restart (mock — no-op)");
 
         json response = {{"jsonrpc", "2.0"}, {"result", "ok"}};
@@ -1002,8 +1006,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
     // (#944) populates the graphs in mock mode for visual verification.
     registry["server.temperature_store"] =
         [](MoonrakerClientMock* self, const json& /*params*/,
-           std::function<void(const json&)> success_cb,
-           std::function<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         TemperatureStore store = self->build_historical_temperature_store();
 
         json result = json::object();

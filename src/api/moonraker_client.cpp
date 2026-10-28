@@ -424,9 +424,9 @@ void MoonrakerClient::force_reconnect() {
 
     // Copy stored connection info under lock
     std::string url;
-    std::function<void()> on_connected;
-    std::function<void()> on_disconnected;
-    std::function<void()> on_discovery_complete;
+    helix::SharedCallback<void()> on_connected;
+    helix::SharedCallback<void()> on_disconnected;
+    helix::SharedCallback<void()> on_discovery_complete;
     {
         std::lock_guard<std::mutex> lock(reconnect_mutex_);
         url = last_url_;
@@ -460,8 +460,8 @@ void MoonrakerClient::force_reconnect() {
     spdlog::debug("[Moonraker Client] force_reconnect() complete - connection initiated");
 }
 
-int MoonrakerClient::connect(const char* url, std::function<void()> on_connected,
-                             std::function<void()> on_disconnected) {
+int MoonrakerClient::connect(const char* url, helix::SharedCallback<void()> on_connected,
+                             helix::SharedCallback<void()> on_disconnected) {
     // Serialize concurrent connect() calls — the close/callback-setup/open sequence
     // is not atomic and concurrent callers race on libhv internal state.
     std::lock_guard<std::recursive_mutex> connect_lock(connect_mutex_);
@@ -604,7 +604,7 @@ void MoonrakerClient::install_ws_callbacks() {
 
 void MoonrakerClient::on_ws_open() {
     // Snapshot per-connect callback + url; the install-once trampoline no longer captures them.
-    std::function<void()> on_connected;
+    helix::SharedCallback<void()> on_connected;
     std::string url_owned;
     {
         std::lock_guard<std::mutex> lk(reconnect_mutex_);
@@ -642,8 +642,8 @@ void MoonrakerClient::on_ws_open() {
 
 void MoonrakerClient::on_ws_message(const std::string& msg) {
     // Snapshot per-connect callbacks; the install-once trampoline no longer captures them.
-    std::function<void()> on_connected;
-    std::function<void()> on_disconnected;
+    helix::SharedCallback<void()> on_connected;
+    helix::SharedCallback<void()> on_disconnected;
     {
         std::lock_guard<std::mutex> lk(reconnect_mutex_);
         on_connected = last_on_connected_;
@@ -730,7 +730,7 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
             std::string method = j["method"].get<std::string>();
 
             // Copy callbacks to invoke (to avoid holding lock during callback execution)
-            std::vector<std::function<void(const json&)>> callbacks_to_invoke;
+            std::vector<helix::SharedCallback<void(const json&)>> callbacks_to_invoke;
 
             {
                 std::lock_guard<std::mutex> lock(callbacks_mutex_);
@@ -834,7 +834,7 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
 
 void MoonrakerClient::on_ws_close() {
     // Snapshot per-connect callback; the install-once trampoline no longer captures it.
-    std::function<void()> on_disconnected;
+    helix::SharedCallback<void()> on_disconnected;
     {
         std::lock_guard<std::mutex> lk(reconnect_mutex_);
         on_disconnected = last_on_disconnected_;
@@ -1000,7 +1000,8 @@ void MoonrakerClient::on_ws_close() {
     }
 }
 
-SubscriptionId MoonrakerClient::register_notify_update(std::function<void(const json&)> cb) {
+SubscriptionId
+MoonrakerClient::register_notify_update(helix::SharedCallback<void(const json&)> cb) {
     if (!cb) {
         spdlog::warn("[Moonraker Client] register_notify_update called with null callback");
         return kInvalidSubscriptionId;
@@ -1105,7 +1106,7 @@ void MoonrakerClient::dispatch_status_update(const json& status, bool from_cache
 
     // Dispatch to all registered callbacks
     // Two-phase: copy under lock, invoke outside to avoid deadlock
-    std::vector<std::function<void(const json&)>> callbacks_copy;
+    std::vector<helix::SharedCallback<void(const json&)>> callbacks_copy;
     {
         std::lock_guard<std::mutex> lock(callbacks_mutex_);
         callbacks_copy.reserve(notify_callbacks_.size());
@@ -1144,13 +1145,13 @@ void MoonrakerClient::dispatch_status_update(const json& status, bool from_cache
 
 void MoonrakerClient::register_method_callback(const std::string& method,
                                                const std::string& handler_name,
-                                               std::function<void(const json&)> cb) {
+                                               helix::SharedCallback<void(const json&)> cb) {
     std::lock_guard<std::mutex> lock(callbacks_mutex_);
     auto it = method_callbacks_.find(method);
     if (it == method_callbacks_.end()) {
         spdlog::debug("[Moonraker Client] Registering new method callback: {} (handler: {})",
                       method, handler_name);
-        std::map<std::string, std::function<void(const json&)>> handlers;
+        std::map<std::string, helix::SharedCallback<void(const json&)>> handlers;
         handlers.insert({handler_name, cb});
         method_callbacks_.insert({method, handlers});
     } else {
@@ -1232,14 +1233,14 @@ int MoonrakerClient::send_jsonrpc(const std::string& method, const json& params)
 }
 
 RequestId MoonrakerClient::send_jsonrpc(const std::string& method, const json& params,
-                                        std::function<void(const json&)> cb) {
+                                        helix::SharedCallback<void(const json&)> cb) {
     // Forward to new overload with null error callback
     return send_jsonrpc(method, params, cb, nullptr, 0);
 }
 
 RequestId MoonrakerClient::send_jsonrpc(const std::string& method, const json& params,
-                                        std::function<void(const json&)> success_cb,
-                                        std::function<void(const MoonrakerError&)> error_cb,
+                                        helix::SharedCallback<void(const json&)> success_cb,
+                                        helix::SharedCallback<void(const MoonrakerError&)> error_cb,
                                         uint32_t timeout_ms, bool silent,
                                         std::optional<rpc_error_policy::CallerIntent> intent) {
     if (!ready_to_send(method.c_str())) {
@@ -1270,7 +1271,7 @@ int MoonrakerClient::gcode_script(const std::string& gcode) {
 
 void MoonrakerClient::get_gcode_store(
     int count, std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
-    std::function<void(const MoonrakerError&)> on_error) {
+    helix::SharedCallback<void(const MoonrakerError&)> on_error) {
     json params = {{"count", count}};
 
     send_jsonrpc(
@@ -1335,8 +1336,9 @@ TemperatureStore MoonrakerClient::parse_temperature_store(const json& result) {
     return store;
 }
 
-void MoonrakerClient::get_temperature_store(std::function<void(const TemperatureStore&)> on_success,
-                                            std::function<void(const MoonrakerError&)> on_error) {
+void MoonrakerClient::get_temperature_store(
+    std::function<void(const TemperatureStore&)> on_success,
+    helix::SharedCallback<void(const MoonrakerError&)> on_error) {
     json params = {{"include_monitors", false}};
 
     send_jsonrpc(
@@ -1353,7 +1355,7 @@ void MoonrakerClient::get_temperature_store(std::function<void(const Temperature
         on_error);
 }
 
-void MoonrakerClient::invoke_connected_callback(const std::function<void()>& cb,
+void MoonrakerClient::invoke_connected_callback(const helix::SharedCallback<void()>& cb,
                                                 const char* cause) {
     if (cb) {
         try {
@@ -1368,7 +1370,7 @@ void MoonrakerClient::invoke_connected_callback(const std::function<void()>& cb,
 
     // Fan out to any registered observers. Copy under lock to avoid holding the
     // mutex while user code runs.
-    std::vector<std::pair<std::string, std::function<void()>>> observers_copy;
+    std::vector<std::pair<std::string, helix::SharedCallback<void()>>> observers_copy;
     {
         std::lock_guard<std::mutex> lock(connected_observers_mutex_);
         observers_copy.reserve(connected_observers_.size());
@@ -1392,9 +1394,9 @@ void MoonrakerClient::invoke_connected_callback(const std::function<void()>& cb,
 }
 
 void MoonrakerClient::add_connected_observer(const std::string& handler_name,
-                                             std::function<void()> cb) {
+                                             helix::SharedCallback<void()> cb) {
     bool fire_immediately = false;
-    std::function<void()> immediate_cb;
+    helix::SharedCallback<void()> immediate_cb;
     {
         std::lock_guard<std::mutex> lock(connected_observers_mutex_);
         connected_observers_[handler_name] = cb;
@@ -1426,8 +1428,9 @@ bool MoonrakerClient::remove_connected_observer(const std::string& handler_name)
     return connected_observers_.erase(handler_name) > 0;
 }
 
-void MoonrakerClient::discover_printer(std::function<void()> on_complete,
-                                       std::function<void(const std::string& reason)> on_error) {
+void MoonrakerClient::discover_printer(
+    helix::SharedCallback<void()> on_complete,
+    helix::SharedCallback<void(const std::string& reason)> on_error) {
     // Store callback for force_reconnect()
     {
         std::lock_guard<std::mutex> lock(reconnect_mutex_);

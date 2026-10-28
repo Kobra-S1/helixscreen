@@ -6,6 +6,7 @@
 #include "accel_batch_source_mock.h"
 #include "async_lifetime_guard.h"
 #include "axis.h"
+#include "helix_shared_callback.h"
 #include "mock_persona.h"
 #include "moonraker_client.h"
 #include "moonraker_client_mock_spoolman.h"
@@ -51,8 +52,8 @@ class SimSpeed;
 // Forward declaration for internal handler registry
 namespace mock_internal {
 using MethodHandler =
-    std::function<bool(MoonrakerClientMock*, const json&, std::function<void(const json&)>,
-                       std::function<void(const MoonrakerError&)>)>;
+    std::function<bool(MoonrakerClientMock*, const json&, helix::SharedCallback<void(const json&)>,
+                       helix::SharedCallback<void(const MoonrakerError&)>)>;
 } // namespace mock_internal
 
 /// Failure modes the TEST_RESONANCES simulation can be switched to.
@@ -332,8 +333,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @param on_disconnected Callback stored but never invoked in mock
      * @return Always returns 0 (success)
      */
-    int connect(const char* url, std::function<void()> on_connected,
-                std::function<void()> on_disconnected) override;
+    int connect(const char* url, helix::SharedCallback<void()> on_connected,
+                helix::SharedCallback<void()> on_disconnected) override;
 
     /**
      * @brief Run the real discovery sequence under discovery_mutex_
@@ -343,9 +344,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * discovery_'s name lists that the simulation thread reads under the lock.
      * The callbacks run after the lock is released.
      */
-    void
-    discover_printer(std::function<void()> on_complete,
-                     std::function<void(const std::string& reason)> on_error = nullptr) override;
+    void discover_printer(
+        helix::SharedCallback<void()> on_complete,
+        helix::SharedCallback<void(const std::string& reason)> on_error = nullptr) override;
 
     /**
      * @brief Simulate WebSocket disconnection (no real network I/O)
@@ -386,7 +387,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @return Always returns 0 (success)
      */
     helix::RequestId send_jsonrpc(const std::string& method, const json& params,
-                                  std::function<void(const json&)> cb) override;
+                                  helix::SharedCallback<void(const json&)> cb) override;
 
     /**
      * @brief Simulate JSON-RPC request with success/error callbacks
@@ -405,8 +406,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @return Always returns 0 (success)
      */
     helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
-        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
+        const std::string& method, const json& params,
+        helix::SharedCallback<void(const json&)> success_cb,
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
         bool silent = false,
         std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override;
 
@@ -974,8 +976,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     [[nodiscard]] bool mock_plr_saving();
     /// Answer one server.helix.plr.* request (moonraker_client_mock_plr.cpp).
     void mock_plr_request(const std::string& method, const json& params,
-                          std::function<void(const json&)> success_cb,
-                          std::function<void(const MoonrakerError&)> error_cb);
+                          helix::SharedCallback<void(const json&)> success_cb,
+                          helix::SharedCallback<void(const MoonrakerError&)> error_cb);
 
     /// A print-start step reaching its wrapper: true, and the flag restored,
     /// when a skip was set for it.
@@ -1286,9 +1288,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      *
      * @return true if the script was handled here (the callbacks are owned)
      */
-    bool simulate_tool_offset_calibration(const std::string& script,
-                                          std::function<void(const nlohmann::json&)> success_cb,
-                                          std::function<void(const MoonrakerError&)> error_cb);
+    bool
+    simulate_tool_offset_calibration(const std::string& script,
+                                     helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+                                     helix::SharedCallback<void(const MoonrakerError&)> error_cb);
 
     /**
      * @brief Simulate an automatic pressure-advance run
@@ -1302,8 +1305,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @return true if the script was handled here
      */
     bool simulate_pa_calibration(const std::string& script,
-                                 std::function<void(const nlohmann::json&)> success_cb,
-                                 std::function<void(const MoonrakerError&)> error_cb);
+                                 helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+                                 helix::SharedCallback<void(const MoonrakerError&)> error_cb);
 
     /**
      * @brief Simulate the Snapmaker U1's EXTRUDER_OFFSET_ACTION_* steps, when
@@ -1321,9 +1324,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      *
      * @return true if the script was handled here (the callbacks are owned)
      */
-    bool simulate_nozzle_offset_calibration(const std::string& script,
-                                            std::function<void(const nlohmann::json&)> success_cb,
-                                            std::function<void(const MoonrakerError&)> error_cb);
+    bool simulate_nozzle_offset_calibration(
+        const std::string& script, helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb);
 
     /**
      * @brief Answer an INDX command that blocks for minutes on the real
@@ -1336,8 +1339,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * @return true if the script was handled here (the callbacks are owned)
      */
     bool simulate_indx_blocking(const std::string& script,
-                                std::function<void(const nlohmann::json&)> success_cb,
-                                std::function<void(const MoonrakerError&)> error_cb);
+                                helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+                                helix::SharedCallback<void(const MoonrakerError&)> error_cb);
 
     /// A printer.gcode.script run line by line, as Klipper runs it.
     struct GcodeScriptRun {
@@ -1353,8 +1356,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// Answer a printer.gcode.script rpc with what its lines did.
     void answer_gcode_script(const std::string& script, const GcodeScriptRun& run,
                              const helix::rpc_error_policy::CallerIntent& intent,
-                             const std::function<void(const nlohmann::json&)>& success_cb,
-                             const std::function<void(const MoonrakerError&)>& error_cb);
+                             const helix::SharedCallback<void(const nlohmann::json&)>& success_cb,
+                             const helix::SharedCallback<void(const MoonrakerError&)>& error_cb);
     /**
      * @brief Hold a printer.gcode.script reply until the MedusaHC swap its
      *        script started has ended.
@@ -1366,8 +1369,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     void hold_medusa_reply(std::string script, size_t resume_at,
                            helix::rpc_error_policy::CallerIntent intent,
-                           std::function<void(const nlohmann::json&)> success_cb,
-                           std::function<void(const MoonrakerError&)> error_cb);
+                           helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+                           helix::SharedCallback<void(const MoonrakerError&)> error_cb);
     /// klipper-toolchanger's tool_number as pin_watch's sync_toolchanger keeps
     /// it: the docks' tool when they name one, -1 (UNSELECT_TOOL) when they do
     /// not, and while printing an unnamed reading leaves it alone.
@@ -1506,8 +1509,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         std::chrono::steady_clock::time_point due;
         std::string line;
         bool is_final;
-        std::function<void(const nlohmann::json&)> success_cb;
-        std::function<void(const MoonrakerError&)> error_cb;
+        helix::SharedCallback<void(const nlohmann::json&)> success_cb;
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb;
     };
     /// HELIX_MOCK_PA_FAIL=1 makes the run refuse with a realistic runout
     /// message. The refusal path is otherwise unreachable in mock mode, and it
@@ -1809,12 +1812,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      * torn down mid-playback frees both and on_done never runs.
      */
     void play_console_lines(std::vector<std::string> lines, uint32_t interval_ms,
-                            std::function<void()> on_done);
+                            helix::SharedCallback<void()> on_done);
 
     /// play_console_lines() for ticks that do more than print one line: each
     /// step runs on its own tick, then on_done on the tick after the last.
-    void play_console_steps(std::vector<std::function<void()>> steps, uint32_t interval_ms,
-                            std::function<void()> on_done);
+    void play_console_steps(std::vector<helix::SharedCallback<void()>> steps, uint32_t interval_ms,
+                            helix::SharedCallback<void()> on_done);
 
     /// Milliseconds between whole-Hz "Testing frequency" lines: the
     /// set_belt_line_interval_ms() override, else one simulated second per
@@ -2108,8 +2111,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // counts. Guarded by fault_mutex_; callbacks never run under it.
     struct HeldRequest {
         json params;
-        std::function<void(const json&)> success_cb;
-        std::function<void(const MoonrakerError&)> error_cb;
+        helix::SharedCallback<void(const json&)> success_cb;
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb;
     };
     std::map<std::string, MoonrakerError> fail_next_;
     std::set<std::string> defer_next_;
@@ -2542,8 +2545,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         std::string script;
         size_t resume_at = 0;
         helix::rpc_error_policy::CallerIntent intent{};
-        std::function<void(const nlohmann::json&)> success_cb;
-        std::function<void(const MoonrakerError&)> error_cb;
+        helix::SharedCallback<void(const nlohmann::json&)> success_cb;
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb;
     };
     mutable std::mutex medusa_mutex_;
     MedusaSim medusa_;
@@ -2911,7 +2914,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // leak report showed surviving the suite).
     struct CalibrationTimer {
         lv_timer_t* timer = nullptr;
-        std::function<void()> free_payload;
+        helix::SharedCallback<void()> free_payload;
     };
     std::vector<CalibrationTimer> calibration_timers_;
 

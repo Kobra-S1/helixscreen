@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "i_moonraker_sub_apis.h"
 #include "moonraker_error.h"
 #include "spoolman_types.h"
@@ -69,8 +70,8 @@ std::optional<ExternalFilament> parse_external_filament(const nlohmann::json& fi
  */
 class MoonrakerSpoolmanAPI : public helix::ISpoolmanAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
 
     /**
      * @brief Constructor

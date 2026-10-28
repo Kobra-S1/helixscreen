@@ -531,7 +531,7 @@ void MoonrakerMotionAPI::execute_gcode(const std::string& gcode, SuccessCallback
         ps->app_motion_activity().note_sent();
     }
 
-    std::function<void(const json&)> success_wrapper;
+    helix::SharedCallback<void(const json&)> success_wrapper;
     if (on_success || stamp) {
         success_wrapper = [on_success, ps, stamp](json) {
             if (stamp) {

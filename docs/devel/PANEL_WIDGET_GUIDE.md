@@ -211,7 +211,7 @@ is pure and has a boundary test; the widget measures, decides and publishes.
 | `z_offset` | `z_offset_layout.h` | - | the live offset (two decimals at Glance, three above); Save from Wide; baby-step buttons at Full; the tool name at Full on a tool changer |
 | `dryer` | `dryer_layout.h`, `dryer_model.h`, `include/dryer_summary.h` | `home_dryer_available` | a time-left readout with a progress ring where progress is known; one row per source at Full |
 | `host_health` | `host_health_layout.h` | `perf_available` | a status chip with the reading that set it; sparklines and MCU rows by rung; the busiest MCU in the memory row's place while printing at Wide |
-| `toolhead` | `toolhead_layout.h`, `toolhead_plate.h` | - | homed letters (Z height while printing) at Glance and Strip; axis rows at Column and Cell; a top-down plate with crosshair and Z bar from Wide; Home All at Full while idle with an axis unhomed |
+| `toolhead` | `toolhead_layout.h`, `toolhead_plate.h` | - | homed letters (Z height while printing) at Glance and Strip; axis rows at Column and Cell; a top-down plate with crosshair, Z bar, 50 mm grid and the bed-occupancy outlines from Wide, interactive while homed and idle (tap then Move here, or drag); Home All at Full while idle with an axis unhomed; three configurable preset slots and a lift line at Full when `presets_extra_h` fits (a 2x3); the Move here and Cleared chips go icon-only when the plate is narrower than the labelled chip (`chip_icon_only`) |
 | `bed_mesh_tile` | `bed_mesh_tile_layout.h` | `printer_has_bed_mesh` | a grid glyph and Z range at Glance; the heatmap from Strip; profile details at Wide; colour scale, footer, Calibrate and Load profile from Full; a static 3D render at Large on a full-tier board |
 | `exclude_map` | `exclude_map_layout.h` | `printer_has_exclude_object` | counts of skipped and remaining objects; the mini exclude-object map from Column up; the object printing now at Wide and above; a "Skip objects..." button at Full |
 | `job_queue` | `job_queue_tile_layout.h`, `include/job_queue_tile_state.h` | `printer_has_job_queue` | the next job and the queued count; Start next from Strip (icon only at Strip), with the thumbnail and estimate from Wide, and up to three following jobs at Full; "Starts automatically" only while a print runs under `automatic_transition` |
@@ -251,6 +251,22 @@ The shared decisions around them:
   per session. The rules (accrual, the due latch, intervals, the persisted form, the
   plugin-store migration) are pure, in `include/maintenance_meters.h`; the tile only
   measures and publishes its rung.
+- **A control the user drags is a drag surface.** The toolhead plate calls
+  `helix::ui::mark_drag_surface()` (`include/ui_drag_surface.h`) in `attach()`, so a press
+  on it neither swipes the home page nor enters edit mode
+  ([HOME_EDIT_MODE.md](HOME_EDIT_MODE.md#entering)). Its `clickable` flag is then bound to
+  `toolhead_plate_interactive`: an inert plate takes no press, so the tap reaches the tile
+  (opens Motion) and a hold there enters edit mode as anywhere else. `attach()` notifies
+  the subject after marking, because marking sets `clickable`.
+- **A widget that moves the toolhead shares the Bed tab's rules, not a copy of them.** The
+  toolhead plate maps touches with `bed_map_target()`, gates on `plate_moves_allowed()` and
+  lifts with `current_plate_lift()` (`include/bed_plate_context.h`), streams drags through
+  `helix::BedPlateGesture` (`include/bed_plate_gesture.h`) and sends through
+  `helix::ToolheadMoveSender` (`include/toolhead_move_sender.h`), and draws with
+  `include/bed_plate_draw.h`, exactly as `MotionPanel`'s Bed tab does. Its preset slots
+  (`include/toolhead_preset_slots.h`, configured by `ToolheadPresetConfigModal` from
+  `on_edit_configure()`) run a macro through `run_home_macro()` (`include/home_macro_run.h`),
+  the Macro Button widget's path.
 
 ### Rules every sized widget follows
 
@@ -308,7 +324,8 @@ These are the checks a new widget in this family has to pass. The ones with a ga
   walks every XML file that declares a control and fails unless the file is a row of
   `kGuardedFiles` (with the guard count) or `kNoMachineControlFiles`. The family's rows:
   `panel_widget_z_offset.xml` has two guards (Save and the steppers),
-  `panel_widget_toolhead.xml` one (Home All), `panel_widget_bed_mesh_tile.xml` one
+  `panel_widget_toolhead.xml` six (the plate, Move here, Home All and the three preset
+  slots), `panel_widget_bed_mesh_tile.xml` one
   (Calibrate); `panel_widget_speed_flow.xml`, `speed_flow_part.xml`,
   `panel_widget_host_health.xml` and `panel_widget_dryer.xml` command no motion and are in
   `kNoMachineControlFiles`. The send layer is the

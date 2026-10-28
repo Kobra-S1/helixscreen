@@ -15,6 +15,7 @@
 #include "advanced_panel_types.h"
 #include "belt_tension_types.h"
 #include "calibration_types.h"
+#include "helix_shared_callback.h"
 #include "i_moonraker_sub_apis.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
@@ -75,8 +76,8 @@ OperationTimeoutGuard* armed_idle_grace();
  */
 class MoonrakerAdvancedAPI : public helix::IAdvancedAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
 
     /// Progress callback for bed mesh calibration: (current_probe, total_probes)
     using BedMeshProgressCallback = std::function<void(int current, int total)>;
@@ -88,7 +89,7 @@ class MoonrakerAdvancedAPI : public helix::IAdvancedAPI {
     using InputShaperConfigCallback = std::function<void(const InputShaperConfig&)>;
 
     /// Callback for heater control type query (returns "pid", "mpc", etc.)
-    using HeaterControlTypeCallback = std::function<void(const std::string& control_type)>;
+    using HeaterControlTypeCallback = helix::SharedCallback<void(const std::string& control_type)>;
 
     /// Callback for PID calibration progress (sample number, tolerance value; -1.0 = n/a)
     using PIDProgressCallback = std::function<void(int sample, float tolerance)>;
@@ -414,10 +415,9 @@ class MoonrakerAdvancedAPI : public helix::IAdvancedAPI {
      * @param on_error Called on refusal or failure
      * @param on_progress Best-effort per-attempt progress; may never fire
      */
-    std::function<void()> start_pa_calibrate(const helix::pacal::Procedure& proc,
-                                             PACalibrateCallback on_complete,
-                                             ErrorCallback on_error,
-                                             PAProgressCallback on_progress = nullptr) override;
+    helix::SharedCallback<void()>
+    start_pa_calibrate(const helix::pacal::Procedure& proc, PACalibrateCallback on_complete,
+                       ErrorCallback on_error, PAProgressCallback on_progress = nullptr) override;
 
     // ========================================================================
     // Machine Limits Operations

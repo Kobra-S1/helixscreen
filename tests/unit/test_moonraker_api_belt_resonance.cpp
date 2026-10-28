@@ -293,7 +293,7 @@ TEST_CASE_METHOD(BeltApiFixture, "cancel holds against a line already being disp
     // produces.
     bool called = false;
     bool cancelled = false;
-    std::function<void()> cancel;
+    helix::SharedCallback<void()> cancel;
     mock_client_.register_method_callback(
         "notify_gcode_response", "a_cancels_first", [&](const json& msg) {
             if (cancel && msg["params"][0].get<std::string>().find("Resonances data written") !=

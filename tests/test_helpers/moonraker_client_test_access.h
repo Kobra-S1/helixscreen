@@ -82,7 +82,7 @@ class MoonrakerClientTestAccess {
     // marshal member access to the main thread via token.defer()).
     static void fire_method_callbacks(MoonrakerClient& c, const std::string& method,
                                       const nlohmann::json& msg) {
-        std::vector<std::function<void(const nlohmann::json&)>> cbs;
+        std::vector<helix::SharedCallback<void(const nlohmann::json&)>> cbs;
         {
             std::lock_guard<std::mutex> lock(c.callbacks_mutex_);
             auto it = c.method_callbacks_.find(method);

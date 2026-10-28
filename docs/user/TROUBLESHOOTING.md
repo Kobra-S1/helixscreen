@@ -1184,6 +1184,22 @@ Or set it from the printer itself: **Settings → Touch & Input → Scroll Engag
 
 Raising it too far makes real scrolls feel unresponsive, so move in steps of a few pixels.
 
+### The Toolhead plate or Bed tab won't move the toolhead
+
+**Symptoms:**
+- Tapping the plate of the home screen's Toolhead widget opens the Motion screen instead of placing a target
+- The Bed tab's plate is grayed out and ignores taps and drags
+- The Move tab's positions and **Park** are grayed out
+
+**Cause:** These controls only move the toolhead when it is safe and you asked for it. They stay inert while:
+
+- **Any axis is not homed.** Nothing on the plate or the Move tab homes by itself. Tap **Home All** on the Toolhead widget, or the home button on the Motion screen's Jog or Bed tab.
+- **A print is running or paused.** The plate shows the live toolhead over the print instead.
+- **The printer is not ready**, or another operation (homing, leveling, a filament load) is using the toolhead.
+- **You are in Edit Mode** on the home screen. Tap **Done** first.
+
+**If a move is refused with "The part on the bed is too tall to clear":** HelixScreen thinks your last print is still on the bed and the nozzle cannot rise above it. Remove the part and tap **Cleared** on the plate. See [A print on the bed](guide/motion.md#a-print-on-the-bed).
+
 ### Unintended Clicks While Scrolling
 
 **Symptoms:**

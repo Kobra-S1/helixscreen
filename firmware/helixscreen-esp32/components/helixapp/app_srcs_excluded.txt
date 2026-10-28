@@ -203,6 +203,7 @@ src/system/camera_stream.cpp  # not in the v1 Core+AMS cut
 src/system/cli_args.cpp  # not in the v1 Core+AMS cut
 src/system/crash_error_log_sink.cpp  # not in the v1 Core+AMS cut
 src/system/crash_handler.cpp  # not in the v1 Core+AMS cut
+src/system/crash_record.cpp  # not in the v1 Core+AMS cut
 src/system/crash_history.cpp  # not in the v1 Core+AMS cut
 src/system/crash_reporter.cpp  # not in the v1 Core+AMS cut
 src/system/debug_bundle_collector.cpp  # not in the v1 Core+AMS cut
@@ -269,6 +270,9 @@ src/ui/glass_gate.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the fir
 src/ui/glass_shading.cpp  # glass needs 24 bpp and the K-Touch draws 16, so the firmware never shows it
 src/ui/ipp_print_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/modals/ui_spaghetti_detection_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/modals/toolhead_preset_config_modal.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
+src/ui/panel_widgets/toolhead_preset_slots.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
+src/ui/panel_widgets/toolhead_widget.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
 src/ui/pid_progress_tracker.cpp  # not in the v1 Core+AMS cut
 src/ui/recovery_fault_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/recovery_modal_presenter.cpp  # not in the v1 Core+AMS cut
@@ -312,6 +316,7 @@ src/ui/ui_crash_report_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_fatal_error.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_frequency_response_chart.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_icon_loader.cpp  # not in the v1 Core+AMS cut
+src/ui/ui_overlay_printer_image_tagger.cpp  # compiled out by HELIX_HAS_IMAGE_TAGGER=0
 src/ui/ui_overlay_qr_scanner.cpp  # not in the v1 Core+AMS cut
 src/ui/ui_overlay_timelapse_install.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
 src/ui/ui_overlay_timelapse_settings.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget

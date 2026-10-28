@@ -33,7 +33,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/print-monitoring.md` | Pre-print filament checks (empty-slot block, unassigned-tool Color Mismatch, bypass exemption), camera-based failure detection (Snapmaker U1 dialog, Creality K2 AI toggle) |
 | `guide/temperature.md` | Nozzle/bed temperature panels, presets, reassigning preset filament types, graphs, drying filament on the bed, chamber heater diagnostics card |
 | `guide/chamber-heater.md` | Add-on chamber heater setup (BIGTREETECH Panda Breath): network step, stock vs DragonBreath firmware, the Klipper module and config each needs, the Snapmaker U1 menu shortcut, troubleshooting |
-| `guide/motion.md` | Jog/Move/Bed tabs, jog pad, bed map, tap-to-move coordinates, bed position grid, park, motors off, homing, E-stop |
+| `guide/motion.md` | Jog/Move/Bed tabs, jog pad, bed map, tap-to-move coordinates, bed position grid, lifting over a print left on the bed (Cleared), park, motors off, homing, E-stop |
 | `guide/filament.md` | Extrusion, AMS, CFS, Spoolman, filament drying and humidity by box |
 | `guide/filament-tracking.md` | Filament tracking with/without Spoolman, usage estimation, connecting Spoolman, spool inventory |
 | `guide/bluetooth-setup.md` | Enabling Bluetooth on Raspberry Pi and BTT Pi, UART conflicts, USB dongle setup |

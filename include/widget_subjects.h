@@ -63,7 +63,8 @@ class WidgetSubjects : public SubjectManager {
      *        such as an observer on another module's subject. Runs first.
      * @return true if @p init ran
      */
-    template <typename Init> bool ensure_init(Init&& init, std::function<void()> teardown = {}) {
+    template <typename Init>
+    bool ensure_init(Init&& init, helix::SharedCallback<void()> teardown = {}) {
         if (initialized_) {
             return false;
         }
@@ -83,7 +84,7 @@ class WidgetSubjects : public SubjectManager {
     }
 
   private:
-    void deinit(const std::function<void()>& teardown) {
+    void deinit(const helix::SharedCallback<void()>& teardown) {
         if (!initialized_ || !lv_is_initialized()) {
             return;
         }

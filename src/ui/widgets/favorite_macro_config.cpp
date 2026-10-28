@@ -3,6 +3,7 @@
 
 #include "tile_color.h"
 
+#include <algorithm>
 #include <cstdint>
 
 namespace helix {
@@ -40,6 +41,16 @@ nlohmann::json favorite_macro_config_to_json(const FavoriteMacroConfig& c) {
     if (!c.require_confirmation)
         j["require_confirmation"] = false;
     return j;
+}
+
+std::vector<std::string> pickable_macro_names(const std::unordered_set<std::string>& macros) {
+    std::vector<std::string> names;
+    for (const auto& macro : macros) {
+        if (!macro.empty() && macro[0] != '_')
+            names.push_back(macro);
+    }
+    std::sort(names.begin(), names.end());
+    return names;
 }
 
 } // namespace helix

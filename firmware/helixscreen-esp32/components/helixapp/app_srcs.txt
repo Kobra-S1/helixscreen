@@ -147,9 +147,12 @@ src/print/three_mf_conversions.cpp
 src/print/three_mf_reader.cpp
 src/print/zip_reader.cpp
 src/printer/active_material_provider.cpp
+src/printer/bed_occupancy.cpp
+src/printer/bed_occupancy_state.cpp
 src/printer/afc_config_manager.cpp
 src/printer/afc_defaults.cpp
 src/printer/afc_fault_position.cpp
+src/printer/ams_device_action_rows.cpp
 src/printer/fault_path_position.cpp
 src/printer/ace_slot_parse.cpp
 src/printer/ams_backend.cpp
@@ -403,6 +406,7 @@ src/ui/queued_job_start.cpp
 src/ui/keyboard_layout_provider.cpp
 src/ui/layout_port.cpp
 src/ui/light_button_config.cpp
+src/ui/home_macro_run.cpp
 src/ui/i18n_plural.cpp
 src/ui/locale_formats.cpp
 src/ui/printer_discovery_list.cpp
@@ -466,7 +470,6 @@ src/ui/panel_widgets/temp_graph_widget.cpp
 src/ui/panel_widgets/temp_stack_widget.cpp
 src/ui/panel_widgets/thermistor_widget.cpp
 src/ui/panel_widgets/tips_widget.cpp
-src/ui/panel_widgets/toolhead_widget.cpp
 src/ui/panel_widgets/tool_switcher_widget.cpp
 src/ui/panel_widgets/width_sensor_widget.cpp
 src/ui/print_control_buttons.cpp
@@ -608,7 +611,6 @@ src/ui/ui_overlay_console_settings.cpp
 src/ui/ui_overlay_network_settings.cpp
 src/ui/ui_overlay_performance.cpp
 src/ui/ui_overlay_printer_image.cpp
-src/ui/ui_overlay_printer_image_tagger.cpp
 src/ui/ui_overlay_printer_type.cpp
 src/ui/ui_overlay_retraction_settings.cpp
 src/ui/ui_overlay_temp_graph.cpp
@@ -628,9 +630,14 @@ src/ui/ui_panel_filament.cpp
 src/ui/ui_panel_history_dashboard.cpp
 src/ui/ui_panel_history_list.cpp
 src/ui/ui_panel_home.cpp
+src/ui/ui_drag_surface.cpp
 src/ui/ui_panel_macros.cpp
 src/bed_grid.cpp
 src/motion_presets.cpp
+src/ui/bed_plate_context.cpp
+src/ui/bed_plate_draw.cpp
+src/ui/bed_plate_gesture.cpp
+src/ui/toolhead_move_sender.cpp
 src/ui/ui_panel_motion.cpp
 src/ui/ui_panel_power.cpp
 src/ui/ui_panel_print_select.cpp
@@ -695,6 +702,7 @@ src/ui/ui_settings_touch.cpp
 src/ui/ui_settings_system.cpp
 src/ui/ui_settings_storage.cpp
 src/ui/ui_settings_connection.cpp
+src/ui/ui_settings_screen_sharing.cpp
 src/ui/ui_settings_updates.cpp
 src/ui/ui_severity_card.cpp
 src/ui/ui_snake_game.cpp

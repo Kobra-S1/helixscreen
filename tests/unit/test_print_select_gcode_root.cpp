@@ -41,10 +41,12 @@ class RootsCountingClient : public MoonrakerClientMock {
   public:
     std::atomic<int> roots_requests{0};
 
-    helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
-        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms, bool silent,
-        std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
+    helix::RequestId
+    send_jsonrpc(const std::string& method, const json& params,
+                 helix::SharedCallback<void(const json&)> success_cb,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms,
+                 bool silent,
+                 std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
         if (method != "server.files.roots") {
             return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
                                                      std::move(error_cb), timeout_ms, silent,

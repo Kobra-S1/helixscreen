@@ -460,8 +460,9 @@ TEST_CASE_METHOD(QueuedStartFixture, "a refused queue removal keeps the job and 
     // override answers error_cb where the stock handler succeeds.
     helix::MoonrakerClientMockTestAccess::set_method_handler(
         mock_client_, "server.job_queue.delete_job",
-        [](MoonrakerClientMock*, const json&, std::function<void(const json&)> /*success_cb*/,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+        [](MoonrakerClientMock*, const json&,
+           helix::SharedCallback<void(const json&)> /*success_cb*/,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
             if (error_cb) {
                 error_cb(MoonrakerError::unknown("refused", "server.job_queue.delete_job"));
             }
@@ -550,8 +551,9 @@ TEST_CASE_METHOD(QueuedStartFixture,
     seed_store("0001", "3DBenchy.gcode", {{"bed_mesh", false}});
     helix::MoonrakerClientMockTestAccess::set_method_handler(
         mock_client_, "server.job_queue.delete_job",
-        [](MoonrakerClientMock*, const json&, std::function<void(const json&)> /*success_cb*/,
-           std::function<void(const MoonrakerError&)> error_cb) -> bool {
+        [](MoonrakerClientMock*, const json&,
+           helix::SharedCallback<void(const json&)> /*success_cb*/,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
             if (error_cb) {
                 error_cb(MoonrakerError::unknown("refused", "server.job_queue.delete_job"));
             }
