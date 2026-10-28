@@ -758,25 +758,23 @@ TEST_CASE_METHOD(DetectedK2Fixture, "PrinterImageManager custom image wins over 
 }
 
 TEST_CASE_METHOD(DetectedK2Fixture,
-                 "PrinterImageManager a filament system with no unit shows the plain image",
-                 "[printer_image_manager][printer_image_variants]") {
+                 "PrinterImageManager a filament system that reports no hardware shows the plain "
+                 "image",
+                 "[printer_image_manager][printer_image_variants][1904]") {
     auto& pim = PrinterImageManager::instance();
     const std::string plain = pim.get_detected_image_path(800);
-    AmsState::instance().add_backend(
-        std::make_unique<test::TypedMockBackend>(AmsType::CFS, /*with_units=*/false));
-    CHECK(pim.get_detected_image_path(800) == plain);
-    CHECK(plain.find("creality-k2-cfs") == std::string::npos);
-}
+    REQUIRE(plain.find("creality-k2-cfs") == std::string::npos);
 
-TEST_CASE_METHOD(
-    DetectedK2Fixture,
-    "PrinterImageManager a filament system whose units are all offline shows the plain image",
-    "[printer_image_manager][printer_image_variants]") {
-    auto& pim = PrinterImageManager::instance();
-    const std::string plain = pim.get_detected_image_path(800);
-    AmsState::instance().add_backend(std::make_unique<test::TypedMockBackend>(
-        AmsType::CFS, /*with_units=*/true, /*units_connected=*/false));
+    auto backend = std::make_unique<test::TypedMockBackend>(AmsType::CFS);
+    auto* cfs = backend.get();
+    cfs->set_hardware_absent(true);
+    AmsState::instance().add_backend(std::move(backend));
+    REQUIRE_FALSE(cfs->get_system_info().presents_filament_system());
     CHECK(pim.get_detected_image_path(800) == plain);
+
+    // A unit reporting in presents the system, and the picture follows it.
+    cfs->set_hardware_absent(false);
+    CHECK(pim.get_detected_image_path(800).find("creality-k2-cfs") != std::string::npos);
 }
 
 TEST_CASE_METHOD(DetectedK2Fixture,

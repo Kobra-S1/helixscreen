@@ -10,21 +10,17 @@ namespace helix::test {
 /// on which kind of filament system is registered rather than on its behaviour.
 class TypedMockBackend : public AmsBackendMock {
   public:
-    explicit TypedMockBackend(AmsType type, bool with_units = true, bool units_connected = true)
-        : AmsBackendMock(4), type_(type), with_units_(with_units),
-          units_connected_(units_connected) {}
+    explicit TypedMockBackend(AmsType type) : AmsBackendMock(4), type_(type) {}
 
-    /// With @p with_units false the backend reads like one registered from a
-    /// firmware object before any unit has reported.
+    /// With @p absent true the backend reads like one whose firmware object
+    /// stands with no hardware behind it (AmsSystemInfo::external_spool_only).
+    void set_hardware_absent(bool absent) {
+        hardware_absent_ = absent;
+    }
+
     [[nodiscard]] AmsSystemInfo get_system_info() const override {
         AmsSystemInfo info = AmsBackendMock::get_system_info();
-        if (!with_units_) {
-            info.units.clear();
-            info.total_slots = 0;
-        }
-        for (auto& unit : info.units) {
-            unit.connected = units_connected_;
-        }
+        info.external_spool_only = hardware_absent_;
         return info;
     }
 
@@ -34,8 +30,7 @@ class TypedMockBackend : public AmsBackendMock {
 
   private:
     AmsType type_;
-    bool with_units_;
-    bool units_connected_;
+    bool hardware_absent_ = false;
 };
 
 } // namespace helix::test

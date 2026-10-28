@@ -545,6 +545,12 @@ bool AmsState::is_available() const {
     return primary && primary->presents_filament_system();
 }
 
+bool AmsState::filament_hardware_absent() const {
+    assert_main_thread();
+    const auto primary = system_info(0);
+    return primary && primary->external_spool_only;
+}
+
 void AmsState::set_moonraker_api(IMoonrakerAPI* api) {
     assert_main_thread();
     api_ = api;

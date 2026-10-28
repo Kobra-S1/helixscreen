@@ -18,6 +18,7 @@
 #include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
+#include "ams_state.h"
 #include "app_globals.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
@@ -477,9 +478,9 @@ TEST_CASE_METHOD(
         if (sensor_mgr().listed_in_settings(entry)) {
             listed.push_back(entry.display_name);
         }
-        CHECK(
-            sensor_mgr().listed_in_settings(entry) ==
-            is_standalone_filament_sensor(get_printer_state().get_discovery(), entry.klipper_name));
+        CHECK(sensor_mgr().listed_in_settings(entry) ==
+              is_standalone_filament_sensor(get_printer_state().get_discovery(), entry.klipper_name,
+                                            AmsState::instance().filament_hardware_absent()));
     }
     CHECK(listed == std::vector<std::string>{"runout", "toolhead"});
     CHECK(step.get_standalone_sensor_count() == listed.size());

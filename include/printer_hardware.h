@@ -269,10 +269,15 @@ class PrinterHardware {
      *
      * Backend-specific suppression is conditional on @p discovery.has_mmu()
      * so legitimate user sensors with conventional names (e.g. an "extruder"
-     * runout switch on a non-AMS printer) stay visible.
+     * runout switch on a non-AMS printer) stay visible. It is also dropped when
+     * @p filament_hardware_absent: the running backend has reported that
+     * nothing stands behind its firmware object (AmsState::filament_hardware_absent),
+     * so a name it would claim is the printer's own sensor. The flag must come
+     * from the backend of @p discovery's mmu_type(), whose claim it lifts.
      */
     static bool is_ams_sensor(const std::string& sensor_name,
-                              const helix::PrinterDiscovery& discovery);
+                              const helix::PrinterDiscovery& discovery,
+                              bool filament_hardware_absent);
 
   private:
     /**
@@ -308,7 +313,9 @@ class PrinterHardware {
 /// Whether a filament sensor stands alone rather than belonging to an AMS: the
 /// one filter Settings > Sensors and the filament sensor wizard both list by.
 /// @p sensor_name may carry its "filament_switch_sensor " prefix or not.
+/// @p filament_hardware_absent as PrinterHardware::is_ams_sensor takes it.
 [[nodiscard]] inline bool is_standalone_filament_sensor(const helix::PrinterDiscovery& hw,
-                                                        const std::string& sensor_name) {
-    return !PrinterHardware::is_ams_sensor(sensor_name, hw);
+                                                        const std::string& sensor_name,
+                                                        bool filament_hardware_absent) {
+    return !PrinterHardware::is_ams_sensor(sensor_name, hw, filament_hardware_absent);
 }

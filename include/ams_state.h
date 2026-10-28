@@ -700,6 +700,15 @@ class AmsState {
     [[nodiscard]] bool is_available() const;
 
     /**
+     * @brief Whether the running backend has reported that no filament system
+     *        stands behind its firmware object (AmsSystemInfo::external_spool_only).
+     *
+     * False while no backend runs or before it has reported, so a claim made at
+     * discovery holds until the hardware has answered.
+     */
+    [[nodiscard]] bool filament_hardware_absent() const;
+
+    /**
      * @brief Set Moonraker API for Spoolman integration
      *
      * When set, AmsState will automatically call set_active_spool() when

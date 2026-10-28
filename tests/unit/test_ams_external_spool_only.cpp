@@ -14,14 +14,17 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/force_bypass_controls_guard.h"
 #include "../test_helpers/print_start_controller_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "filament_sensor_manager.h"
 #include "print_start_inputs.h"
 #include "printer_discovery.h"
+#include "printer_manager_chips.h"
 #include "printer_state.h"
 #include "tour_steps.h"
 
@@ -166,5 +169,57 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     get_printer_state().set_hardware(PrinterDiscovery{});
     mock_ptr->stop();
+    ams.deinit_subjects();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a backend reporting no hardware gives its claimed sensor back and drops its chip",
+                 "[ams][external-spool-only][1904]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto& sensors = FilamentSensorManager::instance();
+    sensors.init_subjects();
+    FilamentSensorManagerTestAccess::reset(sensors);
+
+    // A K2's objects: the CFS's `box` and the toolhead switch it claims by name.
+    PrinterDiscovery discovery;
+    discovery.parse_objects(
+        nlohmann::json::array({"box", "extruder", "filament_switch_sensor filament_sensor"}));
+    REQUIRE(discovery.mmu_type() == AmsType::CFS);
+    get_printer_state().set_hardware(discovery);
+    discover_filament_sensors(sensors, {"filament_switch_sensor filament_sensor"});
+    REQUIRE(sensors.entries().size() == 1);
+    const auto toolhead = sensors.entries().front();
+
+    SECTION("with no backend running, the discovery claim holds") {
+        ams.clear_backends();
+        CHECK_FALSE(ams.filament_hardware_absent());
+        CHECK_FALSE(sensors.listed_in_settings(toolhead));
+    }
+
+    SECTION("the backend's report decides, both ways") {
+        auto mock = std::make_unique<ExternalSpoolOnlyMock>();
+        auto* mock_ptr = mock.get();
+        ams.set_backend(std::move(mock));
+        auto refresh = [&](bool external_spool_only) {
+            mock_ptr->external_spool_only = external_spool_only;
+            AmsStateTestAccess::invalidate_system_info(ams);
+            ams.sync_from_backend();
+        };
+
+        refresh(true);
+        CHECK(ams.filament_hardware_absent());
+        CHECK(sensors.listed_in_settings(toolhead));
+        CHECK(gather_capability_chip_facts().filament_systems.empty());
+
+        refresh(false);
+        CHECK_FALSE(ams.filament_hardware_absent());
+        CHECK_FALSE(sensors.listed_in_settings(toolhead));
+        CHECK(gather_capability_chip_facts().filament_systems.size() == 1);
+        ams.clear_backends();
+    }
+
+    FilamentSensorManagerTestAccess::reset(sensors);
+    get_printer_state().set_hardware(PrinterDiscovery{});
     ams.deinit_subjects();
 }

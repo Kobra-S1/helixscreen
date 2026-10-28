@@ -200,6 +200,15 @@ std::vector<std::string> HardwareSnapshot::get_added(const HardwareSnapshot& cur
 // HardwareValidator Implementation
 // =============================================================================
 
+namespace {
+
+// Validation judges what discovery found. A backend can report its hardware
+// absent only after its first status frame, which comes before a reconnect's
+// validation but after a cold boot's, so the claim is taken as discovered.
+constexpr bool kFilamentHardwareAbsent = false;
+
+} // namespace
+
 HardwareValidationResult HardwareValidator::validate(Config* config,
                                                      const helix::PrinterDiscovery& hardware) {
     HardwareValidationResult result;
@@ -450,7 +459,7 @@ size_t HardwareValidator::acknowledge_discovered_hardware(Config* config,
         names.push_back(led);
     }
     for (const auto& sensor : hardware.filament_sensor_names()) {
-        if (PrinterHardware::is_ams_sensor(sensor, hardware)) {
+        if (PrinterHardware::is_ams_sensor(sensor, hardware, kFilamentHardwareAbsent)) {
             continue;
         }
         names.push_back(sensor);
@@ -718,7 +727,7 @@ void HardwareValidator::validate_new_hardware(Config* config,
         // Discovery-aware: when HH or AFC is detected, also suppress the
         // backend's conventionally-named sensors (extruder/toolhead/
         // tool_start/<lane>_prep/...) so a fresh install doesn't toast.
-        if (PrinterHardware::is_ams_sensor(sensor, hardware)) {
+        if (PrinterHardware::is_ams_sensor(sensor, hardware, kFilamentHardwareAbsent)) {
             spdlog::debug("[HardwareValidator] Skipping AMS sensor: {}", sensor);
             continue;
         }

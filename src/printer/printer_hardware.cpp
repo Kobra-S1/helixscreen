@@ -594,12 +594,13 @@ bool PrinterHardware::is_ams_sensor_substring(const std::string& sensor_name) {
 }
 
 bool PrinterHardware::is_ams_sensor(const std::string& sensor_name,
-                                    const helix::PrinterDiscovery& discovery) {
+                                    const helix::PrinterDiscovery& discovery,
+                                    bool filament_hardware_absent) {
     if (is_ams_sensor_substring(sensor_name)) {
         return true;
     }
 
-    if (!discovery.has_mmu()) {
+    if (!discovery.has_mmu() || filament_hardware_absent) {
         return false;
     }
 

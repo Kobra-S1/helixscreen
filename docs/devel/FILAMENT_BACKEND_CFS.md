@@ -379,6 +379,13 @@ filament panel then shows its external-spool row and the home grid drops the slo
 bypass widgets, while `ams_action` and `ams_filament_loaded` stay live so the panel's
 Load and Unload track their progress.
 
+The toolhead switch, `filament_switch_sensor filament_sensor`, is claimed at discovery as the
+CFS's own (`AmsBackendCfs::owns_filament_sensor`). Once the backend reports the empty bus,
+`AmsState::filament_hardware_absent()` releases that claim: the sensor appears in
+Settings > Sensors and the filament sensor wizard, and can be given the runout role. Until
+the first frame answers, the claim holds, and hardware validation keeps it throughout, so
+no "sensor available" toast offers it.
+
 `box.enable == 0` is not this state. It is what the stock bypass declaration sends, and
 a box stood down that way still has its unit. `HELIX_MOCK_CFS_BOXES=none` reproduces the
 empty bus under `--test`.

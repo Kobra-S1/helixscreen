@@ -9,6 +9,7 @@
 #include "ui_wizard.h"
 #include "ui_wizard_helpers.h"
 
+#include "ams_state.h"
 #include "app_globals.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_client.h"
@@ -61,7 +62,8 @@ WizardFilamentSensorSelectStep::~WizardFilamentSensorSelectStep() {
 // ============================================================================
 
 bool WizardFilamentSensorSelectStep::is_standalone(const std::string& name) {
-    return is_standalone_filament_sensor(get_printer_state().get_discovery(), name);
+    return is_standalone_filament_sensor(get_printer_state().get_discovery(), name,
+                                         helix::AmsState::instance().filament_hardware_absent());
 }
 
 void WizardFilamentSensorSelectStep::filter_standalone_sensors() {

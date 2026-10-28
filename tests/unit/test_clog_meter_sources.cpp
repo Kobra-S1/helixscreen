@@ -378,6 +378,23 @@ TEST_CASE_METHOD(MotionSensorFixture, "clog meter: which motion sensors make the
         CHECK(mode(ams) == 0); // clog_meter_mode is the tile's gate: not placeable
     }
 
+    SECTION("a claimed sensor is the printer's own once the backend reports no hardware") {
+        constexpr const char* kHead = "filament_motion_sensor filament_sensor";
+        get_printer_state().set_hardware(
+            discovery_of({"box", "extruder", "heater_bed", "gcode_move"}));
+        discover({kHead});
+        feed(motion_frame(kHead, true, true));
+
+        AmsSystemInfo info;
+        info.external_spool_only = false;
+        AmsStateTestAccess::sync_clog_meter(ams, info);
+        REQUIRE(mode(ams) == 0);
+
+        info.external_spool_only = true;
+        AmsStateTestAccess::sync_clog_meter(ams, info);
+        CHECK(mode(ams) == static_cast<int>(ClogMeterMode::Motion));
+    }
+
     SECTION("nothing discovered, nothing to show") {
         AmsStateTestAccess::sync_clog_meter(ams, AmsSystemInfo{});
         CHECK(mode(ams) == 0);

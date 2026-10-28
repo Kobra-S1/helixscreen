@@ -393,7 +393,7 @@ CapabilityChipFacts gather_capability_chip_facts() {
     auto& ams = AmsState::instance();
     for (int i = 0; i < ams.backend_count(); ++i) {
         const auto info = ams.system_info(i);
-        if (!info) {
+        if (!info || !info->presents_filament_system()) {
             continue;
         }
         const bool tool_changer = is_tool_changer(info->type);

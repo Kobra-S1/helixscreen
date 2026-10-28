@@ -176,7 +176,8 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **A K2 without a CFS is a single-spool printer (#1904)** - with no CFS attached, the
   multi-filament panels, slot widgets and bypass controls stay out of the way, and the
   Filament panel's Load and Unload run the K2's own external-spool load and its cut and
-  retract. The external spool row says what is loaded.
+  retract. The external spool row says what is loaded. The toolhead filament sensor shows
+  up in Settings > Sensors and can watch for runout.
 - **Icon tiles resize** - the single-icon tiles (power, lock, shutdown, firmware restart,
   LED, network and the rest) scale with their tile instead of staying one fixed size, and
   can be resized for the first time. On most panels they take half-cell steps in width; on

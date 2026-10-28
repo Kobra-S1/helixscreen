@@ -107,7 +107,8 @@ FilamentSensorManager::Options FilamentSensorManager::make_options() {
 }
 
 bool FilamentSensorManager::listed_in_settings(const SensorEntry& entry) const {
-    return is_standalone_filament_sensor(get_printer_state().get_discovery(), entry.display_name);
+    return is_standalone_filament_sensor(get_printer_state().get_discovery(), entry.display_name,
+                                         AmsState::instance().filament_hardware_absent());
 }
 
 sensors::SensorRowView FilamentSensorManager::row(size_t index) const {
@@ -791,7 +792,8 @@ int FilamentSensorManager::compute_scoped_runout_value(const std::set<int>& tool
     return scan.empty_lanes.empty() ? 1 : 0;
 }
 
-std::optional<ClogMotionSensor> FilamentSensorManager::clog_motion_sensor(int active_lane) const {
+std::optional<ClogMotionSensor>
+FilamentSensorManager::clog_motion_sensor(int active_lane, bool filament_hardware_absent) const {
     std::lock_guard<std::recursive_mutex> lock(mutex());
 
     if (!master_enabled_) {
@@ -808,7 +810,8 @@ std::optional<ClogMotionSensor> FilamentSensorManager::clog_motion_sensor(int ac
     const SensorEntry* on_lane = nullptr;
     for (const auto& sensor : entries_locked()) {
         if (type_of(sensor) != FilamentSensorType::MOTION || !sensor.enabled ||
-            !is_standalone_filament_sensor(discovery, sensor.display_name)) {
+            !is_standalone_filament_sensor(discovery, sensor.display_name,
+                                           filament_hardware_absent)) {
             continue;
         }
         const auto* st = state(sensor.klipper_name);

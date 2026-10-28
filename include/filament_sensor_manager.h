@@ -312,9 +312,13 @@ class FilamentSensorManager : public sensors::SensorManager {
      * reading), else the first one Klipper has armed, else the first.
      *
      * @param active_lane Loaded slot or tool, -1 when none
+     * @param filament_hardware_absent The filament system reported no hardware
+     *        behind it (AmsSystemInfo::external_spool_only); passed in because
+     *        AmsState calls this from under its own lock
      * @return nullopt when no motion sensor qualifies
      */
-    [[nodiscard]] std::optional<ClogMotionSensor> clog_motion_sensor(int active_lane) const;
+    [[nodiscard]] std::optional<ClogMotionSensor>
+    clog_motion_sensor(int active_lane, bool filament_hardware_absent) const;
 
     // ========================================================================
     // State Updates

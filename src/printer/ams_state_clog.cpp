@@ -247,7 +247,8 @@ void AmsState::sync_clog_meter_from_info(const AmsSystemInfo& info) {
     const bool print_running =
         print_job_running(get_printer_state().print_state().get_print_lifecycle());
     ClogReading r = detector_reading(
-        info, source_override_, FilamentSensorManager::instance().clog_motion_sensor(active_lane),
+        info, source_override_,
+        FilamentSensorManager::instance().clog_motion_sensor(active_lane, info.external_spool_only),
         print_running);
     if (danger_threshold_override_ > 0 && !helix::ui::clog_meter_is_state(r.mode)) {
         r.danger_pct = danger_threshold_override_;
