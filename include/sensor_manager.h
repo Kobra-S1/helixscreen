@@ -111,6 +111,11 @@ class SensorManager {
     void load_settings(); ///< no-op when the manager has no config key
     void save_settings();
 
+    /// klipper_name of every entry in this manager's persisted settings, whether
+    /// or not discovery lists it now. Empty when the manager has no config key
+    /// or nothing is saved. Reads like load_settings(): malformed entries are skipped.
+    [[nodiscard]] std::vector<std::string> saved_sensor_names() const;
+
     [[nodiscard]] size_t sensor_count() const;
     [[nodiscard]] std::vector<SensorEntry> entries() const;
     [[nodiscard]] bool find(std::string_view klipper_name, SensorEntry& out) const;

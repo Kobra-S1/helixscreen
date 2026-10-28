@@ -671,3 +671,33 @@ TEST_CASE_METHOD(LVGLTestFixture,
         m->discover(PrinterDiscovery{});
     }
 }
+
+TEST_CASE_METHOD(SensorManagerFixture,
+                 "SensorManager: saved_sensor_names lists saved sensors discovery does not",
+                 "[sensor_manager_base]") {
+    discover({"extruder", "temperature_sensor chamber"});
+    config_slot("test_sensors") =
+        json{{"sensors", json::array({json{{"klipper_name", "temperature_sensor chamber"}},
+                                      json{{"klipper_name", "temperature_sensor gone"}},
+                                      json{{"klipper_name", 7}}, json("not an object"),
+                                      json{{"role", "chamber"}}})}};
+    const std::vector<std::string> expected = {"temperature_sensor chamber",
+                                               "temperature_sensor gone"};
+    CHECK(mgr.saved_sensor_names() == expected);
+    SensorEntry gone;
+    CHECK_FALSE(mgr.find("temperature_sensor gone", gone));
+}
+
+TEST_CASE_METHOD(SensorManagerFixture,
+                 "SensorManager: saved_sensor_names is empty with nothing saved",
+                 "[sensor_manager_base]") {
+    config_slot("test_sensors") = json::object();
+    CHECK(mgr.saved_sensor_names().empty());
+
+    TestSensorManager::Options o = TestSensorManager::plain_options();
+    o.config_key = nullptr;
+    TestSensorManager unpersisted(std::move(o));
+    config_slot("test_sensors") =
+        json{{"sensors", json::array({json{{"klipper_name", "temperature_sensor chamber"}}})}};
+    CHECK(unpersisted.saved_sensor_names().empty());
+}

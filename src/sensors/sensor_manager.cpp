@@ -280,18 +280,29 @@ nlohmann::json SensorManager::settings_json_locked() const {
     return out;
 }
 
+namespace {
+/// The klipper_name of one saved entry; empty when the entry is not an object
+/// or the name is missing or not a string.
+std::string saved_klipper_name(const nlohmann::json& item) {
+    if (!item.is_object()) {
+        return {};
+    }
+    const auto name = item.find("klipper_name");
+    if (name == item.end() || !name->is_string()) {
+        return {};
+    }
+    return json_util::as_string(*name);
+}
+} // namespace
+
 void SensorManager::apply_settings_locked(const nlohmann::json& saved) {
     // Lenient: a wrong-typed field is skipped and the rest still applies.
     if (const auto sensors = saved.find("sensors"); sensors != saved.end() && sensors->is_array()) {
         for (const auto& item : *sensors) {
-            if (!item.is_object()) {
+            const std::string klipper_name = saved_klipper_name(item);
+            if (klipper_name.empty()) {
                 continue;
             }
-            const auto name = item.find("klipper_name");
-            if (name == item.end() || !name->is_string()) {
-                continue;
-            }
-            const std::string klipper_name = json_util::as_string(*name);
             auto entry = std::find_if(entries_.begin(), entries_.end(), [&](const SensorEntry& e) {
                 return e.klipper_name == klipper_name;
             });
@@ -328,6 +339,32 @@ void SensorManager::load_settings() {
     }
     spdlog::debug("[{}] Settings loaded ({})", options_.name, saved ? "saved" : "defaults");
     publish();
+}
+
+std::vector<std::string> SensorManager::saved_sensor_names() const {
+    std::vector<std::string> names;
+    if (options_.config_key == nullptr) {
+        return names;
+    }
+    Config* config = Config::get_instance();
+    if (config == nullptr) {
+        return names;
+    }
+    const nlohmann::json* saved = config->try_get_json(config->df() + options_.config_key);
+    if (saved == nullptr || !saved->is_object()) {
+        return names;
+    }
+    const auto sensors = saved->find("sensors");
+    if (sensors == saved->end() || !sensors->is_array()) {
+        return names;
+    }
+    for (const auto& item : *sensors) {
+        std::string klipper_name = saved_klipper_name(item);
+        if (!klipper_name.empty()) {
+            names.push_back(std::move(klipper_name));
+        }
+    }
+    return names;
 }
 
 void SensorManager::save_settings() {
