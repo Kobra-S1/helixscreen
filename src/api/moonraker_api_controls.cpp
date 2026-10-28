@@ -112,6 +112,12 @@ void MoonrakerAPI::set_fan_speed(const std::string& fan, double speed, SuccessCa
     }
 
     std::string gcode = helix::fan_gcode(fan, speed);
+    if (gcode.empty()) {
+        report_validation_error(
+            on_error, "set_fan_speed", "This fan is driven by the firmware",
+            fmt::format("Fan '{}' is firmware-driven and not commandable.", fan));
+        return;
+    }
     spdlog::debug("[MoonrakerAPI] set_fan_speed('{}', {:.0f}%) -> {}", fan, speed, gcode);
 
     execute_gcode(gcode, on_success, on_error);
