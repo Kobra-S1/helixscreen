@@ -100,6 +100,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "responsive_grid places children in fitted c
         CHECK(geom_in(grid, items[2]).y == 56);
         CHECK(lv_obj_get_width(items[4]) == 155);
     }
+    SECTION("a child the grid stops placing gets its own width back") {
+        lv_obj_add_flag(items[0], LV_OBJ_FLAG_IGNORE_LAYOUT);
+        lv_obj_update_layout(test_screen());
+        CHECK(lv_obj_get_width(items[0]) == 40);
+        CHECK(geom_in(grid, items[1]).x == 0);
+    }
     SECTION("a deleted child closes up") {
         lv_obj_delete(items[0]);
         lv_obj_update_layout(test_screen());
