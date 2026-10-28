@@ -2728,9 +2728,11 @@ void FilamentPanel::execute_load() {
         home_before_load_macro_ = false;
         // Homing waits until now so it follows any preheat; object-scoped so the
         // macro still goes out if the user leaves the panel during the G28.
-        surface.before_macro = [this](std::function<void()> send,
-                                      std::function<void(const MoonrakerError&)> fail) {
-            helix::ensure_homed_then(api_, object_lifetime_, std::move(send), std::move(fail));
+        surface.before_macro = [this](helix::SharedCallback<void()> send,
+                                      helix::SharedCallback<void(const MoonrakerError&)> fail) {
+            helix::ensure_homed_then(
+                api_, object_lifetime_, [send]() { send(); },
+                [fail](const MoonrakerError& err) { fail(err); });
         };
     }
 

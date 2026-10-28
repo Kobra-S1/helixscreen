@@ -11,6 +11,8 @@
 #include "gcode_file_modifier.h"
 #include "gcode_ops_detector.h"
 #include "gcode_rewrite_block.h"
+#include "helix_callback.h"
+#include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
 #include "operation_timeout_guard.h"
 #include "preprint_predictor.h"
@@ -98,19 +100,19 @@ struct PrePrintOptions {
 /**
  * @brief Callback for navigating to print status panel
  */
-using NavigateToStatusCallback = std::function<void()>;
+using NavigateToStatusCallback = helix::SharedCallback<void()>;
 
 /**
  * @brief Callback for print completion (success or failure)
  */
-using PrintCompletionCallback = std::function<void(bool success, const std::string& error)>;
+using PrintCompletionCallback = helix::SharedCallback<void(bool success, const std::string& error)>;
 
 /**
  * @brief Callback when PRINT_START macro analysis completes
  *
  * @param analysis The analysis result (check .found for validity)
  */
-using MacroAnalysisCallback = std::function<void(const helix::PrintStartAnalysis& analysis)>;
+using MacroAnalysisCallback = helix::Callback<void(const helix::PrintStartAnalysis& analysis)>;
 
 /**
  * @brief Manages print preparation workflow
@@ -157,7 +159,7 @@ class PrintPreparationManager {
      * to `default_enabled` from the cached option set for every id (the legacy
      * built-in subject-pointer path was removed in Phase 3.5).
      */
-    using OptionStateProvider = std::function<int(const std::string& id)>;
+    using OptionStateProvider = helix::Callback<int(const std::string& id)>;
     void set_option_state_provider(OptionStateProvider provider) {
         option_state_provider_ = std::move(provider);
     }
@@ -314,7 +316,7 @@ class PrintPreparationManager {
     [[nodiscard]] bool has_printer_stop_answer_for(const std::string& key) const;
 
     /// Called on the main thread each time a scan answers, success or failure.
-    void set_on_scan_answered(std::function<void()> cb);
+    void set_on_scan_answered(helix::Callback<void()> cb);
 
     /// The identity a scan and a start share: current_path/filename, or the
     /// file on this host (@p local_path) when Moonraker has no copy.
@@ -325,7 +327,7 @@ class PrintPreparationManager {
     /// Answers when_ready_to_start(): the file's printer-stopping command
     /// check, or nullopt when its answer went stale twice (the macros were
     /// read again).
-    using StartReadyCallback = std::function<void(std::optional<helix::PrinterStopCheck> check)>;
+    using StartReadyCallback = helix::Callback<void(std::optional<helix::PrinterStopCheck> check)>;
 
     /**
      * @brief Run @p ready once a start may read this manager for one file.
@@ -705,7 +707,7 @@ class PrintPreparationManager {
     std::string start_pin_key_;
     /// Bumped by clear_scan_cache(); a read started before it is dropped.
     uint64_t scan_epoch_ = 0;
-    std::function<void()> on_scan_answered_;
+    helix::Callback<void()> on_scan_answered_;
 
     [[nodiscard]] const KeptScan* kept_scan(const std::string& key) const;
     /// Read one file's head unless its answer is kept for @p version or
@@ -928,7 +930,7 @@ class PrintPreparationManager {
         std::vector<std::string> mod_names;
         bool use_plugin = false; ///< start through the HelixPrint plugin
         /// Runs on the HTTP thread with the downloaded file, which it removes.
-        std::function<RewriteResult(const std::string& local_download_path)> rewrite;
+        helix::SharedCallback<RewriteResult(const std::string& local_download_path)> rewrite;
         const char* download_error = nullptr; ///< toast format, given the error
         const char* upload_error = nullptr;   ///< toast format, given the error
         /// The .3mf plate to extract before the rewrite, or 0 for plain G-code.

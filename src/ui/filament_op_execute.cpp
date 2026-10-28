@@ -272,7 +272,7 @@ bool needs_prerequisite_home(const FilamentOpPlan& plan, StandardMacroSlot slot,
 namespace {
 
 /// Run @p fn through the surface's lifetime wrapper, or directly when it has none.
-void guarded(const FilamentOpSurface& surface, std::function<void()> fn) {
+void guarded(const FilamentOpSurface& surface, helix::SharedCallback<void()> fn) {
     if (surface.guard) {
         surface.guard(std::move(fn));
     } else {
@@ -335,7 +335,7 @@ void unwind_async(const FilamentOpSurface& surface, const FilamentOpPlan& plan,
 
 /// The op completed: the heater cools down what it heated, then the surface's
 /// hook runs. Marshalled to the main thread, and the hook guarded.
-void finished(const FilamentOpSurface& surface, const std::function<void()>& hook,
+void finished(const FilamentOpSurface& surface, const helix::SharedCallback<void()>& hook,
               FilamentOpTicket ticket) {
     helix::ui::queue_update("filament_op_execute::finished", [s = surface, hook, ticket]() {
         if (auto* heater = get_filament_op_heater()) {
@@ -379,8 +379,8 @@ FilamentOpSurface deferred_surface(const FilamentOpSurface& surface) {
     }
     if (surface.before_macro) {
         s.before_macro = [guard, hook = surface.before_macro](
-                             std::function<void()> send,
-                             std::function<void(const MoonrakerError&)> fail) {
+                             helix::SharedCallback<void()> send,
+                             helix::SharedCallback<void(const MoonrakerError&)> fail) {
             guard([hook, send = std::move(send), fail = std::move(fail)]() { hook(send, fail); });
         };
     }
@@ -414,7 +414,7 @@ FilamentOpSurface deferred_surface(const FilamentOpSurface& surface) {
         };
     }
     // Each hook above carries the guard now, so the dispatch around them need not.
-    s.guard = [](std::function<void()> fn) { fn(); };
+    s.guard = [](helix::SharedCallback<void()> fn) { fn(); };
     return s;
 }
 
@@ -503,7 +503,7 @@ void report_op_error(const MoonrakerError& error, const char* what) {
 /// @p what has static storage duration, like log_tag.
 void send_after_before_macro(const FilamentOpSurface& surface, const FilamentOpPlan& plan,
                              const char* what, FilamentOpTicket ticket,
-                             std::function<void()> send) {
+                             helix::SharedCallback<void()> send) {
     if (!surface.before_macro) {
         send();
         return;
