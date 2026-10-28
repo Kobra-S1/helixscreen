@@ -1388,6 +1388,35 @@ ordinary `make` never reads the file at all. Its rules:
 - A variable set in the environment (or on the make command line) wins over
   the file. `HELIX_BUILD_HOSTS_FILE` names a different file.
 
+A host key (`REMOTE_HOST`, `HELIX_TEST_HOST`; `BUILD_HOSTS_HOST_KEYS` in the
+parser) may name several **candidates**, comma-separated, best first. Name
+every host the same way, its mDNS name, then its router DNS name, then its IP:
+
+```
+REMOTE_HOST=thelio.local,thelio.lan,192.168.1.42
+HELIX_TEST_HOST=zeus.local,zeus.lan,192.168.1.58
+```
+
+mDNS does not cross subnets, so a `.local` name can fail, or hang in the name
+lookup for good, from another network, and ssh's `ConnectTimeout` does not
+cover the lookup. Before the first ssh, `resolve_build_host` (run by
+`require_build_host`, by `--make` for a host key, and by the gates' automatic
+test-host choice) tries each candidate with `ssh -o BatchMode=yes true`, kills
+one that has not answered in 5 seconds (`HELIX_HOST_PROBE_SECS`), and takes
+the first that answers. One line on stderr names the pick and why each earlier
+candidate lost (`no such name`, `timeout`, `refused`, `auth refused`):
+
+```
+→ REMOTE_HOST=thelio.lan (not answering: thelio.local: no such name)
+```
+
+None answering is a one-line failure listing every candidate tried. The pick
+is exported, so the commands a script runs inherit it without probing again,
+and it is never saved: the next command probes afresh, because the candidate
+that answers depends on the network you are on. A single host is used as
+written and never probed. `REMOTE_USER` applies to every `REMOTE_HOST`
+candidate.
+
 Nothing has a host default: a command that needs a host you have not
 configured stops with one line naming the variable and this file, and nothing
 ever connects to a host you did not name. `make full-test-run` with no test
@@ -1395,7 +1424,7 @@ host simply runs both suites locally, without a word.
 
 | Variable | Used by | Meaning (default) |
 |----------|---------|-------------------|
-| `HELIX_TEST_HOST` | `test-host-run.sh`, `full-test-run`, `land-gate`, `helix-claim resources`, teardown | ssh name of the test host (none) |
+| `HELIX_TEST_HOST` | `test-host-run.sh`, `full-test-run`, `land-gate`, `helix-claim resources`, teardown | ssh name of the test host, or a candidate list (none) |
 | `HELIX_TEST_CONTAINER` | same | container name (`helix-test`) |
 | `HELIX_TEST_TREES_HOST` | same | mirror root on the host, relative to the ssh user's home unless absolute (`helix-test/trees`) |
 | `HELIX_TEST_TREES` | same | the same directory inside the container (`/work/trees`) |
@@ -1406,7 +1435,7 @@ host simply runs both suites locally, without a word.
 | `HELIX_TEST_PRUNE_DAYS` | `test-host-run.sh` | creating a mirror or mutate checkout removes those unused this many days; `0` never (`14`) |
 | `HELIX_TEST_LOCK_DIR` | `test-host-run.sh` | lock directory on the host (`/tmp`) |
 | `HELIX_TEST_HOST_AUTO` | `full-test-run`, `land-gate` | `0` keeps an unforced gate local even with a test host configured (`1`) |
-| `REMOTE_HOST`, `REMOTE_USER` | `mk/remote.mk`, `remote-build.sh` | remote build host and optional user (none) |
+| `REMOTE_HOST`, `REMOTE_USER` | `mk/remote.mk`, `remote-build.sh` | remote build host (or a candidate list) and optional user (none) |
 | `REMOTE_DIR` | `mk/remote.mk` | rsync target on the remote for the cross targets (none). `remote-sync` rsyncs `--delete` into it, so give it a directory of its own, never a checkout you work in |
 | `REMOTE_BUILD_DIR` | `remote-build.sh` | its own clone on the remote (`~/helix-remote`), which it hard-resets and cleans every run. It works only in a directory it created (marked `.helix-remote-build`) and refuses any other |
 

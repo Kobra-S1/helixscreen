@@ -613,6 +613,7 @@ for _a in "$@"; do if [ "$_a" = --commit ]; then MODE=commit; else _args+=("$_a"
 set -- ${_args[@]+"${_args[@]}"}
 case "${1:-}" in ""|-h|--help) usage ;; esac
 require_build_host HELIX_TEST_HOST || exit 2
+HOST=$HELIX_TEST_HOST
 case "${1:-}" in
     --prune)  case "${2:-14}" in *[!0-9]*) echo "✗ --prune takes a number of days" >&2; exit 2 ;; esac
               remove_mirrors "${2:-14}"; exit ;;

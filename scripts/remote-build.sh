@@ -58,7 +58,7 @@ MAKE_ARGS=("$@")
 # One TCP+SSH handshake for the whole run, reused by every ssh/scp below. On a
 # high-latency link the handshakes cost more than the payload does.
 CTL="${TMPDIR:-/tmp}/helix-rb-%r@%h:%p"
-SSH_OPTS=(-o ControlMaster=auto -o "ControlPath=$CTL" -o ControlPersist=60s -o Compression=yes)
+SSH_OPTS=(-o ConnectTimeout=10 -o ControlMaster=auto -o "ControlPath=$CTL" -o ControlPersist=60s -o Compression=yes)
 ssh_() { ssh "${SSH_OPTS[@]}" "$@"; }
 cleanup_ctl() { ssh "${SSH_OPTS[@]}" -O exit "$REMOTE_HOST" 2>/dev/null || true; }
 
