@@ -33,11 +33,15 @@ class WidthSensorManager : public SensorManager {
     /// Formatted diameter ("1.75mm" or "--"), written by the home widget.
     [[nodiscard]] lv_subject_t* get_diameter_text_subject();
 
+    /// "Hall width sensor", with "Hall · hall_filament_width_sensor" underneath.
+    [[nodiscard]] SensorRowView row(size_t index) const override;
+
   protected:
     void register_subjects(SubjectManager& subjects) override;
     void refresh_subjects() override;
     bool parse_status(const nlohmann::json& status) override;
     void on_discovered(const PrinterDiscovery& hw) override;
+    void on_entries_changed() override;
 
   private:
     friend class WidthSensorManagerTestAccess;

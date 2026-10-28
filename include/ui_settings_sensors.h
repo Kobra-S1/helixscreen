@@ -92,6 +92,9 @@ class SensorRowSection {
     };
 
     void grow(size_t rows);
+    /// Whether a revision can have changed what the rows show: always for a
+    /// manager whose rows show readings, else only when its entries changed.
+    [[nodiscard]] bool rows_may_have_changed() const;
 
     sensors::SensorManager* manager_;
     SubjectManager& subjects_;
@@ -100,6 +103,7 @@ class SensorRowSection {
     lv_subject_t count_{};
     std::vector<std::unique_ptr<Row>> rows_;
     std::vector<Slot> slots_;
+    std::vector<sensors::SensorEntry> filled_entries_; ///< entries the last fill() read
     ObserverGuard revision_observer_;
     std::function<void()> after_fill_;
 };

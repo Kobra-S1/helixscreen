@@ -103,7 +103,6 @@ FilamentSensorManager::Options FilamentSensorManager::make_options() {
     for (const auto& t : kFilamentSensorTypes) {
         o.types.push_back({static_cast<uint8_t>(t.value), t.id, t.display});
     }
-    o.keep_missing_state = true;
     return o;
 }
 
@@ -113,7 +112,8 @@ bool FilamentSensorManager::listed_in_settings(const SensorEntry& entry) const {
 
 sensors::SensorRowView FilamentSensorManager::row(size_t index) const {
     sensors::SensorRowView view = SensorManager::row(index);
-    if (view.selected_role <= 0) {
+    // Enabled means nothing for a sensor with no role.
+    if (view.role == role_id(FilamentSensorRole::NONE)) {
         view.toggle = sensors::RowToggle::None;
     }
     return view;
@@ -146,9 +146,7 @@ void FilamentSensorManager::on_entries_changed() {
             reading.available = false;
         }
     }
-    for (auto it = lanes_.begin(); it != lanes_.end();) {
-        it = listed(it->first) ? std::next(it) : lanes_.erase(it);
-    }
+    prune_vanished_locked(lanes_);
 }
 
 void FilamentSensorManager::on_discovered(const PrinterDiscovery& /*hw*/) {

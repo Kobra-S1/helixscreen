@@ -123,13 +123,7 @@ InputSensorManager::InputSensorManager() : SensorManager(make_options()) {}
 // ============================================================================
 
 void InputSensorManager::on_entries_changed() {
-    for (auto it = readings_.begin(); it != readings_.end();) {
-        const auto& name = it->first;
-        const bool listed =
-            std::any_of(entries_locked().begin(), entries_locked().end(),
-                        [&](const SensorEntry& e) { return e.klipper_name == name; });
-        it = listed ? std::next(it) : readings_.erase(it);
-    }
+    prune_vanished_locked(readings_);
 }
 
 void InputSensorManager::on_discovered(const PrinterDiscovery& hw) {

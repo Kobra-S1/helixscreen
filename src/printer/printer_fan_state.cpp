@@ -12,6 +12,7 @@
 
 #include "config.h"
 #include "device_display_name.h"
+#include "fan_gcode.h"
 #include "hardware_object_table.h"
 #include "hardware_role_registry.h"
 #include "json_utils.h"
@@ -246,7 +247,8 @@ FanType PrinterFanState::classify_fan_type(const std::string& object_name,
     if (!configured_part_fan.empty() && object_name == configured_part_fan) {
         return FanType::PART_COOLING;
     }
-    switch (hw::classify_object(object_name).kind) {
+    const auto cls = hw::classify_object(object_name);
+    switch (cls.kind) {
     case hw::ObjectKind::HeaterFan:
         return FanType::HEATER_FAN;
     case hw::ObjectKind::ControllerFan:
@@ -254,7 +256,9 @@ FanType PrinterFanState::classify_fan_type(const std::string& object_name,
     case hw::ObjectKind::TemperatureFan:
         return FanType::TEMPERATURE_FAN;
     case hw::ObjectKind::OutputPinFan:
-        return FanType::OUTPUT_PIN_FAN;
+        // A hotend-area pin is driven with the heater: shown like a heater_fan, never commanded.
+        return output_pin_fan_is_firmware_driven(cls.instance) ? FanType::HEATER_FAN
+                                                               : FanType::OUTPUT_PIN_FAN;
     default:
         return FanType::GENERIC_FAN;
     }

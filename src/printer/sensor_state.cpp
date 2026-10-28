@@ -215,10 +215,10 @@ std::vector<std::string> SensorState::sensor_ids() const {
     return ids;
 }
 
-const SensorInfo* SensorState::get_sensor_info(const std::string& sensor_id) const {
+std::optional<SensorInfo> SensorState::get_sensor_info(const std::string& sensor_id) const {
     std::lock_guard<std::recursive_mutex> lock(mutex());
     auto it = infos_.find(sensor_id);
-    return it != infos_.end() ? &it->second : nullptr;
+    return it != infos_.end() ? std::optional<SensorInfo>(it->second) : std::nullopt;
 }
 
 std::vector<std::string> SensorState::energy_sensor_ids() const {

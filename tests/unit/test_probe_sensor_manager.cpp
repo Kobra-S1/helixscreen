@@ -36,6 +36,7 @@ class ProbeSensorManagerTestAccess {
         SensorManagerTestAccess::reconcile(obj, {});
         std::lock_guard<std::recursive_mutex> lock(obj.mutex());
         obj.readings_.clear();
+        obj.type_override_ = ProbeSensorType::STANDARD;
         obj.set_sync_mode(true);
         if (obj.subjects_initialized()) {
             lv_subject_set_int(&obj.z_offset_, -1);
@@ -675,6 +676,24 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - probe type overri
     REQUIRE(mgr().get_sensors()[0].type == ProbeSensorType::PRTOUCH_V2);
 }
 
+// PrinterState sets the override once per printer type, so it must outlive the
+// configfile pass's second discover(), which re-derives types from object names.
+TEST_CASE_METHOD(ProbeSensorTestFixture,
+                 "ProbeSensorManager - probe type override survives rediscovery",
+                 "[probe][discovery]") {
+    discover({"probe"});
+    mgr().set_probe_type_override(ProbeSensorType::PRTOUCH_V2);
+    REQUIRE(mgr().get_sensors()[0].type == ProbeSensorType::PRTOUCH_V2);
+
+    rediscover_from_config(discovery_of({"probe"}, json{{"probe", {{"z_offset", "0.1"}}}}));
+    CHECK(mgr().get_sensors()[0].type == ProbeSensorType::PRTOUCH_V2);
+
+    // A printer type without one clears it for the next discovery.
+    mgr().set_probe_type_override(ProbeSensorType::STANDARD);
+    discover({"probe"});
+    CHECK(mgr().get_sensors()[0].type == ProbeSensorType::STANDARD);
+}
+
 // ============================================================================
 // Probe Type Display String Tests
 // ============================================================================
@@ -896,4 +915,37 @@ TEST_CASE_METHOD(ProbeSensorTestFixture,
         REQUIRE(role_of("probe") == kNone);
         REQUIRE_FALSE(z_state().has_value());
     }
+
+    SECTION("a saved role of none survives the configfile pass and the next save") {
+        probe_slot() = json{{"sensors", json::array({{{"enabled", true},
+                                                      {"klipper_name", "probe"},
+                                                      {"role", "none"},
+                                                      {"type", "standard"}}})}};
+        const std::string saved = probe_slot().dump();
+        // Connect: discover, then saved settings.
+        discover({"probe"});
+        mgr().load_settings();
+        REQUIRE(role_of("probe") == kNone);
+
+        // configfile.config arrives and the config-reading managers discover again.
+        rediscover_from_config(discovery_of({"probe"}, json{{"probe", {{"z_offset", "-0.250"}}}}));
+        CHECK(role_of("probe") == kNone);
+        CHECK(z_offset_subject() == -1);
+
+        // Any Settings edit saves every manager's settings.
+        mgr().save_settings();
+        CHECK(probe_slot().dump() == saved);
+    }
+}
+
+// An object with no instance in its name reads as its type, its Klipper name below.
+TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - rows are named by type",
+                 "[probe][sensors]") {
+    discover({"bltouch"});
+    const auto view = mgr().row(0);
+    CHECK(view.name == "BLTouch");
+    CHECK(view.detail == "bltouch");
+    // The role is text only: no dropdown, the held role shown as its label.
+    CHECK(view.role_count == 0);
+    CHECK(view.held_role_label == "Z Probe");
 }

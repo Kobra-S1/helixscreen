@@ -9,6 +9,7 @@
 #include <lvgl/lvgl.h>
 
 #include <map>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -65,8 +66,8 @@ class SensorState : public sensors::SensorManager {
     /// Get list of all tracked sensor IDs
     std::vector<std::string> sensor_ids() const;
 
-    /// Get sensor info by ID. Returns nullptr if not found.
-    const SensorInfo* get_sensor_info(const std::string& sensor_id) const;
+    /// A copy of the sensor's info, taken under the lock; empty if not found.
+    std::optional<SensorInfo> get_sensor_info(const std::string& sensor_id) const;
 
     /// Get list of sensor IDs that are energy sensors
     std::vector<std::string> energy_sensor_ids() const;

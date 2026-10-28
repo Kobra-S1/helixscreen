@@ -329,13 +329,6 @@ std::string PrinterHardware::guess_chamber_fan() const {
         return match;
     }
 
-    // "bed_fans" - BTT Pi naming convention
-    match = find_containing(fans, "bed_fans");
-    if (!match.empty()) {
-        spdlog::debug("[PrinterHardware] guess_chamber_fan() -> '{}' (contains 'bed_fans')", match);
-        return match;
-    }
-
     // "filter" - air filtration
     match = find_containing(fans, "filter");
     if (!match.empty()) {

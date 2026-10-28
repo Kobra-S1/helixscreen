@@ -35,7 +35,6 @@
 #include "platform_info.h"
 #include "plr_backend.h"
 #include "power_device_state.h"
-#include "power_loss_sensor.h"
 #include "pre_print_preferences.h"
 #include "print_start_profile.h"
 #include "printer_detector.h"
@@ -1032,12 +1031,13 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                 {
                                     std::lock_guard<std::mutex> lock(hardware_mutex_);
                                     for (const auto& [section, cfg_vals] : settings.items()) {
+                                        const auto kind = hw::classify_object(section).kind;
                                         const bool is_fan_section =
-                                            section == "fan" ||
-                                            section.rfind("heater_fan ", 0) == 0 ||
-                                            section.rfind("fan_generic ", 0) == 0 ||
-                                            section.rfind("controller_fan ", 0) == 0 ||
-                                            section.rfind("temperature_fan ", 0) == 0;
+                                            kind == hw::ObjectKind::Fan ||
+                                            kind == hw::ObjectKind::HeaterFan ||
+                                            kind == hw::ObjectKind::GenericFan ||
+                                            kind == hw::ObjectKind::ControllerFan ||
+                                            kind == hw::ObjectKind::TemperatureFan;
                                         if (!is_fan_section || !cfg_vals.is_object() ||
                                             !cfg_vals.contains("max_power") ||
                                             !cfg_vals["max_power"].is_number()) {
@@ -1076,17 +1076,10 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
 
                     // Step 5: Query MCU information for printer detection
                     // Find all MCU objects (e.g., "mcu", "mcu EBBCan", "mcu rpi")
-                    std::vector<std::string> printer_objects_snapshot;
+                    std::vector<std::string> mcu_objects;
                     {
                         std::lock_guard<std::mutex> lock(hardware_mutex_);
-                        printer_objects_snapshot = hardware_.printer_objects();
-                    }
-                    std::vector<std::string> mcu_objects;
-                    for (const auto& obj : printer_objects_snapshot) {
-                        // Match "mcu" or "mcu <name>" pattern
-                        if (obj == "mcu" || obj.rfind("mcu ", 0) == 0) {
-                            mcu_objects.push_back(obj);
-                        }
+                        mcu_objects = hardware_.mcus();
                     }
 
                     if (mcu_objects.empty()) {
@@ -1297,7 +1290,7 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
     // read back as the truth of what is in effect. Probes are subscribed below
     // through the sensor managers, whose fields vary per probe type.
     for (const auto& [name, kind] : hw.object_kinds()) {
-        const auto& fields = helix::hw::status_fields(kind);
+        const auto fields = helix::hw::status_fields(kind);
         if (fields.empty()) {
             continue;
         }
@@ -1308,7 +1301,11 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
                 json::array({"temperature", "target", "power", "pressure_advance"});
             subscription_objects[name] = extruder_fields;
         } else {
-            subscription_objects[name] = json(fields);
+            json list = json::array();
+            for (const auto field : fields) {
+                list.push_back(std::string(field));
+            }
+            subscription_objects[name] = std::move(list);
         }
     }
 
@@ -1370,14 +1367,6 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
     // own status object; they seed the print dialog's toggles. A key another
     // block also subscribes is one entry. See include/pre_print_preferences.h.
     for (const auto& obj : helix::preprint_prefs::required_status_objects(hw)) {
-        subscription_objects[obj] = nullptr;
-    }
-
-    // Firmware that monitors incoming mains keeps the live reading in its own
-    // status object. The reading is diagnostic — the debug bundle's
-    // printer-state query surfaces it — and never gates recovery.
-    // See include/power_loss_sensor.h.
-    for (const auto& obj : helix::power_loss::required_status_objects(hw)) {
         subscription_objects[obj] = nullptr;
     }
 

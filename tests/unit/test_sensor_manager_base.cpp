@@ -18,14 +18,12 @@
 #include "accel_sensor_manager.h"
 #include "config.h"
 #include "dynamic_subject_map.h"
-#include "filament_sensor_types.h"
+#include "filament_sensor_manager.h"
 #include "input_sensor_manager.h"
-#include "input_sensor_types.h"
 #include "printer_discovery.h"
 #include "probe_sensor_manager.h"
-#include "probe_sensor_types.h"
 #include "sensor_manager.h"
-#include "width_sensor_types.h"
+#include "width_sensor_manager.h"
 
 #include <fstream>
 #include <map>
@@ -44,9 +42,6 @@ namespace {
 constexpr uint8_t kChamber = 1;
 constexpr uint8_t kAux = 2;
 
-/// Which of today's persisted managers the test manager stands in for.
-enum class Persona { Plain, Filament, Input };
-
 class TestSensorManager : public SensorManager {
   public:
     using Options = SensorManager::Options;
@@ -64,20 +59,13 @@ class TestSensorManager : public SensorManager {
         return o;
     }
 
-    explicit TestSensorManager(SensorManager::Options o = plain_options(),
-                               Persona persona = Persona::Plain)
-        : SensorManager(std::move(o)), persona_(persona) {}
+    explicit TestSensorManager(SensorManager::Options o = plain_options())
+        : SensorManager(std::move(o)) {}
 
     int refresh_count = 0;
     bool probe_mutex = false;
     bool mutex_was_free = false;
     int value = 0;
-
-    // Persona extras
-    std::map<std::string, int> lanes;
-    std::map<std::string, bool> inverted;
-    bool master_enabled = true;
-    int door_check = -1; ///< -1 unset, else 0/1
 
     void publish_now() {
         publish();
@@ -113,73 +101,7 @@ class TestSensorManager : public SensorManager {
         }
         return changed;
     }
-
-    void read_entry_extra(SensorEntry& entry, const json& saved) override {
-        if (persona_ == Persona::Filament) {
-            const auto lane = saved.find("lane");
-            if (lane != saved.end() && lane->is_number_integer() && lane->get<int>() >= 0) {
-                lanes[entry.klipper_name] = lane->get<int>();
-            }
-        } else if (persona_ == Persona::Input) {
-            const auto inv = saved.find("inverted");
-            if (inv != saved.end() && inv->is_boolean()) {
-                inverted[entry.klipper_name] = inv->get<bool>();
-            }
-        }
-    }
-
-    void write_entry_extra(const SensorEntry& entry, json& out) const override {
-        if (persona_ == Persona::Filament) {
-            if (const auto it = lanes.find(entry.klipper_name); it != lanes.end()) {
-                out["lane"] = it->second;
-            }
-        } else if (persona_ == Persona::Input) {
-            const auto it = inverted.find(entry.klipper_name);
-            out["inverted"] = it != inverted.end() && it->second;
-        }
-    }
-
-    void read_extra_settings(const json& saved) override {
-        if (persona_ == Persona::Filament) {
-            const auto m = saved.find("master_enabled");
-            master_enabled = m != saved.end() && m->is_boolean() ? m->get<bool>() : true;
-        } else if (persona_ == Persona::Input) {
-            const auto d = saved.find("door_check");
-            door_check = d != saved.end() && d->is_boolean() ? (d->get<bool>() ? 1 : 0) : -1;
-        }
-    }
-
-    void write_extra_settings(json& out) const override {
-        if (persona_ == Persona::Filament) {
-            out["master_enabled"] = master_enabled;
-        } else if (persona_ == Persona::Input && door_check >= 0) {
-            out["door_check"] = door_check == 1;
-        }
-    }
-
-  private:
-    Persona persona_;
 };
-
-template <typename E, size_t N>
-std::vector<RoleSpec> roles_from(const EnumName<E> (&table)[N], const std::vector<E>& skip = {}) {
-    std::vector<RoleSpec> out;
-    for (const auto& row : table) {
-        if (std::find(skip.begin(), skip.end(), row.value) != skip.end()) {
-            continue;
-        }
-        out.push_back({static_cast<uint8_t>(row.value), row.id, row.display, false, true});
-    }
-    return out;
-}
-
-template <typename E, size_t N> std::vector<TypeSpec> types_from(const EnumName<E> (&table)[N]) {
-    std::vector<TypeSpec> out;
-    for (const auto& row : table) {
-        out.push_back({static_cast<uint8_t>(row.value), row.id, row.display});
-    }
-    return out;
-}
 
 PrinterDiscovery discovery_of(const std::vector<std::string>& objects) {
     PrinterDiscovery hw;
@@ -387,88 +309,47 @@ TEST_CASE_METHOD(SensorManagerFixture,
 // Settings persistence
 // ============================================================================
 
-namespace {
-
-struct FixtureCase {
-    const char* name;
-    const char* config_key;
-    std::vector<hw::ObjectKind> kinds;
-    std::vector<RoleSpec> roles;
-    std::vector<TypeSpec> types;
-    Persona persona;
-};
-
-std::vector<FixtureCase> fixture_cases() {
-    return {
-        {"filament",
-         "filament_sensors",
-         {hw::ObjectKind::FilamentSwitch, hw::ObjectKind::FilamentMotion},
-         roles_from(kFilamentSensorRoles),
-         types_from(kFilamentSensorTypes),
-         Persona::Filament},
-        {"probe",
-         "probe_sensors",
-         {hw::ObjectKind::Probe},
-         roles_from(kProbeSensorRoles),
-         types_from(kProbeSensorTypes),
-         Persona::Plain},
-        {"width",
-         "width_sensors",
-         {hw::ObjectKind::WidthSensor},
-         roles_from(kWidthSensorRoles),
-         types_from(kWidthSensorTypes),
-         Persona::Plain},
-        {"input",
-         "input_sensors",
-         {hw::ObjectKind::Input},
-         roles_from(kInputSensorRoles),
-         {{0, "gcode_button", "Button"}},
-         Persona::Input},
-    };
-}
-
-} // namespace
-
-TEST_CASE("SensorManager: settings round trip is byte-identical", "[sensor_manager_base]") {
+// Each fixture is a settings shape users have on disk today. It goes through the
+// real manager: discovery of its sensors, load_settings(), then save_settings().
+TEST_CASE("SensorManager: settings round trip through every persisted manager is byte-identical",
+          "[sensor_manager_base]") {
     LVGLTestFixture lvgl;
-    for (const auto& c : fixture_cases()) {
-        DYNAMIC_SECTION(c.name) {
-            const json fixture = load_fixture(c.name);
+    struct Case {
+        const char* fixture;
+        const char* config_key;
+        SensorManager* manager;
+    };
+    const std::vector<Case> cases = {
+        {"filament", "filament_sensors", &FilamentSensorManager::instance()},
+        {"probe", "probe_sensors", &ProbeSensorManager::instance()},
+        {"width", "width_sensors", &WidthSensorManager::instance()},
+        {"input", "input_sensors", &InputSensorManager::instance()},
+    };
+    for (const auto& c : cases) {
+        DYNAMIC_SECTION(c.fixture) {
+            const json fixture = load_fixture(c.fixture);
             REQUIRE(fixture["sensors"].size() > 0);
-
-            TestSensorManager::Options o = TestSensorManager::plain_options();
-            o.name = "TestSensorManagerRoundTrip";
-            o.config_key = c.config_key;
-            o.kinds = c.kinds;
-            o.roles = c.roles;
-            o.types = c.types;
-            TestSensorManager m(std::move(o), c.persona);
-            m.set_sync_mode(true);
-
-            // Entries as discovery would give them: names and types, default roles.
-            std::vector<SensorEntry> entries;
-            for (const auto& s : fixture["sensors"]) {
-                SensorEntry e;
-                e.klipper_name = s["klipper_name"].get<std::string>();
-                e.display_name = e.klipper_name;
-                for (const auto& t : c.types) {
-                    if (s["type"].get<std::string>() == t.config_name) {
-                        e.type = t.id;
-                    }
-                }
-                e.available = true;
-                entries.push_back(e);
+            std::vector<std::string> objects;
+            for (const auto& sensor : fixture["sensors"]) {
+                objects.push_back(sensor["klipper_name"].get<std::string>());
             }
-            SensorManagerTestAccess::reconcile(m, std::move(entries));
 
+            SensorManager& m = *c.manager;
+            const bool sync = SensorManagerTestAccess::sync_mode(m);
             json& slot = config_slot(c.config_key);
             const json saved = slot;
+            m.set_sync_mode(true);
+            m.discover(discovery_of(objects));
             slot = fixture;
             m.load_settings();
             slot = json::object();
             m.save_settings();
-            const std::string written = slot.dump();
-            slot = saved;
+            const std::string written = config_slot(c.config_key).dump();
+
+            config_slot(c.config_key) = saved;
+            m.discover(PrinterDiscovery{});
+            m.load_settings();
+            m.set_sync_mode(sync);
 
             INFO("expected " << fixture.dump());
             INFO("written  " << written);
@@ -477,7 +358,10 @@ TEST_CASE("SensorManager: settings round trip is byte-identical", "[sensor_manag
     }
 }
 
-TEST_CASE_METHOD(SensorManagerFixture, "SensorManager: a wrong-typed saved field is skipped",
+// A role that is present but not a string reads as none, as an unknown role
+// string does; a wrong-typed enabled is skipped.
+TEST_CASE_METHOD(SensorManagerFixture,
+                 "SensorManager: a wrong-typed saved role reads as none, enabled is skipped",
                  "[sensor_manager_base]") {
     discover(kTwoSensors);
     config_slot("test_sensors") = json{
@@ -493,7 +377,7 @@ TEST_CASE_METHOD(SensorManagerFixture, "SensorManager: a wrong-typed saved field
     SensorEntry chamber;
     REQUIRE(mgr.find("temperature_sensor chamber", chamber));
     CHECK(chamber.enabled);
-    CHECK(chamber.role == kAux);
+    CHECK(chamber.role == 0);
     SensorEntry board;
     REQUIRE(mgr.find("temperature_sensor board", board));
     CHECK_FALSE(board.enabled);
@@ -542,7 +426,7 @@ TEST_CASE_METHOD(SensorManagerFixture,
     const SensorRowView board = mgr.row(1);
     CHECK(board.name == "board");
     CHECK(board.detail == "Basic");
-    CHECK(board.role_labels == std::vector<std::string>{"Chamber"});
+    CHECK(board.role_count == 1);
     CHECK(board.selected_role == -1);
     CHECK(board.held_role_label == "Auxiliary");
 

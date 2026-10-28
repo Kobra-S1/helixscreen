@@ -4585,6 +4585,7 @@
   <translation tag="{} turns" ru="{} об."/>
   <translation tag="{} updated" ru="{}: обновлено"/>
   <translation tag="{} widgets" ru="Виджетов: {}"/>
+  <translation tag="{} width sensor" ru="Датчик диаметра {}"/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." ru="{} переключится на слот, у которого тип филамента И цвет совпадают с активной катушкой, а собственный датчик порта видит филамент."/>
   <translation tag="{} · {}" ru="{} · {}"/>
   <translation tag="{} · {} · {}" ru="{} · {} · {}"/>

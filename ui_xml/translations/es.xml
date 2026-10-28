@@ -4504,6 +4504,7 @@
   <translation tag="{} turns" es="{} vueltas"/>
   <translation tag="{} updated" es="Se actualizó {}"/>
   <translation tag="{} widgets" es="{} widgets"/>
+  <translation tag="{} width sensor" es="Sensor de ancho {}"/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." es="{} cambiará a una ranura cuyo tipo de filamento Y color coincidan con la bobina activa y cuyo propio sensor de puerto detecte filamento."/>
   <translation tag="{} · {}" es="{} · {}"/>
   <translation tag="{} · {} · {}" es="{} · {} · {}"/>

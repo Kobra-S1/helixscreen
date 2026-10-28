@@ -333,6 +333,7 @@ void ThermistorWidget::bind_carousel_sensors() {
 
     if (display_sensors.empty()) {
         spdlog::debug("[ThermistorWidget] Carousel: no sensors available");
+        binding_in_progress_ = false;
         return;
     }
 
@@ -381,6 +382,8 @@ void ThermistorWidget::bind_carousel_sensors() {
         const char* icon_src = icon_name_.empty() ? kDefaultIcon : icon_name_.c_str();
         const char* page_attrs[] = {
             "prefix", page_prefix_.c_str(), "index", index_text.c_str(), "icon", icon_src, nullptr};
+        // DECLARATIVE_OK: ui_carousel_add_item() owns its pages' scroll container and indicators,
+        // so a <repeat> cannot build them.
         auto* page = static_cast<lv_obj_t*>(
             lv_xml_create(lv_scr_act(), "thermistor_carousel_page", page_attrs));
         if (!page) {
@@ -388,7 +391,7 @@ void ThermistorWidget::bind_carousel_sensors() {
             continue;
         }
         // The page's click handler finds this widget through its user_data.
-        lv_obj_set_user_data(page, this);
+        lv_obj_set_user_data(page, this); // DECLARATIVE_OK: carousel pages are C++-created (above)
         ui_carousel_add_item(carousel, page);
     }
 

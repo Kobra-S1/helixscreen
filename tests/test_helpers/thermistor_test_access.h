@@ -36,6 +36,11 @@ class ThermistorTestAccess {
         return page_child(widget, index, "page_name");
     }
 
+    /// Rebuild the carousel pages, as a TemperatureSensorManager revision does.
+    static void bind_carousel(ThermistorWidget& widget) {
+        widget.bind_carousel_sensors();
+    }
+
     /// A tap on the tile, as the XML click callback delivers it.
     static void click(ThermistorWidget& widget) {
         widget.handle_clicked();

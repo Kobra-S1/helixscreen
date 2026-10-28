@@ -87,6 +87,8 @@ class TemperatureSensorManager : public SensorManager {
     [[nodiscard]] bool listed_in_settings(const SensorEntry& entry) const override;
     /// Names a sensor the way the rest of the UI does ("MCU Temperature").
     [[nodiscard]] SensorRowView row(size_t index) const override;
+    /// Listed rows in get_sensors_sorted() order (priority, then display name).
+    [[nodiscard]] std::vector<size_t> settings_rows() const override;
 
   protected:
     void register_subjects(SubjectManager& subjects) override;

@@ -482,7 +482,7 @@ class FilamentSensorManager : public sensors::SensorManager {
 
     bool master_enabled_ = true;
     /// Readings by klipper_name. A sensor missing from a later discovery keeps
-    /// its entry, marked unavailable (Options::keep_missing_state).
+    /// its reading, marked unavailable (on_entries_changed).
     std::map<std::string, FilamentSensorState> readings_;
     /// Saved "lane" by klipper_name; absent when the sensor has none.
     std::map<std::string, int> lanes_;

@@ -10,11 +10,22 @@ DynamicSubjectMap::~DynamicSubjectMap() {
     clear();
 }
 
+DynamicSubjectMap::Slot* DynamicSubjectMap::slot_for(const std::string& key) const {
+    for (const auto& slot : slots_) {
+        if (slot->key == key) {
+            return slot.get();
+        }
+    }
+    return nullptr;
+}
+
 lv_subject_t* DynamicSubjectMap::get_or_create(const std::string& key, int initial,
                                                SubjectLifetime& out_lifetime) {
-    auto& slot = slots_[key];
-    if (!slot) {
-        slot = std::make_unique<Slot>();
+    Slot* slot = slot_for(key);
+    if (slot == nullptr) {
+        slots_.push_back(std::make_unique<Slot>());
+        slot = slots_.back().get();
+        slot->key = key;
         lv_subject_init_int(&slot->subject, initial);
         slot->lifetime = std::make_shared<bool>(true);
     }
@@ -23,19 +34,19 @@ lv_subject_t* DynamicSubjectMap::get_or_create(const std::string& key, int initi
 }
 
 lv_subject_t* DynamicSubjectMap::find(const std::string& key, SubjectLifetime& out_lifetime) const {
-    const auto it = slots_.find(key);
-    if (it == slots_.end()) {
+    Slot* slot = slot_for(key);
+    if (slot == nullptr) {
         out_lifetime.reset();
         return nullptr;
     }
-    out_lifetime = it->second->lifetime;
-    return &it->second->subject;
+    out_lifetime = slot->lifetime;
+    return &slot->subject;
 }
 
 void DynamicSubjectMap::remove_missing(const std::vector<std::string>& keep) {
     for (auto it = slots_.begin(); it != slots_.end();) {
-        if (std::find(keep.begin(), keep.end(), it->first) == keep.end()) {
-            release(*it->second);
+        if (std::find(keep.begin(), keep.end(), (*it)->key) == keep.end()) {
+            release(**it);
             it = slots_.erase(it);
         } else {
             ++it;
@@ -44,7 +55,7 @@ void DynamicSubjectMap::remove_missing(const std::vector<std::string>& keep) {
 }
 
 void DynamicSubjectMap::clear() {
-    for (auto& [key, slot] : slots_) {
+    for (auto& slot : slots_) {
         release(*slot);
     }
     slots_.clear();

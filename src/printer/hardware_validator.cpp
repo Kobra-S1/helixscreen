@@ -9,10 +9,10 @@
 
 #include "config.h"
 #include "filament_sensor_manager.h"
+#include "hardware_object_table.h"
 #include "hardware_role_registry.h"
 #include "i18n_plural.h"
 #include "json_utils.h"
-#include "klipper_extruder_naming.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_discovery.h"
 #include "printer_hardware.h"
@@ -140,10 +140,12 @@ HardwareSnapshot HardwareSnapshot::from_json(const json& j) {
 
     // A stored list can name an object discovery does not count as a heater;
     // kept, it would read as removed hardware on the next comparison.
-    snapshot.heaters.erase(
-        std::remove_if(snapshot.heaters.begin(), snapshot.heaters.end(),
-                       [](const std::string& name) { return !helix::is_heater_object_name(name); }),
-        snapshot.heaters.end());
+    snapshot.heaters.erase(std::remove_if(snapshot.heaters.begin(), snapshot.heaters.end(),
+                                          [](const std::string& name) {
+                                              return !helix::hw::is_heater(
+                                                  helix::hw::classify_object(name).kind);
+                                          }),
+                           snapshot.heaters.end());
 
     return snapshot;
 }

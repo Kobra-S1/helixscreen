@@ -463,3 +463,14 @@ TEST_CASE("hw table: width sensors carry their type as the chip", "[width][hw_ob
     CHECK(hw::classify_object(kHall).chip == static_cast<uint8_t>(WidthSensorType::HALL));
     CHECK(hw::chip_name(hw::ObjectKind::WidthSensor, hw::classify_object(kHall).chip) == "Hall");
 }
+
+// The object name is long and carries no instance, so the row is named by its
+// type and the object name moves underneath.
+TEST_CASE_METHOD(WidthSensorTestFixture, "WidthSensorManager - rows are named by type",
+                 "[width][sensors]") {
+    discover({"hall_filament_width_sensor", "tsl1401cl_filament_width_sensor"});
+    CHECK(mgr().row(0).name == "Hall width sensor");
+    CHECK(mgr().row(0).detail == "Hall · hall_filament_width_sensor");
+    CHECK(mgr().row(1).name == "TSL1401CL width sensor");
+    CHECK(mgr().row(1).detail == "TSL1401CL · tsl1401cl_filament_width_sensor");
+}

@@ -42,6 +42,7 @@ class LoadCellManager : public SensorManager {
     void refresh_subjects() override;
     bool parse_status(const nlohmann::json& status) override;
     void on_discovered(const PrinterDiscovery& hw) override;
+    void on_entries_changed() override;
 
   private:
     friend class LoadCellManagerTestAccess;

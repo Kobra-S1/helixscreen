@@ -9,6 +9,7 @@
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <mutex>
 #include <string>
@@ -54,11 +55,12 @@ enum class RowToggle : uint8_t { None, Enabled, Invert };
 /// What one Settings row shows. Plain data: no LVGL.
 struct SensorRowView {
     std::string name;
-    std::string detail;                   ///< type label or a static reading
-    std::string state;                    ///< live state text; empty hides it
-    bool alert = false;                   ///< state drawn in the warning style
-    std::vector<std::string> role_labels; ///< offered roles, translated; empty hides the dropdown
-    int selected_role = -1;      ///< index into role_labels, -1 when the held role is not offered
+    std::string detail;    ///< type label or a static reading
+    std::string state;     ///< live state text; empty hides it
+    bool alert = false;    ///< state drawn in the warning style
+    uint8_t role = 0;      ///< the entry's role id
+    size_t role_count = 0; ///< offered roles (the section's XML role_options); 0 hides the dropdown
+    int selected_role = -1;      ///< index into the offered roles, -1 when the role is not offered
     std::string held_role_label; ///< shown when selected_role is -1 and a role is held
     RowToggle toggle = RowToggle::None;
     bool toggle_value = false;
@@ -137,6 +139,11 @@ class SensorManager {
     [[nodiscard]] const char* settings_section() const;
     /// Whether Settings lists @p entry. Default: every entry.
     [[nodiscard]] virtual bool listed_in_settings(const SensorEntry& entry) const;
+    /// Whether row() shows live readings (Options::rows_show_readings).
+    [[nodiscard]] bool rows_show_readings() const;
+    /// Indices into entries() of the rows Settings lists, in display order.
+    /// Default: every listed_in_settings() entry, in discovery order.
+    [[nodiscard]] virtual std::vector<size_t> settings_rows() const;
 
   protected:
     struct Options {
@@ -147,7 +154,6 @@ class SensorManager {
         const char* config_key = nullptr; ///< nullptr: not persisted
         std::vector<RoleSpec> roles;
         std::vector<TypeSpec> types;
-        bool keep_missing_state = false;
         bool from_printer_discovery = true;
         /// Reads config sections in on_discovered(), so discover() runs again
         /// once configfile.config arrives. Off for every other manager: a
@@ -157,6 +163,9 @@ class SensorManager {
         /// sensor_<slug>_row_<field>_<i>. nullptr: no section.
         const char* settings_section = nullptr;
         RowToggle row_toggle = RowToggle::Enabled; ///< the toggle row() offers
+        /// row() shows live readings. false: rows change only with the entries,
+        /// so Settings skips a refill when a status update left them alone.
+        bool rows_show_readings = true;
     };
     explicit SensorManager(Options options);
 
@@ -187,6 +196,18 @@ class SensorManager {
     [[nodiscard]] const std::vector<SensorEntry>& entries_locked() const;
     [[nodiscard]] const Options& options() const;
 
+    /// Mutex held: erase every key of @p by_name (a reading map keyed by
+    /// klipper_name) that no entry has, so a vanished sensor's reading cannot
+    /// come back with a later sensor of that name.
+    template <typename Map> void prune_vanished_locked(Map& by_name) const {
+        for (auto it = by_name.begin(); it != by_name.end();) {
+            const bool listed =
+                std::any_of(entries_.begin(), entries_.end(),
+                            [&](const SensorEntry& e) { return e.klipper_name == it->first; });
+            it = listed ? std::next(it) : by_name.erase(it);
+        }
+    }
+
   private:
     friend class SensorManagerTestAccess;
 
@@ -216,8 +237,9 @@ class SensorManager {
 /// Every sensor manager, in a stable order. The one list.
 [[nodiscard]] const std::vector<SensorManager*>& sensor_managers();
 
-/// The configfile pass: discover() again on every manager that reads config
-/// sections, against discovery data that now carries them. Main thread.
+/// The configfile pass: discover() then load_settings() again on every manager
+/// that reads config sections, against discovery data that now carries them.
+/// Main thread.
 void rediscover_from_config(const PrinterDiscovery& hw);
 
 /// Keeps a manager's role enum readable at the boundary.

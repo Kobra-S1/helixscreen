@@ -99,6 +99,10 @@ void HumiditySensorManager::refresh_subjects() {
     lv_subject_set_int(&chamber_humidity_, chamber);
 }
 
+void HumiditySensorManager::on_entries_changed() {
+    prune_vanished_locked(humidity_);
+}
+
 void HumiditySensorManager::on_discovered(const PrinterDiscovery& /*hw*/) {
     // The first sensor named "chamber" takes CHAMBER and the first named "dryer" takes DRYER,
     // unless a sensor already holds the role.

@@ -305,3 +305,28 @@ TEST_CASE_METHOD(ThermistorPickerFixture, "thermistor carousel pages bind name a
     CHECK(std::string(lv_label_get_text(temp0)).find("42.7") != std::string::npos);
     widget.detach();
 }
+
+// A carousel that shows every sensor can attach before discovery lists any;
+// the pages must still appear once sensors arrive.
+TEST_CASE_METHOD(ThermistorPickerFixture,
+                 "thermistor carousel built with no sensors fills in once sensors arrive",
+                 "[thermistor][picker_rows]") {
+    ui_carousel_init();
+    REQUIRE(register_component("components/thermistor_carousel_page"));
+    REQUIRE(register_component("components/panel_widget_thermistor_carousel"));
+    auto& tsm = helix::sensors::TemperatureSensorManager::instance();
+    tsm.discover(helix::test::discovery_of({}));
+
+    ThermistorWidget widget("thermistor");
+    widget.set_config({{"display_mode", "carousel"}});
+    auto* tile = static_cast<lv_obj_t*>(
+        lv_xml_create(test_screen(), "panel_widget_thermistor_carousel", nullptr));
+    REQUIRE(tile != nullptr);
+    widget.attach(tile, test_screen());
+    REQUIRE(ThermistorTestAccess::carousel_page_count(widget) == 0);
+
+    tsm.discover(helix::test::discovery_of({kSensorA, kSensorB}));
+    ThermistorTestAccess::bind_carousel(widget);
+    CHECK(ThermistorTestAccess::carousel_page_count(widget) == 2);
+    widget.detach();
+}

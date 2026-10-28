@@ -103,6 +103,10 @@ bool LoadCellManager::parse_status(const nlohmann::json& status) {
     return changed;
 }
 
+void LoadCellManager::on_entries_changed() {
+    prune_vanished_locked(readings_);
+}
+
 void LoadCellManager::on_discovered(const PrinterDiscovery& /*hw*/) {
     auto& entries = entries_locked();
     const bool held = std::any_of(entries.begin(), entries.end(),
