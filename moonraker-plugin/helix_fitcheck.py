@@ -13,8 +13,7 @@ the nozzles its extruders report at runtime, and gives findings
     too_many_tools          block  a tool number past the printer's last extruder
                             warn   ... past a count raised by T macros
     nozzle_mismatch         warn   the slicer's nozzle differs from the extruder's
-    nozzle_flow_mismatch    block  High Flow G-code for an extruder with a standard nozzle
-                            warn   standard G-code for an extruder with a High Flow nozzle
+    nozzle_flow_mismatch    warn   the slicer's nozzle flow type differs from the extruder's
     printer_model_mismatch  note   the slicer's printer is not this printer
 
 Nozzles are compared only for the tools a file uses, when it names any, and
@@ -350,8 +349,10 @@ def check_fit(machine: Dict[str, Any], facts: Dict[str, Any]) -> List[Dict[str, 
             findings.append(_finding(KIND_NOZZLE_MISMATCH, SEVERITY_WARN,
                                      tool=tool, file=want, printer=have))
 
-    # High Flow G-code on a standard nozzle blocks, as Snapmaker's U1 firmware
-    # refuses that job itself; standard G-code on a High Flow nozzle only warns.
+    # A flow-type mismatch only warns, either way round. File tool i is not
+    # necessarily the head that prints it once the printer's own filament
+    # mapping applies, and Snapmaker's U1 firmware refuses a real High Flow
+    # job on a standard nozzle itself.
     file_types = facts.get("nozzle_volume_types") or []
     machine_types = machine.get("nozzle_volume_types") or []
     for tool in range(min(len(file_types), len(machine_types))):
@@ -359,8 +360,7 @@ def check_fit(machine: Dict[str, Any], facts: Dict[str, Any]) -> List[Dict[str, 
         have_type = nozzle_volume_type(machine_types[tool])
         if not used(tool) or not want_type or not have_type or want_type == have_type:
             continue
-        severity = SEVERITY_BLOCK if want_type == VOLUME_HIGH_FLOW else SEVERITY_WARN
-        findings.append(_finding(KIND_NOZZLE_FLOW_MISMATCH, severity,
+        findings.append(_finding(KIND_NOZZLE_FLOW_MISMATCH, SEVERITY_WARN,
                                  tool=tool, file=want_type, printer=have_type))
 
     file_model, machine_model = facts.get("printer_model"), machine.get("model")

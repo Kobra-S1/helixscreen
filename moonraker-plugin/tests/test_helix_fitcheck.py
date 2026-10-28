@@ -94,9 +94,9 @@ def test_the_table_covers_every_kind_and_both_kinematics_families():
     severities = {f["kind"]: f["severity"] for c in CASES["checks"] for f in c["findings"]}
     assert severities["printer_model_mismatch"] == "note"
     assert severities["nozzle_mismatch"] == "warn"
-    flow = {f["severity"] for c in CASES["checks"] for f in c["findings"]
+    flow = {(f["detail"]["file"], f["severity"]) for c in CASES["checks"] for f in c["findings"]
             if f["kind"] == "nozzle_flow_mismatch"}
-    assert flow == {"block", "warn"}
+    assert flow == {("high_flow", "warn"), ("standard", "warn")}
     kinds = set(severities)
     assert kinds == {"out_of_bounds", "temp_over_max", "too_many_tools", "nozzle_mismatch",
                      "nozzle_flow_mismatch", "printer_model_mismatch"}
@@ -334,19 +334,16 @@ class TestUploadHold:
         component.klippy_apis.start_print.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_high_flow_gcode_for_a_standard_nozzle_is_held(self, component, mock_server):
+    async def test_high_flow_gcode_for_a_standard_nozzle_is_not_held(self, component):
+        """A flow-type mismatch only warns: the printer's own filament mapping
+        can put file tool 0 on another head, so it never holds a start."""
         record = _record()
         record["header"]["nozzle_volume_types"] = ["High Flow"]
         await _setup(component, record=record)
         component.klippy_apis.extruders = {
             "extruder": {"nozzle_diameter": 0.4, "nozzle_volume_type": "standard"}}
         result = await _upload(component)
-        assert result["print_started"] is False
-        component.klippy_apis.start_print.assert_not_awaited()
-        _event, payload = mock_server.send_event.call_args.args
-        assert payload["findings"] == [{
-            "kind": "nozzle_flow_mismatch", "severity": "block",
-            "detail": {"tool": 0, "file": "high_flow", "printer": "standard"}}]
+        assert result["print_started"] is True
         component.klippy_apis.query_objects.assert_any_await(
             {"extruder": ["nozzle_diameter", "nozzle_volume_type"]})
 

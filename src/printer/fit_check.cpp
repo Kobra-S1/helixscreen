@@ -352,8 +352,10 @@ std::vector<FitFinding> check_fit(const FitMachine& machine, const FitFile& file
         }
     }
 
-    // High Flow G-code on a standard nozzle blocks, as Snapmaker's U1 firmware
-    // refuses that job itself; standard G-code on a High Flow nozzle only warns.
+    // A flow-type mismatch only warns, either way round. File tool i is not
+    // necessarily the head that prints it once the printer's own filament
+    // mapping applies, and Snapmaker's U1 firmware refuses a real High Flow
+    // job on a standard nozzle itself.
     const size_t types =
         std::min(file.nozzle_volume_types.size(), machine.nozzle_volume_types.size());
     for (size_t i = 0; i < types; ++i) {
@@ -362,8 +364,7 @@ std::vector<FitFinding> check_fit(const FitMachine& machine, const FitFile& file
         if (!used(i) || want.empty() || have.empty() || want == have) {
             continue;
         }
-        FitFinding f = finding(FitKind::NozzleFlowMismatch,
-                               want == "high_flow" ? FitSeverity::Block : FitSeverity::Warn);
+        FitFinding f = finding(FitKind::NozzleFlowMismatch, FitSeverity::Warn);
         f.tool = static_cast<int>(i);
         f.file_volume_type = want;
         f.printer_volume_type = have;

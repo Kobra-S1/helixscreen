@@ -1551,9 +1551,8 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **The fit check knows which nozzle each head really has** - it read the 0.4 mm the
   printer's config lists for every head, so a correct job for a 0.6 mm head was warned about
   and a 0.4 mm job sent to a 0.2 mm head passed. It now reads the size and type the U1
-  reports for each head. High Flow G-code for a head with a standard nozzle is stopped with
-  **File Does Not Fit This Printer**, and standard G-code for a High Flow head gets a
-  warning with **Start Anyway**.
+  reports for each head. A file sliced for the other nozzle type (High Flow or standard)
+  gets a warning with **Start Anyway**.
 
 **Setup and installing**
 

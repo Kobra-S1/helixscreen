@@ -310,14 +310,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "the screen's limits take the nozzles the extr
     state.set_hardware(PrinterDiscovery{});
 }
 
-TEST_CASE("High Flow G-code on a standard nozzle stops the start", "[plugin_fitcheck]") {
+TEST_CASE("High Flow G-code on a standard nozzle asks before the start, never stops it",
+          "[plugin_fitcheck]") {
     FitFile file;
     file.tools = {0};
     file.nozzle_volume_types = {"high_flow"};
     PrintStartContext ctx = ctx_for(file);
     ctx.fit_machine->nozzle_volume_types = {"standard"};
     const CheckResult r = gate_fit_check(ctx);
-    CHECK(r.verdict == CheckResult::Verdict::Block);
+    CHECK(r.verdict == CheckResult::Verdict::Warn);
     CHECK(r.body.find("High Flow") != std::string::npos);
     CHECK(r.body.find("T0") != std::string::npos);
 }

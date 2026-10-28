@@ -98,10 +98,9 @@ set to, which tools exist, and the nozzle size and type and printer model your s
 names. Where the printer reports the nozzle each toolhead has fitted (the Snapmaker U1 does),
 the file is compared with that nozzle.
 
-- A file that would move past the travel, heat past a limit, use a tool the printer does not
-  have, or push High Flow G-code through a standard nozzle is stopped with **File Does Not Fit
-  This Printer**, naming each problem. Re-slice it with a profile made for this printer.
-- A file sliced for a different nozzle size, or for a standard nozzle on a High Flow one, gets
+- A file that would move past the travel, heat past a limit, or use a tool the printer does
+  not have is stopped with **File Does Not Fit This Printer**, naming each problem. Re-slice it with a profile made for this printer.
+- A file sliced for a different nozzle size or nozzle type (High Flow or standard) gets
   the softer **Sliced for a Different Setup** warning, with **Start Anyway**. So does a file using a tool that exists only as a tool-change
   macro, since HelixScreen cannot be sure the printer lacks it.
 - A file sliced for a different printer model only shows a note in the file's details. It
@@ -130,8 +129,7 @@ start it from the screen once you have re-sliced it, or ignore it.
   print started separately after the upload (OrcaSlicer's own printer connection when it sends
   its own start command, Mainsail, Fluidd, the job queue) is not held: the plugin never sees a
   request to print it.
-- A different nozzle size or printer model never holds a print. High Flow G-code for a
-  standard nozzle does, when the printer reports which nozzle is fitted.
+- A different nozzle size, nozzle type or printer model never holds a print.
 - The slicer waits at most 45 seconds. If the plugin has not read the file by then, or cannot
   read the printer's configuration, a G-code file starts as it would without the switch, and
   the printer's Moonraker log says why. A 3MF whose conversion and check take longer is

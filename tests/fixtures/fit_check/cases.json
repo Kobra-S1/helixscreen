@@ -1942,7 +1942,7 @@
       ]
     },
     {
-      "name": "High Flow G-code for a tool whose nozzle is standard blocks",
+      "name": "High Flow G-code for a tool whose nozzle is standard warns",
       "machine": {
         "kinematics": "corexy",
         "axis_min": [
@@ -1999,7 +1999,7 @@
       "findings": [
         {
           "kind": "nozzle_flow_mismatch",
-          "severity": "block",
+          "severity": "warn",
           "detail": {
             "tool": 3,
             "file": "high_flow",

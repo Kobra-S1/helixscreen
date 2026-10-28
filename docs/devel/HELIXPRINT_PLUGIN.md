@@ -485,8 +485,8 @@ sidecar-vs-file index equality and the loader against the mock
 Compares a file with the printer's own limits and gives findings `{kind, severity, detail}`:
 `out_of_bounds` and `temp_over_max` (block: stop a start), `too_many_tools` (block, or warn
 when only `T` macros raised the tool count), `nozzle_mismatch` (warn: the screen asks before a
-start), `nozzle_flow_mismatch` (block for High Flow G-code on a standard nozzle, warn for the
-reverse) and `printer_model_mismatch` (note: shown in the file details only). Nozzles come
+start), `nozzle_flow_mismatch` (warn, either way round: file tool i is compared with extruder i,
+and a printer's own filament mapping can put it on another head) and `printer_model_mismatch` (note: shown in the file details only). Nozzles come
 from `configfile.settings`, replaced per extruder by the `nozzle_diameter` and
 `nozzle_volume_type` an extruder reports in its status where the firmware keeps the fitted
 nozzle outside the config (the Snapmaker U1); the file's flow types come from Orca's
