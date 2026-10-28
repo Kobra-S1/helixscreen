@@ -23,6 +23,7 @@
 #include "connection_state.h"
 #include "gcode_ops_detector.h"
 #include "helix_plugin_installer.h"
+#include "helix_shared_callback.h"
 #include "in_flight_guard.h"
 #include "moonraker_error.h"
 #include "plugin_self_heal.h"
@@ -1148,7 +1149,7 @@ class PrintSelectPanel : public PanelBase {
         std::string local_path;
         uint64_t size = 0;
         uint64_t generation = 0; ///< usb_copy_generation_ when the copy began
-        std::function<void(const std::string& dest)> then;
+        helix::SharedCallback<void(const std::string& dest)> then;
     };
 
     /// Bumped per copy and on abandon; an answer for another value is stale.
@@ -1173,7 +1174,7 @@ class PrintSelectPanel : public PanelBase {
      * is never replaced. @p then runs on the main thread with the copy's
      * Moonraker-relative path; a failure toasts and runs nothing.
      */
-    void copy_usb_file_to_printer(std::function<void(const std::string& dest)> then);
+    void copy_usb_file_to_printer(helix::SharedCallback<void(const std::string& dest)> then);
 
     /// Name the copy from what kUsbCopyDir holds, then upload or reuse.
     void upload_usb_copy(UsbCopyRequest req, const std::map<std::string, uint64_t>& existing);

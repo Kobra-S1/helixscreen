@@ -3147,7 +3147,8 @@ void PrintSelectPanel::dispatch_print(const std::string& filename, const std::st
     print_controller_->initiate();
 }
 
-void PrintSelectPanel::copy_usb_file_to_printer(std::function<void(const std::string& dest)> then) {
+void PrintSelectPanel::copy_usb_file_to_printer(
+    helix::SharedCallback<void(const std::string& dest)> then) {
     if (!api_) {
         NOTIFY_ERROR(lv_tr("Cannot start print: internal error"));
         return;

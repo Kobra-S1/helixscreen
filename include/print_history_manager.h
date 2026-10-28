@@ -7,6 +7,7 @@
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "helix_callback.h"
 #include "print_history_data.h"
 
 #include <atomic>
@@ -42,7 +43,7 @@ struct PrintHistoryStats {
 
 namespace helix {
 /// Observer callback when history data changes
-using HistoryChangedCallback = std::function<void()>;
+using HistoryChangedCallback = helix::Callback<void()>;
 } // namespace helix
 
 namespace helix {
