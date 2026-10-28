@@ -43,6 +43,7 @@
 #include "printer_state.h"
 #include "slot_registry.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -1545,4 +1546,44 @@ TEST_CASE("restart from the beginning: a Fork print-map box clears the pending m
 
     helix::ui::UpdateQueue::instance().drain();
     AmsState::instance().set_backend(nullptr);
+}
+
+TEST_CASE("remap send: a pick on a second backend is never sent to the first",
+          "[print_start][remap-restore][multi_backend]") {
+    LVGLTestFixture fx;
+    ConfigDirGuard config_dir{"remap_two_backends"};
+    ScopedCountingBackend be{{0, 1, 2, 3}};
+    auto second_owned = std::make_unique<CountingAfcBackend>();
+    second_owned->current = {0, 1, 2, 3};
+    CountingAfcBackend* const second = second_owned.get();
+    REQUIRE(AmsState::instance().add_backend(std::move(second_owned)) == 1);
+    Harness h;
+    h.set_klippy(KlippyState::READY);
+
+    // T0 on backend 0 lane 2 decides the backend the send writes; T1's pick is
+    // backend 1's slot 2, which shares only its number with backend 0's.
+    helix::ToolMapping t0;
+    t0.tool_index = 0;
+    t0.mapped_slot = 1;
+    t0.mapped_backend = 0;
+    t0.user_picked = true;
+    helix::ToolMapping t1;
+    t1.tool_index = 1;
+    t1.mapped_slot = 2;
+    t1.mapped_backend = 1;
+    t1.user_picked = true;
+    helix::ui::PrintSelectDetailView view;
+    h.controller.set_detail_view(&view);
+    view.set_filament_mappings({t0, t1});
+    CHECK(PrintStartControllerTestAccess::apply_remaps(h.controller));
+
+    REQUIRE(be.backend->calls.size() == 1);
+    CHECK(be.backend->calls[0].tool == 0);
+    CHECK(be.backend->calls[0].slot == 1);
+    const bool t1_sent_to_backend_0 =
+        std::any_of(be.backend->calls.begin(), be.backend->calls.end(),
+                    [](const CountingAfcBackend::Call& c) { return c.tool == 1 && c.slot == 2; });
+    CHECK_FALSE(t1_sent_to_backend_0);
+    CHECK(second->calls.empty());
+    h.controller.set_detail_view(nullptr);
 }
