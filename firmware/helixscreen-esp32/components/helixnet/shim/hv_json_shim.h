@@ -8,9 +8,10 @@
 // file is present; this firmware shim exists precisely to AVOID building libhv,
 // so a fresh checkout has no json.hpp there and the angle-bracket include below
 // fails. Vendor the same single-header (nlohmann/json 3.12.0, MIT) alongside the
-// shim and reference it directly — byte-identical to what the Linux build
-// compiles, so no drift. Keep it in sync with lib/libhv/include/hv/json.hpp when
-// that submodule is bumped.
+// shim and reference it directly. It matches what the Linux build compiles except
+// for one block marked HELIX LOCAL CHANGE (the std::string input adapter); keep it
+// in sync with lib/libhv/include/hv/json.hpp when that submodule is bumped, and
+// carry that block across.
 
 #pragma once
 
