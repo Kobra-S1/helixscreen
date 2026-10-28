@@ -1508,7 +1508,7 @@ and every match question inside them is answered by `FilamentMapper` (`materials
 `filament_chip_count`, the per-chip indexed subjects `filament_chip_<i>_material`, `_slot`,
 `_file_color`, `_file_color_known`, `_ink` (header text: 0 theme, 1 black, 2 white, from
 `theme_manager_get_readable_on`), `_slot_color`, `_slot_colors`, `_slot_finish`,
-`_slot_state` (0 no slot, 1 loaded, 2 empty) and `_severity` (the `ChipSeverity` value),
+`_slot_state` (0 no slot, 1 loaded, 2 empty, 3 swap, 4 unknown loaded filament) and `_severity` (the `ChipSeverity` value),
 plus `filament_chip_more_count` and `filament_chip_more_text`.
 `filament_chip_row.xml` repeats `filament_swatch` over `<repeat count="filament_chip_count">`
 in a container of its own, then the "+N" pill. Severity drives `bind_style_if_eq` outlines,
