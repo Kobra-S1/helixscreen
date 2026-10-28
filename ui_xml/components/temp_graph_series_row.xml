@@ -17,9 +17,10 @@
                   index="$index" color_subject="temp_graph_cfg_${index}_color" size="#space_xl" reach="0" hit="0"
                   callback="temp_graph_series_swatch_cb"/>
     <text_body name="sensor_name_${index}" bind_text="temp_graph_cfg_${index}_name" flex_grow="1"/>
-    <ui_switch name="sensor_switch_${index}" size="small">
+    <!-- SIZE_OK: the switch keeps the 44x24 it always had, with no margin around it -->
+    <lv_switch name="sensor_switch_${index}" width="44" height="24">
       <bind_state_if_eq subject="temp_graph_cfg_${index}_on" state="checked" ref_value="1"/>
       <event_cb trigger="value_changed" callback="temp_graph_series_switch_cb" user_data="$index"/>
-    </ui_switch>
+    </lv_switch>
   </view>
 </component>

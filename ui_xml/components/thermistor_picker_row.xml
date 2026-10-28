@@ -6,6 +6,8 @@
      (single-select). Bound to the <prefix>_<index>_name, _temp, _hl and
      _checked subjects the widget publishes for the picker; a tap goes to
      thermistor_picker_row_cb with the row index. -->
+<!-- The rows set noto_sans_14 (the app default font) at every breakpoint, as the
+     imperative rows did; a heavier token wraps long sensor names. -->
 <component>
   <api>
     <prop name="prefix" type="string" default="thermistor_sel"/>
@@ -26,8 +28,9 @@
     <lv_checkbox name="row_check" text="" style_pad_all="0" clickable="false" hidden="$checkbox_hidden">
       <bind_state_if_eq subject="${prefix}_${index}_checked" state="checked" ref_value="1"/>
     </lv_checkbox>
-    <text_body name="row_name" bind_text="${prefix}_${index}_name" flex_grow="1" long_mode="dots"/>
-    <text_body name="row_temp" bind_text="${prefix}_${index}_temp" style_text_opa="180"/>
+    <text_body name="row_name"
+               bind_text="${prefix}_${index}_name" flex_grow="1" long_mode="dots" style_text_font="noto_sans_14"/>
+    <text_body name="row_temp" bind_text="${prefix}_${index}_temp" style_text_font="noto_sans_14" style_text_opa="180"/>
     <event_cb trigger="clicked" callback="thermistor_picker_row_cb" user_data="$index"/>
   </view>
 </component>

@@ -36,10 +36,11 @@
                      text="Show whatever curves you last had visible on the full graph." long_mode="wrap"
                      style_text_color="#text_muted"/>
         </lv_obj>
-        <ui_switch name="follow_switch" size="small">
+        <!-- SIZE_OK: same 44x24 as the series switches -->
+        <lv_switch name="follow_switch" width="44" height="24">
           <bind_state_if_eq subject="temp_graph_cfg_follow" state="checked" ref_value="1"/>
           <event_cb trigger="value_changed" callback="temp_graph_follow_switch_cb"/>
-        </ui_switch>
+        </lv_switch>
       </lv_obj>
       <repeat count="temp_graph_cfg_rows">
         <temp_graph_series_row index="${i}"/>
