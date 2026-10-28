@@ -44,14 +44,6 @@ ChipSeverity chip_severity(const GcodeToolInfo& tool, const AvailableSlot* resol
     return ChipSeverity::Block;
 }
 
-ChipSeverity mapping_severity(const GcodeToolInfo& tool, const ToolMapping& mapping,
-                              const AvailableSlot* lane) {
-    if (!lane && mapping.is_auto) {
-        return ChipSeverity::Ok;
-    }
-    return chip_severity(tool, lane);
-}
-
 namespace {
 
 /// (backend_index, unit_index) of every unit in @p all_slots, in first-seen order.

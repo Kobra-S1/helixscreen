@@ -29,6 +29,11 @@ struct PreflightResult {
 class PreflightValidator {
   public:
     /**
+     * @param routing The firmware routing an Auto mapping prints through: an Auto
+     *        tool is judged against the lane it routes to
+     *        (FilamentMapper::resolve_printing_slot()), and blocks as EmptySlot
+     *        when it routes to none. Required: a caller that guesses it judges
+     *        the wrong lane.
      * @param bypass_active Filament is being fed from the bypass / external spool
      *        rather than the slot system, so no tool can be satisfied by a slot
      *        and the slot-based checks do not apply. Required rather than
@@ -36,7 +41,8 @@ class PreflightValidator {
      */
     static PreflightResult validate(const std::vector<GcodeToolInfo>& tools,
                                     const std::vector<AvailableSlot>& slots,
-                                    const std::vector<ToolMapping>& mapping, bool bypass_active);
+                                    const std::vector<ToolMapping>& mapping,
+                                    const FirmwareRouting& routing, bool bypass_active);
 };
 
 } // namespace helix

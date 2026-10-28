@@ -45,7 +45,7 @@ static const AvailableSlot* find_slot(int slot_index, int backend_index,
 PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& tools,
                                              const std::vector<AvailableSlot>& slots,
                                              const std::vector<ToolMapping>& mapping,
-                                             bool bypass_active) {
+                                             const FirmwareRouting& routing, bool bypass_active) {
     PreflightResult out;
 
     // Bypass / external spool: the filament reaching the nozzle does not come from
@@ -76,9 +76,16 @@ PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& t
         c.intended_color = t.color_rgb;
         c.intended_material = t.material;
         const ToolMapping* m = mapping_for_tool(t.tool_index, mapping);
-        c.mapped_slot = m != nullptr ? m->mapped_slot : -1;
-        const AvailableSlot* slot =
-            c.mapped_slot >= 0 ? find_slot(c.mapped_slot, m->mapped_backend, slots) : nullptr;
+        const AvailableSlot* slot = nullptr;
+        if (m != nullptr && m->is_auto) {
+            // Auto prints from the lane the firmware routes the tool to.
+            slot = FilamentMapper::resolve_printing_slot(*m, slots, routing);
+            c.mapped_slot = slot != nullptr ? slot->slot_index : -1;
+        } else {
+            c.mapped_slot = m != nullptr ? m->mapped_slot : -1;
+            slot =
+                c.mapped_slot >= 0 ? find_slot(c.mapped_slot, m->mapped_backend, slots) : nullptr;
+        }
         if (slot == nullptr || slot->is_empty) {
             c.slot_present = false;
             c.severity = ToolCheck::Severity::EmptySlot;

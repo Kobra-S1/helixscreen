@@ -108,21 +108,6 @@ TEST_CASE("Auto prints from the lane the routing sends the tool to",
     CHECK(FilamentMapper::resolve_printing_slot(mapped(1, 0), slots, to_head_0) == &slots[0]);
 }
 
-TEST_CASE("mapping_severity: an Auto that reaches no lane is Ok, an unmapped pick blocks",
-          "[filament_chip]") {
-    const auto tool = make_tool(0, 0xFF0000, "PLA");
-    ToolMapping automatic;
-    automatic.tool_index = 0;
-    automatic.is_auto = true;
-    CHECK(mapping_severity(tool, automatic, nullptr) == ChipSeverity::Ok);
-    // Auto onto a lane is judged against that lane.
-    const auto petg = make_slot(0, 0xFF0000, "PETG");
-    CHECK(mapping_severity(tool, automatic, &petg) == ChipSeverity::Block);
-    ToolMapping unmapped;
-    unmapped.tool_index = 0;
-    CHECK(mapping_severity(tool, unmapped, nullptr) == ChipSeverity::Block);
-}
-
 // =============================================================================
 // chip_slot_label
 // =============================================================================

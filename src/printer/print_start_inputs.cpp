@@ -80,7 +80,7 @@ PreflightResult file_preflight(const std::vector<GcodeToolInfo>& used_tool_info,
     // report EmptySlot.
     auto& ams = AmsState::instance();
     return PreflightValidator::validate(used_tool_info, ams.collect_available_slots(), mappings,
-                                        ams.any_bypass_active());
+                                        ams.collect_firmware_routing(), ams.any_bypass_active());
 }
 
 namespace {

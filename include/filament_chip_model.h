@@ -21,15 +21,10 @@ namespace helix {
 /// colour differs and the file's colour is known. Ok: anything else.
 enum class ChipSeverity { Ok, Warn, Block };
 
-/// The severity of pairing @p tool with @p resolved (nullptr when no lane is chosen).
+/// The severity of pairing @p tool with @p resolved, the lane it prints from
+/// (FilamentMapper::resolve_printing_slot()); nullptr when it prints from none, an Auto
+/// whose routing names no lane included, which blocks as the pre-flight gate does.
 [[nodiscard]] ChipSeverity chip_severity(const GcodeToolInfo& tool, const AvailableSlot* resolved);
-
-/// The severity of @p tool's chip for @p mapping, judged against @p lane, the lane it prints
-/// from (FilamentMapper::resolve_printing_slot()). An Auto that reaches no lane is Ok: the
-/// firmware decides at print time and nothing on the card is wrong. Everything else is
-/// chip_severity().
-[[nodiscard]] ChipSeverity mapping_severity(const GcodeToolInfo& tool, const ToolMapping& mapping,
-                                            const AvailableSlot* lane);
 
 /// The slot label a chip prints for @p slot: its 1-based position in its unit ("3") when
 /// @p all_slots spans one unit, otherwise "<unit>·<position>" ("2·1"), where <unit> is the

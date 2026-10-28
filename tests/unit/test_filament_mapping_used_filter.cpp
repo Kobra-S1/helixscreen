@@ -35,6 +35,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "filament_chip_model.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "print_start_inputs.h"
 #include "settings_manager.h"
 #include "system_settings_manager.h"
 #include "theme_manager.h"
@@ -945,11 +946,14 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Picking Auto shows the lane the tool
     CHECK(chip_int(1, "_severity") == 0);
     CHECK(chip_string(1, "_slot") == "2");
     CHECK(chip_int(1, "_slot_state") == 1);
+    // The print-start gate judges the same lane and lets it print.
+    CHECK_FALSE(helix::file_preflight(card.get_tool_info(), card.get_mappings()).has_block());
     process_lvgl(100);
 }
 
-TEST_CASE_METHOD(MappingCardRenderFixture, "An Auto that routes to no lane is grey, not red",
-                 "[filament_mapping][chip_tap]") {
+TEST_CASE_METHOD(MappingCardRenderFixture,
+                 "An Auto that routes to no lane is red with the no-slot body, as the gate blocks",
+                 "[filament_mapping][chip_tap][preflight]") {
     // T5 on four lanes: identity routing gives it head 5, which no lane is.
     card.set_used_tools(std::set<int>{0, 5});
     card.update({"#FF0000", "#00FF00", "#0000FF", "#FFFFFF", "#000000", "#00FFFF"},
@@ -961,7 +965,9 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "An Auto that routes to no lane is gr
                                      card.get_available_slots(), -1, -1, true);
     card.set_mappings(mappings);
     REQUIRE(chip_count() == 2);
-    CHECK(chip_int(1, "_severity") == 0);
-    CHECK(chip_int(1, "_slot_state") == 5);
+    CHECK(chip_int(1, "_severity") == 2);
+    CHECK(chip_int(1, "_slot_state") == 0);
+    // The print-start gate reads the same mapping and blocks it.
+    CHECK(helix::file_preflight(card.get_tool_info(), card.get_mappings()).has_block());
     process_lvgl(100);
 }

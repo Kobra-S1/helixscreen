@@ -1935,9 +1935,9 @@ struct AfcPrintStartHarness {
     }
 
     helix::PreflightResult preflight() const {
-        return helix::PreflightValidator::validate(tools,
-                                                   AmsState::instance().collect_available_slots(),
-                                                   view.get_filament_mappings(), false);
+        return helix::PreflightValidator::validate(
+            tools, AmsState::instance().collect_available_slots(), view.get_filament_mappings(),
+            AmsState::instance().collect_firmware_routing(), false);
     }
 };
 } // namespace
@@ -1981,7 +1981,8 @@ TEST_CASE("AFC lane remap is the routing an unremapped print runs with",
     REQUIRE(mappings.size() == 1);
     CHECK(mappings[0].mapped_slot == 3);
 
-    const auto preflight = helix::PreflightValidator::validate(tools, slots, mappings, false);
+    const auto preflight =
+        helix::PreflightValidator::validate(tools, slots, mappings, routing, false);
     CHECK_FALSE(preflight.has_block());
 
     // PrintStartController sends set_tool_mapping() (SET_MAP) for every mapping
