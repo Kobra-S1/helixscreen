@@ -950,6 +950,7 @@ fi
 # link — back on the critical path of an otherwise no-op build.
 MAIN_GEN="$MAIN_TREE/build/generated"
 if [[ -d "$MAIN_GEN" && ! -d "$WORKTREE_PATH/build/generated" ]]; then
+    mkdir -p "$WORKTREE_PATH/build"
     cp -Rc "$MAIN_GEN" "$WORKTREE_PATH/build/generated" 2>/dev/null \
         || cp -a "$MAIN_GEN" "$WORKTREE_PATH/build/generated"
     echo -e "  build/generated: ${GREEN}cloned${RESET}"
@@ -957,7 +958,8 @@ if [[ -d "$MAIN_GEN" && ! -d "$WORKTREE_PATH/build/generated" ]]; then
     # or its input differs, the copied header can still read newer than both and
     # make keeps it, compiling another branch's contributor table here.
     for input in CONTRIBUTORS.txt scripts/gen-contributors.sh; do
-        if ! cmp -s "$MAIN_TREE/$input" "$WORKTREE_PATH/$input"; then
+        if [[ -e "$MAIN_TREE/$input" || -e "$WORKTREE_PATH/$input" ]] \
+           && ! cmp -s "$MAIN_TREE/$input" "$WORKTREE_PATH/$input"; then
             rm -f "$WORKTREE_PATH/build/generated/contributors.h"
             echo -e "  build/generated/contributors.h: ${YELLOW}dropped ($input differs from the main tree's)${RESET}"
             break
