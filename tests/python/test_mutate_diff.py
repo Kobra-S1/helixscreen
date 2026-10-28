@@ -1410,3 +1410,67 @@ def test_a_pytest_case_red_at_baseline_is_deselected_and_the_rest_judge(tmp_path
     assert "pytest: 1 case(s) red at baseline here, set aside" in r.stdout
     assert "test_env_red" in r.stdout
     assert "VERDICT: CLEAN" in r.stdout
+
+
+# ---------------------------------------------------------------------------
+# A group child reports only its own files
+# ---------------------------------------------------------------------------
+def _group_fixture(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "include").mkdir()
+    (work / "include" / "feature.h").write_text(HEADER)
+    (work / "notes").mkdir()
+    (work / "notes" / "plan.txt").write_text("old\n")
+    _git(work, "add", "include/feature.h", "notes/plan.txt")
+    _git(work, "commit", "-qm", "header")
+    _git(work, "branch", "-f", "main")
+    (work / "include" / "feature.h").write_text(DECLARATION_ONLY["member function"])
+    (work / "notes" / "plan.txt").write_text("new\n")
+    return work
+
+
+def test_a_group_child_counts_and_judges_only_its_own_files(tmp_path):
+    work = _group_fixture(tmp_path)
+    r = _mutate(work, "--base", "main", "--group-child", "--no-record",
+                "--group-files", "src/feature.cpp")
+    assert r.returncode == 0, r.stdout
+    assert "declaration-only" not in r.stdout
+    assert "VERDICT: CLEAN - every changed hunk was mutated" in r.stdout
+    # The parent, not the child, reports what lies outside the group.
+    p = _mutate(work, "--base", "main", "--no-auto-tests")
+    assert p.returncode == 3, p.stdout
+    assert "NOT COVERED notes/plan.txt" in p.stdout
+    assert "declaration-only" in p.stdout
+
+
+def test_a_failed_setup_file_is_named_after_its_file():
+    out = ("not ok 1 setup_file failed\n"
+           "# (from function `setup_file' in test file /w1/tests/shell/test_one.bats, line 2)\n"
+           "#   `false' failed\n"
+           "not ok 2 teardown_file failed\n"
+           "# (from function `teardown_file' in test file /w1/tests/shell/test_two.bats, line 9)\n"
+           "not ok 3 an ordinary case # skip no jobpool\n"
+           "# (in test file /w1/tests/shell/test_two.bats, line 4)\n")
+    assert md.failing_tests("bats", out) == {
+        "setup_file failed in test_one.bats", "teardown_file failed in test_two.bats",
+        "an ordinary case"}
+
+
+@needs_bats
+def test_a_mutant_breaking_another_files_setup_is_killed_past_a_baseline_red_one(tmp_path):
+    # test_env.bats fails its setup_file at baseline; test_tool.bats's setup_file
+    # fails only under the mutant. Both read "setup_file failed".
+    work, base = _script_with_bats(tmp_path, '@test "unrelated" {\n  true\n}\n')
+    (work / "tests" / "shell" / "test_env.bats").write_text(
+        'setup_file() {\n  false\n}\n@test "needs env" {\n  true\n}\n')
+    (work / "tests" / "shell" / "test_tool.bats").write_text(
+        'setup_file() {\n  grep -q NEW "$BATS_TEST_DIRNAME/../../scripts/tool.sh"\n}\n'
+        '@test "uses tool" {\n  true\n}\n')
+    _git(work, "add", "tests/shell")
+    _git(work, "commit", "-qm", "suites")
+    base = _git(work, "rev-parse", "HEAD~1").strip()
+    r = _mutate(work, "--base", base, "--only", "scripts/tool.sh", "--no-auto-tests",
+                "--shell-tests", "tests/shell/test_env.bats,tests/shell/test_tool.bats",
+                "--python-tests", "")
+    assert "setup_file failed in test_env.bats" in r.stdout
+    assert "killed" in r.stdout and "SURVIVED" not in r.stdout, r.stdout

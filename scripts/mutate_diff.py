@@ -1286,14 +1286,28 @@ SUITE_FAILURE_EVIDENCE = {
 # The failing cases a script suite names, so a case red at baseline can be told
 # from one a mutant turned red. A bats line is `not ok N <name>[ # directive]`;
 # pytest summarises each failure as `FAILED <node id>[ - reason]`.
-_BATS_NOT_OK = re.compile(r'^not ok \d+ (.*?)(?:\s+#\s.*)?$', re.M)
+_BATS_NOT_OK = re.compile(r'^not ok \d+ (.*?)(?:[ \t]+#[ \t].*)?$', re.M)
 _PYTEST_FAILED = re.compile(r'^FAILED (\S+)', re.M)
+_BATS_FILE_HOOK_ORIGIN = re.compile(r"# \(from function `\w+' in test file (.+?), line \d+\)")
 
 
 def failing_tests(name, output):
-    """The set of failing cases a bats or pytest run names; empty for Catch2."""
+    """The set of failing cases a bats or pytest run names; empty for Catch2.
+
+    A failed setup_file or teardown_file is reported under the same name by every
+    file, so it is named after its file: set aside, it must not hide another
+    file's setup failing under a mutant.
+    """
     if name == 'bats':
-        return set(_BATS_NOT_OK.findall(output))
+        names = set()
+        for m in _BATS_NOT_OK.finditer(output):
+            case = m.group(1)
+            if case in ('setup_file failed', 'teardown_file failed'):
+                origin = _BATS_FILE_HOOK_ORIGIN.match(output, m.end() + 1)
+                if origin:
+                    case += f' in {os.path.basename(origin.group(1))}'
+            names.add(case)
+        return names
     if name == 'pytest':
         return set(_PYTEST_FAILED.findall(output))
     return set()
@@ -2970,6 +2984,11 @@ def main():
             uncovered.append((path, n, detail))
 
     mutable = [h for h in hunks if verdict_of[h['file']][0] == 'mutate']
+    if args.group_files is not None:
+        # A group child mutates, skips and counts exactly its own files, never a
+        # path that merely contains one of them: the parent reports the rest.
+        wanted = set(args.group_files.split('\n'))
+        mutable = [h for h in mutable if h['file'] in wanted]
 
     # scripts/untestable_paths.txt: an in-tree, reasoned exclusion, so it is
     # reported as a decision rather than as a gap in what the tool can see.
@@ -3009,11 +3028,6 @@ def main():
     # --only and --limit are deliberate narrowings, but a narrowed run still did
     # not examine the whole change, so what they set aside is counted too.
     deferred = 0
-    if args.group_files is not None:
-        # A group child mutates exactly its own files, never a path that merely
-        # contains one of them.
-        wanted = set(args.group_files.split('\n'))
-        mutable = [h for h in mutable if h['file'] in wanted]
     if args.only:
         keep = select_only(mutable, args.only)
         deferred += len(mutable) - len(keep)
