@@ -76,8 +76,18 @@ std::string active_printer_http_url(const std::string& default_host) {
     return "http://" + active_printer_host_port(default_host);
 }
 
+moonraker_auth::Credential active_printer_credential() {
+    Config* config = Config::get_instance();
+    std::string printer = config->df();
+    printer.pop_back(); // "/printers/<id>/" names the entry's children; the entry has no slash
+    const nlohmann::json* node = config->try_get_json(printer);
+    return node ? moonraker_auth::credential_from_printer(*node) : moonraker_auth::Credential{};
+}
+
 bool connect_printer(MoonrakerManager& manager, const std::string& ws_url,
                      const std::string& http_url) {
+    // Before the connect: the WebSocket upgrade is the first request that needs it.
+    moonraker_auth::set_credential(active_printer_credential());
     // Tracks PRINT_START progress for this printer, with its own print-start profile.
     // Created before the connect: the observers it installs on the API are then in place
     // before the WebSocket task can call them.

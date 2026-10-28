@@ -791,6 +791,7 @@ src/api/wifi_control_breaker.cpp
 src/api/wifi_backend.cpp
 src/api/wifi_country.cpp
 src/api/moonraker_api.cpp
+src/api/moonraker_auth.cpp
 src/api/moonraker_api_config.cpp
 src/api/moonraker_api_controls.cpp
 src/api/moonraker_api_led.cpp

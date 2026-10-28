@@ -1106,7 +1106,7 @@ Connection settings are in the `printer` section:
 ### `moonraker_api_key`
 **Type:** string or false
 **Default:** `false`
-**Description:** API key if Moonraker authentication is enabled. Set to `false` if no authentication.
+**Description:** The printer's Moonraker API key, needed when Moonraker has `force_logins` enabled. HelixScreen sends it only to this printer's `moonraker_host` and `moonraker_port`. Set to `false` when Moonraker trusts the screen without one. A wrong key is worse than none, because Moonraker refuses it even from a trusted address. [How to get the key](TROUBLESHOOTING.md#unauthorized-everywhere-moonraker-requires-a-login).
 
 ### `moonraker_connection_timeout_ms`
 **Type:** integer

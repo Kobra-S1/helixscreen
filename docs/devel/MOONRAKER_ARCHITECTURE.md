@@ -167,6 +167,20 @@ The submitted lambda runs on a worker thread — callbacks invoked from it are o
 
 **Do NOT:** spawn a raw `std::thread` for HTTP work. If `HttpExecutor::fast()/slow()` don't fit the shape you need, discuss — adding a new lane is preferable to reintroducing unbounded spawning.
 
+### Moonraker API Key
+
+A Moonraker with `force_logins` refuses every request without a credential, trusted address or not, and accepts the printer's API key in an `X-Api-Key` header. The key is the active printer's `moonraker_api_key` setting.
+
+| Piece | Role |
+|-------|------|
+| `include/moonraker_auth.h` | The pure rules: `credential_from_printer()` reads a printer entry, `set_credential()` records it, `key_for()` / `key_for_url()` answer what key a host:port gets, `header_action()` decides Set / Leave / Remove for a request's header. Built for the desktop and the ESP32 firmware alike |
+| `src/application/printer_retarget.cpp#connect_printer` | Records the active printer's credential before every connect (startup, printer switch, Change Host) |
+| `src/api/moonraker_auth_http.cpp` | Installs `apply_to_request()` as libhv's request hook (`patches/libhv-http-request-hook.patch`), so every libhv HTTP request, sync, async or upload, built from any URL, gets the key when it is bound for that printer |
+| `MoonrakerClient::connect()` | Adds the header to the WebSocket upgrade, which libhv sends without the hook |
+| `EspMoonrakerClient::create_transport()` | The firmware's WebSocket upgrade, through `esp_websocket_client_config_t::headers` |
+
+**The key goes only to the host and port it was configured for.** Moonraker refuses a wrong key even from a trusted address, so a key sent to a different printer (the connection wizard testing a typed address, a CLI override) would break a connection that works without one. A redirect that carries the recorded key to another host has it removed; an `X-Api-Key` another caller set for its own service (telemetry) is left alone.
+
 ### Event System
 
 **Location:** `include/moonraker_events.h`

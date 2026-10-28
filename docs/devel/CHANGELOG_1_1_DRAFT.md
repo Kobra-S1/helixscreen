@@ -1122,6 +1122,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 ### Fixed
 
+- **Printers that require a Moonraker login connect** - with `force_logins` enabled,
+  Moonraker refused every request from the screen. HelixScreen now sends the printer's
+  `moonraker_api_key` setting to that printer's Moonraker, over the WebSocket and every HTTP
+  request, and to nothing else.
 - **Closing the printer type warning keeps your type** (#1881) - tapping X on the "printer
   type mismatch" warning now counts as keeping the saved type, like Review > Keep current,
   so it stops coming back on every restart.

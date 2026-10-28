@@ -308,6 +308,35 @@ sudo ufw status
 sudo ufw allow 7125/tcp
 ```
 
+### "Unauthorized" everywhere: Moonraker requires a login
+
+**Symptoms:**
+- HelixScreen connects but shows no files, no history and no printer status, and Klipper may read as shut down
+- Error toasts that say `Unauthorized`
+- `moonraker.log` lists requests from HelixScreen refused with `401 ... Unauthorized, Force Logins Enabled`
+
+**Cause:** Moonraker has `force_logins: True` in its `[authorization]` section and at least one user account exists. Moonraker then refuses every request that carries no credential, including requests from the printer itself, even though `trusted_clients` lists it.
+
+**Solutions:**
+
+Give HelixScreen the printer's Moonraker API key. Moonraker accepts it whether or not logins are forced.
+
+1. Get the key. With logins forced, you must log in first. Run this on the printer, using your Moonraker user name and password:
+   ```bash
+   TOKEN=$(curl -s -X POST http://localhost:7125/access/login \
+     -H 'Content-Type: application/json' \
+     -d '{"username": "YOUR_USER", "password": "YOUR_PASSWORD"}' \
+     | python3 -c 'import json, sys; print(json.load(sys.stdin)["result"]["token"])')
+   curl -s -H "Authorization: Bearer $TOKEN" http://localhost:7125/access/api_key
+   ```
+   The key is the 32-character value in `result`. A password or a shortened key does not work: Moonraker refuses a wrong key outright, even from a trusted address.
+2. Put the key in HelixScreen's `settings.json`, in your printer's entry, as `"moonraker_api_key": "THE_KEY"`. See [`moonraker_api_key`](CONFIGURATION.md#moonraker_api_key).
+3. Restart HelixScreen.
+
+HelixScreen sends the key only to that printer's Moonraker address and port, never to a webcam, Spoolman or any other server.
+
+If you do not need logins, the alternative is to remove `force_logins` from Moonraker's configuration and restart Moonraker.
+
 ---
 
 ### "Connection lost" during print

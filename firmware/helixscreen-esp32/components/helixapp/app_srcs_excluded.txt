@@ -49,6 +49,7 @@ src/api/input_device_scanner.cpp  # not in the v1 Core+AMS cut
 src/api/mock_http_file_server.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_api_mock.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_api_power.cpp  # hv/requests.h — Moonraker device_power is REST-only
+src/api/moonraker_auth_http.cpp  # libhv request hook; the firmware sends the key in EspMoonrakerClient
 src/api/moonraker_client.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_client_mock.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_client_mock_gcode.cpp  # not in the v1 Core+AMS cut

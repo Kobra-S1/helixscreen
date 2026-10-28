@@ -108,7 +108,9 @@ LIBHV_PATCHED_FILES := \
 	http/HttpMessage.h \
 	http/client/WebSocketClient.h \
 	http/client/WebSocketClient.cpp \
-	http/client/AsyncHttpClient.cpp
+	http/client/AsyncHttpClient.cpp \
+	http/client/HttpClient.h \
+	http/client/HttpClient.cpp
 
 # The patched sources themselves, for use as build prerequisites, so an applied
 # patch invalidates the objects built from it and not only the stamp.
@@ -642,8 +644,9 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LIBHV_DIR) $(PATCH_DIR)/libhv-hloop-preallocate-ios.patch "libhv hloop ios preallocation patch" "Without it a client connecting right after its loop thread starts can lose its io to a concurrent first allocation and fault in iowatcher_add_event."
 	$(Q)$(APPLY_PATCH) $(LIBHV_DIR) $(PATCH_DIR)/libhv-websocket-open-install-once.patch "libhv WebSocketClient install-once patch" "Without it a reconnect from another thread overwrites onConnection while the loop thread is running it, and a redirect reassigns onMessage from inside onMessage."
 	$(Q)$(APPLY_PATCH) $(LIBHV_DIR) $(PATCH_DIR)/libhv-outbound-socket-hook.patch "libhv outbound socket hook patch" "Without it the Android app cannot route LAN printer sockets over a Wi-Fi that has no internet."
+	$(Q)$(APPLY_PATCH) $(LIBHV_DIR) $(PATCH_DIR)/libhv-http-request-hook.patch "libhv HTTP request hook patch" "Without it no HTTP request carries the Moonraker API key, so a printer with force_logins rejects every one."
 	$(Q)if [ -d "$(LIBHV_DIR)/include/hv" ]; then \
-		for h in evpp/TcpClient.h http/client/WebSocketClient.h cpputil/hthreadpool.h http/HttpMessage.h base/hsocket.h; do \
+		for h in evpp/TcpClient.h http/client/WebSocketClient.h cpputil/hthreadpool.h http/HttpMessage.h base/hsocket.h http/client/HttpClient.h; do \
 			base=$$(basename $$h); \
 			if ! diff -q "$(LIBHV_DIR)/$$h" "$(LIBHV_DIR)/include/hv/$$base" >/dev/null 2>&1; then \
 				echo "$(YELLOW)→ Syncing patched $$base to include/hv/$(RESET)"; \

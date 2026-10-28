@@ -13,6 +13,7 @@
 #include "json_utils.h"
 #include "klippy_notification.h"
 #include "link_liveness.h"
+#include "moonraker_auth.h"
 #include "psram_thread_stack.h"
 
 #include <spdlog/spdlog.h>
@@ -214,6 +215,12 @@ esp_websocket_client_handle_t EspMoonrakerClient::create_transport(const std::st
     // own task, which trips a spinlock assert; reconnection is driven from the transport
     // worker instead.
     cfg.disable_auto_reconnect = true;
+    // init copies the header block, so it only has to outlive this call.
+    std::string headers;
+    if (const std::string key = helix::moonraker_auth::key_for_url(url); !key.empty()) {
+        headers = std::string(helix::moonraker_auth::kApiKeyHeader) + ": " + key + "\r\n";
+        cfg.headers = headers.c_str();
+    }
 
     esp_websocket_client_handle_t ws = esp_websocket_client_init(&cfg);
     if (!ws) {
