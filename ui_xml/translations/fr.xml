@@ -3217,6 +3217,7 @@
   <translation tag="Screen Blank" fr="Extinction de l&apos;écran"/>
   <translation tag="Screen Dim" fr="Atténuation de l&apos;écran"/>
   <translation tag="Screen Rotation" fr="Rotation de l&apos;écran"/>
+  <translation tag="Screen Sharing" fr="Partage d&apos;écran"/>
   <translation tag="Screen dims to lower brightness after period of inactivity" fr="L&apos;écran s&apos;atténue après une période d&apos;inactivité"/>
   <translation tag="Screen is not permitted to shut down or reboot. Restart HelixScreen to fix it." fr="L&apos;écran n&apos;est pas autorisé à s&apos;éteindre ni à redémarrer. Redémarrez HelixScreen pour corriger cela."/>
   <translation tag="Screen lock and PIN settings" fr="Verrouillage de l&apos;écran et paramètres PIN"/>
@@ -4183,6 +4184,7 @@
   <translation tag="Warn if a door is open" fr="Avertir si une porte est ouverte"/>
   <translation tag="Warning" fr="Avertissement"/>
   <translation tag="Warnings &amp; errors" fr="Avertissements et erreurs"/>
+  <translation tag="Watch and control this screen from a browser" fr="Voir et contrôler cet écran depuis un navigateur"/>
   <translation tag="Watch the camera during a print for failed prints" fr="Surveille la caméra pendant une impression pour détecter les impressions échouées"/>
   <translation tag="Watch which motor turns" fr="Regardez quel moteur tourne"/>
   <translation tag="Weak battery" fr="Batterie faible"/>

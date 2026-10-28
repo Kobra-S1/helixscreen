@@ -3555,6 +3555,7 @@ translations:
   Screen Blank: Гашение экрана
   Screen Dim: Затемнение экрана
   Screen Rotation: Поворот экрана
+  Screen Sharing: 'Общий доступ к экрану'
   Screen dims to lower brightness after period of inactivity: Экран затемняется после
     периода простоя
   Screen lock and PIN settings: Блокировка экрана и настройки PIN
@@ -4643,6 +4644,7 @@ translations:
   Warn if a door is open: Предупреждать, если дверь открыта
   Warning: Предупреждение
   Warnings & errors: 'Предупреждения и ошибки'
+  Watch and control this screen from a browser: 'Просмотр и управление этим экраном из браузера'
   Watch the camera during a print for failed prints: Следит за камерой во время печати, выявляя неудачные печати
   Watch which motor turns: "Смотрите, какой двигатель вращается"
   Weak battery: Слабый заряд

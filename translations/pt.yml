@@ -3513,6 +3513,7 @@ translations:
   Screen Blank: Tela Apagada
   Screen Dim: Escurecimento da Tela
   Screen Rotation: Rotação da tela
+  Screen Sharing: 'Compartilhamento de tela'
   Screen dims to lower brightness after period of inactivity: A tela escurece para
     menor brilho após período de inatividade
   Screen lock and PIN settings: Configurações de bloqueio de tela e PIN
@@ -4609,6 +4610,7 @@ translations:
   Warn if a door is open: Avisar se uma porta estiver aberta
   Warning: Aviso
   Warnings & errors: 'Avisos e erros'
+  Watch and control this screen from a browser: 'Ver e controlar esta tela a partir de um navegador'
   Watch the camera during a print for failed prints: Observa a câmera durante a impressão para detectar impressões com falha
   Watch which motor turns: "Veja qual motor gira"
   Weak battery: Bateria fraca

@@ -114,6 +114,8 @@ void RemoteScreenService::watch_print_state() {
 }
 
 void RemoteScreenService::apply_settings() {
+    // Runs on every connect, after a printer switch has rebuilt the print subjects.
+    watch_print_state();
     apply_server();
     if (IMoonrakerAPI* api = get_moonraker_api()) {
         sync_remote_screen_webcam(*api, get_printer_state().moonraker_locality());

@@ -16,7 +16,7 @@ Both sharing and control are **off** until you turn them on, on the printer itse
 
 ## Turning it on
 
-1. On the printer, open **Settings > Connection**.
+1. On the printer, open **Settings > Connection > Screen Sharing**.
 2. Turn on **Share Screen**. The screen is now visible to browsers on your network, and a **HelixScreen Screen** webcam appears in Mainsail and Fluidd.
 3. To use the screen from a browser too, turn on **Allow Remote Control**.
 
@@ -24,7 +24,7 @@ Both sharing and control are **off** until you turn them on, on the printer itse
 
 On some printers a **Pairing Code** row appears once control is on. See [Two ways it works](#two-ways-it-works) below for which printers, and why.
 
-> The rows are hidden on printers whose own firmware already shares its screen, such as the Snapmaker U1 with its stock screen page. Use that instead.
+> **Screen Sharing** is hidden on printers whose own firmware already shares its screen, such as the Snapmaker U1 with its stock screen page. Use that instead.
 >
 > Screen sharing isn't available in the Android app or on the BigTreeTech K-Touch.
 
@@ -65,7 +65,7 @@ Who may see and use the screen depends on what your printer runs in front of Moo
 
 ![The pairing prompt](../../images/user/screen-sharing-pair.png)
 
-  1. On the printer, open **Settings > Connection** and read the **Pairing Code**.
+  1. On the printer, open **Settings > Connection > Screen Sharing** and read the **Pairing Code**.
   2. Type it into the browser and press **Pair**.
   3. That browser is now paired and won't ask again. Each new browser or device needs the code once.
 
@@ -112,7 +112,7 @@ Check that **Share Screen** is on. The webcam is added when HelixScreen connects
 The printer is starting up, or HelixScreen isn't running. The page keeps trying every second and shows the screen as soon as it can.
 
 **"That code did not match."**
-Read the code again from **Settings > Connection**. If someone pressed **Forget Paired Browsers**, the code has changed.
+Read the code again from **Settings > Connection > Screen Sharing**. If someone pressed **Forget Paired Browsers**, the code has changed.
 
 **"Too many tries. Wait a minute and try again."**
 Five wrong codes in a minute pause pairing for everyone. Wait a minute.

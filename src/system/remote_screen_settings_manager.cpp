@@ -46,9 +46,13 @@ void RemoteScreenSettingsManager::init_subjects() {
         settings_.set(Key::Control, false);
     }
     subjects_initialized_ = true;
-    StaticSubjectRegistry::instance().register_deinit("RemoteScreenSettingsManager", []() {
-        RemoteScreenSettingsManager::instance().deinit_subjects();
-    });
+    // RemoteScreenService decides availability once per process and creates the
+    // control indicator once on the top layer, so these subjects outlive a printer
+    // switch: rebuilt, they would come back hidden and unobserved.
+    StaticSubjectRegistry::instance().register_deinit(
+        "RemoteScreenSettingsManager",
+        []() { RemoteScreenSettingsManager::instance().deinit_subjects(); },
+        StaticSubjectRegistry::Lifetime::Process);
 }
 
 void RemoteScreenSettingsManager::deinit_subjects() {

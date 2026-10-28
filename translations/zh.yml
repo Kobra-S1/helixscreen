@@ -3328,6 +3328,7 @@ translations:
   Screen Blank: 屏幕熄灭
   Screen Dim: 屏幕变暗
   Screen Rotation: 屏幕旋转
+  Screen Sharing: '屏幕共享'
   Screen dims to lower brightness after period of inactivity: 一段时间不活动后屏幕会降低亮度
   Screen lock and PIN settings: 屏幕锁定和 PIN 设置
   Screen is not permitted to shut down or reboot. Restart HelixScreen to fix it.: 屏幕没有关机或重启的权限。重启 HelixScreen 即可修复。
@@ -4350,6 +4351,7 @@ translations:
   Warn if a door is open: 门打开时发出警告
   Warning: 警告
   Warnings & errors: '警告与错误'
+  Watch and control this screen from a browser: '从浏览器查看和控制此屏幕'
   Watch the camera during a print for failed prints: 打印期间监视摄像头以发现打印失败
   Watch which motor turns: "看看哪个电机在转动"
   Weak battery: 电池电量低

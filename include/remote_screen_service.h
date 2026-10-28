@@ -46,6 +46,10 @@ class RemoteScreenService {
     void init(RemoteScreenManager* screens);
     /// Track whether a print is running, which lowers the frame rate cap.
     void watch_print_state();
+    /// Whether the tracked print state says a print is running.
+    bool printing() const {
+        return printing_.load();
+    }
     /// Start, stop or reconfigure the server to match the settings.
     void apply_settings();
     void shutdown();
