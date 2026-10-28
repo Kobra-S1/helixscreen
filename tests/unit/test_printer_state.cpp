@@ -1926,6 +1926,7 @@ TEST_CASE(
 TEST_CASE("PrinterState::set_hardware: a named chamber heater the printer reports is its heater",
           "[state][hardware][chamber]") {
     ChamberAssignmentsRestore restore;
+    SensorsForget forget;
 
     SECTION("the preset's heater on a printer that has it") {
         PrinterState& state = state_before_discovery(kPresetChamberHeater);
@@ -1949,6 +1950,7 @@ TEST_CASE("PrinterState::set_hardware: a named chamber heater the printer report
 TEST_CASE("PrinterState::set_hardware: an unreported chamber heater name falls back to discovery",
           "[state][hardware][chamber]") {
     ChamberAssignmentsRestore restore;
+    SensorsForget forget;
     PrinterState& state = state_before_discovery(kPresetChamberHeater);
 
     state.set_hardware(discovered_objects({"heater_generic chamber", "extruder", "heater_bed"}));
@@ -2070,6 +2072,7 @@ TEST_CASE("PrinterState::set_hardware: a named chamber sensor counts from the di
           "reports it",
           "[state][hardware][chamber]") {
     ChamberAssignmentsRestore restore;
+    SensorsForget forget;
     PrinterState& state = state_before_discovery("auto", "temperature_sensor external_bme");
 
     // Discovery lands without the named sensor: discovery's pick stands.

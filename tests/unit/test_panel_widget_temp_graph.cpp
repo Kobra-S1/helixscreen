@@ -1034,6 +1034,13 @@ TEST_CASE("TempGraphWidget: default config lists aux heaters but not the chamber
     // The chamber is the "chamber" row; its own sensor listed again would plot
     // the chamber twice.
     auto& tsm = sensors::TemperatureSensorManager::instance();
+    // The manager is a singleton: leave it empty and its queued refresh drained.
+    struct SensorsForget {
+        ~SensorsForget() {
+            sensors::TemperatureSensorManager::instance().discover({});
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    } forget;
     tsm.discover(
         helix::test::discovery_of({"temperature_sensor chamber", "heater_generic filament_dryer"}));
 
@@ -1048,8 +1055,6 @@ TEST_CASE("TempGraphWidget: default config lists aux heaters but not the chamber
     };
     CHECK(has("heater_generic filament_dryer"));
     CHECK_FALSE(has("temperature_sensor chamber"));
-
-    tsm.discover({});
 }
 
 // ============================================================================
