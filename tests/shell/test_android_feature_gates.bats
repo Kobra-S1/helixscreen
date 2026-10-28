@@ -17,7 +17,7 @@ keeps_gate() {
 }
 
 @test "the Android build force-includes the header that holds every gate default" {
-  grep -qE 'include/lvgl_pch\.h' "$CMAKE"
+  sed -n '/^target_precompile_headers(main PRIVATE$/,/^)/p' "$CMAKE" | grep -qE '/include/lvgl_pch\.h>"$'
   grep -qE '^#include "helix_features\.h"$' include/lvgl_pch.h
 }
 

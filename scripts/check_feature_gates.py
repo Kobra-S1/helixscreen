@@ -50,6 +50,9 @@ CMAKE_FILES = (
 GATE = re.compile(r"\bHELIX_HAS_[A-Z0-9_]+\b")
 CONDITIONAL = re.compile(r"^\s*#\s*(if|elif|ifdef|ifndef)\b(.*)")
 DEFINE = re.compile(r"^\s*#\s*define\s+(HELIX_HAS_[A-Z0-9_]+)\b")
+# The one form the Makefile's sed reads a default from.
+MAKEFILE_FORM = re.compile(r"#define (HELIX_HAS_[A-Z0-9_]+) ([0-9]+)")
+PRESENCE_TEST = re.compile(r"^\s*#\s*(?:ifdef|ifndef)\s+(HELIX_HAS_[A-Z0-9_]+)|\bdefined\s*\(?\s*(HELIX_HAS_[A-Z0-9_]+)")
 IFNDEF = re.compile(r"^\s*#\s*ifndef\s+(HELIX_HAS_[A-Z0-9_]+)\s*$")
 # A name a make expansion completes (-DHELIX_HAS_MDI_ICONS_$(n)) is built at parse time.
 DASH_D = re.compile(r"-D(HELIX_HAS_[A-Z0-9_]+)\b(?!\$)")
@@ -98,6 +101,9 @@ def main():
         if not m:
             continue
         name = m.group(1)
+        if not MAKEFILE_FORM.fullmatch(line):
+            findings.append(f"{HEADER}:{i + 1}: write `#define {name} <digits>` with nothing "
+                            f"after it; the Makefile reads only that form")
         declared.add(name)
         guard = IFNDEF.match(previous_code_line(header_lines, i))
         if not guard or guard.group(1) != name:
@@ -118,15 +124,19 @@ def main():
             m = DEFINE.match(line)
             if m:
                 name = m.group(1)
-                guard = IFNDEF.match(previous_code_line(lines, i))
-                if name in declared and guard and guard.group(1) == name:
-                    findings.append(f"{rel}:{i + 1}: a second default for {name}; "
-                                    f"its default lives in {HEADER}")
+                if name in declared:
+                    findings.append(f"{rel}:{i + 1}: defines {name} again; its default lives "
+                                    f"in {HEADER} and a build overrides it with -D")
                 else:
                     self_defined.add(name)
                 continue
             c = CONDITIONAL.match(line)
             if c:
+                for groups in PRESENCE_TEST.findall(strip_line_comment(line, "//")):
+                    name = groups[0] or groups[1]
+                    if name in declared:
+                        findings.append(f"{rel}:{i + 1}: tests whether {name} is defined, "
+                                        f"which every build makes true; test it with #if")
                 for name in GATE.findall(strip_line_comment(c.group(2), "//")):
                     uses.append((rel, i + 1, name))
 

@@ -122,3 +122,27 @@ EOF
     run python3 "$GATE" --root "$ROOT"
     [ "$status" -eq 0 ] || fail "$output"
 }
+
+@test "a header default not in the exact form the Makefile reads is refused" {
+    printf '#pragma once\n#ifndef HELIX_HAS_LABEL_PRINTER\n#define HELIX_HAS_LABEL_PRINTER 1 // on\n#endif\n' \
+        > "$ROOT/include/helix_features.h"
+    run python3 "$GATE" --root "$ROOT"
+    [ "$status" -eq 1 ] || fail "$output"
+    contains "#define HELIX_HAS_LABEL_PRINTER" "$output"
+    contains "Makefile" "$output"
+}
+
+@test "an unguarded redefinition of a declared gate outside the header is refused" {
+    printf '#define HELIX_HAS_LABEL_PRINTER 0\n' > "$ROOT/src/ui/local.cpp"
+    run python3 "$GATE" --root "$ROOT"
+    [ "$status" -eq 1 ] || fail "$output"
+    contains "src/ui/local.cpp:1" "$output"
+}
+
+@test "#ifdef on a declared gate is refused, since every build defines it" {
+    printf '#ifdef HELIX_HAS_LABEL_PRINTER\nint x;\n#endif\n' > "$ROOT/src/ui/ifdef.cpp"
+    run python3 "$GATE" --root "$ROOT"
+    [ "$status" -eq 1 ] || fail "$output"
+    contains "src/ui/ifdef.cpp:1" "$output"
+    contains "#if" "$output"
+}

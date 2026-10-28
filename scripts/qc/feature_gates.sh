@@ -13,14 +13,14 @@ echo -n "🚩 Checking HELIX_HAS_* feature gate defaults..."
 
 # An undefined gate in `#if` is 0, so a build that forgets one compiles the feature
 # out silently. include/helix_features.h holds every default; this keeps it the one place.
-if python3 scripts/check_feature_gates.py >/tmp/feature_gates.out 2>&1; then
+if python3 scripts/check_feature_gates.py >"$QC_TMP/feature_gates.out" 2>&1; then
   section_time $SECTION_START
   echo ""
-  head -1 /tmp/feature_gates.out
+  head -1 "$QC_TMP/feature_gates.out"
 else
   section_time $SECTION_START
   echo ""
-  cat /tmp/feature_gates.out
+  cat "$QC_TMP/feature_gates.out"
   EXIT_CODE=1
 fi
 
