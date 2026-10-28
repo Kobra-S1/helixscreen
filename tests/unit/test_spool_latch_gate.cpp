@@ -84,7 +84,7 @@ class SpoolLatchFixture : public LVGLTestFixture {
         api.reset();
     }
 
-    std::function<void(const MoonrakerError&)> on_error() {
+    helix::SharedCallback<void(const MoonrakerError&)> on_error() {
         return [this](const MoonrakerError& err) {
             error_called = true;
             captured_error = err;
@@ -240,12 +240,12 @@ namespace {
 class DeferredErrorClient : public MoonrakerClientMock {
   public:
     using MoonrakerClientMock::MoonrakerClientMock;
-    std::function<void(const MoonrakerError&)> held_error;
+    helix::SharedCallback<void(const MoonrakerError&)> held_error;
 
     helix::RequestId send_jsonrpc(
         const std::string& method, const nlohmann::json& params,
-        std::function<void(const nlohmann::json&)> success_cb,
-        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
+        helix::SharedCallback<void(const nlohmann::json&)> success_cb,
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
         bool silent = false,
         std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
         if (method == "printer.gcode.script") {

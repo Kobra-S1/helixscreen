@@ -114,7 +114,7 @@ The built-in catalog (gate subjects from the def table; "-" means always availab
 | `dryer` | `DryerWidget` | `home_dryer_available` |
 | `z_offset` | `ZOffsetWidget` | - |
 | `bed_mesh_tile` | `BedMeshTileWidget` | `printer_has_bed_mesh` |
-| `toolhead` | `ToolheadWidget` | - |
+| `toolhead` | `ToolheadWidget`, `HELIX_HAS_TOOLHEAD_WIDGET` builds only (off on the ESP32 firmware) | - |
 | `exclude_map` | `ExcludeMapWidget` | `printer_has_exclude_object` |
 | `tips` | `TipsWidget` | - |
 | `clog_detection` | `ClogDetectionWidget` (the FlowGuard bar) | `clog_meter_mode` |
@@ -157,6 +157,8 @@ One trap the recycle path sets: size is re-announced after every re-attach, but 
 
 Seven widgets (`speed_flow`, `z_offset`, `dryer`, `host_health`, `toolhead`, `bed_mesh_tile`, `exclude_map`) size themselves on one ladder instead of each inventing its own: `helix::SizeRung` (`src/ui/panel_widgets/size_rung.h`) names the rungs from `Glance` (half a cell square) to `Large`, `choose_size_rung()` picks the largest one whose measured box fits, and a pure `decide_*_layout()` header per widget turns the rung into the flags its XML binds. The content box comes from `measure_content_chrome()` (`src/ui/panel_widgets/content_chrome.h`), not from a guess at the tile's padding. These widgets keep module-level subjects, so `helix::LiveTileOwner` (`src/ui/panel_widgets/live_tile_owner.h`) decides which instance publishes when a probe or a rebuild briefly creates a second one, and their readings are classified by `helix::status` in `include/value_status.h`. Every one registers half-cell support, so a `fits_at()` that can refuse a size is part of the registry contract rather than an extra. [`../PANEL_WIDGET_GUIDE.md`](../PANEL_WIDGET_GUIDE.md#the-sized-widget-family) has the table of what each draws and the checklist a new member passes: vertical centring, the covered-panel redraw gate, language re-composition, the toolhead-safety census, the gate subject's owner row and `HELIX_PSRAM_BSS` for the statics.
 
+`ToolheadWidget` (`src/ui/panel_widgets/toolhead_widget.h`) is the one member that moves the machine. Its plate is the Motion panel's Bed tab at tile size, and it holds no rules of its own: the plate area, the homed-and-idle gate, the lift floor and the part-too-tall refusal come from `include/bed_plate_context.h`, the gesture (tap versus drag, latest-wins streaming) from `helix::BedPlateGesture`, the send from `helix::ToolheadMoveSender`, and the grid and print outlines from `include/bed_plate_draw.h`, all shared with `MotionPanel` (chapter 08, "The Motion panel's plate"). The plate is a drag surface (`include/ui_drag_surface.h`) while it is interactive, so it neither swipes the page nor enters edit mode. A 2x3 tile adds three preset slots (`include/toolhead_preset_slots.h`), stored in the widget's per-instance config under `presets` and set from the edit-mode gear through `ToolheadPresetConfigModal`; a missing or malformed array parses to the defaults (Front, Center, Park), so no migration is involved.
+
 ### Version-observer self-binding: widgets rebind themselves
 
 Interactive widgets do not wait for anyone to tell them hardware landed. In `attach()` they observe a **version subject** (an integer that bumps whenever the relevant hardware list changes) and on every bump call their own `bind_*()` method, which resets the per-item observers and rebuilds them against the current list. Reconnection and rediscovery re-bind automatically; there is no panel-level dispatch.
@@ -169,11 +171,11 @@ Two subtleties both families hit. First, `observe<int>` defers its initial fire 
 
 ## Patterns & gotchas
 
-- **LVGL user-flag ledger: check before claiming a bit.** Four bits exist; three are taken:
+- **LVGL user-flag ledger: check before claiming a bit.** Four bits exist; all four are taken:
 
   | Flag | Owner | Meaning |
   |------|-------|---------|
-  | `LV_OBJ_FLAG_USER_1` | *free* | reachable from XML like `USER_2` |
+  | `LV_OBJ_FLAG_USER_1` | `include/ui_drag_surface.h#kDragSurfaceFlag` | a drag surface: a hold on it never enters home edit mode and a drag never swipes the page ([`../HOME_EDIT_MODE.md`](../HOME_EDIT_MODE.md#entering)) |
   | `LV_OBJ_FLAG_USER_2` | `include/ui_utils.h#kEditClickSuppressedFlag` | objects whose `CLICKABLE` edit mode removed, so it restores exactly those |
   | `LV_OBJ_FLAG_USER_3` | `include/panel_widget.h#kPanelWidgetTileFlag` | home widget tile root |
   | `LV_OBJ_FLAG_USER_4` | `src/ui/ui_sound_preview_overlay.cpp#populate_buttons` | suppress the button tap sound, read in `src/ui/ui_button.cpp#button_clicked_sound_cb` |
@@ -192,6 +194,7 @@ Two subtleties both families hit. First, `observe<int>` defers its initial fire 
 - **Multi-instance IDs carry a `:N` suffix** (`fan_stack:1`). Config, telemetry and logging see the full ID; the registry strips it for def lookup.
 - **Don't fight the grid activation order.** Children first, grid layout last (#983).
 - **The camera widget is compiled only with `HELIX_HAS_CAMERA`**: its def, registration and component sit behind the same guard.
+- **The toolhead widget is compiled only with `HELIX_HAS_TOOLHEAD_WIDGET`**: its def and registration sit behind the guard, and the ESP32 firmware, which sets it to 0, leaves its sources and preset modal out of `app_srcs.txt`. A saved layout naming `toolhead` there loads like any unknown id.
 
 ## Going deeper
 

@@ -144,8 +144,8 @@ class CapturingSnapmakerBackend : public AmsBackendSnapmaker {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }
-    AmsError execute_gcode(const std::string& gcode, std::function<void()>,
-                           std::function<void(const MoonrakerError&)>, bool) override {
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()>,
+                           helix::SharedCallback<void(const MoonrakerError&)>, bool) override {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }

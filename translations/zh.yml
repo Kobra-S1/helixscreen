@@ -416,7 +416,6 @@ translations:
   Bed mesh operation timed out: 热床网格操作超时
   Bed mesh...: 热床网格...
   Bed size unknown: '热床尺寸未知'
-  Bed tab moves lift to this height first: 热床标签页的移动会先抬升到此高度
   Bed target set to {}°C: 热床目标已设为 {}°C
   Bed temp must be 0-%d°C: 热床温度必须为 0-%d°C
   Bed warming timed out: 热床加热超时
@@ -731,6 +730,7 @@ translations:
 
   Clear the extruder?: '清空挤出机？'
   Clear the plate and load {}. The tower prints in the middle of the bed.: 请清空热床并装入{}。测试塔打印在热床中央。
+  Cleared: 已清空
   Cleared from settings — system unpair failed, may need OS Bluetooth: 已从设置中清除；系统解除配对失败，可能需使用系统蓝牙设置
   Clipboard unavailable - use SSH: 剪贴板不可用 - 请使用 SSH
   Clog: 堵料
@@ -806,6 +806,7 @@ translations:
   Confirm PIN: 确认 PIN 码
   Confirm before running macros: 运行宏前进行确认
   Confirm clearing the extruder to unload it: '请确认清空挤出机以卸载'
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: "请在最后一次打印件从热床上取下后再确认。之后移动将不再抬升以避开它。"
   Confirm tool changes: '确认切换工具'
   Connect: 连接
   Connect a USB label printer first: 请先连接 USB 标签打印机
@@ -1897,6 +1898,7 @@ translations:
   Invalid value type: '值类型无效'
   Is new filament coming out of the nozzle?: "喷嘴是否有新耗材挤出？"
   Invert: 反转
+  Is the bed clear?: "热床已清空吗？"
   Issue description: 问题描述
   It can be un-archived in Spoolman's web UI.: 可以在 Spoolman 的网页界面中取消归档。
   It has not reported its slots yet. Try again in a moment.: 尚未报告其料槽。请稍后再试。
@@ -2282,6 +2284,7 @@ translations:
   Mount which tool?: '装上哪个工具？'
   Mount...: '装上...'
   Move: 移动
+  Move here: 移动到此处
   Move out of range: '移动超出范围'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: 调整时前后移动纸张。当纸张有轻微阻力但仍能滑动时停止。
   Move selector: 移动选择器
@@ -2707,6 +2710,7 @@ translations:
   Place the spools: 放置料盘
 
   Placed: 已放置
+  Plate moves and presets lift to this height first: 热床上的移动和预设会先抬升到此高度
   Plate {}: '第 {} 号板'
   Platform: 平台
   'Platform: ': '平台: '
@@ -3326,6 +3330,7 @@ translations:
   Screen Blank: 屏幕熄灭
   Screen Dim: 屏幕变暗
   Screen Rotation: 屏幕旋转
+  Screen Sharing: '屏幕共享'
   Screen dims to lower brightness after period of inactivity: 一段时间不活动后屏幕会降低亮度
   Screen lock and PIN settings: 屏幕锁定和 PIN 设置
   Screen is not permitted to shut down or reboot. Restart HelixScreen to fix it.: 屏幕没有关机或重启的权限。重启 HelixScreen 即可修复。
@@ -3858,6 +3863,7 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : 喷嘴很烫。请用随机附带的金属刷清洁，并保持停靠位置干净，然后点击下一步。
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "喷嘴已抬离打印件，X 和 Y 已归零。恢复时会降回停止时的高度。"
+  The part on the bed is too tall to clear. Remove it, then tap Cleared.: '热床上的打印件太高，无法越过。请将其移除，然后点击“已清空”。'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "{0} 的峰离开了区间。请确认只转动了 {1} 的张紧器。分不清哪条是哪条?点按编辑图标来识别皮带。"
   The peak of {} moved out of the zone. Widening it.: "{} 的峰移出了区间。正在扩大区间。"
@@ -4347,6 +4353,7 @@ translations:
   Warn if a door is open: 门打开时发出警告
   Warning: 警告
   Warnings & errors: '警告与错误'
+  Watch and control this screen from a browser: '从浏览器查看和控制此屏幕'
   Watch the camera during a print for failed prints: 打印期间监视摄像头以发现打印失败
   Watch which motor turns: "看看哪个电机在转动"
   Weak battery: 电池电量低
@@ -4457,6 +4464,7 @@ translations:
   Z tilt: Z倾斜
   Z {:.2f} mm: Z {:.2f} mm
   Z {}, will lift to {}mm: 'Z {}，将抬升至 {}mm'
+  'Z {}, will lift to {}mm: last print is {}mm tall': 'Z {}，将抬升至 {}mm：上次打印高 {}mm'
   'Z-Off:': Z 偏移：
   Z-Offset: Z 偏移
   Z-Offset Calibration: Z 偏移校准

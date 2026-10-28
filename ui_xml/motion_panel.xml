@@ -117,6 +117,7 @@
                   style_flex_cross_place="center" style_flex_track_place="center">
             <event_cb trigger="clicked" callback="on_motion_pos_clicked" user_data="x"/>
             <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="motion_x_homed" state="disabled" ref_value="0"/>
             <lv_label name="header_pos_x_letter" text="X" style_text_font="#font_body_bold">
               <bind_style name="axis_letter_homed" subject="motion_x_homed" ref_value="1"/>
               <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
@@ -132,6 +133,7 @@
                   style_flex_cross_place="center" style_flex_track_place="center">
             <event_cb trigger="clicked" callback="on_motion_pos_clicked" user_data="y"/>
             <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="motion_y_homed" state="disabled" ref_value="0"/>
             <lv_label name="header_pos_y_letter" text="Y" style_text_font="#font_body_bold">
               <bind_style name="axis_letter_homed" subject="motion_y_homed" ref_value="1"/>
               <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
@@ -147,6 +149,7 @@
                   style_flex_cross_place="center" style_flex_track_place="center">
             <event_cb trigger="clicked" callback="on_motion_pos_clicked" user_data="z"/>
             <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="motion_z_homed" state="disabled" ref_value="0"/>
             <lv_label name="header_pos_z_letter" text="Z" style_text_font="#font_body_bold">
               <bind_style name="axis_letter_homed" subject="motion_z_homed" ref_value="1"/>
               <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
@@ -198,6 +201,7 @@
                 style_pad_gap="#space_xs" style_flex_cross_place="center" style_flex_track_place="center">
           <event_cb trigger="clicked" callback="on_motion_pos_clicked" user_data="x"/>
           <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+          <bind_state_if_eq subject="motion_x_homed" state="disabled" ref_value="0"/>
           <lv_label name="row_pos_x_letter" text="X" style_text_font="#font_body_bold">
             <bind_style name="axis_letter_homed" subject="motion_x_homed" ref_value="1"/>
             <bind_style name="axis_unhomed" subject="motion_x_homed" ref_value="0"/>
@@ -213,6 +217,7 @@
                 style_pad_gap="#space_xs" style_flex_cross_place="center" style_flex_track_place="center">
           <event_cb trigger="clicked" callback="on_motion_pos_clicked" user_data="y"/>
           <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+          <bind_state_if_eq subject="motion_y_homed" state="disabled" ref_value="0"/>
           <lv_label name="row_pos_y_letter" text="Y" style_text_font="#font_body_bold">
             <bind_style name="axis_letter_homed" subject="motion_y_homed" ref_value="1"/>
             <bind_style name="axis_unhomed" subject="motion_y_homed" ref_value="0"/>
@@ -228,6 +233,7 @@
                 style_pad_gap="#space_xs" style_flex_cross_place="center" style_flex_track_place="center">
           <event_cb trigger="clicked" callback="on_motion_pos_clicked" user_data="z"/>
           <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+          <bind_state_if_eq subject="motion_z_homed" state="disabled" ref_value="0"/>
           <lv_label name="row_pos_z_letter" text="Z" style_text_font="#font_body_bold">
             <bind_style name="axis_letter_homed" subject="motion_z_homed" ref_value="1"/>
             <bind_style name="axis_unhomed" subject="motion_z_homed" ref_value="0"/>
@@ -357,6 +363,7 @@
             <bind_flag_if_not_eq subject="motion_tab" flag="hidden" ref_value="1"/>
             <bind_state_if_eq subject="nav_buttons_enabled" state="disabled" ref_value="0"/>
             <bind_state_if_eq subject="idle_timeout_printing" state="disabled" ref_value="1"/>
+            <bind_state_if cond="motion_x_homed eq 0 or motion_y_homed eq 0 or motion_z_homed eq 0" state="disabled"/>
             <event_cb trigger="clicked" callback="on_motion_park_clicked"/>
           </ui_button>
           <ui_button name="move_motors_off"

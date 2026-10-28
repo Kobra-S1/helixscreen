@@ -430,7 +430,6 @@ translations:
   Bed mesh operation timed out: Bed mesh operation timed out
   'Bed mesh...': 'Bed mesh...'
   Bed size unknown: Bed size unknown
-  Bed tab moves lift to this height first: Bed tab moves lift to this height first
   Bed target set to {}°C: Bed target set to {}°C
   Bed temp must be 0-%d°C: Bed temp must be 0-%d°C
   Bed warming timed out: Bed warming timed out
@@ -764,6 +763,7 @@ translations:
   : Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament's packaging) and close the door.
   Clear the extruder?: Clear the extruder?
   Clear the plate and load {}. The tower prints in the middle of the bed.: Clear the plate and load {}. The tower prints in the middle of the bed.
+  Cleared: Cleared
   Cleared from settings — system unpair failed, may need OS Bluetooth: Cleared from
     settings — system unpair failed, may need OS Bluetooth
   Clipboard unavailable - use SSH: Clipboard unavailable - use SSH
@@ -844,6 +844,7 @@ translations:
   Confirm PIN: Confirm PIN
   Confirm before running macros: Confirm before running macros
   Confirm clearing the extruder to unload it: Confirm clearing the extruder to unload it
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: Confirm only once the last print is off the bed. Moves then stop lifting above it.
   Confirm tool changes: Confirm tool changes
   Connect: Connect
   Connect a USB label printer first: Connect a USB label printer first
@@ -1960,6 +1961,7 @@ translations:
   Invalid value type: Invalid value type
   Is new filament coming out of the nozzle?: Is new filament coming out of the nozzle?
   Invert: Invert
+  Is the bed clear?: Is the bed clear?
   Issue description: Issue description
   It can be un-archived in Spoolman's web UI.: It can be un-archived in Spoolman's web UI.
   It has not reported its slots yet. Try again in a moment.: It has not reported its slots yet. Try again in a moment.
@@ -2357,6 +2359,7 @@ translations:
   Mount which tool?: Mount which tool?
   Mount...: Mount...
   Move: Move
+  Move here: Move here
   Move out of range: Move out of range
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Move
     paper back and forth while adjusting. Stop when paper catches slightly but still
@@ -2788,6 +2791,7 @@ translations:
   Place the PEI sheet back onto the heated bed.: Place the PEI sheet back onto the heated bed.
   Place the spools: Place the spools
   Placed: Placed
+  Plate moves and presets lift to this height first: Plate moves and presets lift to this height first
   Plate {}: Plate {}
   Platform: Platform
   'Platform: ': 'Platform: '
@@ -3433,6 +3437,7 @@ translations:
   Screen Blank: Screen Blank
   Screen Dim: Screen Dim
   Screen Rotation: Screen Rotation
+  Screen Sharing: Screen Sharing
   Screen dims to lower brightness after period of inactivity: Screen dims to lower
     brightness after period of inactivity
   Screen lock and PIN settings: Screen lock and PIN settings
@@ -3987,6 +3992,7 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.
+  The part on the bed is too tall to clear. Remove it, then tap Cleared.: The part on the bed is too tall to clear. Remove it, then tap Cleared.
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   The peak of {} moved out of the zone. Widening it.: The peak of {} moved out of the zone. Widening it.
@@ -4505,6 +4511,7 @@ translations:
   Warn if a door is open: Warn if a door is open
   Warning: Warning
   Warnings & errors: Warnings & errors
+  Watch and control this screen from a browser: Watch and control this screen from a browser
   Watch the camera during a print for failed prints: Watch the camera during a print for failed prints
   Watch which motor turns: Watch which motor turns
   Weak battery: Weak battery
@@ -4621,6 +4628,7 @@ translations:
   Z tilt: Z tilt
   Z {:.2f} mm: Z {:.2f} mm
   Z {}, will lift to {}mm: Z {}, will lift to {}mm
+  'Z {}, will lift to {}mm: last print is {}mm tall': 'Z {}, will lift to {}mm: last print is {}mm tall'
   'Z-Off:': 'Z-Off:'
   Z-Offset: Z-Offset
   Z-Offset Calibration: Z-Offset Calibration

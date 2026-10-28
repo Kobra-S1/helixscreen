@@ -34,7 +34,7 @@ namespace {
 /// failure signal for the (fixture-driven) G28/payload dispatch is the
 /// AmsError these overrides return, which it translates into the
 /// MoonrakerError passed to on_error. Deliberately NOT a stored
-/// std::function<void(const MoonrakerError&)> callback invoked directly by
+/// helix::SharedCallback<void(const MoonrakerError&)> callback invoked directly by
 /// the override -- the override has no way to receive ensure_homed_then's
 /// on_error as a parameter (the 1-arg/2-arg execute_gcode virtuals predate
 /// on_error and can't grow it without breaking ~20 other fixtures), so the
@@ -51,7 +51,7 @@ class HomingProbeBackend : public helix::AmsBackendAfc {
         return helix::AmsErrorHelper::success();
     }
     helix::AmsError execute_gcode(const std::string& gcode,
-                                  std::function<void()> on_complete) override {
+                                  helix::SharedCallback<void()> on_complete) override {
         if (fail_next_gcode) {
             return helix::AmsError(helix::AmsResult::COMMAND_FAILED, "boom", "boom");
         }
@@ -137,7 +137,7 @@ class ToolChangerHomingProbeBackend : public helix::AmsBackendToolChanger {
         return helix::AmsErrorHelper::success();
     }
     helix::AmsError execute_gcode(const std::string& gcode,
-                                  std::function<void()> on_complete) override {
+                                  helix::SharedCallback<void()> on_complete) override {
         captured.push_back(gcode);
         if (on_complete) {
             on_complete();
@@ -145,8 +145,9 @@ class ToolChangerHomingProbeBackend : public helix::AmsBackendToolChanger {
         return helix::AmsErrorHelper::success();
     }
     // A dispatch that unwinds on a rejection sends through this form.
-    helix::AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                                  std::function<void(const MoonrakerError&)> /*on_error*/,
+    helix::AmsError execute_gcode(const std::string& gcode,
+                                  helix::SharedCallback<void()> on_complete,
+                                  helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
                                   bool /*silent*/) override {
         return execute_gcode(gcode, std::move(on_complete));
     }

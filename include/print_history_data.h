@@ -62,6 +62,7 @@ struct PrintHistoryJob {
     std::string filament_type; ///< PLA, PETG, ABS, etc.
     uint32_t layer_count = 0;
     double layer_height = 0.0;
+    double object_height = 0.0; ///< Tallest object in mm (metadata.object_height); 0 when unknown
     double nozzle_temp = 0.0;
     double bed_temp = 0.0;
     std::vector<ThumbnailInfo> thumbnails; ///< All available thumbnails with dimensions

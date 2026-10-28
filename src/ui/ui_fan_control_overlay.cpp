@@ -4,6 +4,7 @@
 #include "ui_fan_control_overlay.h"
 
 #include "ui_callback_helpers.h"
+#include "ui_drag_surface.h"
 #include "ui_error_reporting.h"
 #include "ui_fan_arc_resize.h"
 #include "ui_modal.h"
@@ -44,25 +45,17 @@ struct FanRenameData {
     bool press_point_valid = false;
 };
 
-/// True when the active press landed on (or bubbled up from) an arc or slider —
-/// the fan speed dial. Its events bubble to the card root where the rename
-/// handler lives, so a hold spent dragging the dial must never read as a rename.
-/// Mirrors HomePanel::should_suppress_edit_mode.
+/// True when the active press landed on (or bubbled up from) a drag surface
+/// (is_drag_surface_hit()): the fan speed dial. Its events bubble to the card
+/// root where the rename handler lives, so a hold spent dragging the dial must
+/// never read as a rename. Same test as HomePanel::should_suppress_edit_mode.
 bool press_consumed_by_value_widget(lv_event_t* e) {
     lv_indev_t* indev = lv_indev_active();
     if (indev && lv_indev_get_scroll_obj(indev))
         return true;
 
-    lv_obj_t* target = lv_event_get_target_obj(e);
-    lv_obj_t* current = lv_event_get_current_target_obj(e);
-    while (target) {
-        if (lv_obj_has_class(target, &lv_arc_class) || lv_obj_has_class(target, &lv_slider_class))
-            return true;
-        if (target == current)
-            break;
-        target = lv_obj_get_parent(target);
-    }
-    return false;
+    return helix::ui::is_drag_surface_hit(lv_event_get_target_obj(e),
+                                          lv_event_get_current_target_obj(e));
 }
 
 /// True when the finger drifted past the deliberate-hold threshold since the

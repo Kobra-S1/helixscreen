@@ -32,7 +32,9 @@
 #include "display_backend_fbdev.h"
 #endif
 #include "app_constants.h"
+#include "helix_version.h"
 #include "logging_init.h"
+#include "system/crash_record.h"
 #include "watchdog_restart_policy.h"
 
 #include <spdlog/spdlog.h>
@@ -436,6 +438,7 @@ static void cleanup_splash(pid_t splash_pid) {
  */
 static CrashInfo run_child_process(const WatchdogArgs& args, pid_t splash_pid) {
     CrashInfo crash = {};
+    const time_t started = time(nullptr);
 
     // Build argv for execv - need to own the strings for splash_pid arg
     std::vector<std::string> arg_strings;
@@ -598,6 +601,18 @@ static CrashInfo run_child_process(const WatchdogArgs& args, pid_t splash_pid) {
         crash.signal_name = strsignal(crash.signal_num);
         spdlog::warn("[Watchdog] Child killed by signal {} ({})", crash.signal_num,
                      crash.signal_name);
+        // The app's handler records the crash signals it catches; one it does not
+        // catch, or one that kills it before the handler writes, leaves no record
+        // unless this one. A stop request (TERM, KILL, INT) is not a crash, and a
+        // --test child records nothing, as the app itself does not.
+        const bool test_child = std::find(args.child_args.begin(), args.child_args.end(),
+                                          "--test") != args.child_args.end();
+        if (!test_child && helix::crash_record::is_crash_signal(crash.signal_num) &&
+            helix::crash_record::write_external(helix::writable_path("crash.txt"), crash.signal_num,
+                                                HELIX_VERSION, static_cast<long>(crash.crash_time),
+                                                "watchdog", static_cast<long>(started))) {
+            spdlog::info("[Watchdog] Wrote a crash record for signal {}", crash.signal_num);
+        }
     }
 
     return crash;

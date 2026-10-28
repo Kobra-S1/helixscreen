@@ -83,6 +83,7 @@ PrintHistoryJob helix::parse_history_job(const nlohmann::json& job_json) {
         job.filament_type = moonraker_internal::json_string_list_or(meta, "filament_type");
         job.layer_count = moonraker_internal::json_count_or_zero(meta, "layer_count");
         job.layer_height = helix::json_util::safe_double(meta, "layer_height");
+        job.object_height = helix::json_util::safe_double(meta, "object_height");
         job.nozzle_temp = helix::json_util::safe_double(meta, "first_layer_extr_temp");
         job.bed_temp = helix::json_util::safe_double(meta, "first_layer_bed_temp");
 

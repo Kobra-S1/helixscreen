@@ -7,7 +7,7 @@
 #include "ui_icon.h"
 #include "ui_icon_codepoints.h"
 #include "ui_icon_picker.h"
-#include "ui_row_text.h"
+#include "ui_picker_option_row.h"
 
 #include "app_globals.h"
 #include "device_display_name.h"
@@ -213,38 +213,30 @@ void FavoriteMacroConfigModal::populate_macro_list() {
         return;
     }
 
-    const auto& macros = api->hardware().macros();
-    std::vector<std::string> sorted(macros.begin(), macros.end());
-    std::sort(sorted.begin(), sorted.end());
+    const std::vector<std::string> sorted = helix::pickable_macro_names(api->hardware().macros());
 
     for (const auto& macro : sorted) {
-        if (!macro.empty() && macro[0] == '_')
-            continue;
-
         bool is_selected = (macro == macro_name_);
         std::string display = helix::get_display_name(macro, helix::DeviceType::MACRO);
 
-        const char* attrs[] = {
-            "selected", is_selected ? "true" : "false",
-            "pad_all",  "#space_xs",
-            "pad_gap",  "#space_xxs",
-            nullptr,
-        };
         lv_obj_t* row =
-            static_cast<lv_obj_t*>(lv_xml_create(macro_list_, "picker_option_row", attrs));
+            helix::ui::create_picker_option_row(macro_list_, display.c_str(), is_selected,
+                                                [macro]() {
+                                                    if (s_active_) {
+                                                        s_active_->select_macro(macro);
+                                                    }
+                                                },
+                                                {"pad_all", "#space_xs", "pad_gap", "#space_xxs"});
         if (!row) {
             continue;
         }
-        helix::ui::set_row_label_text(row, "option_label", display.c_str());
 
+        // refresh_highlights() reads the row's macro name back.
         auto* macro_name_copy = new std::string(macro);
         lv_obj_set_user_data(row, macro_name_copy);
-
         lv_obj_add_event_cb(
             row, [](lv_event_t* e) { delete static_cast<std::string*>(lv_event_get_user_data(e)); },
             LV_EVENT_DELETE, macro_name_copy);
-
-        lv_obj_add_event_cb(row, FavoriteMacroConfigModal::macro_row_cb, LV_EVENT_CLICKED, nullptr);
     }
 
     spdlog::debug("[FavoriteMacroConfigModal] Populated macro list ({} macros)", sorted.size());
@@ -310,16 +302,6 @@ void FavoriteMacroConfigModal::select_require_confirmation(bool enabled) {
     require_confirmation_ = enabled;
     persist();
     spdlog::info("[FavoriteMacroConfigModal] Require confirmation: {}", enabled ? "on" : "off");
-}
-
-void FavoriteMacroConfigModal::macro_row_cb(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[FavoriteMacroConfigModal] macro_row_cb");
-    auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    auto* name_ptr = static_cast<std::string*>(lv_obj_get_user_data(target));
-    if (name_ptr && s_active_) {
-        s_active_->select_macro(*name_ptr);
-    }
-    LVGL_SAFE_EVENT_CB_END();
 }
 
 void FavoriteMacroConfigModal::color_swatch_cb(lv_event_t* e) {

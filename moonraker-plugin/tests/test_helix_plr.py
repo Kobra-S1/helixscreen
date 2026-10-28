@@ -803,11 +803,20 @@ def test_klippy_ready_subscribes_and_checks_virtual_sdcard(plr, helix):
 
 def test_every_write_is_synced(store, monkeypatch):
     synced = []
-    real = os.fdatasync
-    monkeypatch.setattr(helix_plr.os, "fdatasync", lambda fd: (synced.append(fd), real(fd)))
+    real = helix_plr._sync_data
+    monkeypatch.setattr(helix_plr, "_sync_data", lambda fd: (synced.append(fd), real(fd)))
     store.write(payload(1))
     store.write(payload(2))
     assert len(synced) == 2
+
+
+def test_a_platform_without_fdatasync_syncs_with_fsync(store, monkeypatch):
+    synced = []
+    real = os.fsync
+    monkeypatch.delattr(helix_plr.os, "fdatasync", raising=False)
+    monkeypatch.setattr(helix_plr.os, "fsync", lambda fd: (synced.append(fd), real(fd)))
+    store.write(payload(1))
+    assert synced == [store._fd]
 
 
 def test_idle_updates_do_not_read_the_switch(plr):

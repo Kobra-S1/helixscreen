@@ -446,7 +446,6 @@ translations:
   Bed mesh operation timed out: Maillage du plateau — délai dépassé
   Bed mesh...: Maillage du plateau...
   Bed size unknown: 'Taille du plateau inconnue'
-  Bed tab moves lift to this height first: 'Les déplacements de l''onglet Plateau montent d''abord à cette hauteur'
   Bed target set to {}°C: Cible plateau réglée à {}°C
   Bed temp must be 0-%d°C: La température du plateau doit être entre 0 et %d°C
   Bed warming timed out: Préchauffage du plateau — délai dépassé
@@ -791,6 +790,7 @@ translations:
 
   Clear the extruder?: 'Vider l''extrudeur ?'
   Clear the plate and load {}. The tower prints in the middle of the bed.: Dégagez le plateau et chargez {}. La tour s'imprime au centre du plateau.
+  Cleared: Dégagé
   Cleared from settings — system unpair failed, may need OS Bluetooth: Effacé des
     paramètres ; échec du désappairage système, utiliser le Bluetooth de l'OS si besoin
   Clipboard unavailable - use SSH: Presse-papiers indisponible - utilisez SSH
@@ -874,6 +874,7 @@ translations:
   Confirm PIN: Confirmer le code PIN
   Confirm before running macros: Confirmer avant d'exécuter les macros
   Confirm clearing the extruder to unload it: 'Confirmez le vidage de l''extrudeur pour décharger'
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Ne confirmez qu'une fois la dernière impression retirée du plateau. Les déplacements cessent alors de s'élever au-dessus."
   Confirm tool changes: 'Confirmer les changements d''outil'
   Connect: Connecter
   Connect a USB label printer first: Connectez d'abord une imprimante d'étiquettes
@@ -2025,6 +2026,7 @@ translations:
   Invalid value type: 'Type de valeur non valide'
   Is new filament coming out of the nozzle?: "Le nouveau filament sort-il de la buse ?"
   Invert: Inverser
+  Is the bed clear?: "Le plateau est-il dégagé ?"
   Issue description: Description du problème
   It can be un-archived in Spoolman's web UI.: Elle peut être désarchivée dans l'interface web de Spoolman.
   It has not reported its slots yet. Try again in a moment.: Il n'a pas encore signalé ses emplacements. Réessayez dans un instant.
@@ -2428,6 +2430,7 @@ translations:
   Mount which tool?: 'Monter quel outil ?'
   Mount...: 'Monter...'
   Move: Déplacer
+  Move here: Déplacer ici
   Move out of range: 'Déplacement hors limites'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Déplacez
     le papier d'avant en arrière pendant l'ajustement. Arrêtez quand le papier accroche
@@ -2868,6 +2871,7 @@ translations:
   Place the spools: Posez les bobines
 
   Placed: Placé
+  Plate moves and presets lift to this height first: 'Les déplacements sur le plateau et les préréglages montent d''abord à cette hauteur'
   Plate {}: 'Plateau {}'
   Platform: Plateforme
   'Platform: ': 'Plateforme : '
@@ -3528,6 +3532,7 @@ translations:
   Screen Blank: Extinction de l'écran
   Screen Dim: Atténuation de l'écran
   Screen Rotation: Rotation de l'écran
+  Screen Sharing: 'Partage d''écran'
   Screen dims to lower brightness after period of inactivity: L'écran s'atténue après
     une période d'inactivité
   Screen lock and PIN settings: Verrouillage de l'écran et paramètres PIN
@@ -4101,6 +4106,7 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : La buse est chaude. Brossez-la avec la brosse métallique fournie, gardez la position d'ancrage propre, puis appuyez sur Suivant.
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "La buse est levée au-dessus de l'impression et X et Y sont mis à l'origine. La reprise la redescend à la hauteur où elle s'est arrêtée."
+  The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'La pièce sur le plateau est trop haute pour être survolée. Retirez-la, puis touchez « Dégagé ».'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "Le pic de {0} a quitté la zone. Vérifiez que seul le tendeur de {1} a été tourné. Vous ne savez pas laquelle est laquelle ? Touchez le crayon pour identifier les courroies."
   The peak of {} moved out of the zone. Widening it.: "Le pic de {} est sorti de la zone. Élargissement."
@@ -4634,6 +4640,7 @@ translations:
   Warn if a door is open: Avertir si une porte est ouverte
   Warning: Avertissement
   Warnings & errors: 'Avertissements et erreurs'
+  Watch and control this screen from a browser: 'Voir et contrôler cet écran depuis un navigateur'
   Watch the camera during a print for failed prints: Surveille la caméra pendant une impression pour détecter les impressions échouées
   Watch which motor turns: "Regardez quel moteur tourne"
   Weak battery: Batterie faible
@@ -4753,6 +4760,7 @@ translations:
   Z tilt: Inclinaison Z
   Z {:.2f} mm: Z {:.2f} mm
   Z {}, will lift to {}mm: 'Z {}, montera à {}mm'
+  'Z {}, will lift to {}mm: last print is {}mm tall': 'Z {}, montera à {}mm : la dernière impression mesure {}mm'
   'Z-Off:': 'Z-Off :'
   Z-Offset: Z-Offset
   Z-Offset Calibration: Calibration du Z-Offset

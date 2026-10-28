@@ -51,8 +51,8 @@ struct SentStartFixture : LVGLTestFixture {
         client.connect("ws://mock/websocket", []() {}, []() {});
         helix::MoonrakerClientMockTestAccess::set_method_handler(
             client, "printer.print.cancel",
-            [this](MoonrakerClientMock*, const json&, std::function<void(const json&)> ok,
-                   std::function<void(const MoonrakerError&)> err) -> bool {
+            [this](MoonrakerClientMock*, const json&, helix::SharedCallback<void(const json&)> ok,
+                   helix::SharedCallback<void(const MoonrakerError&)> err) -> bool {
                 ++cancels;
                 if (refuse_unsent) {
                     // What a client that is not connected does: refuse before

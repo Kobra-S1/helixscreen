@@ -3,6 +3,7 @@
 
 #include "ace_slot_parse.h"
 
+#include "ams_status_json.h"
 #include "json_utils.h"
 #include "lane_translation.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -139,8 +140,8 @@ void apply_dryer_state(const json& data, DryerInfo& out) {
     // so it applies even on a frame with no dryer object. A bridge that ALSO
     // states a current temp inside the dryer object is the more specific
     // reading and wins.
-    if (data.contains("temp") && data["temp"].is_number()) {
-        out.current_temp_c = data["temp"].get<float>();
+    if (auto v = ams::read_field<float>(data, "temp")) {
+        out.current_temp_c = *v;
     }
 
     const json* dryer = nullptr;

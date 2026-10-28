@@ -3,10 +3,11 @@
 
 /**
  * @file ui_settings_connection.h
- * @brief Connection settings overlay - network, printers, Moonraker host
+ * @brief Connection settings overlay - printers, network, Moonraker host, screen sharing
  *
  * Owns its row callbacks (on_network_clicked, on_printers_clicked,
- * on_change_host_clicked) and the printer_host_value subject the Host row binds.
+ * on_change_host_clicked, on_screen_sharing_clicked) and the printer_host_value
+ * subject the Host row binds.
  *
  * @pattern Overlay (lazy init)
  * @threading Main thread only

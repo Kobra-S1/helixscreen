@@ -166,7 +166,7 @@
           <icon src="grid_large" size="sm" variant="secondary"/>
           <lv_obj height="content" style_pad_all="0" scrollable="false" flex_flow="column" style_pad_gap="#space_xxs">
             <text_body text="Bed Map Clearance"/>
-            <text_small text="Bed tab moves lift to this height first"/>
+            <text_small text="Plate moves and presets lift to this height first"/>
           </lv_obj>
         </lv_obj>
         <setting_value_field name="bed_map_clearance_row"

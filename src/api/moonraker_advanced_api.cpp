@@ -321,7 +321,7 @@ class CalibrationCollectorCore {
     ///        @p owner: that keeps the collector alive until the work runs, and
     ///        pins its destruction — and with it the fallback's LVGL teardown —
     ///        to the main thread.
-    void start(std::weak_ptr<void> owner, const std::function<void(const json&)>& on_msg) {
+    void start(std::weak_ptr<void> owner, const helix::SharedCallback<void(const json&)>& on_msg) {
         owner_ = std::move(owner);
         client_.register_method_callback("notify_gcode_response", handler_name_, on_msg);
         registered_.store(true);
@@ -384,8 +384,8 @@ class CalibrationCollectorCore {
     ///        is complete the moment the macro finishes). False for
     ///        line-driven collectors: the result lines can trail the edge by a
     ///        moment, so the edge starts a short grace window instead.
-    void set_idle_fallback(std::function<void()> on_idle,
-                           std::function<void(const std::string&)> on_unrecovered,
+    void set_idle_fallback(helix::SharedCallback<void()> on_idle,
+                           helix::SharedCallback<void(const std::string&)> on_unrecovered,
                            bool edge_immediate = false) {
         fallback_.on_idle = std::move(on_idle);
         fallback_.on_unrecovered = std::move(on_unrecovered);
@@ -615,8 +615,8 @@ class CalibrationCollectorCore {
         ObserverGuard observer;
         OperationTimeoutGuard backstop;
         OperationTimeoutGuard grace;
-        std::function<void()> on_idle;
-        std::function<void(const std::string&)> on_unrecovered;
+        helix::SharedCallback<void()> on_idle;
+        helix::SharedCallback<void(const std::string&)> on_unrecovered;
     } fallback_;
 };
 std::atomic<OperationTimeoutGuard*> CalibrationCollectorCore::s_armed_backstop{nullptr};
@@ -643,7 +643,7 @@ void report_collector_rpc_error(const char* cmd, PrinterState& state,
                                 const std::shared_ptr<Collector>& collector,
                                 const MoonrakerAdvancedAPI::ErrorCallback& on_error,
                                 const MoonrakerError& err, uint32_t backstop_ms,
-                                const std::function<void()>& extra = nullptr) {
+                                const helix::SharedCallback<void()>& extra = nullptr) {
     if (err.is_transport_loss()) {
         if (extra)
             extra();
@@ -3118,7 +3118,7 @@ void MoonrakerAdvancedAPI::start_pid_calibrate(
         kPidTimeoutMs, true);
 }
 
-std::function<void()>
+helix::SharedCallback<void()>
 MoonrakerAdvancedAPI::start_pa_calibrate(const helix::pacal::Procedure& proc,
                                          MoonrakerAdvancedAPI::PACalibrateCallback on_complete,
                                          ErrorCallback on_error, PAProgressCallback on_progress) {

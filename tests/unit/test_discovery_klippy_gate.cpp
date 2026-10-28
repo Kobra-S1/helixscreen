@@ -44,8 +44,8 @@ class TestDiscoveryClient : public MoonrakerClientMock {
      * exercising the real discovery sequence code. send_jsonrpc() calls
      * within the sequence are dispatched through the mock handler registry.
      */
-    void discover_printer_real(std::function<void()> on_complete,
-                               std::function<void(const std::string&)> on_error) {
+    void discover_printer_real(helix::SharedCallback<void()> on_complete,
+                               helix::SharedCallback<void(const std::string&)> on_error) {
         MoonrakerClient::discover_printer(on_complete, on_error);
     }
 };
@@ -202,10 +202,12 @@ class ClaimQueryClient : public TestDiscoveryClient {
     using MoonrakerClientMock::send_jsonrpc;
     using TestDiscoveryClient::TestDiscoveryClient;
 
-    helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
-        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms, bool silent,
-        std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
+    helix::RequestId
+    send_jsonrpc(const std::string& method, const json& params,
+                 helix::SharedCallback<void(const json&)> success_cb,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms,
+                 bool silent,
+                 std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
         const bool claim_query = method == "printer.objects.query" && params.contains("objects") &&
                                  params["objects"].contains("oams_manager");
         methods.push_back(claim_query ? "claim_query" : method);
@@ -329,10 +331,12 @@ class ConfigfileSettingsClient : public TestDiscoveryClient {
     using MoonrakerClientMock::send_jsonrpc;
     using TestDiscoveryClient::TestDiscoveryClient;
 
-    helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
-        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms, bool silent,
-        std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
+    helix::RequestId
+    send_jsonrpc(const std::string& method, const json& params,
+                 helix::SharedCallback<void(const json&)> success_cb,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms,
+                 bool silent,
+                 std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
         if (method == "printer.objects.query" && success_cb && params.contains("objects") &&
             params["objects"].contains("configfile")) {
             success_cb = [inner = std::move(success_cb), extra = extra_settings](const json& r) {

@@ -48,7 +48,8 @@ StaticSubjectRegistry::~StaticSubjectRegistry() {
     g_registry_destroyed = true;
 }
 
-void StaticSubjectRegistry::register_deinit(const char* name, std::function<void()> deinit_fn,
+void StaticSubjectRegistry::register_deinit(const char* name,
+                                            helix::SharedCallback<void()> deinit_fn,
                                             Lifetime lifetime) {
     // Names identify a subject source, not a registration event. A source that is
     // torn down and rebuilt (PrintStatusWidget's DetailedFormatter, when the last
@@ -85,7 +86,7 @@ bool StaticSubjectRegistry::deinit_one(const char* name, Scope scope) {
 
     const Disposition d = disposition(it->lifetime, scope);
     // Run a copy, never through `it`: the callback may register new entries.
-    std::function<void()> fn = d.run ? it->deinit_fn : nullptr;
+    helix::SharedCallback<void()> fn = d.run ? it->deinit_fn : nullptr;
     if (!d.keep) {
         deinitializers_.erase(it);
     }

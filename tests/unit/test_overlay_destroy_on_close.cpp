@@ -75,7 +75,7 @@ class DestroyOnCloseFixture : public LVGLUITestFixture {
     }
 
     /// Open, pop, check the tree is gone; then reopen and pop again.
-    void expect_rebuilt_on_reopen(const std::function<void()>& open,
+    void expect_rebuilt_on_reopen(const helix::SharedCallback<void()>& open,
                                   const std::function<lv_obj_t*()>& root) {
         for (int round = 0; round < 2; ++round) {
             open();

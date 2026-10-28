@@ -4,6 +4,7 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "helix_shared_callback.h"
 #include "i_moonraker_client.h"   // for helix::ConnectionState, helix::SubscriptionId
 #include "i_moonraker_sub_apis.h" // sub-API interfaces returned by the accessors
 #include "json_fwd.h"
@@ -56,11 +57,11 @@ KlippyStatus parse_klippy_status(const nlohmann::json& info);
  */
 class IMoonrakerAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
     using BoolCallback = std::function<void(bool)>;
-    using StringCallback = std::function<void(const std::string&)>;
-    using JsonCallback = std::function<void(const json&)>;
+    using StringCallback = helix::SharedCallback<void(const std::string&)>;
+    using JsonCallback = helix::SharedCallback<void(const json&)>;
     using KlippyStatusCallback = std::function<void(const KlippyStatus&)>;
 
     using PowerDevicesCallback = std::function<void(const std::vector<PowerDevice>&)>;
@@ -129,14 +130,14 @@ class IMoonrakerAPI {
 
     /// @brief Subscribe to status update notifications
     virtual helix::SubscriptionId
-    subscribe_notifications(std::function<void(const json&)> callback) = 0;
+    subscribe_notifications(helix::SharedCallback<void(const json&)> callback) = 0;
 
     /// @brief Unsubscribe from status update notifications
     virtual bool unsubscribe_notifications(helix::SubscriptionId id) = 0;
 
     /// @brief Register a persistent callback for a specific notification method
     virtual void register_method_callback(const std::string& method, const std::string& name,
-                                          std::function<void(const json&)> callback) = 0;
+                                          helix::SharedCallback<void(const json&)> callback) = 0;
 
     /// @brief Unregister a method-specific callback
     virtual bool unregister_method_callback(const std::string& method, const std::string& name) = 0;
@@ -147,7 +148,7 @@ class IMoonrakerAPI {
     /// @brief Retrieve recent G-code commands/responses from Moonraker's store
     virtual void
     get_gcode_store(int count, std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
-                    std::function<void(const MoonrakerError&)> on_error) = 0;
+                    helix::SharedCallback<void(const MoonrakerError&)> on_error) = 0;
 
     // ========================================================================
     // Moonraker Database
@@ -155,18 +156,19 @@ class IMoonrakerAPI {
 
     /// @brief Get a value from Moonraker's database
     virtual void database_get_item(const std::string& namespace_name, const std::string& key,
-                                   std::function<void(const json&)> on_success,
+                                   helix::SharedCallback<void(const json&)> on_success,
                                    ErrorCallback on_error = nullptr) = 0;
 
     /// @brief Store a value in Moonraker's database
     virtual void database_post_item(const std::string& namespace_name, const std::string& key,
-                                    const json& value, std::function<void()> on_success = nullptr,
+                                    const json& value,
+                                    helix::SharedCallback<void()> on_success = nullptr,
                                     ErrorCallback on_error = nullptr) = 0;
 
     /// @brief Get all keys in a namespace. Moonraker returns a JSON object
     ///        mapping key -> value. Empty object if namespace is empty/missing.
     virtual void database_get_namespace(const std::string& namespace_name,
-                                        std::function<void(const json&)> on_success,
+                                        helix::SharedCallback<void(const json&)> on_success,
                                         ErrorCallback on_error = nullptr) = 0;
 
     /// @brief Delete a key from Moonraker's database. Implementations normalize
@@ -174,7 +176,7 @@ class IMoonrakerAPI {
     ///        into on_success so callers can treat delete as idempotent. on_error
     ///        only fires for genuine failures (network, permission, protocol).
     virtual void database_delete_item(const std::string& namespace_name, const std::string& key,
-                                      std::function<void()> on_success = nullptr,
+                                      helix::SharedCallback<void()> on_success = nullptr,
                                       ErrorCallback on_error = nullptr) = 0;
 
     // ========================================================================

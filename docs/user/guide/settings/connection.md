@@ -8,6 +8,22 @@ On the Settings screen, the **Connection** row shows how the screen is connected
 
 ---
 
+## Printers
+
+Opens **Manage Printers**, the list of every printer this screen knows about.
+
+![Manage Printers](../../../images/user/settings-printers.png)
+
+- **Switch printers**: tap a printer in the list. HelixScreen disconnects from the current printer, connects to the new one, confirms with a message and takes you to the Home screen.
+- **Add a printer**: tap **+ Add Printer**. The setup wizard runs for the new printer, skipping the Wi-Fi and language steps you already did. Its connection step lists the printers it finds on your local network, including ones that serve Moonraker only on port 80; pick one to fill in its address and port. You can cancel at any time and go back to your current printer.
+- **Delete a printer**: tap the trash icon next to a printer you aren't using and confirm. You can't delete the last printer.
+- **Show Printer Switcher**: adds a printer icon to the navigation bar, so you can switch printers from any screen.
+
+See [Getting Started](../getting-started.md) for adding a second printer.
+
+
+---
+
 ## Network Settings
 
 > Hidden on Android, where the phone or tablet manages its own network.
@@ -32,20 +48,6 @@ Opens the network screen. It has two columns.
 
 Joining Wi-Fi while Ethernet is connected shows a warning first that the wired connection will drop, because some boards have one network chip and can't use both at once (#1542). If joining fails, the screen tells you why. If an administrator has blocked the Wi-Fi radio (for example with `rfkill`), HelixScreen leaves it blocked unless you set up Wi-Fi in HelixScreen on that printer (#1697).
 
----
-
-## Printers
-
-Opens **Manage Printers**, the list of every printer this screen knows about.
-
-![Manage Printers](../../../images/user/settings-printers.png)
-
-- **Switch printers**: tap a printer in the list. HelixScreen disconnects from the current printer, connects to the new one, confirms with a message and takes you to the Home screen.
-- **Add a printer**: tap **+ Add Printer**. The setup wizard runs for the new printer, skipping the Wi-Fi and language steps you already did. Its connection step lists the printers it finds on your local network, including ones that serve Moonraker only on port 80; pick one to fill in its address and port. You can cancel at any time and go back to your current printer.
-- **Delete a printer**: tap the trash icon next to a printer you aren't using and confirm. You can't delete the last printer.
-- **Show Printer Switcher**: adds a printer icon to the navigation bar, so you can switch printers from any screen.
-
-See [Getting Started](../getting-started.md) for adding a second printer.
 
 ---
 
@@ -64,11 +66,14 @@ If you leave the port at the default 7125 and nothing answers there, the test al
 
 Host names are looked up again every time HelixScreen reconnects, so if your router gives the printer a new IP address, HelixScreen finds it again without a restart.
 
+
 ---
 
 ## Screen Sharing
 
 > Hidden on printers whose own firmware already shares the screen (the Snapmaker U1 with its stock screen page).
+
+Opens the **Screen Sharing** page:
 
 - **Share Screen** shows this screen live in a web browser, and as a **HelixScreen Screen** webcam in Mainsail and Fluidd.
 - **Allow Remote Control** lets a browser tap and drag on it.

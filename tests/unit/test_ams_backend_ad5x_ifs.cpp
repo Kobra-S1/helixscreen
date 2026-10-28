@@ -98,12 +98,12 @@ class GcodeCapturingBackend : public AmsBackendAd5xIfs {
         return AmsErrorHelper::success();
     }
     AmsError execute_gcode(const std::string& gcode,
-                           std::function<void()> /*on_complete*/) override {
+                           helix::SharedCallback<void()> /*on_complete*/) override {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> /*on_complete*/,
-                           std::function<void(const MoonrakerError&)> /*on_error*/,
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> /*on_complete*/,
+                           helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
                            bool /*silent*/) override {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
@@ -7334,20 +7334,21 @@ class TestableAd5xIfsBackend : public AmsBackendAd5xIfs {
     TestableAd5xIfsBackend() : AmsBackendAd5xIfs(nullptr, nullptr) {}
 
     std::vector<std::string> captured_gcodes;
-    std::function<void()> captured_completion;                 // on_complete of the last dispatch
-    std::function<void(const MoonrakerError&)> captured_error; // on_error, 4-arg form only
+    helix::SharedCallback<void()> captured_completion; // on_complete of the last dispatch
+    helix::SharedCallback<void(const MoonrakerError&)> captured_error; // on_error, 4-arg form only
 
     AmsError execute_gcode(const std::string& gcode) override {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete) override {
+    AmsError execute_gcode(const std::string& gcode,
+                           helix::SharedCallback<void()> on_complete) override {
         captured_gcodes.push_back(gcode);
         captured_completion = std::move(on_complete);
         return AmsErrorHelper::success();
     }
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                           std::function<void(const MoonrakerError&)> on_error,
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
                            bool /*silent*/) override {
         captured_gcodes.push_back(gcode);
         captured_completion = std::move(on_complete);
@@ -10507,13 +10508,14 @@ class Ad5xHomingGuardBackend : public AmsBackendAd5xIfs {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete) override {
+    AmsError execute_gcode(const std::string& gcode,
+                           helix::SharedCallback<void()> on_complete) override {
         captured_gcodes.push_back(gcode);
         (void)on_complete;
         return AmsErrorHelper::success();
     }
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> /*on_complete*/,
-                           std::function<void(const MoonrakerError&)> /*on_error*/,
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> /*on_complete*/,
+                           helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
                            bool /*silent*/) override {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
@@ -10953,13 +10955,14 @@ class Ad5xRunoutOpBackend : public AmsBackendAd5xIfs {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
     }
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete) override {
+    AmsError execute_gcode(const std::string& gcode,
+                           helix::SharedCallback<void()> on_complete) override {
         captured_gcodes.push_back(gcode);
         (void)on_complete;
         return AmsErrorHelper::success();
     }
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> /*on_complete*/,
-                           std::function<void(const MoonrakerError&)> /*on_error*/,
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> /*on_complete*/,
+                           helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
                            bool /*silent*/) override {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();

@@ -36,7 +36,7 @@
 
 namespace {
 // Non-fatal: log the call and return. Every Moonraker ErrorCallback in this file
-// is std::function<void(const MoonrakerError&)>, so callers that carry one route
+// is helix::SharedCallback<void(const MoonrakerError&)>, so callers that carry one route
 // through task10_unimplemented_err() below to surface failure to the UI.
 [[maybe_unused]] void task10_unimplemented(const char* sym) {
     ESP_LOGE("helixapp", "task10 stub: %s", sym);
@@ -46,7 +46,8 @@ namespace {
 // unavailable" instead of hanging on a response that will never arrive. Does NOT
 // call any SuccessCallback — that would signal a false success.
 [[maybe_unused]] void
-task10_unimplemented_err(const char* sym, const std::function<void(const MoonrakerError&)>& err) {
+task10_unimplemented_err(const char* sym,
+                         const helix::SharedCallback<void(const MoonrakerError&)>& err) {
     task10_unimplemented(sym);
     if (err) {
         MoonrakerError e;

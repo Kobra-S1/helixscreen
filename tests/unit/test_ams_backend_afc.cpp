@@ -336,18 +336,19 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     // Filament operations dispatch through the completion-callback form so the
     // macro's gcode ack can resolve the optimistic action (#1183). Capture it
     // too, and hold the callback so a test can fire the ack when it wants one.
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete) override {
+    AmsError execute_gcode(const std::string& gcode,
+                           helix::SharedCallback<void()> on_complete) override {
         captured_gcodes.push_back(gcode);
         pending_macro_ack = std::move(on_complete);
         return AmsErrorHelper::success();
     }
 
-    std::function<void()> pending_macro_ack;
+    helix::SharedCallback<void()> pending_macro_ack;
 
     // SET_COLOR/SET_MATERIAL dispatch through the error-callback form so a
     // refused macro can cancel its echo guard. Capture it like the others.
-    AmsError execute_gcode(const std::string& gcode, std::function<void()>,
-                           std::function<void(const MoonrakerError&)> /*on_error*/,
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()>,
+                           helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
                            bool /*silent*/ = true) override {
         captured_gcodes.push_back(gcode);
         return AmsErrorHelper::success();
@@ -8528,7 +8529,8 @@ class AfcDispatchAckHelper : public AmsBackendAfc {
         return AmsErrorHelper::success();
     }
 
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete) override {
+    AmsError execute_gcode(const std::string& gcode,
+                           helix::SharedCallback<void()> on_complete) override {
         sent_.push_back(gcode);
         pending_acks_.push_back(std::move(on_complete));
         return AmsErrorHelper::success();
@@ -8609,7 +8611,7 @@ class AfcDispatchAckHelper : public AmsBackendAfc {
 
   private:
     std::vector<std::string> sent_;
-    std::vector<std::function<void()>> pending_acks_;
+    std::vector<helix::SharedCallback<void()>> pending_acks_;
     std::vector<AmsAction> action_trace_;
 };
 } // namespace helix

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "helix_shared_callback.h"
+
 /**
  * @file queued_start_fixture.h
  * @brief The print-select panel over a mock queue and option store, for the
@@ -163,8 +165,9 @@ class QueuedStartMockedFixture : public QueuedStartFixture {
         get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
         helix::MoonrakerClientMockTestAccess::set_method_handler(
             mock_client_, "printer.print.start",
-            [](MoonrakerClientMock*, const json&, std::function<void(const json&)> success_cb,
-               std::function<void(const MoonrakerError&)>) -> bool {
+            [](MoonrakerClientMock*, const json&,
+               helix::SharedCallback<void(const json&)> success_cb,
+               helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
                 success_cb(json{{"result", "ok"}});
                 return true;
             });

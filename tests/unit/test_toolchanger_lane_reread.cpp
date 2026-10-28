@@ -111,7 +111,7 @@ class StoreBackedC5 : public AmsBackendToolChanger {
     AmsError execute_gcode(const std::string&) override {
         return AmsErrorHelper::success();
     }
-    AmsError execute_gcode(const std::string&, std::function<void()>) override {
+    AmsError execute_gcode(const std::string&, helix::SharedCallback<void()>) override {
         return AmsErrorHelper::success();
     }
 };

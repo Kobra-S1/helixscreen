@@ -94,14 +94,15 @@ class TaglessMoonrakerClient : public MoonrakerClientMock {
   public:
     using MoonrakerClientMock::MoonrakerClientMock;
 
-    void discover_printer_real(std::function<void()> on_complete,
-                               std::function<void(const std::string&)> on_error) {
+    void discover_printer_real(helix::SharedCallback<void()> on_complete,
+                               helix::SharedCallback<void(const std::string&)> on_error) {
         MoonrakerClient::discover_printer(on_complete, on_error);
     }
 
     helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
-        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
+        const std::string& method, const json& params,
+        helix::SharedCallback<void(const json&)> success_cb,
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
         bool silent = false,
         std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override {
         if (method == "machine.update.status" && success_cb) {

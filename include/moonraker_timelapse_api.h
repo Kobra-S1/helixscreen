@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "i_moonraker_sub_apis.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
@@ -40,8 +41,8 @@ class IMoonrakerClient;
  */
 class MoonrakerTimelapseAPI : public helix::ITimelapseAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
     using TimelapseSettingsCallback = std::function<void(const TimelapseSettings&)>;
     using WebcamListCallback = std::function<void(const std::vector<WebcamInfo>&)>;
     using WebcamCallback = std::function<void(const WebcamInfo&)>;

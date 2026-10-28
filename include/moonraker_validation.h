@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
+
 /**
  * @file moonraker_validation.h
  * @brief Input validators and error-report helpers for the Moonraker sub-APIs
@@ -39,7 +41,7 @@ namespace helix {
  * @param detail Developer-facing reason, logged at warn
  * @param user_message Text a UI shows: the MoonrakerError message or the toast
  */
-void report_validation_error(const std::function<void(const MoonrakerError&)>& on_error,
+void report_validation_error(const helix::SharedCallback<void(const MoonrakerError&)>& on_error,
                              const char* method, const std::string& detail,
                              const std::string& user_message);
 
@@ -60,7 +62,7 @@ inline bool is_unicode_space(uint32_t cp) {
 
 namespace moonraker_internal {
 
-using ErrorCallback = std::function<void(const MoonrakerError&)>;
+using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
 
 /**
  * @brief Validate that a string contains only safe identifier characters

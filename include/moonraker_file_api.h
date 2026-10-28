@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "i_moonraker_sub_apis.h"
 #include "moonraker_error.h"
 #include "moonraker_types.h"
@@ -88,8 +89,8 @@ inline std::string moonraker_path_leaf(const std::string& name) {
  */
 class MoonrakerFileAPI : public helix::IFilesAPI {
   public:
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const MoonrakerError&)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const MoonrakerError&)>;
     using FileListCallback = std::function<void(const std::vector<FileInfo>&)>;
     using FileMetadataCallback = std::function<void(const FileMetadata&)>;
     using FileRootsCallback = std::function<void(const std::vector<FileRoot>&)>;

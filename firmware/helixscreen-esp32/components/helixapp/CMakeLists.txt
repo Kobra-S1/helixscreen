@@ -121,11 +121,15 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     # never has. Both are set explicitly - an undefined HELIX_HAS_X is 0 and
     # would vanish silently rather than being a decision.
     HELIX_HAS_BELT_TUNER=0
+    HELIX_HAS_IMAGE_TAGGER=0
     HELIX_HAS_HIDPI_FONTS=0
     HELIX_PLATFORM_ESP32=1
     HELIX_HAS_PLUGINS=0
     HELIX_HAS_TIMELAPSE_VIEWER=0
     HELIX_HAS_CAMERA=0
+    # The Motion panel covers what the Toolhead widget offers; leaving the
+    # widget out saves its flash.
+    HELIX_HAS_TOOLHEAD_WIDGET=0
     HELIX_HAS_GCODE_VIEWER=0
     HELIX_HAS_BED_MESH_3D=0
     HELIX_HAS_LABEL_PRINTER=0
