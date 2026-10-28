@@ -26,8 +26,8 @@ cmake_path(NORMAL_PATH REPO_ROOT)
 set(HELIXNET_SHIM ${CMAKE_CURRENT_LIST_DIR}/../helixnet/shim)
 set(HELIXAPP_SHIM ${CMAKE_CURRENT_LIST_DIR}/shim)
 
-file(STRINGS ${CMAKE_CURRENT_LIST_DIR}/app_srcs.txt APP_SRCS_REL
-     REGEX "^[^#].*\\.(cpp|c)$")
+include(${CMAKE_CURRENT_LIST_DIR}/app_srcs.cmake)
+helix_read_app_srcs(${CMAKE_CURRENT_LIST_DIR}/app_srcs.txt APP_SRCS_REL)
 set(APP_SRCS "")
 foreach(rel ${APP_SRCS_REL})
     list(APPEND APP_SRCS ${REPO_ROOT}/${rel})

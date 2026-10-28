@@ -3,16 +3,10 @@
 # helixapp source manifest — the curated Core+AMS app core compiled UNMODIFIED
 # from ../../src for Xtensa. Exact repo-relative paths, one per line.
 #
-# LINE FORMAT — CMake reads this file with
-#     file(STRINGS app_srcs.txt APP_SRCS_REL REGEX "^[^#].*\.(cpp|c)$")
-# so a path line MUST start at column 0 and END at the suffix. A trailing
-# `# reason`, or even a trailing space, makes the regex miss the line and the
-# file is silently DROPPED from the build — the link then fails ~25 min into
-# esp32-build CI on a line that reads as present. Leading whitespace is the
-# mirror image: the regex matches and CMake builds the path `<repo>/ src/…`.
-# Put explanations on their own `#` comment line above the path (this file's
-# whole derivation ledger is written that way). scripts/check_esp32_app_srcs.py
-# rejects any other shape.
+# LINE FORMAT: one .cpp/.c path per line. Whitespace around it and a trailing
+# `# reason` are fine; a line starting with `#` is a comment. A path line must not
+# carry `;`, `[` or `]`, which CMake reads as list syntax. app_srcs.cmake reads the
+# file and scripts/check_esp32_app_srcs.py parses it the same way.
 #
 # `# MOCK:` lines are commented-out documentation of the desktop mock set, NOT
 # build input. Only ams_backend_mock.cpp is actually compiled under
