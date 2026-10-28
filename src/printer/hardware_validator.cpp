@@ -8,6 +8,7 @@
 #include "ui_toast_manager.h"
 
 #include "config.h"
+#include "filament_sensor_manager.h"
 #include "hardware_role_registry.h"
 #include "i18n_plural.h"
 #include "json_utils.h"
@@ -603,25 +604,12 @@ void HardwareValidator::validate_configured_hardware(Config* config,
     }
 
     // Check configured filament sensors
-    {
-        const json* sensors_config =
-            config->try_get_json(config->df() + "filament_sensors/sensors");
-        if (sensors_config != nullptr && sensors_config->is_array()) {
-            for (const auto& sensor : *sensors_config) {
-                if (!sensor.is_object()) {
-                    continue;
-                }
-                const std::string sensor_name = json_string_member(sensor, "name");
-                if (sensor_name.empty()) {
-                    continue;
-                }
-                if (!contains_name(filament_sensors, sensor_name) &&
-                    !is_hardware_optional(config, sensor_name)) {
-                    result.expected_missing.push_back(
-                        HardwareIssue::warning(sensor_name, HardwareType::FILAMENT_SENSOR,
-                                               TR_NOOP("Configured filament sensor not found")));
-                }
-            }
+    for (const auto& sensor_name : FilamentSensorManager::instance().saved_sensor_names()) {
+        if (!contains_name(filament_sensors, sensor_name) &&
+            !is_hardware_optional(config, sensor_name)) {
+            result.expected_missing.push_back(
+                HardwareIssue::warning(sensor_name, HardwareType::FILAMENT_SENSOR,
+                                       TR_NOOP("Configured filament sensor not found")));
         }
     }
 
@@ -719,23 +707,8 @@ void HardwareValidator::validate_new_hardware(Config* config,
 
     // Check for filament sensors not in config
     const auto& discovered_sensors = hardware.filament_sensor_names();
-    std::vector<std::string> configured_names;
-
-    if (config) {
-        const json* sensors_config =
-            config->try_get_json(config->df() + "filament_sensors/sensors");
-        if (sensors_config != nullptr && sensors_config->is_array()) {
-            for (const auto& sensor : *sensors_config) {
-                if (!sensor.is_object()) {
-                    continue;
-                }
-                std::string klipper_name = json_string_member(sensor, "klipper_name");
-                if (!klipper_name.empty()) {
-                    configured_names.push_back(std::move(klipper_name));
-                }
-            }
-        }
-    }
+    const std::vector<std::string> configured_names =
+        FilamentSensorManager::instance().saved_sensor_names();
 
     // Find sensors in discovery but not in config
     for (const auto& sensor : discovered_sensors) {
