@@ -69,9 +69,13 @@ make_remote_worktree() {
 
 @test "a stale tracking ref does not report pushed work as unpushed" {
     make_remote_worktree pushed
-    # By URL, the way a push goes when the remote's SSH path is being avoided or
-    # the push came from another machine: the remote has it, origin/master does not.
+    # The remote has the work and origin/master does not, as after a push from
+    # another machine. A push by URL from here would also move origin/master on
+    # git 2.56 and later, so the stale ref is set back by hand.
+    local stale
+    stale=$(git -C "$MAIN" rev-parse origin/master)
     git -C "$MAIN" push -q "$REMOTE_PATH" master:master
+    git -C "$MAIN" update-ref refs/remotes/origin/master "$stale"
     run git -C "$MAIN" merge-base --is-ancestor feature/pushed origin/master
     [ "$status" -ne 0 ]
 
