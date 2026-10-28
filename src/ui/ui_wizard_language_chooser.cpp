@@ -23,9 +23,6 @@ using namespace helix;
 #ifndef HELIX_MAX_FONT_TIER
 #define HELIX_MAX_FONT_TIER 6 // default: all tiers (micro=0 .. xxlarge=6)
 #endif
-#ifndef HELIX_HAS_HIDPI_FONTS
-#define HELIX_HAS_HIDPI_FONTS 0 // conservative: assume the 48/64 faces are not linked
-#endif
 
 // External subject for enabling/disabling Next button
 extern lv_subject_t connection_test_passed;

@@ -122,10 +122,10 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     HELIX_GIT_HASH="esp32"
     INSTALLER_FILENAME="install.sh"
     HELIX_MAX_FONT_TIER=6
-    # Belt tuning needs klippy's UDS accel stream, which a firmware panel
-    # cannot reach; the hi-dpi rungs need a scale factor this fixed panel
-    # never has. Both are set explicitly - an undefined HELIX_HAS_X is 0 and
-    # would vanish silently rather than being a decision.
+    # Feature gates this firmware turns off; every other gate keeps its default
+    # from include/helix_features.h. Belt tuning needs klippy's UDS accel stream,
+    # which a firmware panel cannot reach; the hi-dpi rungs need a scale factor
+    # this fixed panel never has.
     HELIX_HAS_BELT_TUNER=0
     HELIX_HAS_IMAGE_TAGGER=0
     HELIX_HAS_HIDPI_FONTS=0
@@ -139,16 +139,6 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     HELIX_HAS_GCODE_VIEWER=0
     HELIX_HAS_BED_MESH_3D=0
     HELIX_HAS_LABEL_PRINTER=0
-    HELIX_HAS_CFS=1
-    HELIX_HAS_IFS=1
-    # Set explicitly, not left undefined: an undefined macro makes
-    # `#if HELIX_HAS_ACE` evaluate to 0, which would silently drop these
-    # backends from ESP32 as a side effect of adding the gates. 1 preserves
-    # existing ESP32 behaviour; flipping any to 0 is a separate size call.
-    HELIX_HAS_ACE=1
-    HELIX_HAS_QIDI=1
-    HELIX_HAS_SNAPMAKER=1
-    HELIX_HAS_SOUND=0
     # No CJK font fits the storage partition (~900KB for the faces the panel
     # uses), so zh/ja are left out of the language list and the asset image.
     HELIX_HAS_CJK=0

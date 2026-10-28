@@ -1157,27 +1157,15 @@ else ifneq (,$(filter native x86-desktop,$(PLATFORM_TARGET)))
 endif
 CXXFLAGS +=$(SOUND_CXXFLAGS) $(TRACKER_CXXFLAGS) $(PWM_SOUND_CXXFLAGS) $(PWM_AUTO_EXPORT_CXXFLAGS) $(JZ_PWM_CXXFLAGS)
 
-# Feature gates — default ON for all platforms.
-# Disabled per-platform in mk/cross.mk for memory-constrained targets.
-HELIX_HAS_LABEL_PRINTER ?= 1
-HELIX_HAS_CFS ?= 1
-HELIX_HAS_IFS ?= 1
-# Vendor filament systems that are physically tied to one printer family. A
-# device build for printer X cannot meet vendor Y's hardware, so Y is dead
-# weight there. Kept ON for the generic hosts (pi/x86/native), which drive an
-# arbitrary printer over the network. AFC and Happy Hare are deliberately NOT
-# gated: both are user-installable Klipper add-ons that can appear on any
-# printer, so no platform can rule them out.
-HELIX_HAS_ACE ?= 1
-HELIX_HAS_QIDI ?= 1
-HELIX_HAS_SNAPMAKER ?= 1
-# Compile-out gates for the 2D gcode renderer and the bed-mesh 3D renderer —
-# code AND their big runtime buffers (ESP32-class targets set these to 0).
-HELIX_HAS_GCODE_VIEWER ?= 1
-HELIX_HAS_BED_MESH_3D ?= 1
-# Compile-out gate for the plugin runtime — embedded targets that cannot
-# spare the interpreter's size set this to 0 (ESP32-class).
-HELIX_HAS_PLUGINS ?= 1
+# Feature gates. include/helix_features.h holds every gate's default; each one becomes a
+# make variable here so mk/cross.mk can turn it off for a platform and make logic (the
+# Lua objects below) can read it, and every gate is passed to the compiler explicitly.
+HELIX_FEATURE_DEFAULTS := $(shell sed -n 's/^\#define \(HELIX_HAS_[A-Z0-9_]*\) \([0-9]*\)$$/\1=\2/p' $(INC_DIR)/helix_features.h)
+ifeq ($(strip $(HELIX_FEATURE_DEFAULTS)),)
+$(error no feature gate defaults read from $(INC_DIR)/helix_features.h)
+endif
+HELIX_FEATURE_GATES := $(foreach d,$(HELIX_FEATURE_DEFAULTS),$(firstword $(subst =, ,$(d))))
+$(foreach d,$(HELIX_FEATURE_DEFAULTS),$(eval $(firstword $(subst =, ,$(d))) ?= $(lastword $(subst =, ,$(d)))))
 # Lua 5.4 for the plugin runtime. Compiled as C++ so a Lua error is an exception and a
 # binding's destructors run. The io, os, package and debug libraries stay out of the
 # binary, which keeps them out of every plugin's reach.
@@ -1189,43 +1177,12 @@ LUA_OBJS := $(patsubst $(LUA_DIR)/%.c,$(OBJ_DIR)/lua/%.o,$(LUA_SRCS))
 else
 LUA_OBJS :=
 endif
-# Compile-out gate for the timelapse VIEWING UI (video list/download/playback).
-# Capture-control (settings, render, save-frames) is plain JSON-RPC and is NOT
-# gated — printers keep capturing timelapses even where the screen can't view them.
-HELIX_HAS_TIMELAPSE_VIEWER ?= 1
-# Compile-out gate for the Belt Tension panel. It reads Klipper's /tmp results,
-# so it only works co-located with Klipper.
-HELIX_HAS_BELT_TUNER ?= 1
-# Compile-out gate for the home Toolhead widget and its preset editor; the
-# Motion panel and every other widget stay. ESP32-class targets set it to 0.
-HELIX_HAS_TOOLHEAD_WIDGET ?= 1
-# Compile-out gate for the printer image tagger, the editor that places a
-# photo's part callouts. The images and their shipped or saved tags still
-# render without it.
-HELIX_HAS_IMAGE_TAGGER ?= 1
-# Compile-out gate for the font rungs above the authored tier ladder. Only the
-# high-DPI UI scale factor reaches them, so a platform with a fixed panel and no
-# scale factor above 1.0 neither packs nor links those faces.
-HELIX_HAS_HIDPI_FONTS ?= 1
 # Lowest raw backlight level the panel renders visibly, as a percent of the raw
 # range. Nonzero percent scales across [floor, max] so the dimmest slider level
 # is the darkest visible level instead of black. settings.json's
 # /display/backlight_floor_percent overrides it per panel.
 HELIX_BACKLIGHT_FLOOR_PERCENT ?= 0
-CXXFLAGS += -DHELIX_HAS_LABEL_PRINTER=$(HELIX_HAS_LABEL_PRINTER) \
-            -DHELIX_HAS_CFS=$(HELIX_HAS_CFS) \
-            -DHELIX_HAS_IFS=$(HELIX_HAS_IFS) \
-            -DHELIX_HAS_ACE=$(HELIX_HAS_ACE) \
-            -DHELIX_HAS_QIDI=$(HELIX_HAS_QIDI) \
-            -DHELIX_HAS_SNAPMAKER=$(HELIX_HAS_SNAPMAKER) \
-            -DHELIX_HAS_GCODE_VIEWER=$(HELIX_HAS_GCODE_VIEWER) \
-            -DHELIX_HAS_BED_MESH_3D=$(HELIX_HAS_BED_MESH_3D) \
-            -DHELIX_HAS_PLUGINS=$(HELIX_HAS_PLUGINS) \
-            -DHELIX_HAS_TIMELAPSE_VIEWER=$(HELIX_HAS_TIMELAPSE_VIEWER) \
-            -DHELIX_HAS_BELT_TUNER=$(HELIX_HAS_BELT_TUNER) \
-            -DHELIX_HAS_TOOLHEAD_WIDGET=$(HELIX_HAS_TOOLHEAD_WIDGET) \
-            -DHELIX_HAS_IMAGE_TAGGER=$(HELIX_HAS_IMAGE_TAGGER) \
-            -DHELIX_HAS_HIDPI_FONTS=$(HELIX_HAS_HIDPI_FONTS) \
+CXXFLAGS += $(foreach g,$(HELIX_FEATURE_GATES),-D$(g)=$($(g))) \
             -DHELIX_BACKLIGHT_FLOOR_PERCENT=$(HELIX_BACKLIGHT_FLOOR_PERCENT)
 
 # Parallel build control

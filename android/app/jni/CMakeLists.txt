@@ -322,44 +322,14 @@ target_compile_definitions(main PRIVATE
     HELIX_PLATFORM_ANDROID
     HELIX_HAS_SOUND
     HELIX_HAS_TRACKER
-    # This build bypasses the Makefile, so its `?= 1` feature defaults do not
-    # apply here — an undefined macro in `#if` is 0 and silently selects the
-    # stub implementation.
-    HELIX_HAS_GCODE_VIEWER=1
-    HELIX_HAS_BED_MESH_3D=1
-    # Plugins sync from the printer into app storage, so the app runs them
-    # like any other host; the lua target above supplies the interpreter.
-    HELIX_HAS_PLUGINS=1
-    HELIX_HAS_TIMELAPSE_VIEWER=1
-    # The app drives an arbitrary printer over the network, like the pi/x86
-    # hosts, so every vendor filament system stays on.
-    HELIX_HAS_CFS=1
-    HELIX_HAS_IFS=1
-    HELIX_HAS_ACE=1
-    HELIX_HAS_QIDI=1
-    HELIX_HAS_SNAPMAKER=1
-    # Label printing reaches network (IPP and raw) printers. The Bluetooth
-    # backends compile but find no libhelix-bluetooth.so to load, so
-    # BluetoothLoader reports Bluetooth unavailable and the settings never
-    # offer it; USB lp nodes do not exist for an app to open.
-    HELIX_HAS_LABEL_PRINTER=1
-    # The Belt Tension panel reads Klipper's /tmp results, so it needs the
-    # screen co-located with Klipper.
+    # Feature gates keep their defaults from include/helix_features.h, which
+    # lvgl_pch.h brings into every source; only the ones this app changes are
+    # listed. The Belt Tension panel reads Klipper's /tmp results, so it needs
+    # the screen co-located with Klipper.
     HELIX_HAS_BELT_TUNER=0
-    HELIX_HAS_IMAGE_TAGGER=1
-    # The home Toolhead widget; only the ESP32 firmware leaves it out.
-    HELIX_HAS_TOOLHEAD_WIDGET=1
     # FONT_SOURCES above globs every face under assets/fonts/*.c with no tier
-    # filtering, so the 48/64pt and 32/40pt hi-DPI CJK rungs are linked into
-    # libmain.so same as every other tier. Left undefined, HELIX_HAS_HIDPI_FONTS
-    # falls back to a conservative 0 (src/system/cjk_font_manager.cpp and
-    # src/application/asset_manager.cpp both assume "not linked" when unset),
-    # which drops those faces' mappings and asset registrations at compile time
-    # even though the symbols are there. HELIX_MAX_FONT_TIER already falls back
-    # to 6 by the same convention, matching this glob; declared here too so
-    # both macros are explicit rather than one being coincidentally right.
+    # filtering, so every tier is linked.
     HELIX_MAX_FONT_TIER=6
-    HELIX_HAS_HIDPI_FONTS=1
     ENABLE_GLES_3D
     # The Makefile's ENABLE_SCREENSAVER default; idle handling already
     # covers Android's own panel sleep.
