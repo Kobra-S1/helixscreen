@@ -94,6 +94,25 @@ TEST_CASE_METHOD(HelixTestFixture, "orca ids: only an id exactly one product car
     }
 }
 
+// OrcaSlicer 2.5 matches a lane's filament_id only against its OF* product
+// hashes; any other id falls back to type matching with a notice. Earlier Orca
+// versions never read the field.
+TEST_CASE_METHOD(HelixTestFixture, "orca ids: the shipped catalog carries Orca 2.5 product ids",
+                 "[filament_catalog][orca]") {
+    const auto ids = FilamentCatalog::orca_id_map_from("assets/filaments.json", "");
+    REQUIRE(ids.size() > 200);
+
+    // The example Orca's docs/HLSD/filament_id.md derives by hand.
+    REQUIRE(ids.count("polymaker-polylite-pla") == 1);
+    CHECK(ids.at("polymaker-polylite-pla") == "OF5CgdDq");
+
+    for (const auto& [product, orca_id] : ids) {
+        INFO(product << " -> " << orca_id);
+        CHECK(orca_id.size() == 8);
+        CHECK(orca_id.rfind("OF", 0) == 0);
+    }
+}
+
 TEST_CASE_METHOD(HelixTestFixture, "queries by brand and type", "[filament_catalog]") {
     auto cat = FilamentCatalog::load_from_file(FIX, false, "");
     CHECK(cat.products_for_brand("Polymaker").size() == 2);

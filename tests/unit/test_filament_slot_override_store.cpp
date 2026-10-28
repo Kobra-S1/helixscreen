@@ -3861,19 +3861,13 @@ TEST_CASE("lane_data carries the catalog product's OrcaSlicer filament_id as a s
         json wire = helix::ams::to_lane_data_record(0, ovr);
         REQUIRE(wire.contains("filament_id"));
         CHECK(wire["filament_id"].is_string());
-        CHECK(wire["filament_id"] == "OGFB00");
+        CHECK(wire["filament_id"] == "OFhuaUQB");
 
         // Read back unchanged: the field is Orca's, not part of the override.
         auto parsed = helix::ams::from_lane_data_record(wire);
         REQUIRE(parsed.has_value());
         CHECK(parsed->second.catalog_id == "bambu-lab-bambu-abs");
         CHECK(parsed->second.spoolman_filament_id == 0);
-    }
-
-    SECTION("an Orca id several catalog products share writes none") {
-        ovr.material = "PP";
-        ovr.catalog_id = "eryone-pp"; // EFL43, also eryone-petg-cf's
-        CHECK_FALSE(helix::ams::to_lane_data_record(0, ovr).contains("filament_id"));
     }
 
     SECTION("a product with no Orca id writes none") {
