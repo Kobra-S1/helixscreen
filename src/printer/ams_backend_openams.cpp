@@ -1426,6 +1426,10 @@ std::vector<int> AmsBackendOpenAms::get_tool_mapping() const {
     return system_info_.tool_to_slot_map;
 }
 
+helix::FirmwareRouting AmsBackendOpenAms::firmware_default_routing() const {
+    return helix::FirmwareRouting::from_table(get_tool_mapping());
+}
+
 helix::printer::EndlessSpoolCapabilities AmsBackendOpenAms::get_endless_spool_capabilities() const {
     std::lock_guard<std::mutex> lock(mutex_);
     using namespace helix::printer;

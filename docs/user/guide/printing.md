@@ -70,7 +70,8 @@ Tap a file to see the preview panel:
 - **3D G-code preview**: Rotatable with touch, showing the toolpath. On slower boards, the preview shows a simplified model while you drag and sharpens a moment after you let go.
 - **Sliced colors button**: The round palette button in the preview's top-left corner switches the 3D preview between the colors of the filament actually loaded and the colors the file was sliced with. It lights up while the sliced colors are showing, and appears once the 3D preview has drawn.
 - **2D layer preview**: Outer walls darken where the surface folds, so overhang ledges, rims and steps read as edges while straight and evenly sloped walls keep their color. Sequential prints, objects at different layer heights and spiral vases are left unshaded.
-- **Metadata**: Estimated time, filament weight, layer count, material, and layer height
+- **Metadata**: Estimated time, filament weight, layer count, material, and layer height. The material names the filament of each tool the print actually uses, such as "ABS-GF" or "PLA, PETG". Tools the file defines but never prints with are left out.
+- **FILAMENTS card**: One chip per tool the print uses, showing the file's filament over the slot that will feed it, with a colored outline when they don't match. Tap a chip to change its slot. See [Filament Mapping](filament.md#filament-mapping).
 - **Pre-print steps**: Shows which calibration steps will run before printing (e.g., bed mesh)
 - **Timelapse toggle**: Enable recording if you have the timelapse plugin installed
 

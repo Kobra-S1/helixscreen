@@ -912,6 +912,25 @@ std::vector<int> AmsBackendAce::get_tool_mapping() const {
     return {};
 }
 
+helix::FirmwareRouting AmsBackendAce::firmware_default_routing() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    // With no slot naming a tool the table stays empty: tools numbered by slot.
+    int highest_tool = -1;
+    for (const auto& unit : system_info_.units) {
+        if (unit.absent) {
+            continue;
+        }
+        for (const auto& slot : unit.slots) {
+            highest_tool = std::max(highest_tool, slot.mapped_tool);
+        }
+    }
+    std::vector<int> table(static_cast<size_t>(highest_tool + 1), -1);
+    for (int tool = 0; tool <= highest_tool; ++tool) {
+        table[static_cast<size_t>(tool)] = slot_for_tool_locked(tool);
+    }
+    return helix::FirmwareRouting::from_table(std::move(table));
+}
+
 // ============================================================================
 // Bypass Mode (not supported)
 // ============================================================================

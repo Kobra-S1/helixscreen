@@ -2176,6 +2176,10 @@ void PrintSelectPanel::set_selected_file(const char* filename, const char* thumb
     lv_subject_copy_string(&selected_layer_height_subject_, layer_height ? layer_height : "");
     lv_subject_copy_string(&selected_filament_type_subject_, filament_type ? filament_type : "");
     apply_plate_stats_to_detail();
+    // The open detail view knows which tools the print uses; its text wins.
+    if (detail_view_ && detail_view_->is_visible()) {
+        detail_view_->publish_material_text();
+    }
 
     spdlog::info("[{}] Selected file: {}", get_name(), filename);
 }
@@ -2849,6 +2853,7 @@ void PrintSelectPanel::create_detail_view() {
 
     detail_view_->set_dependencies(api_, &printer_state_);
     detail_view_->set_visible_subject(&detail_view_visible_subject_);
+    detail_view_->set_material_text_subject(&selected_filament_type_subject_);
     detail_view_->set_on_delete_confirmed([this]() { delete_file(); });
 
     // The detail view's tappable cards (the visible color-requirements swatch
@@ -3659,17 +3664,11 @@ void PrintSelectPanel::open_remap_modal() {
 
     auto slots = AmsState::instance().collect_available_slots();
 
-    // Seed the picker with the mappings the print will actually use. For editable
-    // backends (AFC / CFS / Happy Hare / AD5X-IFS) the card already holds the
-    // current/positional mappings, so reusing them preserves in-progress edits;
-    // for U1 / ACE the card is hidden and get_filament_mappings() is empty, so we
-    // fall back to FilamentMapper defaults (identical to the prior per-backend
-    // openers).
-    // The detail view already implements exactly this rule - card edits win, else
-    // resolve through the shared seed. Calling compute_defaults() here instead
-    // ignored the auto-colour toggle AND skipped clearing firmware mappings, so
-    // this modal could seed differently from the swatches behind it.
-    auto mappings = detail_view_->effective_mappings();
+    // The user's picks from the card, over the modal's own suggestions. Where
+    // Print carries out no stored pick the card shows each tool on its routed
+    // head, while the modal still suggests colour matches: its apply rewrites the
+    // job and prints it, so a suggestion there prints as shown.
+    auto mappings = helix::remap_modal_mappings(detail_view_->effective_mappings(), tool_info);
 
     remap_modal_.set_tool_info(tool_info);
     remap_modal_.set_available_slots(slots);

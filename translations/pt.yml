@@ -62,6 +62,7 @@ translations:
   + Add Printer: + Adicionar Impressora
   + New: + Novo
   +{} more: '+{} mais'
+  ', also {}': ', também {}'
   '- Check [resonance_tester] in printer.cfg': '- Verifique [resonance_tester] no
     printer.cfg'
   '- Ensure ADXL345 is connected': '- Certifique-se de que o ADXL345 está conectado'
@@ -2396,6 +2397,7 @@ translations:
   : "Moonraker reiniciando...\nAguardando reconexão..."
   Moonraker's Python is too old for this feature.: "O Python do Moonraker é antigo demais para este recurso."
   'Moonraker: ': 'Moonraker: '
+  More options…: 'Mais opções…'
   More points = more accurate, but takes longer.: Mais pontos = mais preciso, mas
     demora mais.
   Motion: Movimento
@@ -4762,6 +4764,7 @@ translations:
   by: 'por'
   by Preston Brown: por Preston Brown
   chamber heater: aquecedor da câmara
+  color differs: 'cor diferente'
   complete: concluído
   cores: núcleos
   direct drive: de acionamento direto
@@ -4780,6 +4783,7 @@ translations:
   enable: habilitar
   enabled: habilitado
   error: erro
+  exact match: 'correspondência exata'
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: mesmo material e mesma cor. material: mesmo material. next: qualquer slot pronto, mesmo de outro material'
   extruder: extrusor
   extruder(s): extrusor(es)
@@ -4807,6 +4811,7 @@ translations:
   loaded: 'carregado'
   locked: 'bloqueado'
   matched: equilibradas
+  material differs: 'material diferente'
   mm: mm
   mm Z-offset: mm Z-Offset
   mm before clog: mm antes da obstrução

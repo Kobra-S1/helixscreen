@@ -62,6 +62,7 @@
   <translation tag="+ Add Printer" ja="+ プリンターを追加"/>
   <translation tag="+ New" ja="+ 新規"/>
   <translation tag="+{} more" ja="他{}件"/>
+  <translation tag=", also {}" ja="、{}も"/>
   <translation tag="- Check [resonance_tester] in printer.cfg" ja="- printer.cfg の [resonance_tester] を確認してください"/>
   <translation tag="- Ensure ADXL345 is connected" ja="- ADXL345 が接続されていることを確認してください"/>
   <translation tag="- Try Measure Noise first" ja="- まず「ノイズ測定」をお試しください"/>
@@ -2186,6 +2187,7 @@
   <translation tag="Moonraker&apos;s Python is too old for this feature." ja="MoonrakerのPythonがこの機能には古すぎます。"/>
   <translation tag="Moonraker: " ja="Moonraker: "/>
   <translation tag="More" ja="その他"/>
+  <translation tag="More options…" ja="その他のオプション…"/>
   <translation tag="More points = more accurate, but takes longer." ja="ポイント数が多いほど精度が上がりますが、時間がかかります。"/>
   <translation tag="Motion" ja="動作"/>
   <translation tag="Motion sensor stuck: filament is still at the feeder. Resume to feed it." ja="モーションセンサーが固着: フィラメントはまだフィーダーにあります。再開すると送り込みます。"/>
@@ -4324,6 +4326,7 @@
   <translation tag="by" ja="作成者:"/>
   <translation tag="by Preston Brown" ja="by Preston Brown"/>
   <translation tag="chamber heater" ja="チャンバーヒーター"/>
+  <translation tag="color differs" ja="色が異なる"/>
   <translation tag="complete" ja="完了"/>
   <translation tag="cores" ja="コア"/>
   <translation tag="direct drive" ja="ダイレクトドライブ"/>
@@ -4342,6 +4345,7 @@
   <translation tag="enable" ja="有効化"/>
   <translation tag="enabled" ja="有効"/>
   <translation tag="error" ja="エラー"/>
+  <translation tag="exact match" ja="完全一致"/>
   <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" ja="exact: 同じ素材と同じ色。material: 同じ素材。next: 準備済みの任意のスロット (別の素材でも可)"/>
   <translation tag="extruder" ja="エクストルーダー"/>
   <translation tag="extruder(s)" ja="エクストルーダー"/>
@@ -4370,6 +4374,7 @@
   <translation tag="loaded" ja="装填済み"/>
   <translation tag="locked" ja="ロック中"/>
   <translation tag="matched" ja="一致"/>
+  <translation tag="material differs" ja="素材が異なる"/>
   <translation tag="mm" ja="mm"/>
   <translation tag="mm Z-offset" ja="mm Z-Offset"/>
   <translation tag="mm before clog" ja="詰まりまでの距離 (mm)"/>

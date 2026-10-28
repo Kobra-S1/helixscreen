@@ -152,6 +152,16 @@ std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
 std::vector<helix::ToolMapping>
 AmsState::seed_tool_mappings(const std::vector<helix::GcodeToolInfo>& tools,
                              const std::vector<helix::AvailableSlot>& slots) const {
+    // A strategy whose Print carries out no stored pick prints every tool from the
+    // head the firmware routes it to, so the seed every gate reads says exactly
+    // that. A colour match or a free-lane guess there would name a lane Print
+    // never uses.
+    auto* backend = get_backend(0);
+    if (backend && !helix::printer::print_carries_out_stored_pick(backend->get_remap_strategy())) {
+        return helix::FilamentMapper::effective_mappings(tools, slots, /*auto_color_map=*/false,
+                                                         collect_firmware_routing(),
+                                                         helix::FreeLaneGuess::Refused);
+    }
     return seed_tool_mappings(tools, slots, effective_auto_match());
 }
 

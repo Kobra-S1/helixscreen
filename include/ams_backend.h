@@ -520,7 +520,9 @@ class AmsBackend {
      * unremapped print by that table, so the default answers it: a backend with
      * a Native remap route whose printer has stated its table
      * (firmware_reported_tool_mapping()) reports get_tool_mapping(). Every other
-     * backend is lane-per-tool: tool N owns lane N, with no upper bound.
+     * backend is lane-per-tool: tool N owns lane N, with no upper bound, unless
+     * it overrides this with a standing table it dispatches tools by (OpenAMS
+     * groups, ACEPRO slot tool numbers).
      *
      * Not every live map is a default: a U1 freezes get_tool_mapping() at 1:1
      * while its real map lives in print_task_config.extruder_map_table, and a
@@ -535,6 +537,17 @@ class AmsBackend {
      *       backends: never call this with mutex_ held.
      */
     [[nodiscard]] virtual helix::FirmwareRouting firmware_default_routing() const;
+
+    /**
+     * @brief Does the firmware pick each tool's lane itself when the print starts?
+     *
+     * Then nothing before the print knows which lane a tool prints from, so
+     * firmware_default_routing() names none (FirmwareRouting::picked_at_print())
+     * and no surface claims one. Default false.
+     */
+    [[nodiscard]] virtual bool firmware_picks_lanes_at_print() const {
+        return false;
+    }
 
     /**
      * @brief Channel A: backend-specific classification of one gcode-response

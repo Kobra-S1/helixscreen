@@ -532,16 +532,23 @@
     <px name="option_tile_height_large" value="56"/>
     <px name="option_tile_height_xlarge" value="64"/>
     <!-- Filament chip row on the print file detail view (filament_swatch is
-         height="100%" of it). Its two bands each need ~0.78x font_small's line
-         box to show a whole glyph: 32px holds it at tiny and 34 at micro (26
-         clips both labels there), 40 holds through Large, and XLarge's 27px
-         line box needs 48. -->
+         height="100%" of it): a header band over a body band, each tall enough
+         for its label. -->
     <px name="filament_chip_row_height_micro" value="34"/>
     <px name="filament_chip_row_height_tiny" value="32"/>
     <px name="filament_chip_row_height_small" value="40"/>
     <px name="filament_chip_row_height_medium" value="40"/>
     <px name="filament_chip_row_height_large" value="40"/>
     <px name="filament_chip_row_height_xlarge" value="48"/>
+    <!-- Width of one filament chip (filament_swatch.xml). Four fit the 274px
+         chip row at 800x480; the narrower ladders keep three on the 181px row
+         at 480x272. -->
+    <px name="filament_chip_width_micro" value="52"/>
+    <px name="filament_chip_width_tiny" value="52"/>
+    <px name="filament_chip_width_small" value="60"/>
+    <px name="filament_chip_width_medium" value="64"/>
+    <px name="filament_chip_width_large" value="64"/>
+    <px name="filament_chip_width_xlarge" value="80"/>
     <!-- Calibration tiles: the glyph a tile's share of the card holds above a
          one-line label -->
     <string name="calib_icon_size_micro" value="sm"/>
@@ -905,6 +912,16 @@
     <string name="font_xs_xlarge" value="noto_sans_light_16"/>
     <string name="font_xs_xxlarge" value="noto_sans_light_20"/>
     <!-- NO BASE font_xs - registered at runtime -->
+    <!-- font_chip_material variants (a FILAMENTS-card chip's material header) - Bold where the
+         chip is wide enough to hold "ABS-GF" in it, Light below that -->
+    <string name="font_chip_material_micro" value="noto_sans_light_10"/>
+    <string name="font_chip_material_tiny" value="noto_sans_light_10"/>
+    <string name="font_chip_material_small" value="noto_sans_light_10"/>
+    <string name="font_chip_material_medium" value="noto_sans_bold_14"/>
+    <string name="font_chip_material_large" value="noto_sans_bold_14"/>
+    <string name="font_chip_material_xlarge" value="noto_sans_bold_16"/>
+    <string name="font_chip_material_xxlarge" value="noto_sans_bold_20"/>
+    <!-- NO BASE font_chip_material - registered at runtime -->
     <!-- font_mono variants (monospace for console/terminal displays) - Source Code Pro -->
     <string name="font_mono_micro" value="source_code_pro_10"/>
     <string name="font_mono_tiny" value="source_code_pro_10"/>

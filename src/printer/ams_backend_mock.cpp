@@ -4225,6 +4225,16 @@ void AmsBackendMock::set_remap_strategy(RemapStrategy strategy) {
     remap_strategy_ = strategy;
 }
 
+void AmsBackendMock::set_firmware_picks_lanes_at_print(bool picks) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    firmware_picks_lanes_at_print_ = picks;
+}
+
+bool AmsBackendMock::firmware_picks_lanes_at_print() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return firmware_picks_lanes_at_print_;
+}
+
 void AmsBackendMock::set_remap_ready(bool ready) {
     std::lock_guard<std::mutex> lock(mutex_);
     remap_ready_ = ready;

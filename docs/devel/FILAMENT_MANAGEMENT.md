@@ -1464,17 +1464,91 @@ unit's per-unit subjects and, for a unit without them, the same mirror.
 
 ### Filament Mapping Card (`ui_filament_mapping_card`)
 
-The pre-print tool-to-slot mapping card on the print select and print detail views. One
-renderer draws every mapping as a chip instantiated from
-`ui_xml/components/filament_swatch.xml` via `lv_xml_create()` inside
-`rebuild_compact_view()` (`src/ui/ui_filament_mapping_card.cpp`) - there is no per-caller
-chip layout to keep in step. `set_mappings()` (`include/ui_filament_mapping_card.h`) stores
-the vector, rebuilds the compact view, then fires `on_mappings_changed_` so downstream
-consumers (preview colours, pre-flight checks) see the new state. The lane number on each
-chip is written imperatively during the rebuild: storing mappings without rebuilding leaves
-the stale lane on screen, which is why `set_mappings()` never skips the rebuild. The chip
-width is set from C++ after creation because a numeric width on a component `<view>` root is
-not honoured by `lv_xml_create`.
+The FILAMENTS card on the print detail view: one chip per used G-code tool, each a header
+band in the file's colour labelled with the file's material, over a body with the mapped
+slot's spool dot, its label and a caret. The body carries no words, which would clip in a
+52-80 px chip in other languages: an unmapped tool is an empty dashed spool
+(`filament_outline`) and the caret inside the red outline; the dropdown keeps its words. The outline carries the only warning signal; the
+card header has no lamps.
+
+| Piece | Where |
+|-------|-------|
+| What a chip says (pure, no LVGL) | `include/filament_chip_model.h`, `src/printer/filament_chip_model.cpp` |
+| Chip row and chip | `ui_xml/components/filament_chip_row.xml`, `ui_xml/components/filament_swatch.xml` |
+| Publishing the chip subjects | `src/ui/ui_filament_mapping_card.cpp#publish_chips` |
+| The slot dropdown | `include/ui_filament_slot_picker.h`, `ui_xml/components/filament_slot_picker.xml` (+ `_row`, `_choice`) |
+| Recording one pick | `src/printer/filament_mapper.cpp#pick_slot` |
+| The tap gate | `include/ui_print_select_detail_view.h#PrintSelectDetailView/remap_tap_allowed` |
+
+**The model.** Every decision a chip shows is a pure function in `filament_chip_model.h`,
+and every match question inside them is answered by `FilamentMapper` (`materials_match`,
+`classify_mismatches`, `color_distance`); nothing re-implements one.
+
+- `chip_severity(tool, resolved)` -> `ChipSeverity`: `Block` (red) for no slot, an empty
+  slot or a material mismatch; `Warn` (amber) for a colour mismatch, only when the file's
+  colour is known; `Ok` (grey) otherwise, including Auto once it resolves.
+- `chip_slot_label(slot, all_slots)`: the 1-based slot number ("3") when the slots span one
+  unit, else unit and slot joined by `kUnitSeparator` ("2·1"). Units are counted by
+  (backend, unit) in the order the slots first appear, which is the order the dropdown lists
+  them, so "2·1" and the dropdown's "Turtle 2 · Lane 1" name the same lane. The G-code side
+  is always `tool_label()` ("T4"), never renumbered.
+- `rank_slots_for_tool()` / `slot_fit_text()`: the dropdown's order (Exact, ColorDiffers,
+  MaterialDiffers, Empty; physical order inside a tier; an unknown file colour never demotes)
+  and its translated reasons ("exact match", "color differs", "material differs", "empty",
+  plus ", also T0" for every other tool mapped to the slot).
+- `used_materials_text()`: the details row's material, the used tools' materials
+  deduplicated by exact spelling in tool order and joined by ", " ("PLA, PETG"); every
+  material in the file until the used-tools set is known. The detail view publishes it
+  (`PrintSelectDetailView::publish_material_text`) whenever the used tools or the palette
+  change, so the row and the chips never disagree. The list view's per-file material is
+  untouched.
+- `loaded_severity()` / `LoadedRole`: the no-filament-system comparison, below.
+
+**Subjects, not widgets.** The card creates no widget. It publishes
+`filament_chip_count`, the per-chip indexed subjects `filament_chip_<i>_material`, `_slot`,
+`_file_color`, `_file_color_known`, `_ink` (header text: 0 theme, 1 black, 2 white, from
+`theme_manager_get_readable_on`), `_slot_color`, `_slot_colors`, `_slot_finish`,
+`_slot_state` (0 no slot, 1 loaded, 2 empty, 3 swap, 4 unknown loaded filament) and `_severity` (the `ChipSeverity` value),
+plus `filament_chip_more_count` and `filament_chip_more_text`.
+`filament_chip_row.xml` repeats `filament_swatch` over `<repeat count="filament_chip_count">`
+in a container of its own, then the "+N" pill. Severity drives `bind_style_if_eq` outlines,
+and the colours bind through `<swatch_paint bind_color>` and `<color_dot color_subject>`
+(`docs/devel/COLOR_SWATCHES.md`). Bound properties live in the component's `<styles>`, never
+inline, because an inline `style_*` outranks a bound style. Subjects exist for
+`kMaxFilamentChips` chips; past the row's fit (`chips_that_fit`, never below
+`kMinVisibleChips`) the pill stands in. The chip width is the `#filament_chip_width` token
+(52 to 80 px by breakpoint) and the header font the `#font_chip_material` ladder (bold from
+the medium breakpoint, light 10 below, where a bold "ABS-GF" does not fit).
+
+**A chip tap.** The chip's `filament_chip_clicked_cb` reaches the detail view's
+`on_chip_clicked`, which passes the same gate the card's header tap does,
+`remap_tap_allowed()`: `NeedsPlugin` opens the install help modal, any other
+`RemapBlock` does nothing, `None` opens the picker. The caret binds
+`color_card_remappable`, so it hides exactly when the tap would be refused. The header tap
+still opens the full mapping modal.
+
+**The dropdown.** `FilamentMappingCard::open_slot_picker()` shows the card's own
+`FilamentSlotPicker` under the chip, headed "T2 · PLA", with Auto first, the ranked rows and
+reasons, the current pick highlighted, and "More options…" as the extra row, which takes the
+header tap's path (so it is gated the same way) into the modal. A pick goes through
+`FilamentMapper::pick_slot`, the one path the modal's row picker uses too (slot, backend,
+`is_auto`, `user_picked`, re-classification), then `set_mappings()` republishes the chips.
+The picker is the same declarative component everywhere it appears (mapping modal rows, the
+unload lane choice): it publishes `filament_picker_title`, `_row_count`, `_offer_auto`,
+`_auto_selected`, `_has_extra`, `_has_cancel` and friends, and per row
+`filament_picker_row_<i>_label`, `_material`, `_reason`, `_color`, `_colors`, `_finish`,
+`_selected`, `_empty`, `_warn`, up to `FilamentSlotPicker::kMaxPickerRows`. Taps arrive on
+one `filament_picker_row_cb`. One picker shows at a time, since the subjects are global.
+
+**No filament system.** On a printer with one toolhead (`ToolState::has_multiple_toolheads()`
+false) and no filament system, `FilamentMappingCard::shows_loaded_for()` shows the card
+whenever a used tool names a material; `shows_mapping_for()` and the print-start gate are
+unchanged, so the bypass dead-control rule still holds. Chips compare the file against the
+external spool (`get_external_spool_info()`): the first used tool's body is just the spool dot
+in the loaded filament's colour (a `help_circle` icon with a grey outline when nothing says
+what is loaded), and later tools show a `swap_horizontal` icon and are always grey.
+`current_remap_block()` returns `NoStrategy` in this mode, so the caret hides and a tap
+does nothing, even on a backend that has a remap strategy but presents no filament system.
 
 ### Edit Spool (`ui_ams_edit_overlay`)
 

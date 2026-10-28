@@ -805,6 +805,25 @@ TEST_CASE("identity_filtered_remap agrees with the seed under the same routing",
     }
 }
 
+TEST_CASE("identity_filtered_remap sends only the primary backend's slots",
+          "[filament_mapper][remap][multi_backend]") {
+    // The remap goes out against backend 0's routing, where slot 2 is backend 0's
+    // own lane 3. A pick of backend 1's slot 2 names a different lane.
+    std::vector<ToolMapping> m(3);
+    m[0].tool_index = 0;
+    m[0].mapped_slot = 1;
+    m[0].mapped_backend = 0;
+    m[1].tool_index = 1;
+    m[1].mapped_slot = 2;
+    m[1].mapped_backend = 1;
+    m[2].tool_index = 2;
+    m[2].mapped_slot = 3;
+    m[2].mapped_backend = -1; // primary
+    const std::map<int, int> expected = {{0, 1}, {2, 3}};
+    CHECK(FilamentMapper::identity_filtered_remap(m, helix::FirmwareRouting::identity()) ==
+          expected);
+}
+
 // =============================================================================
 // compute_defaults — backend index propagation
 // =============================================================================
@@ -2219,4 +2238,57 @@ TEST_CASE("compute_defaults: a refused guess keeps the tool on its routed lane",
         CHECK(result[0].mapped_slot == 1);
         CHECK(result[0].reason == ToolMapping::MatchReason::COLOR_MATCH);
     }
+}
+
+// =============================================================================
+// pick_slot
+// =============================================================================
+
+TEST_CASE("pick_slot: a picked lane is marked user_picked and re-classified",
+          "[filament_mapper][pick_slot]") {
+    const GcodeToolInfo tool{0, 0xFF0000, "PLA"};
+    const std::vector<AvailableSlot> slots = {
+        {0, 0, 0xFF0000, "PLA", false, -1},
+        {1, 0, 0xFF0000, "PETG", false, -1},
+    };
+    ToolMapping m;
+    m.tool_index = 0;
+
+    FilamentMapper::pick_slot(m, tool, slots, 1, 0, false);
+    CHECK(m.user_picked);
+    CHECK(m.mapped_slot == 1);
+    CHECK(m.mapped_backend == 0);
+    CHECK_FALSE(m.is_auto);
+    CHECK(m.material_mismatch);
+
+    FilamentMapper::pick_slot(m, tool, slots, 0, 0, false);
+    CHECK_FALSE(m.material_mismatch);
+}
+
+TEST_CASE("pick_slot: Auto, or a lane no longer present, leaves no warnings",
+          "[filament_mapper][pick_slot]") {
+    const GcodeToolInfo tool{0, 0xFF0000, "PLA"};
+    const std::vector<AvailableSlot> slots = {
+        {0, 0, 0x0000FF, "PETG", false, -1},
+    };
+
+    ToolMapping a;
+    a.material_mismatch = true;
+    a.color_mismatch = true;
+    a.reason = ToolMapping::MatchReason::COLOR_MATCH;
+    FilamentMapper::pick_slot(a, tool, slots, -1, -1, true);
+    CHECK(a.is_auto);
+    CHECK(a.user_picked);
+    CHECK(a.reason == ToolMapping::MatchReason::AUTO);
+    CHECK_FALSE(a.material_mismatch);
+    CHECK_FALSE(a.color_mismatch);
+
+    ToolMapping gone;
+    gone.material_mismatch = true;
+    gone.color_mismatch = true;
+    FilamentMapper::pick_slot(gone, tool, slots, 7, 0, false);
+    CHECK(gone.user_picked);
+    CHECK(gone.mapped_slot == 7);
+    CHECK_FALSE(gone.material_mismatch);
+    CHECK_FALSE(gone.color_mismatch);
 }

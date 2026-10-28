@@ -47,7 +47,7 @@ Below the rows, a short explanation calls out the first blocking problem, for ex
 | **Cancel** | Backs out without printing. Load or map the missing filament, then start again. |
 | **Print Anyway** | Starts the print despite the warning. Use this only if you know the check is wrong (for example, filament is physically loaded but not yet detected). |
 
-> **Note:** An empty slot is the only thing that raises this dialog. A **material or color mismatch does not stop the print** — those are advisory. They show up as a warning icon on the Filament Mapping card when you pick the file (see [Filament Mapping](filament.md#filament-mapping)), and if the dialog is already open for an empty slot, mismatched tools show an amber warning glyph on their row too.
+> **Note:** An empty slot is the only thing that raises this dialog. A **material or color mismatch does not stop the print** — those are advisory. They show up as an amber or red outline on that tool's chip in the FILAMENTS card when you pick the file (see [Filament Mapping](filament.md#filament-mapping)), and if the dialog is already open for an empty slot, mismatched tools show an amber warning glyph on their row too.
 
 > **Tip:** If you meant to load that filament, tap **Cancel**, sort out the slot from the [AMS panel](filament.md#ams--multi-material-systems), and start the print again — the check re-runs each time. It also re-runs the moment your filament system's state changes, so loading a slot (or engaging bypass) while the file is still open clears the warning without reopening it.
 

@@ -62,6 +62,7 @@ translations:
   + Add Printer: + 添加打印机
   + New: + 新建
   +{} more: '还有 {} 个'
+  ', also {}': '，另有 {}'
   '- Check [resonance_tester] in printer.cfg': '- 检查 printer.cfg 中的 [resonance_tester]'
   '- Ensure ADXL345 is connected': '- 确保 ADXL345 已连接'
   '- Try Measure Noise first': '- 先尝试测量噪声'
@@ -2264,6 +2265,7 @@ translations:
   : "Moonraker 重启中...\n等待重新连接..."
   Moonraker's Python is too old for this feature.: "Moonraker 的 Python 版本太旧，无法使用此功能。"
   'Moonraker: ': 'Moonraker: '
+  More options…: '更多选项…'
   More points = more accurate, but takes longer.: 点数越多越精确，但耗时更长。
   Motion: 运动
   'Motion sensor stuck: filament is still at the feeder. Resume to feed it.': '运动传感器卡住：耗材仍在送料器中。继续即可送入。'
@@ -4494,6 +4496,7 @@ translations:
   by: '作者：'
   by Preston Brown: by Preston Brown
   chamber heater: 腔体加热器
+  color differs: '颜色不同'
   complete: 完成
   cores: 核心
   direct drive: 直驱
@@ -4512,6 +4515,7 @@ translations:
   enable: 启用
   enabled: 已启用
   error: 错误
+  exact match: '完全匹配'
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact：材料和颜色相同。material：材料相同。next：任意就绪槽位，即使材料不同'
   extruder: 挤出机
   extruder(s): 挤出机
@@ -4539,6 +4543,7 @@ translations:
   loaded: '已加载'
   locked: '已锁定'
   matched: 匹配
+  material differs: '材料不同'
   mm: mm
   mm Z-offset: mm Z 偏移
   mm before clog: 毫米后堵料

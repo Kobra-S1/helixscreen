@@ -10,6 +10,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_ace.h"
 #include "ams_bypass_policy.h"
+#include "ams_state.h"
 #include "ams_types.h"
 #include "config.h"
 #include "fake_moonraker_client.h"
@@ -4143,4 +4144,29 @@ TEST_CASE("ACE slot in motion keeps its spool", "[ams][ace][slot-status]") {
 
         CHECK(helper.get_slot_info(0).status == SlotStatus::EMPTY);
     }
+}
+
+// A community driver publishes no tool numbers: T<n> loads slot n.
+TEST_CASE("ACE without driver tool numbers judges tool n on slot n",
+          "[ams][ace][filament_mapping][preflight]") {
+    helix::test::RegisteredBackend<AmsBackendAce> backend(nullptr, nullptr);
+    json payload = make_ace_slot_payload("empty", 0x000000, "");
+    payload["slots"].push_back(
+        json{{"status", "ready"}, {"color", json::array({255, 0, 0})}, {"type", "PLA"}});
+    payload["slots"].push_back(
+        json{{"status", "ready"}, {"color", json::array({0, 0, 255})}, {"type", "PLA"}});
+    AceTestAccess::parse_ace(*backend, payload);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE_FALSE(backend->get_slot_info(0).is_present());
+    REQUIRE(backend->get_slot_info(1).is_present());
+    CHECK(backend->firmware_default_routing().head(0) == 0);
+    CHECK(backend->firmware_default_routing().head(2) == 2);
+
+    helix::GcodeToolInfo t0{};
+    t0.tool_index = 0;
+    t0.color_known = false;
+    auto& ams = helix::AmsState::instance();
+    const auto seed = ams.seed_tool_mappings({t0}, ams.collect_available_slots());
+    REQUIRE(seed.size() == 1);
+    CHECK(seed[0].mapped_slot == 0);
 }

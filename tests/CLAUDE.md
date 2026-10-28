@@ -462,9 +462,13 @@ Cadence has the whole schedule.
 **Each changed file runs against its own tests.** A run prints `tests per file:` first. A
 file gets the filter of the first `--tests-for GLOB=FILTER` it matches, else the test files
 that name its stem as a whole word (Catch2's `[#test_<file>]` tags, under `-#`; a stem more
-than 12 files name counts as none), else `--tests`. Files sharing a filter run as one group,
-each group a child run with its own baseline, inside the one 30-minute budget; the worst
-group's exit is the run's. `--no-auto-tests` puts every unmapped file on `--tests`.
+than 12 files name counts as none), else `--tests`. A script under `scripts/` runs the
+`.bats` and pytest files that name it (its file name, or a Python script's import stem):
+with only one of the two, that one judges it; with neither, both whole suites do, which is
+slow and, inside the test container, red on environment alone. Files sharing what judges
+them run as one group, each group a child run with its own baseline, inside the one
+30-minute budget; the worst group's exit is the run's. `--no-auto-tests` puts every file on
+`--tests`, `--shell-tests` and `--python-tests`.
 Generated output (`src/generated/`) is not mutated: its source is, and the regeneration
 gates pin the two together.
 

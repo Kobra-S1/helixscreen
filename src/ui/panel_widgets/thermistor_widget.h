@@ -181,6 +181,7 @@ class ThermistorWidget : public TiledPanelWidget {
     // Carousel mode: each page binds the reading and name subjects of its slot
     // in these pools (thermistor_carousel_page). Declared before the observers
     // that write them, so those are torn down first.
+    /// Outlives page_temp_ and page_name_, which keep a pointer to it as their name prefix.
     std::string page_prefix_;
     std::unique_ptr<helix::xml::IndexedSubjectPool> page_temp_;
     std::unique_ptr<helix::xml::IndexedSubjectPool> page_name_;

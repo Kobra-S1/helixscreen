@@ -660,6 +660,12 @@ std::vector<int> unresolved_tools_in(const PrintStartContext& ctx) {
         return {};
     }
 
+    // The firmware picks every lane when the print starts, so a tool with no
+    // lane yet is the expected answer, not a gap.
+    if (ctx.lanes_picked_at_print) {
+        return {};
+    }
+
     if (ctx.mappings.empty()) {
         // No mappings = AMS not available or card not shown
         spdlog::debug("[PrintStartController] No filament mappings available");

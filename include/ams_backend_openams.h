@@ -111,6 +111,10 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
         return true;
     }
 
+    /// T<n> loads the slot serving group T<n> (get_tool_mapping()), which moves
+    /// to a backup when the serving slot runs out; nothing remaps it per print.
+    [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override;
+
     /// Every `groups[]` entry that lists two or more slots is an endless-spool
     /// group: when the slot feeding it runs out, OpenAMS continues with another
     /// member. The firmware config defines the groups, so the answer is

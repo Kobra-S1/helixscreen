@@ -25,6 +25,7 @@
 #include "color_utils.h"
 #include "config.h"
 #include "display_settings_manager.h"
+#include "filament_chip_model.h"
 #include "file_analysis.h"
 #include "gcode_footer_summary.h"
 #include "gcode_parser.h"
@@ -203,8 +204,8 @@ void PrintSelectDetailView::init_subjects() {
     // scan or viewer parse completes.
     UI_MANAGED_SUBJECT_INT(detail_mapping_ready_, 0, "detail_mapping_ready", subjects_);
 
-    // Filament mismatch warning (0=hidden, 1=visible)
-    UI_MANAGED_SUBJECT_INT(filament_mismatch_, 0, "filament_mismatch", subjects_);
+    // The chips print_file_detail.xml repeats.
+    FilamentMappingCard::init_subjects();
 
     // Filament mapping card visibility (0=hidden, 1=visible). Driven by
     // FilamentMappingCard::should_show() after each update(); XML binds
@@ -226,9 +227,6 @@ void PrintSelectDetailView::init_subjects() {
     UI_MANAGED_SUBJECT_INT(color_card_remap_help_visible_, 0, "color_card_remap_help_visible",
                            subjects_);
 
-    // Empty-tools warning visibility (0=hidden, 1=visible). Set by
-    // recompute_preflight() when any T-command-referenced slot is empty.
-    UI_MANAGED_SUBJECT_INT(empty_tools_warning_, 0, "empty_tools_warning", subjects_);
     UI_MANAGED_SUBJECT_INT(detail_fit_severity_, 0, "detail_fit_check_severity", subjects_);
     UI_MANAGED_SUBJECT_STRING(detail_fit_text_, detail_fit_text_buf_, "", "detail_fit_check_text",
                               subjects_);
@@ -259,6 +257,12 @@ void PrintSelectDetailView::init_subjects() {
     tool_map_version_observer_ = observe<int>(
         AmsState::instance().get_tool_map_version_subject(), this,
         [](PrintSelectDetailView* self, int /*version*/) { self->on_ams_state_changed(); },
+        AmsState::instance().get_subjects_lifetime());
+    // The loaded chips of a printer with no filament system compare against the
+    // external spool, which every spool edit notifies through its colour.
+    external_spool_observer_ = observe<int>(
+        AmsState::instance().get_external_spool_color_subject(), this,
+        [](PrintSelectDetailView* self, int /*rgb*/) { self->on_ams_state_changed(); },
         AmsState::instance().get_subjects_lifetime());
     // The auto-color-map setting picks the seed, so the un-picked rows follow it
     // as soon as it flips (the remap modal's toggle writes it, and its Cancel
@@ -434,9 +438,10 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
             LV_EVENT_LAYOUT_CHANGED, this);
     }
 
-    // Look up and initialize the one filament card. Its children declare
-    // clickable=false + event_bubble=true in print_file_detail.xml (L071), so
-    // the card itself receives every tap landing on a chip. FilamentMappingCard
+    // Look up and initialize the one filament card. Its header and row
+    // declare clickable=false + event_bubble=true in print_file_detail.xml
+    // (L071), so the card receives every tap outside a chip; a chip takes its
+    // own tap (filament_chip_clicked_cb). FilamentMappingCard
     // ::create() installs the CLICKED handler (allowed exception) — deliberately
     // NOT a second lv_obj_add_event_cb here, which would fire the remap opener
     // twice per tap. Whether the card is clickable at all, and whether it shows
@@ -450,6 +455,13 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
     // for every backend (AFC/CFS card tap, U1 chip tap, preflight "Map Filament…" all
     // reach PrintSelectPanel::open_remap_modal()).
     filament_mapping_card_.set_on_tap([this]() { on_color_card_clicked(); });
+    // A chip takes its own tap: the same remap gate, then that tool's dropdown.
+    filament_mapping_card_.set_on_chip_tap(
+        [this](size_t chip, lv_obj_t* trigger) { on_chip_clicked(chip, trigger); });
+    // The gate is asked again when a pick lands: the backend or the plugin may
+    // have changed while the dropdown was open.
+    filament_mapping_card_.set_pick_gate(
+        [this]() { return remap_tap_allowed("chip pick") && print_carries_out_chip_pick(); });
     filament_mapping_card_.set_on_mappings_changed([this]() {
         // Fired by set_mappings() AFTER it repaints the chips, so this is only
         // the downstream work: re-colour the preview and re-gate pre-flight.
@@ -522,6 +534,28 @@ void PrintSelectDetailView::set_file_palette(const std::vector<std::string>& fil
     palette_settled_ = !current_filament_colors_.empty();
     filament_mapping_card_.update(filament_colors, filament_materials);
     publish_card_visibility();
+    publish_material_text();
+}
+
+void PrintSelectDetailView::set_card_used_tools(std::optional<std::set<int>> used) {
+    filament_mapping_card_.set_used_tools(std::move(used));
+    publish_material_text();
+}
+
+void PrintSelectDetailView::publish_material_text() {
+    if (!material_text_subject_) {
+        return;
+    }
+    // The chips' own used-tool set, so the row and the chips name the same tools.
+    // Empty reads as not known yet, as it does for the card.
+    const auto& used = filament_mapping_card_.used_tools();
+    const std::string text =
+        helix::used_materials_text(current_filament_materials_,
+                                   used && !used->empty() ? used : std::optional<std::set<int>>{});
+    // A file naming no material keeps the panel's text (its filament name).
+    if (!text.empty()) {
+        lv_subject_copy_string(material_text_subject_, text.c_str());
+    }
 }
 
 void PrintSelectDetailView::show(const std::string& filename, const std::string& current_path,
@@ -588,7 +622,7 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     // gcode parse pushes its real used set (viewer-parse or headless hook).
     // Without this reset a disjoint prior set would mis-filter — or blank — the
     // new file's card pre-parse.
-    filament_mapping_card_.set_used_tools(std::nullopt);
+    set_card_used_tools(std::nullopt);
 
     // Update filament mapping card (shown when AMS is available)
     filament_mapping_card_.update(filament_colors, filament_materials);
@@ -599,20 +633,6 @@ void PrintSelectDetailView::show(const std::string& filename, const std::string&
     // the precise used-tool set as soon as that set is known.
     publish_card_visibility();
 
-    // The warnings start in a neutral "not yet known" state. Seeding them from
-    // the slicer palette index here inspects the wrong AMS slots, because the
-    // palette over-counts the tools the file really uses. The authoritative
-    // answer arrives with the pre-flight validator once the gcode viewer has
-    // parsed and produced tools_used_indices. Reset every show() so
-    // re-selecting a different file never leaks stale warning state.
-    //
-    // filament_mismatch_ is likewise neutral-until-parse: seeding it from
-    // filament_mapping_card_.has_mismatch() here would flash a value computed
-    // against the full slicer palette before the validator runs against the
-    // precise tools_used set. The pre-flight validator in
-    // try_extract_gcode_colors() is the sole authoritative post-parse writer.
-    lv_subject_set_int(&empty_tools_warning_, 0);
-    lv_subject_set_int(&filament_mismatch_, 0);
     lv_subject_set_int(&detail_prefer_sliced_colors_, 0); // every open starts on actual colors
     fit_record_.reset();
     refresh_fit_check();
@@ -976,6 +996,7 @@ void PrintSelectDetailView::on_deactivating(DeactivateReason reason) {
     // live in exclude_objects_; a blanked screen keeps them, leaving the file
     // drops them, unless they are held for the print start that hid this view.
     exclude_mode_.hide();
+    filament_mapping_card_.hide_slot_picker();
     if ((reason == DeactivateReason::NavigateAway && !picks_held_for_start_) ||
         reason == DeactivateReason::Shutdown) {
         exclude_objects_.clear_objects();
@@ -1561,7 +1582,6 @@ void PrintSelectDetailView::on_ams_state_changed() {
 
 void PrintSelectDetailView::refresh_preview_colors_and_mismatch() {
     apply_preview_colors();
-    lv_subject_set_int(&filament_mismatch_, filament_mapping_card_.has_mismatch() ? 1 : 0);
     // Re-evaluate the pre-flight gate so a subsequent Print reflects the current
     // tool->slot mapping (native remap flow reads get_filament_mappings()).
     recompute_preflight();
@@ -1579,8 +1599,7 @@ void PrintSelectDetailView::try_extract_gcode_colors(lv_obj_t* viewer) {
     if (helix::ui::gcode_viewer_adopt_palette_if_empty(viewer, current_filament_colors_)) {
         // Rebuild the mapping card's internal tool/slot/mapping state with the
         // newly-extracted colors (the card uses them when AMS is present). The
-        // filament_mismatch_ / empty_tools_warning_ subjects are NOT published
-        // here — the pre-flight validator below is the single source of truth.
+        // pre-flight validator below is the single source of truth for the gate.
         filament_mapping_card_.refresh_palette(current_filament_colors_,
                                                current_filament_materials_);
 
@@ -1665,8 +1684,8 @@ void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tool
                                                current_filament_materials_);
     }
 
-    // Backend-agnostic pre-flight validation (single source of truth for
-    // filament_mismatch_ + empty_tools_warning_).
+    // Backend-agnostic pre-flight validation (single source of truth for the
+    // print-start gate).
     recompute_preflight();
 
     // Restrict the mapping card to the tools this file actually uses — it was
@@ -1675,7 +1694,7 @@ void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tool
     // only DROPS mapping entries whose tool_index is outside tools_used, and the
     // validator only ever looks mappings up by the tool_index of a tool in
     // get_used_tool_info(), which is filtered by the same set.
-    filament_mapping_card_.set_used_tools(tools_used);
+    set_card_used_tools(tools_used);
 
     // One chip surface for every backend: the card renders from its own store,
     // so all this has to decide is whether that surface is on screen. The
@@ -1695,8 +1714,8 @@ void PrintSelectDetailView::render_authoritative_chips(const std::set<int>& tool
 
 void PrintSelectDetailView::recompute_preflight() {
     // ------------------------------------------------------------------
-    // Backend-agnostic pre-flight validation (single source of truth for
-    // filament_mismatch_ + empty_tools_warning_).
+    // Backend-agnostic pre-flight validation (single source of truth for the
+    // print-start gate).
     //
     // Runs for ALL AMS backends — including those whose mapping card is hidden
     // (Snapmaker U1 / ACE), where get_available_slots() on the card is empty.
@@ -1739,23 +1758,9 @@ void PrintSelectDetailView::recompute_preflight() {
     // would report EmptySlot. Backend-agnostic — AFC and Happy Hare both report it.
     preflight_result_ = helix::file_preflight(tools, effective_mappings());
 
-    // The triangle means MATERIAL, and only material. PreflightResult already
-    // separates the three severities and this used to flatten them: any severity
-    // other than Ok lit it, so a ColorMismatch raised a card-level colour alarm
-    // that was explicitly decided against. An empty lane is published next to it
-    // as its own signal, and colour is the per-chip surround on the swatch - the
-    // chip shows both colours side by side, so an alarm here would fire on most
-    // prints and devalue the triangle that flags what cannot be seen.
-    lv_subject_set_int(&filament_mismatch_, preflight_result_.has_advisory() ? 1 : 0);
-    lv_subject_set_int(&empty_tools_warning_, preflight_result_.has_block() ? 1 : 0);
-
-    // Log every severity separately, not only the one the triangle publishes.
-    // The bug above was three findings sharing one lamp, so the log must not
-    // repeat it: someone looking at a chip that wears a colour surround while
-    // the triangle is dark needs to see WHICH finding preflight made, and
-    // "advisory=false" alone cannot tell "nothing was wrong" from "something
-    // was, and it was not material". These three are the complete set - every
-    // severity other than Ok is one of them.
+    // Log every severity separately: "advisory=false" alone cannot tell
+    // "nothing was wrong" from "something was, and it was not material". These
+    // three are the complete set - every severity other than Ok is one of them.
     const bool color_flagged =
         std::any_of(preflight_result_.checks.begin(), preflight_result_.checks.end(),
                     [](const helix::ToolCheck& c) {
@@ -1924,7 +1929,8 @@ void PrintSelectDetailView::show_remap_help_modal() {
 
 helix::printer::RemapBlock PrintSelectDetailView::current_remap_block() const {
     auto* backend = AmsState::instance().get_backend();
-    if (backend == nullptr) {
+    // A card showing what is loaded has no lane to route a tool to.
+    if (backend == nullptr || filament_mapping_card_.shows_loaded()) {
         return helix::printer::RemapBlock::NoStrategy;
     }
     return helix::printer::remap_block(*backend, rewrite_block(),
@@ -1945,24 +1951,54 @@ void PrintSelectDetailView::publish_rewrite_availability() {
     lv_subject_set_int(&gcode_rewrite_available_, helix::gcode_rewrite_available(rewrite_block()));
 }
 
-void PrintSelectDetailView::on_color_card_clicked() {
-    // The filament card is the remap entry point on EVERY backend that has one,
-    // including those whose mapping is not editable inline (Snapmaker U1).
+bool PrintSelectDetailView::remap_tap_allowed(const char* what) {
     // Kept as a guard even though the XML clears the card's clickable flag on a
     // non-remappable backend: the flag can only be as fresh as the last publish,
     // and this is the cheap way to make a stale one harmless.
     const auto block = current_remap_block();
     if (block == helix::printer::RemapBlock::NeedsPlugin) {
-        // The whole card is the help target here, not just the 24px cue: the
-        // card carries no remap to open, and a tap that explains beats a tap
-        // that silently does nothing. The Install button lives in that modal.
-        spdlog::debug("[PrintSelect] filament card tap -> remap help");
+        // The tap is the help target here, not just the 24px cue: there is no
+        // remap to open, and a tap that explains beats a tap that silently does
+        // nothing. The Install button lives in that modal.
+        spdlog::debug("[PrintSelect] filament {} tap -> remap help", what);
         show_remap_help_modal();
-        return;
+        return false;
     }
     if (block != helix::printer::RemapBlock::None) {
-        spdlog::debug("[PrintSelect] filament card tap ignored: {}",
+        spdlog::debug("[PrintSelect] filament {} tap ignored: {}", what,
                       helix::printer::remap_block_name(block));
+        return false;
+    }
+    return true;
+}
+
+bool PrintSelectDetailView::print_carries_out_chip_pick() const {
+    const auto* backend = AmsState::instance().get_backend();
+    return backend != nullptr &&
+           helix::printer::print_carries_out_stored_pick(backend->get_remap_strategy());
+}
+
+void PrintSelectDetailView::on_chip_clicked(size_t chip, lv_obj_t* trigger) {
+    if (!remap_tap_allowed("chip")) {
+        return;
+    }
+    // A pick the Print button would not carry out is never recorded inline: the
+    // full mapping modal applies it itself.
+    if (!print_carries_out_chip_pick()) {
+        spdlog::debug("[PrintSelect] filament chip {} tap -> remap modal", chip);
+        if (on_remap_requested_) {
+            on_remap_requested_();
+        }
+        return;
+    }
+    spdlog::debug("[PrintSelect] filament chip {} tap -> slot picker", chip);
+    filament_mapping_card_.open_slot_picker(chip, trigger);
+}
+
+void PrintSelectDetailView::on_color_card_clicked() {
+    // The filament card is the remap entry point on EVERY backend that has one,
+    // including those whose mapping is not editable inline (Snapmaker U1).
+    if (!remap_tap_allowed("card")) {
         return;
     }
     spdlog::debug("[PrintSelect] filament card tap -> remap modal");
@@ -2281,7 +2317,7 @@ void PrintSelectDetailView::apply_scan_result(std::set<int> tools) {
         // filter still refresh from the scan result (a no-op on full
         // platforms, where the parse already populated both).
         recompute_preflight();
-        filament_mapping_card_.set_used_tools(tools_used_effective());
+        set_card_used_tools(tools_used_effective());
         // set_used_tools() re-decides visibility from the new set, so the
         // subject has to follow it here too — this branch skips
         // render_authoritative_chips(), which is where that normally happens.
