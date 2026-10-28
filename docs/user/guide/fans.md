@@ -25,7 +25,7 @@ HelixScreen identifies each fan by its Klipper configuration and shows a short t
 |------|----------------|---------------|
 | **Part** | Part cooling fan (`[fan]`) | Yes |
 | **Generic** | `[fan_generic]` | Yes |
-| **Output Pin** | Creality-style `[output_pin]` fan | Yes |
+| **Output Pin** | Creality-style `[output_pin]` fan | Yes, except one named as a hotend, extruder or heatbreak fan (the K2's hotend fan), which runs with the heater and is shown as automatic |
 | **HE** | `[heater_fan]` (hotend cooling) | No — automatic |
 | **Controller** | `[controller_fan]` (electronics cooling) | No — automatic |
 | **Temp** | `[temperature_fan]` (thermostatic) | No — automatic |

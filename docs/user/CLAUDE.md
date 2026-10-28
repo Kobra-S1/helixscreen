@@ -34,7 +34,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/temperature.md` | Nozzle/bed temperature panels, presets, reassigning preset filament types, graphs, drying filament on the bed, chamber heater diagnostics card |
 | `guide/chamber-heater.md` | Add-on chamber heater setup (BIGTREETECH Panda Breath): network step, stock vs DragonBreath firmware, the Klipper module and config each needs, the Snapmaker U1 menu shortcut, troubleshooting |
 | `guide/motion.md` | Jog/Move/Bed tabs, jog pad, bed map, tap-to-move coordinates, bed position grid, lifting over a print left on the bed (Cleared), park, motors off, homing, E-stop |
-| `guide/filament.md` | Extrusion, AMS, CFS, Spoolman, filament drying and humidity by box |
+| `guide/filament.md` | Extrusion, the QIDI M604 load wizard, AMS, CFS (and a K2 with none), Spoolman, filament drying and humidity by box |
 | `guide/filament-tracking.md` | Filament tracking with/without Spoolman, usage estimation, connecting Spoolman, spool inventory |
 | `guide/bluetooth-setup.md` | Enabling Bluetooth on Raspberry Pi and BTT Pi, UART conflicts, USB dongle setup |
 | `guide/barcode-scanner.md` | USB + Bluetooth barcode scanner setup, keymaps, BT-HID bonded-only workaround |
@@ -53,7 +53,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/settings/connection.md` | Network settings, printers, Moonraker host, screen sharing rows (details in guide/screen-sharing.md) |
 | `guide/settings/language-time.md` | Language, timezone, time format |
 | `guide/settings/system.md` | Security, storage (usage by kind, cleanup, automatic cleanup), performance, telemetry, log level, restart, factory reset |
-| `guide/settings/updates.md` | Update channel, check and install, firmware-managed and can't-update notices |
+| `guide/settings/updates.md` | Update channel (and its sync with moonraker.conf), check and install, firmware-managed and can't-update notices |
 | `guide/settings/help-about.md` | Welcome tour, debug bundles, Discord, docs, About (version, system info, print hours, beta features) |
 | `guide/fans.md` | Discovered fans grouped by controllable vs. automatic, live speed dials, RPM readouts, chamber air modes, per-fan renaming |
 | `guide/sensors.md` | Filament and motion sensors with per-sensor role assignment, door/button inputs and the door-open warning, read-only sensor types, chamber heater/sensor mapping |

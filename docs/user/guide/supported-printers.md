@@ -92,7 +92,9 @@ Runs on the K2's built-in screen and, unlike the K1, **works with stock firmware
 - **Auto-Refill** (Endless Spool), run by the CFS itself, and Filament Mapping. A runout always pauses the print first, and the box only switches to another slot when Auto-Refill is on and that slot holds the exact same material *and* color - otherwise the print stays paused
 - **Humidity and temperature monitoring** - each CFS unit is one box on the [filament environment screen](filament.md#filament-drying-and-humidity). The CFS has no heater, so there are readings to watch but no drying controls
 - **External-spool bypass** — toggle it in the AMS panel: the CFS is stood down, the toolhead runout sensor is switched on for protection, and the spool is published to OrcaSlicer as an extra lane. See [Filament → CFS and the External Spool](filament.md#cfs-and-the-external-spool)
+- **No CFS?** A K2 without one is a single-spool printer: no filament system screens, and Load and Unload run the K2's own external-spool load and cut. See [Filament → CFS](filament.md#creality-filament-system-cfs)
 - **Chamber heater** control (K2 Pro / Plus)
+- **Hotend fan** shown in Fan Control without a dial: it runs with the heater and is never set from the screen
 - **Spaghetti detection**: HelixScreen runs the K2's own AI model on camera snapshots during a print and can pause it (see [Print Monitoring](print-monitoring.md#print-failure-detection)). Filament runout is detected and acted on by the printer's own firmware, which pauses the job; HelixScreen reports what the CFS decided and offers the recovery buttons
 
 **Requirements:** Stock firmware works out of the box. See [Installation → Creality K2 Series](install-k2.md).
@@ -116,6 +118,7 @@ The 4-series QIDI printers integrate the **QIDI Box** filament changer. The Q2, 
 
 **What works:**
 - **QIDI Box filament changer** (4, 8, 12, or 16 slots) — per-slot status, Filament Mapping and Assigned Tool, and load / unload / change-tool control
+- **The full stock load wizard** - a load runs QIDI's whole `M604` sequence on the screen (push the filament in, **Extrude more** or **Done**), then cools the nozzle and turns the filament sensor back on. See [Loading on a QIDI](filament.md#loading-on-a-qidi-m604)
 - **QIDI Box drying** - the box's PTC heater, its temperature and its humidity are all on the box's [filament environment screen](filament.md#filament-drying-and-humidity)
 - **Chamber heater** control on enclosed models
 - **QIDI-specific print-start tracking** (homing → bed heat → nozzle clean → Z-tilt → mesh → nozzle heat → chamber heat)

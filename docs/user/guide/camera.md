@@ -18,6 +18,8 @@ There are several ways to see the feed:
 
 The feed is decoded as an MJPEG stream when one is available. If only a snapshot URL is configured, HelixScreen falls back to periodically polling that snapshot image instead.
 
+Cameras on an `https` address work too. In the Android app, an `https` camera is shown by polling its snapshot image rather than streaming it.
+
 ---
 
 ## Choosing Between Several Cameras
@@ -41,6 +43,8 @@ While the camera is connecting or unavailable, the widget shows a status message
 |--------|---------|
 | **Connecting Camera…** | HelixScreen is establishing the stream; the status clears once the first frame arrives |
 | **No Camera** | No webcam is configured, or the stream couldn't be reached |
+| **Snapshot unavailable** | Three snapshot pictures in a row failed to arrive or could not be read. Check the camera's snapshot URL in Mainsail or Fluidd |
+| **Camera unavailable** | The webcam has neither a stream nor a snapshot address HelixScreen can use |
 
 At the smallest widget size (1x1) the camera shows only an icon and does not stream — make the widget larger to see the live feed.
 

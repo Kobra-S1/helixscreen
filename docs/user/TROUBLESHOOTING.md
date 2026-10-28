@@ -1585,6 +1585,8 @@ Re-slice your file after adding these — the commands are baked into the G-code
 
 > **Note:** Some noise in the layer count during the print-start phase (bed mesh, purge/prime line, Z-hop) is normal. HelixScreen holds the layer at 0 until real printing begins, so it will not jump ahead before the first layer. The estimate only matters mid-print when the slicer macros above are missing.
 
+> **Z-hops do not move the estimate.** When the layer is worked out from the nozzle height, a new layer shows only once the nozzle has stayed at that height for about a second and a half of printing, so the quick lift of a Z-hop on every travel move does not bump the count up and back. The counter steps to each new layer that much after the layer change.
+
 ### Time remaining is inaccurate or slow to settle
 
 **Symptoms:**

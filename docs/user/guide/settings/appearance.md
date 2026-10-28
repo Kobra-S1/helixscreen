@@ -147,6 +147,8 @@ How the print status screen draws the file that's printing.
 
 Pick a lighter option if the print status screen is slow on your printer.
 
+In **Auto**, a file whose preview would cost your board too much CPU shows its thumbnail instead. HelixScreen judges that from how fast it read earlier files on this board, and allows less while a print is running, so a large file never slows the printer. Pick **3D View** or **2D Layers** yourself to draw such a file anyway.
+
 ### Z Movement
 
 Which way the Z buttons on the Motion screen are labeled.

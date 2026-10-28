@@ -79,6 +79,18 @@ Loading or unloading heats the nozzle to material temperature. Two minutes after
 
 If your filament system already handles this (AFC does), turn off **Settings > Printing > Cool nozzle after filament ops** so only one of them is driving the heater. It's a per-printer setting. See [Printing settings](settings/printing.md#cool-nozzle-after-filament-ops).
 
+### Loading on a QIDI (M604)
+
+QIDI's own load macro, `M604`, is only the first step of a wizard that QIDI's stock screen walks you through. HelixScreen runs the whole wizard, so a load from the Filament panel finishes on the screen instead of stopping with a hot nozzle and filament that nothing has gripped:
+
+1. Tap **Load**. The printer heats the nozzle and parks over the waste chute.
+2. A **Load Filament** dialog asks you to push the filament into the extruder until it stops. It is gripped as soon as the filament sensor sees it, or tap **Extrude** to feed it yourself.
+3. Once it has fed, the dialog asks **Is new filament coming out of the nozzle?** Tap **Extrude more** to push more through, or **Done** when the new color runs clean.
+
+However the dialog ends, with **Done** or **Cancel**, HelixScreen cools the nozzle and turns the filament sensor back on, which the stock macro leaves off. An unload with QIDI's `M603` turns the sensor back on afterward too. On firmware older than 01.01.02.x, which has no push-in step, the dialog opens straight on the question.
+
+With a QIDI Box, box slots load and unload the way the stock screen does them.
+
 ---
 
 ## AMS / Multi-Material Systems
@@ -435,7 +447,7 @@ Either way, your printer's filament info and OrcaSlicer stay in sync. The sync i
 
 > **Requirements:** OrcaSlicer 2.3.2 or newer, connected to the same printer's Moonraker. Nothing to enable on the HelixScreen side — it's automatic.
 
-> **OrcaSlicer 2.5:** sync works the same way, with nothing to change. 2.5 also re-reads the slots when you switch OrcaSlicer to a different printer, so each printer's filaments show up without a manual sync.
+> **OrcaSlicer 2.5:** sync works the same way, with nothing to change. 2.5 also re-reads the slots when you switch OrcaSlicer to a different printer, so each printer's filaments show up without a manual sync. When a slot's filament is a product from HelixScreen's filament catalog with its own OrcaSlicer preset, 2.5 also selects that exact preset (for example a brand's own PLA) instead of a generic one for the material. Earlier versions match by material type only.
 
 > **Nothing comes across on OrcaSlicer 2.4?** If your Moonraker connection in OrcaSlicer has no API key, 2.4 sends a placeholder key that Moonraker rejects, so the sync silently fails. See [Troubleshooting](../TROUBLESHOOTING.md#orcaslicer-doesnt-pick-up-your-slot-colors-or-materials).
 
@@ -516,6 +528,8 @@ With a single backend there is no selector — the panel just shows that system.
 ## Creality Filament System (CFS)
 
 The CFS is an enclosed filament storage and delivery system for **Creality** printers. It ships on the **K2 series**, and is also supported on the **K1, K1C, and K1 Max** once you install Creality's official CFS upgrade kit and firmware. Each CFS unit holds 4 spools of filament, and up to 4 units can be connected (16 total slots). HelixScreen auto-detects CFS when connected, along with the set of commands your printer's firmware actually understands — there are three, and it works this out from the firmware itself rather than assuming based on your printer model.
+
+> **A K2 with no CFS attached** is treated as the single-spool printer it is. The filament system screens, slot widgets and Bypass controls stay out of the way, the toolhead filament sensor alone says whether filament is loaded, and the Filament panel's **Load** and **Unload** run the K2's own external-spool load and its cut and retract. The pre-print checks do not ask you to turn off a bypass the printer cannot switch. The toolhead sensor appears in **Settings > Devices > Sensors**, the sensor setup wizard and the Clog Detection widget like any other filament sensor.
 
 > **K1 series note:** CFS on the K1, K1C, and K1 Max requires Creality's official CFS upgrade firmware (v2.3.5.33 or newer). Detection is automatic; no manual configuration is needed.
 

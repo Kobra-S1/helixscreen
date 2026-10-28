@@ -824,6 +824,8 @@ A reading turns amber, then red, as it gets worse:
 
 The Toolhead widget shows where the toolhead is without opening Motion. Each axis reads `--` until it is homed, because an unhomed axis has no real position.
 
+The Toolhead widget is not available on the BigTreeTech K-Touch.
+
 ![Toolhead at 2x2: the plate with a crosshair for the nozzle, the Z bar and the three axis values](../../images/user/home-widget-toolhead.png)
 
 | Size | What you see |
