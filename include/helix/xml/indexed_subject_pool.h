@@ -34,8 +34,12 @@ class IndexedSubjectPool {
   public:
     enum class Type { Int, String, Color };
 
-    IndexedSubjectPool(std::string prefix, Type type, size_t string_cap = 64,
-                       std::string suffix = {});
+    // @p prefix and @p suffix must outlive the pool (string literals): a pool is
+    // usually a namespace-scope global, and holding pointers keeps its startup
+    // construction free of string allocations.
+    IndexedSubjectPool(const char* prefix, Type type, size_t string_cap = 64,
+                       const char* suffix = "")
+        : prefix_(prefix), suffix_(suffix), type_(type), string_cap_(string_cap) {}
     ~IndexedSubjectPool();
 
     IndexedSubjectPool(const IndexedSubjectPool&) = delete;
@@ -64,8 +68,8 @@ class IndexedSubjectPool {
     void reclaim();
 
   private:
-    std::string prefix_;
-    std::string suffix_;
+    const char* prefix_;
+    const char* suffix_;
     Type type_;
     size_t string_cap_;
     std::vector<std::unique_ptr<lv_subject_t>> subjects_;

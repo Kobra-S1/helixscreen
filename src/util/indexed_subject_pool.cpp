@@ -12,17 +12,12 @@ extern "C" {
 
 namespace helix::xml {
 
-IndexedSubjectPool::IndexedSubjectPool(std::string prefix, Type type, size_t string_cap,
-                                       std::string suffix)
-    : prefix_(std::move(prefix)), suffix_(std::move(suffix)), type_(type), string_cap_(string_cap) {
-}
-
 IndexedSubjectPool::~IndexedSubjectPool() {
     reclaim();
 }
 
 std::string IndexedSubjectPool::slot_name(size_t i) const {
-    return prefix_ + "_" + std::to_string(i) + suffix_;
+    return std::string(prefix_) + "_" + std::to_string(i) + suffix_;
 }
 
 void IndexedSubjectPool::ensure_size(size_t n) {
