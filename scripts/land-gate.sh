@@ -25,6 +25,11 @@
 #   xml-schema        make check-xml-schema: linter schema snapshot vs a regeneration
 #   lint-xml          make lint-xml: CI's XML Lint job, against the committed snapshot
 #   lvgl-event-codes  make check-lvgl-event-codes: crash worker table vs lv_event_code_t
+#   esp32             esp32_syntax_check.py --require over the branch since its
+#                     merge-base with LAND_GATE_BASE_REF (default origin/main):
+#                     what esp32-build CI would refuse. A host that cannot run it
+#                     (no docker, no espressif/idf image) fails the row rather
+#                     than reading as a pass
 #   quality           make quality: the full quality-checks.sh sweep pre-push runs,
 #                     after app-build, since its clang gate reads the build's
 #                     compile commands, and after a local ci-shards, since it
@@ -46,14 +51,16 @@
 # quality sweep when it pushes exactly that commit.
 #
 # Outside this gate: [.] (the commit hook), [slow] and the goldens (nightly and
-# local-only), pre-push's ESP32 syntax check, and build.yml's telemetry-worker
-# vitest (server/telemetry-worker: `npm install && npm test`).
+# local-only), and build.yml's telemetry-worker vitest
+# (server/telemetry-worker: `npm install && npm test`).
 set -uo pipefail
 
 MAKE=${MAKE:-make}
 SELF="${BASH_SOURCE[0]}"
 TEST_HOST_RUN=${TEST_HOST_RUN:-$(dirname "$SELF")/test-host-run.sh}
 HELIX_CLAIM=${HELIX_CLAIM:-$(dirname "$SELF")/helix-claim}
+ESP32_CHECK=${ESP32_CHECK:-$(dirname "$SELF")/esp32_syntax_check.py}
+LAND_GATE_BASE_REF=${LAND_GATE_BASE_REF:-origin/main}
 CI_SHARDS=${CI_SHARDS:-8}
 CI_SHARD_TIMEOUT=${CI_SHARD_TIMEOUT:-600}
 LAND_GATE_LOGDIR=${LAND_GATE_LOGDIR:-build/land-gate}
@@ -64,7 +71,7 @@ LAND_GATE_STEP_TIMEOUT=${LAND_GATE_STEP_TIMEOUT:-3600}
 LAND_GATE_HISTORY=${LAND_GATE_HISTORY:-${XDG_STATE_HOME:-$HOME/.local/state}/helixscreen/land-gate-history.tsv}
 ROWS_DIR="$LAND_GATE_LOGDIR/rows"
 
-STEPS="app-build ci-shards bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes quality"
+STEPS="app-build ci-shards bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 quality"
 
 TIMEOUT_BIN=$(command -v timeout || command -v gtimeout || true)
 
@@ -92,6 +99,17 @@ step() {
 }
 
 skip() { printf 'SKIP - %s\n' "$2" >"$ROWS_DIR/$1"; }
+
+# The firmware units the branch reaches, measured from where it left
+# LAND_GATE_BASE_REF, as pre-push measures a new branch.
+esp32_check() {
+    local base
+    if ! base=$(git merge-base HEAD "$LAND_GATE_BASE_REF" 2>/dev/null); then
+        echo "✗ no merge-base between HEAD and $LAND_GATE_BASE_REF: fetch it, or set LAND_GATE_BASE_REF"
+        return 1
+    fi
+    "$ESP32_CHECK" --require --base "$base" --head HEAD
+}
 
 lane() {
     local mk=("$MAKE" --no-print-directory)
@@ -126,7 +144,8 @@ lane() {
             step theme-tokens "${mk[@]}" check-theme-tokens
             step xml-schema "${mk[@]}" check-xml-schema
             step lint-xml "${mk[@]}" lint-xml
-            step lvgl-event-codes "${mk[@]}" check-lvgl-event-codes ;;
+            step lvgl-event-codes "${mk[@]}" check-lvgl-event-codes
+            step esp32 bash "$SELF" --esp32-check ;;
         *) echo "✗ unknown lane '$1'" >&2; return 2 ;;
     esac
     return 0
@@ -134,6 +153,11 @@ lane() {
 
 if [ "${1:-}" = --lane ]; then
     lane "$2"
+    exit $?
+fi
+# A step runs under timeout, which can only start a program, not a function.
+if [ "${1:-}" = --esp32-check ]; then
+    esp32_check
     exit $?
 fi
 

@@ -114,3 +114,26 @@ def test_a_source_two_components_compile_keeps_both_entries():
 def test_the_component_comes_from_the_command_when_the_entry_has_no_output():
     assert esc.component_of(_entry("main", "m.cpp", output=False)) == "main"
     assert esc.component_of({"command": "g++ -c x.cpp", "file": "x.cpp"}) == "?"
+
+
+def test_require_makes_a_check_that_could_not_run_exit_3(monkeypatch, capsys):
+    monkeypatch.setenv("HELIX_ESP32_SYNTAX", "0")
+    monkeypatch.setattr(esc.sys, "argv", ["esp32_syntax_check.py", "--base", "HEAD"])
+    assert esc.main() == 0
+    monkeypatch.setattr(esc.sys, "argv", ["esp32_syntax_check.py", "--base", "HEAD", "--require"])
+    assert esc.main() == esc.kCannotAnswer == 3
+    assert "skipped" in capsys.readouterr().out
+
+
+def test_require_turns_a_missing_docker_into_exit_3(monkeypatch, tmp_path):
+    monkeypatch.delenv("HELIX_ESP32_SYNTAX", raising=False)
+    monkeypatch.setattr(esc.shutil, "which", lambda name: None)
+    monkeypatch.setattr(esc, "git", lambda tree, *args: {
+        "rev-parse": str(tmp_path) + "\n",
+        "diff": "src/a.cpp\n",
+    }[args[0]])
+    argv = ["esp32_syntax_check.py", "--tree", str(tmp_path), "--base", "A", "--head", "B"]
+    monkeypatch.setattr(esc.sys, "argv", argv)
+    assert esc.main() == 0
+    monkeypatch.setattr(esc.sys, "argv", argv + ["--require"])
+    assert esc.main() == 3

@@ -11,7 +11,7 @@ load helpers
 REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 GATE="$REPO_ROOT/scripts/land-gate.sh"
 
-ALL_STEPS="app-build ci-shards bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes quality"
+ALL_STEPS="app-build ci-shards bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 quality"
 
 # Every make here is a stub, and a stub must never reach the real make or the
 # jobpool shim: JOBPOOL=0 keeps the shim out of any make that does run, and the
@@ -52,7 +52,13 @@ esac'
     mock_command_script fake-claim '
 echo "claim $*" >> "$CALLS"
 case "$1" in take) exit "${CLAIM_TAKE_RC:-0}" ;; esac'
+    # The ESP32 check exits $RC_esp32 (default 0) and records its arguments.
+    mock_command_script fake-esp32 '
+echo "esp32 $*" >> "$CALLS"
+echo "output of esp32"
+exit "${RC_esp32:-0}"'
     export MAKE=fake-make TEST_HOST_RUN=fake-test-host-run HELIX_CLAIM=fake-claim
+    export ESP32_CHECK=fake-esp32 LAND_GATE_BASE_REF=HEAD
     export HELIX_TEST_HOST=testhost.invalid HELIX_BUILD_HOSTS_FILE=/nonexistent
     unset CI_SHARDS CI_SHARD_TIMEOUT
     export TEST_HOST=0
@@ -83,6 +89,15 @@ row() { # <status> <step>: the table row for step has that status
     grep -qx "make lint-xml" "$CALLS"
     grep -qx "make check-lvgl-event-codes" "$CALLS"
     grep -qx "make quality" "$CALLS"
+    grep -qx "esp32 --require --base $(git rev-parse HEAD) --head HEAD" "$CALLS"
+}
+
+@test "the ESP32 check measures from the merge-base with the base ref; with none its row fails" {
+    LAND_GATE_BASE_REF=refs/heads/no-such-branch-for-the-gate run "$GATE"
+    [ "$status" -eq 1 ]
+    row FAIL esp32
+    contains "no merge-base between HEAD and refs/heads/no-such-branch-for-the-gate" "$output"
+    refute_grep "^esp32 " "$CALLS"
 }
 
 @test "the C++ suite runs once, in CI's 8-shard layout, and CI_SHARDS changes it" {
@@ -109,7 +124,7 @@ row() { # <status> <step>: the table row for step has that status
     local target step
     for pair in app:app-build unit-sweep:ci-shards test-shell:bats test-ui-ci:ui test-plugin:plugin test-python:python \
                 check-theme-tokens:theme-tokens check-xml-schema:xml-schema lint-xml:lint-xml \
-                check-lvgl-event-codes:lvgl-event-codes; do
+                check-lvgl-event-codes:lvgl-event-codes esp32:esp32; do
         target=${pair%%:*} step=${pair#*:}
         eval "export RC_$(echo "$target" | tr - _)=3"
         run "$GATE"
