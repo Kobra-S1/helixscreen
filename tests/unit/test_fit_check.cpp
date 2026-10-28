@@ -15,6 +15,7 @@
 #include "ui_print_select_detail_view.h"
 #include "ui_print_start_controller.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/print_select_panel_fixture.h"
 #include "../test_helpers/print_select_panel_test_access.h"
@@ -78,8 +79,27 @@ FitMachine machine_of(const json& j) {
     }
     m.tool_count_confirmed = j["tool_count_confirmed"].get<bool>();
     m.nozzle_diameters = j["nozzle_diameters"].get<std::vector<double>>();
+    if (j.contains("nozzle_volume_types")) {
+        m.nozzle_volume_types = j["nozzle_volume_types"].get<std::vector<std::string>>();
+    }
     m.model = j["model"].get<std::string>();
     return m;
+}
+
+/// A table row's `live`: each extruder's status, by extruder number.
+std::vector<FitLiveNozzle> live_of(const json& j) {
+    std::vector<FitLiveNozzle> live;
+    for (const auto& status : j) {
+        FitLiveNozzle n;
+        if (status.is_object()) {
+            n.diameter = opt_of(status.value("nozzle_diameter", json()));
+            if (status.value("nozzle_volume_type", json()).is_string()) {
+                n.volume_type = status["nozzle_volume_type"].get<std::string>();
+            }
+        }
+        live.push_back(n);
+    }
+    return live;
 }
 
 FitFile file_of(const json& j) {
@@ -96,6 +116,9 @@ FitFile file_of(const json& j) {
         f.tools.insert(t.get<int>());
     }
     f.nozzle_diameters = j["nozzle_diameters"].get<std::vector<double>>();
+    if (j.contains("nozzle_volume_types")) {
+        f.nozzle_volume_types = j["nozzle_volume_types"].get<std::vector<std::string>>();
+    }
     if (j["printer_model"].is_string()) {
         f.printer_model = j["printer_model"].get<std::string>();
     }
@@ -138,7 +161,11 @@ TEST_CASE("printer limits match the table the plugin reads too", "[plugin_fitche
     REQUIRE(cases["machines"].size() >= 8);
     for (const auto& c : cases["machines"]) {
         INFO(c["name"].get<std::string>());
-        CHECK(fit_machine_json(fit_machine_from_settings(c["settings"])) == c["machine"]);
+        FitMachine m = fit_machine_from_settings(c["settings"]);
+        if (c.contains("live")) {
+            m = fit_machine_with_live_nozzles(m, live_of(c["live"]));
+        }
+        CHECK(fit_machine_json(m) == c["machine"]);
     }
 }
 
@@ -201,6 +228,100 @@ TEST_CASE("the screen names a known model and drops the tool count for a filamen
     }
 }
 
+TEST_CASE("a nozzle's flow type reads the same in every spelling", "[plugin_fitcheck]") {
+    for (const char* s : {"standard", "Standard", " STANDARD "}) {
+        CAPTURE(s);
+        CHECK(fit_nozzle_volume_type(s) == "standard");
+    }
+    for (const char* s : {"high_flow", "High Flow", "HighFlow", "high-flow"}) {
+        CAPTURE(s);
+        CHECK(fit_nozzle_volume_type(s) == "high_flow");
+    }
+    for (const char* s : {"", "hardened", "Standard HF", "flow"}) {
+        CAPTURE(s);
+        CHECK(fit_nozzle_volume_type(s).empty());
+    }
+}
+
+TEST_CASE("the nozzles the extruders report replace the config's", "[plugin_fitcheck]") {
+    FitMachine base;
+    base.nozzle_diameters = {0.4, 0.4};
+
+    SECTION("a reported diameter and flow type") {
+        FitLiveNozzle second;
+        second.diameter = 0.6;
+        second.volume_type = "High Flow";
+        const FitMachine m = fit_machine_with_live_nozzles(base, {FitLiveNozzle{}, second});
+        CHECK(m.nozzle_diameters == std::vector<double>{0.4, 0.6});
+        CHECK(m.nozzle_volume_types == std::vector<std::string>{"", "high_flow"});
+    }
+    SECTION("nothing reported changes nothing") {
+        const FitMachine m = fit_machine_with_live_nozzles(base, {});
+        CHECK(m.nozzle_diameters == base.nozzle_diameters);
+        CHECK(m.nozzle_volume_types.empty());
+    }
+    SECTION("an extruder the config does not list gets no diameter") {
+        FitLiveNozzle third;
+        third.diameter = 0.8;
+        third.volume_type = "standard";
+        const FitMachine m = fit_machine_with_live_nozzles(base, {{}, {}, third});
+        CHECK(m.nozzle_diameters == std::vector<double>{0.4, 0.4});
+        CHECK(m.nozzle_volume_types == std::vector<std::string>{"", "", "standard"});
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the screen's limits take the nozzles the extruders report",
+                 "[plugin_fitcheck]") {
+    PrinterState& state = get_printer_state();
+    state.init_subjects(false);
+    PrinterDiscovery hw;
+    hw.parse_fit_limits(json{{"extruder", {{"max_temp", 300.0}, {"nozzle_diameter", 0.4}}},
+                             {"extruder1", {{"max_temp", 300.0}, {"nozzle_diameter", 0.4}}}});
+    state.set_hardware(hw);
+    auto& temperatures = state.temperature_state();
+    temperatures.init_extruders({"extruder", "extruder1"});
+
+    auto machine = current_fit_machine();
+    REQUIRE(machine.has_value());
+    CHECK(machine->nozzle_diameters == std::vector<double>{0.4, 0.4});
+    CHECK(machine->nozzle_volume_types.empty());
+
+    // Stock Klipper answers a field its extruder lacks with null.
+    temperatures.update_from_status(
+        {{"extruder", {{"nozzle_diameter", nullptr}, {"nozzle_volume_type", nullptr}}},
+         {"extruder1", {{"nozzle_diameter", 0.6}, {"nozzle_volume_type", "high_flow"}}}});
+    machine = current_fit_machine();
+    REQUIRE(machine.has_value());
+    CHECK(machine->nozzle_diameters == std::vector<double>{0.4, 0.6});
+    CHECK(machine->nozzle_volume_types == std::vector<std::string>{"", "high_flow"});
+
+    FitFile file;
+    file.tools = {1};
+    file.nozzle_diameters = {0.4, 0.6};
+    file.nozzle_volume_types = {"standard", "standard"};
+    const auto findings = check_fit(*machine, file);
+    REQUIRE(findings.size() == 1);
+    CHECK(findings[0].kind == FitKind::NozzleFlowMismatch);
+    CHECK(findings[0].severity == FitSeverity::Warn);
+    CHECK(fit_finding_text(findings[0]) ==
+          "Sliced for a standard nozzle on T1; the printer has High Flow.");
+
+    temperatures.init_extruders({});
+    state.set_hardware(PrinterDiscovery{});
+}
+
+TEST_CASE("High Flow G-code on a standard nozzle stops the start", "[plugin_fitcheck]") {
+    FitFile file;
+    file.tools = {0};
+    file.nozzle_volume_types = {"high_flow"};
+    PrintStartContext ctx = ctx_for(file);
+    ctx.fit_machine->nozzle_volume_types = {"standard"};
+    const CheckResult r = gate_fit_check(ctx);
+    CHECK(r.verdict == CheckResult::Verdict::Block);
+    CHECK(r.body.find("High Flow") != std::string::npos);
+    CHECK(r.body.find("T0") != std::string::npos);
+}
+
 TEST_CASE("a file's head gives its printer, nozzles and hottest targets", "[plugin_fitcheck]") {
     SECTION("PrusaSlicer and Orca config comments, M-codes and Klipper's heater command") {
         const FitHeadFacts facts = fit_head_facts("; generated by OrcaSlicer 2.3.1\n"
@@ -221,6 +342,16 @@ TEST_CASE("a file's head gives its printer, nozzles and hottest targets", "[plug
         CHECK(facts.nozzle_diameters == std::vector<double>{0.4, 0.6});
         CHECK(facts.max_hotend_temp == std::optional<double>(240.0));
         CHECK(facts.max_bed_temp == std::optional<double>(70.0));
+    }
+    SECTION("Orca's nozzle flow types, by extruder") {
+        const FitHeadFacts facts =
+            fit_head_facts("; nozzle_diameter = 0.4,0.4,0.4,0.6\n"
+                           "; nozzle_volume_type = Standard,High Flow,Standard,Standard\n");
+        CHECK(facts.nozzle_volume_types ==
+              std::vector<std::string>{"standard", "high_flow", "standard", "standard"});
+        CHECK(fit_head_facts("; nozzle_volume_type = Turbo,Turbo\n").nozzle_volume_types.empty());
+        CHECK(fit_head_facts("; nozzle_volume_type = ,High Flow\n").nozzle_volume_types ==
+              std::vector<std::string>{"", "high_flow"});
     }
     SECTION("a preset name is never the printer model") {
         CHECK(fit_head_facts("; printer_settings_id = Prusa MK4\n").printer_model.empty());
@@ -272,6 +403,24 @@ TEST_CASE("the plugin's record wins field by field; the screen's reads fill the 
         CHECK(f.nozzle_diameters == std::vector<double>{0.8});
         CHECK_FALSE(f.print.has_value());
     }
+    SECTION("metadata's per-extruder nozzles beat its single one, and give the flow types") {
+        head.nozzle_diameters.clear();
+        md.nozzle_diameter_list = {0.4, 0.6};
+        md.filament_volume_types = {"standard", "high_flow"};
+        const FitFile f = fit_file_from_sources(std::nullopt, &head, md, std::nullopt, {});
+        CHECK(f.nozzle_diameters == std::vector<double>{0.4, 0.6});
+        CHECK(f.nozzle_volume_types == std::vector<std::string>{"standard", "high_flow"});
+
+        INFO("the head's flow types answer first; a record's that name none known do not");
+        head.nozzle_volume_types = {"high_flow", "high_flow"};
+        CHECK(
+            fit_file_from_sources(std::nullopt, &head, md, std::nullopt, {}).nozzle_volume_types ==
+            head.nozzle_volume_types);
+        FitFile record;
+        record.nozzle_volume_types = {"", ""};
+        CHECK(fit_file_from_sources(record, &head, md, std::nullopt, {}).nozzle_volume_types ==
+              head.nozzle_volume_types);
+    }
     SECTION("a record answers before every other source") {
         FitFile record;
         record.travel = box(-5, 0, 0, 230, 200, 40);
@@ -307,6 +456,7 @@ TEST_CASE("a record's bounds and header reach the fit check", "[plugin_fitcheck]
           {"header",
            {{"printer_model", "Voron 0.2"},
             {"nozzle_diameters", {0.4, "x"}},
+            {"nozzle_volume_types", {"High Flow", 3}},
             {"bed", nullptr},
             {"filament_types", json::array()}}}}}};
     const FileAnalysisReply reply = parse_file_analysis_reply(result);
@@ -321,6 +471,7 @@ TEST_CASE("a record's bounds and header reach the fit check", "[plugin_fitcheck]
     CHECK_FALSE(fit.max_bed_temp.has_value());
     CHECK(fit.printer_model == "Voron 0.2");
     CHECK(fit.nozzle_diameters == std::vector<double>{0.4});
+    CHECK(fit.nozzle_volume_types == std::vector<std::string>{"high_flow", ""});
     CHECK(fit.tools == std::set<int>{0, 1});
 
     FileStartFacts facts;

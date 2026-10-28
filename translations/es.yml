@@ -3694,6 +3694,8 @@ translations:
   Sleep {} min: Reposo en {} min
   Sliced colors: Colores laminados
   Sliced for a Different Setup: 'Laminado para otra configuración'
+  Sliced for a High Flow nozzle on T{}; the printer has a standard one.: 'Laminado para una boquilla High Flow en T{}; la impresora tiene una estándar.'
+  Sliced for a standard nozzle on T{}; the printer has High Flow.: 'Laminado para una boquilla estándar en T{}; la impresora tiene una High Flow.'
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Laminado para una boquilla de {:g} mm en T{}; la impresora tiene {:g} mm.'
   Sliced for {}, not {}.: 'Laminado para {}, no para {}.'
   Slicer: Laminador

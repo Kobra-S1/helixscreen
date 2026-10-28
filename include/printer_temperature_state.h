@@ -53,6 +53,12 @@ struct ExtruderInfo {
     /// Klipper's reported pressure advance K, negative until the extruder
     /// reports one.
     float pressure_advance = -1.0f;
+    /// The fitted nozzle as the extruder reports it at runtime, which firmware
+    /// that tracks swappable nozzles keeps outside configfile.settings: the
+    /// diameter in mm (0 until reported) and the flow type as reported ("" until
+    /// reported). Stock Klipper reports neither.
+    double nozzle_diameter = 0.0;
+    std::string nozzle_volume_type;
     std::unique_ptr<lv_subject_t> temp_subject;   ///< Decidegrees (value * 10)
     std::unique_ptr<lv_subject_t> target_subject; ///< Decidegrees
     std::unique_ptr<lv_subject_t> power_subject;  ///< Duty in whole percent, -1 until reported

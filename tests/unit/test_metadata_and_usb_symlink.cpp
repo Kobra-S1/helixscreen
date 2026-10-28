@@ -340,6 +340,28 @@ TEST_CASE_METHOD(MetadataAPITestFixture, "Metadata carries the slicer's nozzle d
     CHECK(probe.parse_file_metadata(response).nozzle_diameter == 0.0);
 }
 
+TEST_CASE_METHOD(MetadataAPITestFixture,
+                 "Metadata carries per-extruder nozzles and flow types where a fork adds them",
+                 "[metadata][api][plugin_fitcheck]") {
+    MetadataParseProbe probe(mock_client);
+    json response;
+    response["result"] = {{"filename", "part.gcode"},
+                          {"nozzle_diameter", 0.2},
+                          {"nozzle_diameter_list", {0.2, 0.4, "0.4", 0.6}},
+                          {"filament_volume_type", {"standard", "high_flow", nullptr, "Standard"}}};
+    FileMetadata m = probe.parse_file_metadata(response);
+    CHECK(m.nozzle_diameter_list == std::vector<double>{0.2, 0.4, 0.4, 0.6});
+    CHECK(m.filament_volume_types ==
+          std::vector<std::string>{"standard", "high_flow", "", "Standard"});
+
+    // A list with an entry that is no diameter says nothing; absent fields read empty.
+    response["result"]["nozzle_diameter_list"] = {0.4, "x"};
+    response["result"].erase("filament_volume_type");
+    m = probe.parse_file_metadata(response);
+    CHECK(m.nozzle_diameter_list.empty());
+    CHECK(m.filament_volume_types.empty());
+}
+
 TEST_CASE_METHOD(MetadataAPITestFixture, "Integer metadata sent as JSON strings still parses",
                  "[metadata][api][json_coercion]") {
     MetadataParseProbe probe(mock_client);

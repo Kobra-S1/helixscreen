@@ -72,6 +72,7 @@ class TestOrca:
         assert r["slicer"] == "OrcaSlicer 2.3.1"
         assert r["header"] == {
             "printer_model": "Voron 2.4 250", "nozzle_diameters": [0.4, 0.4],
+            "nozzle_volume_types": [],
             "bed": {"min": [0.0, 0.0], "max": [250.0, 210.0], "max_height": 220.0},
             "filament_types": ["PLA", "PETG"],
         }
@@ -118,6 +119,7 @@ class TestPrusa:
         # printer_settings_id is in this file too: the model is printer_model's
         assert r["header"]["printer_model"] == "MK4"
         assert r["header"]["nozzle_diameters"] == [0.6]
+        assert r["header"]["nozzle_volume_types"] == []  # PrusaSlicer writes none
         # extruder_colour is empty, so filament_colour answers
         assert r["tools"][0]["color"] == "#00FF00"
 
@@ -248,6 +250,15 @@ def test_parse_object_define():
     d = parse_object_define("EXCLUDE_OBJECT_DEFINE NAME=a CENTER=1.5,2 POLYGON=[[0,0],[3,0],[3,4]]")
     assert d == {"name": "a", "center": [1.5, 2.0], "polygon": [[0.0, 0.0], [3.0, 0.0], [3.0, 4.0]]}
     assert parse_object_define("EXCLUDE_OBJECT_DEFINE CENTER=1,2") is None
+
+
+def test_orcas_nozzle_flow_types_are_read_as_written():
+    from helix_analysis import header_from_config, parse_config_comment
+    assert parse_config_comment(b"; nozzle_volume_type = Standard,High Flow") \
+        == ("nozzle_volume_type", "Standard,High Flow")
+    header = header_from_config({"nozzle_volume_type": "Standard,High Flow"})
+    assert header["nozzle_volume_types"] == ["Standard", "High Flow"]
+    assert header_from_config({})["nozzle_volume_types"] == []
 
 
 def test_a_preset_name_is_never_the_printer_model():

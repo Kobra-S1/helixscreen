@@ -611,6 +611,27 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
     metadata.first_layer_extr_temp = helix::json_util::safe_double(result, "first_layer_extr_temp");
     metadata.nozzle_diameter = helix::json_util::safe_double(result, "nozzle_diameter");
 
+    // Per-extruder nozzles and per-filament nozzle flow types, which only some
+    // Moonraker forks add. A diameter list with an entry that is not a positive
+    // number says nothing: the fit check compares every diameter it holds.
+    if (const json* list = helix::json_util::find_member(result, "nozzle_diameter_list");
+        list != nullptr && list->is_array()) {
+        for (const auto& d : *list) {
+            const double v = helix::json_util::as_double(d, -1.0);
+            if (v <= 0.0) {
+                metadata.nozzle_diameter_list.clear();
+                break;
+            }
+            metadata.nozzle_diameter_list.push_back(v);
+        }
+    }
+    if (const json* types = helix::json_util::find_member(result, "filament_volume_type");
+        types != nullptr && types->is_array()) {
+        for (const auto& t : *types) {
+            metadata.filament_volume_types.push_back(t.is_string() ? t.get<std::string>() : "");
+        }
+    }
+
     // G-code info
     metadata.gcode_start_byte = helix::json_util::safe_uint64(result, "gcode_start_byte");
     metadata.gcode_end_byte = helix::json_util::safe_uint64(result, "gcode_end_byte");

@@ -561,6 +561,16 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
             info.pressure_advance = data["pressure_advance"].get<float>();
         }
 
+        if (data.contains("nozzle_diameter") && data["nozzle_diameter"].is_number()) {
+            const double d = data["nozzle_diameter"].get<double>();
+            if (std::isfinite(d) && d > 0.0) {
+                info.nozzle_diameter = d;
+            }
+        }
+        if (data.contains("nozzle_volume_type") && data["nozzle_volume_type"].is_string()) {
+            info.nozzle_volume_type = data["nozzle_volume_type"].get<std::string>();
+        }
+
         publish_power(name, info.power_subject.get());
     }
 

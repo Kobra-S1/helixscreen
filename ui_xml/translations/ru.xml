@@ -3436,6 +3436,8 @@
   <translation tag="Sleep {} min" ru="Сон через {} мин"/>
   <translation tag="Sliced colors" ru="Цвета из слайсера"/>
   <translation tag="Sliced for a Different Setup" ru="Нарезано для другой конфигурации"/>
+  <translation tag="Sliced for a High Flow nozzle on T{}; the printer has a standard one." ru="Нарезано для сопла High Flow на T{}; у принтера стандартное сопло."/>
+  <translation tag="Sliced for a standard nozzle on T{}; the printer has High Flow." ru="Нарезано для стандартного сопла на T{}; у принтера сопло High Flow."/>
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." ru="Нарезано для сопла {:g} мм на T{}; у принтера {:g} мм."/>
   <translation tag="Sliced for {}, not {}." ru="Нарезано для {}, а не для {}."/>
   <translation tag="Slicer" ru="Слайсер"/>

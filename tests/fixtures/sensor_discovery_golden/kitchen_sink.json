@@ -280,7 +280,9 @@
       "temperature",
       "target",
       "power",
-      "pressure_advance"
+      "pressure_advance",
+      "nozzle_diameter",
+      "nozzle_volume_type"
     ],
     "fan": [
       "speed"

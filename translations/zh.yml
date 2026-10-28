@@ -3495,6 +3495,8 @@ translations:
   Sleep {} min: '{} 分钟后休眠'
   Sliced colors: 切片颜色
   Sliced for a Different Setup: '为不同配置切片'
+  Sliced for a High Flow nozzle on T{}; the printer has a standard one.: '按 High Flow 喷嘴（T{}）切片；打印机为标准喷嘴。'
+  Sliced for a standard nozzle on T{}; the printer has High Flow.: '按标准喷嘴（T{}）切片；打印机为 High Flow 喷嘴。'
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: '按 {:g} mm 喷嘴（T{}）切片；打印机为 {:g} mm。'
   Sliced for {}, not {}.: '为 {} 切片，而不是 {}。'
   Slicer: 切片软件

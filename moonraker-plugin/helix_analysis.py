@@ -31,6 +31,7 @@ Record (schema 1); a field the file does not answer is null, never a guess:
       "header": {
         "printer_model": "Voron 2.4 350" | null,
         "nozzle_diameters": [0.4, 0.4],      # [] when the file declares none
+        "nozzle_volume_types": ["Standard", "High Flow"],  # as written, by extruder; [] when none
         "bed": {"min": [0, 0], "max": [350, 350], "max_height": 340 | null} | null,
         "filament_types": ["PLA", "PETG"]    # [] when the file declares none
       },
@@ -144,7 +145,7 @@ def record_current(record: Any, size: int, mtime: float) -> bool:
 CONFIG_KEYS = frozenset((
     "filament used [mm]", "filament used [g]", "filament_colour", "filament_color",
     "extruder_colour", "extruder_color", "filament_type", "nozzle_diameter",
-    "printer_model", "bed_shape", "printable_area",
+    "nozzle_volume_type", "printer_model", "bed_shape", "printable_area",
     "max_print_height", "printable_height",
 ))
 
@@ -279,8 +280,11 @@ def header_from_config(config: Dict[str, str]) -> Dict[str, Any]:
         bed = {"min": shape[0], "max": shape[1],
                "max_height": height[0] if height and height[0] else None}
     types = [t for t in _split_list(config.get("filament_type"), ";") if t]
-    return {"printer_model": model, "nozzle_diameters": nozzles, "bed": bed,
-            "filament_types": types}
+    # Orca: `; nozzle_volume_type = Standard,High Flow`, by extruder.
+    volume_types = _split_list(config.get("nozzle_volume_type")) \
+        if config.get("nozzle_volume_type") else []
+    return {"printer_model": model, "nozzle_diameters": nozzles,
+            "nozzle_volume_types": volume_types, "bed": bed, "filament_types": types}
 
 
 # ============================================================================

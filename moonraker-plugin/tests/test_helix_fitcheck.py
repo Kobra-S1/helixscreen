@@ -28,7 +28,9 @@ from helix_fitcheck import (
     check_fit,
     fit_file_from_record,
     machine_limits,
+    machine_with_live_nozzles,
     may_autostart,
+    nozzle_volume_type,
 )
 from helix_print import HELIX_SCREEN_NAMESPACE, PLUGIN_FEATURES_KEY, load_component
 from test_helix_print import (  # noqa: F401  (fixtures are used by name)
@@ -77,7 +79,10 @@ def _record(x_max=200.0, hotend=240.0, tools=(0,)):
 
 @pytest.mark.parametrize("case", CASES["machines"], ids=[c["name"] for c in CASES["machines"]])
 def test_machine_limits_match_the_table(case):
-    assert machine_limits(case["settings"]) == case["machine"]
+    limits = machine_limits(case["settings"])
+    if "live" in case:
+        limits = machine_with_live_nozzles(limits, case["live"])
+    assert limits == case["machine"]
 
 
 @pytest.mark.parametrize("case", CASES["checks"], ids=[c["name"] for c in CASES["checks"]])
@@ -89,9 +94,13 @@ def test_the_table_covers_every_kind_and_both_kinematics_families():
     severities = {f["kind"]: f["severity"] for c in CASES["checks"] for f in c["findings"]}
     assert severities["printer_model_mismatch"] == "note"
     assert severities["nozzle_mismatch"] == "warn"
+    flow = {f["severity"] for c in CASES["checks"] for f in c["findings"]
+            if f["kind"] == "nozzle_flow_mismatch"}
+    assert flow == {"block", "warn"}
     kinds = set(severities)
     assert kinds == {"out_of_bounds", "temp_over_max", "too_many_tools", "nozzle_mismatch",
-                     "printer_model_mismatch"}
+                     "nozzle_flow_mismatch", "printer_model_mismatch"}
+    assert any("live" in c for c in CASES["machines"])
     kinematics = {c["machine"]["kinematics"] for c in CASES["machines"]}
     assert {"delta", "corexy", "cartesian"} <= kinematics
 
@@ -116,6 +125,22 @@ def test_limits_of_something_that_is_not_settings_are_unknown():
     assert limits["tool_count"] is None
 
 
+@pytest.mark.parametrize("text,kind", [
+    ("standard", "standard"), ("Standard", "standard"), (" STANDARD ", "standard"),
+    ("high_flow", "high_flow"), ("High Flow", "high_flow"), ("HighFlow", "high_flow"),
+    ("high-flow", "high_flow"), ("", ""), ("hardened", ""), ("Standard HF", ""), (None, ""),
+    (3, ""),
+])
+def test_a_nozzles_flow_type_reads_the_same_in_every_spelling(text, kind):
+    assert nozzle_volume_type(text) == kind
+
+
+def test_live_nozzles_of_something_that_is_not_a_list_change_nothing():
+    limits = machine_limits(SETTINGS)
+    assert machine_with_live_nozzles(limits, None) == limits
+    assert machine_with_live_nozzles(limits, {"extruder": {}}) == limits
+
+
 # ============================================================================
 # The record, and the decision
 # ============================================================================
@@ -129,7 +154,19 @@ def test_file_facts_come_from_the_records_bounds_header_and_tools():
     assert facts["max_bed_temp"] == 60.0
     assert facts["tools"] == [0, 1]
     assert facts["nozzle_diameters"] == [0.4]
+    assert facts["nozzle_volume_types"] == []
     assert facts["printer_model"] == "Voron 0.2"
+
+
+@pytest.mark.parametrize("written,read", [
+    (["Standard", "High Flow"], ["standard", "high_flow"]),
+    (["Turbo", None], []),          # none this check knows: as if the file named none
+    ("Standard", []),               # not a list
+])
+def test_file_facts_read_the_records_nozzle_flow_types(written, read):
+    record = _record()
+    record["header"]["nozzle_volume_types"] = written
+    assert fit_file_from_record(record)["nozzle_volume_types"] == read
 
 
 def test_a_real_analysis_record_feeds_the_checker(tmp_path):
@@ -205,6 +242,8 @@ def component(mock_server, temp_gcodes_dir):
     apis.printer_state = "standby"
     apis.printing_file = ""
     apis.settings_error = None
+    apis.extruders = {}  # what each extruder reports, by name
+    apis.extruder_error = None
 
     async def query_objects(objects):
         out = {}
@@ -214,6 +253,13 @@ def component(mock_server, temp_gcodes_dir):
             out["configfile"] = {"settings": SETTINGS}
         if "print_stats" in objects:
             out["print_stats"] = {"state": apis.printer_state, "filename": apis.printing_file}
+        for name in objects:
+            if name.startswith("extruder"):
+                if apis.extruder_error is not None:
+                    raise apis.extruder_error
+                status = apis.extruders.get(name, {})
+                # Klipper answers a field its extruder lacks with null.
+                out[name] = {field: status.get(field) for field in objects[name]}
         return out
     apis.query_objects = AsyncMock(side_effect=query_objects)
     mock_server.send_event = MagicMock()
@@ -286,6 +332,41 @@ class TestUploadHold:
         result = await _upload(component)
         assert result["print_started"] is False
         component.klippy_apis.start_print.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_high_flow_gcode_for_a_standard_nozzle_is_held(self, component, mock_server):
+        record = _record()
+        record["header"]["nozzle_volume_types"] = ["High Flow"]
+        await _setup(component, record=record)
+        component.klippy_apis.extruders = {
+            "extruder": {"nozzle_diameter": 0.4, "nozzle_volume_type": "standard"}}
+        result = await _upload(component)
+        assert result["print_started"] is False
+        component.klippy_apis.start_print.assert_not_awaited()
+        _event, payload = mock_server.send_event.call_args.args
+        assert payload["findings"] == [{
+            "kind": "nozzle_flow_mismatch", "severity": "block",
+            "detail": {"tool": 0, "file": "high_flow", "printer": "standard"}}]
+        component.klippy_apis.query_objects.assert_any_await(
+            {"extruder": ["nozzle_diameter", "nozzle_volume_type"]})
+
+    @pytest.mark.asyncio
+    async def test_a_printer_reporting_no_nozzle_type_holds_nothing_for_it(self, component):
+        """Stock Klipper: the query answers null, and the config's nozzle stands."""
+        record = _record()
+        record["header"]["nozzle_volume_types"] = ["High Flow"]
+        await _setup(component, record=record)
+        result = await _upload(component)
+        assert result["print_started"] is True
+
+    @pytest.mark.asyncio
+    async def test_a_failed_extruder_query_still_checks_the_config(self, component, caplog):
+        await _setup(component, record=_record(x_max=221.0))
+        component.klippy_apis.extruder_error = RuntimeError("timeout")
+        with caplog.at_level(logging.INFO):
+            result = await _upload(component)
+        assert result["print_started"] is False
+        assert "the extruder query failed: timeout" in caplog.text
 
     @pytest.mark.asyncio
     async def test_extra_tools_do_not_hold_a_start(self, component):

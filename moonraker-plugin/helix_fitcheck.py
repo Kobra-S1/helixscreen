@@ -4,15 +4,21 @@ File-fits-printer check: the HelixPrint plugin's `fit_check_blocks_autostart`
 feature.
 
 One pure checker compares a file's analysis (helix_analysis' `bounds` and
-`header`) with the printer's limits from Klipper's configfile.settings, and
-gives findings {kind, severity, detail}:
+`header`) with the printer's limits from Klipper's configfile.settings and
+the nozzles its extruders report at runtime, and gives findings
+{kind, severity, detail}:
 
     out_of_bounds           block  a move outside an axis' travel, or a delta's radius
     temp_over_max           block  a heater target above its max_temp
     too_many_tools          block  a tool number past the printer's last extruder
                             warn   ... past a count raised by T macros
     nozzle_mismatch         warn   the slicer's nozzle differs from the extruder's
+    nozzle_flow_mismatch    block  High Flow G-code for an extruder with a standard nozzle
+                            warn   standard G-code for an extruder with a High Flow nozzle
     printer_model_mismatch  note   the slicer's printer is not this printer
+
+Nozzles are compared only for the tools a file uses, when it names any, and
+file tool i with extruder i: a printer's own filament mapping is not followed.
 
 A block stops a start; a warn asks before one on the screen; a note is only
 shown. Neither a warn nor a note ever holds a slicer's start.
@@ -64,7 +70,14 @@ KIND_OUT_OF_BOUNDS = "out_of_bounds"
 KIND_TEMP_OVER_MAX = "temp_over_max"
 KIND_TOO_MANY_TOOLS = "too_many_tools"
 KIND_NOZZLE_MISMATCH = "nozzle_mismatch"
+KIND_NOZZLE_FLOW_MISMATCH = "nozzle_flow_mismatch"
 KIND_PRINTER_MODEL_MISMATCH = "printer_model_mismatch"
+
+VOLUME_STANDARD = "standard"
+VOLUME_HIGH_FLOW = "high_flow"
+
+# The extruder status fields a firmware that tracks the fitted nozzle reports.
+LIVE_NOZZLE_FIELDS = ["nozzle_diameter", "nozzle_volume_type"]
 
 SEVERITY_BLOCK = "block"
 SEVERITY_WARN = "warn"
@@ -175,8 +188,50 @@ def machine_limits(settings: Any) -> Dict[str, Any]:
         "tool_count": tool_count or None,
         "tool_count_confirmed": bool(extruders) and len(extruders) >= tool_count,
         "nozzle_diameters": nozzles,
+        "nozzle_volume_types": [],
         "model": "",
     }
+
+
+def nozzle_volume_type(value: Any) -> str:
+    """"standard" or "high_flow" for any spelling of a nozzle's flow type
+    ("Standard", "High Flow", "high_flow", "HighFlow"), "" for anything else."""
+    key = _model_key(value)
+    if key == "standard":
+        return VOLUME_STANDARD
+    if key == "highflow":
+        return VOLUME_HIGH_FLOW
+    return ""
+
+
+def _known_volume_types(values: Any) -> List[str]:
+    """The flow types a list names, normalised; [] when it names none this
+    check knows, so another source can still answer."""
+    types = [nozzle_volume_type(v) for v in values] if isinstance(values, list) else []
+    return types if any(types) else []
+
+
+def machine_with_live_nozzles(limits: Dict[str, Any], live: Any) -> Dict[str, Any]:
+    """`limits` with what the extruders report at runtime, `live` being each
+    extruder's status by extruder number (None for one that reports nothing).
+    A reported diameter replaces the config's for an extruder the config
+    lists; a reported flow type is recorded, normalised."""
+    out = dict(limits)
+    nozzles = list(out.get("nozzle_diameters") or [])
+    types = list(out.get("nozzle_volume_types") or [])
+    for i, status in enumerate(live if isinstance(live, list) else []):
+        if not isinstance(status, dict):
+            continue
+        diameter = _number(status.get("nozzle_diameter"))
+        if diameter is not None and diameter > 0 and i < len(nozzles):
+            nozzles[i] = diameter
+        kind = nozzle_volume_type(status.get("nozzle_volume_type"))
+        if kind:
+            types.extend([""] * (i + 1 - len(types)))
+            types[i] = kind
+    out["nozzle_diameters"] = nozzles
+    out["nozzle_volume_types"] = types
+    return out
 
 
 # ============================================================================
@@ -197,6 +252,7 @@ def fit_file_from_record(record: Any) -> Dict[str, Any]:
         "max_bed_temp": bounds.get("max_bed_temp"),
         "tools": sorted(t for t in tools if isinstance(t, int) and not isinstance(t, bool)),
         "nozzle_diameters": list(header.get("nozzle_diameters") or []),
+        "nozzle_volume_types": _known_volume_types(header.get("nozzle_volume_types")),
         "printer_model": header.get("printer_model"),
     }
 
@@ -235,8 +291,8 @@ def _model_key(name: Any) -> str:
 def check_fit(machine: Dict[str, Any], facts: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Every way the file `facts` describe does not fit `machine`, in a fixed order: bounds by
     axis (min before max, radius last), temperatures (hotend, bed), tools,
-    nozzles by extruder, model. A limit or a file value that is unknown
-    checks nothing."""
+    nozzle diameters by extruder, nozzle flow types by extruder, model. A
+    limit or a file value that is unknown checks nothing."""
     findings = []  # type: List[Dict[str, Any]]
 
     box = facts.get("travel") if _usable_box(facts.get("travel")) else facts.get("print")
@@ -279,13 +335,33 @@ def check_fit(machine: Dict[str, Any], facts: Dict[str, Any]) -> List[Dict[str, 
             findings.append(_finding(KIND_TOO_MANY_TOOLS, severity,
                                      tool=highest, limit=tool_count))
 
+    # A file naming its tools is judged on those tools' nozzles alone: a slicer
+    # lists a nozzle for every extruder, used or not.
+    def used(tool: int) -> bool:
+        return not tools or tool in tools
+
     file_nozzles = facts.get("nozzle_diameters") or []
     machine_nozzles = machine.get("nozzle_diameters") or []
     for tool in range(min(len(file_nozzles), len(machine_nozzles))):
+        if not used(tool):
+            continue
         want, have = _number(file_nozzles[tool]), _number(machine_nozzles[tool])
         if want is not None and have is not None and abs(want - have) > NOZZLE_TOLERANCE:
             findings.append(_finding(KIND_NOZZLE_MISMATCH, SEVERITY_WARN,
                                      tool=tool, file=want, printer=have))
+
+    # High Flow G-code on a standard nozzle blocks, as Snapmaker's U1 firmware
+    # refuses that job itself; standard G-code on a High Flow nozzle only warns.
+    file_types = facts.get("nozzle_volume_types") or []
+    machine_types = machine.get("nozzle_volume_types") or []
+    for tool in range(min(len(file_types), len(machine_types))):
+        want_type = nozzle_volume_type(file_types[tool])
+        have_type = nozzle_volume_type(machine_types[tool])
+        if not used(tool) or not want_type or not have_type or want_type == have_type:
+            continue
+        severity = SEVERITY_BLOCK if want_type == VOLUME_HIGH_FLOW else SEVERITY_WARN
+        findings.append(_finding(KIND_NOZZLE_FLOW_MISMATCH, severity,
+                                 tool=tool, file=want_type, printer=have_type))
 
     file_model, machine_model = facts.get("printer_model"), machine.get("model")
     a, b = _model_key(file_model), _model_key(machine_model)
@@ -319,6 +395,9 @@ def describe(finding: Dict[str, Any]) -> str:
         return "%s %s above max_temp %s" % (d.get("heater"), d.get("value"), d.get("limit"))
     if kind == KIND_TOO_MANY_TOOLS:
         return "tool T%s on a printer with %s" % (d.get("tool"), d.get("limit"))
+    if kind == KIND_NOZZLE_FLOW_MISMATCH:
+        return "T%s sliced for a %s nozzle, the printer has %s" % (d.get("tool"), d.get("file"),
+                                                                  d.get("printer"))
     return "%s %s" % (kind, d)
 
 
@@ -395,11 +474,34 @@ class FitCheck:
         settings = ((status or {}).get("configfile") or {}).get("settings")
         if not isinstance(settings, dict):
             return None, "configfile.settings missing"
-        limits = machine_limits(settings)
+        limits = machine_with_live_nozzles(machine_limits(settings),
+                                           await self._live_nozzles(apis, settings))
         # A filament system's T commands are not in the config, so the count
         # of extruders and T macros cannot say a tool is missing.
         limits["tool_count"] = None
         return limits, ""
+
+    async def _live_nozzles(self, apis: Any, settings: Dict[str, Any]) -> List[Any]:
+        """Each configured extruder's status by extruder number, for the
+        nozzle it reports fitted; [] when the query fails, which leaves the
+        config's nozzles to check."""
+        numbers = {}  # type: Dict[str, int]
+        for name in settings:
+            match = _EXTRUDER.match(name)
+            if match and len(match.group(1)) <= 3:
+                numbers[name] = int(match.group(1) or 0)
+        if not numbers:
+            return []
+        try:
+            status = await apis.query_objects({name: LIVE_NOZZLE_FIELDS for name in numbers})
+        except Exception as e:
+            logging.info("HelixPrint: fit check reads the config's nozzles, the extruder "
+                         "query failed: %s", e)
+            return []
+        live = [None] * (max(numbers.values()) + 1)  # type: List[Any]
+        for name, number in numbers.items():
+            live[number] = (status or {}).get(name)
+        return live
 
     async def _printer_busy(self) -> bool:
         """Whether Klipper is printing or paused; unknown reads as busy."""

@@ -3382,6 +3382,8 @@
   <translation tag="Sleep {} min" de="Ruhezustand nach {} Min."/>
   <translation tag="Sliced colors" de="Slice-Farben"/>
   <translation tag="Sliced for a Different Setup" de="Für ein anderes Setup gesliced"/>
+  <translation tag="Sliced for a High Flow nozzle on T{}; the printer has a standard one." de="Für eine High-Flow-Düse an T{} gesliced; der Drucker hat eine Standarddüse."/>
+  <translation tag="Sliced for a standard nozzle on T{}; the printer has High Flow." de="Für eine Standarddüse an T{} gesliced; der Drucker hat eine High-Flow-Düse."/>
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." de="Für eine {:g}-mm-Düse an T{} gesliced; der Drucker hat {:g} mm."/>
   <translation tag="Sliced for {}, not {}." de="Für {} gesliced, nicht für {}."/>
   <translation tag="Slicer" de="Slicer"/>

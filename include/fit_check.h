@@ -47,7 +47,9 @@ struct FitMachine {
     /// inferred, and a file past it only warns.
     bool tool_count_confirmed = false;
     std::vector<double> nozzle_diameters; ///< by extruder number
-    std::string model;                    ///< empty when the printer's model is not known
+    /// By extruder number, normalised (fit_nozzle_volume_type()); "" when unknown.
+    std::vector<std::string> nozzle_volume_types;
+    std::string model; ///< empty when the printer's model is not known
 };
 
 /// What a file does.
@@ -58,10 +60,19 @@ struct FitFile {
     std::optional<double> max_bed_temp;
     std::set<int> tools;
     std::vector<double> nozzle_diameters; ///< the slicer's, by extruder
-    std::string printer_model;            ///< the slicer's printer, or empty
+    /// The slicer's, by extruder, normalised (fit_nozzle_volume_type()); "" when unknown.
+    std::vector<std::string> nozzle_volume_types;
+    std::string printer_model; ///< the slicer's printer, or empty
 };
 
-enum class FitKind { OutOfBounds, TempOverMax, TooManyTools, NozzleMismatch, PrinterModelMismatch };
+enum class FitKind {
+    OutOfBounds,
+    TempOverMax,
+    TooManyTools,
+    NozzleMismatch,
+    NozzleFlowMismatch,
+    PrinterModelMismatch
+};
 /// Block stops a start; Warn asks before one; Note is only shown, never asked about.
 enum class FitSeverity { Note, Warn, Block };
 
@@ -74,10 +85,25 @@ struct FitFinding {
     std::string heater; ///< TempOverMax: "extruder" or "heater_bed"
     double value = 0.0; ///< the file's position, temperature or nozzle
     double limit = 0.0; ///< the printer's limit, tool count or nozzle
-    int tool = -1;      ///< TooManyTools: the highest tool; NozzleMismatch: the extruder
+    int tool =
+        -1; ///< TooManyTools: the highest tool; NozzleMismatch, NozzleFlowMismatch: the extruder
     std::string file_model;
     std::string printer_model;
+    std::string file_volume_type;    ///< NozzleFlowMismatch: "standard" or "high_flow"
+    std::string printer_volume_type; ///< NozzleFlowMismatch: "standard" or "high_flow"
 };
+
+/// What a printer reports at runtime about one extruder's nozzle, which can
+/// differ from configfile.settings when the firmware keeps the fitted nozzle
+/// elsewhere. Unset and "" mean the extruder reports nothing.
+struct FitLiveNozzle {
+    std::optional<double> diameter;
+    std::string volume_type; ///< as reported; normalised when it is applied
+};
+
+/// "standard" or "high_flow" for any spelling of a nozzle's flow type
+/// ("Standard", "High Flow", "high_flow", "HighFlow"), "" for anything else.
+[[nodiscard]] std::string fit_nozzle_volume_type(std::string_view text);
 
 /// The limits in configfile.settings @p settings. A delta has a print radius
 /// and its height from the towers; every other kinematics reads stepper_x,
@@ -92,9 +118,16 @@ struct FitFinding {
 [[nodiscard]] FitMachine fit_machine_for_screen(FitMachine base, std::string model,
                                                 bool filament_system, double y_shrink_mm);
 
+/// @p base with what its extruders report at runtime, @p live by extruder
+/// number: a reported diameter replaces the config's for an extruder the
+/// config lists, and a reported flow type is recorded (normalised).
+[[nodiscard]] FitMachine fit_machine_with_live_nozzles(FitMachine base,
+                                                       const std::vector<FitLiveNozzle>& live);
+
 /// Every way @p file does not fit @p machine, in the plugin's order: bounds by
 /// axis (min before max, the radius last), temperatures (hotend, bed), tools,
-/// nozzles by extruder, model.
+/// nozzle diameters by extruder, nozzle flow types by extruder, model. Nozzles
+/// are compared only for the tools the file uses, when it names any.
 [[nodiscard]] std::vector<FitFinding> check_fit(const FitMachine& machine, const FitFile& file);
 
 /// Whether any finding blocks a start.
@@ -127,6 +160,7 @@ struct FitFinding {
 struct FitHeadFacts {
     std::string printer_model;
     std::vector<double> nozzle_diameters;
+    std::vector<std::string> nozzle_volume_types; ///< normalised; "" when unknown
     std::optional<double> max_hotend_temp;
     std::optional<double> max_bed_temp;
 };

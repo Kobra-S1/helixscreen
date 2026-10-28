@@ -3504,6 +3504,8 @@ translations:
   Sleep {} min: '{}分でスリープ'
   Sliced colors: スライスした色
   Sliced for a Different Setup: '別の構成用にスライスされています'
+  Sliced for a High Flow nozzle on T{}; the printer has a standard one.: 'High Flowノズル（T{}）用にスライスされています。プリンターは標準ノズルです。'
+  Sliced for a standard nozzle on T{}; the printer has High Flow.: '標準ノズル（T{}）用にスライスされています。プリンターはHigh Flowノズルです。'
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: '{:g} mmノズル（T{}）用にスライスされています。プリンターは{:g} mmです。'
   Sliced for {}, not {}.: '{}用にスライスされています。{}用ではありません。'
   Slicer: スライサー

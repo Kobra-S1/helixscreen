@@ -440,25 +440,33 @@
       "temperature",
       "target",
       "power",
-      "pressure_advance"
+      "pressure_advance",
+      "nozzle_diameter",
+      "nozzle_volume_type"
     ],
     "extruder1": [
       "temperature",
       "target",
       "power",
-      "pressure_advance"
+      "pressure_advance",
+      "nozzle_diameter",
+      "nozzle_volume_type"
     ],
     "extruder2": [
       "temperature",
       "target",
       "power",
-      "pressure_advance"
+      "pressure_advance",
+      "nozzle_diameter",
+      "nozzle_volume_type"
     ],
     "extruder3": [
       "temperature",
       "target",
       "power",
-      "pressure_advance"
+      "pressure_advance",
+      "nozzle_diameter",
+      "nozzle_volume_type"
     ],
     "fan_generic chamber_fan": [
       "speed"

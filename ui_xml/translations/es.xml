@@ -3382,6 +3382,8 @@
   <translation tag="Sleep {} min" es="Reposo en {} min"/>
   <translation tag="Sliced colors" es="Colores laminados"/>
   <translation tag="Sliced for a Different Setup" es="Laminado para otra configuración"/>
+  <translation tag="Sliced for a High Flow nozzle on T{}; the printer has a standard one." es="Laminado para una boquilla High Flow en T{}; la impresora tiene una estándar."/>
+  <translation tag="Sliced for a standard nozzle on T{}; the printer has High Flow." es="Laminado para una boquilla estándar en T{}; la impresora tiene una High Flow."/>
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." es="Laminado para una boquilla de {:g} mm en T{}; la impresora tiene {:g} mm."/>
   <translation tag="Sliced for {}, not {}." es="Laminado para {}, no para {}."/>
   <translation tag="Slicer" es="Laminador"/>

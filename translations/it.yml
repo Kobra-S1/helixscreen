@@ -3694,6 +3694,8 @@ translations:
   Sleep {} min: Sospensione tra {} min
   Sliced colors: Colori sezionati
   Sliced for a Different Setup: 'Preparato per un''altra configurazione'
+  Sliced for a High Flow nozzle on T{}; the printer has a standard one.: 'Preparato per un ugello High Flow su T{}; la stampante ha un ugello standard.'
+  Sliced for a standard nozzle on T{}; the printer has High Flow.: 'Preparato per un ugello standard su T{}; la stampante ha un ugello High Flow.'
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Preparato per un ugello da {:g} mm su T{}; la stampante ha {:g} mm.'
   Sliced for {}, not {}.: 'Preparato per {}, non per {}.'
   Slicer: Slicer
