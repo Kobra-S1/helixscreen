@@ -73,6 +73,8 @@ class PrinterHardware {
     /**
      * @brief Guess the most likely hotend heater
      *
+     * Chooses only among heaters the HotendHeater role's is_candidate accepts.
+     *
      * Priority order:
      * 1. Exact match: "extruder" (Klipper's canonical [extruder] section)
      * 2. Exact match: "extruder0"
@@ -138,10 +140,10 @@ class PrinterHardware {
      * Priority order:
      * 1. Exact match: "fan" (Klipper's canonical [fan] section)
      * 2. Substring match: any fan containing "part" (e.g., "fan_generic part_cooling")
-     * 3. Fallback: first fan in list (if no better match)
+     * 3. Fallback: first candidate fan in list (if no better match)
      *
-     * Avoids auxiliary fans (bed_fans, exhaust, nevermore, controller_fan)
-     * by prioritizing the canonical "fan" name.
+     * Chooses only among fans the PartFan role's is_candidate accepts, so
+     * auto-controlled heater, controller and temperature fans are never guessed.
      *
      * @return Part cooling fan name or empty string if none found
      */
@@ -151,14 +153,14 @@ class PrinterHardware {
      * @brief Guess the most likely chamber fan (internal air circulation)
      *
      * Chamber fans are used for internal air circulation in enclosed printers.
-     * Common examples include bed fans, Nevermore filters, and recirculating filters.
+     * Common examples include Nevermore filters and recirculating filters. Chooses
+     * only among fans the ChamberFan role's is_candidate accepts.
      *
      * Priority order:
      * 1. Exact match: "chamber_fan"
      * 2. Substring priority chain:
      *    - "chamber" - chamber air circulation
      *    - "nevermore" - popular Klipper recirculating filter
-     *    - "bed_fans" - BTT Pi naming convention
      *    - "filter" - air filtration
      * 3. Return empty if no match (optional hardware)
      *
