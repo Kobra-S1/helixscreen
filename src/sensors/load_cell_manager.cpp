@@ -25,9 +25,20 @@ LoadCellManager::Options LoadCellManager::make_options() {
     o.kinds = {hw::ObjectKind::LoadCell};
     o.count_subject = "load_cell_count";
     o.revision_subject = "load_cell_revision";
+    o.settings_section = "load_cell";
+    o.row_toggle = RowToggle::None;
     o.roles.push_back({kSpoolWeight, "spool_weight", "Spool Weight", /*exclusive=*/true,
                        /*offered=*/false});
     return o;
+}
+
+SensorRowView LoadCellManager::row(size_t index) const {
+    SensorRowView view = SensorManager::row(index);
+    const auto all = entries();
+    if (index < all.size()) {
+        view.name = helix::get_display_name(all[index].klipper_name, DeviceType::LOAD_CELL);
+    }
+    return view;
 }
 
 LoadCellManager& LoadCellManager::instance() {

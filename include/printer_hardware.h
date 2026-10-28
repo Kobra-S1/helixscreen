@@ -302,3 +302,11 @@ class PrinterHardware {
     static std::string find_not_containing(const std::vector<std::string>& vec,
                                            const std::vector<std::string>& avoid_substrings);
 };
+
+/// Whether a filament sensor stands alone rather than belonging to an AMS: the
+/// one filter Settings > Sensors and the filament sensor wizard both list by.
+/// @p sensor_name may carry its "filament_switch_sensor " prefix or not.
+[[nodiscard]] inline bool is_standalone_filament_sensor(const helix::PrinterDiscovery& hw,
+                                                        const std::string& sensor_name) {
+    return !PrinterHardware::is_ams_sensor(sensor_name, hw);
+}

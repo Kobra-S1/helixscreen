@@ -97,12 +97,15 @@ ProbeSensorManager::Options ProbeSensorManager::make_options() {
     o.config_key = "probe_sensors";
     // z_offset seeding and the Klicky check read config sections.
     o.rediscover_on_config = true;
+    o.settings_section = "probe";
+    o.row_toggle = RowToggle::None;
     for (const auto& r : kProbeSensorRoles) {
         if (r.value == ProbeSensorRole::NONE) {
             continue;
         }
-        o.roles.push_back(
-            {static_cast<uint8_t>(r.value), r.id, r.display, /*exclusive=*/true, /*offered=*/true});
+        // Probes are assigned by the wizard; Settings shows the role as text.
+        o.roles.push_back({static_cast<uint8_t>(r.value), r.id, r.display, /*exclusive=*/true,
+                           /*offered=*/false});
     }
     for (const auto& t : kProbeSensorTypes) {
         o.types.push_back({static_cast<uint8_t>(t.value), t.id, t.display});

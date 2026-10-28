@@ -31,6 +31,4 @@ unreferenced:temperature
 unregistered:bed_temp_clicked_cb
 unregistered:chamber_temp_clicked_cb
 unregistered:my_close_cb
-unregistered:on_sensor_row_role_changed
-unregistered:on_sensor_row_toggle_changed
 unregistered:temp_clicked_cb

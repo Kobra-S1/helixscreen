@@ -99,6 +99,11 @@ class FilamentSensorManager : public sensors::SensorManager {
      */
     void set_role(std::string_view klipper_name, uint8_t role) override;
 
+    /// Settings lists standalone sensors only: an AMS backend owns the rest.
+    [[nodiscard]] bool listed_in_settings(const sensors::SensorEntry& entry) const override;
+    /// The Enabled switch shows only for a sensor that holds a role.
+    [[nodiscard]] sensors::SensorRowView row(size_t index) const override;
+
     /**
      * @brief Set master enable switch
      *

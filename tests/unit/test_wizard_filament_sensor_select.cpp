@@ -22,6 +22,7 @@
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "printer_discovery.h"
+#include "printer_hardware.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -64,8 +65,8 @@ class WizardFilamentSensorSelectTestFixture {
         FilamentSensorManagerTestAccess::reset(sensor_mgr());
 
         // Anchor the wizard's AMS filter to a no-MMU baseline. The wizard
-        // consults get_printer_state().get_discovery() via the
-        // discovery-aware is_ams_sensor overload; PrinterState is a
+        // consults get_printer_state().get_discovery() through
+        // is_standalone_filament_sensor(); PrinterState is a
         // singleton, so a prior test that installed an MMU discovery
         // could otherwise flip the filter and make our "standalone"
         // expectations (e.g. "toolhead") fail. Capture the prior state
@@ -100,7 +101,7 @@ class WizardFilamentSensorSelectTestFixture {
     }
 
     // Helper to discover AMS sensors (should be filtered out)
-    // These use patterns that is_ams_sensor() will detect
+    // These use patterns is_standalone_filament_sensor() rejects
     void discover_ams_sensors() {
         std::vector<std::string> sensors = {
             "filament_switch_sensor lane_1",   // AFC lane sensor - matches "lane"
@@ -458,4 +459,28 @@ TEST_CASE_METHOD(WizardFilamentSensorSelectTestFixture,
         discover_filament_sensors(sensor_mgr(), {});
         REQUIRE(step.get_standalone_sensor_count() == 0);
     }
+}
+
+// ============================================================================
+// One standalone filter for the wizard and Settings
+// ============================================================================
+
+TEST_CASE_METHOD(
+    WizardFilamentSensorSelectTestFixture,
+    "WizardFilamentSensorSelectStep - the wizard and overlay agree on standalone sensors",
+    "[wizard][filament][sensors]") {
+    discover_mixed_sensors();
+    WizardFilamentSensorSelectStep step;
+
+    std::vector<std::string> listed;
+    for (const auto& entry : sensor_mgr().entries()) {
+        if (sensor_mgr().listed_in_settings(entry)) {
+            listed.push_back(entry.display_name);
+        }
+        CHECK(
+            sensor_mgr().listed_in_settings(entry) ==
+            is_standalone_filament_sensor(get_printer_state().get_discovery(), entry.klipper_name));
+    }
+    CHECK(listed == std::vector<std::string>{"runout", "toolhead"});
+    CHECK(step.get_standalone_sensor_count() == listed.size());
 }

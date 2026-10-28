@@ -268,8 +268,8 @@ TEST_CASE_METHOD(WidthSensorTestFixture, "WidthSensorManager - role assignment",
         CHECK(role_of(kHall) == kNone);
     }
 
-    SECTION("The role is offered in the Settings dropdown") {
-        CHECK(mgr().offered_roles() == std::vector<uint8_t>{kFlow});
+    SECTION("None and the role are offered in the Settings dropdown") {
+        CHECK(mgr().offered_roles() == std::vector<uint8_t>{kNone, kFlow});
     }
 }
 

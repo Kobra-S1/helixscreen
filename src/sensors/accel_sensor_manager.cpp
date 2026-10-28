@@ -15,6 +15,8 @@ AccelSensorManager::Options AccelSensorManager::make_options() {
     o.revision_subject = "accel_revision";
     // Accelerometers exist only as config sections.
     o.rediscover_on_config = true;
+    o.settings_section = "accel";
+    o.row_toggle = RowToggle::None;
     for (const auto& t : kAccelSensorTypes) {
         o.types.push_back({static_cast<uint8_t>(t.value), t.id, t.display});
     }

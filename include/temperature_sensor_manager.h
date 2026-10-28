@@ -82,6 +82,12 @@ class TemperatureSensorManager : public SensorManager {
     [[nodiscard]] lv_subject_t* get_target_subject(const std::string& klipper_name,
                                                    SubjectLifetime& lifetime);
 
+    /// A CHAMBER sensor is set through the chamber assignment dropdowns, so
+    /// Settings does not list it as a row.
+    [[nodiscard]] bool listed_in_settings(const SensorEntry& entry) const override;
+    /// Names a sensor the way the rest of the UI does ("MCU Temperature").
+    [[nodiscard]] SensorRowView row(size_t index) const override;
+
   protected:
     void register_subjects(SubjectManager& subjects) override;
     void refresh_subjects() override;

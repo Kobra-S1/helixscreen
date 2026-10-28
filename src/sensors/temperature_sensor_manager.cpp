@@ -107,6 +107,8 @@ TemperatureSensorManager::Options TemperatureSensorManager::make_options() {
                hw::ObjectKind::HumidityChip};
     o.count_subject = "temp_sensor_count";
     o.revision_subject = "temp_sensor_revision";
+    o.settings_section = "temp";
+    o.row_toggle = RowToggle::None;
     for (const auto& r : kTemperatureSensorRoles) {
         if (r.value == TemperatureSensorRole::NONE) {
             continue;
@@ -115,6 +117,19 @@ TemperatureSensorManager::Options TemperatureSensorManager::make_options() {
                            /*offered=*/false});
     }
     return o;
+}
+
+bool TemperatureSensorManager::listed_in_settings(const SensorEntry& entry) const {
+    return role_of<TemperatureSensorRole>(entry) != TemperatureSensorRole::CHAMBER;
+}
+
+SensorRowView TemperatureSensorManager::row(size_t index) const {
+    SensorRowView view = SensorManager::row(index);
+    const auto all = entries();
+    if (index < all.size()) {
+        view.name = config_of(all[index]).display_name;
+    }
+    return view;
 }
 
 TemperatureSensorManager& TemperatureSensorManager::instance() {

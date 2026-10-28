@@ -36,7 +36,7 @@ Each manager has a matching `*_types.h` header (`filament_sensor_types.h`, `humi
 
 | File | Purpose |
 |------|---------|
-| `include/sensor_managers.h` | `for_each_sensor_manager()`: the one list of manager singletons, walked for subject init and the status fan-out |
+| `include/sensor_manager.h` | `sensor_managers()`: the one list of manager singletons, walked for subject init, discovery and the status fan-out |
 | `src/printer/printer_discovery.cpp` | `init_subsystems_from_hardware()`: calls each manager's `discover()` from the Klipper object list |
 | `src/api/moonraker_discovery_sequence.cpp` | Buckets sensor objects during object-list parsing, builds their status subscriptions, and queues the `configfile.config` discovery arm |
 | `src/application/moonraker_manager.cpp` | `dispatch_status_frame()` hands every status frame to each manager after `PrinterState` |
@@ -296,7 +296,7 @@ Roles are CHAMBER and DRYER, auto-assigned at discovery to the first sensor whos
 
 The one generic consumer is the door-open print-start gate (`src/printer/print_start_checks.cpp#gate_door_open`, documented with the gate pipeline in `FILAMENT_MANAGEMENT.md`), which warns when the door check is on, a Door input reads open, and the print has a material that needs a warm enclosure (`door_warning_material()`). The door check defaults on exactly when the printer has a Door input; an explicit choice persists as `input_sensors/door_check`. While printing, a Door input that opens also raises one warning toast per opening (`InputSensorManager::mid_print_door_warnings()`), by the same material rule applied to the active job: `ActivePrintMediaManager` sets `PrinterPrintState::print_materials()` from the job's file metadata through `materials_in_print()`, and while those materials are unknown the toast stays quiet. It also stays quiet when the printer's own config already reacts to that edge: `on_discovered()` reads each `gcode_button` section from the discovery data (the configfile pass runs discovery again), and a door whose `release_gcode` (its `press_gcode` when inverted) holds anything but whitespace is announced by the printer, so the toast skips it (`firmware_reacts_to_opening()`). Z-Mod's Creator 5 config is one such printer. The print-start gate does not apply this rule: a printer that prompts on the open edge does not check the door before a print.
 
-Inputs whose meaning belongs to a subsystem, like a tool changer's dock and carriage buttons, show here as plain inputs; that subsystem keeps reading them its own way. The overlay draws its rows declaratively from indexed subjects (`input_sensor_{name,state,alert,role,inverted}_<i>` under a `<repeat count="input_sensor_count">`), capped at `InputSensorManager::kMaxRows`.
+Inputs whose meaning belongs to a subsystem, like a tool changer's dock and carriage buttons, show here as plain inputs; that subsystem keeps reading them its own way. Settings > Sensors lists each input through `InputSensorManager::row()` (live state, role, Invert), on the shared `sensor_row` like every other section.
 
 What generic code asks (`include/input_sensor_manager.h`, `include/input_sensor_types.h`):
 
@@ -412,7 +412,7 @@ Copy the shape of `LoadCellManager` (the smallest manager) or `TemperatureSensor
    - `discover()` and/or `discover_from_config()`, main thread only
    - `update_from_status(const nlohmann::json&)` that parses with `find()` plus a type check under the mutex and defers `update_subjects()` with `lifetime_.token().defer(...)`
    - `get_subjects_lifetime()`, `set_sync_mode()`, and a `*TestAccess` friend
-3. **Register** the manager in `for_each_sensor_manager()` (`include/sensor_managers.h`). That alone wires subject init and status fan-out.
+3. **Register** the manager in `sensor_managers()` (`src/sensors/sensor_manager.cpp#detail::mutable_sensor_managers`). That alone wires subject init, discovery and status fan-out.
 4. **Discover:** call `discover()` from `init_subsystems_from_hardware()`, or queue `discover_from_config()` beside the probe and accel calls in the discovery sequence. If the objects need a new `PrinterDiscovery` accessor, add it in `src/printer/printer_discovery_parse.cpp`.
 5. **Subscribe:** add the objects and the exact fields you read to `build_subscription_objects()`. A manager whose objects are not subscribed never receives status.
 6. **Persist**, only if users assign roles: follow `WidthSensorManager::load_config_from_file()` / `save_config_to_file()` under a new `Config::df()` key, and call the load right after discovery.
@@ -428,4 +428,4 @@ Vendor names stay out of generic code: if one firmware publishes the reading und
 - **Null fields are normal.** A field-restricted subscription sends `null` for fields an object lacks. Never `get<>()` without checking the type.
 - **Use presence queries for "is it there", runout queries for "act on it".** Mixing them either ignores a firmware stand-down or alerts on a sensor the firmware is deliberately not running.
 - **Per-sensor subjects need their token.** Use the `get_temp_subject(name, lifetime)` / `get_value_subject(id, key, lifetime)` overloads and pass that lifetime to `observe<int>()`.
-- **Imperative rows.** The humidity and accelerometer sections of the Settings overlay build their rows in C++. New sections should create an XML component the way switch sensors use `filament_sensor_row` and load cells use `load_cell_row`, per `.claude/rules/declarative-ui.md`.
+- **Settings rows come from the manager.** A manager with `Options::settings_section` gets a Settings > Sensors section of `sensor_row`s filled from its `row(i)` (`src/ui/ui_settings_sensors.cpp#SensorRowSection`). Its dropdown labels are static in `sensors_overlay.xml` and must equal the translation keys of `offered_roles()`, in order (a test checks).
