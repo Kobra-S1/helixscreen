@@ -1,35 +1,34 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# The Android build compiles through Gradle/CMake and never reads the Makefile,
-# so a `HELIX_HAS_X ?= 1` default there does not reach it. An undefined macro in
-# `#if` is 0, which compiles the feature out with no error: a printer's filament
-# system simply never appears in the app. Every Makefile feature gate therefore
-# needs an explicit value in the Android CMake.
+# The Android build compiles through Gradle/CMake and never reads the Makefile.
+# Every feature gate's default lives in include/helix_features.h, which
+# lvgl_pch.h brings into every C++ source, so the Android CMake lists only the
+# gates it changes. An undefined gate in `#if` is 0 and compiles the feature out
+# with no error, so the header must reach Android, and a feature the app keeps
+# must default on and not be turned off here.
 
 CMAKE="android/app/jni/CMakeLists.txt"
+FEATURES="include/helix_features.h"
 
-@test "every Makefile feature gate has an explicit value in the Android CMake" {
-  gates=$(grep -oE '^HELIX_HAS_[A-Z0-9_]+ \?=' Makefile | cut -d' ' -f1 | sort -u)
-  [ -n "$gates" ]
-  missing=""
-  for g in $gates; do
-    grep -qE "^[[:space:]]+${g}=[01]\b" "$CMAKE" || missing="$missing $g"
-  done
-  if [ -n "$missing" ]; then
-    echo "Missing from $CMAKE:$missing"
-    return 1
-  fi
+keeps_gate() {
+  grep -qE "^#define $1 1$" "$FEATURES" || { echo "$1 does not default to 1 in $FEATURES"; return 1; }
+  ! grep -qE "^[[:space:]]+$1=0\b" "$CMAKE" || { echo "$CMAKE turns $1 off"; return 1; }
+}
+
+@test "the Android build force-includes the header that holds every gate default" {
+  grep -qE 'include/lvgl_pch\.h' "$CMAKE"
+  grep -qE '^#include "helix_features\.h"$' include/lvgl_pch.h
 }
 
 @test "the Android app keeps every network-reachable vendor filament system" {
   for g in HELIX_HAS_CFS HELIX_HAS_IFS HELIX_HAS_ACE HELIX_HAS_QIDI HELIX_HAS_SNAPMAKER; do
-    grep -qE "^[[:space:]]+${g}=1\b" "$CMAKE"
+    keeps_gate "$g"
   done
 }
 
 @test "the Android app keeps label printing" {
-  grep -qE "^[[:space:]]+HELIX_HAS_LABEL_PRINTER=1\b" "$CMAKE"
+  keeps_gate HELIX_HAS_LABEL_PRINTER
 }
 
 @test "the Android app builds the screensavers" {
@@ -48,7 +47,7 @@ CMAKE="android/app/jni/CMakeLists.txt"
 }
 
 @test "the Android app builds the Lua plugin runtime from the Makefile's Lua sources" {
-  grep -qE "^[[:space:]]+HELIX_HAS_PLUGINS=1\b" "$CMAKE"
+  keeps_gate HELIX_HAS_PLUGINS
   grep -qE '^add_library\(lua STATIC \$\{LUA_SOURCES\}\)' "$CMAKE"
   grep -qE '^set_source_files_properties\(\$\{LUA_SOURCES\} PROPERTIES LANGUAGE CXX\)' "$CMAKE"
   # main links the interpreter
