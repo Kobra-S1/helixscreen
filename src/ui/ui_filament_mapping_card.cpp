@@ -63,11 +63,12 @@ IndexedSubjectPool s_chip_slot_finish{"filament_chip", IndexedSubjectPool::Type:
 IndexedSubjectPool s_chip_slot_state{"filament_chip", IndexedSubjectPool::Type::Int, 0,
                                      "_slot_state"};
 IndexedSubjectPool s_chip_severity{"filament_chip", IndexedSubjectPool::Type::Int, 0, "_severity"};
+IndexedSubjectPool s_chip_slot_ink{"filament_chip", IndexedSubjectPool::Type::Int, 0, "_slot_ink"};
 
 IndexedSubjectPool* const s_chip_pools[] = {
     &s_chip_material,   &s_chip_slot,       &s_chip_file_color,  &s_chip_file_color_known,
     &s_chip_ink,        &s_chip_slot_color, &s_chip_slot_colors, &s_chip_slot_finish,
-    &s_chip_slot_state, &s_chip_severity};
+    &s_chip_slot_state, &s_chip_severity,   &s_chip_slot_ink};
 
 /// filament_chip_<i>_slot_state: what the chip's body draws.
 enum ChipSlotState : int {
@@ -78,8 +79,16 @@ enum ChipSlotState : int {
     kUnknownSlot = 4, ///< nothing says what is loaded, or the lane is picked at print time
 };
 
-/// filament_chip_<i>_ink: the header label's colour.
+/// filament_chip_<i>_ink and _slot_ink: the colour of text drawn over the header's
+/// and the body's fill.
 enum ChipInk : int { kThemeInk = 0, kDarkInk = 1, kLightInk = 2 };
+
+/// The ink that reads on a fill of @p rgb.
+ChipInk ink_on(uint32_t rgb) {
+    return lv_color_eq(theme_manager_get_readable_on(lv_color_hex(rgb)), lv_color_black())
+               ? kDarkInk
+               : kLightInk;
+}
 
 void init_chip_subjects() {
     s_chip_subjects.ensure_init(
@@ -110,14 +119,7 @@ void publish_chip_header(size_t i, const helix::GcodeToolInfo& tool) {
                                                         : tool.material);
     s_chip_file_color.set_color(i, tool.color_rgb);
     s_chip_file_color_known.set_int(i, tool.color_known ? 1 : 0);
-    int ink = kThemeInk;
-    if (tool.color_known) {
-        ink = lv_color_eq(theme_manager_get_readable_on(lv_color_hex(tool.color_rgb)),
-                          lv_color_black())
-                  ? kDarkInk
-                  : kLightInk;
-    }
-    s_chip_ink.set_int(i, ink);
+    s_chip_ink.set_int(i, tool.color_known ? ink_on(tool.color_rgb) : kThemeInk);
 }
 
 /// @p slot is the lane @p tool prints from (FilamentMapper::resolve_printing_slot()).
@@ -130,6 +132,7 @@ void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::Avail
     s_chip_slot_finish.set_string(i, slot ? std::string(helix::filament_finish_name(slot->finish))
                                           : std::string{});
     s_chip_slot_state.set_int(i, slot ? (slot->is_empty ? kEmptySlot : kLoadedSlot) : kNoSlot);
+    s_chip_slot_ink.set_int(i, slot && !slot->is_empty ? ink_on(slot->color_rgb) : kThemeInk);
     s_chip_severity.set_int(i, static_cast<int>(helix::chip_severity(tool, slot)));
 }
 
@@ -142,6 +145,7 @@ void publish_picked_at_print_chip(size_t i, const helix::GcodeToolInfo& tool) {
     s_chip_slot_colors.set_string(i, std::string{});
     s_chip_slot_finish.set_string(i, std::string{});
     s_chip_slot_state.set_int(i, kUnknownSlot);
+    s_chip_slot_ink.set_int(i, kThemeInk);
     s_chip_severity.set_int(i, static_cast<int>(helix::ChipSeverity::Ok));
 }
 
@@ -189,6 +193,7 @@ void publish_loaded_chip(size_t i, const helix::GcodeToolInfo& tool,
     s_chip_slot_state.set_int(i, role == helix::LoadedRole::Swap ? kSwapSlot
                                  : loaded.known                  ? kLoadedSlot
                                                                  : kUnknownSlot);
+    s_chip_slot_ink.set_int(i, shows_spool ? ink_on(loaded.color_rgb) : kThemeInk);
     s_chip_severity.set_int(i, static_cast<int>(helix::loaded_severity(tool, loaded, role)));
 }
 

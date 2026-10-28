@@ -453,10 +453,8 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "The chip's spool paints the slot's s
 
     lv_obj_t* const spool = lv_obj_find_by_name(chip(0), "chip_spool");
     REQUIRE(spool != nullptr);
-    lv_obj_t* const disc = lv_obj_find_by_name(spool, "color_swatch_disc");
-    REQUIRE(disc != nullptr);
-    CHECK(helix::ui::swatch_paint_colors(disc).size() == 3);
-    CHECK(helix::ui::swatch_paint_finish(disc) == helix::ui::SwatchFinish::Silk);
+    CHECK(helix::ui::swatch_paint_colors(spool).size() == 3);
+    CHECK(helix::ui::swatch_paint_finish(spool) == helix::ui::SwatchFinish::Silk);
 
     process_lvgl(100);
 }
