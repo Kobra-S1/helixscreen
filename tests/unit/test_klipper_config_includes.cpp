@@ -382,8 +382,8 @@ namespace {
 struct DeferredDownloads {
     struct Pending {
         std::string path;
-        std::function<void(std::string)> ok;
-        std::function<void(std::string, bool)> fail;
+        helix::SharedCallback<void(std::string)> ok;
+        helix::SharedCallback<void(std::string, bool)> fail;
     };
 
     std::map<std::string, std::string> server;
@@ -392,8 +392,8 @@ struct DeferredDownloads {
     size_t max_outstanding = 0;
 
     ConfigDownloadFn fn() {
-        return [this](const std::string& path, std::function<void(std::string)> ok,
-                      std::function<void(std::string, bool)> fail) {
+        return [this](const std::string& path, helix::SharedCallback<void(std::string)> ok,
+                      helix::SharedCallback<void(std::string, bool)> fail) {
             requested.push_back(path);
             pending.push_back({path, std::move(ok), std::move(fail)});
             max_outstanding = std::max(max_outstanding, pending.size());
@@ -545,8 +545,8 @@ TEST_CASE("download_include_graph - a download rejected before it returns report
     int errors = 0;
     download_include_graph(
         listing, "printer.cfg",
-        [&server](const std::string& path, std::function<void(std::string)> ok,
-                  std::function<void(std::string, bool)> fail) {
+        [&server](const std::string& path, helix::SharedCallback<void(std::string)> ok,
+                  helix::SharedCallback<void(std::string, bool)> fail) {
             if (path == "printer.cfg")
                 ok(server.at(path));
             else
@@ -576,8 +576,8 @@ TEST_CASE("download_include_graph - a full queue is backpressure while downloads
     GraphResult r;
     download_include_graph(
         dl.listing(), "printer.cfg",
-        [&](const std::string& path, std::function<void(std::string)> ok,
-            std::function<void(std::string, bool)> fail) {
+        [&](const std::string& path, helix::SharedCallback<void(std::string)> ok,
+            helix::SharedCallback<void(std::string, bool)> fail) {
             if (path == "c.cfg" && rejections_left > 0) {
                 --rejections_left;
                 dl.requested.push_back(path);
@@ -651,8 +651,8 @@ TEST_CASE("download_include_graph - a request refused for anything but a full qu
     GraphResult r;
     download_include_graph(
         dl.listing(), "printer.cfg",
-        [&](const std::string& path, std::function<void(std::string)> ok,
-            std::function<void(std::string, bool)> fail) {
+        [&](const std::string& path, helix::SharedCallback<void(std::string)> ok,
+            helix::SharedCallback<void(std::string, bool)> fail) {
             if (path == "b.cfg") {
                 dl.requested.push_back(path);
                 fail("invalid path", false); // before returning, with a.cfg in flight
@@ -770,13 +770,13 @@ TEST_CASE("download_include_graph - a full queue reported after the call returns
         {"b.cfg", "[b]\n"},
     };
     // b.cfg is handed off and refused later, while a.cfg is still in flight.
-    std::function<void(std::string, bool)> refuse_b;
+    helix::SharedCallback<void(std::string, bool)> refuse_b;
     auto deferred = dl.fn();
     GraphResult r;
     download_include_graph(
         dl.listing(), "printer.cfg",
-        [&](const std::string& path, std::function<void(std::string)> ok,
-            std::function<void(std::string, bool)> fail) {
+        [&](const std::string& path, helix::SharedCallback<void(std::string)> ok,
+            helix::SharedCallback<void(std::string, bool)> fail) {
             if (path == "b.cfg" && !refuse_b) {
                 dl.requested.push_back(path);
                 refuse_b = std::move(fail);
