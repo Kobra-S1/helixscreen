@@ -56,3 +56,23 @@ qc_count() { echo "$1"; qc_note "$1"; }
 QC_TRIGGER_XML='\.xml$|^src/ui/|^tools/xml-linter/'
 QC_TRIGGER_NATIVE_SRC='\.(cpp|c|h|mm)$'
 QC_TRIGGER_ICONS='\.xml$|icon|font'
+
+# What a commit compiles from its staged paths (one per line): each staged source,
+# and one source including each staged header. Sets CHECK_UNITS (sorted, one per
+# line) and UNREACHED_HDR (the staged headers no source includes directly, which
+# pre-push's clang gate still reaches through their dependents).
+qc_staged_compile_units() {
+  local staged="$1" hdr unit
+  CHECK_UNITS=$(printf '%s\n' "$staged" | grep -E '\.(cpp|cc|cxx|mm)$' || true)
+  UNREACHED_HDR=""
+  for hdr in $(printf '%s\n' "$staged" | grep -E '\.(h|hh|hpp|hxx|inc)$' || true); do
+    unit=$(qc_one_includer "$hdr")
+    if [ -n "$unit" ]; then
+      CHECK_UNITS="$CHECK_UNITS
+$unit"
+    else
+      UNREACHED_HDR="$UNREACHED_HDR $hdr"
+    fi
+  done
+  CHECK_UNITS=$(printf '%s\n' "$CHECK_UNITS" | sed '/^$/d' | sort -u)
+}
