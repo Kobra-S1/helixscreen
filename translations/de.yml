@@ -250,6 +250,7 @@ translations:
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: Fügt [include helix-plr/*.cfg] zu printer.cfg hinzu, damit ein Fortsetzen das Bettnetz lädt, mit dem der Druck begonnen hat
   Add custom filament: Benutzerdefiniertes Filament hinzufügen
   Add page: 'Seite hinzufügen'
+  Add to Mainsail/Fluidd Webcams: 'Zu Mainsail/Fluidd-Webcams hinzufügen'
   Add to Queue: Zur Warteschlange hinzufügen
   Added: Hinzugefügt
   Added to Spoolman: Zu Spoolman hinzugefügt
@@ -2182,6 +2183,7 @@ translations:
   Linear rails interval: 'Intervall Linearschienen'
   Link Spools from Tags: 'Spulen über Tags verknüpfen'
   Link a slot to the Spoolman spool its tag names: 'Einen Slot mit der Spoolman-Spule verknüpfen, die sein Tag nennt'
+  List the shared screen with this printer's webcams: 'Den geteilten Bildschirm bei den Webcams dieses Druckers aufführen'
   Listen to all theme sounds: Alle Themensounds anhören
   Live Z-offset, with baby steps and Save: Live-Z-Offset mit Feinjustierung und Speichern
   Live view from your webcam: Livebild Ihrer Webcam
@@ -3673,6 +3675,7 @@ translations:
   Show text labels on icon-only home screen widgets: Textbeschriftungen auf Icon-Widgets
     des Startbildschirms anzeigen
   Show this screen as a webcam in Mainsail and Fluidd: 'Diesen Bildschirm als Webcam in Mainsail und Fluidd anzeigen'
+  Show this screen in a web browser: 'Diesen Bildschirm in einem Webbrowser anzeigen'
   Show up/down buttons on long lists: Hoch-/Runter-Schaltflächen bei langen Listen anzeigen
   Show whatever curves you last had visible on the full graph.: Zeigt die zuletzt
     im vollständigen Diagramm sichtbaren Kurven an.

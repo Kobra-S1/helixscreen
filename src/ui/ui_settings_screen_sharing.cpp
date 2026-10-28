@@ -16,6 +16,10 @@ void ScreenSharingSettingsOverlay::register_callbacks() {
          [](lv_event_t* e) {
              RemoteScreenSettingsManager::instance().set_enabled(helix::ui::event_checked(e));
          }},
+        {"on_remote_webcam_changed",
+         [](lv_event_t* e) {
+             RemoteScreenSettingsManager::instance().set_webcam(helix::ui::event_checked(e));
+         }},
         {"on_remote_control_changed",
          [](lv_event_t* e) {
              RemoteScreenSettingsManager::instance().set_control(helix::ui::event_checked(e));

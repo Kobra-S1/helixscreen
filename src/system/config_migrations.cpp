@@ -1309,6 +1309,25 @@ static void migrate_v29_to_v30(json& config, const std::string& /*config_path*/)
     }
 }
 
+/// Move the install-wide /remote_screen/enabled and /remote_screen/control into the active
+/// printer, the one they were last turned on for. Every other printer starts with sharing
+/// off: a copy would list the screen among the webcams of printers nobody chose to share
+/// it with. A printer that already holds a value keeps it.
+static void migrate_v30_to_v31(json& config, const std::string& /*config_path*/) {
+    if (!config.contains("remote_screen") || !config["remote_screen"].is_object()) {
+        return;
+    }
+    const std::string active = find_active_printer_key(config);
+    if (active.empty()) {
+        return;
+    }
+    const std::string base = "/printers/" + active + "/remote_screen";
+    if (migrate_config_keys(config, {{"/remote_screen/enabled", base + "/enabled"},
+                                     {"/remote_screen/control", base + "/control"}})) {
+        spdlog::info("[Config] Migration v31: screen sharing moved to printer '{}'", active);
+    }
+}
+
 using MigrationFn = void (*)(json& config, const std::string& config_path);
 
 /// The ladder, oldest first. A row runs when the document's stamp is below
@@ -1324,6 +1343,7 @@ constexpr struct {
     {22, migrate_v21_to_v22}, {23, migrate_v22_to_v23}, {24, migrate_v23_to_v24},
     {25, migrate_v24_to_v25}, {26, migrate_v25_to_v26}, {27, migrate_v26_to_v27},
     {28, migrate_v27_to_v28}, {29, migrate_v28_to_v29}, {30, migrate_v29_to_v30},
+    {31, migrate_v30_to_v31},
 };
 
 static_assert(kMigrations[std::size(kMigrations) - 1].to_version == kCurrentConfigVersion,

@@ -237,6 +237,7 @@
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" en="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with"/>
   <translation tag="Add custom filament" en="Add custom filament"/>
   <translation tag="Add page" en="Add page"/>
+  <translation tag="Add to Mainsail/Fluidd Webcams" en="Add to Mainsail/Fluidd Webcams"/>
   <translation tag="Add to Queue" en="Add to Queue"/>
   <translation tag="Add to Spoolman + label" en="Add to Spoolman + label"/>
   <translation tag="Added" en="Added"/>
@@ -1972,6 +1973,7 @@
   <translation tag="Linear rails interval" en="Linear rails interval"/>
   <translation tag="Link Spools from Tags" en="Link Spools from Tags"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" en="Link a slot to the Spoolman spool its tag names"/>
+  <translation tag="List the shared screen with this printer&apos;s webcams" en="List the shared screen with this printer&apos;s webcams"/>
   <translation tag="Listen to all theme sounds" en="Listen to all theme sounds"/>
   <translation tag="Live Z-offset, with baby steps and Save" en="Live Z-offset, with baby steps and Save"/>
   <translation tag="Live view from your webcam" en="Live view from your webcam"/>
@@ -3355,6 +3357,7 @@
   <translation tag="Show temp for" en="Show temp for"/>
   <translation tag="Show text labels on icon-only home screen widgets" en="Show text labels on icon-only home screen widgets"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" en="Show this screen as a webcam in Mainsail and Fluidd"/>
+  <translation tag="Show this screen in a web browser" en="Show this screen in a web browser"/>
   <translation tag="Show up/down buttons on long lists" en="Show up/down buttons on long lists"/>
   <translation tag="Show whatever curves you last had visible on the full graph." en="Show whatever curves you last had visible on the full graph."/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." en="Showing the 50 newest files. See more in the printer&apos;s web UI."/>

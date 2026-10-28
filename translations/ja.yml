@@ -240,6 +240,7 @@ translations:
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: printer.cfg に [include helix-plr/*.cfg] を追加し、再開時に印刷開始時のメッシュを読み込み直します
   Add custom filament: カスタムフィラメントを追加
   Add page: 'ページを追加'
+  Add to Mainsail/Fluidd Webcams: 'Mainsail/Fluiddのウェブカメラに追加'
   Add to Queue: キューに追加
   Added: 追加済み
   Added to Spoolman: Spoolman に追加しました
@@ -2055,6 +2056,7 @@ translations:
   Linear rails interval: 'リニアレールの間隔'
   Link Spools from Tags: 'タグからスプールをリンク'
   Link a slot to the Spoolman spool its tag names: 'タグが示す Spoolman スプールにスロットをリンク'
+  List the shared screen with this printer's webcams: '共有画面をこのプリンターのウェブカメラ一覧に表示'
   Listen to all theme sounds: すべてのテーマサウンドを試聴
   Live Z-offset, with baby steps and Save: ライブ Z-Offset、微調整と保存つき
   Live view from your webcam: ウェブカメラのライブ表示
@@ -3477,6 +3479,7 @@ translations:
   Show temp for: 温度表示対象
   Show text labels on icon-only home screen widgets: アイコンのみのホーム画面ウィジェットにテキストラベルを表示
   Show this screen as a webcam in Mainsail and Fluidd: 'この画面をMainsailとFluiddでウェブカメラとして表示'
+  Show this screen in a web browser: 'この画面をウェブブラウザで表示'
   Show up/down buttons on long lists: 長いリストに上下ボタンを表示
   Show whatever curves you last had visible on the full graph.: フルグラフで最後に表示していた曲線を表示します。
   Showing the 50 newest files. See more in the printer's web UI.: '最新の50ファイルを表示しています。それ以外はプリンターのWeb画面で確認してください。'

@@ -97,6 +97,8 @@ void RemoteScreenService::init(RemoteScreenManager* screens) {
         }
     }
     settings.set_change_handler([this] { apply_settings(); });
+    // The next printer's own connect reconciles its webcam list.
+    settings.set_printer_handler([this] { apply_server(); });
     settings.set_forget_handler([this] {
         if (pairing_) {
             pairing_->forget_all();
@@ -288,6 +290,7 @@ void RemoteScreenService::cancel_housekeeping_timer() {
 void RemoteScreenService::shutdown() {
     auto& settings = RemoteScreenSettingsManager::instance();
     settings.set_change_handler(nullptr);
+    settings.set_printer_handler(nullptr);
     settings.set_forget_handler(nullptr);
     print_observer_.reset();
     stop_server();

@@ -270,6 +270,7 @@
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" ru="Добавляет [include helix-plr/*.cfg] в printer.cfg, чтобы при возобновлении снова загружалась сетка, с которой началась печать"/>
   <translation tag="Add custom filament" ru="Добавить свой филамент"/>
   <translation tag="Add page" ru="Добавить страницу"/>
+  <translation tag="Add to Mainsail/Fluidd Webcams" ru="Добавить в веб-камеры Mainsail/Fluidd"/>
   <translation tag="Add to Queue" ru="Добавить в очередь"/>
   <translation tag="Add to Spoolman + label" ru="Добавить в Spoolman + этикетка"/>
   <translation tag="Added" ru="Добавлено"/>
@@ -2017,6 +2018,7 @@
   <translation tag="Linear rails interval" ru="Интервал линейных направляющих"/>
   <translation tag="Link Spools from Tags" ru="Привязывать катушки по меткам"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" ru="Привязывать слот к катушке Spoolman, указанной в его метке"/>
+  <translation tag="List the shared screen with this printer&apos;s webcams" ru="Показывать общий экран среди веб-камер этого принтера"/>
   <translation tag="Listen to all theme sounds" ru="Прослушать все звуки темы"/>
   <translation tag="Live Z-offset, with baby steps and Save" ru="Z-смещение в реальном времени, с подстройкой и сохранением"/>
   <translation tag="Live view from your webcam" ru="Прямая трансляция с веб-камеры"/>
@@ -3409,6 +3411,7 @@
   <translation tag="Show temp for" ru="Показывать темп. для"/>
   <translation tag="Show text labels on icon-only home screen widgets" ru="Показывать текстовые подписи на виджетах главного экрана"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" ru="Показывать этот экран как веб-камеру в Mainsail и Fluidd"/>
+  <translation tag="Show this screen in a web browser" ru="Показывать этот экран в веб-браузере"/>
   <translation tag="Show up/down buttons on long lists" ru="Показывать кнопки вверх/вниз в длинных списках"/>
   <translation tag="Show whatever curves you last had visible on the full graph." ru="Показывать те кривые, что были видны на полном графике в последний раз."/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." ru="Показаны 50 последних файлов. Остальные - в веб-интерфейсе принтера."/>

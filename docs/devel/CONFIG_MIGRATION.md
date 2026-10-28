@@ -87,11 +87,18 @@ The current head of the ladder:
   0, which the ejecting backend reads as "use my own default", so a printer that never chose a
   value keeps the QIDI Box's 878 mm / 100 mm/s.
 
+- **v30 -> v31** moves `/remote_screen/enabled` and `/remote_screen/control` into the
+  active printer, where screen sharing is now kept per printer. Every other printer starts
+  with sharing off, so turning it on for one printer never lists the screen among another
+  printer's webcams. The pairing code, paired browsers and port stay global: they belong to
+  the screen, not to a printer.
+
 Each has a dedicated test: `tests/unit/test_config_migration_v24.cpp`,
 `tests/unit/test_config_migration_v25.cpp`,
 `tests/unit/test_config_migration_v26.cpp`,
-`tests/unit/test_config_migration_v28.cpp` and
-`tests/unit/test_config_migration_v30.cpp`.
+`tests/unit/test_config_migration_v28.cpp`,
+`tests/unit/test_config_migration_v30.cpp` and
+`tests/unit/test_config_migration_v31.cpp`.
 
 ### Fresh Install vs. Upgrade
 

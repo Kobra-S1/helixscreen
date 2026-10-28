@@ -237,6 +237,7 @@
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" it="Aggiunge [include helix-plr/*.cfg] a printer.cfg così che una ripresa ricarichi la mesh con cui è iniziata la stampa"/>
   <translation tag="Add custom filament" it="Aggiungi filamento personalizzato"/>
   <translation tag="Add page" it="Aggiungi pagina"/>
+  <translation tag="Add to Mainsail/Fluidd Webcams" it="Aggiungi alle webcam di Mainsail/Fluidd"/>
   <translation tag="Add to Queue" it="Aggiungi alla coda"/>
   <translation tag="Add to Spoolman + label" it="Aggiungi a Spoolman + etichetta"/>
   <translation tag="Added" it="Aggiunto"/>
@@ -1972,6 +1973,7 @@
   <translation tag="Linear rails interval" it="Intervallo guide lineari"/>
   <translation tag="Link Spools from Tags" it="Collega bobine dai tag"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" it="Collega uno slot alla bobina Spoolman indicata dal suo tag"/>
+  <translation tag="List the shared screen with this printer&apos;s webcams" it="Elenca lo schermo condiviso tra le webcam di questa stampante"/>
   <translation tag="Listen to all theme sounds" it="Ascolta tutti i suoni del tema"/>
   <translation tag="Live Z-offset, with baby steps and Save" it="Z-Offset in tempo reale, con micro-passi e Salva"/>
   <translation tag="Live view from your webcam" it="Vista live dalla webcam"/>
@@ -3355,6 +3357,7 @@
   <translation tag="Show temp for" it="Mostra temperatura per"/>
   <translation tag="Show text labels on icon-only home screen widgets" it="Mostra etichette di testo sui widget con sole icone nella schermata home"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" it="Mostra questo schermo come webcam in Mainsail e Fluidd"/>
+  <translation tag="Show this screen in a web browser" it="Mostra questo schermo in un browser web"/>
   <translation tag="Show up/down buttons on long lists" it="Mostra i pulsanti su/giù negli elenchi lunghi"/>
   <translation tag="Show whatever curves you last had visible on the full graph." it="Mostra le curve che erano visibili l&apos;ultima volta sul grafico completo."/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." it="Vengono mostrati i 50 file più recenti. Vedi gli altri nell&apos;interfaccia web della stampante."/>

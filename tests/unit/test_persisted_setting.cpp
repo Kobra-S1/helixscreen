@@ -107,11 +107,11 @@ const std::vector<Row>& rows() {
          SUBJ(safety().subject_tool_change_require_confirmation)},
 
         // RemoteScreenSettingsManager
-        {"settings_remote_screen_enabled", Mgr::RemoteScreen, false, "/remote_screen/enabled", true,
+        {"settings_remote_screen_enabled", Mgr::RemoteScreen, true, "remote_screen/enabled", true,
          0, 0, 1, "remote_screen_enabled", true, SETB(rs().set_enabled), GET(rs().get_enabled),
          SUBJ(rs().subject_enabled)},
         // Control only holds while sharing is on, so its setter turns sharing on first.
-        {"settings_remote_screen_control", Mgr::RemoteScreen, false, "/remote_screen/control", true,
+        {"settings_remote_screen_control", Mgr::RemoteScreen, true, "remote_screen/control", true,
          0, 0, 1, "remote_screen_control", true,
          [](int v) {
              if (!rs().get_enabled()) {
@@ -120,6 +120,9 @@ const std::vector<Row>& rows() {
              rs().set_control(v != 0);
          },
          GET(rs().get_control), SUBJ(rs().subject_control)},
+        {"settings_remote_screen_webcam", Mgr::RemoteScreen, true, "remote_screen/webcam", true, 1,
+         0, 1, "remote_screen_webcam", true, SETB(rs().set_webcam), GET(rs().get_webcam),
+         SUBJ(rs().subject_webcam)},
 
         // InputSettingsManager
         {"settings_scroll_throw", Mgr::Input, false, "/input/scroll_throw", false, 25, 5, 50,

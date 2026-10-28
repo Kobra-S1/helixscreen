@@ -19,8 +19,10 @@ constexpr int kRemoteScreenDefaultPort = 7130;
 /**
  * @brief The built-in screen server's settings (prestonbrown/helixscreen#1825).
  *
- * Two opt-ins, both off by default: share the screen as a webcam (view), then
- * let a browser drive it (control). Control is only ever on while view is.
+ * Two opt-ins, both off by default: share the screen (view), then let a browser
+ * drive it (control). Control is only ever on while view is. A third choice, on by
+ * default, lists the shared screen among Moonraker's webcams for Mainsail and Fluidd.
+ * All three belong to the active printer: a switch reloads them from its config.
  */
 class RemoteScreenSettingsManager {
   public:
@@ -46,6 +48,17 @@ class RemoteScreenSettingsManager {
     }
     /// Ignored (stays off) while view is off.
     void set_control(bool control);
+
+    /// Whether a shared screen is listed in Moonraker's webcams. Means nothing while
+    /// view is off.
+    bool get_webcam() const {
+        return settings_.get_bool(Key::Webcam);
+    }
+    void set_webcam(bool webcam);
+
+    /// Re-read view, control and webcam for the active printer, then tell the printer
+    /// handler. Runs on every printer switch, while the previous printer is still connected.
+    void on_printer_changed();
 
     /// `/remote_screen/port`; not shown in the UI. 0 asks for an ephemeral port.
     int get_port() const;
@@ -77,10 +90,15 @@ class RemoteScreenSettingsManager {
         forget_handler_ = std::move(handler);
     }
 
-    /// Called after view or control changes. The server's owner installs it, so the
+    /// Called after view, control or webcam changes. The server's owner installs it, so the
     /// settings UI never has to know a server exists (the firmware build has none).
     void set_change_handler(std::function<void()> handler) {
         change_handler_ = std::move(handler);
+    }
+    /// Called by on_printer_changed(). Unlike the change handler it must not touch
+    /// Moonraker: the connection is still the previous printer's.
+    void set_printer_handler(std::function<void()> handler) {
+        printer_handler_ = std::move(handler);
     }
 
     /// Whether the rows show at all: false where the firmware serves the screen.
@@ -93,18 +111,24 @@ class RemoteScreenSettingsManager {
     lv_subject_t* subject_control() {
         return settings_.subject(Key::Control);
     }
+    lv_subject_t* subject_webcam() {
+        return settings_.subject(Key::Webcam);
+    }
 
   private:
     RemoteScreenSettingsManager();
     ~RemoteScreenSettingsManager() = default;
 
-    enum class Key : uint8_t { Enabled, Control, COUNT };
+    enum class Key : uint8_t { Enabled, Control, Webcam, COUNT };
 
     SubjectManager subjects_;
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
     void notify_changed();
+    /// A config edited by hand can hold control without view.
+    void drop_control_without_view();
 
     std::function<void()> change_handler_;
+    std::function<void()> printer_handler_;
     std::function<void()> forget_handler_;
     lv_subject_t available_subject_{};
     lv_subject_t lan_mode_subject_{};

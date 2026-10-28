@@ -4,6 +4,7 @@
 #include "remote_screen_settings_manager.h"
 
 #include "config.h"
+#include "printer_cache_registry.h"
 #include "spdlog/spdlog.h"
 #include "static_subject_registry.h"
 
@@ -12,12 +13,15 @@
 using namespace helix;
 
 using settings::Scope;
-// Row order is RemoteScreenSettingsManager::Key.
+// Row order is RemoteScreenSettingsManager::Key. Per printer, so sharing one printer's
+// screen never lists it among another printer's webcams.
 static constexpr settings::PersistedSetting kRemoteScreenSettings[] = {
-    {"settings_remote_screen_enabled", "/remote_screen/enabled", Scope::Global, true, 0, 0, 1,
+    {"settings_remote_screen_enabled", "remote_screen/enabled", Scope::PerPrinter, true, 0, 0, 1,
      "remote_screen_enabled"},
-    {"settings_remote_screen_control", "/remote_screen/control", Scope::Global, true, 0, 0, 1,
+    {"settings_remote_screen_control", "remote_screen/control", Scope::PerPrinter, true, 0, 0, 1,
      "remote_screen_control"},
+    {"settings_remote_screen_webcam", "remote_screen/webcam", Scope::PerPrinter, true, 1, 0, 1,
+     "remote_screen_webcam"},
 };
 
 RemoteScreenSettingsManager& RemoteScreenSettingsManager::instance() {
@@ -41,11 +45,11 @@ void RemoteScreenSettingsManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(control_active_subject_, 0, "remote_screen_control_active", subjects_);
     UI_MANAGED_SUBJECT_STRING(pair_code_subject_, pair_code_buf_, get_pair_code().c_str(),
                               "remote_screen_pair_code", subjects_);
-    // A config edited by hand can hold control without view.
-    if (get_control() && !get_enabled()) {
-        settings_.set(Key::Control, false);
-    }
+    drop_control_without_view();
     subjects_initialized_ = true;
+    PrinterCacheRegistry::instance().register_invalidator("RemoteScreenSettingsManager", [] {
+        RemoteScreenSettingsManager::instance().on_printer_changed();
+    });
     // RemoteScreenService decides availability once per process and creates the
     // control indicator once on the top layer, so these subjects outlive a printer
     // switch: rebuilt, they would come back hidden and unobserved.
@@ -53,6 +57,25 @@ void RemoteScreenSettingsManager::init_subjects() {
         "RemoteScreenSettingsManager",
         []() { RemoteScreenSettingsManager::instance().deinit_subjects(); },
         StaticSubjectRegistry::Lifetime::Process);
+}
+
+void RemoteScreenSettingsManager::drop_control_without_view() {
+    if (get_control() && !get_enabled()) {
+        settings_.set(Key::Control, false);
+    }
+}
+
+void RemoteScreenSettingsManager::on_printer_changed() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    settings_.reload();
+    drop_control_without_view();
+    spdlog::debug("[RemoteScreenSettings] Active printer changed: share {}, control {}, webcam {}",
+                  get_enabled(), get_control(), get_webcam());
+    if (printer_handler_) {
+        printer_handler_();
+    }
 }
 
 void RemoteScreenSettingsManager::deinit_subjects() {
@@ -81,6 +104,12 @@ void RemoteScreenSettingsManager::set_control(bool control) {
     }
     spdlog::info("[RemoteScreenSettings] Remote control {}", control ? "on" : "off");
     settings_.set(Key::Control, control);
+    notify_changed();
+}
+
+void RemoteScreenSettingsManager::set_webcam(bool webcam) {
+    spdlog::info("[RemoteScreenSettings] Moonraker webcam entry {}", webcam ? "on" : "off");
+    settings_.set(Key::Webcam, webcam);
     notify_changed();
 }
 

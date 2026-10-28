@@ -184,9 +184,9 @@ void sync_remote_screen_webcam(IMoonrakerAPI& api, MoonrakerLocality locality) {
     const std::string name = remote_screen_webcam_name(!remote, host);
     const std::string route = remote_screen_effective_route(
         remote, remote_screen_route(writable_path(".remote_screen_route")));
-    const auto item =
-        remote_screen_webcam_item(name, service.running(), settings.get_control(), route,
-                                  select_lan_ipv4(local_interface_ips()), service.port());
+    const auto item = remote_screen_webcam_item(
+        name, service.running() && settings.get_webcam(), settings.get_control(), route,
+        select_lan_ipv4(local_interface_ips()), service.port());
     // The uid belongs to the printer this reconcile ran against, even if the active
     // printer changes before Moonraker answers.
     const std::string printer = Config::get_instance()->df();

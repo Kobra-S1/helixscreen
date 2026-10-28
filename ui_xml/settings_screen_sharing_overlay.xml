@@ -2,7 +2,7 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Screen Sharing Settings Overlay -->
-<!-- Share this screen with a browser, let the browser control it, and the pairing that guards control -->
+<!-- Per printer: share this screen with a browser, list it among the printer's webcams, let the browser control it, and the pairing that guards control -->
 <component>
   <view name="settings_screen_sharing_overlay" extends="overlay_panel" title="Screen Sharing" bg_color="#screen_bg">
     <!-- Content Area - no padding, rows handle their own -->
@@ -11,9 +11,13 @@
             style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
       <setting_group name="group_screen_sharing">
         <setting_toggle_row name="row_remote_screen"
-                            label="Share Screen" icon="webcam"
-                            description="Show this screen as a webcam in Mainsail and Fluidd"
+                            label="Share Screen" icon="eye" description="Show this screen in a web browser"
                             subject="settings_remote_screen_enabled" callback="on_remote_screen_changed"/>
+        <setting_toggle_row name="row_remote_webcam"
+                            label="Add to Mainsail/Fluidd Webcams" icon="webcam"
+                            description="List the shared screen with this printer's webcams"
+                            subject="settings_remote_screen_webcam" callback="on_remote_webcam_changed"
+                            disabled="settings_remote_screen_enabled" disabled_ref_value="0"/>
         <setting_toggle_row name="row_remote_control"
                             label="Allow Remote Control" icon="remote_desktop"
                             description="Let a browser tap and drag on this screen"

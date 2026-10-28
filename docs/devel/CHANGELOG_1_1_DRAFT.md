@@ -834,6 +834,11 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   Centauri Carbon a browser pairs once with a six-digit code shown on the screen. A small icon on the
   printer shows while someone is driving it remotely. Off by default, and it costs nothing
   while nobody watches. Printers whose firmware already shares the screen keep theirs.
+- **Screen Sharing is per printer** (#1825) - each printer you control keeps its own Share
+  Screen, Allow Remote Control and the new Add to Mainsail/Fluidd Webcams setting, so sharing
+  one printer's screen never lists it among another printer's webcams. With Add to
+  Mainsail/Fluidd Webcams off the screen stays shared at its browser address but no webcam
+  entry is added. A beta that had sharing on keeps it on for the printer that was selected.
 - **Find your printer by searching** (#1028) - first-run printer selection replaces the
   scroll through about 105 machines with a search box, a grid of vendors and a list per
   vendor.

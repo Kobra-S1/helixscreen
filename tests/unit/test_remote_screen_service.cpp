@@ -17,6 +17,7 @@
 #include "display_manager.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "printer_cache_registry.h"
 #include "printer_state.h"
 #include "remote_pointer.h"
 #include "remote_screen_control.h"
@@ -46,13 +47,20 @@ using namespace helix;
 
 namespace {
 
+constexpr const char* kPrinter = "default";
+constexpr const char* kOtherPrinter = "other";
+
+/// One printer, active, with no screen-sharing keys anywhere.
+void erase_sharing_config() {
+    setup_printer_data(*Config::get_instance(), json::object());
+}
+
 /// Fresh settings with the server on an ephemeral port, restored on exit.
 struct RemoteScreenFixture : LVGLTestFixture {
     RemoteScreenFixture() {
         ::unsetenv("HELIX_REMOTE_SCREEN");
         ::unsetenv("HELIX_REMOTE_SCREEN_FB0");
-        auto& data = ConfigTestAccess::data(*Config::get_instance());
-        data.erase("remote_screen");
+        erase_sharing_config();
         Config::get_instance()->set<int>("/remote_screen/port", 0);
         auto& m = RemoteScreenSettingsManager::instance();
         m.set_available(false);
@@ -65,7 +73,18 @@ struct RemoteScreenFixture : LVGLTestFixture {
         RemoteScreenService::instance().shutdown();
         ::unsetenv("HELIX_REMOTE_SCREEN");
         ::unsetenv("HELIX_REMOTE_SCREEN_FB0");
-        ConfigTestAccess::data(*Config::get_instance()).erase("remote_screen");
+        erase_sharing_config();
+        RemoteScreenSettingsManager::instance().on_printer_changed();
+    }
+
+    /// Make @p id the active printer the way a printer switch does.
+    void switch_to(const std::string& id) {
+        auto& data = ConfigTestAccess::data(*Config::get_instance());
+        if (!data["printers"].contains(id)) {
+            data["printers"][id] = json::object();
+        }
+        REQUIRE(Config::get_instance()->set_active_printer(id));
+        REQUIRE(PrinterCacheRegistry::instance().invalidate_one("RemoteScreenSettingsManager"));
     }
 };
 
@@ -73,7 +92,7 @@ struct RemoteScreenFixture : LVGLTestFixture {
 
 TEST_CASE_METHOD(LVGLTestFixture, "settings: defaults are off, port 7130",
                  "[remote_screen][settings]") {
-    ConfigTestAccess::data(*Config::get_instance()).erase("remote_screen");
+    erase_sharing_config();
     auto& m = RemoteScreenSettingsManager::instance();
     m.deinit_subjects();
     m.init_subjects();
@@ -100,12 +119,66 @@ TEST_CASE_METHOD(RemoteScreenFixture, "settings: control cannot be on while view
 TEST_CASE_METHOD(RemoteScreenFixture,
                  "settings: a hand-edited config with control but no view loads off",
                  "[remote_screen][settings]") {
-    Config::get_instance()->set<bool>("/remote_screen/enabled", false);
-    Config::get_instance()->set<bool>("/remote_screen/control", true);
+    Config* config = Config::get_instance();
+    config->set<bool>(config->df() + "remote_screen/enabled", false);
+    config->set<bool>(config->df() + "remote_screen/control", true);
     auto& m = RemoteScreenSettingsManager::instance();
     m.deinit_subjects();
     m.init_subjects();
     CHECK_FALSE(m.get_control());
+}
+
+TEST_CASE_METHOD(RemoteScreenFixture, "settings: the webcam entry defaults on and stands alone",
+                 "[remote_screen][settings]") {
+    auto& m = RemoteScreenSettingsManager::instance();
+    CHECK(m.get_webcam());
+    m.set_webcam(false);
+    CHECK_FALSE(m.get_webcam());
+    CHECK_FALSE(m.get_enabled());
+    m.set_enabled(true);
+    CHECK_FALSE(m.get_webcam());
+}
+
+// Sharing one printer's screen must never list it among another printer's webcams.
+TEST_CASE_METHOD(RemoteScreenFixture,
+                 "settings: sharing belongs to the printer it was turned on for",
+                 "[remote_screen][settings]") {
+    auto& svc = RemoteScreenService::instance();
+    auto& m = RemoteScreenSettingsManager::instance();
+    svc.init(nullptr);
+    m.set_enabled(true);
+    m.set_control(true);
+    m.set_webcam(false);
+    REQUIRE(svc.running());
+
+    switch_to(kOtherPrinter);
+    CHECK_FALSE(m.get_enabled());
+    CHECK_FALSE(m.get_control());
+    CHECK(m.get_webcam());
+    CHECK(lv_subject_get_int(m.subject_enabled()) == 0);
+    // Before the next printer connects, so the screen is never served under its name.
+    CHECK_FALSE(svc.running());
+
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPI api(client, state);
+    sync_remote_screen_webcam(api, MoonrakerLocality::Remote);
+    bool listed = false;
+    api.timelapse().get_webcam_list(
+        [&](const std::vector<WebcamInfo>& cams) {
+            for (const auto& c : cams) {
+                listed = listed || webcam::is_own_screen_webcam(c);
+            }
+        },
+        [](const MoonrakerError&) {});
+    CHECK_FALSE(listed);
+
+    switch_to(kPrinter);
+    CHECK(m.get_enabled());
+    CHECK(m.get_control());
+    CHECK_FALSE(m.get_webcam());
+    CHECK(svc.running());
 }
 
 // The service decides these once per process and binds the control indicator to
@@ -584,4 +657,47 @@ TEST_CASE_METHOD(RemoteScreenFixture,
     auto remote = screen_entries();
     REQUIRE(remote.size() == 1);
     CHECK(remote[0].rfind(std::string(kRemoteScreenWebcamName) + " (", 0) == 0);
+}
+
+TEST_CASE_METHOD(RemoteScreenFixture,
+                 "webcam sync: with the webcam entry off the screen is shared but not listed",
+                 "[remote_screen][webcam]") {
+    auto& svc = RemoteScreenService::instance();
+    auto& m = RemoteScreenSettingsManager::instance();
+    svc.init(nullptr);
+    m.set_enabled(true);
+    REQUIRE(svc.running());
+
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    PrinterState state;
+    state.init_subjects(false);
+    MoonrakerAPI api(client, state);
+    auto listed = [&] {
+        size_t n = 0;
+        api.timelapse().get_webcam_list(
+            [&](const std::vector<WebcamInfo>& cams) {
+                for (const auto& c : cams) {
+                    n += webcam::is_own_screen_webcam(c) ? 1 : 0;
+                }
+            },
+            [](const MoonrakerError&) {});
+        return n;
+    };
+
+    sync_remote_screen_webcam(api, MoonrakerLocality::Remote);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(listed() == 1);
+    REQUIRE_FALSE(m.get_webcam_uid().empty());
+
+    m.set_webcam(false);
+    sync_remote_screen_webcam(api, MoonrakerLocality::Remote);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(svc.running());
+    CHECK(listed() == 0);
+    CHECK(m.get_webcam_uid().empty());
+
+    m.set_webcam(true);
+    sync_remote_screen_webcam(api, MoonrakerLocality::Remote);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(listed() == 1);
 }

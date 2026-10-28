@@ -289,6 +289,7 @@ translations:
   Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with: Добавляет [include helix-plr/*.cfg] в printer.cfg, чтобы при возобновлении снова загружалась сетка, с которой началась печать
   Add custom filament: Добавить свой филамент
   Add page: 'Добавить страницу'
+  Add to Mainsail/Fluidd Webcams: 'Добавить в веб-камеры Mainsail/Fluidd'
   Add to Queue: Добавить в очередь
   Added: Добавлено
   Added to Spoolman: Добавлено в Spoolman
@@ -2214,6 +2215,7 @@ translations:
   Linear rails interval: 'Интервал линейных направляющих'
   Link Spools from Tags: 'Привязывать катушки по меткам'
   Link a slot to the Spoolman spool its tag names: 'Привязывать слот к катушке Spoolman, указанной в его метке'
+  List the shared screen with this printer's webcams: 'Показывать общий экран среди веб-камер этого принтера'
   Listen to all theme sounds: Прослушать все звуки темы
   Live Z-offset, with baby steps and Save: Z-смещение в реальном времени, с подстройкой и сохранением
   Live view from your webcam: Прямая трансляция с веб-камеры
@@ -3709,6 +3711,7 @@ translations:
   Show text labels on icon-only home screen widgets: Показывать текстовые подписи
     на виджетах главного экрана
   Show this screen as a webcam in Mainsail and Fluidd: 'Показывать этот экран как веб-камеру в Mainsail и Fluidd'
+  Show this screen in a web browser: 'Показывать этот экран в веб-браузере'
   Show up/down buttons on long lists: Показывать кнопки вверх/вниз в длинных списках
   Show whatever curves you last had visible on the full graph.: Показывать те кривые,
     что были видны на полном графике в последний раз.

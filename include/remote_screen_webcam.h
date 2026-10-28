@@ -58,7 +58,8 @@ void reconcile_remote_screen_webcam(IMoonrakerAPI& api, const std::optional<nloh
                                     std::function<void(const std::string&)> store_uid);
 
 /// Make Moonraker's webcam list match the screen server: post the entry while it is
-/// serving (refreshing the address on every connect), delete a listed one otherwise.
+/// serving with the webcam setting on (refreshing the address on every connect), delete a
+/// listed one otherwise.
 /// Does nothing until @p locality says where that Moonraker runs, since the entry's
 /// name and URLs depend on it.
 void sync_remote_screen_webcam(IMoonrakerAPI& api, MoonrakerLocality locality);

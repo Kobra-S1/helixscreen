@@ -73,9 +73,10 @@ Host names are looked up again every time HelixScreen reconnects, so if your rou
 
 > Hidden on printers whose own firmware already shares the screen (the Snapmaker U1 with its stock screen page).
 
-Opens the **Screen Sharing** page:
+Opens the **Screen Sharing** page. Its settings belong to the printer you have selected, so each printer you control keeps its own:
 
-- **Share Screen** shows this screen live in a web browser, and as a **HelixScreen Screen** webcam in Mainsail and Fluidd.
+- **Share Screen** shows this screen live in a web browser.
+- **Add to Mainsail/Fluidd Webcams** also lists it as a **HelixScreen Screen** webcam in this printer's Mainsail and Fluidd. On unless you turn it off; it only matters while **Share Screen** is on.
 - **Allow Remote Control** lets a browser tap and drag on it.
 - **Pairing Code** and **Forget Paired Browsers** appear on printers where a browser needs a code before it can control the screen.
 

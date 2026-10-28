@@ -3,10 +3,10 @@
 
 /**
  * @file ui_settings_screen_sharing.h
- * @brief Screen Sharing settings overlay: share, remote control, pairing (#1825)
+ * @brief Screen Sharing settings overlay: share, webcam entry, remote control, pairing (#1825)
  *
- * Opened from Settings > Connection. A thin XML-bound view: the toggle state and
- * the pairing code belong to RemoteScreenSettingsManager.
+ * Opened from Settings > Connection. A thin XML-bound view: the toggle state (per
+ * printer) and the pairing code belong to RemoteScreenSettingsManager.
  *
  * @pattern Overlay (lazy init)
  * @threading Main thread only

@@ -237,6 +237,7 @@
   <translation tag="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with" zh="在 printer.cfg 中添加 [include helix-plr/*.cfg]，恢复时重新加载打印开始时的网格"/>
   <translation tag="Add custom filament" zh="添加自定义耗材"/>
   <translation tag="Add page" zh="添加页面"/>
+  <translation tag="Add to Mainsail/Fluidd Webcams" zh="添加到 Mainsail/Fluidd 摄像头"/>
   <translation tag="Add to Queue" zh="添加到队列"/>
   <translation tag="Add to Spoolman + label" zh="添加到 Spoolman + 标签"/>
   <translation tag="Added" zh="已添加"/>
@@ -1972,6 +1973,7 @@
   <translation tag="Linear rails interval" zh="直线导轨间隔"/>
   <translation tag="Link Spools from Tags" zh="通过标签关联料盘"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" zh="将槽位关联到其标签指定的 Spoolman 料盘"/>
+  <translation tag="List the shared screen with this printer&apos;s webcams" zh="在此打印机的摄像头列表中显示共享屏幕"/>
   <translation tag="Listen to all theme sounds" zh="试听所有主题声音"/>
   <translation tag="Live Z-offset, with baby steps and Save" zh="实时 Z 偏移，支持微调与保存"/>
   <translation tag="Live view from your webcam" zh="摄像头实时画面"/>
@@ -3355,6 +3357,7 @@
   <translation tag="Show temp for" zh="显示温度"/>
   <translation tag="Show text labels on icon-only home screen widgets" zh="在仅图标的主屏小组件上显示文字标签"/>
   <translation tag="Show this screen as a webcam in Mainsail and Fluidd" zh="在 Mainsail 和 Fluidd 中将此屏幕显示为网络摄像头"/>
+  <translation tag="Show this screen in a web browser" zh="在网页浏览器中显示此屏幕"/>
   <translation tag="Show up/down buttons on long lists" zh="在长列表中显示上/下按钮"/>
   <translation tag="Show whatever curves you last had visible on the full graph." zh="显示您上次在完整图表上可见的曲线。"/>
   <translation tag="Showing the 50 newest files. See more in the printer&apos;s web UI." zh="仅显示最新的 50 个文件。更多请在打印机网页界面查看。"/>
