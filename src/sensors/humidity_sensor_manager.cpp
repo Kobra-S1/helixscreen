@@ -27,6 +27,8 @@ HumiditySensorManager::Options HumiditySensorManager::make_options() {
     o.kinds = {hw::ObjectKind::HumidityChip};
     o.count_subject = "humidity_sensor_count";
     o.revision_subject = "humidity_sensor_revision";
+    o.settings_section = "humidity";
+    o.row_toggle = RowToggle::None;
     for (const auto& r : kHumiditySensorRoles) {
         if (r.value == HumiditySensorRole::NONE) {
             continue;

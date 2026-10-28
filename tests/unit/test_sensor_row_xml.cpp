@@ -22,7 +22,7 @@ namespace {
 constexpr const char* kSection = "rowtest";
 constexpr const char* kIndex = "0";
 
-/// Registers the nine row subjects for rowtest/0 once for the process: the XML
+/// Registers the twelve row subjects for rowtest/0 once for the process: the XML
 /// subject registry never forgets a name, so the storage must outlive the test.
 struct RowSubjects {
     lv_subject_t name;
@@ -34,7 +34,11 @@ struct RowSubjects {
     lv_subject_t has_role;
     lv_subject_t toggle_kind;
     lv_subject_t toggle;
+    lv_subject_t held_role;
+    lv_subject_t has_detail;
+    lv_subject_t has_held_role;
     char name_buf[64] = "Front Door";
+    char held_role_buf[32] = "";
     char detail_buf[64] = "detail";
     char state_buf[32] = "Open";
 
@@ -48,6 +52,9 @@ struct RowSubjects {
         lv_subject_init_int(&has_role, 1);
         lv_subject_init_int(&toggle_kind, 0);
         lv_subject_init_int(&toggle, 0);
+        lv_subject_init_string(&held_role, held_role_buf, nullptr, sizeof(held_role_buf), "");
+        lv_subject_init_int(&has_held_role, 0);
+        lv_subject_init_int(&has_detail, 1);
         reg("name", &name);
         reg("detail", &detail);
         reg("state", &state);
@@ -57,6 +64,9 @@ struct RowSubjects {
         reg("has_role", &has_role);
         reg("toggle_kind", &toggle_kind);
         reg("toggle", &toggle);
+        reg("held_role", &held_role);
+        reg("has_held_role", &has_held_role);
+        reg("has_detail", &has_detail);
     }
 
     static void reg(const char* field, lv_subject_t* subj) {
@@ -84,6 +94,9 @@ class SensorRowFixture : public XMLTestFixture {
         lv_subject_set_int(&s.has_role, 1);
         lv_subject_set_int(&s.toggle_kind, 0);
         lv_subject_set_int(&s.toggle, 0);
+        lv_subject_copy_string(&s.held_role, "");
+        lv_subject_set_int(&s.has_held_role, 0);
+        lv_subject_set_int(&s.has_detail, 1);
         const char* attrs[] = {"section",     kSection, "index",           kIndex, "role_options",
                                "Other\nDoor", "icon",   "electric_switch", nullptr};
         row_ = create_component("sensor_row", attrs);
@@ -195,4 +208,38 @@ TEST_CASE_METHOD(SensorRowFixture, "sensor_row toggle checks with the toggle sub
     lv_subject_set_int(&subjects().toggle, 0);
     process_lvgl(10);
     CHECK_FALSE(lv_obj_has_state(toggle, LV_STATE_CHECKED));
+}
+
+TEST_CASE_METHOD(SensorRowFixture, "sensor_row shows a held role as text beside the dropdown",
+                 "[sensor_row][xml]") {
+    lv_obj_t* held = find("held_role_label");
+    lv_obj_t* dd = find("role_dropdown");
+    CHECK(hidden_in_row(held));
+    CHECK(lv_obj_get_style_text_opa(dd, LV_PART_MAIN) == LV_OPA_COVER);
+
+    lv_subject_copy_string(&subjects().held_role, "Z Probe");
+    lv_subject_set_int(&subjects().has_held_role, 1);
+    process_lvgl(10);
+    CHECK_FALSE(hidden_in_row(held));
+    CHECK(std::string(lv_label_get_text(held)) == "Z Probe");
+    // The dropdown stays usable, but its own selection is not drawn.
+    CHECK_FALSE(hidden_in_row(dd));
+    CHECK(lv_obj_get_style_text_opa(dd, LV_PART_MAIN) == LV_OPA_TRANSP);
+
+    // With no dropdown, the held role still shows, with its Role: label.
+    lv_subject_set_int(&subjects().has_role, 0);
+    process_lvgl(10);
+    CHECK(hidden_in_row(dd));
+    CHECK_FALSE(hidden_in_row(held));
+
+    lv_subject_set_int(&subjects().has_held_role, 0);
+    process_lvgl(10);
+    CHECK(hidden_in_row(find("role_group")));
+}
+
+TEST_CASE_METHOD(SensorRowFixture, "sensor_row hides an empty detail line", "[sensor_row][xml]") {
+    CHECK_FALSE(hidden_in_row(find("detail_label")));
+    lv_subject_set_int(&subjects().has_detail, 0);
+    process_lvgl(10);
+    CHECK(hidden_in_row(find("detail_label")));
 }

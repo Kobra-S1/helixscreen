@@ -6,7 +6,6 @@
 #include "input_sensor_types.h"
 #include "sensor_manager.h"
 
-#include <array>
 #include <map>
 #include <optional>
 #include <set>
@@ -32,9 +31,8 @@ namespace helix::sensors {
  * carriage buttons) are listed here as plain inputs; that subsystem keeps
  * owning what they mean.
  *
- * The settings overlay draws one row per input from the indexed subjects
- * input_sensor_{name,state,alert,role,inverted}_<i>, i < kMaxRows, in
- * discovery order; input_sensor_count says how many rows exist.
+ * Settings > Sensors lists each input through row(): its live state, its role
+ * and the Invert switch.
  *
  * Status JSON format:
  * @code
@@ -43,10 +41,6 @@ namespace helix::sensors {
  */
 class InputSensorManager : public SensorManager {
   public:
-    /// Rows the settings overlay can show. Inputs past this still count for
-    /// the door gate; they only go unlisted.
-    static constexpr size_t kMaxRows = 16;
-
     static InputSensorManager& instance();
 
     /// Whether the printer's own config reacts when this Door input opens. The
@@ -72,11 +66,12 @@ class InputSensorManager : public SensorManager {
     [[nodiscard]] bool door_check_enabled() const;
     void set_door_check_enabled(bool enabled);
 
-    /// The input shown in overlay row @p row; empty when there is none.
-    [[nodiscard]] std::string klipper_name_at(size_t row) const;
-
     /// Invert: a door switch then reads closed while released.
     void set_option(std::string_view klipper_name, bool inverted) override;
+
+    /// Adds the live state (door wording for a Door input; alert while open)
+    /// and the Invert value.
+    [[nodiscard]] SensorRowView row(size_t index) const override;
 
   protected:
     void register_subjects(SubjectManager& subjects) override;
@@ -116,16 +111,7 @@ class InputSensorManager : public SensorManager {
     /// the one-toast-per-opening rule. Main thread only.
     std::vector<std::string> open_doors_seen_;
 
-    lv_subject_t row_count_{};
     lv_subject_t door_check_subject_{};
-
-    struct Row {
-        std::string name_id, state_id, alert_id, role_id, inverted_id;
-        lv_subject_t name{}, state{}, alert{}, role{}, inverted{};
-        char name_buf[64]{};
-        char state_buf[32]{};
-    };
-    std::array<Row, kMaxRows> rows_{};
 };
 
 } // namespace helix::sensors

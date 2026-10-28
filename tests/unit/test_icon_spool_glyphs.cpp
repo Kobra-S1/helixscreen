@@ -95,7 +95,7 @@ TEST_CASE("icon: filament sensor sites use the sensor names, not the spool", "[u
     CHECK(icon_near(indicator, "variant=\"success\"", true) == "filament_sensor");
     CHECK(icon_near(indicator, "variant=\"danger\"", true) == "filament_sensor_alert");
     CHECK(icon_near(indicator, "variant=\"disabled\"", true) == "filament_sensor");
-    CHECK(icon_near(read_xml("filament_sensor_row.xml"), "<icon") == "filament_sensor");
+    CHECK(icon_near(read_xml("sensors_overlay.xml"), "section=\"filament\"") == "filament_sensor");
     CHECK(icon_near(read_xml("printer_manager_overlay.xml"), "name=\"pm_chip_filament_sensors\"") ==
           "filament_sensor_alert");
     CHECK(read_xml("components/clog_bar_body.xml").find("text=\"#icon_filament_sensor_alert\"") !=

@@ -44,6 +44,21 @@ namespace {
     return static_cast<uint8_t>(role);
 }
 
+/// Translation key of a role's Settings dropdown option.
+[[nodiscard]] constexpr const char* settings_label(FilamentSensorRole role) {
+    switch (role) {
+    case FilamentSensorRole::RUNOUT:
+        return "Runout";
+    case FilamentSensorRole::TOOLHEAD:
+        return "Toolhead";
+    case FilamentSensorRole::ENTRY:
+        return "Entry";
+    case FilamentSensorRole::NONE:
+        break;
+    }
+    return "None";
+}
+
 /// FNV-1a, for the signatures that tell a refresh whether its inputs moved.
 class Fnv1a {
   public:
@@ -77,18 +92,31 @@ FilamentSensorManager::Options FilamentSensorManager::make_options() {
     o.count_subject = "filament_sensor_count";
     o.revision_subject = "filament_sensor_revision";
     o.config_key = "filament_sensors";
+    o.settings_section = "filament";
     for (const auto& r : kFilamentSensorRoles) {
         // Every assignable role has one holder; RUNOUT has one per lane, a rule
         // set_role() applies itself.
         const bool assignable = r.value != FilamentSensorRole::NONE;
-        o.roles.push_back({role_id(r.value), r.id, r.display, /*exclusive=*/assignable,
-                           /*offered=*/assignable});
+        o.roles.push_back({role_id(r.value), r.id, settings_label(r.value),
+                           /*exclusive=*/assignable, /*offered=*/true});
     }
     for (const auto& t : kFilamentSensorTypes) {
         o.types.push_back({static_cast<uint8_t>(t.value), t.id, t.display});
     }
     o.keep_missing_state = true;
     return o;
+}
+
+bool FilamentSensorManager::listed_in_settings(const SensorEntry& entry) const {
+    return is_standalone_filament_sensor(get_printer_state().get_discovery(), entry.display_name);
+}
+
+sensors::SensorRowView FilamentSensorManager::row(size_t index) const {
+    sensors::SensorRowView view = SensorManager::row(index);
+    if (view.selected_role <= 0) {
+        view.toggle = sensors::RowToggle::None;
+    }
+    return view;
 }
 
 FilamentSensorManager& FilamentSensorManager::instance() {
@@ -782,7 +810,7 @@ std::optional<ClogMotionSensor> FilamentSensorManager::clog_motion_sensor(int ac
     const SensorEntry* on_lane = nullptr;
     for (const auto& sensor : entries_locked()) {
         if (type_of(sensor) != FilamentSensorType::MOTION || !sensor.enabled ||
-            PrinterHardware::is_ams_sensor(sensor.display_name, discovery)) {
+            !is_standalone_filament_sensor(discovery, sensor.display_name)) {
             continue;
         }
         const auto* st = state(sensor.klipper_name);

@@ -3,7 +3,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Sensor Row Component -->
 <!-- One row for every Settings > Sensors section: name, live state, optional role dropdown, optional toggle -->
-<!-- Row data comes from the sensor_<section>_row_<field>_<index> subjects; role_options lists the section's role labels -->
+<!-- Row data comes from the sensor_<section>_row_<field>_<index> subjects; role_options lists the section's role labels as translation keys -->
 <component>
   <api>
     <prop name="section" type="string" default=""/>
@@ -11,6 +11,10 @@
     <prop name="role_options" type="string" default=""/>
     <prop name="icon" type="string" default="electric_switch"/>
   </api>
+  <styles>
+    <!-- The dropdown's own selection is not the held role, so it is not drawn -->
+    <style name="held_text_hidden" text_opa="0"/>
+  </styles>
   <view name="sensor_row"
         extends="lv_obj" width="100%" height="content" style_bg_opa="0" style_border_width="0"
         style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="#space_md" style_pad_bottom="#space_md"
@@ -31,7 +35,9 @@
       </text_small>
     </lv_obj>
     <!-- Detail line -->
-    <text_small name="detail_label" width="100%" long_mode="dots" bind_text="sensor_${section}_row_detail_${index}"/>
+    <text_small name="detail_label" width="100%" long_mode="dots" bind_text="sensor_${section}_row_detail_${index}">
+      <bind_flag_if_eq subject="sensor_${section}_row_has_detail_${index}" flag="hidden" ref_value="0"/>
+    </text_small>
     <!-- Bottom Row: Role dropdown + toggle -->
     <lv_obj width="100%"
             height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="space_between"
@@ -39,11 +45,18 @@
       <lv_obj name="role_group"
               height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
               style_pad_gap="#space_sm">
-        <bind_flag_if_eq subject="sensor_${section}_row_has_role_${index}" flag="hidden" ref_value="0"/>
+        <bind_flag_if cond="sensor_${section}_row_has_role_${index} eq 0 and sensor_${section}_row_has_held_role_${index} eq 0"
+                      flag="hidden"/>
         <text_small text="Role:"/>
+        <!-- A held role the dropdown does not offer: shown as text until the user picks an option -->
+        <text_small name="held_role_label" bind_text="sensor_${section}_row_held_role_${index}">
+          <bind_flag_if_eq subject="sensor_${section}_row_has_held_role_${index}" flag="hidden" ref_value="0"/>
+        </text_small>
         <lv_dropdown name="role_dropdown"
-                     width="120" height="36" options="$role_options" options_tag="$role_options"
+                     width="140" height="36" options="$role_options" options_tag="$role_options"
                      style_radius="#border_radius" bind_selected="sensor_${section}_row_role_${index}">
+          <bind_flag_if_eq subject="sensor_${section}_row_has_role_${index}" flag="hidden" ref_value="0"/>
+          <bind_style_if_eq name="held_text_hidden" subject="sensor_${section}_row_has_held_role_${index}" ref_value="1"/>
           <event_cb trigger="value_changed" callback="on_sensor_row_role_changed" user_data="${section}:${index}"/>
         </lv_dropdown>
       </lv_obj>

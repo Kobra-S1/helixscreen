@@ -22,12 +22,11 @@ WidthSensorManager::Options WidthSensorManager::make_options() {
     o.count_subject = "width_sensor_count";
     o.revision_subject = "width_sensor_revision";
     o.config_key = "width_sensors";
+    o.settings_section = "width";
     for (const auto& r : kWidthSensorRoles) {
-        if (r.value == WidthSensorRole::NONE) {
-            continue;
-        }
-        o.roles.push_back(
-            {static_cast<uint8_t>(r.value), r.id, r.display, /*exclusive=*/true, /*offered=*/true});
+        const bool none = r.value == WidthSensorRole::NONE;
+        o.roles.push_back({static_cast<uint8_t>(r.value), r.id, none ? "None" : r.display,
+                           /*exclusive=*/!none, /*offered=*/true});
     }
     for (const auto& t : kWidthSensorTypes) {
         o.types.push_back({static_cast<uint8_t>(t.value), t.id, t.display});

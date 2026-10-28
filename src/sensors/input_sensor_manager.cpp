@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstring>
 #include <utility>
 
 namespace helix::sensors {
@@ -104,8 +103,10 @@ InputSensorManager::Options InputSensorManager::make_options() {
     for (const auto& r : kInputSensorRoles) {
         // A door and a top cover can both be Doors, so no role is exclusive.
         o.roles.push_back({static_cast<uint8_t>(r.value), r.id, r.display, /*exclusive=*/false,
-                           /*offered=*/r.value == InputSensorRole::DOOR});
+                           /*offered=*/true});
     }
+    o.settings_section = "input";
+    o.row_toggle = RowToggle::Invert;
     o.types = {{0, "gcode_button", "Button"}};
     return o;
 }
@@ -220,9 +221,18 @@ bool InputSensorManager::door_check_enabled() const {
     return door_check_.value_or(has_door_locked());
 }
 
-std::string InputSensorManager::klipper_name_at(size_t row) const {
+SensorRowView InputSensorManager::row(size_t index) const {
+    SensorRowView view = SensorManager::row(index);
     std::lock_guard<std::recursive_mutex> lock(mutex());
-    return row < entries_locked().size() ? entries_locked()[row].klipper_name : std::string{};
+    if (index >= entries_locked().size()) {
+        return view;
+    }
+    const SensorEntry& entry = entries_locked()[index];
+    const InputReading& reading = reading_locked(entry.klipper_name);
+    view.state = state_text(role_of<InputSensorRole>(entry), reading);
+    view.alert = reads_open_locked(entry);
+    view.toggle_value = reading.inverted;
+    return view;
 }
 
 bool InputSensorManager::firmware_reacts_to_opening(const std::string& klipper_name) const {
@@ -319,80 +329,24 @@ void InputSensorManager::write_extra_settings(nlohmann::json& out) const {
 // ============================================================================
 
 void InputSensorManager::register_subjects(SubjectManager& subjects) {
-    UI_MANAGED_SUBJECT_INT(row_count_, 0, "input_sensor_count", subjects);
     UI_MANAGED_SUBJECT_INT(door_check_subject_, 0, "input_door_check", subjects);
-    for (size_t i = 0; i < rows_.size(); ++i) {
-        auto& row = rows_[i];
-        row.name_id = fmt::format("input_sensor_name_{}", i);
-        row.state_id = fmt::format("input_sensor_state_{}", i);
-        row.alert_id = fmt::format("input_sensor_alert_{}", i);
-        row.role_id = fmt::format("input_sensor_role_{}", i);
-        row.inverted_id = fmt::format("input_sensor_inverted_{}", i);
-        UI_MANAGED_SUBJECT_STRING(row.name, row.name_buf, "", row.name_id.c_str(), subjects);
-        UI_MANAGED_SUBJECT_STRING(row.state, row.state_buf, "", row.state_id.c_str(), subjects);
-        UI_MANAGED_SUBJECT_INT(row.alert, 0, row.alert_id.c_str(), subjects);
-        UI_MANAGED_SUBJECT_INT(row.role, 0, row.role_id.c_str(), subjects);
-        UI_MANAGED_SUBJECT_INT(row.inverted, 0, row.inverted_id.c_str(), subjects);
-    }
 }
 
 void InputSensorManager::refresh_subjects() {
-    struct RowView {
-        std::string name;
-        const char* state;
-        int alert;
-        int role;
-        int inverted;
-    };
-    std::vector<RowView> views;
     std::vector<std::string> open;
     int door_check = 0;
-    int row_count = 0;
     bool status_frame = false;
     {
         std::lock_guard<std::recursive_mutex> lock(mutex());
         for (const auto& entry : entries_locked()) {
-            const auto role = role_of<InputSensorRole>(entry);
-            const InputReading& reading = reading_locked(entry.klipper_name);
-            const bool reads_open = reads_open_locked(entry);
-            if (views.size() < rows_.size()) {
-                views.push_back({entry.display_name, state_text(role, reading), reads_open ? 1 : 0,
-                                 static_cast<int>(entry.role), reading.inverted ? 1 : 0});
-            }
-            if (reads_open) {
+            if (reads_open_locked(entry)) {
                 open.push_back(entry.klipper_name);
             }
         }
-        row_count = static_cast<int>(views.size());
         door_check = door_check_.value_or(has_door_locked()) ? 1 : 0;
         status_frame = std::exchange(status_frame_, false);
     }
 
-    for (size_t i = 0; i < views.size(); ++i) {
-        auto& row = rows_[i];
-        const auto& view = views[i];
-        if (std::strcmp(lv_subject_get_string(&row.name), view.name.c_str()) != 0) {
-            lv_subject_copy_string(&row.name, view.name.c_str());
-        }
-        if (std::strcmp(lv_subject_get_string(&row.state), view.state) != 0) {
-            lv_subject_copy_string(&row.state, view.state);
-        }
-        if (lv_subject_get_int(&row.alert) != view.alert) {
-            lv_subject_set_int(&row.alert, view.alert);
-        }
-        if (lv_subject_get_int(&row.role) != view.role) {
-            lv_subject_set_int(&row.role, view.role);
-        }
-        if (lv_subject_get_int(&row.inverted) != view.inverted) {
-            lv_subject_set_int(&row.inverted, view.inverted);
-        }
-    }
-
-    // Rows are filled before the count, so a rebuild triggered by the count
-    // binds to filled subjects.
-    if (lv_subject_get_int(&row_count_) != row_count) {
-        lv_subject_set_int(&row_count_, row_count);
-    }
     if (lv_subject_get_int(&door_check_subject_) != door_check) {
         lv_subject_set_int(&door_check_subject_, door_check);
     }

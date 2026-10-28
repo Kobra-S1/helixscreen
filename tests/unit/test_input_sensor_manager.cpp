@@ -4,7 +4,7 @@
 /**
  * @file test_input_sensor_manager.cpp
  * @brief InputSensorManager: discovery, default roles, state parsing, saved
- *        settings, the door-check default and the overlay row subjects.
+ *        settings, the door-check default and the Settings rows.
  *
  * Run with: ./build/bin/helix-tests "[input_sensors]"
  */
@@ -291,29 +291,29 @@ TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager rediscovery keeps the u
     CHECK(role_of_name("gcode_button lid_switch") == kDoor);
 }
 
-TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager fills the overlay row subjects",
+TEST_CASE_METHOD(InputSensorFixture, "InputSensorManager rows carry state, role and Invert",
                  "[input_sensors]") {
     discover(kC5Objects);
-    CHECK(subject_int("input_sensor_count") == 4);
-    CHECK(subject_string("input_sensor_name_0") == "frontDoor");
-    CHECK(subject_int("input_sensor_role_0") == 1);
-    CHECK(subject_int("input_sensor_role_2") == 0);
-    CHECK(subject_string("input_sensor_state_0") == "--");
+    REQUIRE(mgr().sensor_count() == 4);
+    CHECK(mgr().row(0).name == "frontDoor");
+    CHECK(mgr().row(0).role_labels == std::vector<std::string>{"Other", "Door"});
+    CHECK(mgr().row(0).selected_role == 1);
+    CHECK(mgr().row(2).selected_role == 0);
+    CHECK(mgr().row(0).state == "--");
+    CHECK(mgr().row(0).toggle == RowToggle::Invert);
+    CHECK_FALSE(mgr().row(0).toggle_value);
 
     report("gcode_button frontDoor", "RELEASED");
     report("gcode_button extruder_grab1", "PRESSED");
-    CHECK(subject_string("input_sensor_state_0") == "Opened");
-    CHECK(subject_int("input_sensor_alert_0") == 1);
-    CHECK(subject_string("input_sensor_state_3") == "Pressed");
-    CHECK(subject_int("input_sensor_alert_3") == 0);
+    CHECK(mgr().row(0).state == "Opened");
+    CHECK(mgr().row(0).alert);
+    CHECK(mgr().row(3).state == "Pressed");
+    CHECK_FALSE(mgr().row(3).alert);
 
     mgr().set_option("gcode_button frontDoor", true);
-    CHECK(subject_string("input_sensor_state_0") == "Closed");
-    CHECK(subject_int("input_sensor_alert_0") == 0);
-    CHECK(subject_int("input_sensor_inverted_0") == 1);
-
-    CHECK(mgr().klipper_name_at(1) == "gcode_button topDoor");
-    CHECK(mgr().klipper_name_at(4).empty());
+    CHECK(mgr().row(0).state == "Closed");
+    CHECK_FALSE(mgr().row(0).alert);
+    CHECK(mgr().row(0).toggle_value);
 }
 
 TEST_CASE("doors_newly_open: only doors absent before are owed a warning", "[input_sensors]") {

@@ -34,6 +34,9 @@ class LoadCellManager : public SensorManager {
     /// Entries with the SPOOL_WEIGHT holder first, then by technical name.
     [[nodiscard]] std::vector<SensorEntry> get_sensors_sorted() const;
 
+    /// Names a load cell the way the rest of the UI does.
+    [[nodiscard]] SensorRowView row(size_t index) const override;
+
   protected:
     void register_subjects(SubjectManager& subjects) override;
     void refresh_subjects() override;

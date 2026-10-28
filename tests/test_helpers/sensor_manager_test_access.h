@@ -37,6 +37,11 @@ class SensorManagerTestAccess {
         return m.settings_json_locked();
     }
 
+    /// The manager's RoleSpec table, in declaration order.
+    static const std::vector<RoleSpec>& roles(SensorManager& m) {
+        return m.options().roles;
+    }
+
     /// Add a manager to sensor_managers() for one test; pair with remove().
     static void add_to_registry(SensorManager* m) {
         detail::mutable_sensor_managers().push_back(m);

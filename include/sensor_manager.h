@@ -131,6 +131,12 @@ class SensorManager {
 
     [[nodiscard]] lv_subject_t* count_subject();
     [[nodiscard]] lv_subject_t* revision_subject(); ///< bumped on every publish()
+    [[nodiscard]] bool subjects_initialized() const;
+
+    /// Slug of this manager's Settings > Sensors section, nullptr when it has none.
+    [[nodiscard]] const char* settings_section() const;
+    /// Whether Settings lists @p entry. Default: every entry.
+    [[nodiscard]] virtual bool listed_in_settings(const SensorEntry& entry) const;
 
   protected:
     struct Options {
@@ -147,6 +153,10 @@ class SensorManager {
         /// once configfile.config arrives. Off for every other manager: a
         /// second discover() repeats its per-connect resets.
         bool rediscover_on_config = false;
+        /// Settings > Sensors section slug: the row subjects are
+        /// sensor_<slug>_row_<field>_<i>. nullptr: no section.
+        const char* settings_section = nullptr;
+        RowToggle row_toggle = RowToggle::Enabled; ///< the toggle row() offers
     };
     explicit SensorManager(Options options);
 
@@ -176,7 +186,6 @@ class SensorManager {
     [[nodiscard]] std::vector<SensorEntry>& entries_locked();
     [[nodiscard]] const std::vector<SensorEntry>& entries_locked() const;
     [[nodiscard]] const Options& options() const;
-    [[nodiscard]] bool subjects_initialized() const;
 
   private:
     friend class SensorManagerTestAccess;

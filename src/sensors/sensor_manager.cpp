@@ -497,8 +497,8 @@ SensorRowView SensorManager::row(size_t index) const {
             view.held_role_label = lv_tr(held->label_key);
         }
     }
-    view.toggle = RowToggle::Enabled;
-    view.toggle_value = entry.enabled;
+    view.toggle = options_.row_toggle;
+    view.toggle_value = view.toggle == RowToggle::Enabled && entry.enabled;
     return view;
 }
 
@@ -512,6 +512,14 @@ lv_subject_t* SensorManager::count_subject() {
 
 lv_subject_t* SensorManager::revision_subject() {
     return &revision_;
+}
+
+const char* SensorManager::settings_section() const {
+    return options_.settings_section;
+}
+
+bool SensorManager::listed_in_settings(const SensorEntry& /*entry*/) const {
+    return true;
 }
 
 std::recursive_mutex& SensorManager::mutex() const {
