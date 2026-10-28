@@ -502,6 +502,9 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/progress_bar_estimate.xml",
     "ui_xml/components/spaghetti_detection_modal.xml",
     "ui_xml/components/temp_graph_config_modal.xml",
+    "ui_xml/components/temp_graph_series_row.xml",
+    "ui_xml/components/thermistor_carousel_page.xml",
+    "ui_xml/components/thermistor_picker_row.xml",
     "ui_xml/components/tile_color_grid.xml",
     // Head changes: guarded by tool_switcher_change_blocked (a print that
     // refuses the change, or spools on the bed) rather than moves_machine,
