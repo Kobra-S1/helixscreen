@@ -122,8 +122,10 @@ MUTATE=$WORK/mutate
 RSYNC_PATH="sudo -n rsync"                               # the container writes mirrors as root
 SHARD_ARTIFACTS=build/shard-artifacts                    # failing shard logs, mirror-relative
 # BatchMode: never a password prompt. The keepalives bound a link that dies
-# mid-run; ConnectTimeout bounds one that never answers.
-SSH_OPTS=(-o ConnectTimeout=3 -o BatchMode=yes -o ServerAliveInterval=5 -o ServerAliveCountMax=2)
+# mid-run, at a minute: a cross-site link to a host saturated by a cold build
+# can go unanswered for well over ten seconds and still be alive, and dropping
+# it throws away the run's verdict. ConnectTimeout bounds one that never answers.
+SSH_OPTS=(-o ConnectTimeout=3 -o BatchMode=yes -o ServerAliveInterval=5 -o ServerAliveCountMax=12)
 ORPHAN_POLL_SECS="${HELIX_TEST_ORPHAN_POLL_SECS:-30}"    # how often to re-check an orphaned build
 
 # --probe: offloading pays when the test host is on the LAN, or when the bytes
