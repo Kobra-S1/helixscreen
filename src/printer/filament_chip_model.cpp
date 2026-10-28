@@ -115,11 +115,14 @@ std::vector<RankedSlot> rank_slots_for_tool(const GcodeToolInfo& tool,
                 r.also_tools.push_back(tools[i].tool_index);
             }
         }
-        ranked.push_back(std::move(r));
+        // After every slot of its tier or better: a stable insertion, which stays
+        // far smaller in the firmware image than std::stable_sort for a list this short.
+        auto at = ranked.begin();
+        while (at != ranked.end() && static_cast<int>(at->fit) <= static_cast<int>(r.fit)) {
+            ++at;
+        }
+        ranked.insert(at, std::move(r));
     }
-    std::stable_sort(ranked.begin(), ranked.end(), [](const RankedSlot& a, const RankedSlot& b) {
-        return static_cast<int>(a.fit) < static_cast<int>(b.fit);
-    });
     return ranked;
 }
 
