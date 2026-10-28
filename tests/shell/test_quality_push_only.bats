@@ -10,6 +10,7 @@ load helpers
 
 setup() {
   cd "$BATS_TEST_DIRNAME/../.." || return 1
+  QC_TREE=$PWD
 }
 
 # Loads QC_PUSH_ONLY, qc_trigger_re and qc_wanted from the real driver, then runs $2
@@ -80,18 +81,16 @@ with_driver() {
 
 # qc_staged_compile_units over a staged list; prints both results.
 staged_units() {
-  bash -c '. scripts/qc/_lib.sh; qc_staged_compile_units "$1"; echo "UNITS<$CHECK_UNITS>"; echo "UNREACHED<$UNREACHED_HDR>"' _ "$1"
+  bash -c '. "$2/scripts/qc/_lib.sh"; qc_staged_compile_units "$1"; echo "UNITS<$CHECK_UNITS>"; echo "UNREACHED<$UNREACHED_HDR>"' _ "$1" "$QC_TREE"
 }
 
 @test "a commit compiles each staged source and an includer of each staged header" {
-  run staged_units $'src/api/moonraker_client.cpp\ninclude/utils/network_validation.h\ndocs/x.md'
+  compile_repo
+  cd "$BATS_TEST_TMPDIR/repo"
+  # src/a.cpp does not include b.h, so its includer is a second unit in any traversal order.
+  run staged_units $'src/a.cpp\ninclude/b.h\ndocs/x.md'
   [ "$status" -eq 0 ]
-  contains "src/api/moonraker_client.cpp" "$output"
-  lacks "docs/x.md" "$output"
-  contains "UNREACHED<>" "$output"
-  # The staged source plus one includer of the header: two units, the header itself none.
-  [ "$(printf '%s\n' "$output" | grep -cE '^(UNITS<)?(src|tests)/.*\.(cpp|cc|mm)')" -eq 2 ] \
-    || fail "expected the source and one includer: $output"
+  [ "$output" = $'UNITS<src/a.cpp\nsrc/c.cpp>\nUNREACHED<>' ] || fail "$output"
 }
 
 @test "a header no source includes is named, not silently dropped" {
@@ -106,4 +105,79 @@ staged_units() {
   [ "$status" -eq 0 ]
   contains "UNITS<>" "$output"
   contains "UNREACHED<>" "$output"
+}
+
+# Runs phase2's own compile block (from the qc_staged_compile_units call to the
+# branch's closing fi) in a scratch repo whose syntax_check.py is a stub that
+# records the units it was handed and exits STUB_RC.
+compile_block() {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  bash -c '
+    cd "$1" || exit 99
+    . "$2/scripts/qc/_lib.sh"
+    EXIT_CODE=0
+    SECTION_START=$(date +%s)
+    eval "$(awk "/^  qc_staged_compile_units /{p=1} p{print} p&&/^  fi\$/{exit}" "$2/scripts/qc/phase2.sh")"
+    echo "EXIT_CODE=$EXIT_CODE"
+  ' _ "$repo" "$QC_TREE"
+}
+
+compile_repo() {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  mkdir -p "$repo/src" "$repo/include" "$repo/scripts" "$repo/docs"
+  git -C "$repo" init -q
+  printf 'int a;\n' > "$repo/src/a.cpp"
+  printf '#include "b.h"\n' > "$repo/src/c.cpp"
+  printf 'int b;\n' > "$repo/include/b.h"
+  printf 'x\n' > "$repo/docs/x.md"
+  printf '[]\n' > "$repo/compile_commands.json"
+  cat > "$repo/scripts/syntax_check.py" <<'PY'
+import os, sys
+open("called.txt", "w").write("\n".join(sys.argv[1:]) + "\n")
+print("summary: stub checked %d" % (len(sys.argv) - 1))
+sys.exit(int(os.environ.get("STUB_RC", "0")))
+PY
+}
+
+@test "phase2 hands each staged source to the syntax check and reports its summary" {
+  compile_repo
+  git -C "$BATS_TEST_TMPDIR/repo" add src/a.cpp
+  run compile_block
+  contains "✅ summary: stub checked 1" "$output"
+  contains "EXIT_CODE=0" "$output"
+  [ "$(cat "$BATS_TEST_TMPDIR/repo/called.txt")" = "src/a.cpp" ] || fail "$(cat "$BATS_TEST_TMPDIR/repo/called.txt")"
+}
+
+@test "phase2 compiles an includer of a staged header" {
+  compile_repo
+  git -C "$BATS_TEST_TMPDIR/repo" add include/b.h
+  run compile_block
+  contains "EXIT_CODE=0" "$output"
+  [ "$(cat "$BATS_TEST_TMPDIR/repo/called.txt")" = "src/c.cpp" ] || fail "$(cat "$BATS_TEST_TMPDIR/repo/called.txt")"
+}
+
+@test "phase2 fails the commit when a staged source does not compile" {
+  compile_repo
+  git -C "$BATS_TEST_TMPDIR/repo" add src/a.cpp
+  STUB_RC=1 run compile_block
+  contains "❌ A staged source does not compile" "$output"
+  contains "EXIT_CODE=1" "$output"
+}
+
+@test "phase2 compiles nothing without compile_commands.json, and says so" {
+  compile_repo
+  rm "$BATS_TEST_TMPDIR/repo/compile_commands.json"
+  git -C "$BATS_TEST_TMPDIR/repo" add src/a.cpp
+  run compile_block
+  contains "No compile_commands.json" "$output"
+  contains "EXIT_CODE=0" "$output"
+  [ ! -e "$BATS_TEST_TMPDIR/repo/called.txt" ] || fail "syntax check ran"
+}
+
+@test "phase2 compiles nothing for a commit with no source" {
+  compile_repo
+  git -C "$BATS_TEST_TMPDIR/repo" add docs/x.md
+  run compile_block
+  contains "✅ No staged source to compile" "$output"
+  [ ! -e "$BATS_TEST_TMPDIR/repo/called.txt" ] || fail "syntax check ran"
 }
