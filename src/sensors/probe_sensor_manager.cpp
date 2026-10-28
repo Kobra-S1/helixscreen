@@ -95,6 +95,8 @@ ProbeSensorManager::Options ProbeSensorManager::make_options() {
     o.count_subject = "probe_count";
     o.revision_subject = "probe_sensor_revision";
     o.config_key = "probe_sensors";
+    // z_offset seeding and the Klicky check read config sections.
+    o.rediscover_on_config = true;
     for (const auto& r : kProbeSensorRoles) {
         if (r.value == ProbeSensorRole::NONE) {
             continue;

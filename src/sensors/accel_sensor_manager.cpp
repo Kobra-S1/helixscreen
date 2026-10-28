@@ -13,6 +13,8 @@ AccelSensorManager::Options AccelSensorManager::make_options() {
     o.kinds = {hw::ObjectKind::Accelerometer};
     o.count_subject = "accel_count";
     o.revision_subject = "accel_revision";
+    // Accelerometers exist only as config sections.
+    o.rediscover_on_config = true;
     for (const auto& t : kAccelSensorTypes) {
         o.types.push_back({static_cast<uint8_t>(t.value), t.id, t.display});
     }

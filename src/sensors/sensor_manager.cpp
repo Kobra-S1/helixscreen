@@ -139,6 +139,10 @@ void SensorManager::discover(const PrinterDiscovery& hw) {
     publish();
 }
 
+bool SensorManager::rediscovers_on_config() const {
+    return options_.rediscover_on_config;
+}
+
 void SensorManager::reconcile(std::vector<SensorEntry> discovered) {
     {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -505,6 +509,14 @@ std::vector<SensorManager*>& detail::mutable_sensor_managers() {
 
 const std::vector<SensorManager*>& sensor_managers() {
     return detail::mutable_sensor_managers();
+}
+
+void rediscover_from_config(const PrinterDiscovery& hw) {
+    for (auto* manager : sensor_managers()) {
+        if (manager->rediscovers_on_config()) {
+            manager->discover(hw);
+        }
+    }
 }
 
 } // namespace helix::sensors

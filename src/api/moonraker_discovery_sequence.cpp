@@ -896,15 +896,15 @@ void MoonrakerDiscoverySequence::continue_discovery_objects(uint64_t seq) {
                                     cfg, macros_snapshot);
 
                                 // The first sensor pass ran before the configfile arrived, so
-                                // config sections (accelerometers, which have no get_status(),
-                                // and a probe's z_offset) are read on this one. Main thread:
-                                // discovery sets LVGL subjects.
+                                // the managers that read config sections (accelerometers, which
+                                // have no get_status(), a probe's z_offset, input reactions)
+                                // discover again on this one. Main thread: discovery sets LVGL
+                                // subjects.
                                 helix::ui::queue_update(
                                     "MoonrakerDiscoverySequence::continue_discovery_objects",
                                     [configured_hardware]() {
-                                        for (auto* manager : helix::sensors::sensor_managers()) {
-                                            manager->discover(*configured_hardware);
-                                        }
+                                        helix::sensors::rediscover_from_config(
+                                            *configured_hardware);
                                     });
 
                                 // Update LED controller with configfile data (effect targets +

@@ -23,6 +23,7 @@
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
 #include "observer_factory.h"
+#include "printer_discovery.h"
 
 #include <spdlog/spdlog.h>
 
@@ -903,6 +904,28 @@ TEST_CASE_METHOD(FilamentSensorTestFixture,
 
     mgr().set_master_enabled(false);
     CHECK(lv_subject_get_int(revision) == start + 3);
+}
+
+// Filament reads no config sections, so the configfile pass leaves its
+// per-connect state alone.
+TEST_CASE_METHOD(FilamentSensorTestFixture,
+                 "FilamentSensorManager - the configfile pass does not reset the connection",
+                 "[filament][discovery]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"filament_switch_sensor runout"}));
+    mgr().discover(hw);
+    FilamentSensorManagerTestAccess::clear_startup_grace_period(mgr());
+    update_sensor_state("filament_switch_sensor runout", true);
+    REQUIRE_FALSE(mgr().is_in_startup_grace_period());
+    REQUIRE(FilamentSensorManagerTestAccess::initial_status_received(mgr()));
+
+    PrinterDiscovery configured = hw;
+    configured.parse_config_keys(
+        json{{"filament_switch_sensor runout", {{"pause_on_runout", "True"}}}});
+    helix::sensors::rediscover_from_config(configured);
+
+    CHECK_FALSE(mgr().is_in_startup_grace_period());
+    CHECK(FilamentSensorManagerTestAccess::initial_status_received(mgr()));
 }
 
 // Setting a subject runs its observers synchronously. One that calls back into

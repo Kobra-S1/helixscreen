@@ -97,6 +97,9 @@ class SensorManager {
     /// PrinterDiscovery.
     void discover(const PrinterDiscovery& hw);
 
+    /// Whether discover() runs again on the configfile pass (Options::rediscover_on_config).
+    [[nodiscard]] bool rediscovers_on_config() const;
+
     /// Default: lock, parse_status(), unlock, publish() if it changed anything.
     virtual void update_from_status(const nlohmann::json& status);
 
@@ -135,6 +138,10 @@ class SensorManager {
         std::vector<TypeSpec> types;
         bool keep_missing_state = false;
         bool from_printer_discovery = true;
+        /// Reads config sections in on_discovered(), so discover() runs again
+        /// once configfile.config arrives. Off for every other manager: a
+        /// second discover() repeats its per-connect resets.
+        bool rediscover_on_config = false;
     };
     explicit SensorManager(Options options);
 
@@ -194,6 +201,10 @@ class SensorManager {
 
 /// Every sensor manager, in a stable order. The one list.
 [[nodiscard]] const std::vector<SensorManager*>& sensor_managers();
+
+/// The configfile pass: discover() again on every manager that reads config
+/// sections, against discovery data that now carries them. Main thread.
+void rediscover_from_config(const PrinterDiscovery& hw);
 
 /// Keeps a manager's role enum readable at the boundary.
 template <typename Role> [[nodiscard]] Role role_of(const SensorEntry& entry) {

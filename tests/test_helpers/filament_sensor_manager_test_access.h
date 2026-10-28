@@ -64,6 +64,11 @@ class FilamentSensorManagerTestAccess {
         }
     }
 
+    [[nodiscard]] static bool initial_status_received(FilamentSensorManager& mgr) {
+        std::lock_guard<std::recursive_mutex> lock(mgr.mutex());
+        return mgr.initial_status_received_;
+    }
+
     static void clear_startup_grace_period(FilamentSensorManager& mgr) {
         mgr.startup_time_ = std::chrono::steady_clock::now() - std::chrono::seconds(10);
     }

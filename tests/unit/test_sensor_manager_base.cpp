@@ -15,11 +15,14 @@
 #include "../test_helpers/golden_json.h"
 #include "../test_helpers/sensor_manager_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "accel_sensor_manager.h"
 #include "config.h"
 #include "dynamic_subject_map.h"
 #include "filament_sensor_types.h"
+#include "input_sensor_manager.h"
 #include "input_sensor_types.h"
 #include "printer_discovery.h"
+#include "probe_sensor_manager.h"
 #include "probe_sensor_types.h"
 #include "sensor_manager.h"
 #include "width_sensor_types.h"
@@ -615,4 +618,56 @@ TEST_CASE("DynamicSubjectMap removes subjects for vanished keys and expires thei
     map.clear();
     CHECK(map.size() == 0);
     CHECK_FALSE(*a_life);
+}
+
+// ============================================================================
+// The configfile pass
+// ============================================================================
+
+TEST_CASE("Only managers that read config sections rediscover on the configfile pass",
+          "[sensor_manager_base]") {
+    for (auto* m : sensor_managers()) {
+        const std::string name = m->name();
+        const bool reads_sections = name == "AccelSensorManager" || name == "ProbeSensorManager" ||
+                                    name == "InputSensorManager";
+        INFO(name);
+        CHECK(m->rediscovers_on_config() == reads_sections);
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "The configfile pass hands accel, probe and input their config sections",
+                 "[sensor_manager_base]") {
+    auto& accel = AccelSensorManager::instance();
+    auto& probe = ProbeSensorManager::instance();
+    auto& input = InputSensorManager::instance();
+    for (SensorManager* m : std::vector<SensorManager*>{&accel, &probe, &input}) {
+        m->init_subjects();
+        m->set_sync_mode(true);
+        m->discover(PrinterDiscovery{});
+    }
+
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"probe", "gcode_button frontDoor"}));
+    for (SensorManager* m : std::vector<SensorManager*>{&accel, &probe, &input}) {
+        m->discover(hw);
+    }
+    REQUIRE(accel.sensor_count() == 0);
+    REQUIRE(probe.get_z_offset() == 0.0f);
+    REQUIRE_FALSE(input.firmware_reacts_to_opening("gcode_button frontDoor"));
+
+    PrinterDiscovery configured = hw;
+    configured.parse_config_keys(
+        json{{"adxl345", json::object()},
+             {"probe", {{"z_offset", "1.5"}}},
+             {"gcode_button frontDoor", {{"release_gcode", "\nRESPOND MSG=open"}}}});
+    rediscover_from_config(configured);
+
+    CHECK(accel.sensor_count() == 1);
+    CHECK(probe.get_z_offset() == Catch::Approx(1.5f));
+    CHECK(input.firmware_reacts_to_opening("gcode_button frontDoor"));
+
+    for (SensorManager* m : std::vector<SensorManager*>{&accel, &probe, &input}) {
+        m->discover(PrinterDiscovery{});
+    }
 }

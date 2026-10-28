@@ -99,6 +99,8 @@ InputSensorManager::Options InputSensorManager::make_options() {
     o.count_subject = "input_sensor_total";
     o.revision_subject = "input_sensor_revision";
     o.config_key = "input_sensors";
+    // Press/release reactions come from the gcode_button sections.
+    o.rediscover_on_config = true;
     for (const auto& r : kInputSensorRoles) {
         // A door and a top cover can both be Doors, so no role is exclusive.
         o.roles.push_back({static_cast<uint8_t>(r.value), r.id, r.display, /*exclusive=*/false,
