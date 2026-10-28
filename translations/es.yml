@@ -3870,7 +3870,6 @@ translations:
     de módulos del firmware de la impresora
   Surfaces inherit app background tokens for light and dark modes.: Las superficies
     heredan los tokens de fondo de la aplicación para modos claro y oscuro.
-  Swap: 'Cambio'
   Swap to another slot automatically when one runs out: 'Cambiar automáticamente a otra ranura cuando una se agota'
   Sweep: Barrido
   Switch Printer: Cambiar Impresora

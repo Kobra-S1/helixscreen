@@ -320,7 +320,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "The chip subjects for a three-tool f
 
     // T2: no material in the file, so the header names the tool; no lane.
     CHECK(chip_string(2, "_material") == "T2");
-    CHECK(chip_string(2, "_slot") == "Pick");
+    CHECK(chip_string(2, "_slot").empty());
     CHECK(chip_int(2, "_slot_state") == 0);
     CHECK(chip_int(2, "_severity") == 2);
 
@@ -334,11 +334,14 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "The chip subjects for a three-tool f
     CHECK(lv_color_eq(border_of(ok), theme_manager_get_color("text_muted")));
     CHECK(lv_color_eq(border_of(warn), theme_manager_get_color("warning")));
     CHECK(lv_color_eq(border_of(block), theme_manager_get_color("danger")));
-    lv_obj_t* const pick = lv_obj_find_by_name(block, "chip_slot");
-    REQUIRE(pick != nullptr);
-    CHECK(std::string(lv_label_get_text(pick)) == "Pick");
-    CHECK(lv_color_eq(lv_obj_get_style_text_color(pick, LV_PART_MAIN),
-                      theme_manager_get_color("danger")));
+    // No lane: the empty-spool icon stands in, and no word sits in the body.
+    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_pick"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_slot"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(lv_obj_find_by_name(ok, "chip_pick"), LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* const warn_slot = lv_obj_find_by_name(warn, "chip_slot");
+    REQUIRE(warn_slot != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(warn_slot, LV_OBJ_FLAG_HIDDEN));
+    CHECK(std::string(lv_label_get_text(warn_slot)) == "2");
     CHECK(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_spool"), LV_OBJ_FLAG_HIDDEN));
     CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(ok, "chip_spool"), LV_OBJ_FLAG_HIDDEN));
 
@@ -468,11 +471,12 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Republishing the same file keeps the
     process_lvgl(100);
 }
 
-TEST_CASE_METHOD(MappingCardRenderFixture, "A language switch re-translates Pick",
+TEST_CASE_METHOD(MappingCardRenderFixture, "An unmapped chip carries no word in any language",
                  "[filament_mapping][chip]") {
     card.update({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
     card.set_mappings(mappings_to_slots({0, -1}));
-    REQUIRE(chip_string(1, "_slot") == "Pick");
+    REQUIRE(chip_int(1, "_slot_state") == 0);
+    REQUIRE(chip_string(1, "_slot").empty());
 
     struct RestoreEnglish {
         ~RestoreEnglish() {
@@ -482,9 +486,9 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "A language switch re-translates Pick
     } restore;
     helix::SystemSettingsManager::instance().set_language("de");
     helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
-    const std::string german = lv_tr("Pick");
-    REQUIRE(german != "Pick");
-    CHECK(chip_string(1, "_slot") == german);
+    REQUIRE(std::string(lv_tr("Pick")) != "Pick");
+    CHECK(chip_string(1, "_slot").empty());
+    CHECK(chip_int(1, "_slot_state") == 0);
     process_lvgl(100);
 }
 

@@ -10,13 +10,15 @@
            file names none) and labelled with the file's material, or the
            G-code tool name when the file names no material. _ink picks a text
            colour that reads on the fill.
-         - body: the mapped slot's spool (its colour, split and finish), a ring
-           for an empty slot, the slot label ("3", "2·1", or "Pick" when no slot
-           is chosen) and a caret while a tap can remap. On a printer with no
-           filament system (filament_chip_loaded) the body is what is loaded:
-           its spool and "Loaded", "?" when nothing says, or "Swap" for a later
-           tool, in a smaller font; no caret and no remap. A tap reports the
-           chip index through filament_chip_clicked_cb.
+         - body: the mapped slot's spool (its colour, split and finish) or a
+           ring for an empty slot, with the slot label ("3", "2·1"); an
+           empty-spool icon when no slot is chosen; a caret while a tap can
+           remap. On a printer with no filament system
+           the body is what is loaded: its spool, a question-mark icon when
+           nothing says, or a swap icon for a later tool; no caret and no remap.
+           The body holds icons and numbers only: no word fits it in every
+           language. A tap reports the chip index through
+           filament_chip_clicked_cb.
          - outline: the one signal. Grey when matched, amber when only the
            colour differs, red when the material differs or the slot is empty or
            missing; the slot text turns red with it. -->
@@ -32,7 +34,6 @@
     <style name="theme_ink" text_color="#text"/>
     <style name="slot_block" text_color="#danger"/>
     <style name="slot_number" text_font="#font_small"/>
-    <style name="slot_word" text_font="#font_xs"/>
     <style name="ink_dark" text_color="0x000000"/>
     <style name="ink_light" text_color="0xFFFFFF"/>
   </styles>
@@ -75,12 +76,27 @@
               event_bubble="true">
         <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="2"/>
       </lv_obj>
+      <!-- No slot chosen: an empty spool. Words never sit in the body, which is too narrow
+           for most languages. -->
+      <icon name="chip_pick" src="filament_outline" size="xs" variant="danger" clickable="false" event_bubble="true">
+        <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="0"/>
+      </icon>
+      <!-- No filament system, a later tool: the print swaps filament for it. -->
+      <icon name="chip_swap" src="swap_horizontal" size="xs" variant="secondary" clickable="false" event_bubble="true">
+        <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="3"/>
+      </icon>
+      <!-- No filament system and nothing says what is loaded. -->
+      <icon name="chip_unknown" src="help_circle" size="xs" variant="secondary" clickable="false" event_bubble="true">
+        <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="4"/>
+      </icon>
+      <!-- The lane number: a mapped lane, or an empty one beside its red ring. -->
       <lv_label name="chip_slot"
                 bind_text="filament_chip_${index}_slot" long_mode="clip" clickable="false" event_bubble="true">
         <style name="theme_ink"/>
         <style name="slot_number"/>
-        <bind_style_if_eq name="slot_word" subject="filament_chip_loaded" ref_value="1"/>
         <bind_style_if_eq name="slot_block" subject="filament_chip_${index}_severity" ref_value="2"/>
+        <bind_flag_if cond="filament_chip_${index}_slot_state eq 0 or filament_chip_${index}_slot_state ge 3"
+                      flag="hidden"/>
       </lv_label>
       <icon name="chip_caret" src="chevron_down" size="xs" variant="secondary" clickable="false" event_bubble="true">
         <bind_flag_if_eq subject="color_card_remappable" flag="hidden" ref_value="0"/>

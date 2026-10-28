@@ -128,11 +128,9 @@ TEST_CASE_METHOD(NoFilamentSystemCardFixture,
     CHECK(card.shows_loaded());
     REQUIRE(Chip::chip_count() == 1);
     CHECK(Chip::chip_string(0, "_material") == "PLA");
-    CHECK(Chip::chip_string(0, "_slot") == "Loaded");
+    CHECK(Chip::chip_string(0, "_slot").empty());
     CHECK(Chip::chip_int(0, "_severity") == 0);
     CHECK(Chip::chip_int(0, "_slot_state") == 1); // the loaded spool's dot
-    // The body's words take the smaller font.
-    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_chip_loaded")) == 1);
     CHECK(card.get_mappings().empty());
 
     // A tap has nothing to open: no lane to pick, no picker.
@@ -150,7 +148,7 @@ TEST_CASE_METHOD(NoFilamentSystemCardFixture,
     card.update({"#00FF00"}, {"PETG"});
     REQUIRE(card.should_show());
     REQUIRE(Chip::chip_count() == 1);
-    CHECK(Chip::chip_string(0, "_slot") == "Loaded");
+    CHECK(Chip::chip_string(0, "_slot").empty());
     CHECK(Chip::chip_int(0, "_severity") == 2);
 
     // The chip follows a spool edit.
@@ -166,9 +164,9 @@ TEST_CASE_METHOD(NoFilamentSystemCardFixture,
     card.update({"#00FF00"}, {"PETG"});
     REQUIRE(card.should_show());
     REQUIRE(Chip::chip_count() == 1);
-    CHECK(Chip::chip_string(0, "_slot") == "?");
+    CHECK(Chip::chip_string(0, "_slot").empty());
     CHECK(Chip::chip_int(0, "_severity") == 0);
-    CHECK(Chip::chip_int(0, "_slot_state") == 0);
+    CHECK(Chip::chip_int(0, "_slot_state") == 4); // the question-mark icon
     process_lvgl(100);
 }
 
@@ -181,12 +179,12 @@ TEST_CASE_METHOD(NoFilamentSystemCardFixture,
     REQUIRE(card.should_show());
     REQUIRE(Chip::chip_count() == 2);
     CHECK(Chip::chip_string(0, "_material") == "PLA");
-    CHECK(Chip::chip_string(0, "_slot") == "Loaded");
+    CHECK(Chip::chip_string(0, "_slot").empty());
     CHECK(Chip::chip_string(1, "_material") == "PETG");
-    CHECK(Chip::chip_string(1, "_slot") == "Swap");
+    CHECK(Chip::chip_string(1, "_slot").empty());
     // Nothing is loaded for a swap yet, so PETG is not judged against PLA.
     CHECK(Chip::chip_int(1, "_severity") == 0);
-    CHECK(Chip::chip_int(1, "_slot_state") == 0);
+    CHECK(Chip::chip_int(1, "_slot_state") == 3); // the swap icon
     process_lvgl(100);
 }
 
@@ -241,7 +239,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Card shows a single-tool file on a m
     card.update({"#FF0000"}, {"PLA"});
     CHECK(card.should_show());
     CHECK(chip_count() == 1);
-    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_chip_loaded")) == 0);
+    CHECK_FALSE(card.shows_loaded());
     process_lvgl(100);
 }
 

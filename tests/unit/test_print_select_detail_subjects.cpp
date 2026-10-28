@@ -1490,8 +1490,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_mapping_visible")) == 1);
     // No caret: the chip offers no remap.
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "color_card_remappable")) == 0);
-    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "filament_chip_0_slot"))) ==
-          "Loaded");
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_chip_0_slot_state")) == 1);
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_chip_0_severity")) == 2);
 
     lv_obj_t* const chip = lv_obj_find_by_name(root, "filament_chip_0");

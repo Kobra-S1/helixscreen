@@ -3919,7 +3919,6 @@ translations:
     модулей прошивки принтера
   Surfaces inherit app background tokens for light and dark modes.: Поверхности наследуют
     токены фона приложения для светлого и тёмного режимов.
-  Swap: 'Смена'
   Swap to another slot automatically when one runs out: 'Автоматически переключаться на другой слот, когда в одном кончился пруток'
   Sweep: Свип
   Switch Printer: Переключить принтер

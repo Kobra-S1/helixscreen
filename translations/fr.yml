@@ -3894,7 +3894,6 @@ translations:
     débogage brute des modules du firmware de l'imprimante
   Surfaces inherit app background tokens for light and dark modes.: Les surfaces héritent
     des jetons d'arrière-plan de l'application pour les modes clair et sombre.
-  Swap: 'Échange'
   Swap to another slot automatically when one runs out: 'Passer automatiquement à un autre slot quand l''un est épuisé'
   Sweep: Balayage
   Switch Printer: Changer d'imprimante

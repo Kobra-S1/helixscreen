@@ -3538,7 +3538,6 @@
   <translation tag="Suppress periodic temperature status lines" de="Periodische Temperatur-Statuszeilen unterdrücken"/>
   <translation tag="Suppress raw debug output from printer firmware modules" de="Rohe Debug-Ausgaben von Drucker-Firmware-Modulen unterdrücken"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." de="Oberflächen erben App-Hintergrund-Tokens für Hell- und Dunkelmodus."/>
-  <translation tag="Swap" de="Wechsel"/>
   <translation tag="Swap to another slot automatically when one runs out" de="Bei Filamentende automatisch zu einem anderen Slot wechseln"/>
   <translation tag="Sweep" de="Sweep"/>
   <translation tag="Switch Printer" de="Drucker wechseln"/>

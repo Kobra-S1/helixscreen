@@ -3668,7 +3668,6 @@ translations:
   Suppress periodic temperature status lines: 定期的な温度ステータス行を抑制
   Suppress raw debug output from printer firmware modules: プリンターファームウェアモジュールからの生のデバッグ出力を抑制
   Surfaces inherit app background tokens for light and dark modes.: サーフェスはライトモードとダークモードのアプリ背景トークンを継承します。
-  Swap: '交換'
   Swap to another slot automatically when one runs out: 'スロットのフィラメントが切れたら自動で別のスロットに切り替えます'
   Sweep: スイープ
   Switch Printer: プリンターを切り替え

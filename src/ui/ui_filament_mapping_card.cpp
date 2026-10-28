@@ -38,7 +38,6 @@ using helix::xml::IndexedSubjectPool;
 
 HELIX_PSRAM_BSS lv_subject_t s_chip_count{};
 HELIX_PSRAM_BSS lv_subject_t s_more_count{};
-HELIX_PSRAM_BSS lv_subject_t s_loaded_mode{};
 HELIX_PSRAM_BSS lv_subject_t s_more_text{};
 HELIX_PSRAM_BSS char s_more_text_buf[16];
 helix::WidgetSubjects s_chip_subjects{"FilamentChipSubjects"};
@@ -71,7 +70,13 @@ IndexedSubjectPool* const s_chip_pools[] = {
     &s_chip_slot_state, &s_chip_severity};
 
 /// filament_chip_<i>_slot_state: what the chip's body draws.
-enum ChipSlotState : int { kNoSlot = 0, kLoadedSlot = 1, kEmptySlot = 2 };
+enum ChipSlotState : int {
+    kNoSlot = 0,
+    kLoadedSlot = 1,
+    kEmptySlot = 2,
+    kSwapSlot = 3,   ///< no filament system, a tool the print swaps in later
+    kUnknownSlot = 4 ///< no filament system, nothing says what is loaded
+};
 
 /// filament_chip_<i>_ink: the header label's colour.
 enum ChipInk : int { kThemeInk = 0, kDarkInk = 1, kLightInk = 2 };
@@ -81,7 +86,6 @@ void init_chip_subjects() {
         [] {
             UI_MANAGED_SUBJECT_INT(s_chip_count, 0, "filament_chip_count", s_chip_subjects);
             UI_MANAGED_SUBJECT_INT(s_more_count, 0, "filament_chip_more_count", s_chip_subjects);
-            UI_MANAGED_SUBJECT_INT(s_loaded_mode, 0, "filament_chip_loaded", s_chip_subjects);
             UI_MANAGED_SUBJECT_STRING(s_more_text, s_more_text_buf, "", "filament_chip_more_text",
                                       s_chip_subjects);
             for (IndexedSubjectPool* pool : s_chip_pools) {
@@ -119,8 +123,7 @@ void publish_chip_header(size_t i, const helix::GcodeToolInfo& tool) {
 void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::AvailableSlot* slot,
                   const std::vector<helix::AvailableSlot>& all_slots) {
     publish_chip_header(i, tool);
-    s_chip_slot.set_string(i, slot ? helix::chip_slot_label(*slot, all_slots)
-                                   : std::string(lv_tr("Pick")));
+    s_chip_slot.set_string(i, slot ? helix::chip_slot_label(*slot, all_slots) : std::string{});
     s_chip_slot_color.set_color(i, slot ? slot->color_rgb : 0);
     s_chip_slot_colors.set_string(i, slot ? slot->multi_color_hexes : std::string{});
     s_chip_slot_finish.set_string(i, slot ? std::string(helix::filament_finish_name(slot->finish))
@@ -143,23 +146,21 @@ helix::LoadedFilament loaded_filament_from(const std::optional<helix::SlotInfo>&
     return loaded;
 }
 
-/// A no-filament-system chip: the file's tool over what is loaded ("Loaded", "?" when
-/// nothing says) or over the swap the print asks for ("Swap").
+/// A no-filament-system chip: the file's tool over what is loaded (its spool, or the
+/// unknown state when nothing says) or over the swap the print asks for.
 void publish_loaded_chip(size_t i, const helix::GcodeToolInfo& tool,
                          const std::optional<helix::SlotInfo>& spool,
                          const helix::LoadedFilament& loaded, helix::LoadedRole role) {
     publish_chip_header(i, tool);
     const bool shows_spool = role == helix::LoadedRole::Loaded && loaded.known;
-    if (role == helix::LoadedRole::Swap) {
-        s_chip_slot.set_string(i, lv_tr("Swap"));
-    } else {
-        s_chip_slot.set_string(i, loaded.known ? lv_tr("Loaded") : "?");
-    }
+    s_chip_slot.set_string(i, std::string{});
     s_chip_slot_color.set_color(i, shows_spool ? loaded.color_rgb : 0);
     s_chip_slot_colors.set_string(i, shows_spool ? spool->multi_color_hexes : std::string{});
     s_chip_slot_finish.set_string(
         i, shows_spool ? std::string(helix::filament_finish_name(spool->finish())) : std::string{});
-    s_chip_slot_state.set_int(i, shows_spool ? kLoadedSlot : kNoSlot);
+    s_chip_slot_state.set_int(i, role == helix::LoadedRole::Swap ? kSwapSlot
+                                 : loaded.known                  ? kLoadedSlot
+                                                                 : kUnknownSlot);
     s_chip_severity.set_int(i, static_cast<int>(helix::loaded_severity(tool, loaded, role)));
 }
 
@@ -491,7 +492,6 @@ void FilamentMappingCard::publish_chips() {
     const bool overflow = tool_count > capacity;
     const size_t visible = overflow ? capacity - 1 : tool_count;
 
-    lv_subject_set_int(&s_loaded_mode, shows_loaded_ ? 1 : 0);
     if (shows_loaded_) {
         const std::optional<helix::SlotInfo> spool = AmsState::instance().get_external_spool_info();
         const helix::LoadedFilament loaded = loaded_filament_from(spool);

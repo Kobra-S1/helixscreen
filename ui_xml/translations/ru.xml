@@ -3598,7 +3598,6 @@
   <translation tag="Suppress periodic temperature status lines" ru="Скрывать периодические строки статуса температуры"/>
   <translation tag="Suppress raw debug output from printer firmware modules" ru="Скрывать отладочный вывод модулей прошивки принтера"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." ru="Поверхности наследуют токены фона приложения для светлого и тёмного режимов."/>
-  <translation tag="Swap" ru="Смена"/>
   <translation tag="Swap to another slot automatically when one runs out" ru="Автоматически переключаться на другой слот, когда в одном кончился пруток"/>
   <translation tag="Sweep" ru="Свип"/>
   <translation tag="Switch Printer" ru="Переключить принтер"/>

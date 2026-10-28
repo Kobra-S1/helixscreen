@@ -3876,7 +3876,6 @@ translations:
     Drucker-Firmware-Modulen unterdrücken
   Surfaces inherit app background tokens for light and dark modes.: Oberflächen erben
     App-Hintergrund-Tokens für Hell- und Dunkelmodus.
-  Swap: 'Wechsel'
   Swap to another slot automatically when one runs out: 'Bei Filamentende automatisch zu einem anderen Slot wechseln'
   Sweep: Sweep
   Switch Printer: Drucker wechseln

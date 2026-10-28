@@ -3538,7 +3538,6 @@
   <translation tag="Suppress periodic temperature status lines" pt="Suprimir linhas de status periódicas de temperatura"/>
   <translation tag="Suppress raw debug output from printer firmware modules" pt="Suprimir saída bruta de depuração dos módulos de firmware da impressora"/>
   <translation tag="Surfaces inherit app background tokens for light and dark modes." pt="Superfícies herdam tokens de fundo do aplicativo para modos claro e escuro."/>
-  <translation tag="Swap" pt="Troca"/>
   <translation tag="Swap to another slot automatically when one runs out" pt="Trocar automaticamente para outro slot quando um acabar"/>
   <translation tag="Sweep" pt="Varredura"/>
   <translation tag="Switch Printer" pt="Trocar Impressora"/>
