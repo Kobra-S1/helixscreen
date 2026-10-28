@@ -223,7 +223,8 @@ json get_mock_probe_config(helix::mock::PrinterType type) {
     if (probe_type == "cartographer") {
         cfg["cartographer"] = {{"z_offset", "0.000"}, {"speed", "5"}};
     } else if (probe_type == "beacon") {
-        cfg["beacon"] = {{"z_offset", "0.000"}, {"speed", "5"}};
+        // accel_axes_map is what a Beacon with its onboard accelerometer configures.
+        cfg["beacon"] = {{"z_offset", "0.000"}, {"speed", "5"}, {"accel_axes_map", "x,y,z"}};
     } else if (probe_type == "bltouch") {
         cfg["bltouch"] = {
             {"z_offset", "-1.850"}, {"x_offset", "-40.0"}, {"y_offset", "-10.0"}, {"speed", "5"}};

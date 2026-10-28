@@ -22,6 +22,7 @@
 
 #include "../../src/api/moonraker_client_mock_internal.h"
 #include "../lvgl_test_fixture.h"
+#include "accel_sensor_manager.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "probe_sensor_manager.h"
@@ -330,4 +331,69 @@ TEST_CASE_METHOD(MockProbeDiscoveryFixture, "Mock objects list carries each prob
     SECTION("none lists no probe object") {
         REQUIRE(probe_count("none") == 0);
     }
+}
+
+// ============================================================================
+// 4. A configfile-only accelerometer reaches AccelSensorManager
+// ============================================================================
+
+namespace {
+
+/// Accelerometers have no get_status(), so they exist only once configfile.config
+/// has been parsed, after the hardware-discovered pass. This wires what
+/// init_subsystems_from_hardware() does for sensors; the sequence itself queues
+/// rediscover_from_config() when the configfile arrives.
+void wire_app_sensor_discovery(MoonrakerClientMock& client) {
+    client.set_on_hardware_discovered([](const helix::PrinterDiscovery& hardware) {
+        helix::ui::queue_update([hw = hardware]() {
+            for (auto* manager : helix::sensors::sensor_managers()) {
+                manager->discover(hw);
+                manager->load_settings();
+            }
+        });
+    });
+}
+
+std::set<std::string> accel_names() {
+    std::set<std::string> names;
+    for (const auto& entry : AccelSensorManager::instance().entries()) {
+        names.insert(entry.klipper_name);
+    }
+    return names;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(MockProbeDiscoveryFixture,
+                 "Discovery sequence puts a configfile-only accelerometer in AccelSensorManager",
+                 "[mock][accel][discovery]") {
+    ScopedProbeType probe_type("none");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    wire_app_sensor_discovery(client);
+
+    bool discovered = false;
+    client.discover_printer([&discovered]() { discovered = true; }, nullptr);
+    REQUIRE(discovered);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(accel_names().count("adxl345") == 1);
+    AccelSensorManager::instance().discover(PrinterDiscovery{});
+}
+
+TEST_CASE_METHOD(MockProbeDiscoveryFixture,
+                 "Discovery sequence puts the Beacon onboard accelerometer in AccelSensorManager",
+                 "[mock][accel][probe][discovery]") {
+    ScopedProbeType probe_type("beacon");
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    wire_app_sensor_discovery(client);
+
+    bool discovered = false;
+    client.discover_printer([&discovered]() { discovered = true; }, nullptr);
+    REQUIRE(discovered);
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto names = accel_names();
+    CHECK(names.count("adxl345") == 1);
+    CHECK(names.count("beacon") == 1);
+    AccelSensorManager::instance().discover(PrinterDiscovery{});
 }

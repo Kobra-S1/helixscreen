@@ -6,7 +6,6 @@
 #include "ui_temperature_utils.h"
 #include "ui_update_queue.h"
 
-#include "accel_sensor_manager.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
@@ -16,7 +15,6 @@
 #include "display_backend.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
-#include "filament_sensor_manager.h"
 #include "helix_thread.h"
 #include "host_identity.h"
 #include "hv/requests.h"
@@ -24,7 +22,6 @@
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
-#include "load_cell_manager.h"
 #include "moonraker_types.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
@@ -34,13 +31,13 @@
 #include "random_bytes.h"
 #include "screen_locality.h"
 #include "screensaver_registry.h"
+#include "sensor_manager.h"
 #include "system/crash_handler.h"
 #include "system/crash_history.h"
 #include "system/ingest_client.h"
 #include "system/sha256_util.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
-#include "temperature_sensor_manager.h"
 #include "text_io.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
@@ -60,6 +57,7 @@
 #include <iomanip>
 #include <random>
 #include <sstream>
+#include <string_view>
 #include <sys/utsname.h>
 #include <unistd.h>
 
@@ -1890,11 +1888,20 @@ nlohmann::json TelemetryManager::build_hw_fans_section(const helix::PrinterDisco
 
 nlohmann::json TelemetryManager::build_hw_sensors_section(const helix::PrinterDiscovery& hw) {
     json sensors;
-    sensors["filament"] = static_cast<int>(FilamentSensorManager::instance().sensor_count());
-    sensors["load_cell"] = static_cast<int>(sensors::LoadCellManager::instance().sensor_count());
-    sensors["temperature_extra"] =
-        static_cast<int>(sensors::TemperatureSensorManager::instance().sensor_count());
-    sensors["accel"] = static_cast<int>(sensors::AccelSensorManager::instance().sensor_count());
+    // Counts come from the registry, keyed by manager name.
+    auto count_of = [](std::string_view manager) {
+        for (const auto* m : helix::sensors::sensor_managers()) {
+            // VENDOR_OK: compares a sensor manager's registry name, not a machine name
+            if (std::string_view(m->name()) == manager) {
+                return static_cast<int>(m->sensor_count());
+            }
+        }
+        return 0;
+    };
+    sensors["filament"] = count_of("FilamentSensorManager");
+    sensors["load_cell"] = count_of("LoadCellManager");
+    sensors["temperature_extra"] = count_of("TemperatureSensorManager");
+    sensors["accel"] = count_of("AccelSensorManager");
 
     // Name-level data for printer detection analysis
     constexpr size_t cap = 200;

@@ -66,7 +66,7 @@
 #include "printer_image_manager.h"
 #include "printer_state.h"
 #include "runtime_config.h"
-#include "sensor_managers.h"
+#include "sensor_manager.h"
 #include "settings_manager.h"
 #include "spoolman_manager.h"
 #include "standard_macros.h"
@@ -233,7 +233,6 @@ void SubjectInitializer::init_ams_subjects() {
     for (auto* m : helix::sensors::sensor_managers()) {
         m->init_subjects();
     }
-    helix::sensors::for_each_sensor_manager([](auto& m) { m.init_subjects(); });
 
     // The clog meter falls back to a filament motion sensor, whose subjects
     // exist only from here.
