@@ -102,6 +102,7 @@ MoonrakerClient::MoonrakerClient(EventLoopPtr loop)
       reconnect_min_delay_ms_(200) // Default 200ms
       ,
       reconnect_max_delay_ms_(2000) { // Default 2 seconds
+    upgrade_request_ = std::make_shared<HttpRequest>();
     setHttpRequest(upgrade_request_);
     helix::moonraker_auth::install_http_request_hook();
 }
