@@ -5,6 +5,79 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-beta.14] - 2026-10-28
+
+The fourteenth beta of 1.1, and the first after the 1.1 feature freeze, so most of it is fixes. Stop during a print's preparation now cancels a start the printer has already accepted instead of letting it go on to print, the AD5X IFS unloads the lane that is really loaded, a K2 without a CFS is treated as the single-spool printer it is, and the Android app shows https cameras. The fit check reads the nozzle each Snapmaker U1 head really has and judges only the tools a file uses. The last features before the freeze arrive with it: a Toolhead widget you can move the toolhead from, moves that lift clear of a print still on the bed, filament chips on the file screen that change a tool's slot in place, warnings for an open door and for files that mix high- and low-temperature materials, QIDI's full M604 load wizard, and Creator 5 calibrations and chamber air modes on Z-Mod.
+
+**Upgrading from beta.13?**
+
+- **Nothing on the Motion screen homes by itself any more:** the Move tab's positions, Park, the coordinates and the Bed tab stay disabled until the printer is homed, and only a Home button homes it.
+- **Screen Sharing has its own page, and is set per printer:** Share Screen, Allow Remote Control and pairing moved from the Connection page to **Settings > Connection > Screen Sharing**. Sharing now belongs to the printer you turn it on for: if it was on, it stays on for the printer you were connected to and is off for your other printers. A new **Add to Mainsail/Fluidd Webcams** switch there decides whether a shared screen is listed as a **HelixScreen Screen** webcam; turn it off to share the screen in a browser without the webcam entry.
+- **MedusaHC follows the upstream Irbis3D controller:** swaps always use your machine's own `T<n>` and `DROP_TOOL`, with or without klipper-toolchanger, and tool mapping rewrites the file. If your printer still runs the abandoned community fork of the MedusaHC module, move to Irbis3D's controller: a MedusaHC is now recognized only when the controller's `pin_watch` is present.
+- **Update channel edits in Mainsail or Fluidd stick:** changing HelixScreen's channel in `moonraker.conf` by hand now switches the screen's channel too, instead of being written back.
+
+### Added
+
+- **A Toolhead widget you can move the toolhead from** - X, Y and Z, shown as `--` until each axis is homed, with a plate view and a crosshair for the nozzle. Once the printer is homed and idle, tap the plate to pick a spot and confirm with Move here, or drag to move the toolhead live, like the Motion screen's Bed tab; while it can move, a hold or drag on the plate never enters edit mode or swipes the page. A 2x3 tile adds three preset buttons (Front, Center and Park by default; any Move-tab position, Park, Z +10, Z -10 or a macro, set from the gear in edit mode). A tap anywhere else opens Motion. Not available on the K-Touch.
+- **Moves lift clear of a print left on the bed** - after a print ends (finished, canceled or stopped with an error, from any app), moves across the plate, the Move tab's positions and Park lift above its height plus the Bed Map Clearance, and the readout says why ("will lift to 77.6mm: last print is 72.6mm tall"). The print's objects are outlined on the plate, and a Cleared button ends it once you confirm the bed is clear; the next print ends it too. A part too tall to clear refuses the move with a notice. It survives a restart and is kept per printer.
+- **Filament chips you can change in place** - the FILAMENTS card on the print file screen shows one chip per tool the print uses: the file's material on its color, over the spool and lane number that will feed it. The outline says whether the pairing is a problem: grey when it matches, amber when only the color differs, red when the tool has no slot, its slot is empty or the material differs. Tap a chip for a list of Auto and every slot, best match first, each with a reason, and "More options..." for the full Filament Mapping dialog. On a printer with no filament system the card compares the file with the loaded spool, with a swap icon on each later filament change.
+- **Door-open warning** - on a printer with a door or lid switch, Start Print warns with **Start Anyway** when a door is open and the print uses a material that needs a warm enclosure (ABS, ASA, PC, nylon), and a door opened mid-print on such a print shows a notice once. PLA, PETG and unknown materials never warn. A new Inputs section in Settings > Devices > Sensors shows every switch input, marks which are doors, and turns the check off.
+- **Mixed-temperature warning** - a file that pairs a material needing a heated enclosure with one that cannot share its nozzle temperature, such as PLA with ABS, gets a **Mixed-Temperature Materials** warning before it starts, saying whether the two share one nozzle or one chamber and bed.
+- **3MF plates by name** - the plate stepper shows the name you gave each plate in the slicer, with its position beside it, and the plate printed is always the plate shown.
+- **QIDI M604 loads finish on the screen** - on the Q2 and Max 4 (firmware 01.01.02.x), a load from HelixScreen now runs the whole stock wizard: push the filament in, Extrude more or Done, then the nozzle cools and the filament sensor is turned back on. A load used to stop after the first step with a hot nozzle and ungripped filament. With a QIDI Box, box slots load and unload the way the stock screen does them.
+- **Creator 5 on Z-Mod: calibrations and chamber air** - Tool Offsets runs Z-Mod's own offset calibration prompt, a new **Vertical Artifact Compensation** row under Advanced tunes the X and Y motors with a head you pick (also on FlashForge's stock motor resonance tester), and Fan Control gains a **Chamber air** row for Recirculate, Exhaust and Off.
+- **MedusaHC** - tool offsets edit X, Y and Z, and a change to the mounted tool applies right away; a **Clean nozzle** action under Maintenance runs the printer's `CLEAN` macro; a failed swap names the tool it was going to, and Resume after a failed swap waits for that tool to heat above 190°C.
+- **OrcaSlicer 2.5 picks the exact filament preset** - lane records now carry the filament's OrcaSlicer id when exactly one catalog product has it, so OrcaSlicer 2.5 selects that product's preset instead of a generic one. Earlier OrcaSlicer versions match by material type, as before.
+- **Notification History without the bell** - with no Notifications widget on any home page, **Advanced > Notification History** opens notification history and Printer Events.
+
+### Changed
+
+- **Large previews on slow boards** - in Auto, a file whose 3D preview would cost too much CPU shows its thumbnail instead, judged from how fast this board read earlier files, with a lower limit while a print runs. Preview work runs at the lowest priority so it yields to the screen and to Klipper, arc-fitted files parse faster, and a layer bigger than the preview cache no longer re-parses on every frame, which stalled the Centauri Carbon for most of a second at a time.
+- **Settings > Sensors** - every kind of sensor uses the same row, with one switch size. Chamber and dryer humidity chips, and board thermistors such as an extruder board's, now appear, and a probe you set to no role keeps it.
+- **Run Macro dialog** - fields sit in columns on wider screens, and the dialog sizes to its content.
+- **Tool changes say "Switching to"** - the toast appears when the change is accepted, so a swap that then fails no longer reports success first.
+- **Bed Map Clearance** - its description now reads "Plate moves and presets lift to this height first", since it governs the Toolhead widget and the Move tab too.
+
+### Fixed
+
+**Printing**
+
+- **Stop during preparing** (#1890) - on printers that run their start sequence inside the print command, Stop while homing, heating or probing only stopped the screen's tracking, and the print went on to start. Stop now cancels on the printer, waiting for the start to be accepted if it is still on its way, and the job stays in preparing until the printer confirms. A reprint or upload withdrawn during the transfer never starts.
+- **Fit check on the Snapmaker U1** (#1925, #1926) - it read the 0.4 mm the config lists for every head, so a correct job for a 0.6 mm head was warned about and a 0.4 mm job sent to a 0.2 mm head passed. It now reads the size and type each head reports, and judges only the tools the file prints with. A file sliced for the other nozzle type (High Flow or standard) gets a warning with **Start Anyway**, either way round.
+- **The layer count no longer jumps on every travel move** - on printers whose slicer does not report layers, the current layer is worked out from the nozzle height, and each Z-hop bumped it up a few layers and back. A new layer now shows once the nozzle has stayed at that height for a moment.
+- **Two start warnings at once** - the second dialog opened behind the first; it now waits for the first to close.
+- **The file's material** - the file details named the material of the slicer's first filament even when the print used another tool.
+
+**Filament systems**
+
+- **AD5X IFS unload** (#1897) - on the standalone IFS module, Unload could target a remembered lane instead of the one the module reports loaded. It now follows the module, and unloading an unlabeled loaded lane heats to a usable temperature instead of being refused on a cold nozzle.
+- **K2 without a CFS** (#1904) - with no CFS attached, the K2 is a single-spool printer: the filament system screens, slot widgets and bypass controls stay out of the way, Load and Unload run the K2's own external-spool load and its cut and retract, and the pre-print checks no longer ask you to turn off a bypass it cannot switch. Its toolhead filament sensor is back in Settings > Sensors, the sensor setup wizard and the clog meter.
+- **Filament mapping on two filament systems** - picking a slot on the second system remapped the same-numbered slot on the first.
+- **Mapping checks judge the lane that prints** - OpenAMS and ACE are judged on the lane each tool really loads from, an Auto pick is judged on its routed lane instead of reading as unmapped, and printers whose firmware picks lanes at print time (Z-Mod) no longer claim one.
+- **Snapmaker U1 multi-head load and unload** - the sidebar shows the run's own steps instead of reading an unload as a tool swap, follows the head being worked on, and no longer stays busy for 10 minutes when the firmware never reports.
+- **Cancel only where it works** - QIDI Box, Snapmaker U1 and Multi-ACE no longer offer a Cancel or Abort that does nothing. Elsewhere the status line has a Cancel while an operation runs.
+- **MedusaHC** - a load waiting for you to act gave up after about 19 seconds instead of 3 minutes. A run ends cleanly when Klipper restarts or the connection drops, and stops before a print starts; a print cannot start while one runs. Swaps are refused while a dock sensor fault stands, and the dock sensors, not the tool number, say which tool is on the carriage.
+- **Slot picker width** - the picker sizes to its rows instead of a fixed 480px, so short choices no longer leave it half empty and long lane names are no longer cut off with room to spare.
+- **Tool changers without klipper-toolchanger** no longer get a missing-hardware warning on every start, and a CFS clog meter reads "Buffer" instead of "AFC buffer".
+
+**Screen and devices**
+
+- **Printers whose Moonraker requires a login** - with `force_logins` on, Moonraker refuses every request that carries no credential, so the screen showed nothing (seen on a Snapmaker U1). The `moonraker_api_key` setting is now sent, to the configured printer only, including on the K-Touch.
+- **Hotend fan on the K2** - the hotend fan now shows in Fan Control, without a dial: it runs with the heater and is never commanded from the screen.
+- **Missing filament sensors** - a configured filament sensor that disappears from the printer is flagged by the hardware check again.
+- **Thermistor carousel** - a carousel placed before the printer's sensors were found stayed empty.
+- **Screen Sharing after a printer switch** - the Share Screen and Allow Remote Control rows and the pairing code no longer vanish, and the remote-control indicator keeps tracking.
+- **Centauri Carbon with RustiCC** - HelixScreen recognizes RustiCC's printer services and runs at a lower priority beside them, as it does beside Klipper.
+- **More crash reports** - a crash on an illegal instruction, a trap or a bad system call now leaves a crash report, and a crash the app could not record itself is recorded by the watchdog.
+
+**Updates and installing**
+
+- **K2 self-update on a full system partition** - an update no longer refuses over a read-only or full `/etc/init.d` it does not need to write, the boot script is replaced safely or kept, and boot links that already work are left alone, so a full partition cannot leave the printer without autostart.
+
+**Android**
+
+- **https cameras** (#1891) - cameras on an https address now show, a camera whose pictures keep failing says so instead of spinning on Connecting Camera, and the Spoolman QR scanner shows camera errors.
+
 ## [1.1.0-beta.13] - 2026-10-25
 
 The thirteenth beta of 1.1. The headline is Glass Effects, an optional lit, glassy finish for buttons, cards and controls on screens fast enough to draw it. Prints that end or pause on an error now say why, and finding a printer gets easier: the connection screens sweep your local network for Moonraker, fall back to port 80, and test an address without dropping the printer you are connected to. Print Status follows up on beta.12 with a speed chip that reads the live toolhead speed and flow, a camera button in the preview card on remote screens, and a picture that holds still while fans spin up. MedusaHC tool changers gain a purge length setting and explain failed tool changes, AFC faults during a paused print open their recovery dialog, and the K-Touch catches fast taps on its keyboard.
@@ -9982,6 +10055,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.0-beta.14]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.13...v1.1.0-beta.14
 [1.1.0-beta.13]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.12...v1.1.0-beta.13
 [1.1.0-beta.12]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.11...v1.1.0-beta.12
 [1.1.0-beta.11]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.10...v1.1.0-beta.11
