@@ -11,13 +11,17 @@
 #include "../test_helpers/ace_backend_test_helper.h"
 #include "../test_helpers/ace_test_access.h"
 #include "ams_backend_ace.h"
+#include "ams_state.h"
 #include "ams_types.h"
 #include "display_numbering.h"
 #include "fake_moonraker_client.h"
+#include "filament_chip_model.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "lvgl_ui_test_fixture.h"
+#include "print_start_inputs.h"
 #include "printer_discovery.h"
+#include "test_helpers/registered_backend.h"
 #include "ui/ams_drawing_utils.h"
 
 #include <algorithm>
@@ -1001,4 +1005,42 @@ TEST_CASE_METHOD(LVGLTestFixture, "ACE restart onto the REST bridge keeps one un
     helper.captured_gcodes.clear();
     REQUIRE(helper.load_filament(1).success());
     CHECK(helper.captured_gcodes.back() == "ACE_CHANGE_TOOL TOOL=1");
+}
+
+// T<n> on ACEPRO loads the slot the driver numbers tool n, so a print with no
+// remap is judged on that slot even when another slot is loaded.
+TEST_CASE_METHOD(LVGLTestFixture, "ACE judges a tool on the slot the ACEPRO driver numbers it",
+                 "[ams][ace][multiunit][filament_mapping][preflight]") {
+    helix::test::FakeMoonrakerClient client;
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> helper(&client);
+    start_units(*helper, client, 1, -1, 1, [](json& status) {
+        json& slots = status["ace_instance_0"]["slots"];
+        slots[0]["tool"] = 2;
+        slots[2]["tool"] = 0;
+        slots[2]["status"] = "empty";
+    });
+    REQUIRE(helper->get_slot_info(0).is_present());
+    REQUIRE_FALSE(helper->get_slot_info(2).is_present());
+    REQUIRE(helper->firmware_default_routing().head(0) == 2);
+    CHECK(helper->firmware_default_routing().head(2) == 0);
+
+    helix::GcodeToolInfo t0{};
+    t0.tool_index = 0;
+    t0.color_known = false;
+    auto& ams = helix::AmsState::instance();
+    const auto slots = ams.collect_available_slots();
+    const auto seed = ams.seed_tool_mappings({t0}, slots);
+    REQUIRE(seed.size() == 1);
+    CHECK(seed[0].mapped_slot == 2);
+
+    const auto* printing = helix::FilamentMapper::resolve_printing_slot(
+        seed[0], slots, ams.collect_firmware_routing());
+    REQUIRE(printing != nullptr);
+    CHECK(printing->slot_index == 2);
+    CHECK(helix::chip_severity(t0, printing) == helix::ChipSeverity::Block);
+
+    const auto preflight = helix::file_preflight({t0}, seed);
+    REQUIRE(preflight.checks.size() == 1);
+    CHECK(preflight.checks[0].severity == helix::ToolCheck::Severity::EmptySlot);
+    CHECK(preflight.has_block());
 }

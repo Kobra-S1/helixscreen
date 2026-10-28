@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <utility>
 #include <vector>
 
 namespace helix {
@@ -11,10 +12,11 @@ namespace helix {
  * This is the firmware's own DEFAULT map: what it routes a print by when
  * nothing remaps it for that print. Three AMS shapes exist and they disagree:
  *
- *   - lane-per-tool (AFC, Happy Hare, klipper-toolchanger, CFS, QIDI, ACE):
- *     tool N owns lane N unless the user remapped it on the printer. An AFC,
- *     Happy Hare or CFS remap is a standing table the firmware routes by, so
- *     that table is the default (AmsBackend::firmware_default_routing()).
+ *   - lane-per-tool (AFC, Happy Hare, klipper-toolchanger, CFS, QIDI, ACE,
+ *     OpenAMS): tool N owns lane N unless a standing table on the printer says
+ *     otherwise. An AFC, Happy Hare or CFS remap, an OpenAMS group's serving
+ *     slot and an ACEPRO slot's tool number are tables the firmware routes by,
+ *     so that table is the default (AmsBackend::firmware_default_routing()).
  *   - fixed-head (Snapmaker U1): four physical heads and up to 32 logical
  *     tools, so the table is [0,1,2,3,0,0,...] - measured live on a U1.
  *   - table-driven (FlashForge AD5X IFS): an arbitrary 16-entry tool->port map
@@ -57,6 +59,18 @@ struct FirmwareRouting {
     /// Lane-per-tool: tool N owns lane N, with no upper bound.
     [[nodiscard]] static FirmwareRouting identity() {
         return {};
+    }
+
+    /// A standing tool -> head table: @p table where it names any tool, tools
+    /// past its end unmapped; identity where it is empty.
+    [[nodiscard]] static FirmwareRouting from_table(std::vector<int> table) {
+        if (table.empty()) {
+            return identity();
+        }
+        FirmwareRouting routing;
+        routing.head_for_tool = std::move(table);
+        routing.fallback_head = -1;
+        return routing;
     }
 
     /// Fixed-head machine: heads 0..@p head_count-1, everything beyond on

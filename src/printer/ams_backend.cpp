@@ -1089,13 +1089,8 @@ helix::FirmwareRouting AmsBackend::firmware_default_routing() const {
     if (!firmware_reported_tool_mapping() || get_remap_strategy() != RemapStrategy::Native) {
         return helix::FirmwareRouting::identity();
     }
-    helix::FirmwareRouting routing;
-    routing.head_for_tool = get_tool_mapping();
-    if (routing.head_for_tool.empty()) {
-        return helix::FirmwareRouting::identity();
-    }
-    routing.fallback_head = -1; // a tool no lane is mapped to has nowhere to run
-    return routing;
+    // A tool no lane is mapped to has nowhere to run.
+    return helix::FirmwareRouting::from_table(get_tool_mapping());
 }
 
 helix::printer::ToolMappingOrigin AmsBackend::tool_mapping_origin() const {

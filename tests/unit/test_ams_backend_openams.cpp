@@ -11,8 +11,10 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "ams_backend_openams.h"
 #include "ams_error.h"
+#include "ams_state.h"
 #include "ams_types.h"
 #include "buffer_reading.h"
+#include "filament_chip_model.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_slot_override.h"
@@ -20,6 +22,7 @@
 #include "lvgl_ui_test_fixture.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "print_start_inputs.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "test_helpers/openams_test_access.h"
@@ -1801,4 +1804,34 @@ TEST_CASE_METHOD(HelixTestFixture, "OpenAMS tool change loads the slot serving t
         REQUIRE(backend.change_tool(0).success());
         CHECK(backend.operations == std::vector<std::string>{"OPENAMS_LOAD GROUP=T0 SLOT=2"});
     }
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "OpenAMS judges a tool on the slot serving its group",
+                 "[ams][openams][mapping][filament_mapping][preflight]") {
+    // manager(): T0 owns bays 0 and 1, bay 0 empty, so bay 1 serves T0.
+    helix::test::RegisteredBackend<OpenAmsHarness> backend;
+    backend->feed(manager());
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(backend->get_remap_strategy() == helix::AmsBackend::RemapStrategy::None);
+    REQUIRE(backend->firmware_default_routing().head(0) == 1);
+
+    helix::GcodeToolInfo t0{};
+    t0.tool_index = 0;
+    t0.color_known = false;
+    auto& ams = helix::AmsState::instance();
+    const auto slots = ams.collect_available_slots();
+    const auto seed = ams.seed_tool_mappings({t0}, slots);
+    REQUIRE(seed.size() == 1);
+    CHECK(seed[0].mapped_slot == 1);
+
+    const auto* printing = helix::FilamentMapper::resolve_printing_slot(
+        seed[0], slots, ams.collect_firmware_routing());
+    REQUIRE(printing != nullptr);
+    CHECK(printing->slot_index == 1);
+    CHECK(helix::chip_severity(t0, printing) != helix::ChipSeverity::Block);
+
+    const auto preflight = helix::file_preflight({t0}, seed);
+    REQUIRE(preflight.checks.size() == 1);
+    CHECK(preflight.checks[0].severity != helix::ToolCheck::Severity::EmptySlot);
+    CHECK_FALSE(preflight.has_block());
 }
