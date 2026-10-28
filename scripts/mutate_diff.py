@@ -469,6 +469,60 @@ def auto_tests_filter(path, test_sources):
     return ','.join(f'[#{name}]~[.]~[slow]' for name in sorted(hits))
 
 
+def suite_paths(spec):
+    """The paths a --shell-tests / --python-tests value names (comma-separated)."""
+    return [p for p in (x.strip() for x in (spec or '').split(',')) if p]
+
+
+def _script_test_sources(root, sub, pattern):
+    """{repo-relative path: text} for one script suite's test files."""
+    out = {}
+    for f in sorted((root / sub).glob(pattern)):
+        try:
+            out[f'{sub}/{f.name}'] = f.read_text(errors='replace')
+        except OSError:
+            continue
+    return out
+
+
+def auto_script_tests(path, sources):
+    """The test files naming a script, as a sorted list, or [] for none.
+
+    A script is named by its file name (`phase2.sh`, `mutate_diff.py`); a Python
+    module also by its import stem (`mutate_diff`). Matched as a whole word, so
+    `jobs.sh` does not find `myjobs.sh`. An import stem more than
+    AUTO_TESTS_MAX_FILES files name is a common word and is ignored; a file name
+    is never too common.
+    """
+    name = path.rsplit('/', 1)[-1]
+    stem = name.rsplit('.', 1)[0]
+    edge = r'A-Za-z0-9_.\-'
+
+    def naming(word):
+        r = re.compile(rf'(?<![{edge}]){re.escape(word)}(?![{edge}])')
+        return {f for f, text in sources.items() if r.search(text)}
+
+    # The file name, extension included, names that script and nothing else, so
+    # every file using it is its test however many there are.
+    hits = naming(name)
+    if name.endswith('.py') and len(stem) >= 4:
+        by_stem = naming(stem)
+        if len(by_stem) <= AUTO_TESTS_MAX_FILES:
+            hits |= by_stem
+    return sorted(hits)
+
+
+def script_tests_for(path, auto, shell_sources, python_sources, shell_default, python_default):
+    """(shell spec, python spec, why) for a script. An empty spec skips that suite;
+    a script no test file names keeps both whole suites."""
+    if auto:
+        bats = auto_script_tests(path, shell_sources)
+        pys = auto_script_tests(path, python_sources)
+        if bats or pys:
+            return ','.join(bats), ','.join(pys), 'test files naming it'
+    return shell_default, python_default, 'the whole bats and pytest suites'
+
+
 def filter_for(path, tests_for, auto, test_sources, default):
     """(filter, why) for one changed file."""
     for glob, filt in tests_for:
@@ -489,6 +543,13 @@ def group_by_filter(paths, filter_of):
         if path not in groups[filter_of[path]]:
             groups[filter_of[path]].append(path)
     return list(groups.items())
+
+
+def describe_key(key):
+    """One line naming what a group runs: its Catch2 filter and script test files."""
+    filt, shell, python = key
+    scripts = ' + '.join(x for x in (shell, python) if x)
+    return f'{filt} | {scripts}' if scripts else filt
 
 
 def combine_exits(codes):
@@ -1875,14 +1936,20 @@ class Suites:
             # ensure_catch2_binary() makes it for any hunk that finds it absent.
             return ''
         if name == 'bats':
+            if not suite_paths(self.args.shell_tests):
+                return ''                     # this group has no bats file to run
             if not shutil.which('bats'):
                 return 'bats is not installed'
-            return '' if (self.root / self.args.shell_tests).exists() else f'no {self.args.shell_tests}'
+            gone = [t for t in suite_paths(self.args.shell_tests) if not (self.root / t).exists()]
+            return f'no {gone[0]}' if gone else ''
         if name == 'pytest':
+            if not suite_paths(self.args.python_tests):
+                return ''
             gap = self._pytest_gap_reason()
             if gap:
                 return gap
-            return '' if (self.root / self.args.python_tests).exists() else f'no {self.args.python_tests}'
+            gone = [t for t in suite_paths(self.args.python_tests) if not (self.root / t).exists()]
+            return f'no {gone[0]}' if gone else ''
         return f'unknown suite {name}'
 
     def _pytest_gap_reason(self):
@@ -1987,6 +2054,10 @@ class Suites:
                               self.catch2, self.log, scale=scale)
         limit = self.timeouts.get(name)
         timeout = None if limit is None else limit * scale
+        if name in ('bats', 'pytest') and not suite_paths(
+                self.args.shell_tests if name == 'bats' else self.args.python_tests):
+            # Nothing of this suite names the file: the group's other suite judges it.
+            return GREEN, '', ''
         if name == 'bats':
             cmd = ['bats']
             extra = []
@@ -1997,7 +2068,7 @@ class Suites:
                 # bats refuses --no-parallelize-within-files below --jobs 2.
                 if extra:
                     cmd += ['--jobs', str(1 + len(extra)), '--no-parallelize-within-files']
-            cmd.append(self.args.shell_tests)
+            cmd += suite_paths(self.args.shell_tests)
             try:
                 state, why = self._run_group(cmd, name, 'the bats suite', timeout)
             finally:
@@ -2006,7 +2077,7 @@ class Suites:
             return state, why, f'{name} ({timeout:.0f}s)' if why == TIMED_OUT else ''
         if name == 'pytest':
             state, why = self._run_group(
-                [self.python, '-m', 'pytest', self.args.python_tests, '-q', '-x'],
+                [self.python, '-m', 'pytest', *suite_paths(self.args.python_tests), '-q', '-x'],
                 name, 'pytest', timeout)
             return state, why, f'{name} ({timeout:.0f}s)' if why == TIMED_OUT else ''
         raise AssertionError(name)
@@ -2900,12 +2971,36 @@ def main():
     log_holder.append(log)
     suites = Suites(root, args, log)
 
+    # What judges each file: (Catch2 filter, bats files, pytest files).
+    auto = not args.no_auto_tests
+    sources = _test_sources(root) if auto else {}
+    shell_sources = _script_test_sources(root, 'tests/shell', '*.bats') if auto else {}
+    python_sources = _script_test_sources(root, 'tests/python', 'test_*.py') if auto else {}
+    # Each file's key is (Catch2 filter, bats files, pytest files): what judges it.
+    key_of, why_of = {}, {}
+    for h in mutable:
+        path = h['file']
+        if path in key_of:
+            continue
+        if 'catch2' in STRATEGIES[verdict_of[path][1]]['suites']:
+            filt, why_of[path] = filter_for(path, tests_for, auto, sources, args.tests)
+            key_of[path] = (filt, args.shell_tests, args.python_tests)
+        else:
+            shell, python, why_of[path] = script_tests_for(
+                path, auto, shell_sources, python_sources,
+                args.shell_tests, args.python_tests)
+            key_of[path] = (args.tests, shell, python)
+
     # A strategy whose suite is not installed here cannot judge its hunks. Move
     # them to not-covered rather than letting an unrunnable suite read green.
+    # Asked of each file's own selection, which may not need every suite.
     needed, unrunnable = set(), []
     for h in list(mutable):
         strategy = verdict_of[h['file']][1]
-        gaps = [(s, suites.missing(s)) for s in STRATEGIES[strategy]['suites']]
+        probe = copy.copy(suites)
+        probe.args = copy.copy(args)
+        probe.args.tests, probe.args.shell_tests, probe.args.python_tests = key_of[h['file']]
+        gaps = [(s, probe.missing(s)) for s in STRATEGIES[strategy]['suites']]
         gaps = [(s, why) for s, why in gaps if why]
         if gaps:
             unrunnable.append((f"{h['file']}:{h['line']}", gaps[0][1]))
@@ -2947,39 +3042,21 @@ def main():
 
     # ---- per-file filters: one child run per filter --------------------
     if not args.group_child:
-        sources = {} if args.no_auto_tests else _test_sources(root)
-        filter_of, why_of, catch2_free = {}, {}, []
-        for h in mutable:
-            path = h['file']
-            if path in filter_of or path in catch2_free:
-                continue
-            if 'catch2' not in STRATEGIES[verdict_of[path][1]]['suites']:
-                catch2_free.append(path)      # bats and pytest judge it; no filter applies
-                continue
-            filter_of[path], why_of[path] = filter_for(
-                path, tests_for, not args.no_auto_tests, sources, args.tests)
-        groups = group_by_filter([h['file'] for h in mutable if h['file'] in filter_of],
-                                 filter_of)
-        if catch2_free:
-            # They ignore the filter, so they ride with the first group rather than
-            # paying for a child run of their own.
-            if groups:
-                groups[0] = (groups[0][0], groups[0][1] + catch2_free)
-            else:
-                groups = [(args.tests, catch2_free)]
+        groups = group_by_filter([h['file'] for h in mutable], key_of)
         if groups:
             print('\ntests per file:')
-            for filt, paths in groups:
+            for (filt, shell, python), paths in groups:
                 for path in paths:
-                    if path in catch2_free:
-                        print(f'  {path}  bats + pytest')
-                    else:
+                    if 'catch2' in STRATEGIES[verdict_of[path][1]]['suites']:
                         print(f'  {path}  {filt}  ({why_of[path]})')
+                    else:
+                        judged = ' + '.join(x for x in (shell, python) if x) or '-'
+                        print(f'  {path}  {judged}  ({why_of[path]})')
         if len(groups) > 1 and not args.list_only:
             return run_groups(root, guard, args, base, groups, started, incomplete,
                               uncovered, deferred)
         if len(groups) == 1:
-            args.tests = groups[0][0]
+            args.tests, args.shell_tests, args.python_tests = groups[0][0]
 
     def finish_proof(n_killed):
         """Record HEAD as proven when nothing mutatable was left unexamined."""
@@ -3270,15 +3347,14 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
     leaving a file changed has it put back and named here.
     """
     passthrough = ['--jobs', str(args.jobs), '--shards', str(args.shards),
-                   '--workers', str(args.workers), '--timeout', str(args.timeout),
-                   '--shell-tests', args.shell_tests, '--python-tests', args.python_tests]
+                   '--workers', str(args.workers), '--timeout', str(args.timeout)]
     for flag in ('no_skip_comments', 'no_skip_declarations', 'allow_orphan', 'release'):
         if getattr(args, flag):
             passthrough.append('--' + flag.replace('_', '-'))
     if args.worker_dir:
         passthrough += ['--worker-dir', args.worker_dir]
     codes = []
-    for i, (filt, paths) in enumerate(groups, 1):
+    for i, ((filt, shell, python), paths) in enumerate(groups, 1):
         left = args.max_minutes - (time.monotonic() - started) / 60
         if args.max_minutes > 0 and left < 1:
             print(f'\n=== group {i}/{len(groups)} not started: --max-minutes '
@@ -3287,9 +3363,11 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
                 print(f'  UNEXAMINED    {path}')
             codes.append(3)
             continue
-        print(f'\n=== group {i}/{len(groups)}: {filt}  ({len(paths)} file(s)) ===', flush=True)
+        print(f'\n=== group {i}/{len(groups)}: {describe_key((filt, shell, python))}  '
+              f'({len(paths)} file(s)) ===', flush=True)
         cmd = [sys.executable, str(Path(__file__).resolve()), '--group-child', '--no-record',
                '--base', base, '--group-files', '\n'.join(paths), '--tests', filt,
+               '--shell-tests', shell, '--python-tests', python,
                '--max-hunks', '0', '--log', f'{args.log}.g{i}',
                '--max-minutes', f'{left:.2f}' if args.max_minutes > 0 else '0'] + passthrough
         for path in paths:
@@ -3307,8 +3385,8 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
             guard.dirty.discard(path)
         codes.append(p.returncode if p.returncode >= 0 else 128 - p.returncode)
     print('\n' + '=' * 68)
-    for (filt, paths), code in zip(groups, codes):
-        print(f'  exit {code}  {filt}  ({len(paths)} file(s))')
+    for (key, paths), code in zip(groups, codes):
+        print(f'  exit {code}  {describe_key(key)}  ({len(paths)} file(s))')
     if incomplete:
         print(report_incomplete(uncovered, deferred))
     worst = combine_exits(codes + ([3] if incomplete else []))

@@ -1205,3 +1205,95 @@ def test_a_group_child_killed_mid_mutant_has_its_file_put_back(tmp_path):
     assert (work / "src" / "feature.cpp").read_bytes() == before, r.stdout
     assert "RESTORED      src/feature.cpp" in r.stdout
     assert r.returncode == 137, r.stdout
+
+
+# ---------------------------------------------------------------------------
+# Scripts run against the bats and pytest files that name them
+# ---------------------------------------------------------------------------
+def test_suite_paths_splits_a_comma_list_and_drops_blanks():
+    assert md.suite_paths("tests/shell/a.bats, tests/shell/b.bats,") == [
+        "tests/shell/a.bats", "tests/shell/b.bats"]
+    assert md.suite_paths("") == []
+    assert md.suite_paths("tests/shell") == ["tests/shell"]
+
+
+SHELL_SOURCES = {
+    "tests/shell/test_phase2.bats": 'run scripts/qc/phase2.sh\n',
+    "tests/shell/test_jobs.bats": "myjobs.sh and jobs.shx\n",
+    "tests/shell/test_mutate.bats": "python3 scripts/mutate_diff.py --list-only\n",
+}
+PY_SOURCES = {"tests/python/test_mutate_diff.py": "import mutate_diff as md\n"}
+
+
+def test_a_script_is_found_by_its_file_name_as_a_whole_word():
+    assert md.auto_script_tests("scripts/qc/phase2.sh", SHELL_SOURCES) == [
+        "tests/shell/test_phase2.bats"]
+    assert md.auto_script_tests("scripts/jobs.sh", SHELL_SOURCES) == []
+
+
+def test_a_python_script_is_found_by_its_import_stem_too():
+    assert md.auto_script_tests("scripts/mutate_diff.py", PY_SOURCES) == [
+        "tests/python/test_mutate_diff.py"]
+    assert md.auto_script_tests("scripts/mutate_diff.py", SHELL_SOURCES) == [
+        "tests/shell/test_mutate.bats"]
+
+
+def test_a_script_file_name_is_never_too_common():
+    many = {f"tests/shell/t{i}.bats": "run quality-checks.sh"
+            for i in range(md.AUTO_TESTS_MAX_FILES + 5)}
+    assert len(md.auto_script_tests("scripts/quality-checks.sh", many)) == md.AUTO_TESTS_MAX_FILES + 5
+
+
+def test_an_import_stem_too_many_files_mention_is_ignored():
+    many = {f"tests/python/test_{i}.py": "from common_util import x"
+            for i in range(md.AUTO_TESTS_MAX_FILES + 1)}
+    assert md.auto_script_tests("scripts/common_util.py", many) == []
+    many["tests/python/test_x.py"] = "subprocess.run(['scripts/common_util.py'])"
+    assert md.auto_script_tests("scripts/common_util.py", many) == ["tests/python/test_x.py"]
+
+
+def test_a_script_nothing_names_keeps_both_whole_suites():
+    shell, python, why = md.script_tests_for(
+        "scripts/orphan.sh", True, SHELL_SOURCES, PY_SOURCES, "tests/shell", "tests/python")
+    assert (shell, python) == ("tests/shell", "tests/python")
+    shell, python, _ = md.script_tests_for(
+        "scripts/qc/phase2.sh", True, SHELL_SOURCES, PY_SOURCES, "tests/shell", "tests/python")
+    assert (shell, python) == ("tests/shell/test_phase2.bats", "")
+    shell, python, _ = md.script_tests_for(
+        "scripts/qc/phase2.sh", False, SHELL_SOURCES, PY_SOURCES, "tests/shell", "tests/python")
+    assert (shell, python) == ("tests/shell", "tests/python")
+
+
+def test_a_group_is_described_by_everything_that_judges_it():
+    assert md.describe_key(("[x]", "", "")) == "[x]"
+    assert md.describe_key(("[x]", "tests/shell/a.bats", "")) == "[x] | tests/shell/a.bats"
+
+
+needs_bats = pytest.mark.skipif(shutil.which("bats") is None, reason="needs bats")
+
+
+@needs_bats
+def test_each_script_runs_only_the_bats_file_that_names_it(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "tests" / "shell").mkdir(parents=True)
+    for name in ("alpha", "beta"):
+        (work / "scripts" / f"{name}.sh").write_text("#!/bin/sh\necho old\n")
+        (work / "tests" / "shell" / f"test_{name}.bats").write_text(
+            f'@test "{name}" {{\n'
+            f'  echo test_{name} >> "$BATS_TEST_DIRNAME/../../.ran"\n'
+            f'  grep -q NEW "$BATS_TEST_DIRNAME/../../scripts/{name}.sh"\n'
+            f'}}\n')
+    _git(work, "add", ".")
+    _git(work, "commit", "-qm", "scripts")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    for name in ("alpha", "beta"):
+        (work / "scripts" / f"{name}.sh").write_text("#!/bin/sh\necho NEW\n")
+    r = _mutate(work, "--base", base)
+    assert r.returncode == 0, r.stdout
+    assert "scripts/alpha.sh  tests/shell/test_alpha.bats" in r.stdout
+    assert "scripts/beta.sh  tests/shell/test_beta.bats" in r.stdout
+    assert "VERDICT: CLEAN - every group" in r.stdout
+    ran = (work / ".ran").read_text().split()
+    # Baseline plus mutant for each, and never the other script's file.
+    assert sorted(set(ran)) == ["test_alpha", "test_beta"]
+    assert ran.count("test_alpha") == 2 and ran.count("test_beta") == 2, ran
