@@ -4,6 +4,8 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "helix_callback.h"
+#include "helix_shared_callback.h"
 #include "lvgl/lvgl.h"
 #include "wifi_backend.h"
 #include "wifi_control_breaker.h"
@@ -26,7 +28,7 @@ namespace helix {
 /// error string alone cannot: a backend reason is free-form text, so sniffing
 /// it for a substring misclassifies every reason nobody thought to look for.
 using ConnectCallback =
-    std::function<void(bool success, const std::string& error, WiFiResult result)>;
+    helix::SharedCallback<void(bool success, const std::string& error, WiFiResult result)>;
 
 /// The message to put in front of a user whose Wi-Fi join failed.
 ///
@@ -140,7 +142,8 @@ class WiFiManager {
      *
      * @param on_networks_updated Callback invoked with scan results
      */
-    void start_scan(std::function<void(const std::vector<WiFiNetwork>&)> on_networks_updated);
+    void
+    start_scan(helix::SharedCallback<void(const std::vector<WiFiNetwork>&)> on_networks_updated);
 
     /**
      * @brief Stop periodic network scanning
@@ -196,7 +199,7 @@ class WiFiManager {
      *                     success.
      */
     void forget(const std::string& ssid,
-                std::function<void(bool success, const std::string& error)> on_complete);
+                helix::SharedCallback<void(bool success, const std::string& error)> on_complete);
 
     // ========================================================================
     // Status Queries
@@ -220,8 +223,9 @@ class WiFiManager {
      * started (ESP32; its backend answers from memory) `on_done` runs before
      * this returns; once the pool has stopped, the answer is the cached one.
      */
-    void get_status_async(helix::LifetimeToken token,
-                          std::function<void(const WifiBackend::ConnectionStatus&)> on_done);
+    void
+    get_status_async(helix::LifetimeToken token,
+                     helix::SharedCallback<void(const WifiBackend::ConnectionStatus&)> on_done);
 
     /**
      * @brief Check if connected to any network
@@ -305,7 +309,7 @@ class WiFiManager {
      * A backend without country support answers at once with read_ok false.
      */
     void get_country_async(helix::LifetimeToken token,
-                           std::function<void(const CountryState&)> on_done);
+                           helix::SharedCallback<void(const CountryState&)> on_done);
 
     /**
      * @brief Save the user's country choice and apply it to the radio
@@ -316,7 +320,7 @@ class WiFiManager {
      * start. @p on_done(success) runs on the LVGL thread while @p token lives.
      */
     void set_country_async(const std::string& code, helix::LifetimeToken token,
-                           std::function<void(bool success)> on_done);
+                           helix::SharedCallback<void(bool success)> on_done);
 
     // ========================================================================
     // Hardware Detection (Legacy Compatibility)
@@ -383,8 +387,9 @@ class WiFiManager {
      * @param token       Caller's LifetimeToken — expires with the owning object
      * @param on_complete Invoked on the UI thread; may be null
      */
-    void set_enabled_async(bool enabled, helix::LifetimeToken token,
-                           std::function<void(bool success, bool actual_enabled)> on_complete);
+    void
+    set_enabled_async(bool enabled, helix::LifetimeToken token,
+                      helix::SharedCallback<void(bool success, bool actual_enabled)> on_complete);
 
     /**
      * @brief Non-blocking re-attempt of backend bringup.
@@ -414,7 +419,7 @@ class WiFiManager {
      * @param token   Caller's LifetimeToken — expires with the owning object
      * @param on_change Callback invoked on the UI thread after state changes
      */
-    void add_state_observer(helix::LifetimeToken token, std::function<void()> on_change);
+    void add_state_observer(helix::LifetimeToken token, helix::SharedCallback<void()> on_change);
 
     /**
      * @brief Subscribe to the moments the regulatory country may have changed
@@ -424,7 +429,7 @@ class WiFiManager {
      * lane op, so it must not ride every connection transition. Delivered
      * like add_state_observer().
      */
-    void add_country_observer(helix::LifetimeToken token, std::function<void()> on_change);
+    void add_country_observer(helix::LifetimeToken token, helix::SharedCallback<void()> on_change);
 
     /**
      * @brief Initialize self-reference for async callback safety
@@ -483,7 +488,7 @@ class WiFiManager {
 
     // Scanning state
     lv_timer_t* scan_timer_;
-    std::function<void(const std::vector<WiFiNetwork>&)>
+    helix::SharedCallback<void(const std::vector<WiFiNetwork>&)>
         scan_callback_; // guarded by callback_mutex_
     bool scan_pending_; // guarded by callback_mutex_; true when scan triggered, cleared after first
                         // SCAN_COMPLETE processed — dedupes duplicate SCAN_COMPLETE events for
@@ -562,7 +567,7 @@ class WiFiManager {
     // widget) can unstick themselves when they queried before async init landed.
     struct StateObserver {
         helix::LifetimeToken token;
-        std::function<void()> callback;
+        helix::SharedCallback<void()> callback;
         bool country_only = false; ///< add_country_observer(): READY and REGDOM_CHANGE only
     };
     std::mutex state_observers_mutex_;
@@ -636,7 +641,7 @@ class WiFiManager {
     // Callers waiting on the status read in flight (get_status_async).
     struct StatusWaiter {
         helix::LifetimeToken token;
-        std::function<void(const WifiBackend::ConnectionStatus&)> on_done;
+        helix::SharedCallback<void(const WifiBackend::ConnectionStatus&)> on_done;
     };
     std::mutex status_waiters_mutex_;
     std::vector<StatusWaiter> status_waiters_;
@@ -662,8 +667,8 @@ class WiFiManager {
     struct ControlOp {
         const char* tag = nullptr;
         ControlKind kind = ControlKind::Health;
-        std::function<void()> work;
-        std::function<void()> on_dropped;
+        helix::Callback<void()> work;
+        helix::Callback<void()> on_dropped;
     };
     std::mutex control_mutex_;
     std::deque<ControlOp> control_queue_; // guarded by control_mutex_
@@ -677,8 +682,8 @@ class WiFiManager {
     // call must not fall back to running inline on the LVGL thread.
     // LVGL thread only, like HttpExecutor::running().
     bool lane_pooled_ = false;
-    void submit_control(const char* tag, ControlKind kind, std::function<void()> work,
-                        std::function<void()> on_dropped = nullptr);
+    void submit_control(const char* tag, ControlKind kind, helix::Callback<void()> work,
+                        helix::Callback<void()> on_dropped = nullptr);
     void run_control_ops();
     void drop_control_ops();
 
@@ -699,8 +704,8 @@ class WiFiManager {
     // or `deadline_ms` passes first. An op whose deadline passes while still
     // queued is never sent. Nothing runs once the manager is destroyed.
     void submit_user_op(const char* tag, uint32_t deadline_ms,
-                        std::function<std::function<void()>()> work,
-                        std::function<void()> on_unanswered);
+                        helix::Callback<helix::Callback<void()>()> work,
+                        helix::SharedCallback<void()> on_unanswered);
     // The answer a user op gets when WiFi control is not answering, how to
     // recognise it, and the one toast every action shows for it, in place of
     // that action's own failure toast. LVGL thread for the toast.
@@ -708,7 +713,7 @@ class WiFiManager {
     static bool is_unresponsive_error(const WiFiError& error);
     // Runs `fn` on the LVGL thread after `ms`, unless the manager is gone by
     // then. The timer frees itself, so nothing is left for the destructor.
-    void after_ms(uint32_t ms, std::function<void()> fn);
+    void after_ms(uint32_t ms, helix::Callback<void()> fn);
 
     // Swaps in wpa_supplicant once the lane is idle; retries until it is.
     // LVGL thread only, with control_paused_ set.
@@ -774,9 +779,9 @@ class WiFiManager {
 
     // Toasts a forget outcome and hands it to the caller. Static: it runs
     // after the lane call and needs nothing of the manager. LVGL thread.
-    static void
-    report_forget_result(const std::string& ssid, const WiFiError& result,
-                         const std::function<void(bool success, const std::string& error)>& cb);
+    static void report_forget_result(
+        const std::string& ssid, const WiFiError& result,
+        const helix::SharedCallback<void(bool success, const std::string& error)>& cb);
 
     // Sysfs root used by has_non_wifi_network_path() to gate the stored-radio
     // -state reassert (Task 15: never disable the radio on a device whose
