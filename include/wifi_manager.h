@@ -481,7 +481,7 @@ class WiFiManager {
     // thread (handle_scan_complete / handle_connected / handle_disconnected /
     // handle_auth_failed) and written on the main/LVGL thread (start_scan /
     // stop_scan / connect / scan_timer_callback / deliver_auth_failure). Reading
-    // or reassigning a std::function concurrently is a data race (UB). Callbacks
+    // or reassigning a callback concurrently is a data race (UB). Callbacks
     // are copied under the lock and invoked OUTSIDE it to avoid re-entrant
     // deadlock and holding the lock across arbitrary UI code.
     mutable std::mutex callback_mutex_;

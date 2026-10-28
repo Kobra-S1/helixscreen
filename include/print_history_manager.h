@@ -391,7 +391,7 @@ class PrintHistoryManager {
      * @brief Remove observer callback by pointer
      *
      * Removes the callback registered with add_observer(). Uses pointer
-     * comparison, so this actually works (unlike std::function comparison).
+     * comparison, since the callbacks themselves cannot be compared.
      *
      * @param cb Pointer to callback to remove
      */
