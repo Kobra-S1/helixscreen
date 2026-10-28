@@ -157,6 +157,13 @@ if [ "$AUTO_FIX" = true ]; then QC_SERIAL="$QC_SERIAL qc_phase2"; fi
 
 QC_ALL="qc_phase1 qc_xml_tools qc_xml_const qc_xml_attr qc_dup_names qc_xml_linter qc_theme_artifacts qc_toolhead_census qc_xml_subtests qc_hidden_tests qc_overlay_width qc_icon_names qc_design_pixels qc_esp32_app_srcs qc_esp32_compile qc_esp32_xml_bindings qc_phase2 qc_icon_font qc_mdi_codepoints qc_todo_markers qc_mem_safety qc_null_safety qc_l081 qc_vendor_branches qc_hand_rolled_swatch qc_filament_ops_neutral qc_hold_ends_press qc_net_pii qc_decl_ui qc_namespace qc_constant_naming qc_spdlog_only qc_design_tokens qc_test_mirrors qc_test_tautology qc_test_widget_registry qc_xml_create_registered qc_doc_refs qc_lvgl_event_codes qc_translation_fmt qc_base_locale qc_translation_coverage qc_plugin_i18n_shadow qc_cjk_fonts qc_shellcheck qc_installer_reachability qc_patch_drift qc_link_parity qc_workflow_submodules qc_ams_xml_mirror qc_bats_inert qc_python_tests"
 
+# Push-only gates: every gate that takes more than a few seconds on a fast host
+# (scripts/qc_timing.py, or QC_PROFILE=1 for the per-gate list). A commit waits
+# for its slowest gate, so one of these alone makes every commit cost tens of
+# seconds to minutes; pre-push and land-gate run them ungated before anything
+# reaches main. HELIX_QC_ALL_AT_COMMIT=1 runs them at commit too.
+QC_PUSH_ONLY="qc_python_tests qc_hidden_tests qc_decl_ui qc_translation_coverage qc_hand_rolled_swatch qc_esp32_xml_bindings qc_esp32_app_srcs qc_esp32_compile qc_translation_fmt qc_namespace"
+
 for fn in $QC_ALL; do
   # shellcheck source=/dev/null
   . "scripts/qc/${fn#qc_}.sh"
@@ -174,16 +181,25 @@ done
 # skip a check when nothing it inspects was staged. The full run (pre-push, CI)
 # gates nothing, so this can only defer work to the push, never drop it.
 #
-# A gate that sets no QC_TRIGGER_<gate> always runs.
+# A gate that sets no QC_TRIGGER_<gate> always runs, unless it is push-only.
 qc_trigger_re() {
   local var="QC_TRIGGER_$1"
   echo "${!var:-}"
 }
 
 QC_SKIPPED=""
+QC_DEFERRED=""
 qc_wanted() {
   local re
   [ "$STAGED_ONLY" = true ] || return 0
+  case " $QC_PUSH_ONLY " in
+    *" $1 "*)
+      if [ "${HELIX_QC_ALL_AT_COMMIT:-0}" != 1 ]; then
+        QC_DEFERRED="$QC_DEFERRED $1"
+        return 1
+      fi
+      ;;
+  esac
   re="$(qc_trigger_re "$1")"
   [ -n "$re" ] || return 0
   if printf '%s\n' "$QC_STAGED_ALL" | grep -qE "$re"; then
@@ -212,6 +228,10 @@ for fn in $QC_ALL; do
   [ "$rc" != "0" ] && EXIT_CODE=1
 done
 
+if [ -n "$QC_DEFERRED" ]; then
+  echo ""
+  echo "⏩ Deferred to pre-push (slow; HELIX_QC_ALL_AT_COMMIT=1 runs them now):$QC_DEFERRED"
+fi
 if [ -n "$QC_SKIPPED" ]; then
   echo ""
   echo "⏭️  Skipped (nothing staged that they inspect):$QC_SKIPPED"

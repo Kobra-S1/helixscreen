@@ -342,56 +342,34 @@ echo ""
 # Build Verification
 if [ "$STAGED_ONLY" = true ]; then
   SECTION_START=$(date +%s)
-  echo -n "🔨 Verifying incremental build..."
+  echo -n "🔨 Verifying staged sources compile..."
 
-  # Fast timestamp check (avoids 2-3s make startup overhead)
-  # Check if binary exists and no source files are newer
-  TARGET="build/bin/helix-screen"
-  BUILD_NEEDED=false
-
-  if [ ! -f "$TARGET" ]; then
-    BUILD_NEEDED=true
-  elif find src include -type f \( -name '*.cpp' -o -name '*.c' -o -name '*.h' -o -name '*.mm' \) -newer "$TARGET" 2>/dev/null | grep -q .; then
-    BUILD_NEEDED=true
-  fi
-
-  # A staged .cpp can only break its own translation unit, and asking the
-  # compiler that question directly costs seconds where a link costs minutes.
-  # A staged HEADER is the case that breaks OTHER units, so that one still pays
-  # for the build. HELIX_QC_FULL_BUILD=1 forces the build either way.
-  STAGED_CXX=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+  # A commit checks that what it stages compiles, in seconds: each staged
+  # source, and for each staged header one source that includes it (the case
+  # that breaks OTHER units). Linking the app is minutes, so it is pre-push's
+  # job: its clang gate syntax-checks every changed unit and the header's
+  # dependents, and land-gate builds and tests the result.
+  # HELIX_QC_FULL_BUILD=1 builds the app here instead.
+  STAGED_CXX=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null \
     | grep -E '\.(cpp|cc|cxx|mm)$' || true)
-  STAGED_HDR=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+  STAGED_HDR=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null \
     | grep -E '\.(h|hh|hpp|hxx|inc)$' || true)
-
-  BUILD_HANDLED=false
-  if [ "$BUILD_NEEDED" = true ] && [ -z "$STAGED_HDR" ] && [ -n "$STAGED_CXX" ] \
-     && [ -f compile_commands.json ] && [ -z "${HELIX_QC_FULL_BUILD:-}" ]; then
-    BUILD_HANDLED=true
-    if python3 scripts/syntax_check.py $STAGED_CXX >/tmp/qc_syntax.out 2>&1; then
-      section_time $SECTION_START
-      echo ""
-      echo "✅ $(grep '^summary:' /tmp/qc_syntax.out || echo 'staged sources compile') - pre-push builds the tree"
+  CHECK_UNITS="$STAGED_CXX"
+  UNREACHED_HDR=""
+  for hdr in $STAGED_HDR; do
+    unit=$(qc_one_includer "$hdr")
+    if [ -n "$unit" ]; then
+      CHECK_UNITS="$CHECK_UNITS
+$unit"
     else
-      section_time $SECTION_START
-      echo ""
-      echo "❌ A staged source does not compile"
-      sed -n '1,40p' /tmp/qc_syntax.out
-      EXIT_CODE=1
+      UNREACHED_HDR="$UNREACHED_HDR $hdr"
     fi
-  fi
+  done
+  CHECK_UNITS=$(printf '%s\n' "$CHECK_UNITS" | sed '/^$/d' | sort -u)
 
-  if [ "$BUILD_HANDLED" = true ]; then
-    :
-  elif [ "$BUILD_NEEDED" = false ]; then
-    section_time $SECTION_START
-    echo ""
-    echo "✅ Build up to date"
-  else
-    # Something needs building - run actual build
-    # Use SKIP_COMPILE_COMMANDS=1 to avoid slow LSP re-indexing.
-    #
+  if [ -n "${HELIX_QC_FULL_BUILD:-}" ]; then
     # Bounded -j (qc_build_jobs): this build runs from a commit hook.
+    # SKIP_COMPILE_COMMANDS=1 avoids slow LSP re-indexing.
     QC_JOBS=$(qc_build_jobs)
     QC_MAKE=$(qc_make)
     if "$QC_MAKE" SKIP_COMPILE_COMMANDS=1 -j"$QC_JOBS" >/dev/null 2>&1; then
@@ -405,9 +383,32 @@ if [ "$STAGED_ONLY" = true ]; then
       echo "   Run 'make' to see full error output"
       EXIT_CODE=1
     fi
+  elif [ -z "$CHECK_UNITS" ]; then
+    section_time $SECTION_START
+    echo ""
+    if [ -n "$UNREACHED_HDR" ]; then
+      echo "ℹ️  No source includes${UNREACHED_HDR} directly, so nothing was compiled; pre-push checks its dependents"
+    else
+      echo "✅ No staged source to compile"
+    fi
+  elif [ ! -f compile_commands.json ]; then
+    section_time $SECTION_START
+    echo ""
+    echo "ℹ️  No compile_commands.json, so staged sources were not compiled; pre-push checks them"
+  elif python3 scripts/syntax_check.py $CHECK_UNITS >/tmp/qc_syntax.out 2>&1; then
+    section_time $SECTION_START
+    echo ""
+    echo "✅ $(grep '^summary:' /tmp/qc_syntax.out || echo 'staged sources compile') - pre-push checks the rest"
+    [ -z "$UNREACHED_HDR" ] || echo "ℹ️  No source includes${UNREACHED_HDR} directly; pre-push checks its dependents"
+  else
+    section_time $SECTION_START
+    echo ""
+    echo "❌ A staged source does not compile"
+    sed -n '1,40p' /tmp/qc_syntax.out
+    EXIT_CODE=1
   fi
 
-  # Say what was actually verified. The build above compiles the WORKING TREE,
+  # Say what was actually verified. The check above compiles the WORKING TREE,
   # which in --staged-only mode is not necessarily what is being committed: a
   # rename touching five files and staged for four builds clean here and breaks
   # in CI, because the fifth file is on disk but not in the commit. pre-push
@@ -419,7 +420,7 @@ if [ "$STAGED_ONLY" = true ]; then
     UNSTAGED_SRC="$(git diff --name-only --diff-filter=ACM -- \
       '*.cpp' '*.cc' '*.c' '*.h' '*.hpp' '*.mm' 2>/dev/null || true)"
     if [ -n "$UNSTAGED_SRC" ]; then
-      echo "⚠️  Build verified the WORKING TREE, not the staged commit"
+      echo "⚠️  The compile check read the WORKING TREE, not the staged commit"
       echo "   These source files are modified but NOT staged:"
       echo "$UNSTAGED_SRC" | sed 's/^/     /'
       echo "   If the commit depends on them it will fail in CI. pre-push checks"
