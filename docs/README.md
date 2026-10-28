@@ -89,7 +89,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Built-in Screen Server**](devel/REMOTE_SCREEN.md) | The screen as a Mainsail/Fluidd webcam, remote touch, pairing and the nginx route |
 | [**Screensavers**](devel/SCREENSAVERS.md) | Registry, shared parts, CPU gate and stored levels, adding a saver |
 | [**LED Control**](devel/LED_CONTROL.md) | LED system: 5 backends, auto-state lighting, overlays |
-| [**Sensor Management**](devel/SENSOR_MANAGEMENT.md) | Sensor managers (filament, temperature, humidity, probe, accel, width, load cell): discovery, subjects, runout handling |
+| [**Sensor Management**](devel/SENSOR_MANAGEMENT.md) | The hardware object table and the `SensorManager` base (filament, temperature, humidity, probe, accel, width, load cell, input): discovery, subjects, Settings rows, runout handling |
 | [**Action Prompts**](devel/ACTION_PROMPTS.md) | Klipper `action:prompt_*` macros: parser, state machine, modal, button gcode |
 | [**Bluetooth System**](devel/BLUETOOTH_SYSTEM.md) | Runtime-loaded BT plugin: C ABI, bus thread, discovery, pairing, RFCOMM/BLE |
 | [**USB Management**](devel/USB_MANAGEMENT.md) | USB drives, the fallback automounter, print-select USB source, USB label printers, HID scanners |

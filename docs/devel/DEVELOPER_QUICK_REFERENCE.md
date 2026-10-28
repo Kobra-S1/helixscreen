@@ -336,7 +336,7 @@ for its horizontal stepper (a narrow portrait screen).
 
 ## Sensor Framework
 
-One singleton manager per sensor category, called directly (`Manager::instance()`). Headers live flat in `include/` (`*_sensor_manager.h`).
+One singleton manager per sensor category, each deriving `SensorManager` (`include/sensor_manager.h`) and called directly (`Manager::instance()`). Headers live flat in `include/` (`*_sensor_manager.h`).
 
 **Available managers:**
 - `AccelSensorManager` - ADXL345, LIS2DW, LIS3DH, MPU9250, ICM20948
@@ -347,7 +347,7 @@ One singleton manager per sensor category, called directly (`Manager::instance()
 - `InputSensorManager` - `gcode_button` on/off inputs (doors, buttons) with Door/Other roles
 - `TemperatureSensorManager` - `temperature_sensor` / `temperature_fan` objects
 
-**Wiring:** discovery calls each manager's `discover()` / `discover_from_config()` from `src/printer/printer_discovery.cpp#init_subsystems_from_hardware` and the configfile discovery step; status frames reach every manager from `dispatch_status_frame()` (`src/application/moonraker_manager.cpp`).
+**Wiring:** discovery calls each manager's `discover()` then `load_settings()` from `src/printer/printer_discovery.cpp#init_subsystems_from_hardware`, and `rediscover_from_config()` runs `discover()` again on the managers that read config sections once `configfile.config` arrives; status frames reach every manager from `dispatch_status_frame()` (`src/printer/status_dispatch.cpp#dispatch_status_frame`). Every walk goes through `sensor_managers()`, so a new manager is one registry line. A new Klipper object of an existing kind is one row in `src/printer/hardware_object_table.cpp`. Full guide: `SENSOR_MANAGEMENT.md`.
 
 **Accessing state:** Sensors expose LVGL subjects for reactive binding.
 
