@@ -26,6 +26,7 @@
 #include "ui_breakpoint.h"
 #include "ui_carousel.h"
 #include "ui_dialog.h"
+#include "ui_drag_surface.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_home.h"
@@ -4735,4 +4736,115 @@ TEST_CASE_METHOD(EditHomeFixture,
     settle();
     REQUIRE(page_count() == 2);
     CHECK(widget_on(1, "fan") != nullptr);
+}
+
+// ============================================================================
+// Drag surfaces: a widget's drag-consuming object keeps the hold and the swipe
+// ============================================================================
+
+namespace {
+
+/// A child filling @p widget, bubbling its events the way population makes a
+/// widget's children bubble (set_event_bubble_recursive).
+lv_obj_t* fill_child(lv_obj_t* widget, lv_obj_t* child) {
+    lv_obj_set_size(child, LV_PCT(100), LV_PCT(100));
+    lv_obj_center(child);
+    lv_obj_add_flag(child, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_update_layout(widget);
+    return child;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(EditHomeFixture, "a hold on a widget's drag surface does not enter edit mode",
+                 "[home][drag_surface]") {
+    build_home();
+    lv_obj_t* widget = widget_on(0, "temperature");
+    lv_obj_t* surface = fill_child(widget, lv_obj_create(widget));
+
+    SECTION("marked: the hold belongs to the surface") {
+        helix::ui::mark_drag_surface(surface);
+        const lv_point_t c = center_of(surface);
+        indev.press(c.x, c.y);
+        indev.hold(indev.long_press_hold_ms());
+        CHECK_FALSE(HomePanelTestAccess::edit_mode_active(panel()));
+        indev.release(c.x, c.y);
+    }
+
+    SECTION("unmarked: the hold enters edit mode") {
+        const lv_point_t c = center_of(surface);
+        indev.press(c.x, c.y);
+        indev.hold(indev.long_press_hold_ms());
+        CHECK(HomePanelTestAccess::edit_mode_active(panel()));
+        indev.release(c.x, c.y);
+    }
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "a horizontal drag on a drag surface leaves the page in place",
+                 "[home][drag_surface]") {
+    build_home();
+    REQUIRE(scroll_live());
+    lv_obj_t* widget = widget_on(0, "temperature");
+    lv_obj_t* surface = fill_child(widget, lv_obj_create(widget));
+    helix::ui::mark_drag_surface(surface);
+
+    constexpr int kMoves = 8;
+    const int32_t step = (2 * lv_obj_get_content_width(scroller()) / 3) / kMoves;
+    REQUIRE(step > 0);
+    const lv_point_t c = center_of(surface);
+    indev.press(c.x, c.y);
+    int32_t x = c.x;
+    for (int i = 0; i < kMoves; ++i) {
+        x -= step;
+        indev.move(x, c.y);
+    }
+    indev.hold(LV_INDEV_VECT_HIST_SIZE * kReadPeriodMs);
+    CHECK(lv_indev_get_scroll_obj(indev.indev()) == nullptr);
+    indev.release(x, c.y);
+    settle();
+
+    CHECK(current_page() == 0);
+    CHECK(lv_obj_get_scroll_x(scroller()) == 0);
+    CHECK_FALSE(HomePanelTestAccess::edit_mode_active(panel()));
+}
+
+TEST_CASE_METHOD(EditHomeFixture, "a hold on a fan arc still does not enter edit mode",
+                 "[home][drag_surface][fan]") {
+    build_home();
+    lv_obj_t* widget = widget_on(0, "temperature");
+    lv_obj_t* arc = fill_child(widget, lv_arc_create(widget));
+
+    const lv_point_t c = center_of(arc);
+    // The arc's knob track runs around its edge; press on the ring.
+    const lv_area_t a = area_of(arc);
+    const lv_point_t ring{c.x, a.y1 + 4};
+    indev.press(ring.x, ring.y);
+    indev.hold(indev.long_press_hold_ms());
+    CHECK_FALSE(HomePanelTestAccess::edit_mode_active(panel()));
+    indev.release(ring.x, ring.y);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "mark_drag_surface sets the flag and the input flags it needs",
+                 "[home][drag_surface]") {
+    lv_obj_t* parent = lv_obj_create(test_screen());
+    lv_obj_t* obj = lv_obj_create(parent);
+    lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    REQUIRE_FALSE(helix::ui::is_drag_surface_hit(obj, parent));
+
+    helix::ui::mark_drag_surface(obj);
+
+    CHECK(lv_obj_has_flag(obj, helix::ui::kDragSurfaceFlag));
+    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_PRESS_LOCK));
+    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLLABLE));
+    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLL_CHAIN_HOR));
+    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLL_CHAIN_VER));
+    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_GESTURE_BUBBLE));
+
+    // A press on a child of the surface is a hit; the walk stops at stop_at.
+    lv_obj_t* child = lv_obj_create(obj);
+    CHECK(helix::ui::is_drag_surface_hit(child, parent));
+    CHECK_FALSE(helix::ui::is_drag_surface_hit(parent, parent));
+    CHECK_FALSE(helix::ui::is_drag_surface_hit(child, child));
 }

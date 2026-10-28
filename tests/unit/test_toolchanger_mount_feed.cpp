@@ -92,8 +92,8 @@ class AckingChanger : public ToolChangerHelper {
         set_mounts_to_feed(true);
     }
 
-    AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                           std::function<void(const MoonrakerError&)> on_error,
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
                            bool /*silent*/) override {
         sent_.push_back(gcode);
         acks_.push_back(std::move(on_complete));
@@ -138,8 +138,8 @@ class AckingChanger : public ToolChangerHelper {
     }
 
   private:
-    std::vector<std::function<void()>> acks_;
-    std::vector<std::function<void(const MoonrakerError&)>> errors_;
+    std::vector<helix::SharedCallback<void()>> acks_;
+    std::vector<helix::SharedCallback<void(const MoonrakerError&)>> errors_;
 };
 
 } // namespace
@@ -947,8 +947,8 @@ TEST_CASE("MedusaHC ends the run and says so when the cleanup itself cannot be s
     struct FailingCleanupChanger : AckingChanger {
         bool fail_sends = false;
         explicit FailingCleanupChanger(int tools) : AckingChanger(tools) {}
-        AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                               std::function<void(const MoonrakerError&)> on_error,
+        AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                               helix::SharedCallback<void(const MoonrakerError&)> on_error,
                                bool silent) override {
             if (fail_sends) {
                 sent_.push_back(gcode);
@@ -1887,8 +1887,8 @@ TEST_CASE("MedusaHC: a cleanup that only closes the prompt never claims the heat
     // stage fails, and so does the cleanup closing it.
     struct NoRespondChanger : AckingChanger {
         explicit NoRespondChanger(int tools) : AckingChanger(tools) {}
-        AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                               std::function<void(const MoonrakerError&)> on_error,
+        AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                               helix::SharedCallback<void(const MoonrakerError&)> on_error,
                                bool silent) override {
             const bool refused = gcode.find("RESPOND") != std::string::npos;
             auto error = on_error;

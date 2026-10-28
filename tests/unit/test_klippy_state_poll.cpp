@@ -30,9 +30,9 @@ class PrinterInfoClient : public MoonrakerClientMock {
 
     RequestId
     send_jsonrpc(const std::string& method, const json& params,
-                 std::function<void(const json&)> success_cb,
-                 std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
-                 bool silent = false,
+                 helix::SharedCallback<void(const json&)> success_cb,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb,
+                 uint32_t timeout_ms = 0, bool silent = false,
                  std::optional<rpc_error_policy::CallerIntent> intent = std::nullopt) override {
         if (method != "printer.info") {
             return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
@@ -59,7 +59,7 @@ class PrinterInfoClient : public MoonrakerClientMock {
     int info_requests = 0;
     /// Keep the next printer.info's callback in `held` instead of answering it.
     bool hold = false;
-    std::function<void(const json&)> held;
+    helix::SharedCallback<void(const json&)> held;
 };
 
 std::string klippy_notification(const char* method) {

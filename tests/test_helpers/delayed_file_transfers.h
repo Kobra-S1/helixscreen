@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "helix_shared_callback.h"
+
 /**
  * @file delayed_file_transfers.h
  * @brief A mock transfer API whose downloads, preamble and footer reads a
@@ -139,10 +141,10 @@ class DelayedFileTransfers : public MoonrakerFileTransferAPIMock {
   private:
     struct Held {
         std::string path;
-        std::function<void()> finish;
+        helix::SharedCallback<void()> finish;
     };
     std::vector<Held> held_;
-    std::vector<std::function<void()>> held_partials_;
+    std::vector<helix::SharedCallback<void()>> held_partials_;
 };
 
 /// MoonrakerAPIMock whose transfers() serves the holdable DelayedFileTransfers

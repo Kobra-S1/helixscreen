@@ -91,6 +91,7 @@ WATCHDOG_EXTRA_OBJS := $(BUILD_DIR)/watchdog/config.o \
                        $(BUILD_DIR)/watchdog/backlight_backend.o \
                        $(BUILD_DIR)/watchdog/data_root_resolver.o \
                        $(BUILD_DIR)/watchdog/helix_paths.o \
+                       $(BUILD_DIR)/watchdog/crash_record.o \
                        $(BUILD_DIR)/watchdog/text_io.o \
                        $(BUILD_DIR)/watchdog/helix_fs.o \
                        $(BUILD_DIR)/watchdog/logging_init.o \
@@ -148,6 +149,11 @@ $(BUILD_DIR)/watchdog/data_root_resolver.o: src/application/data_root_resolver.c
 # Compile helix_paths for watchdog (pure path primitives; data_root_resolver.cpp
 # calls helix::paths::strip_trailing_slash).
 $(BUILD_DIR)/watchdog/helix_paths.o: src/system/helix_paths.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+	@echo "[CXX] $< (watchdog)"
+	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# The record the watchdog writes for a child killed by a signal it did not handle
+$(BUILD_DIR)/watchdog/crash_record.o: src/system/crash_record.cpp $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

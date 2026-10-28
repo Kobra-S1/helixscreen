@@ -198,6 +198,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a dismissed exclude confirm does not lock e
     lv_obj_t* first = open_dialog();
     REQUIRE(first != nullptr);
     REQUIRE(h.manager->get_pending_object() == "Part_1");
+    // The allocator may hand the next dialog the freed one's address, so its
+    // deletion is what proves the second confirmation is a new one. Static, so
+    // a dialog that outlives the case still has a flag to write to.
+    static bool first_deleted;
+    first_deleted = false;
+    lv_obj_add_event_cb(
+        first, [](lv_event_t* e) { *static_cast<bool*>(lv_event_get_user_data(e)) = true; },
+        LV_EVENT_DELETE, &first_deleted);
 
     SECTION("backdrop tap") {
         click(ModalStack::instance().backdrop_for(first));
@@ -226,7 +234,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a dismissed exclude confirm does not lock e
     CHECK(h.manager->get_pending_object() == "Part_2");
     lv_obj_t* second = open_dialog();
     REQUIRE(second != nullptr);
-    CHECK(second != first);
+    CHECK(first_deleted);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "confirming the exclude still starts the undo window",

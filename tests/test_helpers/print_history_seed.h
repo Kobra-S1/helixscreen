@@ -7,6 +7,7 @@
 #include "../test_helpers/print_history_manager_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "helix_shared_callback.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_history_api.h"
@@ -57,7 +58,7 @@ class TotalsMoonrakerAPI : public MoonrakerAPI {
 /// print stats tile reads its week and its lifetime line from.
 struct PrintHistorySeed {
     /// @p settle drains the update queue and pumps LVGL; the owning fixture supplies it.
-    PrintHistorySeed(helix::PrinterState& state, std::function<void()> settle)
+    PrintHistorySeed(helix::PrinterState& state, helix::SharedCallback<void()> settle)
         : settle_(std::move(settle)),
           history_client(MoonrakerClientMock::PrinterType::VORON_24, 1000.0) {
         history_client.connect("ws://mock/websocket", []() {}, []() {});
@@ -126,7 +127,7 @@ struct PrintHistorySeed {
     }
 
   private:
-    std::function<void()> settle_;
+    helix::SharedCallback<void()> settle_;
 
   public:
     MoonrakerClientMock history_client;

@@ -72,7 +72,7 @@ class ListFx : public LVGLUITestFixture {
     void auto_yes_consent() {
         get_plugins_overlay().set_consent_shower([this](const Manifest&,
                                                         const std::vector<Permission>& grown,
-                                                        std::function<void()> on_yes) {
+                                                        helix::SharedCallback<void()> on_yes) {
             ++consent_calls;
             consent_grown = grown;
             on_yes();

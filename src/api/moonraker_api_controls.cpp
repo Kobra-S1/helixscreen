@@ -424,7 +424,7 @@ void MoonrakerAPI::execute_gcode(const std::string& gcode, SuccessCallback on_su
     // failure, or connection loss — so one of the two wrappers runs. The
     // AppMacroActivity in-flight age ceiling covers the residual paths that
     // settle nothing at all (client destructor, cancel_request).
-    std::function<void(const json&)> success_wrapper;
+    helix::SharedCallback<void(const json&)> success_wrapper;
     if (on_success || stamp) {
         success_wrapper = [on_success, ps, stamp](json) {
             if (stamp) {

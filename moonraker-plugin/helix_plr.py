@@ -639,13 +639,22 @@ class SlotStore:
     def write(self, payload: bytes) -> int:
         seq = self.seq + 1
         os.pwrite(self._fd, encode_slot(seq, payload), (seq % 2) * SLOT_SIZE)
-        os.fdatasync(self._fd)
+        _sync_data(self._fd)
         self.seq = seq
         return seq
 
     def clear(self) -> None:
         os.pwrite(self._fd, b"\0" * (2 * SLOT_SIZE), 0)
-        os.fdatasync(self._fd)
+        _sync_data(self._fd)
+
+
+def _sync_data(fd: int) -> None:
+    """Flush a file's data blocks: fdatasync where the OS has it, else fsync.
+
+    macOS has no fdatasync. fsync also flushes metadata, so it is the stronger
+    guarantee and is correct anywhere fdatasync is.
+    """
+    getattr(os, "fdatasync", os.fsync)(fd)
 
 
 _fsync_dir = helix_gcode_reader.fsync_dir

@@ -792,10 +792,11 @@ bool AmsSubscriptionBackend::toolhead_homed() const {
 }
 
 AmsError AmsSubscriptionBackend::ensure_homed_then(
-    std::string gcode, std::function<void()> on_complete,
-    std::function<void(const MoonrakerError&)> on_error, uint32_t timeout_ms, bool skip_homing,
-    bool silent, std::optional<bool> caller_surfaces_errors,
-    std::function<void(const MoonrakerError&)> on_predispatch_error, bool bypass_busy_gate) {
+    std::string gcode, helix::SharedCallback<void()> on_complete,
+    helix::SharedCallback<void(const MoonrakerError&)> on_error, uint32_t timeout_ms,
+    bool skip_homing, bool silent, std::optional<bool> caller_surfaces_errors,
+    helix::SharedCallback<void(const MoonrakerError&)> on_predispatch_error,
+    bool bypass_busy_gate) {
     // The homed answer comes from the live homed_axes subject, not an RPC:
     // toolhead is in the standing objects.subscribe set, so querying it again
     // was a redundant round trip. skip_homing short-circuits the check
@@ -867,7 +868,7 @@ AmsError AmsSubscriptionBackend::ensure_homed_then(
 }
 
 void AmsSubscriptionBackend::handle_dispatch_error(
-    const MoonrakerError& err, const std::function<void(const MoonrakerError&)>& on_error) {
+    const MoonrakerError& err, const helix::SharedCallback<void(const MoonrakerError&)>& on_error) {
     if (on_error) {
         on_error(err);
         return;
@@ -881,7 +882,7 @@ void AmsSubscriptionBackend::handle_dispatch_error(
 }
 
 AmsError AmsSubscriptionBackend::refuse_dispatch_no_api(
-    const std::function<void(const MoonrakerError&)>& on_error) {
+    const helix::SharedCallback<void(const MoonrakerError&)>& on_error) {
     MoonrakerError synthetic;
     synthetic.type = MoonrakerErrorType::CONNECTION_LOST;
     synthetic.message = "IMoonrakerAPI not available";
@@ -890,8 +891,8 @@ AmsError AmsSubscriptionBackend::refuse_dispatch_no_api(
 }
 
 AmsError AmsSubscriptionBackend::dispatch_payload(
-    std::string gcode, std::function<void()> on_complete,
-    std::function<void(const MoonrakerError&)> on_error, uint32_t timeout_ms, bool silent,
+    std::string gcode, helix::SharedCallback<void()> on_complete,
+    helix::SharedCallback<void(const MoonrakerError&)> on_error, uint32_t timeout_ms, bool silent,
     std::optional<bool> caller_surfaces_errors, bool bypass_busy_gate) {
     // Default shape: dispatch through the 1-arg and 2-arg execute_gcode()
     // virtuals. ~20 fixtures override ONLY those two (see the
@@ -1005,7 +1006,7 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode) {
 }
 
 AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
-                                               std::function<void()> on_complete) {
+                                               helix::SharedCallback<void()> on_complete) {
     // silent=true: completion is owned by the phase tracker + IFS_STATUS, not
     // the RPC return, so the advisory 300s timeout must not surface a false
     // "timed out" toast for a legitimately-long macro (bundle 77TDH9N6),
@@ -1014,10 +1015,9 @@ AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
                                                  /*silent=*/true);
 }
 
-AmsError AmsSubscriptionBackend::execute_gcode(const std::string& gcode,
-                                               std::function<void()> on_complete,
-                                               std::function<void(const MoonrakerError&)> on_error,
-                                               bool silent) {
+AmsError AmsSubscriptionBackend::execute_gcode(
+    const std::string& gcode, helix::SharedCallback<void()> on_complete,
+    helix::SharedCallback<void(const MoonrakerError&)> on_error, bool silent) {
     if (!api_) {
         // The send never went out, but on_error still owes the caller its
         // unwind: an optimistic AmsAction set before this dispatch stays set

@@ -716,8 +716,10 @@ resources)
     # none configured there is nothing to ask. Each held run lock names its job.
     # shellcheck source-path=SCRIPTDIR source=lib/build_hosts.sh
     . "$(dirname "${BASH_SOURCE[0]}")/lib/build_hosts.sh"
-    thost=${HELIX_TEST_HOST:-}
-    [ -n "$thost" ] || exit 0
+    [ -n "${HELIX_TEST_HOST:-}" ] || exit 0
+    resolve_build_host HELIX_TEST_HOST ||
+        { printf 'test host (%s): unreachable\n' "$HELIX_TEST_HOST"; exit 0; }
+    thost=$HELIX_TEST_HOST
     tline=$(test_host_probe | timeout 8 ssh -o ConnectTimeout=3 -o BatchMode=yes "$thost" \
             bash -s -- "${HELIX_TEST_CONTAINER:-helix-test}" "${HELIX_TEST_LOCK_DIR:-/tmp}" 2>/dev/null) &&
         [ -n "$tline" ] || { printf 'test host (%s): unreachable\n' "$thost"; exit 0; }

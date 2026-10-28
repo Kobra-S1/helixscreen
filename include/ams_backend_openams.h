@@ -163,9 +163,9 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend {
     /// configured toolchange, homing included, so no home is added here; the
     /// failure it raises reaches the user through the G-code error stream,
     /// which is why @p on_error only unwinds. A test seam.
-    virtual AmsError send_operation_gcode(const std::string& gcode,
-                                          std::function<void()> on_complete,
-                                          std::function<void(const MoonrakerError&)> on_error);
+    virtual AmsError
+    send_operation_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                         helix::SharedCallback<void(const MoonrakerError&)> on_error);
 
   private:
     friend class OpenAmsTestAccess;

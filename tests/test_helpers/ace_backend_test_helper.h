@@ -10,6 +10,7 @@
 #include "ams_backend_ace.h"
 #include "ams_types.h"
 #include "fake_moonraker_client.h"
+#include "helix_shared_callback.h"
 #include "moonraker_types.h"
 
 #include <functional>
@@ -97,8 +98,8 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
     // sent and fire the driver's ack when it chooses. A driver that ignores a
     // toolchange still acks it, which is the case worth reproducing.
     std::vector<std::string> captured_gcodes;
-    std::function<void()> pending_ack;
-    std::function<void(const MoonrakerError&)> pending_error;
+    helix::SharedCallback<void()> pending_ack;
+    helix::SharedCallback<void(const MoonrakerError&)> pending_error;
 
     // Fire-and-forget sends (bypass) take this form; the completion form below
     // is for ops whose ack matters. Both capture, so a test reads one list.
@@ -107,8 +108,9 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
         return helix::AmsErrorHelper::success();
     }
 
-    helix::AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                                  std::function<void(const MoonrakerError&)> on_error,
+    helix::AmsError execute_gcode(const std::string& gcode,
+                                  helix::SharedCallback<void()> on_complete,
+                                  helix::SharedCallback<void(const MoonrakerError&)> on_error,
                                   bool silent) override {
         if (dispatch_via_base) {
             return AmsSubscriptionBackend::execute_gcode(gcode, std::move(on_complete),

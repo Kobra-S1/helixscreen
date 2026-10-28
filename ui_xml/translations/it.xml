@@ -410,7 +410,6 @@
   <translation tag="Bed mesh operation timed out" it="Mesh piano — tempo scaduto"/>
   <translation tag="Bed mesh..." it="Mesh piano..."/>
   <translation tag="Bed size unknown" it="Dimensione del piatto sconosciuta"/>
-  <translation tag="Bed tab moves lift to this height first" it="I movimenti della scheda Piano salgono prima a questa altezza"/>
   <translation tag="Bed target set to {}°C" it="Obiettivo piano impostato a {}°C"/>
   <translation tag="Bed temp must be 0-%d°C" it="La temperatura del piano deve essere 0-%d°C"/>
   <translation tag="Bed warming timed out" it="Riscaldamento piano — tempo scaduto"/>
@@ -716,6 +715,7 @@
   <translation tag="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door." it="Libera lo spazio sopra e sotto il piano. Appoggia le bobine sul piano, coprile con una scatola (un coperchio stampato o la confezione del filamento) e chiudi lo sportello."/>
   <translation tag="Clear the extruder?" it="Svuotare l&apos;estrusore?"/>
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." it="Libera il piano e carica {}. La torre viene stampata al centro del piano."/>
+  <translation tag="Cleared" it="Liberato"/>
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" it="Rimosso dalle impostazioni; disaccoppiamento di sistema fallito, potrebbe servire il Bluetooth del sistema operativo"/>
   <translation tag="Clipboard unavailable - use SSH" it="Appunti non disponibili - usare SSH"/>
   <translation tag="Clog" it="Intasamento"/>
@@ -791,6 +791,7 @@
   <translation tag="Confirm PIN" it="Conferma PIN"/>
   <translation tag="Confirm before running macros" it="Conferma prima di eseguire le macro"/>
   <translation tag="Confirm clearing the extruder to unload it" it="Conferma lo svuotamento dell&apos;estrusore per scaricare"/>
+  <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." it="Conferma solo quando l&apos;ultima stampa è stata tolta dal piano. Da quel momento i movimenti non si alzano più sopra di essa."/>
   <translation tag="Confirm tool changes" it="Conferma cambi utensile"/>
   <translation tag="Connect" it="Connetti"/>
   <translation tag="Connect a USB label printer first" it="Connettere prima una stampante etichette USB"/>
@@ -1828,6 +1829,7 @@
   <translation tag="Invalid value type" it="Tipo di valore non valido"/>
   <translation tag="Invert" it="Inverti"/>
   <translation tag="Is new filament coming out of the nozzle?" it="Il nuovo filamento esce dall&apos;ugello?"/>
+  <translation tag="Is the bed clear?" it="Il piano è libero?"/>
   <translation tag="Issue description" it="Descrizione problema"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." it="Può essere ripristinata dall&apos;interfaccia web di Spoolman."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." it="Non ha ancora segnalato i suoi slot. Riprova tra un momento."/>
@@ -2202,6 +2204,7 @@
   <translation tag="Mount which tool?" it="Quale strumento montare?"/>
   <translation tag="Mount..." it="Monta..."/>
   <translation tag="Move" it="Sposta"/>
+  <translation tag="Move here" it="Sposta qui"/>
   <translation tag="Move out of range" it="Movimento fuori intervallo"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." it="Muovere la carta avanti e indietro durante la regolazione. Fermarsi quando la carta si blocca leggermente ma ancora scorre."/>
   <translation tag="Move selector" it="Sposta selettore"/>
@@ -2606,6 +2609,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." it="Rimetti il foglio PEI sul piano riscaldato."/>
   <translation tag="Place the spools" it="Appoggia le bobine"/>
   <translation tag="Placed" it="Inserito"/>
+  <translation tag="Plate moves and presets lift to this height first" it="I movimenti sul piano e i preset salgono prima a questa altezza"/>
   <translation tag="Plate {}" it="Piatto {}"/>
   <translation tag="Platform" it="Piattaforma"/>
   <translation tag="Platform: " it="Piattaforma: "/>
@@ -3213,6 +3217,7 @@
   <translation tag="Screen Blank" it="Schermo spento"/>
   <translation tag="Screen Dim" it="Attenuazione schermo"/>
   <translation tag="Screen Rotation" it="Rotazione schermo"/>
+  <translation tag="Screen Sharing" it="Condivisione schermo"/>
   <translation tag="Screen dims to lower brightness after period of inactivity" it="Lo schermo si attenua dopo un periodo di inattività"/>
   <translation tag="Screen is not permitted to shut down or reboot. Restart HelixScreen to fix it." it="Lo schermo non ha il permesso di spegnersi o riavviarsi. Riavvia HelixScreen per risolvere."/>
   <translation tag="Screen lock and PIN settings" it="Blocco schermo e impostazioni PIN"/>
@@ -3715,6 +3720,7 @@
   <translation tag="The nozzle is clear of the print" it="L&apos;ugello non tocca la stampa"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." it="L&apos;ugello è caldo. Puliscilo con la spazzola metallica in dotazione, mantieni pulita la posizione di aggancio, poi tocca Avanti."/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." it="L&apos;ugello è sollevato dalla stampa e X e Y sono azzerati. Riprendendo, scende di nuovo all&apos;altezza in cui si è fermato."/>
+  <translation tag="The part on the bed is too tall to clear. Remove it, then tap Cleared." it="Il pezzo sul piano è troppo alto per passarci sopra. Rimuovilo, poi tocca &quot;Liberato&quot;."/>
   <translation tag="The peak of {0} left the zone. Check that only {1}&apos;s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts." it="Il picco di {0} è uscito dalla zona. Verifica di aver girato solo il tenditore di {1}. Non sai quale sia quale? Tocca la matita per identificare le cinghie."/>
   <translation tag="The peak of {} moved out of the zone. Widening it." it="Il picco di {} è uscito dalla zona. Allargamento."/>
   <translation tag="The plate and the spools are still hot. Use gloves." it="Il piano e le bobine sono ancora caldi. Usa i guanti."/>
@@ -4178,6 +4184,7 @@
   <translation tag="Warn if a door is open" it="Avvisa se una porta è aperta"/>
   <translation tag="Warning" it="Avviso"/>
   <translation tag="Warnings &amp; errors" it="Avvisi ed errori"/>
+  <translation tag="Watch and control this screen from a browser" it="Visualizza e controlla questo schermo da un browser"/>
   <translation tag="Watch the camera during a print for failed prints" it="Controlla la telecamera durante la stampa per individuare stampe non riuscite"/>
   <translation tag="Watch which motor turns" it="Guarda quale motore gira"/>
   <translation tag="Weak battery" it="Batteria scarica"/>
@@ -4285,6 +4292,7 @@
   <translation tag="Z tilt" it="Inclinazione Z"/>
   <translation tag="Z {:.2f} mm" it="Z {:.2f} mm"/>
   <translation tag="Z {}, will lift to {}mm" it="Z {}, salirà a {}mm"/>
+  <translation tag="Z {}, will lift to {}mm: last print is {}mm tall" it="Z {}, salirà a {}mm: l&apos;ultima stampa è alta {}mm"/>
   <translation tag="Z-Off:" it="Z-Off:"/>
   <translation tag="Z-Offset" it="Z-Offset"/>
   <translation tag="Z-Offset Calibration" it="Calibrazione Z-Offset"/>

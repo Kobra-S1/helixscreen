@@ -217,6 +217,10 @@ std::string locale_current_language() {
     return s_current_lang;
 }
 
+bool locale_uses_system_locale() {
+    return s_use_system_locale;
+}
+
 namespace {
 std::map<uint64_t, std::function<void(const std::string&)>>& language_listeners() {
     static std::map<uint64_t, std::function<void(const std::string&)>> s;

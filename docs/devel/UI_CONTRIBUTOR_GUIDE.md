@@ -643,6 +643,48 @@ Almost everything uses flexbox. The three flows you'll see:
 <lv_obj flex_flow="row_wrap"/>   <!-- Horizontal, wraps to new rows when full -->
 ```
 
+### Equal columns, as many as fit: `<responsive_grid>`
+
+For a list laid out in columns (form fields, cards, a set of choices) use
+`<responsive_grid>`, not `row_wrap` with percentage widths and not a C++ loop
+that sets each child's width. Percentages cannot account for the gap, so they
+leave a ragged edge (`49%`) or wrap early, and a hand-written loop is one more
+copy of the column rule.
+
+```xml
+<responsive_grid name="param_list"
+                 min_col_width="#macro_param_col_min" fit_items="true"
+                 style_pad_column="#space_md" style_pad_row="#space_sm"/>
+```
+
+| Attribute | Meaning |
+|-----------|---------|
+| `min_col_width` | The narrowest a column gets before the grid drops one. A responsive token, so each breakpoint gets its own. Absent: one column |
+| `max_col_width` | Cells never grow past this; the spare width stays empty on the right |
+| `max_cols` | The most columns, whatever the width |
+| `fit_items` | `true`: no more columns than visible children, so two fields in a wide card share the row |
+
+The grid lives in the XML engine
+(`lib/helix-xml/src/xml/parsers/lv_xml_responsive_grid_parser.c`), registered by
+`lv_xml_init()`, so it needs no app registration and reaches the ESP32 firmware
+with the rest of helix-xml. It is a registered LVGL layout, so it re-lays out on
+every pass: a child added, deleted or hidden, or the grid resized. Every child
+is stretched to its column's width whatever width it asks for, rows are as tall
+as their tallest child, and a short last row keeps the column width. Children
+are added the usual way, in XML or with `lv_xml_create(grid, ...)`. The column
+rule itself is the pure `lv_xml_grid_fit_columns()`; code that has to size
+something per cell (a gradient buffer) asks `lv_xml_responsive_grid_get_fit(grid)`
+after `lv_obj_update_layout()` instead of repeating it. The rule is tested in
+helix-xml's suite (`tests/cases/test_responsive_grid.c`); where children land
+on this app's display config, in `tests/unit/test_responsive_grid.cpp`.
+
+Users: `macro_param_modal.xml` (fields; the card widens once there are two),
+`timelapse_videos_overlay.xml` (video cards, 140-230px), `belt_names_modal.xml`
+(the four layout choices, two to a row).
+
+Use `fit_tile_grid()` below instead when the tiles must fit a fixed box
+without scrolling: it chooses rows as well as columns.
+
 ### A wrapping grid of tiles that must fit its card
 
 A `row_wrap` grid of equal tiles with fixed percentage widths fixes its column

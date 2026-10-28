@@ -35,10 +35,12 @@ class RecordingClient : public MoonrakerClientMock {
     using MoonrakerClientMock::MoonrakerClientMock;
     using MoonrakerClientMock::send_jsonrpc;
 
-    helix::RequestId send_jsonrpc(
-        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
-        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms, bool silent,
-        std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
+    helix::RequestId
+    send_jsonrpc(const std::string& method, const json& params,
+                 helix::SharedCallback<void(const json&)> success_cb,
+                 helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms,
+                 bool silent,
+                 std::optional<helix::rpc_error_policy::CallerIntent> intent) override {
         if (method == "printer.objects.list" && objects_list_error) {
             if (success_cb)
                 success_cb(json{{"error", {{"message", *objects_list_error}}}});
@@ -88,7 +90,7 @@ class RecordingClient : public MoonrakerClientMock {
     MoonrakerError fail_error = MoonrakerError::from_json_rpc(
         json{{"code", 400}, {"message", "bad object"}}, "printer.objects.subscribe");
     bool hold_next_subscribe = false;
-    std::function<void()> held;
+    helix::SharedCallback<void()> held;
     bool done = false;
 };
 

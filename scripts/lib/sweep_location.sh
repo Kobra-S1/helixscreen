@@ -10,7 +10,9 @@
 #   unset        automatic: with a test host configured, `test-host-run.sh
 #                --probe` decides from the link and prints the numbers
 #                (HELIX_TEST_HOST_AUTO=0 keeps it local). With no test host
-#                configured, here, silently.
+#                configured, here, silently. A test host named as a candidate
+#                list is resolved here once (resolve_build_host), and the
+#                resolved host is what every later step inherits.
 #
 #   resolve_sweep_location   sets SWEEP_WHERE to local or remote; returns 2 on
 #                            a bad TEST_HOST or a missing test host
@@ -30,6 +32,9 @@ resolve_sweep_location() {
                 SWEEP_WHERE=local
             elif [ "${HELIX_TEST_HOST_AUTO:-1}" != 1 ]; then
                 echo "→ unit sweep runs here (HELIX_TEST_HOST_AUTO=0; TEST_HOST=1 forces the test host)"
+                SWEEP_WHERE=local
+            elif ! resolve_build_host HELIX_TEST_HOST; then
+                echo "→ unit sweep runs here (the test host is unreachable)"
                 SWEEP_WHERE=local
             elif "$TEST_HOST_RUN" --probe; then
                 SWEEP_WHERE=remote

@@ -494,6 +494,16 @@ TEST_CASE("History numeric fields accept JSON strings", "[history][parsing][json
     CHECK(job.modified == Catch::Approx(1757990000.25));
 }
 
+TEST_CASE("parse_history_job reads the object height", "[history][parsing]") {
+    auto job_json = nlohmann::json::parse(
+        R"({"job_id": "000010", "status": "completed", "metadata": {"object_height": 12.5}})");
+    CHECK(parse_history_job(job_json).object_height == Catch::Approx(12.5));
+
+    auto missing = nlohmann::json::parse(
+        R"({"job_id": "000011", "status": "completed", "metadata": {"layer_height": 0.2}})");
+    CHECK(parse_history_job(missing).object_height == 0.0);
+}
+
 TEST_CASE("History numeric fields default on null, missing, negative and garbage",
           "[history][parsing][json_coercion]") {
     auto job_json = nlohmann::json::parse(R"({

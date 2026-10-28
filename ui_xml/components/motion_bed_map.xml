@@ -31,6 +31,8 @@
            receiving its drag. The panel refuses to START a gesture while
            another operation holds the toolhead instead. -->
       <bind_state_if_eq subject="nav_buttons_enabled" state="disabled" ref_value="0"/>
+      <!-- Inert until every axis is homed: only the Home button below homes. -->
+      <bind_state_if cond="motion_x_homed eq 0 or motion_y_homed eq 0 or motion_z_homed eq 0" state="disabled"/>
       <event_cb trigger="pressed" callback="on_motion_bed_pressed"/>
       <event_cb trigger="pressing" callback="on_motion_bed_pressing"/>
       <event_cb trigger="released" callback="on_motion_bed_released"/>
@@ -81,6 +83,14 @@
         <icon src="home" size="lg" variant="warning" align="center" clickable="false" event_bubble="true"/>
         <event_cb trigger="clicked" callback="on_motion_bed_home"/>
       </lv_obj>
+      <!-- While the last print may still be on the bed (bed_occupied), plate
+           moves lift above it. The user taps this once the part is removed. -->
+      <ui_button name="bed_map_cleared"
+                 width="content" height="#button_height_sm" text="Cleared" icon="check" variant="outline"
+                 align="top_right">
+        <bind_flag_if_not_eq subject="bed_occupied" flag="hidden" ref_value="1"/>
+        <event_cb trigger="clicked" callback="on_motion_bed_cleared"/>
+      </ui_button>
     </lv_obj>
     <text_small name="bed_map_readout" width="100%" bind_text="motion_bed_readout" style_text_align="center"/>
   </view>

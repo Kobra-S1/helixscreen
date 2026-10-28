@@ -548,8 +548,8 @@ class FitRecordFixture : private PrintSelectGlobalStateReset, public PrintSelect
         MoonrakerClientMockTestAccess::set_method_handler(
             mock_client_, kFileAnalysisRpc,
             [](MoonrakerClientMock*, const json& params,
-               std::function<void(const json&)> success_cb,
-               std::function<void(const MoonrakerError&)>) -> bool {
+               helix::SharedCallback<void(const json&)> success_cb,
+               helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
                 const std::string name = params.value("filename", "");
                 json result = {{"status", "pending"}};
                 if (name == "fit_rec_hot.gcode") {

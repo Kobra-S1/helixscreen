@@ -67,7 +67,7 @@ class ChromeWidget : public PanelWidget {
     }
 };
 
-void queue_canary(bool& ran, std::function<void()> destroy) {
+void queue_canary(bool& ran, helix::SharedCallback<void()> destroy) {
     helix::ui::UpdateQueue::instance().queue("test::drain_canary", [&ran, destroy]() {
         ran = true;
         destroy();
@@ -227,7 +227,7 @@ namespace {
 
 /// Run @p op with a canary queued ahead of it, and check the canary waited for
 /// the next drain instead of running under @p op.
-void check_runs_no_queued_callback(const char* what, const std::function<void()>& op) {
+void check_runs_no_queued_callback(const char* what, const helix::SharedCallback<void()>& op) {
     INFO(what);
     bool ran = false;
     queue_canary(ran, [] {});

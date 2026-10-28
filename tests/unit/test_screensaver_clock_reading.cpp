@@ -336,6 +336,18 @@ struct TimeFormatScope {
     TimeFormat saved;
 };
 
+/// The weekday in the active language. With the system locale active the name
+/// is whatever this host's libc spells (macOS capitalises French, glibc does
+/// not), so the expectation is libc's own; with the built-in tables it is the
+/// pinned spelling.
+std::string expected_weekday(const struct tm& day, const char* table_name) {
+    if (!helix::ui::locale_uses_system_locale())
+        return table_name;
+    char buf[64];
+    strftime(buf, sizeof(buf), "%A", &day);
+    return buf;
+}
+
 struct tm october_21_2019() {
     struct tm t {};
     t.tm_year = 2019 - 1900;
@@ -358,22 +370,22 @@ TEST_CASE_METHOD(LVGLTestFixture, "the long date and weekday read in the active 
     {
         LanguageScope lang("de");
         CHECK(helix::ui::format_localized_long_date(&day) == "21. Oktober 2019");
-        CHECK(helix::ui::format_localized_weekday(&day) == "Montag");
+        CHECK(helix::ui::format_localized_weekday(&day) == expected_weekday(day, "Montag"));
     }
     {
         LanguageScope lang("fr");
         CHECK(helix::ui::format_localized_long_date(&day) == "21 octobre 2019");
-        CHECK(helix::ui::format_localized_weekday(&day) == "lundi");
+        CHECK(helix::ui::format_localized_weekday(&day) == expected_weekday(day, "lundi"));
     }
     {
         LanguageScope lang("es");
         CHECK(helix::ui::format_localized_long_date(&day) == "21 de octubre de 2019");
-        CHECK(helix::ui::format_localized_weekday(&day) == "lunes");
+        CHECK(helix::ui::format_localized_weekday(&day) == expected_weekday(day, "lunes"));
     }
     {
         LanguageScope lang("ja");
         CHECK(helix::ui::format_localized_long_date(&day) == "2019年10月21日");
-        CHECK(helix::ui::format_localized_weekday(&day) == "月曜日");
+        CHECK(helix::ui::format_localized_weekday(&day) == expected_weekday(day, "月曜日"));
     }
     {
         LanguageScope lang("ru");

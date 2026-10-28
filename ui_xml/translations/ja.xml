@@ -410,7 +410,6 @@
   <translation tag="Bed mesh operation timed out" ja="ベッドメッシュ操作がタイムアウトしました"/>
   <translation tag="Bed mesh..." ja="ベッドメッシュ..."/>
   <translation tag="Bed size unknown" ja="ベッドサイズが不明です"/>
-  <translation tag="Bed tab moves lift to this height first" ja="ベッドタブの移動はまずこの高さまで上昇します"/>
   <translation tag="Bed target set to {}°C" ja="ベッド目標温度を {}°C に設定しました"/>
   <translation tag="Bed temp must be 0-%d°C" ja="ベッド温度は 0〜%d°C にしてください"/>
   <translation tag="Bed warming timed out" ja="ベッド加熱がタイムアウトしました"/>
@@ -716,6 +715,7 @@
   <translation tag="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door." ja="ベッドの上と下を片付けてください。スプールをベッドに置き、箱(印刷したふたやフィラメントの梱包箱)でかぶせてドアを閉めてください。"/>
   <translation tag="Clear the extruder?" ja="エクストルーダーを空にしますか？"/>
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." ja="ベッドを片付けて{}をロードしてください。タワーはベッド中央に印刷されます。"/>
+  <translation tag="Cleared" ja="クリア済み"/>
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" ja="設定から削除しました。システムのペアリング解除に失敗、OS の Bluetooth 設定が必要な場合があります"/>
   <translation tag="Clipboard unavailable - use SSH" ja="クリップボード利用不可 - SSHを使用してください"/>
   <translation tag="Clog" ja="詰まり"/>
@@ -791,6 +791,7 @@
   <translation tag="Confirm PIN" ja="PIN を確認"/>
   <translation tag="Confirm before running macros" ja="マクロ実行前に確認する"/>
   <translation tag="Confirm clearing the extruder to unload it" ja="取り出すには、エクストルーダーを空にすることを確認してください"/>
+  <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." ja="最後のプリントをベッドから取り除いてから確認してください。以降、移動時にその上を避けて持ち上げなくなります。"/>
   <translation tag="Confirm tool changes" ja="ツール交換を確認する"/>
   <translation tag="Connect" ja="接続"/>
   <translation tag="Connect a USB label printer first" ja="先にUSBラベルプリンターを接続してください"/>
@@ -1828,6 +1829,7 @@
   <translation tag="Invalid value type" ja="値の型が無効です"/>
   <translation tag="Invert" ja="反転"/>
   <translation tag="Is new filament coming out of the nozzle?" ja="ノズルから新しいフィラメントが出ていますか？"/>
+  <translation tag="Is the bed clear?" ja="ベッドは空いていますか？"/>
   <translation tag="Issue description" ja="問題の説明"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." ja="Spoolman の Web 画面でアーカイブを解除できます。"/>
   <translation tag="It has not reported its slots yet. Try again in a moment." ja="スロットがまだ報告されていません。しばらくしてからもう一度お試しください。"/>
@@ -2202,6 +2204,7 @@
   <translation tag="Mount which tool?" ja="どのツールを装着しますか？"/>
   <translation tag="Mount..." ja="装着..."/>
   <translation tag="Move" ja="移動"/>
+  <translation tag="Move here" ja="ここへ移動"/>
   <translation tag="Move out of range" ja="移動範囲外です"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." ja="調整中は紙を前後に動かしてください。紙がわずかに引っかかりながらも滑る状態で止めてください。"/>
   <translation tag="Move selector" ja="セレクターを移動"/>
@@ -2606,6 +2609,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." ja="PEIシートを加熱ベッドに戻してください。"/>
   <translation tag="Place the spools" ja="スプールを置く"/>
   <translation tag="Placed" ja="配置済み"/>
+  <translation tag="Plate moves and presets lift to this height first" ja="ベッド上の移動とプリセットはまずこの高さまで上昇します"/>
   <translation tag="Plate {}" ja="プレート {}"/>
   <translation tag="Platform" ja="プラットフォーム"/>
   <translation tag="Platform: " ja="プラットフォーム: "/>
@@ -3213,6 +3217,7 @@
   <translation tag="Screen Blank" ja="画面消灯"/>
   <translation tag="Screen Dim" ja="画面減光"/>
   <translation tag="Screen Rotation" ja="画面の回転"/>
+  <translation tag="Screen Sharing" ja="画面共有"/>
   <translation tag="Screen dims to lower brightness after period of inactivity" ja="一定時間操作がないと画面の明るさが下がります"/>
   <translation tag="Screen is not permitted to shut down or reboot. Restart HelixScreen to fix it." ja="画面にはシャットダウンや再起動の権限がありません。HelixScreen を再起動すると修正されます。"/>
   <translation tag="Screen lock and PIN settings" ja="画面ロックと PIN の設定"/>
@@ -3715,6 +3720,7 @@
   <translation tag="The nozzle is clear of the print" ja="ノズルは印刷物から離れている"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." ja="ノズルは高温です。付属のワイヤーブラシで清掃し、ドッキング位置もきれいに保ってから「次へ」をタップしてください。"/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." ja="ノズルは印刷物から持ち上げられ、XとYはホーミング済みです。再開すると、停止した高さまで再び下がります。"/>
+  <translation tag="The part on the bed is too tall to clear. Remove it, then tap Cleared." ja="ベッド上の造形物が高すぎて越えられません。取り除いてから「クリア済み」をタップしてください。"/>
   <translation tag="The peak of {0} left the zone. Check that only {1}&apos;s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts." ja="{0}のピークがゾーンから外れました。{1}のテンショナーだけを回したか確認してください。どれがどれか分からない場合は、ペンのアイコンをタップしてベルトを識別してください。"/>
   <translation tag="The peak of {} moved out of the zone. Widening it." ja="{}のピークがゾーン外に出ました。ゾーンを広げます。"/>
   <translation tag="The plate and the spools are still hot. Use gloves." ja="ベッドとスプールはまだ熱いです。手袋を使ってください。"/>
@@ -4178,6 +4184,7 @@
   <translation tag="Warn if a door is open" ja="ドアが開いていたら警告"/>
   <translation tag="Warning" ja="警告"/>
   <translation tag="Warnings &amp; errors" ja="警告とエラー"/>
+  <translation tag="Watch and control this screen from a browser" ja="ブラウザからこの画面を表示・操作"/>
   <translation tag="Watch the camera during a print for failed prints" ja="印刷中にカメラで印刷失敗を監視します"/>
   <translation tag="Watch which motor turns" ja="どのモーターが回るか見てください"/>
   <translation tag="Weak battery" ja="バッテリー残量低下"/>
@@ -4285,6 +4292,7 @@
   <translation tag="Z tilt" ja="Zチルト"/>
   <translation tag="Z {:.2f} mm" ja="Z {:.2f} mm"/>
   <translation tag="Z {}, will lift to {}mm" ja="Z {}、{}mmまで上昇します"/>
+  <translation tag="Z {}, will lift to {}mm: last print is {}mm tall" ja="Z {}、{}mmまで上昇します：前回の造形物の高さは{}mmです"/>
   <translation tag="Z-Off:" ja="Z-Off:"/>
   <translation tag="Z-Offset" ja="Z-Offset"/>
   <translation tag="Z-Offset Calibration" ja="Z-Offset キャリブレーション"/>

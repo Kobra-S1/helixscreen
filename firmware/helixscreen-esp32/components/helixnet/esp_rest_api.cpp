@@ -107,7 +107,7 @@ std::string esp_url_escape_path(const std::string& path) {
 // (e.g. Snapmaker's optional call_rest_post action) must fail gracefully, not
 // abort/reset the board.
 void esp_rest_unimplemented_err(const char* sym,
-                                const std::function<void(const MoonrakerError&)>& err) {
+                                const helix::SharedCallback<void(const MoonrakerError&)>& err) {
     ESP_LOGE(TAG, "esp_rest_api stub: %s", sym);
     if (err) {
         MoonrakerError e;

@@ -147,7 +147,7 @@ class CfsToolMapProbe : public AmsBackendCfs {
         return helix::AmsErrorHelper::success();
     }
     helix::AmsError execute_gcode(const std::string& gcode,
-                                  std::function<void()> on_complete) override {
+                                  helix::SharedCallback<void()> on_complete) override {
         captured.push_back(gcode);
         if (on_complete) {
             on_complete();
@@ -191,7 +191,7 @@ class ToolChangerMapProbe : public helix::AmsBackendToolChanger {
         return helix::AmsErrorHelper::success();
     }
     helix::AmsError execute_gcode(const std::string& gcode,
-                                  std::function<void()> on_complete) override {
+                                  helix::SharedCallback<void()> on_complete) override {
         captured.push_back(gcode);
         if (on_complete) {
             on_complete();
@@ -199,8 +199,9 @@ class ToolChangerMapProbe : public helix::AmsBackendToolChanger {
         return helix::AmsErrorHelper::success();
     }
     // A dispatch that unwinds on a rejection sends through this form.
-    helix::AmsError execute_gcode(const std::string& gcode, std::function<void()> on_complete,
-                                  std::function<void(const MoonrakerError&)> /*on_error*/,
+    helix::AmsError execute_gcode(const std::string& gcode,
+                                  helix::SharedCallback<void()> on_complete,
+                                  helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
                                   bool /*silent*/) override {
         return execute_gcode(gcode, std::move(on_complete));
     }

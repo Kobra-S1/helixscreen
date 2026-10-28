@@ -124,3 +124,63 @@ TEST_CASE("toolhead layout: the live position leads only while the toolhead move
     CHECK(toolhead_position_centimm(true, 111, 222) == 111);
     CHECK(toolhead_position_centimm(false, 111, 222) == 222);
 }
+
+TEST_CASE("toolhead layout: the preset row needs Full plus its own height", "[toolhead][layout]") {
+    ToolheadInput in;
+    in.content_w = 190;
+    in.needs = kNeeds;
+    in.homed = true;
+    in.presets_extra_h = 60;
+
+    in.content_h = kNeeds.full.h + 60;
+    CHECK(decide_toolhead_layout(in).rung == SizeRung::Full);
+    CHECK(decide_toolhead_layout(in).show_presets);
+    in.printing = true;
+    CHECK(decide_toolhead_layout(in).show_presets);
+    in.printing = false;
+
+    in.content_h = kNeeds.full.h + 59;
+    CHECK(decide_toolhead_layout(in).rung == SizeRung::Full);
+    CHECK_FALSE(decide_toolhead_layout(in).show_presets);
+
+    // Wide never has the row.
+    in.content_h = kNeeds.full.h - 1;
+    REQUIRE(decide_toolhead_layout(in).rung == SizeRung::Wide);
+    CHECK_FALSE(decide_toolhead_layout(in).show_presets);
+}
+
+TEST_CASE("toolhead layout: the Move-here chip drops its label on a plate narrower than it",
+          "[toolhead][layout]") {
+    ToolheadInput in;
+    in.needs = kNeeds;
+    in.homed = true;
+    in.labelled_chip_w = 150;
+    in.wide_gap_w = 4;
+
+    // Wide halves the row with the values: a 290 box leaves the plate 143.
+    in.content_w = 290;
+    in.content_h = 100;
+    REQUIRE(decide_toolhead_layout(in).rung == SizeRung::Wide);
+    CHECK(toolhead_plate_box_w(in, SizeRung::Wide) == 143);
+    CHECK(decide_toolhead_layout(in).chip_icon_only);
+    // A 304 box leaves exactly 150: the label fits.
+    in.content_w = 304;
+    CHECK_FALSE(decide_toolhead_layout(in).chip_icon_only);
+
+    // Full gives the plate the whole width.
+    in.content_w = 190;
+    in.content_h = 200;
+    REQUIRE(decide_toolhead_layout(in).rung == SizeRung::Full);
+    CHECK_FALSE(decide_toolhead_layout(in).chip_icon_only);
+    in.labelled_chip_w = 191;
+    CHECK(decide_toolhead_layout(in).chip_icon_only);
+
+    // No plate, no chip; an unmeasured chip keeps its label.
+    in.content_w = 80;
+    in.content_h = 70;
+    CHECK_FALSE(decide_toolhead_layout(in).chip_icon_only);
+    in.content_w = 290;
+    in.content_h = 100;
+    in.labelled_chip_w = 0;
+    CHECK_FALSE(decide_toolhead_layout(in).chip_icon_only);
+}

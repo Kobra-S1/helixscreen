@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The Connection page: its three rows carry their callbacks, and the Host row
+// The Connection page: its four rows carry their callbacks, and the Host row
 // shows the printer address from config. The XML names its callbacks by string
 // and silently skips one that is not registered, so a row whose callback went
 // missing stays on screen and does nothing.
@@ -88,6 +88,7 @@ TEST_CASE_METHOD(ConnectionCallbacksFixture, "Connection page: every row runs it
     CHECK(row_runs("row_network", "on_network_clicked"));
     CHECK(row_runs("row_printers", "on_printers_clicked"));
     CHECK(row_runs("row_printer_host", "on_change_host_clicked"));
+    CHECK(row_runs("row_screen_sharing", "on_screen_sharing_clicked"));
 }
 
 TEST_CASE_METHOD(ConnectionCallbacksFixture,

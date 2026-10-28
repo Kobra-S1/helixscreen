@@ -216,6 +216,21 @@ Three rules keep the picture still and the chips readable:
 
 Current limitations: a toolchanger's idle tools are not shown on this screen (only the active tool, as the badge on the nozzle chip), and the pre-print phase has no first-layer or estimated print time line.
 
+### The Motion panel's plate
+
+Two surfaces move the head by touching a top-down plate: the Motion overlay's Bed tab (`MotionPanel`, `src/ui/ui_panel_motion.cpp`) and the home Toolhead widget (chapter 09). They share every rule, in four pieces, so the two cannot drift:
+
+| Piece | What it decides |
+|---|---|
+| `include/bed_plate_context.h` | The plate area (`current_bed_plate()`), the clamp envelope (`move_clamp_bounds()`), whether the plate may move the head now (`plate_moves_allowed()`: every axis homed, nav enabled, `machine_motion_blocked` clear, no external blocking operation), the lift for the next XY move (`current_plate_lift()`), Park's own lift (`park_plate_lift()`, `park_over_plate_target()`), the Z-down floor (`clamp_z_down_to_current_floor()`) and the readout and refusal strings (`plate_lift_readout()`, `part_too_tall_text()`) |
+| `helix::BedPlateGesture` (`include/bed_plate_gesture.h`) | Press, drag and release, free of LVGL: past `kPlateDragThresholdPx` a drag streams targets with one lift decided at its start; a tap is handed back to the owner (the Bed tab moves at once, the widget shows a target and a Move here chip). Every send asks `can_move()` again |
+| `helix::ToolheadMoveSender` (`include/toolhead_move_sender.h`) | One move in flight with the newest coalesced behind it, clamped and at the jog feedrates. Each owner has its own |
+| `include/bed_plate_draw.h` | The 50 mm grid and the occupying print's outlines, drawn by `draw_bed_plate_layers()` |
+
+**The lift floor** is pure, in `include/motion_presets.h`: `plate_z_floor()` is `motion/bed_map_clearance`, plus the part's height while a print may be on the bed (`bed_part_height()`, read from `BedOccupancyState`, chapter 05). `plate_lift()` turns it into None (already above), Lift (rise first, capped at z_max) or Refuse (z_max less than `kPartClearanceMinMm` above the part), and `clamp_z_down_to_floor()` keeps a downward Z step above it. The plate, the Move tab's presets (`MotionPanel::handle_preset` sends through the gesture's `send_once()`), Park and the widget's preset slots all lift by it; jog arrows and coordinate entry do not, since they are deliberate single-axis steps. A Refuse raises `MotionPanel::notify_part_too_tall()`.
+
+**Nothing in the Motion panel homes on its own.** The coordinates disable per axis on `motion_<axis>_homed`, and the presets, Park and the Bed tab's plate on all three, in their XML (`ui_xml/motion_panel.xml`, `ui_xml/components/move_preset_grid.xml`, `ui_xml/components/motion_bed_map.xml`); the handlers re-check (`MotionPanel::open_axis_keypad`, `MotionPanel::request_axis_target`, `MotionPanel::handle_park`) rather than calling `ensure_homed_then()`. Only the explicit Home buttons send G28. Calibration and filament flows that home as part of their job are outside this rule.
+
 ## Patterns & gotchas
 
 - **Register before push, every push.** `helix::nav::register_overlay(root, this)` then `helix::nav::push_overlay(root)`. Cached overlays must re-register on re-open (navbar switches clear the map); `OverlayBase::show()` does this for you - hand-rolled opens forget.

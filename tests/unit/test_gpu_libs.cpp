@@ -19,6 +19,14 @@ using helix::gpu_libs::ReturnKind;
 
 namespace {
 
+/// The loader under test answers the Implib.so trampolines, which only an ELF
+/// build has, and leans on glibc's sonames; a macOS build never calls it.
+void skip_without_elf_loader() {
+#if defined(__APPLE__)
+    SKIP("gpu lib loader is ELF/glibc only");
+#endif
+}
+
 using IntFn = int (*)();
 using PtrFn = void* (*)();
 using DoubleFn = double (*)();
@@ -88,12 +96,14 @@ TEST_CASE("A pointer or EGL call fails with NULL / 0", "[gpu_libs]") {
 }
 
 TEST_CASE("A missing GPU library gets a handle, not an abort", "[gpu_libs]") {
+    skip_without_elf_loader();
     void* lib = helix_gpu_lib_open("libhelix-does-not-exist.so.9");
     REQUIRE(lib != nullptr);
     dlclose(lib);
 }
 
 TEST_CASE("A missing library's handle never resolves another library's function", "[gpu_libs]") {
+    skip_without_elf_loader();
     // strlen is loaded in this process; a search of the missing library's
     // handle must not find it.
     void* lib = helix_gpu_lib_open("libhelix-does-not-exist.so.9");
@@ -106,6 +116,7 @@ TEST_CASE("A missing library's handle never resolves another library's function"
 }
 
 TEST_CASE("A library that loads resolves its real functions", "[gpu_libs]") {
+    skip_without_elf_loader();
     void* libm = helix_gpu_lib_open("libm.so.6");
     REQUIRE(libm != nullptr);
     void* fn = helix_gpu_lib_symbol(libm, "cos");

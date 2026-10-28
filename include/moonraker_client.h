@@ -38,6 +38,7 @@
 #pragma once
 
 #include "connection_state.h"
+#include "helix_shared_callback.h"
 #include "hv/Event.h" // TimerID
 #include "hv/WebSocketClient.h"
 #include "i_moonraker_client.h"
@@ -100,8 +101,8 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * @param on_disconnected Callback invoked when connection closes
      * @return 0 on success, non-zero on error
      */
-    int connect(const char* url, std::function<void()> on_connected,
-                std::function<void()> on_disconnected) override;
+    int connect(const char* url, helix::SharedCallback<void()> on_connected,
+                helix::SharedCallback<void()> on_disconnected) override;
 
     /**
      * @brief Disconnect from Moonraker WebSocket server
@@ -177,7 +178,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * @param cb Callback function receiving parsed JSON notification
      * @return Subscription ID for later unsubscription (0 = invalid/failed)
      */
-    SubscriptionId register_notify_update(std::function<void(const json&)> cb) override;
+    SubscriptionId register_notify_update(helix::SharedCallback<void(const json&)> cb) override;
 
     /**
      * @brief Unsubscribe from status update notifications
@@ -201,7 +202,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * @param cb Callback function receiving parsed JSON notification
      */
     void register_method_callback(const std::string& method, const std::string& handler_name,
-                                  std::function<void(const json&)> cb) override;
+                                  helix::SharedCallback<void(const json&)> cb) override;
 
     /**
      * @brief Unregister a method callback by handler name
@@ -252,7 +253,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * @return Request ID for cancellation, or kInvalidRequestId on error
      */
     RequestId send_jsonrpc(const std::string& method, const json& params,
-                           std::function<void(const json&)> cb) override;
+                           helix::SharedCallback<void(const json&)> cb) override;
 
     /**
      * @brief Send JSON-RPC request with success and error callbacks
@@ -272,8 +273,9 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * @return Request ID for cancellation, or kInvalidRequestId on error
      */
     RequestId send_jsonrpc(
-        const std::string& method, const json& params, std::function<void(const json&)> success_cb,
-        std::function<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
+        const std::string& method, const json& params,
+        helix::SharedCallback<void(const json&)> success_cb,
+        helix::SharedCallback<void(const MoonrakerError&)> error_cb, uint32_t timeout_ms = 0,
         bool silent = false,
         std::optional<helix::rpc_error_policy::CallerIntent> intent = std::nullopt) override;
 
@@ -316,7 +318,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      */
     void get_gcode_store(int count,
                          std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
-                         std::function<void(const MoonrakerError&)> on_error) override;
+                         helix::SharedCallback<void(const MoonrakerError&)> on_error) override;
 
     /**
      * @brief Fetch cached temperature history from Moonraker
@@ -328,8 +330,9 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * @param on_success Callback with the parsed per-sensor store (oldest first)
      * @param on_error Callback for errors
      */
-    void get_temperature_store(std::function<void(const TemperatureStore&)> on_success,
-                               std::function<void(const MoonrakerError&)> on_error) override;
+    void
+    get_temperature_store(std::function<void(const TemperatureStore&)> on_success,
+                          helix::SharedCallback<void(const MoonrakerError&)> on_error) override;
 
     /**
      * @brief Parse a server.temperature_store JSON "result" object into a TemperatureStore
@@ -355,9 +358,9 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * @param on_complete Callback invoked when discovery completes successfully
      * @param on_error Optional callback invoked if discovery fails (e.g., Klippy not connected)
      */
-    void
-    discover_printer(std::function<void()> on_complete,
-                     std::function<void(const std::string& reason)> on_error = nullptr) override;
+    void discover_printer(
+        helix::SharedCallback<void()> on_complete,
+        helix::SharedCallback<void(const std::string& reason)> on_error = nullptr) override;
 
     /**
      * @brief Parse object list from printer.objects.list response
@@ -491,7 +494,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      *
      * @param callback Callback receiving raw bed_mesh JSON, or nullptr to disable
      */
-    void set_bed_mesh_callback(std::function<void(const json&)> callback) override {
+    void set_bed_mesh_callback(helix::SharedCallback<void(const json&)> callback) override {
         discovery_.set_bed_mesh_callback(std::move(callback));
     }
 
@@ -512,7 +515,8 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * @param handler_name Unique key for replace / remove
      * @param cb           Callback fired on each connection event
      */
-    void add_connected_observer(const std::string& handler_name, std::function<void()> cb) override;
+    void add_connected_observer(const std::string& handler_name,
+                                helix::SharedCallback<void()> cb) override;
 
     /**
      * @brief Remove a previously-registered on-connected observer
@@ -695,7 +699,7 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
      * @param cb The callback to invoke; no-op if empty.
      * @param cause Short human-readable label for log messages.
      */
-    void invoke_connected_callback(const std::function<void()>& cb, const char* cause);
+    void invoke_connected_callback(const helix::SharedCallback<void()>& cb, const char* cause);
 
     // ========== WebSocket callback trampolines (install-once) ==========
     // The inherited libhv std::function callbacks (onopen/onmessage/onclose) are
@@ -731,13 +735,13 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
 
     // Notification callbacks (protected to allow mock to trigger notifications)
     // Map of subscription ID -> callback for O(1) unsubscription
-    std::map<SubscriptionId, std::function<void(const json&)>> notify_callbacks_;
+    std::map<SubscriptionId, helix::SharedCallback<void(const json&)>> notify_callbacks_;
     std::atomic<SubscriptionId> next_subscription_id_{1}; // Start at 1 (0 = invalid)
     std::mutex callbacks_mutex_; // Protect notify_callbacks_ and method_callbacks_
 
     // Persistent method-specific callbacks (protected to allow mock to dispatch)
     // method_name : { handler_name : callback }
-    std::map<std::string, std::map<std::string, std::function<void(const json&)>>>
+    std::map<std::string, std::map<std::string, helix::SharedCallback<void(const json&)>>>
         method_callbacks_;
 
     // Discovery sequence (protected to allow mock access to hardware vectors)
@@ -781,15 +785,15 @@ class MoonrakerClient : public hv::WebSocketClient, public IMoonrakerClient {
     uint32_t reconnect_max_delay_ms_;
 
     // Stored connection info for force_reconnect()
-    std::string last_url_;                          // URL used in last connect()
-    std::function<void()> last_on_connected_;       // Callback from last connect()
-    std::function<void()> last_on_disconnected_;    // Callback from last connect()
-    std::function<void()> last_discovery_complete_; // Callback from last discover_printer()
-    mutable std::mutex reconnect_mutex_;            // Protect stored connection info
+    std::string last_url_;                                  // URL used in last connect()
+    helix::SharedCallback<void()> last_on_connected_;       // Callback from last connect()
+    helix::SharedCallback<void()> last_on_disconnected_;    // Callback from last connect()
+    helix::SharedCallback<void()> last_discovery_complete_; // Callback from last discover_printer()
+    mutable std::mutex reconnect_mutex_;                    // Protect stored connection info
 
     // Additional on-connected observers (multi-listener, fired alongside
     // last_on_connected_ inside invoke_connected_callback).
-    std::map<std::string, std::function<void()>> connected_observers_;
+    std::map<std::string, helix::SharedCallback<void()>> connected_observers_;
     mutable std::mutex connected_observers_mutex_;
 
     // Event handler for transport events (decouples from UI layer)

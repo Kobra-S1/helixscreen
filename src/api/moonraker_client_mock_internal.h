@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "moonraker_client_mock.h"
 
 #include <array>
@@ -80,9 +81,10 @@ toolhead_axis_maximum(const helix::mock::PersonaDescriptor& persona) {
  * @param error_cb Error callback to invoke on failure
  * @return true if the handler recognized and processed the method, false otherwise
  */
-using MethodHandler = std::function<bool(MoonrakerClientMock* self, const json& params,
-                                         std::function<void(const json&)> success_cb,
-                                         std::function<void(const MoonrakerError&)> error_cb)>;
+using MethodHandler =
+    std::function<bool(MoonrakerClientMock* self, const json& params,
+                       helix::SharedCallback<void(const json&)> success_cb,
+                       helix::SharedCallback<void(const MoonrakerError&)> error_cb)>;
 
 /**
  * @brief Register file-related method handlers

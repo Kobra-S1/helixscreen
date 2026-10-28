@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "json_fwd.h"
 #include "printer_discovery.h"
 #include "webcam_selection.h"
@@ -48,8 +49,8 @@ class MoonrakerDiscoverySequence {
      * @param on_complete Called when discovery finishes successfully
      * @param on_error Called if discovery fails (e.g., Klippy not connected)
      */
-    void start(std::function<void()> on_complete,
-               std::function<void(const std::string& reason)> on_error = nullptr);
+    void start(helix::SharedCallback<void()> on_complete,
+               helix::SharedCallback<void(const std::string& reason)> on_error = nullptr);
 
     /**
      * @brief Parse Klipper object list into typed hardware vectors
@@ -139,7 +140,7 @@ class MoonrakerDiscoverySequence {
     }
 
     /** @brief Set callback for bed mesh updates */
-    void set_bed_mesh_callback(std::function<void(const json&)> cb) {
+    void set_bed_mesh_callback(helix::SharedCallback<void(const json&)> cb) {
         std::lock_guard<std::mutex> lock(callbacks_mutex_);
         bed_mesh_callback_ = std::move(cb);
     }
@@ -338,8 +339,8 @@ class MoonrakerDiscoverySequence {
     MoonrakerClient& client_;
 
     // Discovery sequence callbacks (stored once in start(), used by chained methods)
-    std::function<void()> on_complete_discovery_;
-    std::function<void(const std::string&)> on_error_discovery_;
+    helix::SharedCallback<void()> on_complete_discovery_;
+    helix::SharedCallback<void(const std::string&)> on_error_discovery_;
     uint64_t discovery_generation_{0};
     uint64_t discovery_sequence_{0}; // Monotonic counter to invalidate prior discoveries
 
@@ -378,7 +379,7 @@ class MoonrakerDiscoverySequence {
     std::function<void(const PrinterDiscovery&)> on_hardware_discovered_;
     std::function<void(const PrinterDiscovery&, const nlohmann::json& initial_status)>
         on_discovery_complete_;
-    std::function<void(const json&)> bed_mesh_callback_;
+    helix::SharedCallback<void(const json&)> bed_mesh_callback_;
     std::mutex callbacks_mutex_;
 };
 

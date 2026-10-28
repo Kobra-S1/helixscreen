@@ -1272,9 +1272,9 @@ nlohmann::json TelemetryManager::build_crash_event(const nlohmann::json& crash_d
 
     // Copy crash-specific fields (signal info, backtrace, register state).
     // "app_version" is in this list on purpose: it carries the version that crashed.
-    for (const char* key :
-         {"signal", "signal_name", "app_version", "uptime_sec", "backtrace", "fault_addr",
-          "fault_code", "fault_code_name", "reg_pc", "reg_sp", "reg_lr", "reg_bp", "load_base"}) {
+    for (const char* key : {"signal", "signal_name", "app_version", "uptime_sec", "recorded_by",
+                            "backtrace", "fault_addr", "fault_code", "fault_code_name", "reg_pc",
+                            "reg_sp", "reg_lr", "reg_bp", "load_base"}) {
         if (crash_data.contains(key)) {
             event[key] = crash_data[key];
         }
@@ -1971,15 +1971,14 @@ nlohmann::json TelemetryManager::build_hw_macros_section(const helix::PrinterDis
                                hw.has_macro("INTRO_LINE") || hw.has_macro("LINE_PURGE");
     macros["led_macro_count"] = static_cast<int>(hw.led_macros().size());
 
-    // Name-level data for printer detection analysis
-    json names = json::array();
+    // Name-level data for printer detection analysis. Sorted, so the report and
+    // which names the cap keeps do not depend on the set's hash order.
+    std::vector<std::string> sorted(hw.macros().begin(), hw.macros().end());
+    std::sort(sorted.begin(), sorted.end());
     constexpr size_t cap = 200;
-    for (const auto& macro_name : hw.macros()) {
-        if (names.size() >= cap)
-            break;
-        names.push_back(macro_name);
-    }
-    macros["names"] = std::move(names);
+    if (sorted.size() > cap)
+        sorted.resize(cap);
+    macros["names"] = sorted;
 
     return macros;
 }

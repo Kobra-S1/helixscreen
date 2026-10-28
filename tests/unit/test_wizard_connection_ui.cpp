@@ -186,8 +186,8 @@ TEST_CASE_METHOD(WizardConnectionUIFixture, "Connection UI: Title and progress",
 // Mock MoonrakerClient for testing
 class MockMoonrakerClient {
   public:
-    int connect(const char* url, std::function<void()> on_connected,
-                std::function<void()> on_disconnected) {
+    int connect(const char* url, helix::SharedCallback<void()> on_connected,
+                helix::SharedCallback<void()> on_disconnected) {
         last_url = url;
         connected_callback = on_connected;
         disconnected_callback = on_disconnected;
@@ -219,8 +219,8 @@ class MockMoonrakerClient {
     }
 
     std::string last_url;
-    std::function<void()> connected_callback;
-    std::function<void()> disconnected_callback;
+    helix::SharedCallback<void()> connected_callback;
+    helix::SharedCallback<void()> disconnected_callback;
     int timeout = 0;
     ConnectionState state = ConnectionState::DISCONNECTED;
 };

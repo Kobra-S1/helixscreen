@@ -557,7 +557,7 @@ Note the asymmetry: only the literal strings `0` and `false` disable the require
 
 ### `HELIX_REMOTE_SCREEN`
 
-Set to `firmware` by a platform hook whose firmware serves the screen to browsers itself. The built-in screen server (`docs/devel/REMOTE_SCREEN.md`) then never starts and its Settings > Connection rows stay hidden. `HELIX_REMOTE_SCREEN_FB0` implies the same.
+Set to `firmware` by a platform hook whose firmware serves the screen to browsers itself. The built-in screen server (`docs/devel/REMOTE_SCREEN.md`) then never starts and its Settings > Connection > Screen Sharing row stays hidden. `HELIX_REMOTE_SCREEN_FB0` implies the same.
 
 | Property | Value |
 |----------|-------|

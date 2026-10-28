@@ -16,8 +16,8 @@ namespace helix {
 
 RequestId MoonrakerRequestTracker::send(hv::WebSocketClient& ws, const std::string& method,
                                         const json& params,
-                                        std::function<void(const json&)> success_cb,
-                                        std::function<void(const MoonrakerError&)> error_cb,
+                                        helix::SharedCallback<void(const json&)> success_cb,
+                                        helix::SharedCallback<void(const MoonrakerError&)> error_cb,
                                         uint32_t timeout_ms, bool silent,
                                         std::optional<rpc_error_policy::CallerIntent> intent) {
     // Atomically fetch and increment to avoid race condition in concurrent calls
@@ -100,7 +100,7 @@ RequestId MoonrakerRequestTracker::send(hv::WebSocketClient& ws, const std::stri
     // Return the request ID on success, or kInvalidRequestId on send failure
     if (result < 0) {
         // Send failed - remove pending request and invoke error callback
-        std::function<void(const MoonrakerError&)> error_callback_copy;
+        helix::SharedCallback<void(const MoonrakerError&)> error_callback_copy;
         std::string method_name;
         {
             std::lock_guard<std::mutex> lock(requests_mutex_);
@@ -166,8 +166,8 @@ bool MoonrakerRequestTracker::route_response(const json& msg,
     spdlog::trace("[Request Tracker] Got response for id={}", id);
 
     // Copy callbacks out before invoking to avoid deadlock
-    std::function<void(const json&)> success_cb;
-    std::function<void(const MoonrakerError&)> error_cb;
+    helix::SharedCallback<void(const json&)> success_cb;
+    helix::SharedCallback<void(const MoonrakerError&)> error_cb;
     std::string method_name;
     bool has_error = false;
     rpc_error_policy::CallerIntent request_intent;
@@ -304,7 +304,7 @@ void MoonrakerRequestTracker::check_timeouts(helix::MoonrakerEventCallback emit_
         std::string method_name;
         uint32_t timeout_ms;
         bool silent;
-        std::function<void()> error_callback;
+        helix::SharedCallback<void()> error_callback;
     };
     std::vector<TimeoutInfo> timed_out;
 
@@ -448,7 +448,7 @@ void MoonrakerRequestTracker::check_timeouts(helix::MoonrakerEventCallback emit_
 void MoonrakerRequestTracker::cleanup_all() {
     // Two-phase pattern: collect callbacks under lock, invoke outside lock
     // This prevents deadlock if callback tries to send new request
-    std::vector<std::function<void()>> cleanup_callbacks;
+    std::vector<helix::SharedCallback<void()>> cleanup_callbacks;
 
     // Phase 1: Copy callbacks and clear map (under lock)
     {

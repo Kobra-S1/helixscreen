@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
+
 #include <functional>
 #include <string>
 #include <vector>
@@ -97,7 +99,7 @@ class StaticSubjectRegistry {
      * @param deinit_fn Function to call during deinit_all()
      * @param lifetime What a printer switch does to the entry (see Lifetime)
      */
-    void register_deinit(const char* name, std::function<void()> deinit_fn,
+    void register_deinit(const char* name, helix::SharedCallback<void()> deinit_fn,
                          Lifetime lifetime = Lifetime::Printer);
 
     /**
@@ -179,7 +181,7 @@ class StaticSubjectRegistry {
 
     struct DeinitEntry {
         std::string name;
-        std::function<void()> deinit_fn;
+        helix::SharedCallback<void()> deinit_fn;
         Lifetime lifetime = Lifetime::Printer;
     };
 

@@ -120,7 +120,7 @@ MoonrakerTimelapseAPIMock& MoonrakerAPIMock::timelapse_mock() {
 // ============================================================================
 
 SubscriptionId
-MoonrakerAPIMock::subscribe_notifications(std::function<void(const json&)> callback) {
+MoonrakerAPIMock::subscribe_notifications(helix::SharedCallback<void(const json&)> callback) {
     // The mock client fans every status update out to the notification callbacks, so a
     // listener such as BedMeshState follows the mock printer as it would a real one.
     return MoonrakerAPI::subscribe_notifications(std::move(callback));
@@ -131,7 +131,7 @@ bool MoonrakerAPIMock::unsubscribe_notifications(SubscriptionId id) {
 }
 
 void MoonrakerAPIMock::register_method_callback(const std::string& method, const std::string& name,
-                                                std::function<void(const json&)> callback) {
+                                                helix::SharedCallback<void(const json&)> callback) {
     // The mock client dispatches notifications itself, so listeners reach them.
     MoonrakerAPI::register_method_callback(method, name, std::move(callback));
 }
@@ -149,7 +149,7 @@ void MoonrakerAPIMock::suppress_disconnect_modal(uint32_t duration_ms) {
 
 void MoonrakerAPIMock::get_gcode_store(
     int /*count*/, std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
-    std::function<void(const MoonrakerError&)> /*on_error*/) {
+    helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/) {
     if (on_success) {
         double now = static_cast<double>(std::time(nullptr));
         std::vector<GcodeStoreEntry> entries = {
@@ -1334,11 +1334,26 @@ struct SocketGuard {
     }
 };
 
+/// Accepts and closes every connection waiting on the listener. A co-location
+/// probe connects and hangs up, but its connection stays in the listen backlog
+/// until accepted, and a full backlog refuses the next connect (macOS's holds
+/// 128). Draining on each query keeps it at the probes since the last one.
+void drain_backlog(int listen_fd) {
+    for (;;) {
+        const int conn = ::accept(listen_fd, nullptr, nullptr);
+        if (conn < 0) {
+            return; // EAGAIN: nothing waiting (the listener is non-blocking)
+        }
+        ::close(conn);
+    }
+}
+
 /// A process-lifetime listening unix socket standing in for klippy's UDS.
 /// Co-location checks connect() to the address Moonraker reports, so the mock
 /// must name a socket that accepts a connection. Created once per process on
-/// first use and unlinked at exit.
+/// first use and unlinked at exit; every query drains what earlier probes left.
 const char* mock_klippy_uds_address() {
+    static int listen_fd = -1;
     static const std::string path = [] {
         const std::string p = "/tmp/helix-mock-klippy-" + std::to_string(getpid()) + ".sock";
         ::unlink(p.c_str());
@@ -1348,11 +1363,12 @@ const char* mock_klippy_uds_address() {
             addr.sun_family = AF_UNIX;
             std::strncpy(addr.sun_path, p.c_str(), sizeof(addr.sun_path) - 1);
             // SOMAXCONN, never 1: connect_uds() blocks on a full backlog, and
-            // nothing ever accepts here - a tiny backlog would wedge the
-            // second co-location probe for the process lifetime.
+            // probes between two queries queue there until the next drain.
             if (::bind(fd, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)) == 0 &&
                 ::listen(fd, SOMAXCONN) == 0) {
                 static_cast<void>(fcntl(fd, F_SETFD, FD_CLOEXEC));
+                static_cast<void>(fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK));
+                listen_fd = fd;
                 // Local static: its destructor unlinks at process exit.
                 static const SocketGuard guard{p, fd};
                 return p;
@@ -1361,6 +1377,9 @@ const char* mock_klippy_uds_address() {
         }
         return std::string("/nonexistent/mock-klippy.sock");
     }();
+    if (listen_fd >= 0) {
+        drain_backlog(listen_fd);
+    }
     return path.c_str();
 }
 

@@ -965,9 +965,9 @@ AmsError AmsBackendOpenAms::load_gcode_locked(int slot_index, std::string& gcode
     return AmsErrorHelper::success();
 }
 
-AmsError
-AmsBackendOpenAms::send_operation_gcode(const std::string& gcode, std::function<void()> on_complete,
-                                        std::function<void(const MoonrakerError&)> on_error) {
+AmsError AmsBackendOpenAms::send_operation_gcode(
+    const std::string& gcode, helix::SharedCallback<void()> on_complete,
+    helix::SharedCallback<void(const MoonrakerError&)> on_error) {
     return ensure_homed_then(gcode, std::move(on_complete), std::move(on_error),
                              IMoonrakerAPI::kAmsOperationTimeoutMs,
                              /*skip_homing=*/true, /*silent=*/false,

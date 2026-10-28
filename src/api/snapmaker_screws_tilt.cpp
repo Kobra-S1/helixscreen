@@ -393,7 +393,7 @@ class AutoScrewsTiltCollector : public std::enable_shared_from_this<AutoScrewsTi
 };
 
 void start_sequence(IMoonrakerClient& client, IMoonrakerAPI& api, ScrewTiltCallback on_success,
-                    std::function<void(const MoonrakerError&)> on_error) {
+                    helix::SharedCallback<void(const MoonrakerError&)> on_error) {
     std::make_shared<AutoScrewsTiltCollector>(client, api, std::move(on_success),
                                               std::move(on_error))
         ->start();

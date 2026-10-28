@@ -13,7 +13,8 @@ HelixScreen serves its own UI as a Mainsail/Fluidd webcam and accepts taps and d
 | `include/remote_screen_http_server.h` | `ScreenHttpServer`: the libhv routes |
 | `include/remote_screen_control.h` | Touch parsing, the request gate, `PairingStore`, `TouchSession` |
 | `include/remote_screen_service.h` | `RemoteScreenService`: owns the server for the app's lifetime, the hooks into LVGL |
-| `include/remote_screen_settings_manager.h` | The settings and the subjects the Connection rows bind to |
+| `include/remote_screen_settings_manager.h` | The settings and the subjects the Screen Sharing page binds to |
+| `include/ui_settings_screen_sharing.h` | The Screen Sharing page under Settings > Connection: the toggles and the pairing rows |
 | `include/remote_screen_webcam.h` | The Moonraker webcam entry and its sync |
 | `include/remote_pointer.h` | The synthetic LVGL pointer shared with `helix-screen ctl` |
 | `assets/remote_screen/index.html` | The page: polls snapshots, sends pointer events, pairs |
@@ -85,7 +86,7 @@ the server faces the LAN with pairing; the Pi's MainsailOS nginx has it.
 
 ## Where it runs
 
-`remote_screen_firmware_provides()` decides: a platform hook that exports `HELIX_REMOTE_SCREEN=firmware`, or sets up the U1's fb0 mirror (`HELIX_REMOTE_SCREEN_FB0`), means the firmware serves the screen and the rows stay hidden. Android never runs it. The K-Touch (ESP32) firmware compiles only the settings manager; everything else is in `app_srcs_excluded.txt`.
+`remote_screen_firmware_provides()` decides: a platform hook that exports `HELIX_REMOTE_SCREEN=firmware`, or sets up the U1's fb0 mirror (`HELIX_REMOTE_SCREEN_FB0`), means the firmware serves the screen and the Screen Sharing row stays hidden. Android never runs it. The K-Touch (ESP32) firmware compiles only the settings manager; everything else is in `app_srcs_excluded.txt`.
 
 ## Moonraker webcam
 
