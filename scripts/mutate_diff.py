@@ -272,6 +272,14 @@ COVERAGE = (
     ('scripts/*.bash',       'tooling'),
 )
 
+# Generated from other tracked sources. A mutant here reverts output its
+# generator would write back; the change worth mutating is in the source it was
+# generated from, and the regeneration gates pin the two together. Checked
+# before COVERAGE, which would otherwise claim them as code.
+GENERATED = (
+    ('src/generated/*', 'generated output; mutate the source it is generated from'),
+)
+
 # Content no program reads, so no mutant of it could change behaviour. Named in
 # the report and does not make the run incomplete. The bar is "nothing executes
 # this", not "testing it would be awkward" -- anything a program reads belongs
@@ -295,6 +303,8 @@ UNMUTATABLE = (
     ('translations/*', 'locale content; the translation gates pin it and a revert cannot'),
 )
 DEFAULT_REASON = 'no mutation strategy covers this path'
+# A run on the merge path. A longer run is a release check (--release).
+MERGE_MAX_MINUTES = 30
 GITLINK_REASON = 'a submodule pointer; run the gate inside the submodule'
 
 
@@ -322,6 +332,9 @@ def classify(path, is_gitlink):
     """
     if is_gitlink:
         return 'uncovered', GITLINK_REASON
+    for pattern, reason in GENERATED:
+        if fnmatch(path, pattern):
+            return 'inert', reason
     for pattern, strategy in COVERAGE:
         if fnmatch(path, pattern):
             return 'mutate', strategy
@@ -399,6 +412,97 @@ def select_only(hunks, only_args):
     """
     patterns = [p.strip() for arg in only_args for p in arg.split(',') if p.strip()]
     return [h for h in hunks if any(p in h['file'] for p in patterns)]
+
+
+# ---------------------------------------------------------------------------
+# PER-FILE TEST FILTERS
+#
+# One filter for the whole run makes every hunk pay for the union of every
+# file's tests, which is most of what a run costs. Each changed file gets its
+# own: an explicit --tests-for GLOB=FILTER first, else the test files that name
+# the file's stem (Catch2's [#<test file>] tags), else --tests. Hunks sharing a
+# filter run together, as one child run each, so each filter gets the baseline
+# its shard timings are measured from.
+# ---------------------------------------------------------------------------
+# A stem more test files name than this is a common word, not a file's own tests.
+AUTO_TESTS_MAX_FILES = 12
+
+
+def parse_tests_for(specs):
+    """[(glob, filter)] from GLOB=FILTER strings; ValueError names a bad one."""
+    out = []
+    for spec in specs or ():
+        glob, sep, filt = spec.partition('=')
+        if not sep or not glob.strip() or not filt.strip():
+            raise ValueError(f'--tests-for {spec!r}: expected GLOB=FILTER')
+        out.append((glob.strip(), filt.strip()))
+    return out
+
+
+def _test_sources(root):
+    """{test file stem: text} for the C++ unit tests."""
+    out = {}
+    for f in sorted((root / 'tests' / 'unit').rglob('test_*.cpp')):
+        try:
+            out[f.stem] = f.read_text(errors='replace')
+        except OSError:
+            continue
+    return out
+
+
+def auto_tests_filter(path, test_sources):
+    """`[#test_a]~[.]~[slow],...` for the test files naming `path`'s stem, or ''.
+
+    The stem is matched as a whole word, so `foo` finds `foo.h`, `"foo"` and
+    `foo_modal` callers' includes but not `foobar`. A stem named by more than
+    AUTO_TESTS_MAX_FILES files says nothing about which tests are this file's.
+    """
+    stem = path.rsplit('/', 1)[-1].rsplit('.', 1)[0]
+    if len(stem) < 4:
+        return ''
+    word = re.compile(r'(?<![A-Za-z0-9_])' + re.escape(stem) + r'(?![A-Za-z0-9_])')
+    hits = [name for name, text in test_sources.items() if word.search(text)]
+    if not hits or len(hits) > AUTO_TESTS_MAX_FILES:
+        return ''
+    # A required term makes Catch2 consider hidden cases too, so each term carries
+    # the exclusions --tests' default has: [.] and [slow] stay out.
+    return ','.join(f'[#{name}]~[.]~[slow]' for name in sorted(hits))
+
+
+def filter_for(path, tests_for, auto, test_sources, default):
+    """(filter, why) for one changed file."""
+    for glob, filt in tests_for:
+        if fnmatch(path, glob):
+            return filt, f'--tests-for {glob}'
+    if auto:
+        filt = auto_tests_filter(path, test_sources)
+        if filt:
+            return filt, 'test files naming it'
+    return default, '--tests'
+
+
+def group_by_filter(paths, filter_of):
+    """[(filter, [paths])] in first-seen order of the filters."""
+    groups = {}
+    for path in paths:
+        groups.setdefault(filter_of[path], [])
+        if path not in groups[filter_of[path]]:
+            groups[filter_of[path]].append(path)
+    return list(groups.items())
+
+
+def combine_exits(codes):
+    """One exit status for a run made of child runs: the worst of them.
+
+    Survivors (1) outrank everything, then an error (2, 4, or a signal's
+    128+n), then incomplete (3), then clean (0).
+    """
+    if 1 in codes:
+        return 1
+    errors = [c for c in codes if c not in (0, 1, 3)]
+    if errors:
+        return errors[0]
+    return 3 if 3 in codes else 0
 
 
 def changed_files(root, base):
@@ -1539,9 +1643,18 @@ def terminate_live_procs(grace=5.0):
         procs.clear()
 
 
+def catch2_argv(test_bin, filt):
+    """The binary and filter, plus `-#` when the filter names file tags.
+
+    Catch2 adds a `[#<source file stem>]` tag to every case only under `-#`;
+    without it a `[#test_foo]` filter matches nothing at all.
+    """
+    return [str(test_bin), filt] + (['-#'] if '[#' in filt else [])
+
+
 def count_catch2_cases(root, test_bin, filt):
     """How many cases `filt` selects, or None when the binary cannot say."""
-    p = subprocess.run([str(test_bin), filt, '--list-tests'], cwd=root,
+    p = subprocess.run(catch2_argv(test_bin, filt) + ['--list-tests'], cwd=root,
                        capture_output=True, text=True)
     m = re.search(r'^(\d+) matching test cases?\s*$', p.stdout, re.M)
     return int(m.group(1)) if m else None
@@ -1601,7 +1714,7 @@ def run_catch2(root, test_bin, filt, plan, log, scale=1.0):
     it takes a jobserver token, without waiting, and gives it back when no
     shard is left to start.
     """
-    argv = [str(test_bin), filt, '-x', '1']
+    argv = catch2_argv(test_bin, filt) + ['-x', '1']
     pending = [(i, 'the catch2 suite' if plan.shards <= 1 else f'catch2 shard {i}',
                 argv if plan.shards <= 1
                 else argv + ['--shard-count', str(plan.shards), '--shard-index', str(i)])
@@ -2601,13 +2714,28 @@ def main():
     ap.add_argument('--max-hunks', type=int, default=25,
                     help='confirm before mutating more than N hunks off an auto-chosen '
                          'base (0 disables the check)')
-    ap.add_argument('--max-minutes', type=float, default=45,
+    ap.add_argument('--max-minutes', type=float, default=MERGE_MAX_MINUTES,
                     help='stop after this many minutes, baseline included, and report the '
-                         'hunks not reached as UNEXAMINED (0: no cap)')
+                         f'hunks not reached as UNEXAMINED. Above {MERGE_MAX_MINUTES:g} (or 0: '
+                         'no cap) needs --release')
+    ap.add_argument('--release', action='store_true',
+                    help=f'a release check: lifts the {MERGE_MAX_MINUTES:g}-minute cap')
     ap.add_argument('--allow-orphan', action='store_true',
                     help='keep going when the parent process exits (default: stop before '
                          'the next hunk)')
-    ap.add_argument('--tests', default='~[.]~[slow]', help='Catch2 filter for the scoped suite')
+    ap.add_argument('--tests', default='~[.]~[slow]',
+                    help='Catch2 filter for a changed file with no filter of its own')
+    ap.add_argument('--tests-for', action='append', default=None, metavar='GLOB=FILTER',
+                    help='the Catch2 filter for changed files matching GLOB (repeatable; '
+                         'first match wins)')
+    ap.add_argument('--no-auto-tests', action='store_true',
+                    help='do not give a file the test files that name its stem; '
+                         'every file without --tests-for gets --tests')
+    ap.add_argument('--group-child', action='store_true', help=argparse.SUPPRESS)
+    ap.add_argument('--group-files', default=None, help=argparse.SUPPRESS)
+    ap.add_argument('--probe-workers', action='store_true',
+                    help='exit 0 when --workers auto would run in parallel here, else '
+                         'print why not and exit 1 (scripts/mutate-diff.sh asks this)')
     ap.add_argument('--jobs', type=int, default=6, help='make -j (link is memory-gated; 6 is safe here)')
     ap.add_argument('--shards', type=int, default=8,
                     help='test processes run at once per mutant (the filter is cut into '
@@ -2643,8 +2771,25 @@ def main():
                     help='run log (default: named for this worktree, so runs in '
                          'different trees do not overwrite each other)')
     args = ap.parse_args()
+    if not args.release and (args.max_minutes <= 0 or args.max_minutes > MERGE_MAX_MINUTES):
+        print(f'FAIL: --max-minutes {args.max_minutes:g}: a run on the merge path is capped at '
+              f'{MERGE_MAX_MINUTES:g} minutes. Narrow it (--tests-for, --only), or pass '
+              f'--release for a release check.', file=sys.stderr)
+        return 2
+    try:
+        tests_for = parse_tests_for(args.tests_for)
+    except ValueError as e:
+        print(f'FAIL: {e}', file=sys.stderr)
+        return 2
 
     root = repo_root()
+    if args.probe_workers:
+        args.workers = 'auto'
+        workers, why = plan_workers(root, args)
+        if workers > 1:
+            return 0
+        print(why or f'--workers auto is 1 on {os.cpu_count()} core(s)')
+        return 1
     guard = TreeGuard(root)
     guards = [guard]      # and one per worker copy, once they exist
     log_holder = []
@@ -2732,6 +2877,11 @@ def main():
     # --only and --limit are deliberate narrowings, but a narrowed run still did
     # not examine the whole change, so what they set aside is counted too.
     deferred = 0
+    if args.group_files is not None:
+        # A group child mutates exactly its own files, never a path that merely
+        # contains one of them.
+        wanted = set(args.group_files.split('\n'))
+        mutable = [h for h in mutable if h['file'] in wanted]
     if args.only:
         keep = select_only(mutable, args.only)
         deferred += len(mutable) - len(keep)
@@ -2783,6 +2933,9 @@ def main():
     if deferred:
         print(f'  DEFERRED    {deferred} hunk(s) set aside by --only/--limit')
 
+    if args.group_child:
+        # The parent reported what lies outside this group and owns the verdict on it.
+        uncovered, deferred = [], 0
     incomplete = bool(uncovered) or bool(deferred)
 
     if not mutable:
@@ -2791,6 +2944,42 @@ def main():
         print(f'\n{len(mutable)} hunk(s) to mutate, vs base {base[:12]}')
         for h in mutable:
             print(f'  {h["file"]}:{h["line"]}  [{verdict_of[h["file"]][1]}]')
+
+    # ---- per-file filters: one child run per filter --------------------
+    if not args.group_child:
+        sources = {} if args.no_auto_tests else _test_sources(root)
+        filter_of, why_of, catch2_free = {}, {}, []
+        for h in mutable:
+            path = h['file']
+            if path in filter_of or path in catch2_free:
+                continue
+            if 'catch2' not in STRATEGIES[verdict_of[path][1]]['suites']:
+                catch2_free.append(path)      # bats and pytest judge it; no filter applies
+                continue
+            filter_of[path], why_of[path] = filter_for(
+                path, tests_for, not args.no_auto_tests, sources, args.tests)
+        groups = group_by_filter([h['file'] for h in mutable if h['file'] in filter_of],
+                                 filter_of)
+        if catch2_free:
+            # They ignore the filter, so they ride with the first group rather than
+            # paying for a child run of their own.
+            if groups:
+                groups[0] = (groups[0][0], groups[0][1] + catch2_free)
+            else:
+                groups = [(args.tests, catch2_free)]
+        if groups:
+            print('\ntests per file:')
+            for filt, paths in groups:
+                for path in paths:
+                    if path in catch2_free:
+                        print(f'  {path}  bats + pytest')
+                    else:
+                        print(f'  {path}  {filt}  ({why_of[path]})')
+        if len(groups) > 1 and not args.list_only:
+            return run_groups(root, guard, args, base, groups, started, incomplete,
+                              uncovered, deferred)
+        if len(groups) == 1:
+            args.tests = groups[0][0]
 
     def finish_proof(n_killed):
         """Record HEAD as proven when nothing mutatable was left unexamined."""
@@ -3066,6 +3255,69 @@ def main():
         print(f'\nVERDICT: CLEAN{timeout_note} - every changed hunk was mutated and '
               f'every mutant was killed.')
     return 0
+
+
+def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, deferred):
+    """Run each (filter, paths) group as its own child run; the worst exit wins.
+
+    A child gets the parent's base, its own files and filter, and what is left of
+    the parent's time budget. Children record no proof: none of them saw the
+    whole change.
+
+    A child mutates its group's files in this tree, so the parent marks them in
+    its own guard while the child runs: the parent's stop handler then restores
+    them even when a child dies before its own restore, and a child that exits
+    leaving a file changed has it put back and named here.
+    """
+    passthrough = ['--jobs', str(args.jobs), '--shards', str(args.shards),
+                   '--workers', str(args.workers), '--timeout', str(args.timeout),
+                   '--shell-tests', args.shell_tests, '--python-tests', args.python_tests]
+    for flag in ('no_skip_comments', 'no_skip_declarations', 'allow_orphan', 'release'):
+        if getattr(args, flag):
+            passthrough.append('--' + flag.replace('_', '-'))
+    if args.worker_dir:
+        passthrough += ['--worker-dir', args.worker_dir]
+    codes = []
+    for i, (filt, paths) in enumerate(groups, 1):
+        left = args.max_minutes - (time.monotonic() - started) / 60
+        if args.max_minutes > 0 and left < 1:
+            print(f'\n=== group {i}/{len(groups)} not started: --max-minutes '
+                  f'{args.max_minutes:g} reached ===')
+            for path in paths:
+                print(f'  UNEXAMINED    {path}')
+            codes.append(3)
+            continue
+        print(f'\n=== group {i}/{len(groups)}: {filt}  ({len(paths)} file(s)) ===', flush=True)
+        cmd = [sys.executable, str(Path(__file__).resolve()), '--group-child', '--no-record',
+               '--base', base, '--group-files', '\n'.join(paths), '--tests', filt,
+               '--max-hunks', '0', '--log', f'{args.log}.g{i}',
+               '--max-minutes', f'{left:.2f}' if args.max_minutes > 0 else '0'] + passthrough
+        for path in paths:
+            guard.capture(path)
+            guard.mark(path)
+        sys.stdout.flush()
+        p = tracked_proc(cmd, root, stdout=sys.stdout)
+        try:
+            p.wait()
+        finally:
+            untrack_proc(p)
+        for path in paths:
+            if restore_file(root, path, guard.pristine[path]):
+                print(f'  RESTORED      {path}: the group left it changed', flush=True)
+            guard.dirty.discard(path)
+        codes.append(p.returncode if p.returncode >= 0 else 128 - p.returncode)
+    print('\n' + '=' * 68)
+    for (filt, paths), code in zip(groups, codes):
+        print(f'  exit {code}  {filt}  ({len(paths)} file(s))')
+    if incomplete:
+        print(report_incomplete(uncovered, deferred))
+    worst = combine_exits(codes + ([3] if incomplete else []))
+    if worst == 3 and args.allow_incomplete:
+        return 0
+    if worst == 0:
+        print('\nVERDICT: CLEAN - every group mutated every hunk and killed every mutant '
+              '(not recorded as proven: each group saw only its own files)')
+    return worst
 
 
 def report_incomplete(uncovered, deferred, unproven=(), unjudged=(), unexamined=0,

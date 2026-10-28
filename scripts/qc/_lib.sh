@@ -37,6 +37,16 @@ qc_make() {
   fi
 }
 
+# One src/ or tests/ source that includes HEADER (path as staged), or nothing.
+# A header breaks the units that include it, and one of them compiling is the
+# commit-time question; pre-push's clang gate checks the rest.
+qc_one_includer() {
+  local base
+  base=$(basename "$1")
+  grep -rlE --include='*.cpp' --include='*.cc' --include='*.mm' \
+    "#include[[:space:]]+[\"<]([^\">]*/)?${base//./\\.}[\">]" src tests 2>/dev/null | head -1
+}
+
 # A verdict that carries a count is recorded in $QC_COUNTS as well as printed,
 # so a cached pass can replay what the full run examined.
 qc_note() { printf '%s\n' "$1" >> "$QC_COUNTS" 2>/dev/null || true; }
