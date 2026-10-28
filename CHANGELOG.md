@@ -5,6 +5,13 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0-beta.1] - UNRELEASED
+
+The first build of the 1.2 line. It carries everything in 1.1 plus the work that
+landed on the trunk after the 1.1 feature freeze. The remaining 1.1 betas and
+1.1.0 itself ship from the 1.1 branch, so this line is not published until 1.1.0
+is out.
+
 ## [1.1.0-beta.14] - 2026-10-28
 
 The fourteenth beta of 1.1, and the first after the 1.1 feature freeze, so most of it is fixes. Stop during a print's preparation now cancels a start the printer has already accepted instead of letting it go on to print, the AD5X IFS unloads the lane that is really loaded, a K2 without a CFS is treated as the single-spool printer it is, and the Android app shows https cameras. The fit check reads the nozzle each Snapmaker U1 head really has and judges only the tools a file uses. The last features before the freeze arrive with it: a Toolhead widget you can move the toolhead from, moves that lift clear of a print still on the bed, filament chips on the file screen that change a tool's slot in place, warnings for an open door and for files that mix high- and low-temperature materials, QIDI's full M604 load wizard, and Creator 5 calibrations and chamber air modes on Z-Mod.

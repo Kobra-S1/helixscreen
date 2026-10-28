@@ -67,21 +67,24 @@ and is not used.
 
 ### The trunk's beta line
 
-`main` carries `RELEASE_CHANNEL=beta`, so its tags reach the beta and dev channels
-while `release/1.0` keeps stable:
+Each minor's betas start on `main` and finish on that minor's own branch. The 1.1
+betas began on the trunk; from `1.1.0-beta.14` on, `release/1.1` carries them, and
+the trunk has moved on to 1.2:
 
 | Branch | Versions | Channel |
 |--------|----------|---------|
 | `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable |
-| `main` | `1.1.0-beta.1`, `1.1.0-beta.2` ... | beta + dev |
-| `release/1.1` (future) | `1.1.0`, then `1.1.1` ... | stable |
+| `release/1.1` | `1.1.0-beta.15` ..., then `1.1.0`, `1.1.1` ... | beta + dev, then stable |
+| `main` | `1.2.0-beta.1` ... (untagged until `1.1.0` ships) | dev, then beta + dev |
 
 The trunk names the release it is heading for, so a beta install says which minor
 it belongs to and `1.1.0` stays free for the stable cut. A beta at `1.1.0-beta.7`
 is offered `1.1.0` the moment it publishes, and a `1.0.2` hotfix on the stable line
 never looks like an upgrade to it.
 
-When `release/1.1` is cut, `main` moves to `1.2.0-beta.1` and the pattern repeats.
+While a release branch is still shipping betas, the trunk says `dev` and is not
+tagged: the downgrade guard would refuse the next `1.1.0-beta.N` on dev once dev
+served a `1.2.0-beta.N`. See `BRANCHING.md`.
 
 ---
 
@@ -327,12 +330,11 @@ channel regardless of which branch it was cut from.
 
 ### Graduating the beta line
 
-A stable release is not a re-tag of the last beta. Cut the maintenance branch,
-edit its `RELEASE_CHANNEL` to `stable`, drop the suffix from `VERSION.txt`, and tag
-there:
+A stable release is not a re-tag of the last beta. On the release branch, edit its
+`RELEASE_CHANNEL` to `stable`, drop the suffix from `VERSION.txt`, and tag there:
 
 ```bash
-git checkout -b release/1.1 main
+git switch release/1.1
 $EDITOR RELEASE_CHANNEL          # beta -> stable
 printf '1.1.0\n' > VERSION.txt   # was 1.1.0-beta.N
 git commit -m "chore(release): v1.1.0" RELEASE_CHANNEL VERSION.txt CHANGELOG.md
@@ -342,7 +344,8 @@ git push origin release/1.1 v1.1.0
 
 Dropping the suffix is itself the promotion: `1.1.0` outranks every
 `1.1.0-beta.N`, so the beta fleet is offered it as an ordinary forward step.
-`main` then moves to `1.2.0-beta.1` and keeps publishing to beta.
+`main`, already at `1.2.0-beta.1`, then switches its `RELEASE_CHANNEL` from `dev`
+back to `beta` and may tag again.
 
 ---
 

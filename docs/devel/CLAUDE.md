@@ -11,7 +11,7 @@ All developer documentation lives here. When working on features, look up the re
 | `ARCHITECTURE.md` | The 15-minute whole-app model (XML → Subjects → C++) + the routing table into the chapter series. Start here for "how does the app fit together" |
 | `architecture/` | The 17-chapter architecture guide — one subsystem per chapter, ~1 hour each. `architecture/README.md` is the "I want to work on..." index |
 | `THREADING.md` | **Single source of truth** for threading, async-callback, and object-lifetime rules. Read before any code that crosses a thread boundary, observes a subject, or destroys a widget |
-| `BRANCHING.md` | The two long-lived branches, which way fixes flow between them, and the `RELEASE_CHANNEL` rule that keeps a trunk tag off the stable channel |
+| `BRANCHING.md` | The three long-lived branches, which way fixes flow between them, which one holds the beta channel, and the `RELEASE_CHANNEL` rule that keeps a trunk tag off the stable channel |
 | `BUILD_SYSTEM.md` | Makefile internals, make target reference, cross-compilation, worktree workflow, ccache, patches |
 | `REVIEW_RUBRIC.md` | The quality bar for reviews: crash families, silent-failure traps, what not to flag, what the gates already cover |
 | `../../scripts/CLAUDE.md` | Index of `scripts/` — installer, release, asset regeneration, and the "Quality & Auditing" gate table covering every `check_*.py` lint and what it enforces |
