@@ -19,8 +19,9 @@
 #include "hv/json.hpp"
 
 namespace helix {
+class Config;
 class PrinterDiscovery;
-}
+} // namespace helix
 
 namespace helix::sensors {
 
@@ -215,6 +216,12 @@ class SensorManager {
     void refresh_on_main_thread();
     /// Mutex held: swap in `found`, carrying role/enabled over from known names.
     void replace_entries_locked(std::vector<SensorEntry> found);
+    /// Mutex held: the entry named @p klipper_name, or nullptr.
+    [[nodiscard]] SensorEntry* find_locked(std::string_view klipper_name);
+    [[nodiscard]] const SensorEntry* find_locked(std::string_view klipper_name) const;
+    /// This manager's key under the active printer in @p config.
+    [[nodiscard]] std::string settings_path(Config& config) const;
+    [[nodiscard]] const nlohmann::json* saved_settings(Config& config) const;
     [[nodiscard]] const RoleSpec* role_spec(uint8_t id) const;
     [[nodiscard]] const char* role_config_name(uint8_t id) const;
     [[nodiscard]] uint8_t role_from_config_name(std::string_view name) const;

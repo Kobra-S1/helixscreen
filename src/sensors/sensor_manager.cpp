@@ -160,11 +160,7 @@ void SensorManager::reconcile(std::vector<SensorEntry> discovered) {
 
 void SensorManager::replace_entries_locked(std::vector<SensorEntry> found) {
     for (auto& entry : found) {
-        const auto known =
-            std::find_if(entries_.begin(), entries_.end(), [&](const SensorEntry& e) {
-                return e.klipper_name == entry.klipper_name;
-            });
-        if (known != entries_.end()) {
+        if (const SensorEntry* known = find_locked(entry.klipper_name)) {
             entry.role = known->role;
             entry.enabled = known->enabled;
         }
@@ -311,10 +307,8 @@ void SensorManager::apply_settings_locked(const nlohmann::json& saved) {
             if (klipper_name.empty()) {
                 continue;
             }
-            auto entry = std::find_if(entries_.begin(), entries_.end(), [&](const SensorEntry& e) {
-                return e.klipper_name == klipper_name;
-            });
-            if (entry == entries_.end()) {
+            SensorEntry* entry = find_locked(klipper_name);
+            if (entry == nullptr) {
                 continue;
             }
             if (const auto role = item.find("role"); role != item.end()) {
@@ -331,6 +325,14 @@ void SensorManager::apply_settings_locked(const nlohmann::json& saved) {
     read_extra_settings(saved);
 }
 
+std::string SensorManager::settings_path(Config& config) const {
+    return config.df() + options_.config_key;
+}
+
+const nlohmann::json* SensorManager::saved_settings(Config& config) const {
+    return config.try_get_json(settings_path(config));
+}
+
 void SensorManager::load_settings() {
     if (options_.config_key == nullptr) {
         return;
@@ -340,7 +342,7 @@ void SensorManager::load_settings() {
         return;
     }
     static const nlohmann::json kNothingSaved = nlohmann::json::object();
-    const nlohmann::json* saved = config->try_get_json(config->df() + options_.config_key);
+    const nlohmann::json* saved = saved_settings(*config);
     {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
         // Nothing saved still reaches read_extra_settings, which restores its defaults.
@@ -359,7 +361,7 @@ std::vector<std::string> SensorManager::saved_sensor_names() const {
     if (config == nullptr) {
         return names;
     }
-    const nlohmann::json* saved = config->try_get_json(config->df() + options_.config_key);
+    const nlohmann::json* saved = saved_settings(*config);
     if (saved == nullptr || !saved->is_object()) {
         return names;
     }
@@ -389,7 +391,7 @@ void SensorManager::save_settings() {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
         out = settings_json_locked();
     }
-    config->get_json(config->df() + options_.config_key) = std::move(out);
+    config->get_json(settings_path(*config)) = std::move(out);
     config->save();
     spdlog::debug("[{}] Settings saved", options_.name);
 }
@@ -410,13 +412,25 @@ std::vector<SensorEntry> SensorManager::entries() const {
 
 bool SensorManager::find(std::string_view klipper_name, SensorEntry& out) const {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
-    for (const auto& entry : entries_) {
+    const SensorEntry* entry = find_locked(klipper_name);
+    if (entry == nullptr) {
+        return false;
+    }
+    out = *entry;
+    return true;
+}
+
+SensorEntry* SensorManager::find_locked(std::string_view klipper_name) {
+    for (auto& entry : entries_) {
         if (entry.klipper_name == klipper_name) {
-            out = entry;
-            return true;
+            return &entry;
         }
     }
-    return false;
+    return nullptr;
+}
+
+const SensorEntry* SensorManager::find_locked(std::string_view klipper_name) const {
+    return const_cast<SensorManager*>(this)->find_locked(klipper_name);
 }
 
 // ============================================================================
@@ -426,10 +440,8 @@ bool SensorManager::find(std::string_view klipper_name, SensorEntry& out) const 
 void SensorManager::set_role(std::string_view klipper_name, uint8_t role) {
     {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
-        auto entry = std::find_if(entries_.begin(), entries_.end(), [&](const SensorEntry& e) {
-            return e.klipper_name == klipper_name;
-        });
-        if (entry == entries_.end()) {
+        SensorEntry* entry = find_locked(klipper_name);
+        if (entry == nullptr) {
             return;
         }
         const RoleSpec* spec = role_spec(role);
@@ -450,10 +462,8 @@ void SensorManager::set_role(std::string_view klipper_name, uint8_t role) {
 void SensorManager::set_enabled(std::string_view klipper_name, bool enabled) {
     {
         std::lock_guard<std::recursive_mutex> lock(mutex_);
-        auto entry = std::find_if(entries_.begin(), entries_.end(), [&](const SensorEntry& e) {
-            return e.klipper_name == klipper_name;
-        });
-        if (entry == entries_.end()) {
+        SensorEntry* entry = find_locked(klipper_name);
+        if (entry == nullptr) {
             return;
         }
         entry->enabled = enabled;
@@ -500,12 +510,14 @@ SensorRowView SensorManager::row(size_t index) const {
         view.detail = entry.klipper_name;
     }
     view.role = entry.role;
-    const auto offered = offered_roles();
-    view.role_count = offered.size();
-    for (size_t i = 0; i < offered.size(); ++i) {
-        if (offered[i] == entry.role) {
-            view.selected_role = static_cast<int>(i);
+    for (const auto& spec : options_.roles) {
+        if (!spec.offered) {
+            continue;
         }
+        if (spec.id == entry.role) {
+            view.selected_role = static_cast<int>(view.role_count);
+        }
+        ++view.role_count;
     }
     if (view.selected_role < 0 && entry.role != 0) {
         if (const RoleSpec* held = role_spec(entry.role)) {
