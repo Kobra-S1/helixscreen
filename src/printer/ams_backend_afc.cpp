@@ -26,6 +26,7 @@
 #include "settings_manager.h"
 #include "system/afc_message_dedup.h"
 #include "text_io.h"
+#include "toolchanger_addon.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -465,7 +466,9 @@ void AmsBackendAfc::set_discovered_lanes(const std::vector<std::string>& lane_na
 }
 
 void AmsBackendAfc::set_discovery(const helix::PrinterDiscovery& discovery) {
-    firmware_maps_tools_per_print_.store(discovery.has_zmod_afclite(), std::memory_order_relaxed);
+    firmware_maps_tools_per_print_.store(
+        helix::toolchanger_addon::firmware_picks_lanes_at_print(discovery),
+        std::memory_order_relaxed);
     set_discovered_lanes(discovery.afc_lane_names(), discovery.afc_hub_names());
     set_discovered_sensors(discovery.filament_sensor_names());
 }

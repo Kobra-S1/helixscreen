@@ -75,7 +75,7 @@ enum ChipSlotState : int {
     kLoadedSlot = 1,
     kEmptySlot = 2,
     kSwapSlot = 3,    ///< no filament system, a tool the print swaps in later
-    kUnknownSlot = 4, ///< no filament system, nothing says what is loaded
+    kUnknownSlot = 4, ///< nothing says what is loaded, or the lane is picked at print time
 };
 
 /// filament_chip_<i>_ink: the header label's colour.
@@ -131,6 +131,18 @@ void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::Avail
                                           : std::string{});
     s_chip_slot_state.set_int(i, slot ? (slot->is_empty ? kEmptySlot : kLoadedSlot) : kNoSlot);
     s_chip_severity.set_int(i, static_cast<int>(helix::chip_severity(tool, slot)));
+}
+
+/// A tool whose lane the firmware picks at print time: the file's filament over the
+/// unknown body, with no claim to judge.
+void publish_picked_at_print_chip(size_t i, const helix::GcodeToolInfo& tool) {
+    publish_chip_header(i, tool);
+    s_chip_slot.set_string(i, std::string{});
+    s_chip_slot_color.set_color(i, 0);
+    s_chip_slot_colors.set_string(i, std::string{});
+    s_chip_slot_finish.set_string(i, std::string{});
+    s_chip_slot_state.set_int(i, kUnknownSlot);
+    s_chip_severity.set_int(i, static_cast<int>(helix::ChipSeverity::Ok));
 }
 
 /// Whether two slot lists show the user the same lanes: what the dropdown lists
@@ -550,6 +562,10 @@ void FilamentMappingCard::publish_chips() {
             // mappings_ is built parallel to tool_info_ and compacted in lockstep by
             // apply_used_tools_filter, so index i is this tool's mapping.
             const ToolMapping mapping = (i < mappings_.size()) ? mappings_[i] : ToolMapping{};
+            if (mapping.is_auto && routing.chosen_at_print) {
+                publish_picked_at_print_chip(i, tool_info_[i]);
+                continue;
+            }
             // Judged against the slots as they are now, never a cached verdict:
             // refresh_slot_data() replaces available_slots_ while a pick stays put.
             publish_chip(

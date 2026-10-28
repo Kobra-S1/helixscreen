@@ -27,6 +27,7 @@
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "preflight_validator.h"
+#include "print_start_inputs.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
@@ -3230,6 +3231,38 @@ TEST_CASE("AFC over a firmware that maps tools per print offers no remap and sen
     helix::test::apply_edit(helper, 0, info);
 
     CHECK_FALSE(helper.has_gcode_starting_with("SET_MAP "));
+}
+
+TEST_CASE("Z-Mod's lane-picking shim leaves every lane to the print",
+          "[ams][afc][tool_mapping][filament_mapping][preflight]") {
+    helix::test::RegisteredBackend<AmsBackendAfcTestHelper> reg;
+    AmsBackendAfcTestHelper& helper = *reg;
+    discover_afc(helper, /*afclite=*/true);
+    helper.initialize_test_lanes_with_slots(4);
+    helper.set_running(true);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(helper.firmware_picks_lanes_at_print());
+    const auto routing = helper.firmware_default_routing();
+    CHECK(routing.chosen_at_print);
+    CHECK(routing.head(0) == -1);
+
+    helix::GcodeToolInfo t0{};
+    t0.tool_index = 0;
+    t0.color_known = false;
+    auto& ams = AmsState::instance();
+    const auto seed = ams.seed_tool_mappings({t0}, ams.collect_available_slots());
+    REQUIRE(seed.size() == 1);
+    CHECK(seed[0].is_auto);
+    CHECK(seed[0].mapped_slot == -1);
+    CHECK_FALSE(helix::file_preflight({t0}, seed).has_block());
+}
+
+TEST_CASE("AFC without the shim routes by its own lane map", "[ams][afc][tool_mapping]") {
+    AmsBackendAfcTestHelper helper;
+    discover_afc(helper, /*afclite=*/false);
+    CHECK_FALSE(helper.firmware_picks_lanes_at_print());
+    CHECK_FALSE(helper.firmware_default_routing().chosen_at_print);
 }
 
 TEST_CASE("AFC with its own SET_MAP keeps the native remap", "[ams][afc][tool_mapping]") {

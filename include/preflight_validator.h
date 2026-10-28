@@ -32,8 +32,9 @@ class PreflightValidator {
      * @param routing The firmware routing an Auto mapping prints through: an Auto
      *        tool is judged against the lane it routes to
      *        (FilamentMapper::resolve_printing_slot()), and blocks as EmptySlot
-     *        when it routes to none. Required: a caller that guesses it judges
-     *        the wrong lane.
+     *        when it routes to none. An Auto tool on a routing whose lanes are
+     *        picked at print time (FirmwareRouting::chosen_at_print) gets no
+     *        check. Required: a caller that guesses it judges the wrong lane.
      * @param bypass_active Filament is being fed from the bypass / external spool
      *        rather than the slot system, so no tool can be satisfied by a slot
      *        and the slot-based checks do not apply. Required rather than

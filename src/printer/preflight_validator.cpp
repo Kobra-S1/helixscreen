@@ -76,6 +76,11 @@ PreflightResult PreflightValidator::validate(const std::vector<GcodeToolInfo>& t
         c.intended_color = t.color_rgb;
         c.intended_material = t.material;
         const ToolMapping* m = mapping_for_tool(t.tool_index, mapping);
+        if (m != nullptr && m->is_auto && routing.chosen_at_print) {
+            // The firmware picks this tool's lane when the print starts, so no
+            // lane here can be judged empty or wrong for it.
+            continue;
+        }
         const AvailableSlot* slot = nullptr;
         if (m != nullptr && m->is_auto) {
             // Auto prints from the lane the firmware routes the tool to.

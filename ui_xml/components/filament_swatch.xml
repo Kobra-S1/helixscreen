@@ -13,7 +13,9 @@
          - body: the mapped slot's spool (its colour, split and finish) or a
            ring for an empty slot, with the slot label ("3", "2·1"); an
            empty-spool icon when no slot prints the tool, an Auto whose
-           routing names no lane included; a caret while a tap can remap. On a printer with no filament system
+           routing names no lane included; a question-mark icon with a grey
+           outline when the firmware picks the lane at print time; a caret
+           while a tap can remap. On a printer with no filament system
            the body is what is loaded: its spool, a question-mark icon when
            nothing says, or a swap icon for a later tool; no caret and no remap.
            The body holds icons and numbers only: no word fits it in every
@@ -85,7 +87,7 @@
       <icon name="chip_swap" src="swap_horizontal" size="xs" variant="secondary" clickable="false" event_bubble="true">
         <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="3"/>
       </icon>
-      <!-- No filament system and nothing says what is loaded. -->
+      <!-- Nothing says what is loaded, or the firmware picks the lane at print time. -->
       <icon name="chip_unknown" src="help_circle" size="xs" variant="secondary" clickable="false" event_bubble="true">
         <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="4"/>
       </icon>

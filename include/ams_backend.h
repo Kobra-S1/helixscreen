@@ -539,6 +539,17 @@ class AmsBackend {
     [[nodiscard]] virtual helix::FirmwareRouting firmware_default_routing() const;
 
     /**
+     * @brief Does the firmware pick each tool's lane itself when the print starts?
+     *
+     * Then nothing before the print knows which lane a tool prints from, so
+     * firmware_default_routing() names none (FirmwareRouting::picked_at_print())
+     * and no surface claims one. Default false.
+     */
+    [[nodiscard]] virtual bool firmware_picks_lanes_at_print() const {
+        return false;
+    }
+
+    /**
      * @brief Channel A: backend-specific classification of one gcode-response
      *        line.
      *

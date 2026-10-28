@@ -300,6 +300,10 @@ class AmsBackendMock : public AmsBackend {
     /// in order to cover the "card shown, nothing to tap" branch.
     void set_remap_strategy(RemapStrategy strategy);
 
+    /// Emulate a firmware that picks each tool's lane itself at print time.
+    void set_firmware_picks_lanes_at_print(bool picks);
+    [[nodiscard]] bool firmware_picks_lanes_at_print() const override;
+
     /// Emulate a backend built to remap through a firmware object it has not
     /// discovered yet: AD5X IFS before `_IFS_VARS`. Declared route, unusable.
     /// Reached in a mock run with HELIX_MOCK_REMAP_READY=0.
@@ -1114,6 +1118,7 @@ class AmsBackendMock : public AmsBackend {
     /// Declared remap route outside Snapmaker mode. Native by default: every
     /// non-Snapmaker mode stands in for a table-owning backend.
     RemapStrategy remap_strategy_ = RemapStrategy::Native;
+    bool firmware_picks_lanes_at_print_ = false;
     bool remap_ready_ = true; ///< Cleared to emulate AD5X IFS before `_IFS_VARS`
     /// The emulated print_task_config, in the firmware's own two fields so
     /// AmsBackendSnapmaker::task_routing() can gate on them unchanged. Both

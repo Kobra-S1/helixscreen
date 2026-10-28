@@ -1083,6 +1083,9 @@ bool AmsBackend::firmware_reported_tool_mapping() const {
 }
 
 helix::FirmwareRouting AmsBackend::firmware_default_routing() const {
+    if (firmware_picks_lanes_at_print()) {
+        return helix::FirmwareRouting::picked_at_print();
+    }
     // Only a table the firmware keeps, and has reported at least once, is what
     // it routes by. A table no frame has stated yet holds nothing but our own
     // optimistic writes, and a per-print map is not a standing table at all.

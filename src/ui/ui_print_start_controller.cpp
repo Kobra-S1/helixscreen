@@ -752,6 +752,7 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
     auto& ams = AmsState::instance();
     ctx.ams_available = ams.is_available();
     ctx.any_bypass_active = ams.any_bypass_active();
+    ctx.lanes_picked_at_print = ams.collect_firmware_routing().chosen_at_print;
     ctx.external_spool = ams.get_external_spool_info();
     ctx.filament_diameter_mm = printer_state_.get_discovery().filament_diameter_mm();
     ctx.has_active_backend = ams.get_backend() != nullptr;

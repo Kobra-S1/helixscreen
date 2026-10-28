@@ -33,9 +33,11 @@
 #include "../mapping_card_render_fixture.h"
 #include "../test_helpers/mock_bypass.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "ams_remap.h"
 #include "ams_state.h"
 #include "filament_chip_model.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "print_start_checks.h"
 #include "print_start_inputs.h"
 #include "settings_manager.h"
 #include "system_settings_manager.h"
@@ -1019,5 +1021,50 @@ TEST_CASE_METHOD(
     const auto suggested = helix::remap_modal_mappings(seeded, card.get_tool_info());
     REQUIRE(suggested.size() == 2);
     CHECK(suggested[0].mapped_slot == 2);
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(MappingCardRenderFixture,
+                 "Where the firmware picks lanes at print time, the card claims no lane",
+                 "[filament_mapping][chip][preflight]") {
+    mock->set_remap_strategy(helix::AmsBackend::RemapStrategy::None);
+    mock->set_firmware_picks_lanes_at_print(true);
+    mock->force_slot_status(0, helix::SlotStatus::EMPTY);
+    load_lane(mock, 1, 0x00FF00, "PETG");
+    helix::ui::UpdateQueue::instance().drain();
+
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PLA"});
+    const auto seeded = card.get_mappings();
+    REQUIRE(seeded.size() == 2);
+    for (const auto& m : seeded) {
+        CHECK(m.is_auto);
+        CHECK(m.mapped_slot == -1);
+    }
+
+    // The file's filament over the unknown body, in a grey outline.
+    REQUIRE(chip_count() == 2);
+    for (int i = 0; i < 2; ++i) {
+        CHECK(chip_int(i, "_severity") == 0);
+        CHECK(chip_int(i, "_slot_state") == 4);
+        CHECK(chip_string(i, "_slot").empty());
+    }
+
+    // The tap gate offers no dropdown.
+    CHECK(helix::printer::remap_block(*mock, helix::GcodeRewriteBlock::None, 2) ==
+          helix::printer::RemapBlock::NoStrategy);
+
+    // Neither the empty lane 1 nor the PETG in lane 2 is held against a tool.
+    const auto preflight = helix::file_preflight(card.get_tool_info(), seeded);
+    CHECK(preflight.checks.empty());
+    CHECK_FALSE(preflight.has_block());
+    CHECK_FALSE(preflight.has_advisory());
+
+    helix::PrintStartContext ctx;
+    ctx.filament_color_count = 2;
+    ctx.mappings = seeded;
+    ctx.lanes_picked_at_print =
+        helix::AmsState::instance().collect_firmware_routing().chosen_at_print;
+    CHECK(ctx.lanes_picked_at_print);
+    CHECK(helix::unresolved_tools_in(ctx).empty());
     process_lvgl(100);
 }

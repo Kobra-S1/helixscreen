@@ -42,9 +42,13 @@ struct FirmwareRouting {
     /// Head for tools past the end of the table. -1 means unmapped.
     int fallback_head = -1;
 
+    /// The firmware picks each tool's lane itself when the print starts, so no
+    /// tool has a head before then and nothing may claim one.
+    bool chosen_at_print = false;
+
     /// Physical head for @p tool, or -1 when the tool has none.
     [[nodiscard]] int head(int tool) const {
-        if (tool < 0) {
+        if (tool < 0 || chosen_at_print) {
             return -1;
         }
         if (head_for_tool.empty()) {
@@ -59,6 +63,13 @@ struct FirmwareRouting {
     /// Lane-per-tool: tool N owns lane N, with no upper bound.
     [[nodiscard]] static FirmwareRouting identity() {
         return {};
+    }
+
+    /// No tool has a head until the firmware picks one at print time.
+    [[nodiscard]] static FirmwareRouting picked_at_print() {
+        FirmwareRouting routing;
+        routing.chosen_at_print = true;
+        return routing;
     }
 
     /// A standing tool -> head table: @p table where it names any tool, tools

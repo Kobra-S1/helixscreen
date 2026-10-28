@@ -123,6 +123,9 @@ struct PrintStartContext {
     bool has_active_backend = false;      ///< AmsState::get_backend() != nullptr
     bool any_auto_unload_backend = false; ///< any backend->auto_unloads_after_print()
     bool any_bypass_active = false;       ///< AmsState::any_bypass_active()
+    /// The firmware picks each tool's lane at print time
+    /// (AmsState::collect_firmware_routing().chosen_at_print).
+    bool lanes_picked_at_print = false;
     /// Per-backend answer to toolhead_filament_unaccounted(), indexed like
     /// AmsState backends. nullopt = backend cannot determine.
     std::vector<std::optional<bool>> toolhead_unaccounted;
