@@ -1662,13 +1662,16 @@ cov-diff: cov-build cov-run
 # ---- mutation --------------------------------------------------------------
 # Reverts each changed hunk in turn and looks for red. A src/ or include/ hunk
 # costs a compile plus a link; a ui_xml/, assets/config/ or scripts/ hunk costs
-# only its suite, since nothing has to be rebuilt to see it. Scope a heavy range
-# with --limit N or --tests. It answers CLEAN only when it examined the whole
-# change: a path it cannot mutate is reported NOT COVERED and the run exits 3.
-# Bounded by --max-minutes (default 45), and by default it mutates only what
-# changed since the last commit a run proved (--whole-branch for all of it).
+# only its suite, since nothing has to be rebuilt to see it. Each changed file
+# runs against its own tests (--tests-for, else the test files naming it, else
+# --tests). It answers CLEAN only when it examined the whole change: a path it
+# cannot mutate is reported NOT COVERED and the run exits 3. Capped at 30
+# minutes (--release lifts it), and by default it mutates only what changed
+# since the last commit a run proved (--whole-branch for all of it).
+# scripts/mutate-diff.sh hands the run to the test host where this host cannot
+# make the reflink copies parallel workers need (MUTATE_LOCAL=1 stays here).
 .PHONY: mutate-diff
 # `+` hands the jobserver's descriptors down, so the builds the gate runs join
 # this make's job budget instead of falling back to -j1.
 mutate-diff:
-	+$(Q)python3 scripts/mutate_diff.py $(MUTATE_ARGS)
+	+$(Q)scripts/mutate-diff.sh $(MUTATE_ARGS)

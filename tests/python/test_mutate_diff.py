@@ -356,9 +356,9 @@ def test_max_minutes_stops_the_run_and_names_what_it_never_reached(tmp_path):
     assert not _alive(child), "the capped build's grandchild outlived the run"
 
 
-def test_max_minutes_zero_is_no_cap(tmp_path):
+def test_max_minutes_zero_is_no_cap_for_a_release_run(tmp_path):
     work = _fixture(tmp_path)
-    r = _mutate(work, "--base", "main", "--max-minutes", "0")
+    r = _mutate(work, "--base", "main", "--max-minutes", "0", "--release")
     assert r.returncode == 0, r.stdout
     assert "VERDICT: CLEAN" in r.stdout
 
@@ -1069,3 +1069,117 @@ def test_a_worker_copy_points_its_build_files_at_itself(tmp_path):
     with pytest.raises(RuntimeError, match="not a worker copy"):
         md._copy_tree(src, other)
     assert (other / "precious").exists()
+
+
+# ---------------------------------------------------------------------------
+# Per-file filters, the merge-time cap, generated files
+# ---------------------------------------------------------------------------
+def test_tests_for_parses_glob_and_filter():
+    assert md.parse_tests_for(["src/ui/*=[ui]", " ui_xml/x.xml = [x],[y] "]) == [
+        ("src/ui/*", "[ui]"), ("ui_xml/x.xml", "[x],[y]")]
+    assert md.parse_tests_for(None) == []
+
+
+@pytest.mark.parametrize("spec", ["src/*", "=[x]", "src/*=", "   =  "])
+def test_tests_for_refuses_a_spec_without_both_halves(spec):
+    with pytest.raises(ValueError):
+        md.parse_tests_for([spec])
+
+
+SOURCES = {
+    "test_network_validation": '#include "utils/network_validation.h"\n',
+    "test_moonraker_connect_failure": "ConnectFailureKind k = classify(network_validation(x));\n",
+    "test_other": "network_validation_extra and networkvalidation\n",
+}
+
+
+def test_auto_filter_is_the_test_files_naming_the_stem_as_a_word():
+    filt = md.auto_tests_filter("src/utils/network_validation.cpp", SOURCES)
+    assert filt == "[#test_moonraker_connect_failure],[#test_network_validation]"
+
+
+def test_auto_filter_ignores_a_short_stem_and_a_stem_nothing_names():
+    assert md.auto_tests_filter("src/a/io.cpp", {"test_io": "io io io"}) == ""
+    assert md.auto_tests_filter("src/ui/unmentioned_thing.cpp", SOURCES) == ""
+
+
+def test_auto_filter_gives_up_on_a_stem_too_many_files_name():
+    many = {f"test_{i}": "widget_base here" for i in range(md.AUTO_TESTS_MAX_FILES + 1)}
+    assert md.auto_tests_filter("src/ui/widget_base.cpp", many) == ""
+    some = dict(list(many.items())[:md.AUTO_TESTS_MAX_FILES])
+    assert md.auto_tests_filter("src/ui/widget_base.cpp", some) != ""
+
+
+def test_filter_for_prefers_explicit_then_auto_then_default():
+    tests_for = [("src/utils/*", "[explicit]")]
+    assert md.filter_for("src/utils/network_validation.cpp", tests_for, True, SOURCES,
+                         "[all]")[0] == "[explicit]"
+    assert md.filter_for("src/net/network_validation.cpp", tests_for, True, SOURCES,
+                         "[all]")[0].startswith("[#test_")
+    assert md.filter_for("src/net/network_validation.cpp", tests_for, False, SOURCES,
+                         "[all]")[0] == "[all]"
+    assert md.filter_for("src/ui/unmentioned_thing.cpp", [], True, SOURCES,
+                         "[all]")[0] == "[all]"
+
+
+def test_files_sharing_a_filter_run_as_one_group():
+    filt = {"a.cpp": "[x]", "b.cpp": "[y]", "c.cpp": "[x]"}
+    assert md.group_by_filter(["a.cpp", "b.cpp", "c.cpp", "a.cpp"], filt) == [
+        ("[x]", ["a.cpp", "c.cpp"]), ("[y]", ["b.cpp"])]
+
+
+@pytest.mark.parametrize("codes, worst", [
+    ([0, 0], 0), ([0, 3], 3), ([3, 1, 0], 1), ([0, 4, 3], 4), ([143, 3], 143), ([], 0)])
+def test_the_worst_child_exit_is_the_run_exit(codes, worst):
+    assert md.combine_exits(codes) == worst
+
+
+def test_file_tag_filters_turn_on_catch2_file_tags():
+    assert md.catch2_argv("bin", "[#test_foo]") == ["bin", "[#test_foo]", "-#"]
+    assert md.catch2_argv("bin", "[ams]") == ["bin", "[ams]"]
+
+
+def test_generated_output_is_not_mutated_as_code():
+    assert md.classify("src/generated/theme_token_table.cpp", False)[0] == "inert"
+    assert md.classify("src/ui/ui_panel.cpp", False) == ("mutate", "cxx")
+
+
+@pytest.mark.parametrize("minutes", ["31", "0", "240"])
+def test_a_merge_time_run_over_the_cap_is_refused_without_release(minutes):
+    p = subprocess.run([sys.executable, str(SCRIPTS_DIR / "mutate_diff.py"), "--list-only",
+                        "--max-minutes", minutes], cwd=REPO_ROOT, capture_output=True, text=True)
+    assert p.returncode == 2
+    assert "--release" in p.stderr
+
+
+def test_release_lifts_the_cap():
+    p = subprocess.run([sys.executable, str(SCRIPTS_DIR / "mutate_diff.py"), "--list-only",
+                        "--max-minutes", "240", "--release", "--base", "HEAD"],
+                       cwd=REPO_ROOT, capture_output=True, text=True)
+    assert p.returncode == 0, p.stderr
+
+
+def test_each_file_runs_against_its_own_filter_as_its_own_group(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / ".mutant-expect-other").write_text("")
+    suite = work / "build" / "bin" / "helix-tests"
+    suite.write_text(DETECTING_SUITE.replace(
+        "#!/usr/bin/env bash\n", '#!/usr/bin/env bash\necho "$1" >> .filters\n', 1))
+    r = _mutate(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                "--tests-for", "src/other.cpp=[oth]")
+    assert r.returncode == 0, r.stdout
+    assert "group 1/2: [feat]" in r.stdout
+    assert "group 2/2: [oth]" in r.stdout
+    assert "VERDICT: CLEAN - every group" in r.stdout
+    filters = set((work / ".filters").read_text().split())
+    assert filters == {"[feat]", "[oth]"}, filters
+
+
+def test_a_surviving_group_makes_the_whole_run_fail(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    # No .mutant-expect-other: nothing detects other.cpp's mutant.
+    r = _mutate(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                "--tests-for", "src/other.cpp=[oth]")
+    assert r.returncode == 1, r.stdout
+    assert "exit 1  [oth]" in r.stdout
+    assert "exit 0  [feat]" in r.stdout

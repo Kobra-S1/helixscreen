@@ -29,6 +29,16 @@ qc_build_jobs() {
 # The Makefile requires GNU make >= 4.2 and errors below it. macOS ships 3.81
 # as /usr/bin/make and Homebrew installs 4.x only as `gmake`. On Linux plain
 # `make` stays: there it may be the jobpool shim, which `gmake` would bypass.
+# One src/ or tests/ source that includes HEADER (path as staged), or nothing.
+# A header breaks the units that include it, and one of them compiling is the
+# commit-time question; pre-push's clang gate checks the rest.
+qc_one_includer() {
+  local base
+  base=$(basename "$1")
+  grep -rlE --include='*.cpp' --include='*.cc' --include='*.mm' \
+    "#include[[:space:]]+[\"<]([^\">]*/)?${base//./\\.}[\">]" src tests 2>/dev/null | head -1
+}
+
 qc_make() {
   if [ "$(uname -s)" = Darwin ] && command -v gmake >/dev/null 2>&1; then
     echo gmake
