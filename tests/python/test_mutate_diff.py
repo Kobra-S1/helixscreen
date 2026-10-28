@@ -1396,6 +1396,10 @@ def test_a_pytest_case_red_at_baseline_is_deselected_and_the_rest_judge(tmp_path
     _git(work, "commit", "-qm", "tool")
     base = _git(work, "rev-parse", "HEAD").strip()
     (work / "scripts" / "tool.py").write_text("VALUE = 'NEW'\n")
+    # The run judges with the repo's own venv when it has one; this interpreter has
+    # pytest, where a bare python3 on PATH (a CI runner's) may not.
+    (work / ".venv" / "bin").mkdir(parents=True)
+    (work / ".venv" / "bin" / "python3").symlink_to(sys.executable)
     r = _mutate(work, "--base", base, "--no-auto-tests", "--shell-tests", "",
                 "--python-tests", "tests/python/test_tool.py")
     assert r.returncode == 0, r.stdout
