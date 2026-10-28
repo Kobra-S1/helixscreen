@@ -440,7 +440,6 @@ translations:
   Bed mesh operation timed out: Malha da mesa — tempo esgotado
   Bed mesh...: Malha da mesa...
   Bed size unknown: 'Tamanho da mesa desconhecido'
-  Bed tab moves lift to this height first: Os movimentos da aba Mesa sobem primeiro até esta altura
   Bed target set to {}°C: Mesa configurada para {}°C
   Bed temp must be 0-%d°C: A temperatura da mesa deve ser 0-%d°C
   Bed warming timed out: Aquecimento da mesa — tempo esgotado
@@ -783,6 +782,7 @@ translations:
 
   Clear the extruder?: 'Esvaziar o extrusor?'
   Clear the plate and load {}. The tower prints in the middle of the bed.: Limpe a mesa e carregue {}. A torre é impressa no centro da mesa.
+  Cleared: Liberado
   Cleared from settings — system unpair failed, may need OS Bluetooth: Removido das
     configurações; falha ao desemparelhar no sistema, pode ser necessário o Bluetooth
     do SO
@@ -867,6 +867,7 @@ translations:
   Confirm PIN: Confirmar PIN
   Confirm before running macros: Confirmar antes de executar macros
   Confirm clearing the extruder to unload it: 'Confirme o esvaziamento do extrusor para descarregar'
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Confirme apenas quando a última impressão tiver sido retirada da mesa. A partir daí, os movimentos deixam de subir acima dela."
   Confirm tool changes: 'Confirmar trocas de ferramenta'
   Connect: Conectar
   Connect a USB label printer first: Conecte primeiro uma impressora de etiquetas
@@ -2012,6 +2013,7 @@ translations:
   Invalid value type: 'Tipo de valor inválido'
   Is new filament coming out of the nozzle?: "O filamento novo está saindo pelo bico?"
   Invert: Inverter
+  Is the bed clear?: "A mesa está livre?"
   Issue description: Descrição do problema
   It can be un-archived in Spoolman's web UI.: Pode ser desarquivado na interface web do Spoolman.
   It has not reported its slots yet. Try again in a moment.: Ainda não informou seus slots. Tente novamente em instantes.
@@ -2413,6 +2415,7 @@ translations:
   Mount which tool?: 'Montar qual ferramenta?'
   Mount...: 'Montar...'
   Move: Mover
+  Move here: Mover aqui
   Move out of range: 'Movimento fora do alcance'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Mova
     o papel para frente e para trás enquanto ajusta. Pare quando o papel prender levemente,
@@ -2852,6 +2855,7 @@ translations:
   Place the spools: Coloque os carretéis
 
   Placed: Colocado
+  Plate moves and presets lift to this height first: Os movimentos sobre a mesa e as predefinições sobem primeiro até esta altura
   Plate {}: 'Placa {}'
   Platform: Plataforma
   'Platform: ': 'Plataforma: '
@@ -4079,6 +4083,7 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : O bico está quente. Limpe-o com a escova de arame que acompanha a impressora, mantenha limpa a posição de encaixe e toque em Próximo.
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "O bico está afastado da impressão e X e Y estão posicionados. Ao retomar, ele desce de novo até a altura em que parou."
+  The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'A peça na mesa é alta demais para passar por cima. Remova-a e toque em "Liberado".'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "O pico de {0} saiu da zona. Confira se girou apenas o tensor de {1}. Não sabe qual é qual? Toque no lápis para identificar as correias."
   The peak of {} moved out of the zone. Widening it.: "O pico de {} saiu da zona. Ampliando."
@@ -4721,6 +4726,7 @@ translations:
   Z tilt: Inclinação Z
   Z {:.2f} mm: Z {:.2f} mm
   Z {}, will lift to {}mm: 'Z {}, subirá para {}mm'
+  'Z {}, will lift to {}mm: last print is {}mm tall': 'Z {}, subirá para {}mm: a última impressão tem {}mm de altura'
   'Z-Off:': 'Z-Offset:'
   Z-Offset: Z-Offset
   Z-Offset Calibration: Calibração de Z-Offset

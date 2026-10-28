@@ -440,7 +440,6 @@ translations:
   Bed mesh operation timed out: Malla de cama — tiempo de espera agotado
   Bed mesh...: Malla de cama...
   Bed size unknown: 'Tamaño de cama desconocido'
-  Bed tab moves lift to this height first: Los movimientos de la pestaña Cama suben primero a esta altura
   Bed target set to {}°C: Cama configurada a {}°C
   Bed temp must be 0-%d°C: La temperatura de la cama debe ser 0-%d°C
   Bed warming timed out: Calentamiento de cama — tiempo de espera agotado
@@ -784,6 +783,7 @@ translations:
 
   Clear the extruder?: '¿Vaciar el extrusor?'
   Clear the plate and load {}. The tower prints in the middle of the bed.: Despeja la cama y carga {}. La torre se imprime en el centro de la cama.
+  Cleared: Despejado
   Cleared from settings — system unpair failed, may need OS Bluetooth: Borrado de
     los ajustes; falló el desemparejamiento del sistema, puede que necesite el Bluetooth
     del SO
@@ -868,6 +868,7 @@ translations:
   Confirm PIN: Confirmar PIN
   Confirm before running macros: Confirmar antes de ejecutar macros
   Confirm clearing the extruder to unload it: 'Confirma el vaciado del extrusor para descargar'
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Confirma solo cuando la última impresión ya no esté en la cama. Después, los movimientos dejan de elevarse por encima de ella."
   Confirm tool changes: 'Confirmar cambios de herramienta'
   Connect: Conectar
   Connect a USB label printer first: Conecte primero una impresora de etiquetas USB
@@ -2010,6 +2011,7 @@ translations:
   Invalid value type: 'Tipo de valor no válido'
   Is new filament coming out of the nozzle?: "¿Sale filamento nuevo por la boquilla?"
   Invert: Invertir
+  Is the bed clear?: "¿Está despejada la cama?"
   Issue description: Descripción del problema
   It can be un-archived in Spoolman's web UI.: Se puede desarchivar en la interfaz web de Spoolman.
   It has not reported its slots yet. Try again in a moment.: Aún no ha informado de sus ranuras. Inténtelo de nuevo en un momento.
@@ -2411,6 +2413,7 @@ translations:
   Mount which tool?: '¿Qué herramienta montar?'
   Mount...: 'Montar...'
   Move: Mover
+  Move here: Mover aquí
   Move out of range: 'Movimiento fuera de rango'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Mueva
     el papel hacia adelante y atrás mientras ajusta. Deténgase cuando el papel se
@@ -2851,6 +2854,7 @@ translations:
   Place the spools: Coloca las bobinas
 
   Placed: En cola
+  Plate moves and presets lift to this height first: Los movimientos sobre la cama y los preajustes suben primero a esta altura
   Plate {}: 'Placa {}'
   Platform: Plataforma
   'Platform: ': 'Plataforma: '
@@ -4074,6 +4078,7 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : La boquilla está caliente. Límpiala con el cepillo de alambre incluido, mantén limpia la posición de anclaje y pulsa Siguiente.
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "La boquilla está separada de la impresión y X e Y están posicionados. Al reanudar, baja de nuevo a la altura en que se detuvo."
+  The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'La pieza en la cama es demasiado alta para pasar por encima. Retírala y luego toca «Despejado».'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "El pico de {0} salió de la zona. Comprueba que solo giraste el tensor de {1}. ¿No sabes cuál es cuál? Toca el lápiz para identificar las correas."
   The peak of {} moved out of the zone. Widening it.: "El pico de {} salió de la zona. Ampliándola."
@@ -4717,6 +4722,7 @@ translations:
   Z tilt: Inclinación Z
   Z {:.2f} mm: Z {:.2f} mm
   Z {}, will lift to {}mm: 'Z {}, subirá a {}mm'
+  'Z {}, will lift to {}mm: last print is {}mm tall': 'Z {}, subirá a {}mm: la última impresión mide {}mm'
   'Z-Off:': 'Z-Offset:'
   Z-Offset: Z-Offset
   Z-Offset Calibration: Calibración de Z-Offset

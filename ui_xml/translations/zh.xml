@@ -410,7 +410,6 @@
   <translation tag="Bed mesh operation timed out" zh="热床网格操作超时"/>
   <translation tag="Bed mesh..." zh="热床网格..."/>
   <translation tag="Bed size unknown" zh="热床尺寸未知"/>
-  <translation tag="Bed tab moves lift to this height first" zh="热床标签页的移动会先抬升到此高度"/>
   <translation tag="Bed target set to {}°C" zh="热床目标已设为 {}°C"/>
   <translation tag="Bed temp must be 0-%d°C" zh="热床温度必须为 0-%d°C"/>
   <translation tag="Bed warming timed out" zh="热床加热超时"/>
@@ -716,6 +715,7 @@
   <translation tag="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door." zh="清空热床上方和下方的区域。把料盘放在热床上,用盒子(打印的盖子或耗材的包装盒)罩住,然后关好门。"/>
   <translation tag="Clear the extruder?" zh="清空挤出机？"/>
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." zh="请清空热床并装入{}。测试塔打印在热床中央。"/>
+  <translation tag="Cleared" zh="已清空"/>
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" zh="已从设置中清除；系统解除配对失败，可能需使用系统蓝牙设置"/>
   <translation tag="Clipboard unavailable - use SSH" zh="剪贴板不可用 - 请使用 SSH"/>
   <translation tag="Clog" zh="堵料"/>
@@ -791,6 +791,7 @@
   <translation tag="Confirm PIN" zh="确认 PIN 码"/>
   <translation tag="Confirm before running macros" zh="运行宏前进行确认"/>
   <translation tag="Confirm clearing the extruder to unload it" zh="请确认清空挤出机以卸载"/>
+  <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." zh="请在最后一次打印件从热床上取下后再确认。之后移动将不再抬升以避开它。"/>
   <translation tag="Confirm tool changes" zh="确认切换工具"/>
   <translation tag="Connect" zh="连接"/>
   <translation tag="Connect a USB label printer first" zh="请先连接 USB 标签打印机"/>
@@ -1828,6 +1829,7 @@
   <translation tag="Invalid value type" zh="值类型无效"/>
   <translation tag="Invert" zh="反转"/>
   <translation tag="Is new filament coming out of the nozzle?" zh="喷嘴是否有新耗材挤出？"/>
+  <translation tag="Is the bed clear?" zh="热床已清空吗？"/>
   <translation tag="Issue description" zh="问题描述"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." zh="可以在 Spoolman 的网页界面中取消归档。"/>
   <translation tag="It has not reported its slots yet. Try again in a moment." zh="尚未报告其料槽。请稍后再试。"/>
@@ -2202,6 +2204,7 @@
   <translation tag="Mount which tool?" zh="装上哪个工具？"/>
   <translation tag="Mount..." zh="装上..."/>
   <translation tag="Move" zh="移动"/>
+  <translation tag="Move here" zh="移动到此处"/>
   <translation tag="Move out of range" zh="移动超出范围"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." zh="调整时前后移动纸张。当纸张有轻微阻力但仍能滑动时停止。"/>
   <translation tag="Move selector" zh="移动选择器"/>
@@ -2606,6 +2609,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." zh="请将 PEI 板放回加热床。"/>
   <translation tag="Place the spools" zh="放置料盘"/>
   <translation tag="Placed" zh="已放置"/>
+  <translation tag="Plate moves and presets lift to this height first" zh="热床上的移动和预设会先抬升到此高度"/>
   <translation tag="Plate {}" zh="第 {} 号板"/>
   <translation tag="Platform" zh="平台"/>
   <translation tag="Platform: " zh="平台: "/>
@@ -3715,6 +3719,7 @@
   <translation tag="The nozzle is clear of the print" zh="喷嘴未接触打印件"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." zh="喷嘴很烫。请用随机附带的金属刷清洁，并保持停靠位置干净，然后点击下一步。"/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." zh="喷嘴已抬离打印件，X 和 Y 已归零。恢复时会降回停止时的高度。"/>
+  <translation tag="The part on the bed is too tall to clear. Remove it, then tap Cleared." zh="热床上的打印件太高，无法越过。请将其移除，然后点击“已清空”。"/>
   <translation tag="The peak of {0} left the zone. Check that only {1}&apos;s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts." zh="{0} 的峰离开了区间。请确认只转动了 {1} 的张紧器。分不清哪条是哪条?点按编辑图标来识别皮带。"/>
   <translation tag="The peak of {} moved out of the zone. Widening it." zh="{} 的峰移出了区间。正在扩大区间。"/>
   <translation tag="The plate and the spools are still hot. Use gloves." zh="热床和料盘仍然很烫。请戴手套。"/>
@@ -4285,6 +4290,7 @@
   <translation tag="Z tilt" zh="Z倾斜"/>
   <translation tag="Z {:.2f} mm" zh="Z {:.2f} mm"/>
   <translation tag="Z {}, will lift to {}mm" zh="Z {}，将抬升至 {}mm"/>
+  <translation tag="Z {}, will lift to {}mm: last print is {}mm tall" zh="Z {}，将抬升至 {}mm：上次打印高 {}mm"/>
   <translation tag="Z-Off:" zh="Z 偏移："/>
   <translation tag="Z-Offset" zh="Z 偏移"/>
   <translation tag="Z-Offset Calibration" zh="Z 偏移校准"/>

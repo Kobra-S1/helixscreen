@@ -7,13 +7,14 @@
 #include "ui_widget_ref.h"
 
 #include "axis.h"
+#include "bed_plate_gesture.h"
 #include "hold_repeat_timer.h"
-#include "jog_coalescer.h"
 #include "motion_presets.h"
 #include "overlay_base.h"
 #include "settings_manager.h"
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"
+#include "toolhead_move_sender.h"
 #include "ui/ui_modal_guard.h"
 
 #include <optional>
@@ -86,9 +87,6 @@ struct JogLayoutFit {
  */
 JogLayoutFit jog_layout_fit(MotionLayout layout, bool portrait, int box_w, int box_h, int gap,
                             int step_h, int step_count, int min_key);
-
-/// One pointer event on the Bed tab's touch surface.
-enum class BedTouch { Pressed, Pressing, Released, Lost };
 
 enum class JogMode { Fine = 0, Coarse = 1, Turbo = 2 };
 constexpr int kJogModeCount = 3;
@@ -238,11 +236,12 @@ class MotionPanel : public OverlayBase {
 
     /// Open the coordinate keypad for one axis ('x'/'y'/'z'), seeded with the
     /// COMMANDED position and bounded by the axis envelope. Refuses (no-op)
-    /// while jogging is gated off (not connected or klippy not ready).
+    /// while jogging is gated off (not connected or klippy not ready) or the
+    /// axis is unhomed.
     void open_axis_keypad(char axis);
 
-    /// Keypad confirm: home the axis if needed, then dispatch the absolute
-    /// target for that one axis.
+    /// Keypad confirm: dispatch the absolute target for that one axis. An
+    /// unhomed axis sends nothing; nothing in the panel homes except Home.
     void request_axis_target(char axis, double mm);
 
     /// Select the content tab: 0=Jog, 1=Move, 2=Bed. Jog is re-selected every
@@ -251,30 +250,33 @@ class MotionPanel : public OverlayBase {
 
     /// Move tab: send the toolhead to one of the nine bed grid positions. The
     /// target is computed at tap time; unknown axis bounds warn instead of
-    /// moving, and an unhomed machine homes first.
+    /// moving. It goes out through the plate gesture's send_once(), so it lifts
+    /// to the plate floor, refuses a part too tall to clear, and sends nothing
+    /// unless every axis is homed.
     void handle_preset(helix::MotionPreset preset);
 
     /// Move tab: run the ParkToolhead macro when the slot resolves to one,
     /// else lift Z and park over the rear of the plate (plate_rear_park()).
+    /// Either way every axis must be homed, or nothing is sent.
     void handle_park();
 
-    /// Park with no macro: over the rear of the plate, after lifting Z by
-    /// kParkZLiftMm (capped at travel) when @p lift_z. Every axis must
-    /// already be homed.
-    void park_over_plate(bool lift_z);
+    /// Park with no macro: over the rear of the plate at park_plate_lift()'s
+    /// height. A part too tall to clear refuses with a notice; unhomed sends
+    /// nothing.
+    void park_over_plate();
 
     /// Move tab: raise the shared Disable Motors confirmation.
     void handle_motors_off();
+
+    /// The Refuse notice: a part on the bed is too tall to clear. The home Toolhead
+    /// widget's plate raises it too.
+    static void notify_part_too_tall();
 
     /// Bed tab: one pointer event at @p screen_point on the touch surface
     /// @p area. A tap moves on release to the press point; travel past a few
     /// px makes it a drag, and the head follows the finger (latest target
     /// wins), with the release point sent only if it differs from the last.
     void handle_bed_touch(helix::BedTouch phase, lv_obj_t* area, lv_point_t screen_point);
-
-    /// Bed tab: send the toolhead to @p target (XY), raising Z to @p lift_z
-    /// first when set. Unhomed XY homes first, and then never lifts.
-    void commit_bed_target(helix::AxisTarget target, std::optional<double> lift_z);
 
     /// Bed tab: size the plate to the bed's aspect inside the touch surface
     /// and place the marker. No-op while another tab is showing.
@@ -285,18 +287,15 @@ class MotionPanel : public OverlayBase {
     /// SIZE_CHANGED event calls this, and so does a change in the step count.
     void fit_jog_layout(lv_obj_t* root);
 
-    /// Bed tab: draw the reference grid on the plate (its DRAW_MAIN hook).
-    void draw_bed_grid(lv_event_t* e) const;
+    /// Bed tab: draw the reference grid and the print's outlines on the plate
+    /// (its DRAW_MAIN hook).
+    void draw_bed_plate(lv_event_t* e) const;
 
     /// Clamp one axis against its bounds. Partial travel is silent; a fully
     /// clamped FRESH press (anything but a hold repeat tick) warns every time
     /// with the limit it hit. Returns the permitted delta, 0.0 when blocked.
     double clamp_axis_delta(helix::Axis axis, double current, double uncommitted, double delta,
                             float min, float max, bool fresh_press);
-    /// The G-code envelope the clamps and the Z-button state use: the nominal
-    /// one inset by kGcodeEdgeMarginMm. The keypad offers the nominal limits.
-    helix::AxisBounds clamp_bounds();
-
     /// Raise the "at its limit" warning for an axis refused at the clamp bound
     /// on its max (`at_max`) or min side.
     void warn_axis_limit(helix::Axis axis, float clamp_bound, bool at_max);
@@ -371,15 +370,12 @@ class MotionPanel : public OverlayBase {
 
     lv_obj_t* jog_pad_ = nullptr;
 
-    helix::JogCoalescer jog_coalescer_;
+    /// One move in flight, the newest coalesced behind it, for jogs and targets alike.
+    helix::ToolheadMoveSender move_sender_;
 
     /// The Move tab's Disable Motors confirmation. The guard hides the dialog
     /// if the panel is destroyed while it is open.
     helix::ui::ModalGuard motors_off_dialog_;
-    /// Z the toolhead will sit at when the latest target's script starts,
-    /// captured at enqueue time. Feeds move_to's travel-before-descend
-    /// ordering; delta moves ignore it.
-    double target_start_z_ = 0.0;
 
     /// Whether a repeat tick has fired for the current jog-button hold: the
     /// first tick is that press's initial jog, later ones are repeats.
@@ -403,19 +399,8 @@ class MotionPanel : public OverlayBase {
     void stop_hold_repeat();
     static bool jog_hold_fire(void* user_data);
 
-    /// The Bed tab's plate (preset_area()) and shape, or nullopt while the
-    /// bounds are unknown or degenerate.
-    struct BedPlate {
-        helix::AxisBounds area;
-        bool circular;
-    };
-    std::optional<BedPlate> bed_plate() const;
-
     /// Target under @p screen_point on the touch surface @p area.
     std::optional<helix::AxisTarget> bed_target_at(lv_obj_t* area, lv_point_t screen_point) const;
-
-    /// Z a Bed-tab move would lift to now, or nullopt for none (or Z unhomed).
-    std::optional<double> bed_lift_z();
 
     /// Move the toolhead marker to the commanded XY.
     void update_bed_marker();
@@ -424,23 +409,18 @@ class MotionPanel : public OverlayBase {
     /// the clearance lift a commit would make.
     void refresh_bed_readout();
 
-    // Bed tab press tracking: where the press landed, and whether it has
-    // travelled far enough to be a drag. The drag target feeds the readout.
-    bool bed_pressing_ = false;
-    bool bed_dragging_ = false;
-    lv_point_t bed_press_point_{};
-    std::optional<helix::AxisTarget> bed_drag_target_;
-    /// The last target this gesture sent; empty until its first move.
-    std::optional<helix::AxisTarget> bed_sent_target_;
-    /// The Z every move of this gesture lifts to, decided at its first move.
-    std::optional<double> bed_gesture_lift_z_;
-    /// A move of this gesture was refused; it sends nothing more.
-    bool bed_gesture_failed_ = false;
+    /// The Bed tab's press / drag / release decisions, shared with the home
+    /// Toolhead widget.
+    helix::BedPlateGesture bed_gesture_;
+    /// The touch surface handle_bed_touch() is handling, for the gesture's
+    /// target_at hook; null outside that call.
+    lv_obj_t* bed_touch_area_ = nullptr;
     /// Stop tracking the finger: no press, no drag target, readout at rest.
     void end_bed_gesture();
 
-    /// Send one of the current gesture's targets, lifting only on the first.
-    void send_bed_gesture_target(const helix::AxisTarget& target);
+    /// The gesture's send hook: one plate target (Bed tab or preset), lift
+    /// already applied.
+    void send_bed_target(const helix::AxisTarget& target);
 
     /// Gating backstop behind the Move tab's XML disabled bindings: commands
     /// are allowed only while nav buttons are enabled (connected + klippy
@@ -451,14 +431,11 @@ class MotionPanel : public OverlayBase {
     /// subjects.
     void sync_motion_tab_subjects();
 
-    // Route a tap/flush through the coalescer and send if idle. Returns
-    // whether the move was dispatched or accepted as pending.
+    // Route a jog delta through move_sender_. Returns whether the move was
+    // dispatched or accepted as pending.
     bool dispatch_jog(const helix::AxisMove& delta);
-    // Route an absolute target through the coalescer and send if idle.
+    // Route an absolute target through move_sender_, clamped to clamp_bounds().
     bool dispatch_target(const helix::AxisTarget& target);
-    // Send one coalesced move (delta or target); ack/error callbacks re-enter
-    // the coalescer. Returns false when there is no API to send through.
-    bool send_jog_move(const helix::JogCoalescer::CoalescedMove& move);
 
     ObserverGuard position_x_observer_;
     ObserverGuard position_y_observer_;
@@ -473,6 +450,10 @@ class MotionPanel : public OverlayBase {
     ObserverGuard homed_axes_observer_;
     ObserverGuard jog_ready_observer_;
     ObserverGuard layout_observer_;
+    /// Redraws the plate when the bed-occupancy verdict or outlines change.
+    ObserverGuard bed_occupancy_observer_;
+    /// (Re)take bed_occupancy_observer_ on the current session's state.
+    void observe_bed_occupancy();
 
     // Actual (live) positions in mm; the readouts show these when the
     // coordinate preference is "actual", the commanded current_x_/y_/z_

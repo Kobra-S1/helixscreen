@@ -487,7 +487,6 @@ translations:
   Bed mesh operation timed out: Сетка стола — время ожидания истекло
   Bed mesh...: Сетка стола...
   Bed size unknown: 'Размер стола неизвестен'
-  Bed tab moves lift to this height first: Перемещения на вкладке «Стол» сначала поднимают до этой высоты
   Bed target set to {}°C: Целевая температура стола {}°C
   Bed temp must be 0-%d°C: Температура стола должна быть 0-%d°C
   Bed warming timed out: Нагрев стола — время ожидания истекло
@@ -828,6 +827,7 @@ translations:
 
   Clear the extruder?: 'Очистить экструдер?'
   Clear the plate and load {}. The tower prints in the middle of the bed.: Освободите стол и загрузите {}. Башня печатается в центре стола.
+  Cleared: Очищено
   Cleared from settings — system unpair failed, may need OS Bluetooth: Удалено из
     настроек; не удалось отменить сопряжение в системе, возможно нужен Bluetooth ОС
   Clipboard unavailable - use SSH: Буфер обмена недоступен - используйте SSH
@@ -913,6 +913,7 @@ translations:
   Confirm PIN: Подтвердите PIN
   Confirm before running macros: Подтверждать перед запуском макросов
   Confirm clearing the extruder to unload it: 'Подтвердите очистку экструдера, чтобы выгрузить'
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: "Подтверждайте, только когда последняя печать снята со стола. После этого перемещения перестанут подниматься над ней."
   Confirm tool changes: 'Подтверждать смену инструмента'
   Connect: Подключить
   Connect a USB label printer first: Сначала подключите USB-принтер этикеток
@@ -2051,6 +2052,7 @@ translations:
   Invalid value type: 'Неверный тип значения'
   Is new filament coming out of the nozzle?: "Выходит ли новый филамент из сопла?"
   Invert: Инвертировать
+  Is the bed clear?: "Стол свободен?"
   Issue description: Описание проблемы
   It can be un-archived in Spoolman's web UI.: Это можно восстановить из архива в веб-интерфейсе Spoolman.
   It has not reported its slots yet. Try again in a moment.: Она ещё не сообщила о своих слотах. Повторите попытку через минуту.
@@ -2451,6 +2453,7 @@ translations:
   Mount which tool?: 'Какой инструмент установить?'
   Mount...: 'Установить...'
   Move: Двигать
+  Move here: Переместить сюда
   Move out of range: 'Движение за пределами диапазона'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Перемещайте
     бумагу вперёд-назад во время регулировки. Остановитесь, когда бумага слегка цепляется,
@@ -2888,6 +2891,7 @@ translations:
   Place the spools: Положите катушки
 
   Placed: Добавлено
+  Plate moves and presets lift to this height first: Перемещения над столом и пресеты сначала поднимают до этой высоты
   Plate {}: 'Пластина {}'
   Platform: Платформа
   'Platform: ': 'Платформа: '
@@ -4123,6 +4127,7 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : Сопло горячее. Очистите его металлической щёткой из комплекта, держите место парковки чистым и нажмите «Далее».
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "Сопло поднято над печатью, X и Y запаркованы. При продолжении оно опустится на высоту, где остановилось."
+  The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'Деталь на столе слишком высокая, над ней не пройти. Уберите её, затем нажмите «Очищено».'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "Пик ({0}) вышел из зоны. Проверьте, что крутили только натяжитель: {1}. Не знаете, где какой? Коснитесь значка карандаша, чтобы определить ремни."
   The peak of {} moved out of the zone. Widening it.: "Пик ({}) вышел из зоны. Расширяем её."
@@ -4755,6 +4760,7 @@ translations:
   Z tilt: Наклон Z
   Z {:.2f} mm: Z {:.2f} мм
   Z {}, will lift to {}mm: 'Z {}, подъём до {}мм'
+  'Z {}, will lift to {}mm: last print is {}mm tall': 'Z {}, подъём до {}мм: высота последней печати {}мм'
   'Z-Off:': 'Z-Off:'
   Z-Offset: Z-Offset
   Z-Offset Calibration: Калибровка Z-смещения

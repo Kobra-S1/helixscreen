@@ -416,7 +416,6 @@ translations:
   Bed mesh operation timed out: ベッドメッシュ操作がタイムアウトしました
   Bed mesh...: ベッドメッシュ...
   Bed size unknown: 'ベッドサイズが不明です'
-  Bed tab moves lift to this height first: ベッドタブの移動はまずこの高さまで上昇します
   Bed target set to {}°C: ベッド目標温度を {}°C に設定しました
   Bed temp must be 0-%d°C: ベッド温度は 0〜%d°C にしてください
   Bed warming timed out: ベッド加熱がタイムアウトしました
@@ -731,6 +730,7 @@ translations:
 
   Clear the extruder?: 'エクストルーダーを空にしますか？'
   Clear the plate and load {}. The tower prints in the middle of the bed.: ベッドを片付けて{}をロードしてください。タワーはベッド中央に印刷されます。
+  Cleared: クリア済み
   Cleared from settings — system unpair failed, may need OS Bluetooth: 設定から削除しました。システムのペアリング解除に失敗、OS
     の Bluetooth 設定が必要な場合があります
   Clipboard unavailable - use SSH: クリップボード利用不可 - SSHを使用してください
@@ -807,6 +807,7 @@ translations:
   Confirm PIN: PIN を確認
   Confirm before running macros: マクロ実行前に確認する
   Confirm clearing the extruder to unload it: '取り出すには、エクストルーダーを空にすることを確認してください'
+  Confirm only once the last print is off the bed. Moves then stop lifting above it.: "最後のプリントをベッドから取り除いてから確認してください。以降、移動時にその上を避けて持ち上げなくなります。"
   Confirm tool changes: 'ツール交換を確認する'
   Connect: 接続
   Connect a USB label printer first: 先にUSBラベルプリンターを接続してください
@@ -1901,6 +1902,7 @@ translations:
   Invalid value type: '値の型が無効です'
   Is new filament coming out of the nozzle?: "ノズルから新しいフィラメントが出ていますか？"
   Invert: 反転
+  Is the bed clear?: "ベッドは空いていますか？"
   Issue description: 問題の説明
   It can be un-archived in Spoolman's web UI.: Spoolman の Web 画面でアーカイブを解除できます。
   It has not reported its slots yet. Try again in a moment.: スロットがまだ報告されていません。しばらくしてからもう一度お試しください。
@@ -2286,6 +2288,7 @@ translations:
   Mount which tool?: 'どのツールを装着しますか？'
   Mount...: '装着...'
   Move: 移動
+  Move here: ここへ移動
   Move out of range: '移動範囲外です'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: 調整中は紙を前後に動かしてください。紙がわずかに引っかかりながらも滑る状態で止めてください。
   Move selector: セレクターを移動
@@ -2712,6 +2715,7 @@ translations:
   Place the spools: スプールを置く
 
   Placed: 配置済み
+  Plate moves and presets lift to this height first: ベッド上の移動とプリセットはまずこの高さまで上昇します
   Plate {}: 'プレート {}'
   Platform: プラットフォーム
   'Platform: ': 'プラットフォーム: '
@@ -3865,6 +3869,7 @@ translations:
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : ノズルは高温です。付属のワイヤーブラシで清掃し、ドッキング位置もきれいに保ってから「次へ」をタップしてください。
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "ノズルは印刷物から持ち上げられ、XとYはホーミング済みです。再開すると、停止した高さまで再び下がります。"
+  The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'ベッド上の造形物が高すぎて越えられません。取り除いてから「クリア済み」をタップしてください。'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "{0}のピークがゾーンから外れました。{1}のテンショナーだけを回したか確認してください。どれがどれか分からない場合は、ペンのアイコンをタップしてベルトを識別してください。"
   The peak of {} moved out of the zone. Widening it.: "{}のピークがゾーン外に出ました。ゾーンを広げます。"
@@ -4464,6 +4469,7 @@ translations:
   Z tilt: Zチルト
   Z {:.2f} mm: Z {:.2f} mm
   Z {}, will lift to {}mm: 'Z {}、{}mmまで上昇します'
+  'Z {}, will lift to {}mm: last print is {}mm tall': 'Z {}、{}mmまで上昇します：前回の造形物の高さは{}mmです'
   'Z-Off:': 'Z-Off:'
   Z-Offset: Z-Offset
   Z-Offset Calibration: Z-Offset キャリブレーション

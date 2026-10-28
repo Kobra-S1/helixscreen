@@ -18,11 +18,16 @@
 #include "ui_panel_motion.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/bed_occupancy_state_test_access.h"
+#include "../test_helpers/holding_motion_api.h"
+#include "../test_helpers/modal_answer.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
+#include "bed_occupancy_state.h"
+#include "bed_plate_context.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
@@ -32,6 +37,7 @@
 #include "src/ui/panel_widgets/toolhead_widget.h"
 #include "static_panel_registry.h"
 #include "tool_state.h"
+#include "toolhead_preset_config_modal.h"
 
 #include <array>
 
@@ -722,4 +728,512 @@ TEST_CASE_METHOD(ToolheadFixture, "toolhead: any velocity at all counts as movin
     set_velocity(1);
     settle();
     CHECK(subject_text("toolhead_x_text") == "105.0");
+}
+
+// ============================================================================
+// The interactive plate
+// ============================================================================
+
+namespace {
+
+/// A homed, idle, connected printer with a 0..250 x 0..250 x 0..200 envelope, the nozzle
+/// at Z 0.2, a bed occupancy state of its own, and a widget at the default 2x2.
+struct PlateFixture : public ToolheadFixture {
+    PlateFixture() : occupancy(state(), nullptr) {
+        std::array<lv_obj_t*, 7> panels{};
+        for (auto& p : panels)
+            p = lv_obj_create(lv_screen_active());
+        NavigationManager::instance().set_panels(panels.data());
+
+        // The widget's XML binds bed_occupied, so the state exists before the tile.
+        occupancy.init_subjects();
+        drain();
+        previous_occupancy = get_bed_occupancy_state();
+        set_bed_occupancy_state(&occupancy);
+
+        state().update_from_status(
+            {{"toolhead", {{"axis_minimum", {0, 0, 0, 0}}, {"axis_maximum", {250, 250, 200, 0}}}}});
+        lv_subject_set_int(state().network_state().get_nav_buttons_enabled_subject(), 1);
+        set_homed("xyz");
+        set_position(10000, 10000, 20);
+        drain();
+        mock.clear_gcode_script_history();
+    }
+    ~PlateFixture() override {
+        set_bed_occupancy_state(previous_occupancy);
+        lv_subject_set_int(state().network_state().get_nav_buttons_enabled_subject(), 0);
+    }
+
+    std::string all_scripts() const {
+        std::string joined;
+        for (const auto& script : mock.gcode_script_history())
+            joined += script + "\n";
+        return joined;
+    }
+    size_t xy_moves() const {
+        size_t n = 0;
+        for (const auto& script : mock.gcode_script_history()) {
+            if (script.find("G0 X") != std::string::npos ||
+                script.find("G1 X") != std::string::npos)
+                ++n;
+        }
+        return n;
+    }
+
+    /// The screen point at the drawn plate's centre.
+    static lv_point_t plate_centre(PanelWidgetHarness<ToolheadWidget>& h) {
+        const auto g = h.widget().plate_geometry();
+        REQUIRE(g.has_value());
+        lv_area_t c;
+        lv_obj_get_coords(part(h, "toolhead_plate"), &c);
+        return {c.x1 + static_cast<int32_t>(g->plate.x + g->plate.w / 2),
+                c.y1 + static_cast<int32_t>(g->plate.y + g->plate.h / 2)};
+    }
+    /// Press and release at @p at, then the CLICKED the indev sends after them.
+    void tap_plate(PanelWidgetHarness<ToolheadWidget>& h, lv_point_t at) {
+        h.widget().handle_plate_touch(BedTouch::Pressed, at);
+        h.widget().handle_plate_touch(BedTouch::Released, at);
+        lv_obj_send_event(part(h, "toolhead_plate"), LV_EVENT_CLICKED, nullptr);
+        drain();
+    }
+    /// A Full tile, settled, with the plate on screen.
+    void build(PanelWidgetHarness<ToolheadWidget>& h) {
+        h.resize(2, 2, kFull.w, kFull.h);
+        settle();
+        REQUIRE(rung_subject() == static_cast<int>(SizeRung::Full));
+        mock.clear_gcode_script_history();
+    }
+
+    BedOccupancyState occupancy;
+    BedOccupancyState* previous_occupancy = nullptr;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: a homed tap drops a target and moves nothing",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    REQUIRE(h.widget().plate_interactive());
+    CHECK(lv_obj_has_flag(part(h, "toolhead_plate"), LV_OBJ_FLAG_CLICKABLE));
+
+    tap_plate(h, plate_centre(h));
+    process_lvgl(500);
+
+    CHECK(subject_int("toolhead_ghost_active") == 1);
+    REQUIRE(h.widget().ghost_target().has_value());
+    CHECK(*h.widget().ghost_target()->x == Catch::Approx(125.0).margin(2.0));
+    CHECK(*h.widget().ghost_target()->y == Catch::Approx(125.0).margin(2.0));
+    CHECK(shown(part(h, "toolhead_move_here")));
+    CHECK(subject_text("toolhead_ghost_text").rfind("-> X12", 0) == 0);
+    // From Z 0.2 the move lifts to the 5mm clearance first, and says so.
+    CHECK(subject_text("toolhead_ghost_text").find("will lift to 5mm") != std::string::npos);
+    CHECK(all_scripts().empty());
+    CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: Move here lifts, then travels, then clears",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    tap_plate(h, plate_centre(h));
+    REQUIRE(subject_int("toolhead_ghost_active") == 1);
+
+    lv_obj_send_event(part(h, "toolhead_move_here"), LV_EVENT_CLICKED, nullptr);
+    drain();
+
+    const std::string scripts = all_scripts();
+    INFO(scripts);
+    const auto lift = scripts.find("Z5");
+    const auto travel = scripts.find(" X12");
+    REQUIRE(lift != std::string::npos);
+    REQUIRE(travel != std::string::npos);
+    CHECK(lift < travel);
+    CHECK(xy_moves() == 1);
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK_FALSE(h.widget().ghost_target().has_value());
+    CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: dismiss clears the target and sends nothing",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    tap_plate(h, plate_centre(h));
+    REQUIRE(subject_int("toolhead_ghost_active") == 1);
+    CHECK_FALSE(lv_obj_has_flag(part(h, "toolhead_target_readout"), LV_OBJ_FLAG_HIDDEN));
+
+    lv_obj_send_event(part(h, "toolhead_ghost_dismiss"), LV_EVENT_CLICKED, nullptr);
+    drain();
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK(subject_int("toolhead_target_shown") == 0);
+    CHECK(lv_obj_has_flag(part(h, "toolhead_target_readout"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(all_scripts().empty());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: an unconfirmed target clears after its timeout",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    tap_plate(h, plate_centre(h));
+    REQUIRE(subject_int("toolhead_ghost_active") == 1);
+
+    process_lvgl(ToolheadWidget::kGhostTimeoutMs - 500);
+    CHECK(subject_int("toolhead_ghost_active") == 1);
+    process_lvgl(501);
+    drain();
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK(all_scripts().empty());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: unhomed or printing, a tap opens Motion",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    const lv_point_t centre = plate_centre(h);
+
+    SECTION("unhomed") {
+        set_homed("xy");
+    }
+    SECTION("printing") {
+        set_print_active(true);
+    }
+    settle();
+    CHECK_FALSE(h.widget().plate_interactive());
+    CHECK(subject_int("toolhead_plate_interactive") == 0);
+    // Not clickable, so a real tap lands on the tile itself.
+    CHECK_FALSE(lv_obj_has_flag(part(h, "toolhead_plate"), LV_OBJ_FLAG_CLICKABLE));
+
+    tap_plate(h, centre);
+    process_lvgl(500);
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK(all_scripts().empty());
+    CHECK(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: a tap on the Z bar opens Motion and sends nothing",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    REQUIRE(h.widget().plate_interactive());
+    const auto g = h.widget().plate_geometry();
+    REQUIRE(g.has_value());
+    lv_area_t c;
+    lv_obj_get_coords(part(h, "toolhead_plate"), &c);
+    const lv_point_t bar{c.x1 + static_cast<int32_t>(g->z_bar.x + g->z_bar.w / 2),
+                         c.y1 + static_cast<int32_t>(g->z_bar.y + g->z_bar.h / 2)};
+
+    tap_plate(h, bar);
+    process_lvgl(500);
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK(all_scripts().empty());
+    CHECK(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: a drag moves the head live and drops no target",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    const lv_point_t from = plate_centre(h);
+    const lv_point_t to{from.x + 30, from.y};
+
+    h.widget().handle_plate_touch(BedTouch::Pressed, from);
+    h.widget().handle_plate_touch(BedTouch::Pressing, to);
+    drain();
+    CHECK(subject_int("toolhead_target_shown") == 1);
+    CHECK(subject_text("toolhead_ghost_text").rfind("-> X", 0) == 0);
+    h.widget().handle_plate_touch(BedTouch::Released, to);
+    lv_obj_send_event(part(h, "toolhead_plate"), LV_EVENT_CLICKED, nullptr);
+    drain();
+
+    INFO(all_scripts());
+    CHECK(xy_moves() >= 1);
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    CHECK(subject_int("toolhead_target_shown") == 0);
+    CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture,
+                 "toolhead plate: a drag sample queued behind a move dies with the gate",
+                 "[widget_size][toolhead][interactive]") {
+    HoldingAPI held_api{mock, state()};
+    set_moonraker_api(&held_api);
+    auto& moves = held_api.holding_.held;
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    const lv_point_t from = plate_centre(h);
+
+    h.widget().handle_plate_touch(BedTouch::Pressed, from);
+    h.widget().handle_plate_touch(BedTouch::Pressing, {from.x + 30, from.y});
+    drain();
+    REQUIRE(moves.size() == 1);
+    h.widget().handle_plate_touch(BedTouch::Pressing, {from.x + 40, from.y + 10});
+    drain();
+    REQUIRE(moves.size() == 1); // the second sample waits behind the first
+
+    // A print started from elsewhere closes the gate while the first move is in flight.
+    lv_subject_set_int(state().network_state().get_nav_buttons_enabled_subject(), 0);
+    drain();
+    moves[0].on_success();
+    drain();
+    CHECK(moves.size() == 1);
+
+    set_moonraker_api(&mock_api);
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: Cleared shows while a part may be on the bed",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    CHECK_FALSE(shown(part(h, "toolhead_bed_cleared")));
+
+    BedOccupancyStateTestAccess::set_verdict(occupancy, {true, 38.0, "job-on-the-bed"});
+    drain();
+    CHECK(shown(part(h, "toolhead_bed_cleared")));
+    // A target showing hides it, so the two never stack.
+    tap_plate(h, plate_centre(h));
+    CHECK_FALSE(shown(part(h, "toolhead_bed_cleared")));
+    CHECK(subject_text("toolhead_ghost_text").find("last print is 38mm tall") != std::string::npos);
+    h.widget().clear_ghost();
+    drain();
+    REQUIRE(shown(part(h, "toolhead_bed_cleared")));
+
+    // The chip asks first: cancelling keeps the part, and its lift, on the bed.
+    lv_obj_send_event(part(h, "toolhead_bed_cleared"), LV_EVENT_CLICKED, nullptr);
+    drain();
+    helix::test::answer_top_modal("btn_secondary");
+    CHECK(lv_subject_get_int(occupancy.get_occupied_subject()) == 1);
+
+    lv_obj_send_event(part(h, "toolhead_bed_cleared"), LV_EVENT_CLICKED, nullptr);
+    drain();
+    CHECK(lv_subject_get_int(occupancy.get_occupied_subject()) == 1);
+    helix::test::answer_top_modal("btn_primary");
+    CHECK(lv_subject_get_int(occupancy.get_occupied_subject()) == 0);
+    CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PlateFixture, "toolhead plate: a detached tile's target timer never fires",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build(h);
+    tap_plate(h, plate_centre(h));
+    REQUIRE(subject_int("toolhead_ghost_active") == 1);
+
+    h.widget().detach();
+    CHECK_FALSE(h.widget().ghost_target().has_value());
+    CHECK(subject_int("toolhead_ghost_active") == 0);
+    process_lvgl(ToolheadWidget::kGhostTimeoutMs + 100);
+    drain();
+    CHECK(all_scripts().empty());
+}
+
+// ============================================================================
+// Preset slots (a 2x3 tile)
+// ============================================================================
+
+namespace {
+
+/// A 2x3 tile at the medium tier: two cells across, three down.
+constexpr Box kTall{helix::test::kTileWideW, 3 * helix::test::kTileCellH + 12, SizeRung::Full};
+
+struct PresetFixture : public PlateFixture {
+    void build_tall(PanelWidgetHarness<ToolheadWidget>& h) {
+        h.resize(2, 3, kTall.w, kTall.h);
+        settle();
+        REQUIRE(rung_subject() == static_cast<int>(SizeRung::Full));
+        REQUIRE(subject_int("toolhead_show_presets") == 1);
+        mock.clear_gcode_script_history();
+    }
+    void tap_slot(PanelWidgetHarness<ToolheadWidget>& h, int index) {
+        const std::string name = "toolhead_preset_" + std::to_string(index);
+        lv_obj_send_event(part(h, name.c_str()), LV_EVENT_CLICKED, nullptr);
+        drain();
+    }
+    static json slots_config(std::initializer_list<json> entries) {
+        json array = json::array();
+        for (const auto& entry : entries)
+            array.push_back(entry);
+        return json{{"presets", array}};
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: a 2x3 shows the row, a 2x2 does not",
+                 "[widget_size][toolhead][presets]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    CHECK(shown(part(h, "toolhead_presets")));
+    CHECK(shown(part(h, "toolhead_lift_line")));
+    CHECK(subject_text("toolhead_preset_0_label") == "Front");
+    CHECK(subject_text("toolhead_preset_1_label") == "Center");
+    CHECK(subject_text("toolhead_preset_2_label") == "Park");
+    // The row sits below the plate, and the plate still spans the tile.
+    lv_obj_update_layout(part(h, "toolhead_plate"));
+    lv_area_t plate;
+    lv_area_t row;
+    lv_obj_get_coords(part(h, "toolhead_plate"), &plate);
+    lv_obj_get_coords(part(h, "toolhead_presets"), &row);
+    CHECK(row.y1 > plate.y2);
+    lv_area_t tile;
+    lv_obj_get_coords(h.root(), &tile);
+    CHECK(row.y2 <= tile.y2);
+
+    h.resize(2, 2, kFull.w, kFull.h);
+    settle();
+    CHECK(subject_int("toolhead_show_presets") == 0);
+    CHECK_FALSE(shown(part(h, "toolhead_presets")));
+    CHECK_FALSE(shown(part(h, "toolhead_lift_line")));
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: a position lifts off the plate first",
+                 "[widget_size][toolhead][presets]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    // From Z 0.2 with nothing on the bed the move rises to the 5mm clearance.
+    CHECK(subject_text("toolhead_lift_text").find("will lift to 5mm") != std::string::npos);
+
+    tap_slot(h, 0);
+    const std::string scripts = all_scripts();
+    INFO(scripts);
+    const auto lift = scripts.find("Z5");
+    REQUIRE(lift != std::string::npos);
+    CHECK(xy_moves() == 1);
+    CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: a part too tall to clear is announced",
+                 "[widget_size][toolhead][presets]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    // Z travel is 200mm; a 199.5mm part leaves under 1mm above it.
+    BedOccupancy verdict;
+    verdict.occupied = true;
+    verdict.part_height_mm = 199.5;
+    verdict.job_id = "job-on-the-bed";
+    BedOccupancyStateTestAccess::set_verdict(occupancy, verdict);
+    drain();
+    CHECK(subject_text("toolhead_lift_text") == part_too_tall_text());
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: Z down never ends below a part on the bed",
+                 "[widget_size][toolhead][presets]") {
+    PanelWidgetHarness<ToolheadWidget> h(
+        test_screen(),
+        HarnessConfig{slots_config(
+            {json{{"kind", "z_down"}}, json{{"kind", "z_up"}}, json{{"kind", "empty"}}})},
+        state());
+    set_position(10000, 10000, 2000);
+    BedOccupancyStateTestAccess::set_verdict(occupancy, {true, 38.0, "job-on-the-bed"});
+    drain();
+    build_tall(h);
+    CHECK(subject_text("toolhead_preset_0_label") == "Z -10");
+    CHECK(subject_int("toolhead_preset_2_state") == 0);
+    CHECK_FALSE(shown(part(h, "toolhead_preset_2")));
+
+    tap_slot(h, 0);
+    INFO(all_scripts());
+    CHECK(all_scripts().find("Z43") != std::string::npos);
+    CHECK(xy_moves() == 0);
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: Z up adds the step to the current height",
+                 "[widget_size][toolhead][presets]") {
+    PanelWidgetHarness<ToolheadWidget> h(
+        test_screen(), HarnessConfig{slots_config({json{{"kind", "z_up"}}})}, state());
+    set_position(10000, 10000, 2000);
+    build_tall(h);
+    tap_slot(h, 0);
+    INFO(all_scripts());
+    CHECK(all_scripts().find("Z30") != std::string::npos);
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: unhomed, the moving slots are inert",
+                 "[widget_size][toolhead][presets]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    set_homed("");
+    settle();
+    mock.clear_gcode_script_history();
+    for (int i = 0; i < 3; ++i) {
+        const std::string name = "toolhead_preset_" + std::to_string(i);
+        INFO(name);
+        CHECK(lv_obj_has_state(part(h, name.c_str()), LV_STATE_DISABLED));
+        tap_slot(h, i);
+    }
+    CHECK(all_scripts().empty());
+    CHECK_FALSE(get_global_motion_panel().is_visible());
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: the gear's picker changes a slot",
+                 "[widget_size][toolhead][presets]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    REQUIRE(h.widget().has_edit_configure());
+    h.widget().on_edit_configure();
+    ToolheadPresetConfigModal* modal = h.widget().preset_config_modal();
+    REQUIRE(modal != nullptr);
+    REQUIRE(modal->is_visible());
+
+    modal->select_slot(2);
+    // The choices run nine positions, Park, Z up, Z down, Macro, Empty.
+    const auto choices = ToolheadPresetConfigModal::choices();
+    REQUIRE(choices.size() == 14);
+    REQUIRE(choices[10].kind == ToolheadPresetSlot::Kind::ZUp);
+    modal->pick_choice(10);
+    drain();
+    CHECK(h.widget().preset_slots()[2].kind == ToolheadPresetSlot::Kind::ZUp);
+    CHECK(subject_text("toolhead_preset_2_label") == "Z +10");
+
+    // Macro opens the macro list; a macro picked there fills the slot.
+    modal->select_slot(0);
+    modal->pick_choice(12);
+    CHECK(modal->showing_macros());
+    CHECK(h.widget().preset_slots()[0].kind == ToolheadPresetSlot::Kind::Position);
+    modal->pick_macro("CLEAN_NOZZLE");
+    drain();
+    CHECK_FALSE(modal->showing_macros());
+    CHECK(h.widget().preset_slots()[0].kind == ToolheadPresetSlot::Kind::Macro);
+    CHECK(h.widget().preset_slots()[0].macro == "CLEAN_NOZZLE");
+    CHECK(subject_int("toolhead_preset_0_state") == 2);
+    modal->hide();
+    drain();
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead presets: detaching the widget closes its picker",
+                 "[widget_size][toolhead][presets]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    build_tall(h);
+    h.widget().on_edit_configure();
+    REQUIRE(h.widget().preset_config_modal() != nullptr);
+    REQUIRE(h.widget().preset_config_modal()->is_visible());
+
+    h.widget().detach();
+    drain();
+    CHECK(h.widget().preset_config_modal() == nullptr);
+}
+
+TEST_CASE_METHOD(PresetFixture, "toolhead plate: the Move-here chip fits the plate at every rung",
+                 "[widget_size][toolhead][interactive]") {
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    for (const Box& box : {kWide, kFull, kTall}) {
+        INFO(box.w << "x" << box.h);
+        h.resize(2, 2, box.w, box.h);
+        settle();
+        REQUIRE(subject_int("toolhead_show_plate") == 1);
+        tap_plate(h, plate_centre(h));
+        REQUIRE(subject_int("toolhead_ghost_active") == 1);
+        lv_obj_t* chip = part(h, "toolhead_ghost_chip");
+        lv_obj_update_layout(chip);
+        CHECK(lv_obj_get_width(chip) <= lv_obj_get_width(part(h, "toolhead_plate")));
+        h.widget().clear_ghost();
+        drain();
+    }
+    // The wide tile's half-width plate takes the chip without its label.
+    h.resize(2, 1, kWide.w, kWide.h);
+    settle();
+    CHECK(subject_int("toolhead_chip_icon_only") == 1);
+    h.resize(2, 2, kFull.w, kFull.h);
+    settle();
+    CHECK(subject_int("toolhead_chip_icon_only") == 0);
 }

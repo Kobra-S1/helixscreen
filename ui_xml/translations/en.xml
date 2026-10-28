@@ -410,7 +410,6 @@
   <translation tag="Bed mesh operation timed out" en="Bed mesh operation timed out"/>
   <translation tag="Bed mesh..." en="Bed mesh..."/>
   <translation tag="Bed size unknown" en="Bed size unknown"/>
-  <translation tag="Bed tab moves lift to this height first" en="Bed tab moves lift to this height first"/>
   <translation tag="Bed target set to {}°C" en="Bed target set to {}°C"/>
   <translation tag="Bed temp must be 0-%d°C" en="Bed temp must be 0-%d°C"/>
   <translation tag="Bed warming timed out" en="Bed warming timed out"/>
@@ -716,6 +715,7 @@
   <translation tag="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door." en="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door."/>
   <translation tag="Clear the extruder?" en="Clear the extruder?"/>
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." en="Clear the plate and load {}. The tower prints in the middle of the bed."/>
+  <translation tag="Cleared" en="Cleared"/>
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" en="Cleared from settings — system unpair failed, may need OS Bluetooth"/>
   <translation tag="Clipboard unavailable - use SSH" en="Clipboard unavailable - use SSH"/>
   <translation tag="Clog" en="Clog"/>
@@ -791,6 +791,7 @@
   <translation tag="Confirm PIN" en="Confirm PIN"/>
   <translation tag="Confirm before running macros" en="Confirm before running macros"/>
   <translation tag="Confirm clearing the extruder to unload it" en="Confirm clearing the extruder to unload it"/>
+  <translation tag="Confirm only once the last print is off the bed. Moves then stop lifting above it." en="Confirm only once the last print is off the bed. Moves then stop lifting above it."/>
   <translation tag="Confirm tool changes" en="Confirm tool changes"/>
   <translation tag="Connect" en="Connect"/>
   <translation tag="Connect a USB label printer first" en="Connect a USB label printer first"/>
@@ -1828,6 +1829,7 @@
   <translation tag="Invalid value type" en="Invalid value type"/>
   <translation tag="Invert" en="Invert"/>
   <translation tag="Is new filament coming out of the nozzle?" en="Is new filament coming out of the nozzle?"/>
+  <translation tag="Is the bed clear?" en="Is the bed clear?"/>
   <translation tag="Issue description" en="Issue description"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." en="It can be un-archived in Spoolman&apos;s web UI."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." en="It has not reported its slots yet. Try again in a moment."/>
@@ -2202,6 +2204,7 @@
   <translation tag="Mount which tool?" en="Mount which tool?"/>
   <translation tag="Mount..." en="Mount..."/>
   <translation tag="Move" en="Move"/>
+  <translation tag="Move here" en="Move here"/>
   <translation tag="Move out of range" en="Move out of range"/>
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." en="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides."/>
   <translation tag="Move selector" en="Move selector"/>
@@ -2606,6 +2609,7 @@
   <translation tag="Place the PEI sheet back onto the heated bed." en="Place the PEI sheet back onto the heated bed."/>
   <translation tag="Place the spools" en="Place the spools"/>
   <translation tag="Placed" en="Placed"/>
+  <translation tag="Plate moves and presets lift to this height first" en="Plate moves and presets lift to this height first"/>
   <translation tag="Plate {}" en="Plate {}"/>
   <translation tag="Platform" en="Platform"/>
   <translation tag="Platform: " en="Platform: "/>
@@ -3715,6 +3719,7 @@
   <translation tag="The nozzle is clear of the print" en="The nozzle is clear of the print"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." en="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next."/>
   <translation tag="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at." en="The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at."/>
+  <translation tag="The part on the bed is too tall to clear. Remove it, then tap Cleared." en="The part on the bed is too tall to clear. Remove it, then tap Cleared."/>
   <translation tag="The peak of {0} left the zone. Check that only {1}&apos;s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts." en="The peak of {0} left the zone. Check that only {1}&apos;s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts."/>
   <translation tag="The peak of {} moved out of the zone. Widening it." en="The peak of {} moved out of the zone. Widening it."/>
   <translation tag="The plate and the spools are still hot. Use gloves." en="The plate and the spools are still hot. Use gloves."/>
@@ -4285,6 +4290,7 @@
   <translation tag="Z tilt" en="Z tilt"/>
   <translation tag="Z {:.2f} mm" en="Z {:.2f} mm"/>
   <translation tag="Z {}, will lift to {}mm" en="Z {}, will lift to {}mm"/>
+  <translation tag="Z {}, will lift to {}mm: last print is {}mm tall" en="Z {}, will lift to {}mm: last print is {}mm tall"/>
   <translation tag="Z-Off:" en="Z-Off:"/>
   <translation tag="Z-Offset" en="Z-Offset"/>
   <translation tag="Z-Offset Calibration" en="Z-Offset Calibration"/>
