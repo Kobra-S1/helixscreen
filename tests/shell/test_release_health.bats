@@ -8,6 +8,11 @@ load helpers
 setup() {
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
     cd "$REPO_ROOT" || return 1
+    # Without the worker's installed dependencies npx fetches the newest vite-node,
+    # which need not run on this node. CI runs `npm ci` there first; a worktree
+    # links them from the main tree (setup-worktree.sh).
+    [ -d server/telemetry-worker/node_modules/vite-node ] ||
+        skip "server/telemetry-worker has no installed node_modules (npm ci there)"
     FIXTURE="$BATS_TEST_TMPDIR/fixture.json"
 }
 

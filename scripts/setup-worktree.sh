@@ -65,7 +65,7 @@ usage() {
     echo "  - Clones compiled libraries (libhv.a) — copies, not symlinks,"
     echo "    so a rebuild here can never write back into the main tree"
     echo "  - Copies compile_commands.json with rewritten paths for clangd"
-    echo "  - Symlinks node_modules and .venv for font/python tools"
+    echo "  - Symlinks node_modules, .venv and the telemetry worker's node_modules"
     echo "  - Uses .git/info/exclude for clean git status"
 }
 
@@ -1142,39 +1142,29 @@ done
 
 echo -e "${GREEN}✓ Libraries configured${RESET}"
 
-# Step 6: Symlink node_modules (font converter tools)
-echo -e "${CYAN}Symlinking node_modules...${RESET}"
-if [[ -d "$MAIN_TREE/node_modules" ]]; then
-    if [[ -L "$WORKTREE_PATH/node_modules" ]]; then
-        echo -e "  node_modules: ${GREEN}already symlinked${RESET}"
-    elif [[ -d "$WORKTREE_PATH/node_modules" ]]; then
-        echo -e "  node_modules: ${YELLOW}exists as real directory, replacing with symlink${RESET}"
-        rm -rf "$WORKTREE_PATH/node_modules"
-        ln -s "$MAIN_TREE/node_modules" "$WORKTREE_PATH/node_modules"
+# Steps 6-7: Symlink the main tree's installed tool dependencies. node_modules
+# serves the font converters, .venv the python tools, and the telemetry worker's
+# node_modules pins the vite-node that scripts/release-health.sh runs; without
+# it npx fetches whatever vite-node is newest, which need not run on this node.
+link_from_main_tree() { # $1 = path relative to the tree root
+    local rel=$1
+    if [[ ! -d "$MAIN_TREE/$rel" ]]; then
+        echo -e "  $rel: ${YELLOW}not found in main tree${RESET}"
+    elif [[ -L "$WORKTREE_PATH/$rel" ]]; then
+        echo -e "  $rel: ${GREEN}already symlinked${RESET}"
     else
-        ln -s "$MAIN_TREE/node_modules" "$WORKTREE_PATH/node_modules"
-        echo -e "  node_modules: ${GREEN}symlinked${RESET}"
+        if [[ -d "$WORKTREE_PATH/$rel" ]]; then
+            echo -e "  $rel: ${YELLOW}exists as real directory, replacing with symlink${RESET}"
+            rm -rf "${WORKTREE_PATH:?}/$rel"
+        fi
+        ln -s "$MAIN_TREE/$rel" "$WORKTREE_PATH/$rel"
+        echo -e "  $rel: ${GREEN}symlinked${RESET}"
     fi
-else
-    echo -e "  node_modules: ${YELLOW}not found in main tree${RESET}"
-fi
-
-# Step 7: Symlink Python venv
-echo -e "${CYAN}Symlinking Python venv...${RESET}"
-if [[ -d "$MAIN_TREE/.venv" ]]; then
-    if [[ -L "$WORKTREE_PATH/.venv" ]]; then
-        echo -e "  .venv: ${GREEN}already symlinked${RESET}"
-    elif [[ -d "$WORKTREE_PATH/.venv" ]]; then
-        echo -e "  .venv: ${YELLOW}exists as real directory, replacing with symlink${RESET}"
-        rm -rf "$WORKTREE_PATH/.venv"
-        ln -s "$MAIN_TREE/.venv" "$WORKTREE_PATH/.venv"
-    else
-        ln -s "$MAIN_TREE/.venv" "$WORKTREE_PATH/.venv"
-        echo -e "  .venv: ${GREEN}symlinked${RESET}"
-    fi
-else
-    echo -e "  .venv: ${YELLOW}not found in main tree${RESET}"
-fi
+}
+echo -e "${CYAN}Symlinking tool dependencies...${RESET}"
+for rel in node_modules .venv server/telemetry-worker/node_modules; do
+    link_from_main_tree "$rel"
+done
 echo -e "${GREEN}✓ Development tools configured${RESET}"
 
 # Step 8: Configure git excludes for symlinks (keeps git status clean)
