@@ -12,6 +12,12 @@ extern "C" {
 
 namespace helix::xml {
 
+// Out of line: a class holding several pools would otherwise inline each one's
+// construction into its own constructor.
+IndexedSubjectPool::IndexedSubjectPool(const char* prefix, Type type, size_t string_cap,
+                                       const char* suffix)
+    : prefix_(prefix), suffix_(suffix), type_(type), string_cap_(string_cap) {}
+
 IndexedSubjectPool::~IndexedSubjectPool() {
     reclaim();
 }

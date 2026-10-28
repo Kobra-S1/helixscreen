@@ -38,8 +38,7 @@ class IndexedSubjectPool {
     // usually a namespace-scope global, and holding pointers keeps its startup
     // construction free of string allocations.
     IndexedSubjectPool(const char* prefix, Type type, size_t string_cap = 64,
-                       const char* suffix = "")
-        : prefix_(prefix), suffix_(suffix), type_(type), string_cap_(string_cap) {}
+                       const char* suffix = "");
     ~IndexedSubjectPool();
 
     IndexedSubjectPool(const IndexedSubjectPool&) = delete;
