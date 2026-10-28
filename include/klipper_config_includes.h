@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
+
 #include <cstddef>
 #include <functional>
 #include <map>
@@ -70,19 +72,19 @@ resolve_active_files(const std::map<std::string, std::string>& files, const std:
 // Async Moonraker integration
 // ============================================================================
 
-using ActiveFilesCallback = std::function<void(const std::set<std::string>&)>;
-using ErrorCallback = std::function<void(const std::string&)>;
+using ActiveFilesCallback = helix::SharedCallback<void(const std::set<std::string>&)>;
+using ErrorCallback = helix::SharedCallback<void(const std::string&)>;
 
 /// Callback providing active files AND their downloaded contents
-using ActiveFilesWithContentCallback =
-    std::function<void(const std::set<std::string>&, const std::map<std::string, std::string>&)>;
+using ActiveFilesWithContentCallback = helix::SharedCallback<void(
+    const std::set<std::string>&, const std::map<std::string, std::string>&)>;
 
 /// Downloads one config file and calls exactly one of @p on_ok (content) or
 /// @p on_fail (message, and whether the transport refused it for a full queue).
 /// Either may run before the call returns.
-using ConfigDownloadFn =
-    std::function<void(const std::string& path, std::function<void(std::string)> on_ok,
-                       std::function<void(std::string, bool queue_full)> on_fail)>;
+using ConfigDownloadFn = helix::SharedCallback<void(
+    const std::string& path, helix::SharedCallback<void(std::string)> on_ok,
+    helix::SharedCallback<void(std::string, bool queue_full)> on_fail)>;
 
 /// Config downloads outstanding at once. The ESP32 HTTP lane queues 8 requests
 /// for every caller, thumbnails included, and frees a slot only after the
@@ -100,7 +102,7 @@ inline constexpr const char* kConfigDownloadNotWanted = "no longer wanted";
 /// still alive. Once the API is gone, or @p still_wanted (run on the main thread)
 /// returns false, the request fails without touching @p api.
 [[nodiscard]] ConfigDownloadFn api_config_download(IMoonrakerAPI& api,
-                                                   std::function<bool()> still_wanted = {});
+                                                   helix::SharedCallback<bool()> still_wanted = {});
 
 /// Download @p root_file and every file its [include] chain reaches, following
 /// globs against @p listing (every path in the config root) and paths relative

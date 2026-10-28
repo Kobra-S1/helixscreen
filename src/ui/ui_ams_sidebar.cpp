@@ -2047,7 +2047,7 @@ helix::ui::FilamentOpSurface AmsOperationSidebar::op_surface(const char* tag, in
     // re-checks the generation on the main thread, so a Run press after the
     // panel closed is dropped and counted rather than reaching freed memory.
     auto token = lifetime_.token();
-    surface.guard = [token](std::function<void()> fn) mutable {
+    surface.guard = [token](helix::SharedCallback<void()> fn) mutable {
         token.defer(kLoadMacroTag, std::move(fn));
     };
     surface.owner = this;
