@@ -53,7 +53,14 @@ enum class ScrewsTiltDialect {
 
 class PrinterDiscovery {
   public:
-    PrinterDiscovery() = default;
+    // Defined in the .cpp: the class is large, and inline copies of these in
+    // every caller cost firmware flash.
+    PrinterDiscovery();
+    PrinterDiscovery(const PrinterDiscovery&);
+    PrinterDiscovery(PrinterDiscovery&&) noexcept;
+    PrinterDiscovery& operator=(const PrinterDiscovery&);
+    PrinterDiscovery& operator=(PrinterDiscovery&&) noexcept;
+    ~PrinterDiscovery();
 
     /**
      * @brief Parse Klipper objects from printer.objects.list response
