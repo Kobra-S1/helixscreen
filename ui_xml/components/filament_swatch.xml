@@ -41,79 +41,94 @@
     <style name="ink_light" text_color="0xFFFFFF"/>
   </styles>
   <view extends="lv_obj"
-        width="#filament_chip_width" height="100%" flex_flow="column" style_pad_all="0" style_pad_row="0"
-        style_radius="#space_sm" style_bg_color="#card_bg" style_bg_opa="255" style_border_width="2"
-        style_border_post="true" style_clip_corner="true" scrollable="false" clickable="true">
+        width="#filament_chip_width" height="100%" style_pad_all="-1" style_radius="#space_sm" style_bg_color="#card_bg"
+        style_bg_opa="255" style_border_width="2" style_border_post="true" style_clip_corner="true" scrollable="false"
+        clickable="true">
     <style name="chip_ok"/>
     <bind_style_if_eq name="chip_warn" subject="filament_chip_${index}_severity" ref_value="1"/>
     <bind_style_if_eq name="chip_block" subject="filament_chip_${index}_severity" ref_value="2"/>
-    <lv_obj name="chip_header"
-            width="100%" height="0" flex_grow="2" style_pad_all="0" style_radius="0" style_bg_opa="0"
-            style_border_width="0" scrollable="false" clickable="false" event_bubble="true">
-      <swatch_paint name="chip_header_fill"
-                    width="100%" height="100%" style_radius="0" edge="off"
-                    bind_color="filament_chip_${index}_file_color">
-        <bind_flag_if_eq subject="filament_chip_${index}_file_color_known" flag="hidden" ref_value="0"/>
-      </swatch_paint>
-      <lv_label name="chip_material"
-                width="100%" align="center" bind_text="filament_chip_${index}_material" long_mode="clip"
-                style_text_align="center" style_text_font="#font_chip_material" clickable="false" event_bubble="true">
-        <style name="theme_ink"/>
-        <bind_style_if_eq name="ink_dark" subject="filament_chip_${index}_ink" ref_value="1"/>
-        <bind_style_if_eq name="ink_light" subject="filament_chip_${index}_ink" ref_value="2"/>
-      </lv_label>
-    </lv_obj>
-    <lv_obj name="chip_body"
-            width="100%" height="0" flex_grow="3" style_pad_all="0" style_radius="0" style_bg_opa="0"
-            style_border_width="0" scrollable="false" clickable="false" event_bubble="true">
-      <!-- A loaded lane fills the body with its spool, so the file's colour above and
-           the colour that prints below compare at a glance. -->
-      <swatch_paint name="chip_spool"
-                    width="100%" height="100%" style_radius="0" edge="off"
-                    bind_color="filament_chip_${index}_slot_color" bind_colors="filament_chip_${index}_slot_colors"
-                    bind_finish="filament_chip_${index}_slot_finish">
-        <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="1"/>
-      </swatch_paint>
-      <lv_obj name="chip_body_row"
-              width="100%" height="100%" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
-              style_pad_hor="#space_xxs" style_pad_ver="0" style_pad_gap="#space_xxs" style_radius="0" style_bg_opa="0"
+    <!-- The file's colour over the spool that prints, meeting flat, clipped so only
+         the outer corners round. The chip's -1 padding runs the fills 1px under its
+         2px outline, which is drawn over them: two separately antialiased curves
+         meeting edge to edge would leave a dark sliver at each corner. Their radius
+         (#space_xs, which is #space_sm - 2 at every breakpoint) keeps the curve
+         inside the outline's. The outline rings both, so a spool as dark as the
+         card still shows its edge. -->
+    <lv_obj name="chip_fills"
+            width="100%" height="100%" flex_flow="column" style_pad_all="0" style_pad_row="0" style_radius="#space_xs"
+            style_clip_corner="true" style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false"
+            event_bubble="true">
+      <lv_obj name="chip_header"
+              width="100%" height="0" flex_grow="2" style_pad_all="0" style_radius="0" style_bg_opa="0"
               style_border_width="0" scrollable="false" clickable="false" event_bubble="true">
-        <lv_obj name="chip_empty_ring"
-                width="#space_md" height="#space_md" style_radius="9999" style_bg_opa="0" style_border_width="2"
-                style_border_color="#danger" style_border_opa="255" scrollable="false" clickable="false"
-                event_bubble="true">
-          <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="2"/>
-        </lv_obj>
-        <!-- No slot chosen: an empty spool. Words never sit in the body, which is too narrow
-             for most languages. -->
-        <icon name="chip_pick" src="filament_outline" size="xs" variant="danger" clickable="false" event_bubble="true">
-          <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="0"/>
-        </icon>
-        <!-- No filament system, a later tool: the print swaps filament for it. -->
-        <icon name="chip_swap" src="swap_horizontal" size="xs" variant="secondary" clickable="false" event_bubble="true">
-          <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="3"/>
-        </icon>
-        <!-- Nothing says what is loaded, or the firmware picks the lane at print time. -->
-        <icon name="chip_unknown" src="help_circle" size="xs" variant="secondary" clickable="false" event_bubble="true">
-          <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="4"/>
-        </icon>
-        <!-- The lane number, in ink that reads on the spool's fill; red beside an empty
-             lane's ring. -->
-        <lv_label name="chip_slot"
-                  bind_text="filament_chip_${index}_slot" long_mode="clip" clickable="false" event_bubble="true">
+        <swatch_paint name="chip_header_fill"
+                      width="100%" height="100%" style_radius="0" edge="off"
+                      bind_color="filament_chip_${index}_file_color">
+          <bind_flag_if_eq subject="filament_chip_${index}_file_color_known" flag="hidden" ref_value="0"/>
+        </swatch_paint>
+        <lv_label name="chip_material"
+                  width="100%" align="center" bind_text="filament_chip_${index}_material" long_mode="clip"
+                  style_text_align="center" style_text_font="#font_chip_material" clickable="false" event_bubble="true">
           <style name="theme_ink"/>
-          <style name="slot_number"/>
-          <bind_style_if_eq name="slot_block" subject="filament_chip_${index}_severity" ref_value="2"/>
-          <bind_style_if_eq name="ink_dark" subject="filament_chip_${index}_slot_ink" ref_value="1"/>
-          <bind_style_if_eq name="ink_light" subject="filament_chip_${index}_slot_ink" ref_value="2"/>
-          <bind_flag_if cond="filament_chip_${index}_slot_state eq 0 or filament_chip_${index}_slot_state ge 3"
-                        flag="hidden"/>
+          <bind_style_if_eq name="ink_dark" subject="filament_chip_${index}_ink" ref_value="1"/>
+          <bind_style_if_eq name="ink_light" subject="filament_chip_${index}_ink" ref_value="2"/>
         </lv_label>
-        <icon name="chip_caret" src="chevron_down" size="xs" variant="secondary" clickable="false" event_bubble="true">
-          <bind_style_if_eq name="ink_dark" subject="filament_chip_${index}_slot_ink" ref_value="1"/>
-          <bind_style_if_eq name="ink_light" subject="filament_chip_${index}_slot_ink" ref_value="2"/>
-          <bind_flag_if_eq subject="color_card_remappable" flag="hidden" ref_value="0"/>
-        </icon>
+      </lv_obj>
+      <lv_obj name="chip_body"
+              width="100%" height="0" flex_grow="3" style_pad_all="0" style_radius="0" style_bg_opa="0"
+              style_border_width="0" scrollable="false" clickable="false" event_bubble="true">
+        <!-- A loaded lane fills the body with its spool, so the file's colour above and
+             the colour that prints below compare at a glance. -->
+        <swatch_paint name="chip_spool"
+                      width="100%" height="100%" style_radius="0" edge="off"
+                      bind_color="filament_chip_${index}_slot_color" bind_colors="filament_chip_${index}_slot_colors"
+                      bind_finish="filament_chip_${index}_slot_finish">
+          <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="1"/>
+        </swatch_paint>
+        <lv_obj name="chip_body_row"
+                width="100%" height="100%" flex_flow="row" style_flex_main_place="center"
+                style_flex_cross_place="center" style_pad_hor="#space_xxs" style_pad_ver="0" style_pad_gap="#space_xxs"
+                style_radius="0" style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false"
+                event_bubble="true">
+          <lv_obj name="chip_empty_ring"
+                  width="#space_md" height="#space_md" style_radius="9999" style_bg_opa="0" style_border_width="2"
+                  style_border_color="#danger" style_border_opa="255" scrollable="false" clickable="false"
+                  event_bubble="true">
+            <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="2"/>
+          </lv_obj>
+          <!-- No slot chosen: an empty spool. Words never sit in the body, which is too narrow
+               for most languages. -->
+          <icon name="chip_pick" src="filament_outline" size="xs" variant="danger" clickable="false" event_bubble="true">
+            <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="0"/>
+          </icon>
+          <!-- No filament system, a later tool: the print swaps filament for it. -->
+          <icon name="chip_swap"
+                src="swap_horizontal" size="xs" variant="secondary" clickable="false" event_bubble="true">
+            <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="3"/>
+          </icon>
+          <!-- Nothing says what is loaded, or the firmware picks the lane at print time. -->
+          <icon name="chip_unknown"
+                src="help_circle" size="xs" variant="secondary" clickable="false" event_bubble="true">
+            <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="4"/>
+          </icon>
+          <!-- The lane number, in ink that reads on the spool's fill; red beside an empty
+               lane's ring. -->
+          <lv_label name="chip_slot"
+                    bind_text="filament_chip_${index}_slot" long_mode="clip" clickable="false" event_bubble="true">
+            <style name="theme_ink"/>
+            <style name="slot_number"/>
+            <bind_style_if_eq name="slot_block" subject="filament_chip_${index}_severity" ref_value="2"/>
+            <bind_style_if_eq name="ink_dark" subject="filament_chip_${index}_slot_ink" ref_value="1"/>
+            <bind_style_if_eq name="ink_light" subject="filament_chip_${index}_slot_ink" ref_value="2"/>
+            <bind_flag_if cond="filament_chip_${index}_slot_state eq 0 or filament_chip_${index}_slot_state ge 3"
+                          flag="hidden"/>
+          </lv_label>
+          <icon name="chip_caret" src="chevron_down" size="xs" variant="secondary" clickable="false" event_bubble="true">
+            <bind_style_if_eq name="ink_dark" subject="filament_chip_${index}_slot_ink" ref_value="1"/>
+            <bind_style_if_eq name="ink_light" subject="filament_chip_${index}_slot_ink" ref_value="2"/>
+            <bind_flag_if_eq subject="color_card_remappable" flag="hidden" ref_value="0"/>
+          </icon>
+        </lv_obj>
       </lv_obj>
     </lv_obj>
     <!-- A tap opens this tool's slot dropdown, through the card's remap gate.
