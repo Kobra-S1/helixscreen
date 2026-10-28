@@ -212,6 +212,11 @@ bool present(const PrinterDiscovery& hw);
 /// panel wants) from a machine that is really a head changer.
 bool zmod_c5_present(const PrinterDiscovery& hw);
 
+/// Whether the firmware picks each tool's lane itself at print time. Z-Mod's
+/// afclite, a lane-picking shim that publishes AFC-shaped objects, asks for the
+/// lanes in its own material prompt when the print starts, and refuses SET_MAP.
+bool firmware_picks_lanes_at_print(const PrinterDiscovery& hw);
+
 /// The Z-Mod Creator 5 provider row's name, so callers holding machine_name()
 /// or a ToolSensor's provider_name can ask whether the active row speaks the
 /// Z-Mod dialect — whose swap phases arrive as gcode-response markers rather

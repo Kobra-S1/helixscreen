@@ -352,24 +352,9 @@ void FilamentMappingModal::on_slot_selected(int tool_index,
         return;
     }
 
-    auto& mapping = mappings_[static_cast<size_t>(tool_index)];
-    mapping.mapped_slot = selection.slot_index;
-    mapping.mapped_backend = selection.backend_index;
-    mapping.is_auto = selection.is_auto;
-    mapping.user_picked = true;
-
-    // A hand-picked lane is a new pairing, so the old warnings are stale. Clear
-    // them first: "auto", and a lane that is no longer present, both leave no
-    // pairing to classify at all.
-    mapping.set_mismatches({});
-    if (selection.is_auto) {
-        mapping.reason = helix::ToolMapping::MatchReason::AUTO;
-    } else {
-        const auto& tool = tool_info_[static_cast<size_t>(tool_index)];
-        if (const auto* slot = find_mapped_slot(mapping)) {
-            mapping.set_mismatches(helix::FilamentMapper::classify_mismatches(tool, *slot));
-        }
-    }
+    helix::FilamentMapper::pick_slot(
+        mappings_[static_cast<size_t>(tool_index)], tool_info_[static_cast<size_t>(tool_index)],
+        available_slots_, selection.slot_index, selection.backend_index, selection.is_auto);
 
     spdlog::info("[FilamentMappingModal] T{} mapped to: auto={}, slot={}, backend={}",
                  tool_info_[static_cast<size_t>(tool_index)].tool_index, selection.is_auto,

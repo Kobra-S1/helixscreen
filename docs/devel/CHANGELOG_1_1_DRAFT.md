@@ -625,6 +625,18 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   there without scrolling in landscape. On small portrait screens the filament chips share
   the FILAMENTS title's line and the preview gives up just enough height for every option
   to show.
+- **Filament chips you can read and change in place** - the FILAMENTS card on the print
+  file screen shows one chip per tool the print uses: the file's material on its color at
+  the top, and the slot that will feed it underneath, as a spool dot in that slot's color and
+  its number ("3", or "2·1" for the first slot of the second unit). The outline says whether
+  the pairing is a problem: grey when it matches, amber when only the color differs, red when
+  the tool has no slot, its slot is empty or the material differs. A tool with no slot shows
+  an empty dashed spool. The warning icons beside the card's title are gone. Tap a chip and
+  a list opens under it with Auto and every slot, best match first, each with a reason
+  ("exact match", "color differs", "material differs", "empty"), and "More options…" for
+  the full Filament Mapping dialog. On a printer with no filament system the card now
+  appears too, comparing the file with the loaded spool, with a swap icon on each later
+  filament change.
 - **Delete and Print stay on screen** - the filament mapping and the options scroll in one
   column that ends above the buttons, so starting the print never depends on finding
   the button at the bottom of a scroll. A fade with a small arrow sits on the list's bottom
@@ -1334,6 +1346,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 
 **Printing and preview**
 
+- **The file's material named a tool the print never uses** - the material in a file's
+  details came from the first filament the slicer listed, even when the print only uses a
+  later one, so a file printing only ABS-GF read "ABS". It now lists the materials of the
+  tools the print actually uses, such as "PLA, PETG".
 - **The prep time estimate on print details** - the "~6 min prep time" line counts heating
   from the current temperatures up to the file's own first-layer temperatures, and matches
   the countdown shown once the print starts. It learns from how long your printer actually

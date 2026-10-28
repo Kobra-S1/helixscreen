@@ -187,6 +187,15 @@ class FilamentMapper {
     static void apply_picks(std::vector<ToolMapping>& current,
                             const std::vector<ToolMapping>& picks);
 
+    /// Record the user's pick for one tool: lane @p slot_index on @p backend_index, or
+    /// Auto when @p is_auto. Marks it user_picked, and re-classifies the pairing against
+    /// @p slots (a pick of Auto, or of a lane no longer present, leaves no warnings). The
+    /// mapping modal's row picker and the FILAMENTS card's chip dropdown both record a
+    /// pick through here.
+    static void pick_slot(ToolMapping& mapping, const GcodeToolInfo& tool,
+                          const std::vector<AvailableSlot>& slots, int slot_index,
+                          int backend_index, bool is_auto);
+
     /// Check if two colors are within matching tolerance.
     /// Uses weighted RGB distance (luminance-weighted) with tolerance of
     /// kColorMatchTolerance (50) units.
@@ -366,7 +375,9 @@ class FilamentMapper {
     ///
     /// Identity mappings are omitted: the firmware already routes a tool to
     /// @p routing.head(tool), so emitting them would be noise. Entries with no
-    /// real slot assignment (mapped_slot < 0) are skipped.
+    /// real slot assignment (mapped_slot < 0) are skipped, and so are entries on
+    /// a backend other than the primary (mapped_backend > 0): @p routing and the
+    /// slot numbers sent are the primary backend's.
     ///
     /// @p routing MUST be the same map the seed used, or a lane-per-tool
     /// identity reads as a genuine remap and gets emitted.
@@ -402,6 +413,14 @@ class FilamentMapper {
     /// of that vector.
     [[nodiscard]] static const AvailableSlot*
     resolve_mapped_slot(const ToolMapping& mapping, const std::vector<AvailableSlot>& slots);
+
+    /// The lane @p mapping prints from: resolve_mapped_slot() for a pick, and for
+    /// Auto the lane @p routing sends the tool to on the primary backend, whose
+    /// routing it is. nullptr when that lane is not among @p slots. Aliases
+    /// @p slots like resolve_mapped_slot().
+    [[nodiscard]] static const AvailableSlot*
+    resolve_printing_slot(const ToolMapping& mapping, const std::vector<AvailableSlot>& slots,
+                          const FirmwareRouting& routing);
 
     static constexpr int kColorMatchTolerance = 50;
 };

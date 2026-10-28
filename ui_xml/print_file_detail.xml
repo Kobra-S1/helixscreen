@@ -359,8 +359,9 @@
                           width="0" flex_grow="1" bind_text="detail_fit_check_text" clickable="false"/>
             </ui_card>
 
-            <!-- Filament card. ONE chip surface for every AMS backend: the card
-                 renders stacked filament_swatch chips from its own mappings store.
+            <!-- Filament card. ONE chip surface for every AMS backend: one
+                 filament_swatch chip per used tool, bound to the subjects the card
+                 publishes from its own mappings store.
                  Visibility is the C++-owned filament_mapping_visible subject,
                  published after each FilamentMappingCard::update(). Tapping opens
                  the remap picker, and the chevron says so.
@@ -397,28 +398,11 @@
                       event_bubble="true">
                   <bind_flag_if cond="ui_is_portrait eq 1 and ui_breakpoint lt 2" flag="hidden"/>
                 </icon>
-                <icon name="filament_mismatch_icon"
-                      src="alert" size="sm" variant="warning" clickable="false" event_bubble="true">
-                  <bind_flag_if_eq subject="filament_mismatch" flag="hidden" ref_value="0"/>
-                </icon>
-                <!-- DANGER, and a different glyph from the mismatch triangle beside
-                     it. These two lamps were never visible at once while they lived
-                     in mutually exclusive cards; one card puts them side by side, and
-                     two identical amber triangles say "something is wrong" twice
-                     without saying which thing. Severity matches the canonical
-                     mapping in ui_preflight_check_modal.cpp's severity_visual():
-                     EmptySlot is close/danger, a material mismatch is alert/warning.
-                     An empty lane BLOCKS the print; a mismatch only advises. -->
-                <icon name="empty_tools_warning_icon"
-                      src="close" size="sm" variant="danger" clickable="false" event_bubble="true">
-                  <bind_flag_if_eq subject="empty_tools_warning" flag="hidden" ref_value="0"/>
-                </icon>
               </lv_obj>
               <!-- height is FIXED, not "content": the filament_swatch chips inside are
-                   height="100%" and collapse to zero in a content-height parent. And
-                   flex_flow is "row", not "row_wrap": at a fixed height a wrapped
-                   second row is clipped. The card caps the chips at what fits and
-                   renders a "+N" pill for the rest (see rebuild_compact_view). -->
+                   height="100%" and collapse to zero in a content-height parent. The
+                   chips sit in one row; the card caps them at what fits and shows a
+                   "+N" pill for the rest (FilamentMappingCard::publish_chips). -->
               <!-- #filament_chip_row_height IS the chip height. filament_swatch is
                    height="100%" and resolves against this row's CONTENT box, so padding
                    here shortens the chips instead of growing the row - the card is flex
@@ -430,8 +414,7 @@
                 <bind_style_if name="fil_chips_inline" cond="ui_is_portrait eq 1 and ui_breakpoint lt 2"/>
                 <bind_style_if_eq name="mapping_rows_unmappable" subject="color_card_remap_needs_setup" ref_value="1"/>
                 <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="0"/>
-                <!-- Chips added dynamically in C++ (clickable=false + event_bubble=true
-                     on filament_swatch) so a tap reaches this card. -->
+                <filament_chip_row name="filament_chip_row"/>
               </lv_obj>
               <!-- Skeleton: two chip-sized placeholders shown only until the
                    authoritative tool set exists; a cache hit never shows this.
@@ -443,14 +426,12 @@
                 <bind_style_if name="fil_chips_stacked" cond="ui_is_portrait eq 0 or ui_breakpoint ge 2"/>
                 <bind_style_if name="fil_chips_inline" cond="ui_is_portrait eq 1 and ui_breakpoint lt 2"/>
                 <bind_flag_if_eq subject="detail_mapping_ready" flag="hidden" ref_value="1"/>
-                <!-- SIZE_OK: chip width mirrors filament_swatch.xml's literal 40 -->
-                <lv_obj width="40"
-                        height="100%" style_radius="4" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
-                        event_bubble="true"/>
-                <!-- SIZE_OK: chip width mirrors filament_swatch.xml's literal 40 -->
-                <lv_obj width="40"
-                        height="100%" style_radius="4" style_bg_color="#card_bg" style_bg_opa="100" clickable="false"
-                        event_bubble="true"/>
+                <lv_obj width="#filament_chip_width"
+                        height="100%" style_radius="#space_sm" style_bg_color="#card_bg" style_bg_opa="100"
+                        clickable="false" event_bubble="true"/>
+                <lv_obj width="#filament_chip_width"
+                        height="100%" style_radius="#space_sm" style_bg_color="#card_bg" style_bg_opa="100"
+                        clickable="false" event_bubble="true"/>
               </lv_obj>
               <!-- The tap cue, last in the card so it ends the inline row. Stacked,
                    it leaves the flow and sits at the top right, on the header's

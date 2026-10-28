@@ -172,9 +172,13 @@ class AmsBackendAce : public AmsSubscriptionBackend {
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     AmsError set_tool_mapping_impl(int tool_number, int slot_index) override;
 
-    // ACE has fixed 1:1 mapping (tools ARE slots), not configurable — it
-    // declares RemapStrategy::None and owns no tool->slot table.
+    // Nothing here can re-aim a tool: the backend declares RemapStrategy::None
+    // and owns no editable tool->slot table.
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
+
+    /// T<n> loads slot_for_tool_locked(n): the slot whose ACEPRO tool number is
+    /// n, or slot n on a driver that publishes no tool numbers.
+    [[nodiscard]] helix::FirmwareRouting firmware_default_routing() const override;
 
     // ========================================================================
     // Bypass Mode

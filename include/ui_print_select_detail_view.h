@@ -235,6 +235,17 @@ class PrintSelectDetailView : public OverlayBase {
     void on_color_card_clicked();
 
     /**
+     * @brief Handle a tap on one filament chip.
+     *
+     * The same gate as on_color_card_clicked(): NeedsPlugin explains, any other
+     * block does nothing, and None opens chip @p chip's slot dropdown under
+     * @p trigger (FilamentMappingCard::open_slot_picker()), or the full mapping
+     * modal where Print would not carry out a stored pick
+     * (print_carries_out_chip_pick()).
+     */
+    void on_chip_clicked(size_t chip, lv_obj_t* trigger);
+
+    /**
      * @brief Why a tap on the filament card cannot open the picker, or None.
      *
      * The single answer behind the chevron, the card's clickable flag, the
@@ -248,6 +259,16 @@ class PrintSelectDetailView : public OverlayBase {
      * make and then refused.
      */
     [[nodiscard]] helix::printer::RemapBlock current_remap_block() const;
+
+    /// The remap gate a card or chip tap passes: false (after opening the help
+    /// modal for NeedsPlugin) unless current_remap_block() is None.
+    /// @param what "card" or "chip", for the log
+    bool remap_tap_allowed(const char* what);
+
+    /// Whether the active backend's Print carries out a pick the chip dropdown
+    /// stores (helix::printer::print_carries_out_stored_pick()). When it does not,
+    /// a chip tap opens the full mapping modal instead.
+    [[nodiscard]] bool print_carries_out_chip_pick() const;
 
     /**
      * @brief Explain the card's remap state, and offer the fix when there is one.
@@ -272,6 +293,20 @@ class PrintSelectDetailView : public OverlayBase {
     void set_visible_subject(lv_subject_t* subject) {
         visible_subject_ = subject;
     }
+
+    /**
+     * @brief The details row's material subject, written with the materials the
+     * print uses (helix::used_materials_text over the card's used tools).
+     *
+     * Republished whenever the used tools or the palette change; left alone when
+     * the file names no material, so the caller's text stands.
+     */
+    void set_material_text_subject(lv_subject_t* subject) {
+        material_text_subject_ = subject;
+    }
+
+    /// Write the details row's material text now (no-op without a subject).
+    void publish_material_text();
 
     // === Visibility ===
 
@@ -608,8 +643,7 @@ class PrintSelectDetailView : public OverlayBase {
      *
      * Computed in try_extract_gcode_colors() after the gcode is parsed, for
      * ALL AMS backends (including those whose mapping card is hidden, e.g.
-     * Snapmaker U1 / ACE). Drives the filament_mismatch_ and
-     * empty_tools_warning_ subjects, and is read by the print-start gate and
+     * Snapmaker U1 / ACE). Read by the print-start gate and
      * the enriched pre-print modal. Empty (no checks) until a file is parsed.
      */
     [[nodiscard]] const helix::PreflightResult& preflight_result() const {
@@ -622,8 +656,7 @@ class PrintSelectDetailView : public OverlayBase {
      * Rebuilds the per-tool intent (filtered to the precise tools_used set from
      * the parsed gcode), re-reads available slots from AmsState, computes the
      * default mapping, runs PreflightValidator::validate, caches the result into
-     * preflight_result_, and republishes the filament_mismatch_ /
-     * empty_tools_warning_ subjects.
+     * preflight_result_.
      *
      * Called once after parse (from try_extract_gcode_colors()) and again after
      * a native tool→slot remap so the print-start gate reflects the new mapping.
@@ -772,6 +805,10 @@ class PrintSelectDetailView : public OverlayBase {
     IMoonrakerAPI* api_ = nullptr;
     PrinterState* printer_state_ = nullptr;
     lv_subject_t* visible_subject_ = nullptr;
+    lv_subject_t* material_text_subject_ = nullptr; ///< see set_material_text_subject()
+
+    /// The card's used-tools filter, then the details row that follows it.
+    void set_card_used_tools(std::optional<std::set<int>> used);
 
     // === Widget References ===
     // Note: overlay_root_ inherited from OverlayBase holds the main widget
@@ -936,7 +973,6 @@ class PrintSelectDetailView : public OverlayBase {
     // Pre-print option toggle state lives in `option_rows_renderer_` (one
     // heap-allocated subject per option) — the legacy fixed six subjects
     // (preprint_bed_mesh_, preprint_qgl_, etc.) were retired in Phase 3.5.
-    lv_subject_t filament_mismatch_{};        // 1 = material mismatch warning visible
     lv_subject_t filament_mapping_visible_{}; // 1 = filament card visible (AMS+tools)
     // 1 = tapping the filament card opens the remap picker. Drives BOTH the
     // chevron that advertises the tap and the card's own clickable flag, so a
@@ -954,7 +990,6 @@ class PrintSelectDetailView : public OverlayBase {
     // Covers both the refusal and the "this will misfile your history" advisory;
     // the copy is chosen when the icon is tapped, not when it is published.
     lv_subject_t color_card_remap_help_visible_{};
-    lv_subject_t empty_tools_warning_{}; // 1 = at least one used tool's slot is empty
     // The fit check's verdict for the shown file: 0 none, 1 notes only,
     // 2 warnings, 3 a block, and one line per finding.
     lv_subject_t detail_fit_severity_{};
@@ -971,8 +1006,7 @@ class PrintSelectDetailView : public OverlayBase {
     // Published by publish_rewrite_availability().
     lv_subject_t gcode_rewrite_available_{};
     // Cached backend-agnostic pre-flight validation result for the current file.
-    // Computed in try_extract_gcode_colors() once the gcode is parsed; the single
-    // source of truth driving filament_mismatch_ + empty_tools_warning_ (works
+    // Computed in try_extract_gcode_colors() once the gcode is parsed (works
     // even when the mapping card is hidden, e.g. Snapmaker U1 / ACE). Read by the
     // print-start gate and the enriched pre-print modal. Empty until a file parses.
     helix::PreflightResult preflight_result_{};
@@ -987,6 +1021,7 @@ class PrintSelectDetailView : public OverlayBase {
     // token (singleton, not a per-slot dynamic subject).
     ObserverGuard slots_version_observer_;
     ObserverGuard tool_map_version_observer_; ///< printer tool-table moves (same lifetime)
+    ObserverGuard external_spool_observer_;   ///< the loaded chips' spool (same lifetime)
     ObserverGuard auto_color_map_observer_;   ///< auto-color-map setting flips
     // The plugin probe completes after first paint and the Moonraker version
     // lands with discovery, so both arrive after the card has already published.

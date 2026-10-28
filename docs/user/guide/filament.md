@@ -342,19 +342,41 @@ Every piece of information on a lane - color, material, brand, spool name, remai
 
 <a id="tool-mapping"></a>
 
-For multi-tool prints, you can control which AMS slot feeds each tool the slicer expects (T0, T1, T2, …). The mapping controls appear as a **Filament Mapping** card on the file detail screen — open a file from the print browser and, if your file uses multiple tools and your AMS supports Filament Mapping, the card shows a compact row of color pairs. Tap the card to open the **Filament Mapping** dialog.
+For multi-tool prints, you can control which slot feeds each tool the slicer expects (T0, T1, T2, …). The **FILAMENTS** card on the file detail screen shows one chip for each tool the print uses.
 
-In the dialog you get one row per tool in the file:
+**Reading a chip.** Each chip is split in two:
+
+- **The top band** is what the file asks for: it is filled with the file's color for that tool and labeled with the file's material (or the tool's name, such as **T2**, when the file names no material). On 800x480 screens and larger the material is in bold.
+- **The bottom** is what the printer will feed: a spool dot in the color of the slot the tool is mapped to, the slot's number and a small arrow. On a filament system with one unit the number is the slot itself ("3"). With several units it reads unit, then slot: "2·1" is the first slot of the second unit. A tool with no slot shows an empty dashed spool and the arrow; an empty slot shows a red ring instead of the spool dot.
+- **The outline** tells you whether the pairing is a problem:
+  - **Grey**: the slot holds what the file asks for.
+  - **Amber**: the material matches but the color is different. The chip only turns amber when the file says which color it wants.
+  - **Red**: the tool has no slot, its slot is empty, or the slot holds a different material.
+
+Chips are narrower on small screens. When the print uses more tools than fit in the row, a **+N** pill stands in for the rest.
+
+**Changing one tool's slot.** Tap a chip. A list opens under it, headed with the tool and its material (for example **T2 · PLA**):
+
+- **Auto** comes first, and lets HelixScreen pick the closest loaded match.
+- Then every slot, best match first, each with its color, name, material and a short reason: **exact match**, **color differs**, **material differs** or **empty**. A slot another tool already uses adds that tool, for example "exact match, also T0". Two tools may share a slot.
+- The tool's current pick is highlighted.
+- **More options…** at the bottom opens the full **Filament Mapping** dialog.
+
+Pick a slot and the chip updates straight away. If your filament system can't remap this file (see [Printers that map filament by rewriting the file](#printers-that-map-filament-by-rewriting-the-file)), the chips' arrows are hidden: tapping a chip offers to install the HelixPrint plugin when that is what's missing, and otherwise does nothing.
+
+Tapping the card's header opens the full **Filament Mapping** dialog, with one row per tool in the file:
 
 - **Map to closest colors with matching material** (toggle at the top) — When on, HelixScreen auto-assigns each tool to the loaded slot with the nearest color and a compatible material; the rows become read-only. When off, you assign tools yourself.
-- **Manual assignment** — With the toggle off, tap a tool's row to pick which slot feeds it.
+- **Manual assignment** — With the toggle off, tap a tool's row to pick which slot feeds it. The list is the same one a chip opens.
 - **Mismatch warnings** — A warning icon appears on any row mapped to an empty slot or a slot whose material doesn't match what the tool needs.
 
 Tap **Done** to keep your mapping, or **Cancel** to discard it.
 
+**Printers with no filament system.** On a single-extruder printer without a filament system, the card still shows when the file names its material, so you can check it against what is loaded. There is one chip per tool the print uses. The first chip's bottom is a spool dot in the color of the filament loaded in the extruder, and its outline compares the file with that filament, judged by the same outline colors. Later chips show a swap icon (two arrows), because a file that changes filament mid-print (with `M600`) asks you to swap spools; they stay grey. When HelixScreen doesn't know what is loaded, the first chip shows a question mark with a grey outline. These chips have no arrow and open nothing: there is nothing to map.
+
 > **Tip:** When you actually start the print, HelixScreen re-checks these mappings and stops with a **Check filament** dialog if any required tool points at an empty slot — unless bypass is engaged, in which case the mappings aren't feeding the print and the check is skipped. See [Print Monitoring & Failure Detection](print-monitoring.md#pre-print-filament-check).
 
-> **Note:** The mapping card only appears on systems that support Filament Mapping. On fixed 1:1 systems (Snapmaker U1, ACE) tools always map directly to their matching slot, so there's nothing to assign.
+> **Note:** On a filament system, the card only appears when the system supports Filament Mapping. On fixed 1:1 systems (Snapmaker U1, ACE) tools always map directly to their matching slot, so there's nothing to assign.
 
 > **Note:** The card also hides itself while **bypass is engaged on a single-tool file**, because the print takes its filament from the external spool and the mapping decides nothing — showing it would offer an assignment the print ignores. The **Bypass active** note on the file detail screen appears in its place. A *multi-tool* file with bypass engaged still shows the card: those prints do use the lanes.
 

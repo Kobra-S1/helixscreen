@@ -466,6 +466,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
                    : RemapStrategy::Native;
     }
 
+    [[nodiscard]] bool firmware_picks_lanes_at_print() const override {
+        return firmware_maps_tools_per_print_.load(std::memory_order_relaxed);
+    }
+
     /// AFC owns the lane->tool map (SET_MAP) and get_tool_mapping() returns it.
     [[nodiscard]] bool owns_tool_mapping_table() const override {
         return true;
@@ -1326,8 +1330,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     // signal.
     bool afc_reset_mapping_renamed_{false};
 
-    /// The AFC object is a shim over a firmware that owns tool mapping per
-    /// print (Z-Mod's afclite): its SET_MAP raises an error by design.
+    /// The firmware behind these objects picks each tool's lane at print time
+    /// (toolchanger_addon::firmware_picks_lanes_at_print()), and its SET_MAP
+    /// raises an error by design.
     std::atomic<bool> firmware_maps_tools_per_print_{false};
 
     // AFC state strings outside our known vocabulary — dedupes the schema-drift

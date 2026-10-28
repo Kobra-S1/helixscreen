@@ -1077,19 +1077,17 @@ bool AmsBackend::firmware_reported_tool_mapping() const {
 }
 
 helix::FirmwareRouting AmsBackend::firmware_default_routing() const {
+    if (firmware_picks_lanes_at_print()) {
+        return helix::FirmwareRouting::picked_at_print();
+    }
     // Only a table the firmware keeps, and has reported at least once, is what
     // it routes by. A table no frame has stated yet holds nothing but our own
     // optimistic writes, and a per-print map is not a standing table at all.
     if (!firmware_reported_tool_mapping() || get_remap_strategy() != RemapStrategy::Native) {
         return helix::FirmwareRouting::identity();
     }
-    helix::FirmwareRouting routing;
-    routing.head_for_tool = get_tool_mapping();
-    if (routing.head_for_tool.empty()) {
-        return helix::FirmwareRouting::identity();
-    }
-    routing.fallback_head = -1; // a tool no lane is mapped to has nowhere to run
-    return routing;
+    // A tool no lane is mapped to has nowhere to run.
+    return helix::FirmwareRouting::from_table(get_tool_mapping());
 }
 
 helix::printer::ToolMappingOrigin AmsBackend::tool_mapping_origin() const {

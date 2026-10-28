@@ -397,6 +397,10 @@ bool zmod_c5_present(const PrinterDiscovery& hw) {
     return zmod_c5_detect(hw);
 }
 
+bool firmware_picks_lanes_at_print(const PrinterDiscovery& hw) {
+    return hw.has_zmod_afclite();
+}
+
 std::optional<ToolReading> parse_zmod_marker(const std::string& line) {
     // Both spellings are respond_info output, so on the wire each arrives with
     // whatever console framing the host adds; the tokens themselves are unique

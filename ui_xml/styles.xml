@@ -19,6 +19,12 @@
          of its own gets the LVGL default, which ignores the theme's corner
          setting, so give it one. -->
     <style name="press_wash" bg_color="#primary" bg_opa="30%"/>
+    <!-- A filament slot picker row, at rest and as the current answer. The
+         slot rows and the rows that name no slot (Auto, the extra answer,
+         Cancel) share them. Inline style attributes outrank bound styles, so
+         the properties the selection and press styles change start here. -->
+    <style name="picker_row_base" bg_opa="0" border_width="0"/>
+    <style name="picker_row_selected" bg_color="#primary" bg_opa="40" border_width="1" border_color="#primary"/>
     <!-- Callout leader lines are dotted on every screen that draws them. -->
     <style name="leader_dotted" line_dash_width="#space_xxs" line_dash_gap="#space_xs"/>
     <!-- The translucent metadata strip that rides at the bottom of a g-code

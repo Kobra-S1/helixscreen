@@ -48,6 +48,24 @@ const AvailableSlot* FilamentMapper::resolve_mapped_slot(const ToolMapping& mapp
     return nullptr;
 }
 
+const AvailableSlot* FilamentMapper::resolve_printing_slot(const ToolMapping& mapping,
+                                                           const std::vector<AvailableSlot>& slots,
+                                                           const FirmwareRouting& routing) {
+    if (!mapping.is_auto) {
+        return resolve_mapped_slot(mapping, slots);
+    }
+    const int head = routing.head(mapping.tool_index);
+    if (head < 0) {
+        return nullptr;
+    }
+    for (const auto& s : slots) {
+        if (s.backend_index == 0 && s.slot_index == head) {
+            return &s;
+        }
+    }
+    return nullptr;
+}
+
 int FilamentMapper::mapped_lane_display_number(const ToolMapping& mapping,
                                                const std::vector<AvailableSlot>& slots) {
     const AvailableSlot* const s = resolve_mapped_slot(mapping, slots);
@@ -114,6 +132,11 @@ std::map<int, int> FilamentMapper::identity_filtered_remap(const std::vector<Too
                                                            const FirmwareRouting& routing) {
     std::map<int, int> remap;
     for (const auto& m : mappings) {
+        // The routing and the slot numbers sent are the primary backend's; a slot
+        // on another backend shares only its number with a lane there.
+        if (m.mapped_backend > 0) {
+            continue;
+        }
         if (m.mapped_slot >= 0 && m.mapped_slot != routing.head(m.tool_index)) {
             remap[m.tool_index] = m.mapped_slot;
         }
@@ -364,6 +387,23 @@ void FilamentMapper::apply_picks(std::vector<ToolMapping>& current,
         if (target != current.end()) {
             *target = pick;
         }
+    }
+}
+
+void FilamentMapper::pick_slot(ToolMapping& mapping, const GcodeToolInfo& tool,
+                               const std::vector<AvailableSlot>& slots, int slot_index,
+                               int backend_index, bool is_auto) {
+    mapping.mapped_slot = slot_index;
+    mapping.mapped_backend = backend_index;
+    mapping.is_auto = is_auto;
+    mapping.user_picked = true;
+
+    // A hand-picked lane is a new pairing, so earlier warnings do not apply to it.
+    mapping.set_mismatches({});
+    if (is_auto) {
+        mapping.reason = ToolMapping::MatchReason::AUTO;
+    } else if (const auto* slot = resolve_mapped_slot(mapping, slots)) {
+        mapping.set_mismatches(classify_mismatches(tool, *slot));
     }
 }
 

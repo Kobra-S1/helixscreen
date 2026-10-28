@@ -752,6 +752,7 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
     auto& ams = AmsState::instance();
     ctx.ams_available = ams.is_available();
     ctx.any_bypass_active = ams.any_bypass_active();
+    ctx.lanes_picked_at_print = ams.collect_firmware_routing().chosen_at_print;
     ctx.external_spool = ams.get_external_spool_info();
     ctx.filament_diameter_mm = printer_state_.get_discovery().filament_diameter_mm();
     ctx.has_active_backend = ams.get_backend() != nullptr;
@@ -1085,6 +1086,13 @@ bool PrintStartController::apply_filament_remaps() {
     for (const auto& m : mappings) {
         const int lane = lane_for(m);
         if (lane < 0) {
+            continue;
+        }
+        // A slot number names a lane only within its own backend.
+        if ((m.mapped_backend < 0 ? 0 : m.mapped_backend) != backend_idx) {
+            spdlog::warn("[PrintStartController] T{} is mapped to backend {}, not the remapped "
+                         "backend {}: not sent",
+                         m.tool_index, m.mapped_backend, backend_idx);
             continue;
         }
 

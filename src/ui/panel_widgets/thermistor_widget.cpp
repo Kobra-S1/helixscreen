@@ -194,9 +194,9 @@ ThermistorWidget::ThermistorWidget(const std::string& instance_id)
       available_subject_name_(instance_id + "_thermistor_available"),
       page_prefix_(instance_id + "_thermistor_page"),
       page_temp_(std::make_unique<IndexedSubjectPool>(
-          page_prefix_, IndexedSubjectPool::Type::String, 16, "_temp")),
+          page_prefix_.c_str(), IndexedSubjectPool::Type::String, 16, "_temp")),
       page_name_(std::make_unique<IndexedSubjectPool>(
-          page_prefix_, IndexedSubjectPool::Type::String, 96, "_name")) {
+          page_prefix_.c_str(), IndexedSubjectPool::Type::String, 96, "_name")) {
     // A widget built outside the panel-subject phase still publishes into live
     // subjects. A no-op once they exist.
     thermistor_widget_init_subjects();

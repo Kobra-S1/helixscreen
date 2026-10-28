@@ -62,6 +62,7 @@ translations:
   + Add Printer: + プリンターを追加
   + New: + 新規
   +{} more: '他{}件'
+  ', also {}': '、{}も'
   '- Check [resonance_tester] in printer.cfg': '- printer.cfg の [resonance_tester]
     を確認してください'
   '- Ensure ADXL345 is connected': '- ADXL345 が接続されていることを確認してください'
@@ -2270,6 +2271,7 @@ translations:
   : "Moonraker再起動中...\n再接続を待機中..."
   Moonraker's Python is too old for this feature.: "MoonrakerのPythonがこの機能には古すぎます。"
   'Moonraker: ': 'Moonraker: '
+  More options…: 'その他のオプション…'
   More points = more accurate, but takes longer.: ポイント数が多いほど精度が上がりますが、時間がかかります。
   Motion: 動作
   'Motion sensor stuck: filament is still at the feeder. Resume to feed it.': 'モーションセンサーが固着: フィラメントはまだフィーダーにあります。再開すると送り込みます。'
@@ -4504,6 +4506,7 @@ translations:
   by: '作成者:'
   by Preston Brown: by Preston Brown
   chamber heater: チャンバーヒーター
+  color differs: '色が異なる'
   complete: 完了
   cores: コア
   direct drive: ダイレクトドライブ
@@ -4522,6 +4525,7 @@ translations:
   enable: 有効化
   enabled: 有効
   error: エラー
+  exact match: '完全一致'
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: 同じ素材と同じ色。material: 同じ素材。next: 準備済みの任意のスロット (別の素材でも可)'
   extruder: エクストルーダー
   extruder(s): エクストルーダー
@@ -4549,6 +4553,7 @@ translations:
   loaded: '装填済み'
   locked: 'ロック中'
   matched: 一致
+  material differs: '素材が異なる'
   mm: mm
   mm Z-offset: mm Z-Offset
   mm before clog: 詰まりまでの距離 (mm)

@@ -2,34 +2,116 @@
 
 #include "ui_filament_slot_picker.h"
 
-#include "ui_fonts.h"
-#include "ui_swatch.h"
 #include "ui_utils.h"
 
+#include "filament_chip_model.h"
+#include "filament_variants.h"
+#include "helix/xml/indexed_subject_pool.h"
+#include "helix_psram_attr.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "subject_managed_panel.h"
 #include "theme_manager.h"
-#include "ui/ui_widget_helpers.h"
+#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdlib>
+#include <cstring>
 #include <utility>
 #include <vector>
 
 namespace helix::ui {
 
-// Layout constants for picker rows.
-// Rows are built in C++ (not XML components) because the number varies
-// per AMS configuration. lv_obj_add_event_cb and lv_label_set_text are used
-// here as allowed exceptions for dynamic content.
 namespace {
+
 constexpr lv_opa_t kSwatchBorderOpa = 30;
-constexpr lv_opa_t kSelectedBgOpa = 40;
-/// Empty bays stay selectable (mapping a tool to a bay you are about to load is
-/// legitimate) but must read as clearly not-ready at a glance. 60% was too close
-/// to a filled row to carry that on a glossy panel.
-constexpr lv_opa_t kEmptyRowOpa = LV_OPA_30;
-constexpr lv_opa_t kBackdropOpa = 128;
+
+using helix::xml::IndexedSubjectPool;
+
+HELIX_PSRAM_BSS lv_subject_t s_title{};
+HELIX_PSRAM_BSS char s_title_buf[128];
+HELIX_PSRAM_BSS lv_subject_t s_has_title{};
+HELIX_PSRAM_BSS lv_subject_t s_row_count{};
+HELIX_PSRAM_BSS lv_subject_t s_has_reasons{};
+HELIX_PSRAM_BSS lv_subject_t s_offer_auto{};
+HELIX_PSRAM_BSS lv_subject_t s_auto_selected{};
+HELIX_PSRAM_BSS lv_subject_t s_auto_text{};
+HELIX_PSRAM_BSS char s_auto_text_buf[48];
+HELIX_PSRAM_BSS lv_subject_t s_has_extra{};
+HELIX_PSRAM_BSS lv_subject_t s_extra_text{};
+HELIX_PSRAM_BSS char s_extra_text_buf[96];
+HELIX_PSRAM_BSS lv_subject_t s_has_cancel{};
+HELIX_PSRAM_BSS lv_subject_t s_cancel_text{};
+HELIX_PSRAM_BSS char s_cancel_text_buf[64];
+helix::WidgetSubjects s_subjects{"FilamentSlotPickerSubjects"};
+
+// Per slot row, in display order: filament_picker_row_<i>_label and so on.
+IndexedSubjectPool s_row_label{"filament_picker_row", IndexedSubjectPool::Type::String, 64,
+                               "_label"};
+IndexedSubjectPool s_row_material{"filament_picker_row", IndexedSubjectPool::Type::String, 32,
+                                  "_material"};
+IndexedSubjectPool s_row_reason{"filament_picker_row", IndexedSubjectPool::Type::String, 64,
+                                "_reason"};
+IndexedSubjectPool s_row_color{"filament_picker_row", IndexedSubjectPool::Type::Color, 0, "_color"};
+IndexedSubjectPool s_row_colors{"filament_picker_row", IndexedSubjectPool::Type::String, 96,
+                                "_colors"};
+IndexedSubjectPool s_row_finish{"filament_picker_row", IndexedSubjectPool::Type::String, 32,
+                                "_finish"};
+IndexedSubjectPool s_row_selected{"filament_picker_row", IndexedSubjectPool::Type::Int, 0,
+                                  "_selected"};
+IndexedSubjectPool s_row_empty{"filament_picker_row", IndexedSubjectPool::Type::Int, 0, "_empty"};
+IndexedSubjectPool s_row_warn{"filament_picker_row", IndexedSubjectPool::Type::Int, 0, "_warn"};
+
+IndexedSubjectPool* const s_pools[] = {&s_row_label,    &s_row_material, &s_row_reason,
+                                       &s_row_color,    &s_row_colors,   &s_row_finish,
+                                       &s_row_selected, &s_row_empty,    &s_row_warn};
+
+/// The picker on screen; the XML callbacks are global, so they reach it here.
+FilamentSlotPicker* s_shown = nullptr;
+
+void init_subjects() {
+    s_subjects.ensure_init(
+        [] {
+            UI_MANAGED_SUBJECT_STRING(s_title, s_title_buf, "", "filament_picker_title",
+                                      s_subjects);
+            UI_MANAGED_SUBJECT_INT(s_has_title, 0, "filament_picker_has_title", s_subjects);
+            UI_MANAGED_SUBJECT_INT(s_row_count, 0, "filament_picker_row_count", s_subjects);
+            UI_MANAGED_SUBJECT_INT(s_has_reasons, 0, "filament_picker_has_reasons", s_subjects);
+            UI_MANAGED_SUBJECT_INT(s_offer_auto, 0, "filament_picker_offer_auto", s_subjects);
+            UI_MANAGED_SUBJECT_INT(s_auto_selected, 0, "filament_picker_auto_selected", s_subjects);
+            UI_MANAGED_SUBJECT_STRING(s_auto_text, s_auto_text_buf, "", "filament_picker_auto_text",
+                                      s_subjects);
+            UI_MANAGED_SUBJECT_INT(s_has_extra, 0, "filament_picker_has_extra", s_subjects);
+            UI_MANAGED_SUBJECT_STRING(s_extra_text, s_extra_text_buf, "",
+                                      "filament_picker_extra_text", s_subjects);
+            UI_MANAGED_SUBJECT_INT(s_has_cancel, 0, "filament_picker_has_cancel", s_subjects);
+            UI_MANAGED_SUBJECT_STRING(s_cancel_text, s_cancel_text_buf, "",
+                                      "filament_picker_cancel_text", s_subjects);
+            for (IndexedSubjectPool* pool : s_pools) {
+                pool->ensure_size(FilamentSlotPicker::kMaxPickerRows);
+            }
+        },
+        [] {
+            if (s_shown) {
+                s_shown->hide();
+            }
+            for (IndexedSubjectPool* pool : s_pools) {
+                pool->reclaim();
+            }
+        });
+    // Last write wins, so registering on every show is harmless and survives an
+    // XML registry rebuilt between tests.
+    lv_xml_register_event_cb(nullptr, "filament_picker_row_cb", FilamentSlotPicker::row_cb);
+    lv_xml_register_event_cb(nullptr, "filament_picker_backdrop_cb",
+                             FilamentSlotPicker::backdrop_cb);
+}
+
+bool same_slot(const helix::AvailableSlot& slot, const FilamentSlotPicker::Selection& sel) {
+    return !sel.is_auto && slot.slot_index == sel.slot_index &&
+           slot.backend_index == sel.backend_index;
+}
+
 } // namespace
 
 FilamentSlotPicker::~FilamentSlotPicker() {
@@ -44,95 +126,118 @@ void FilamentSlotPicker::show(lv_obj_t* parent, lv_obj_t* trigger, int tool_inde
                               const std::string& expected_material,
                               const std::vector<helix::AvailableSlot>& slots,
                               const Selection& current, SelectCallback on_select) {
-    (void)tool_index; // kept in API for caller compatibility; header removed in this redesign
-    expected_material_ = expected_material;
-    show(parent, trigger, slots, current, std::move(on_select), Options{});
+    (void)tool_index; // kept in API for caller compatibility; the card has no heading
+    show_impl(parent, trigger, slots, current, std::move(on_select), Options{}, expected_material);
 }
 
 void FilamentSlotPicker::show(lv_obj_t* parent, lv_obj_t* trigger,
                               const std::vector<helix::AvailableSlot>& slots,
                               const Selection& current, SelectCallback on_select,
                               const Options& options) {
+    show_impl(parent, trigger, slots, current, std::move(on_select), options, {});
+}
+
+void FilamentSlotPicker::show_impl(lv_obj_t* parent, lv_obj_t* trigger,
+                                   const std::vector<helix::AvailableSlot>& slots,
+                                   const Selection& current, SelectCallback on_select,
+                                   const Options& options, const std::string& expected_material) {
     hide();
+    if (s_shown) {
+        s_shown->hide();
+    }
 
     if (!parent || !trigger) {
         return;
     }
 
+    init_subjects();
+
     trigger_ = trigger;
     trigger_highlighted_ = options.highlight_trigger;
     slots_ = slots;
+    expected_material_ = expected_material;
     current_selection_ = current;
     on_select_ = std::move(on_select);
 
-    // Full-screen semi-transparent backdrop (click to dismiss)
-    backdrop_ = lv_obj_create(parent);
-    lv_obj_remove_style_all(backdrop_);
-    lv_obj_set_size(backdrop_, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_bg_color(backdrop_, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(backdrop_, kBackdropOpa, 0);
-    lv_obj_add_flag(backdrop_, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(backdrop_, LV_OBJ_FLAG_SCROLLABLE);
-
-    lv_obj_add_event_cb(
-        backdrop_,
-        [](lv_event_t* e) {
-            auto* self = static_cast<FilamentSlotPicker*>(lv_event_get_user_data(e));
-            self->hide();
-        },
-        LV_EVENT_CLICKED, this);
-
-    // Card container with scrollable slot list. Gap between rows is visible
-    // — don't set it tighter than space_xs or rows appear crammed.
-    int32_t card_pad = theme_manager_get_spacing("space_md");
-    int32_t card_gap = theme_manager_get_spacing("space_xs");
-    int32_t card_radius = theme_manager_get_spacing("border_radius");
-
-    lv_obj_t* card = lv_obj_create(backdrop_);
-    lv_obj_remove_style_all(card);
-    lv_obj_set_size(card, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    // Up to the whole screen: every row, the last included, should show without
-    // scrolling wherever they fit; position_card() moves the card to make room.
-    lv_obj_set_style_max_height(card, LV_PCT(100), 0);
-    lv_obj_set_style_bg_color(card, theme_manager_get_color("elevated_bg"), 0);
-    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(card, card_radius, 0);
-    lv_obj_set_style_pad_all(card, card_pad, 0);
-    lv_obj_set_style_pad_gap(card, card_gap, 0);
-    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_ACTIVE);
-    lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
-
-    if (!options.title.empty()) {
-        const char* attrs[] = {"text", options.title.c_str(), nullptr};
-        lv_xml_create(card, "text_body", attrs);
+    rows_.clear();
+    std::vector<std::string> reasons;
+    if (options.order.empty()) {
+        for (std::size_t i = 0; i < slots_.size(); ++i) {
+            rows_.push_back(i);
+        }
+    } else {
+        for (std::size_t k = 0; k < options.order.size(); ++k) {
+            if (options.order[k] < slots_.size()) {
+                rows_.push_back(options.order[k]);
+                reasons.push_back(k < options.reasons.size() ? options.reasons[k] : std::string{});
+            }
+        }
+    }
+    if (rows_.size() > kMaxPickerRows) {
+        spdlog::warn("[FilamentSlotPicker] {} slots, listing the first {}", rows_.size(),
+                     kMaxPickerRows);
+        rows_.resize(kMaxPickerRows);
     }
 
-    // Slot rows (no Auto option — user is manually selecting)
-    for (size_t i = 0; i < slots_.size(); ++i) {
-        create_slot_row(card, static_cast<int>(i), slots_[i]);
+    publish(options, reasons);
+
+    backdrop_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "filament_slot_picker", nullptr));
+    if (!backdrop_) {
+        spdlog::error("[FilamentSlotPicker] filament_slot_picker component failed to create");
+        return;
     }
-    if (!options.extra_choice.empty()) {
-        create_extra_row(card, options.extra_choice);
-    }
-    if (!options.cancel_choice.empty()) {
-        create_cancel_row(card, options.cancel_choice);
+    s_shown = this;
+
+    if (lv_obj_t* card = lv_obj_find_by_name(backdrop_, "filament_picker_card")) {
+        fit_card_width(card);
+        position_card(card);
     }
 
-    fit_card_width(card);
-    // Position anchored to trigger widget
-    position_card(card);
-
-    // Highlight the trigger to show it's active
+    // Outline the trigger while the picker is open.
     if (trigger_highlighted_) {
         lv_obj_set_style_border_color(trigger_, theme_manager_get_color("primary"), 0);
         lv_obj_set_style_border_opa(trigger_, LV_OPA_50, 0);
     }
 
-    spdlog::debug("[FilamentSlotPicker] Shown with {} slots", slots_.size());
+    spdlog::debug("[FilamentSlotPicker] Shown with {} of {} slots", rows_.size(), slots_.size());
+}
+
+void FilamentSlotPicker::publish(const Options& options, const std::vector<std::string>& reasons) {
+    lv_subject_copy_string(&s_title, options.title.c_str());
+    lv_subject_set_int(&s_has_title, options.title.empty() ? 0 : 1);
+    lv_subject_set_int(&s_has_reasons, reasons.empty() ? 0 : 1);
+    lv_subject_set_int(&s_offer_auto, options.offer_auto ? 1 : 0);
+    lv_subject_set_int(&s_auto_selected, options.offer_auto && current_selection_.is_auto ? 1 : 0);
+    lv_subject_copy_string(&s_auto_text, lv_tr("Auto"));
+    lv_subject_set_int(&s_has_extra, options.extra_choice.empty() ? 0 : 1);
+    lv_subject_copy_string(&s_extra_text, options.extra_choice.c_str());
+    lv_subject_set_int(&s_has_cancel, options.cancel_choice.empty() ? 0 : 1);
+    lv_subject_copy_string(&s_cancel_text, options.cancel_choice.c_str());
+
+    for (std::size_t k = 0; k < rows_.size(); ++k) {
+        const helix::AvailableSlot& slot = slots_[rows_[k]];
+        s_row_label.set_string(k, helix::slot_row_label(slot, slots_));
+        s_row_material.set_string(k, slot.is_empty ? std::string(lv_tr("Empty")) : slot.material);
+        s_row_reason.set_string(k, k < reasons.size() ? reasons[k] : std::string{});
+        s_row_color.set_color(k, slot.color_rgb);
+        s_row_colors.set_string(k, slot.multi_color_hexes);
+        s_row_finish.set_string(k, helix::filament_finish_name(slot.finish));
+        s_row_selected.set_int(k, same_slot(slot, current_selection_) ? 1 : 0);
+        s_row_empty.set_int(k, slot.is_empty ? 1 : 0);
+        s_row_warn.set_int(
+            k, !slot.is_empty && !expected_material_.empty() && !slot.material.empty() &&
+                       !helix::FilamentMapper::materials_match(expected_material_, slot.material)
+                   ? 1
+                   : 0);
+    }
+    // Last: the count rebuilds the rows, which then bind the values above.
+    lv_subject_set_int(&s_row_count, static_cast<int>(rows_.size()));
 }
 
 void FilamentSlotPicker::hide() {
+    if (s_shown == this) {
+        s_shown = nullptr;
+    }
     if (!backdrop_) {
         return;
     }
@@ -149,123 +254,44 @@ void FilamentSlotPicker::hide() {
 }
 
 // ============================================================================
-// Row creation
+// Taps
 // ============================================================================
 
-void FilamentSlotPicker::create_slot_row(lv_obj_t* list, int index,
-                                         const helix::AvailableSlot& slot) {
-    // Row layout/padding/fonts live in
-    // ui_xml/components/filament_slot_picker_row.xml — tune visuals there
-    // without rebuilding. C++ fills in colors, label text, warn visibility,
-    // and the selected-state highlight.
-    auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "filament_slot_picker_row", nullptr));
-    if (!row) {
+void FilamentSlotPicker::row_cb(lv_event_t* e) {
+    // The row's choice: its index, or "auto", "extra", "cancel".
+    const char* choice = static_cast<const char*>(lv_event_get_user_data(e));
+    if (s_shown && choice) {
+        s_shown->on_row(choice);
+    }
+}
+
+void FilamentSlotPicker::backdrop_cb(lv_event_t* /*e*/) {
+    if (s_shown) {
+        s_shown->hide();
+    }
+}
+
+void FilamentSlotPicker::on_row(const char* choice) {
+    Selection sel;
+    if (std::strcmp(choice, "cancel") == 0) {
+        hide();
         return;
     }
-
-    if (slot.is_empty) {
-        lv_obj_set_style_opa(row, kEmptyRowOpa, 0);
-    }
-
-    bool is_selected = !current_selection_.is_auto &&
-                       slot.slot_index == current_selection_.slot_index &&
-                       slot.backend_index == current_selection_.backend_index;
-    if (is_selected) {
-        lv_obj_set_style_bg_color(row, theme_manager_get_color("primary"), 0);
-        lv_obj_set_style_bg_opa(row, kSelectedBgOpa, 0);
-        lv_obj_set_style_border_width(row, 1, 0);
-        lv_obj_set_style_border_color(row, theme_manager_get_color("primary"), 0);
-    }
-
-    if (auto* swatch = helix::ui::find_required(row, "swatch", "FilamentSlotPicker")) {
-        if (slot.is_empty) {
-            helix::ui::clear_swatch_color(swatch);
-            lv_obj_set_style_border_width(swatch, 2, 0);
-            lv_obj_set_style_border_color(swatch, theme_manager_get_color("warning"), 0);
-            lv_obj_set_style_border_opa(swatch, LV_OPA_COVER, 0);
-        } else {
-            helix::ui::apply_swatch_color(swatch, slot.color_rgb, slot.multi_color_hexes,
-                                          helix::ui::swatch_finish(slot.finish));
+    if (std::strcmp(choice, "auto") == 0) {
+        sel.is_auto = true;
+    } else if (std::strcmp(choice, "extra") == 0) {
+        sel.is_extra = true;
+    } else {
+        const long k = std::strtol(choice, nullptr, 10);
+        if (k < 0 || static_cast<std::size_t>(k) >= rows_.size()) {
+            return;
         }
+        const helix::AvailableSlot& slot = slots_[rows_[static_cast<std::size_t>(k)]];
+        sel.slot_index = slot.slot_index;
+        sel.backend_index = slot.backend_index;
     }
-
-    if (auto* label = helix::ui::find_required(row, "slot_label", "FilamentSlotPicker")) {
-        lv_label_set_text(label, helix::FilamentMapper::format_slot_label(slot).c_str());
-    }
-
-    if (!slot.is_empty && !expected_material_.empty() && !slot.material.empty() &&
-        !helix::FilamentMapper::materials_match(expected_material_, slot.material)) {
-        if (auto* warn = helix::ui::find_required(row, "warn_icon", "FilamentSlotPicker")) {
-            lv_obj_remove_flag(warn, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    // Store slot index for click lookup
-    lv_obj_set_user_data(row, reinterpret_cast<void*>(static_cast<intptr_t>(index)));
-
-    // Click → instant select and dismiss
-    lv_obj_add_event_cb(
-        row,
-        [](lv_event_t* e) {
-            auto* self = static_cast<FilamentSlotPicker*>(lv_event_get_user_data(e));
-            lv_obj_t* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-            int idx = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(target)));
-            if (idx >= 0 && idx < static_cast<int>(self->slots_.size())) {
-                const auto& s = self->slots_[static_cast<size_t>(idx)];
-                self->select({s.slot_index, s.backend_index, false});
-            }
-        },
-        LV_EVENT_CLICKED, this);
+    select(sel);
 }
-
-void FilamentSlotPicker::create_extra_row(lv_obj_t* list, const std::string& text) {
-    auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "filament_slot_picker_row", nullptr));
-    if (!row) {
-        return;
-    }
-    lv_obj_set_name(row, "extra_choice");
-    // No slot, so no colour to show.
-    if (auto* swatch = helix::ui::find_required(row, "swatch", "FilamentSlotPicker")) {
-        lv_obj_add_flag(swatch, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (auto* label = helix::ui::find_required(row, "slot_label", "FilamentSlotPicker")) {
-        lv_label_set_text(label, text.c_str());
-    }
-    // -1 keeps the row out of scroll_to_selected()'s slot lookup.
-    lv_obj_set_user_data(row, reinterpret_cast<void*>(static_cast<intptr_t>(-1)));
-    lv_obj_add_event_cb(
-        row,
-        [](lv_event_t* e) {
-            auto* self = static_cast<FilamentSlotPicker*>(lv_event_get_user_data(e));
-            Selection sel;
-            sel.is_extra = true;
-            self->select(sel);
-        },
-        LV_EVENT_CLICKED, this);
-}
-
-void FilamentSlotPicker::create_cancel_row(lv_obj_t* list, const std::string& text) {
-    auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "filament_slot_picker_row", nullptr));
-    if (!row) {
-        return;
-    }
-    lv_obj_set_name(row, "cancel_choice");
-    if (auto* swatch = helix::ui::find_required(row, "swatch", "FilamentSlotPicker")) {
-        lv_obj_add_flag(swatch, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (auto* label = helix::ui::find_required(row, "slot_label", "FilamentSlotPicker")) {
-        lv_label_set_text(label, text.c_str());
-    }
-    lv_obj_set_user_data(row, reinterpret_cast<void*>(static_cast<intptr_t>(-1)));
-    lv_obj_add_event_cb(
-        row,
-        [](lv_event_t* e) { static_cast<FilamentSlotPicker*>(lv_event_get_user_data(e))->hide(); },
-        LV_EVENT_CLICKED, this);
-}
-
-// ============================================================================
-// Selection
-// ============================================================================
 
 void FilamentSlotPicker::select(const Selection& sel) {
     // Copy callback and hide before invoking — hide() clears on_select_
@@ -288,10 +314,19 @@ void FilamentSlotPicker::fit_card_width(lv_obj_t* card) {
     // a row wider than that ellipsizes its label.
     // A growing label claims only leftover space, so it adds nothing to a
     // content-sized row; it stops growing for the measure.
-    const uint32_t count = lv_obj_get_child_count(card);
+    std::vector<lv_obj_t*> filled;
+    const auto collect = [&filled](lv_obj_t* parent) {
+        const uint32_t count = lv_obj_get_child_count(parent);
+        for (uint32_t i = 0; i < count; ++i) {
+            filled.push_back(lv_obj_get_child(parent, static_cast<int32_t>(i)));
+        }
+    };
+    collect(card);
+    if (lv_obj_t* rows = lv_obj_find_by_name(card, "filament_picker_rows")) {
+        collect(rows);
+    }
     std::vector<std::pair<lv_obj_t*, uint8_t>> grown;
-    for (uint32_t i = 0; i < count; ++i) {
-        lv_obj_t* child = lv_obj_get_child(card, static_cast<int32_t>(i));
+    for (lv_obj_t* child : filled) {
         lv_obj_set_width(child, LV_SIZE_CONTENT);
         if (lv_obj_t* label = lv_obj_find_by_name(child, "slot_label")) {
             grown.emplace_back(label, lv_obj_get_style_flex_grow(label, LV_PART_MAIN));
@@ -302,8 +337,8 @@ void FilamentSlotPicker::fit_card_width(lv_obj_t* card) {
     const int32_t margin = theme_manager_get_spacing("space_md");
     const int32_t max_w = LV_HOR_RES - 2 * margin;
     const int32_t natural_w = lv_obj_get_width(card);
-    for (uint32_t i = 0; i < count; ++i) {
-        lv_obj_set_width(lv_obj_get_child(card, static_cast<int32_t>(i)), LV_PCT(100));
+    for (lv_obj_t* child : filled) {
+        lv_obj_set_width(child, LV_PCT(100));
     }
     for (const auto& [label, grow] : grown) {
         lv_obj_set_flex_grow(label, grow);
@@ -373,11 +408,6 @@ void FilamentSlotPicker::position_card(lv_obj_t* card) {
 
     lv_obj_set_pos(card, card_x, card_y);
 
-    // Corner radius
-    int32_t radius = theme_manager_get_spacing("border_radius");
-    lv_obj_set_style_radius(card, radius, 0);
-
-    // Scroll to selected item
     scroll_to_selected(card);
 
     spdlog::debug("[FilamentSlotPicker] Trigger({},{} {}x{}) -> Card({},{}) {}x{} {}",
@@ -389,19 +419,13 @@ void FilamentSlotPicker::scroll_to_selected(lv_obj_t* card) {
     if (!card || current_selection_.is_auto) {
         return;
     }
-
-    // Find the selected row and scroll it into view
-    uint32_t child_count = lv_obj_get_child_count(card);
-    for (uint32_t i = 0; i < child_count; ++i) {
-        lv_obj_t* child = lv_obj_get_child(card, static_cast<int32_t>(i));
-        int idx = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(child)));
-        if (idx >= 0 && idx < static_cast<int>(slots_.size())) {
-            const auto& slot = slots_[static_cast<size_t>(idx)];
-            if (slot.slot_index == current_selection_.slot_index &&
-                slot.backend_index == current_selection_.backend_index) {
-                lv_obj_scroll_to_view(child, LV_ANIM_OFF);
-                break;
+    for (std::size_t k = 0; k < rows_.size(); ++k) {
+        if (same_slot(slots_[rows_[k]], current_selection_)) {
+            const std::string name = "filament_picker_row_" + std::to_string(k);
+            if (lv_obj_t* row = lv_obj_find_by_name(card, name.c_str())) {
+                lv_obj_scroll_to_view(row, LV_ANIM_OFF);
             }
+            return;
         }
     }
 }
