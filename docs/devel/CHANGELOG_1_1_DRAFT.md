@@ -1407,6 +1407,9 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **K2 Plus: saving config flashed "Printer Shutdown"** during the normal restart.
 - **Two speed and flow code paths were unreachable**, and the overrides now go through one
   clamp rather than three copies of it.
+- **Sliced for a Different Setup named a toolhead the print never uses** - a multi-tool
+  file lists a nozzle for every toolhead, so a different nozzle on an unused one raised the
+  warning. The fit check now judges only the toolheads the file prints with.
 
 **Calibration**
 
@@ -1545,6 +1548,12 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   is written to the U1's own filament record, and before resuming a pause (other than a
   runout) a used head with a blank record is filled in from the material HelixScreen knows,
   so Resume is no longer refused with "not edit filament".
+- **The fit check knows which nozzle each head really has** - it read the 0.4 mm the
+  printer's config lists for every head, so a correct job for a 0.6 mm head was warned about
+  and a 0.4 mm job sent to a 0.2 mm head passed. It now reads the size and type the U1
+  reports for each head. High Flow G-code for a head with a standard nozzle is stopped with
+  **File Does Not Fit This Printer**, and standard G-code for a High Flow head gets a
+  warning with **Start Anyway**.
 
 **Setup and installing**
 
