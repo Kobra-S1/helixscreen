@@ -253,7 +253,7 @@ void download_include_graph(std::vector<std::string> listing, const std::string&
 
     // Report once every outstanding download has returned. Called with the lock
     // held; the returned closure runs after it is released.
-    auto take_report = [](Walk& w) -> std::function<void()> {
+    auto take_report = [](Walk& w) -> helix::Callback<void()> {
         if (w.reported || w.in_flight > 0 || (w.error.empty() && !w.queue.empty()))
             return {};
         w.reported = true;
@@ -269,8 +269,9 @@ void download_include_graph(std::vector<std::string> listing, const std::string&
         };
     };
 
-    std::shared_ptr<std::function<void()>> pump = std::make_shared<std::function<void()>>();
-    std::weak_ptr<std::function<void()>> weak_pump = pump;
+    std::shared_ptr<helix::SharedCallback<void()>> pump =
+        std::make_shared<helix::SharedCallback<void()>>();
+    std::weak_ptr<helix::SharedCallback<void()>> weak_pump = pump;
     *pump = [walk, take_report, weak_pump]() {
         for (;;) {
             std::pair<std::string, int> next;
@@ -290,7 +291,7 @@ void download_include_graph(std::vector<std::string> listing, const std::string&
             walk->download(
                 path,
                 [walk, take_report, self, path, depth](std::string content) {
-                    std::function<void()> report;
+                    helix::Callback<void()> report;
                     {
                         std::lock_guard<std::mutex> lock(walk->mutex);
                         --walk->in_flight;
@@ -311,7 +312,7 @@ void download_include_graph(std::vector<std::string> listing, const std::string&
                         (*self)();
                 },
                 [walk, take_report, path, depth, deferred](std::string message, bool queue_full) {
-                    std::function<void()> report;
+                    helix::Callback<void()> report;
                     {
                         std::lock_guard<std::mutex> lock(walk->mutex);
                         --walk->in_flight;
@@ -342,10 +343,11 @@ void download_include_graph(std::vector<std::string> listing, const std::string&
     (*pump)();
 }
 
-ConfigDownloadFn api_config_download(IMoonrakerAPI& api, std::function<bool()> still_wanted) {
+ConfigDownloadFn api_config_download(IMoonrakerAPI& api,
+                                     helix::SharedCallback<bool()> still_wanted) {
     return [&api, tok = api.lifetime_token(), still_wanted = std::move(still_wanted)](
-               const std::string& path, std::function<void(std::string)> ok,
-               std::function<void(std::string, bool)> fail) {
+               const std::string& path, helix::SharedCallback<void(std::string)> ok,
+               helix::SharedCallback<void(std::string, bool)> fail) {
         // Queued directly rather than through tok.defer(), which would drop the
         // request silently once the API is gone and leave the walk waiting forever.
         helix::ui::queue_update(

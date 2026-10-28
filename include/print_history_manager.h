@@ -7,6 +7,7 @@
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "helix_callback.h"
 #include "print_history_data.h"
 
 #include <atomic>
@@ -42,7 +43,7 @@ struct PrintHistoryStats {
 
 namespace helix {
 /// Observer callback when history data changes
-using HistoryChangedCallback = std::function<void()>;
+using HistoryChangedCallback = helix::Callback<void()>;
 } // namespace helix
 
 namespace helix {
@@ -390,7 +391,7 @@ class PrintHistoryManager {
      * @brief Remove observer callback by pointer
      *
      * Removes the callback registered with add_observer(). Uses pointer
-     * comparison, so this actually works (unlike std::function comparison).
+     * comparison, since the callbacks themselves cannot be compared.
      *
      * @param cb Pointer to callback to remove
      */

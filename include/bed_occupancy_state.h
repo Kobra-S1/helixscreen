@@ -105,7 +105,7 @@ class BedOccupancyState {
     BedOccupancy current_;
     std::optional<BedOutlineSnapshot> snapshot_;
     std::optional<BedJobSummary> last_occupied_;
-    std::function<void()> history_cb_;
+    helix::HistoryChangedCallback history_cb_;
 
     SubjectManager subjects_;
     lv_subject_t occupied_{};

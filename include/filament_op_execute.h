@@ -20,6 +20,7 @@
 #include "filament_op_dispatch.h"
 #include "filament_op_router.h"
 #include "filament_op_slot_resolver.h"
+#include "helix_shared_callback.h"
 #include "moonraker_types.h"
 #include "standard_macros.h"
 
@@ -231,21 +232,21 @@ struct FilamentOpSurface {
     /// Arm what this surface shows while the op runs. Called once, immediately
     /// before the chosen tier runs — never on a refusal, which is what keeps a
     /// refused op from leaving a surface stuck in a phantom "busy".
-    std::function<void(const FilamentOpPlan&)> on_begin;
+    helix::SharedCallback<void(const FilamentOpPlan&)> on_begin;
 
     /// Unwind what on_begin armed, after a tier-1 dispatch the backend rejected
     /// outright. Owning the report is the surface's option: an unset hook leaves
     /// the executor to raise the generic AMS-error toast, while a hook that sets
     /// `reported` true has raised its own and suppresses that.
-    std::function<void(const FilamentOpPlan&, const AmsError&, bool& reported)> on_failed;
+    helix::SharedCallback<void(const FilamentOpPlan&, const AmsError&, bool& reported)> on_failed;
 
     /// Unwind after a macro or raw-gcode dispatch failed. Separate from
     /// on_failed because there is no AmsError there — the executor has already
     /// reported through report_op_error(), and this is bookkeeping only.
-    std::function<void(const FilamentOpPlan&)> on_async_failed;
+    helix::SharedCallback<void(const FilamentOpPlan&)> on_async_failed;
 
     /// Present a refusal. Unset raises the shared toasts.
-    std::function<void(const FilamentOpPlan&)> on_refused;
+    helix::SharedCallback<void(const FilamentOpPlan&)> on_refused;
 
     /// The op finished, on the tiers that have a completion signal (macro and
     /// raw gcode). Tier 1 completion arrives through the backend's action feed
@@ -257,14 +258,14 @@ struct FilamentOpSurface {
     /// on_begin, on_failed and on_refused are NOT marshalled — those run inline
     /// on whichever thread called the executor, which is the UI thread for every
     /// surface that has a button.
-    std::function<void()> on_async_success;
+    helix::SharedCallback<void()> on_async_success;
 
     /// Wrap a callback that may outlive this surface. Unset runs it directly,
     /// which is correct ONLY for a surface that outlives every dispatch it
     /// starts. A surface torn down with a panel must supply the token.defer()
     /// wrapper here, or a macro-parameter modal answered after the teardown
     /// reaches freed memory.
-    std::function<void(std::function<void()>)> guard;
+    helix::SharedCallback<void(helix::SharedCallback<void()>)> guard;
 
     /// Parameter values this surface already knows for the macro @p op runs, keyed
     /// by parameter name (nozzle_temp_prefill() in filament_op_router.h). Called
@@ -272,19 +273,20 @@ struct FilamentOpSurface {
     /// dispatch_filament_macro(), which sends only the names the macro reads and
     /// skips the prompt when they fill every one. Unset offers nothing, and under
     /// ParamPolicy::Suppress the values are not used.
-    std::function<std::map<std::string, std::string>(FilamentMacroOp op)> macro_prefill;
+    helix::SharedCallback<std::map<std::string, std::string>(FilamentMacroOp op)> macro_prefill;
 
     /// Runs just before the macro tier sends its macro, once any parameter prompt
     /// has been answered: call `send` to go ahead, or `fail` to stop with that
     /// error, which unwinds and reports the op the way a failed macro does and
     /// sends nothing. Unset sends straight away.
-    std::function<void(std::function<void()> send, std::function<void(const MoonrakerError&)> fail)>
+    helix::SharedCallback<void(helix::SharedCallback<void()> send,
+                               helix::SharedCallback<void(const MoonrakerError&)> fail)>
         before_macro;
 
     /// The material to heat for when neither the target lane nor the external
     /// spool names one (a material preset the surface offers). Asked once, when
     /// the op is requested. Unset heats to kDefaultLoadPreheatTemp there.
-    std::function<std::optional<PreheatTarget>()> preheat_fallback_material;
+    helix::SharedCallback<std::optional<PreheatTarget>()> preheat_fallback_material;
 
     /// The preheat this op waited on ended without running it: the user
     /// withdrew it, another op replaced it, or it could not complete. Unset is
@@ -292,7 +294,7 @@ struct FilamentOpSurface {
     /// waiting on the op; a surface with a continuation (a flow that moves on
     /// once the op finishes) must set it, or that flow stalls silently. Runs on
     /// the main thread, through the guard.
-    std::function<void()> on_preheat_ended;
+    helix::SharedCallback<void()> on_preheat_ended;
 
     /// Names this surface to the preheat: the same op on the same slot from the
     /// same owner is a re-tap. Unset uses log_tag, which every caller passes as a
@@ -303,7 +305,7 @@ struct FilamentOpSurface {
     /// after a preheat. One that is not raises no parameter prompt: the dispatch
     /// downgrades ParamPolicy::Prompt to Unattended, which sends the prefill read
     /// at request time. Unset counts as alive.
-    std::function<bool()> alive;
+    helix::SharedCallback<bool()> alive;
 };
 
 /// @note **`log_tag` must have static storage duration.** All three functions

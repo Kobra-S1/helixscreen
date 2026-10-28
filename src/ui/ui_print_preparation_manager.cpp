@@ -863,7 +863,7 @@ PrintPreparationManager::printer_stop_check_for(const std::string& key) const {
         "the file scan has not answered for the printer's current macros");
 }
 
-void PrintPreparationManager::set_on_scan_answered(std::function<void()> cb) {
+void PrintPreparationManager::set_on_scan_answered(helix::Callback<void()> cb) {
     on_scan_answered_ = std::move(cb);
 }
 
@@ -882,7 +882,7 @@ void PrintPreparationManager::when_ready_to_start(const std::string& filename,
         return;
     }
     const std::string key = scan_key(filename, current_path);
-    start_waiter_ = StartWaiter{filename, current_path, key, version, false, 1, ready};
+    start_waiter_ = StartWaiter{filename, current_path, key, version, false, 1, std::move(ready)};
     start_pin_key_ = key;
     request_start_waiter_scan();
     notify_start_waiter();
