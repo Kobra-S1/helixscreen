@@ -237,6 +237,9 @@ def main():
     if args.run_jobs:
         return run_jobs(args.run_jobs, args.jobs or 4)
     if os.environ.get("HELIX_ESP32_SYNTAX") == "0":
+        # An explicit opt-out is silent; only a check that must answer says it did not.
+        if not args.require:
+            return 0
         return cannot_answer(args, "⚠️  esp32 syntax check skipped: HELIX_ESP32_SYNTAX=0")
 
     tree = os.path.realpath(args.tree or git(".", "rev-parse", "--show-toplevel").strip())
