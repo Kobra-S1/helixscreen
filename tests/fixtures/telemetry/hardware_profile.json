@@ -57,10 +57,10 @@
     "has_purge_line": true,
     "led_macro_count": 0,
     "names": [
-      "PURGE_LINE",
       "CLEAN_NOZZLE",
       "HEAT_SOAK",
-      "PRINT_START"
+      "PRINT_START",
+      "PURGE_LINE"
     ],
     "total_count": 4
   },

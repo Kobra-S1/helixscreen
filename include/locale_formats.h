@@ -19,6 +19,9 @@ void locale_set_language(const std::string& lang_code);
 /** @brief The active language code ("en", "de", ...), as last set */
 std::string locale_current_language();
 
+/** @brief True when names come from the system's strftime() rather than the built-in tables */
+bool locale_uses_system_locale();
+
 /**
  * @brief Subscribe to language changes; the id removes the listener
  *

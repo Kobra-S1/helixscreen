@@ -28,8 +28,11 @@ using namespace helix;
 
 namespace {
 
-/// A loopback socket bound to an ephemeral port. Without listen() it holds
-/// the port, so nothing else can take it, and refuses every connection.
+/// A loopback socket on an ephemeral port. Listening, it takes connections.
+/// Not listening, it releases the port again: a port nothing is bound to is
+/// refused at once on every OS, while a socket bound without listen() is
+/// refused by Linux but silently dropped by macOS. Another process could claim
+/// the freed port before the test connects; on loopback that window is tiny.
 class LoopbackListener {
   public:
     explicit LoopbackListener(bool listening) {
@@ -46,6 +49,9 @@ class LoopbackListener {
         socklen_t len = sizeof(addr);
         REQUIRE(::getsockname(fd_, reinterpret_cast<sockaddr*>(&addr), &len) == 0);
         port_ = ntohs(addr.sin_port);
+        if (!listening) {
+            close_listener();
+        }
     }
     ~LoopbackListener() {
         close_listener();

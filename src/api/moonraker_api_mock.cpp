@@ -1334,11 +1334,26 @@ struct SocketGuard {
     }
 };
 
+/// Accepts and closes every connection waiting on the listener. A co-location
+/// probe connects and hangs up, but its connection stays in the listen backlog
+/// until accepted, and a full backlog refuses the next connect (macOS's holds
+/// 128). Draining on each query keeps it at the probes since the last one.
+void drain_backlog(int listen_fd) {
+    for (;;) {
+        const int conn = ::accept(listen_fd, nullptr, nullptr);
+        if (conn < 0) {
+            return; // EAGAIN: nothing waiting (the listener is non-blocking)
+        }
+        ::close(conn);
+    }
+}
+
 /// A process-lifetime listening unix socket standing in for klippy's UDS.
 /// Co-location checks connect() to the address Moonraker reports, so the mock
 /// must name a socket that accepts a connection. Created once per process on
-/// first use and unlinked at exit.
+/// first use and unlinked at exit; every query drains what earlier probes left.
 const char* mock_klippy_uds_address() {
+    static int listen_fd = -1;
     static const std::string path = [] {
         const std::string p = "/tmp/helix-mock-klippy-" + std::to_string(getpid()) + ".sock";
         ::unlink(p.c_str());
@@ -1348,11 +1363,12 @@ const char* mock_klippy_uds_address() {
             addr.sun_family = AF_UNIX;
             std::strncpy(addr.sun_path, p.c_str(), sizeof(addr.sun_path) - 1);
             // SOMAXCONN, never 1: connect_uds() blocks on a full backlog, and
-            // nothing ever accepts here - a tiny backlog would wedge the
-            // second co-location probe for the process lifetime.
+            // probes between two queries queue there until the next drain.
             if (::bind(fd, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)) == 0 &&
                 ::listen(fd, SOMAXCONN) == 0) {
                 static_cast<void>(fcntl(fd, F_SETFD, FD_CLOEXEC));
+                static_cast<void>(fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK));
+                listen_fd = fd;
                 // Local static: its destructor unlinks at process exit.
                 static const SocketGuard guard{p, fd};
                 return p;
@@ -1361,6 +1377,9 @@ const char* mock_klippy_uds_address() {
         }
         return std::string("/nonexistent/mock-klippy.sock");
     }();
+    if (listen_fd >= 0) {
+        drain_backlog(listen_fd);
+    }
     return path.c_str();
 }
 

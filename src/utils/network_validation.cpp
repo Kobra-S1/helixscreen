@@ -186,8 +186,14 @@ std::string resolve_moonraker_host_default(const std::string& stored_host, bool 
 
 namespace helix {
 
+bool connect_failure_reads_socket_error(int io_error) {
+    return io_error == ENOTCONN || io_error == EINVAL;
+}
+
 ConnectFailureKind classify_connect_failure(int io_error, int socket_error) {
-    const int cause = (io_error == ENOTCONN && socket_error != 0) ? socket_error : io_error;
+    const int cause = (connect_failure_reads_socket_error(io_error) && socket_error != 0)
+                          ? socket_error
+                          : io_error;
     switch (cause) {
     case ECONNREFUSED:
         return ConnectFailureKind::Refused;

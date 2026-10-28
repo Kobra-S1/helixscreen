@@ -40,6 +40,11 @@ using print_status_panel_test::PrintStatusPanelFixture;
 
 namespace {
 
+/// A cache generation decodes and resizes a real image on a worker thread. A
+/// sharded sweep keeps every core busy, so the wait is generous; it returns as
+/// soon as the result lands.
+constexpr uint32_t kGenerationBudgetMs = 30000;
+
 int subject_int(const char* name) {
     lv_subject_t* s = lv_xml_get_subject(nullptr, name);
     REQUIRE(s != nullptr);
@@ -965,7 +970,8 @@ TEST_CASE_METHOD(Landscape800,
     tiles().update_now();
     REQUIRE(subject_str("ps_printer_image_src") == second);
     const std::string want = "A:" + helix::get_cached_printer_image_path(second, w, h);
-    CHECK(wait_until([&]() { return subject_str("ps_printer_image_src") == want; }));
+    CHECK(wait_until([&]() { return subject_str("ps_printer_image_src") == want; },
+                     kGenerationBudgetMs));
     for (const std::string& p : {first, second})
         std::filesystem::remove(helix::get_cached_printer_image_path(p, w, h), ec);
 }
@@ -998,7 +1004,7 @@ TEST_CASE_METHOD(Landscape800, "a cache generation landing after deinit leaves t
     REQUIRE(subject_str("ps_printer_image_src") == source);
     tiles().deinit();
     // The worker still writes its entry; its result must not reach the subject.
-    REQUIRE(wait_until([&]() { return std::filesystem::exists(cache_path); }));
+    REQUIRE(wait_until([&]() { return std::filesystem::exists(cache_path); }, kGenerationBudgetMs));
     process_lvgl(50);
     UpdateQueue::instance().drain();
     CHECK(subject_str("ps_printer_image_src") == source);

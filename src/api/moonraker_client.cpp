@@ -908,7 +908,7 @@ void MoonrakerClient::on_ws_close() {
             int socket_error = 0;
             if (auto ch = channel_ref()) {
                 io_error = ch->error();
-                if (io_error == ENOTCONN && ch->fd() >= 0) {
+                if (connect_failure_reads_socket_error(io_error) && ch->fd() >= 0) {
                     socklen_t len = sizeof(socket_error);
                     if (getsockopt(ch->fd(), SOL_SOCKET, SO_ERROR, &socket_error, &len) != 0) {
                         socket_error = 0;
