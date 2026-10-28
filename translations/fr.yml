@@ -3718,6 +3718,8 @@ translations:
   Sleep {} min: Veille dans {} min
   Sliced colors: Couleurs tranchées
   Sliced for a Different Setup: 'Tranché pour une autre configuration'
+  Sliced for a High Flow nozzle on T{}; the printer has a standard one.: 'Tranché pour une buse High Flow sur T{} ; l''imprimante a une buse standard.'
+  Sliced for a standard nozzle on T{}; the printer has High Flow.: 'Tranché pour une buse standard sur T{} ; l''imprimante a une buse High Flow.'
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Tranché pour une buse de {:g} mm sur T{} ; l''imprimante a {:g} mm.'
   Sliced for {}, not {}.: 'Tranché pour {}, pas pour {}.'
   Slicer: Trancheur

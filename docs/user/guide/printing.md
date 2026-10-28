@@ -153,9 +153,13 @@ When you open a file, HelixScreen compares it with your printer's own limits and
 | Heats the nozzle or bed above the printer's limit | The slicer profile asks for more than the printer's heater allows | Blocked |
 | Uses a tool the printer doesn't have | For example T2 on a two-extruder printer with no filament system | Blocked; a warning with **Start Anyway** when only tool macros, not extruders, give the printer's tool count |
 | Sliced for a different nozzle size | The slicer assumed a 0.6 mm nozzle and the printer is set up for 0.4 mm | Warning, with **Start Anyway** |
+| Sliced for a High Flow nozzle on a toolhead with a standard one | The U1's own firmware refuses a High Flow job on a standard nozzle | Blocked |
+| Sliced for a standard nozzle on a toolhead with a High Flow one | The print works, but was not made for this nozzle | Warning, with **Start Anyway** |
 | Sliced for a different printer | The slicer profile names another printer model (not your own preset name) | Shown in the card only; Start Print is not interrupted |
 
 On a Creality K1, K1C or K1 Max with the CFS upgrade, the CFS takes 5 mm of the bed's Y travel, so the check allows 5 mm less in Y while the CFS is connected.
+
+Nozzles are checked only on the toolheads the file prints with, and tool T0 in the file is compared with the printer's first toolhead, T1 with the second and so on. Where the printer reports which nozzle each toolhead has fitted, as the Snapmaker U1 does, that is what the file is compared with; the High Flow and standard checks need such a printer and a slicer that writes the nozzle type, such as OrcaSlicer.
 
 A blocked file shows **File Does Not Fit This Printer**, naming each problem; re-slice it with a profile made for this printer. A nozzle mismatch alone shows **Sliced for a Different Setup**.
 

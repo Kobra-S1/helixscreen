@@ -3382,6 +3382,8 @@
   <translation tag="Sleep {} min" fr="Veille dans {} min"/>
   <translation tag="Sliced colors" fr="Couleurs tranchées"/>
   <translation tag="Sliced for a Different Setup" fr="Tranché pour une autre configuration"/>
+  <translation tag="Sliced for a High Flow nozzle on T{}; the printer has a standard one." fr="Tranché pour une buse High Flow sur T{} ; l&apos;imprimante a une buse standard."/>
+  <translation tag="Sliced for a standard nozzle on T{}; the printer has High Flow." fr="Tranché pour une buse standard sur T{} ; l&apos;imprimante a une buse High Flow."/>
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." fr="Tranché pour une buse de {:g} mm sur T{} ; l&apos;imprimante a {:g} mm."/>
   <translation tag="Sliced for {}, not {}." fr="Tranché pour {}, pas pour {}."/>
   <translation tag="Slicer" fr="Trancheur"/>

@@ -13,6 +13,7 @@
 #include "http_executor.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
+#include "klipper_extruder_naming.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "text_io.h"
@@ -155,6 +156,26 @@ std::string known_printer_model(const std::string& name) {
     return {};
 }
 
+/// What each extruder reports about its nozzle, by extruder number.
+std::vector<FitLiveNozzle> live_nozzles(const PrinterTemperatureState& temperatures) {
+    std::vector<FitLiveNozzle> live;
+    for (const auto& [name, info] : temperatures.extruders()) {
+        const std::optional<int> n = tool_number_for_extruder(name);
+        if (!n) {
+            continue;
+        }
+        if (live.size() <= static_cast<size_t>(*n)) {
+            live.resize(static_cast<size_t>(*n) + 1);
+        }
+        FitLiveNozzle& nozzle = live[static_cast<size_t>(*n)];
+        if (info.nozzle_diameter > 0.0) {
+            nozzle.diameter = info.nozzle_diameter;
+        }
+        nozzle.volume_type = info.nozzle_volume_type;
+    }
+    return live;
+}
+
 } // namespace
 
 std::optional<FitMachine> current_fit_machine() {
@@ -164,8 +185,10 @@ std::optional<FitMachine> current_fit_machine() {
         return std::nullopt;
     }
     AmsState& ams = AmsState::instance();
-    return fit_machine_for_screen(*base, known_printer_model(state.profile_state().printer_type()),
-                                  ams.is_available(), ams.printable_y_shrink_mm());
+    return fit_machine_with_live_nozzles(
+        fit_machine_for_screen(*base, known_printer_model(state.profile_state().printer_type()),
+                               ams.is_available(), ams.printable_y_shrink_mm()),
+        live_nozzles(state.temperature_state()));
 }
 
 PreflightResult preflight_for(const FileStartFacts& facts) {

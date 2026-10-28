@@ -89,8 +89,9 @@ remap_modal_mappings(const std::vector<ToolMapping>& card_mappings,
 void fill_file_context(PrintStartContext& ctx, const FileStartFacts& facts);
 
 /// The connected printer's limits as this screen knows them
-/// (fit_machine_for_screen() over the config the discovery read), or unset
-/// before the printer's config was read.
+/// (fit_machine_for_screen() over the config the discovery read, then the
+/// nozzles its extruders report live: fit_machine_with_live_nozzles()), or
+/// unset before the printer's config was read.
 [[nodiscard]] std::optional<FitMachine> current_fit_machine();
 
 /// The tools @p facts shows the file using: its scanned tools, else the tools

@@ -3615,6 +3615,8 @@ translations:
   Sleep {} min: Sleep {} min
   Sliced colors: Sliced colors
   Sliced for a Different Setup: Sliced for a Different Setup
+  Sliced for a High Flow nozzle on T{}; the printer has a standard one.: Sliced for a High Flow nozzle on T{}; the printer has a standard one.
+  Sliced for a standard nozzle on T{}; the printer has High Flow.: Sliced for a standard nozzle on T{}; the printer has High Flow.
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.
   Sliced for {}, not {}.: Sliced for {}, not {}.
   Slicer: Slicer

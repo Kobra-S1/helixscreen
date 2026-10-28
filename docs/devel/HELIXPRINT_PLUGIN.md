@@ -485,7 +485,14 @@ sidecar-vs-file index equality and the loader against the mock
 Compares a file with the printer's own limits and gives findings `{kind, severity, detail}`:
 `out_of_bounds` and `temp_over_max` (block: stop a start), `too_many_tools` (block, or warn
 when only `T` macros raised the tool count), `nozzle_mismatch` (warn: the screen asks before a
-start) and `printer_model_mismatch` (note: shown in the file details only). The screen runs it
+start), `nozzle_flow_mismatch` (block for High Flow G-code on a standard nozzle, warn for the
+reverse) and `printer_model_mismatch` (note: shown in the file details only). Nozzles come
+from `configfile.settings`, replaced per extruder by the `nozzle_diameter` and
+`nozzle_volume_type` an extruder reports in its status where the firmware keeps the fitted
+nozzle outside the config (the Snapmaker U1); the file's flow types come from Orca's
+`nozzle_volume_type` config comment, else Moonraker's `filament_volume_type` metadata.
+Nozzles are compared only for the tools the file uses (all extruders when it names none),
+file tool i against extruder i. The screen runs it
 as a print-start gate and shows it in the file details; the plugin, when opted in, holds a
 slicer's upload-and-print that would be blocked. Acts on a print: opt-in through
 `plugin_features.fit_check_blocks_autostart`, default off, plugin-only. Switch: Settings >
@@ -493,14 +500,14 @@ Safety & Alerts > Hold slicer prints that do not fit.
 
 | File | Role |
 |------|------|
-| `moonraker-plugin/helix_fitcheck.py` | Pure `machine_limits(settings)`, `check_fit(machine, facts)`, `fit_file_from_record(record)`, `may_autostart(enabled, findings)`, `holds_upload(form_args, print_exts)`; `FitCheck` (upload hook, converter gate, `hold_wanted`, notification) |
+| `moonraker-plugin/helix_fitcheck.py` | Pure `machine_limits(settings)`, `machine_with_live_nozzles(limits, live)`, `nozzle_volume_type(text)`, `check_fit(machine, facts)`, `fit_file_from_record(record)`, `may_autostart(enabled, findings)`, `holds_upload(form_args, print_exts)`; `FitCheck` (upload hook, converter gate, `hold_wanted`, notification; queries each configured extruder's `nozzle_diameter` / `nozzle_volume_type`) |
 | `moonraker-plugin/helix_file_queue.py` | `UPLOAD_HOLD_S`, `already_started`, `start_or_queue`, `store_without_print`, shared with the .3mf converter |
 | `moonraker-plugin/helix_3mf.py` | `Helix3mfConverter.start_gate` / `hold_wanted`: a converted upload-and-print asks the gate, under the same deadline |
-| `include/fit_check.h`, `src/printer/fit_check.cpp` | The C++ twin: `FitSeverity` (Note, Warn, Block), `fit_machine_from_settings`, `check_fit`, `fit_blocks`, `fit_warns`, `fit_worst`, `fit_machine_for_screen`, `fit_head_facts`, `fit_file_from_sources`, `fit_findings_text`; exception-free, compiled for the K-Touch |
+| `include/fit_check.h`, `src/printer/fit_check.cpp` | The C++ twin: `FitSeverity` (Note, Warn, Block), `fit_machine_from_settings`, `fit_machine_with_live_nozzles`, `fit_nozzle_volume_type`, `check_fit`, `fit_blocks`, `fit_warns`, `fit_worst`, `fit_machine_for_screen`, `fit_head_facts`, `fit_file_from_sources`, `fit_findings_text`; exception-free, compiled for the K-Touch |
 | `include/gcode_wait_line.h#heater_target_line` | The heater target lines the head scan reads (M104/M109/M140/M190/SET_HEATER_TEMPERATURE), beside the wait-line classifier |
 | `tests/fixtures/fit_check/cases.json` | The one table both checkers are held to (limit cases and check cases) |
 | `src/printer/print_start_checks.cpp#gate_fit_check` | The gate, right after `printer_stopping_command` in `default_print_start_gates` |
-| `src/printer/print_start_inputs.cpp#current_fit_machine` | Limits from `PrinterDiscovery::fit_machine()` (parsed from `configfile.settings` at discovery), plus the database model and the filament-system rule |
+| `src/printer/print_start_inputs.cpp#current_fit_machine` | Limits from `PrinterDiscovery::fit_machine()` (parsed from `configfile.settings` at discovery), plus the database model, the filament-system rule and the nozzles the extruders report (`ExtruderInfo::nozzle_diameter` / `nozzle_volume_type`, subscribed in `src/api/moonraker_discovery_sequence.cpp`) |
 | `src/ui/ui_print_select_detail_view.cpp#refresh_fit_check` | The detail card, above the filament card: `detail_fit_check_severity` (0 no finding, then one past the worst: 1 note, 2 warn, 3 block) and `detail_fit_check_text` (every finding) |
 
 **Limits.** A delta reads `print_radius` (else `delta_radius`), Z from `minimum_z_position`

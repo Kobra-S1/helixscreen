@@ -74,7 +74,7 @@ See [Print Monitoring](../print-monitoring.md) for what the detection dialog off
 
 ## Hold slicer prints that do not fit
 
-When your slicer uploads a file and asks the printer to print it, the printer starts it without HelixScreen ever seeing it. This switch lets the [HelixPrint plugin](../helixprint-plugin.md) on your printer check the file first. If the file would move past the printer's travel, heat the nozzle or bed past their limits, or use a tool the printer doesn't have, the file is still uploaded but the print isn't started. Start it from the screen once you have re-sliced it, or ignore it.
+When your slicer uploads a file and asks the printer to print it, the printer starts it without HelixScreen ever seeing it. This switch lets the [HelixPrint plugin](../helixprint-plugin.md) on your printer check the file first. If the file would move past the printer's travel, heat the nozzle or bed past their limits, use a tool the printer doesn't have, or send High Flow G-code to a toolhead the printer reports has a standard nozzle, the file is still uploaded but the print isn't started. Start it from the screen once you have re-sliced it, or ignore it.
 
 | Setting | What happens |
 |---------|--------------|

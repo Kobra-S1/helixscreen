@@ -3382,6 +3382,8 @@
   <translation tag="Sleep {} min" it="Sospensione tra {} min"/>
   <translation tag="Sliced colors" it="Colori sezionati"/>
   <translation tag="Sliced for a Different Setup" it="Preparato per un&apos;altra configurazione"/>
+  <translation tag="Sliced for a High Flow nozzle on T{}; the printer has a standard one." it="Preparato per un ugello High Flow su T{}; la stampante ha un ugello standard."/>
+  <translation tag="Sliced for a standard nozzle on T{}; the printer has High Flow." it="Preparato per un ugello standard su T{}; la stampante ha un ugello High Flow."/>
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." it="Preparato per un ugello da {:g} mm su T{}; la stampante ha {:g} mm."/>
   <translation tag="Sliced for {}, not {}." it="Preparato per {}, non per {}."/>
   <translation tag="Slicer" it="Slicer"/>

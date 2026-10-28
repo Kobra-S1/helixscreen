@@ -3699,6 +3699,8 @@ translations:
   Sleep {} min: Suspender em {} min
   Sliced colors: Cores fatiadas
   Sliced for a Different Setup: 'Fatiado para outra configuração'
+  Sliced for a High Flow nozzle on T{}; the printer has a standard one.: 'Fatiado para um bico High Flow em T{}; a impressora tem um bico padrão.'
+  Sliced for a standard nozzle on T{}; the printer has High Flow.: 'Fatiado para um bico padrão em T{}; a impressora tem um bico High Flow.'
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Fatiado para um bico de {:g} mm em T{}; a impressora tem {:g} mm.'
   Sliced for {}, not {}.: 'Fatiado para {}, não para {}.'
   Slicer: Fatiador

@@ -3738,6 +3738,8 @@ translations:
   Sleep {} min: Сон через {} мин
   Sliced colors: Цвета из слайсера
   Sliced for a Different Setup: 'Нарезано для другой конфигурации'
+  Sliced for a High Flow nozzle on T{}; the printer has a standard one.: 'Нарезано для сопла High Flow на T{}; у принтера стандартное сопло.'
+  Sliced for a standard nozzle on T{}; the printer has High Flow.: 'Нарезано для стандартного сопла на T{}; у принтера сопло High Flow.'
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Нарезано для сопла {:g} мм на T{}; у принтера {:g} мм.'
   Sliced for {}, not {}.: 'Нарезано для {}, а не для {}.'
   Slicer: Слайсер

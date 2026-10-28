@@ -167,7 +167,7 @@ TEST_CASE("Subscription: power-loss recovery and pause-cause fields follow the f
 }
 
 TEST_CASE("Subscription: heaters narrow to {temperature, target, power}, extruders add "
-          "pressure advance",
+          "pressure advance and the fitted nozzle",
           "[moonraker][subscription]") {
     DiscoveryFixture fx;
     fx.add("extruder");
@@ -185,12 +185,15 @@ TEST_CASE("Subscription: heaters narrow to {temperature, target, power}, extrude
         // at the same temperature, which is what the power readouts render.
         REQUIRE(has_field(subs, heater, "power"));
         // An extruder also carries its pressure advance, the readback the PA
-        // tuning screens display; nothing else is subscribed.
+        // tuning screens display, and the nozzle the firmware reports fitted,
+        // which the fit check reads; nothing else is subscribed.
         const bool extruder = std::string(heater).rfind("extruder", 0) == 0;
         if (extruder) {
             REQUIRE(has_field(subs, heater, "pressure_advance"));
+            REQUIRE(has_field(subs, heater, "nozzle_diameter"));
+            REQUIRE(has_field(subs, heater, "nozzle_volume_type"));
         }
-        REQUIRE(subs[heater].size() == (extruder ? 4u : 3u));
+        REQUIRE(subs[heater].size() == (extruder ? 6u : 3u));
     }
 }
 

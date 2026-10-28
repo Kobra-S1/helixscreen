@@ -128,6 +128,14 @@ std::optional<FileAnalysisRecord> record_of(const json& r) {
                 }
             }
         }
+        // The slicer's spelling; one this check does not know reads as unknown.
+        if (const json* t = json_util::find_member(*header, "nozzle_volume_types");
+            t && t->is_array()) {
+            for (const auto& v : *t) {
+                rec.fit.nozzle_volume_types.push_back(
+                    v.is_string() ? fit_nozzle_volume_type(v.get_ref<const std::string&>()) : "");
+            }
+        }
     }
     return rec;
 }

@@ -116,7 +116,40 @@ void raise(std::optional<double>& target, double value) {
     }
 }
 
+/// The flow types a list names, normalised; empty when it names none this
+/// check knows, so a later source can still answer.
+template <typename Range> std::vector<std::string> known_volume_types(const Range& values) {
+    std::vector<std::string> out;
+    bool any = false;
+    for (const auto& v : values) {
+        out.push_back(fit_nozzle_volume_type(v));
+        any = any || !out.back().empty();
+    }
+    return any ? out : std::vector<std::string>{};
+}
+
+std::vector<std::string> volume_types_in(std::string_view text) {
+    std::string normalized(text);
+    std::replace(normalized.begin(), normalized.end(), ';', ',');
+    std::vector<std::string_view> tokens;
+    for (std::string_view token : text_io::lines(normalized, ',')) {
+        tokens.push_back(text_io::trim(token));
+    }
+    return known_volume_types(tokens);
+}
+
 } // namespace
+
+std::string fit_nozzle_volume_type(std::string_view text) {
+    const std::string key = model_key(text);
+    if (key == "standard") {
+        return "standard";
+    }
+    if (key == "highflow") {
+        return "high_flow";
+    }
+    return {};
+}
 
 FitMachine fit_machine_from_settings(const json& settings) {
     FitMachine m;
@@ -202,6 +235,24 @@ FitMachine fit_machine_for_screen(FitMachine base, std::string model, bool filam
     return base;
 }
 
+FitMachine fit_machine_with_live_nozzles(FitMachine base, const std::vector<FitLiveNozzle>& live) {
+    for (size_t i = 0; i < live.size(); ++i) {
+        const auto& diameter = live[i].diameter;
+        if (diameter && std::isfinite(*diameter) && *diameter > 0.0 &&
+            i < base.nozzle_diameters.size()) {
+            base.nozzle_diameters[i] = *diameter;
+        }
+        std::string type = fit_nozzle_volume_type(live[i].volume_type);
+        if (!type.empty()) {
+            if (base.nozzle_volume_types.size() <= i) {
+                base.nozzle_volume_types.resize(i + 1);
+            }
+            base.nozzle_volume_types[i] = std::move(type);
+        }
+    }
+    return base;
+}
+
 std::vector<FitFinding> check_fit(const FitMachine& machine, const FitFile& file) {
     std::vector<FitFinding> out;
 
@@ -279,8 +330,17 @@ std::vector<FitFinding> check_fit(const FitMachine& machine, const FitFile& file
         }
     }
 
+    // A file naming its tools is judged on those tools' nozzles alone: a slicer
+    // lists a nozzle for every extruder, used or not. File tool i is compared
+    // with extruder i; the printer's own filament mapping is not followed.
+    const auto used = [&file](size_t i) {
+        return file.tools.empty() || file.tools.count(static_cast<int>(i)) != 0;
+    };
     const size_t nozzles = std::min(file.nozzle_diameters.size(), machine.nozzle_diameters.size());
     for (size_t i = 0; i < nozzles; ++i) {
+        if (!used(i)) {
+            continue;
+        }
         const double want = file.nozzle_diameters[i];
         const double have = machine.nozzle_diameters[i];
         if (std::fabs(want - have) > kNozzleTolerance) {
@@ -290,6 +350,24 @@ std::vector<FitFinding> check_fit(const FitMachine& machine, const FitFile& file
             f.limit = have;
             out.push_back(std::move(f));
         }
+    }
+
+    // High Flow G-code on a standard nozzle blocks, as Snapmaker's U1 firmware
+    // refuses that job itself; standard G-code on a High Flow nozzle only warns.
+    const size_t types =
+        std::min(file.nozzle_volume_types.size(), machine.nozzle_volume_types.size());
+    for (size_t i = 0; i < types; ++i) {
+        const std::string want = fit_nozzle_volume_type(file.nozzle_volume_types[i]);
+        const std::string have = fit_nozzle_volume_type(machine.nozzle_volume_types[i]);
+        if (!used(i) || want.empty() || have.empty() || want == have) {
+            continue;
+        }
+        FitFinding f = finding(FitKind::NozzleFlowMismatch,
+                               want == "high_flow" ? FitSeverity::Block : FitSeverity::Warn);
+        f.tool = static_cast<int>(i);
+        f.file_volume_type = want;
+        f.printer_volume_type = have;
+        out.push_back(std::move(f));
     }
 
     const std::string a = model_key(file.printer_model);
@@ -347,6 +425,10 @@ json fit_machine_json(const FitMachine& m) {
     for (double d : m.nozzle_diameters) {
         nozzles.push_back(d);
     }
+    json types = json::array();
+    for (const std::string& t : m.nozzle_volume_types) {
+        types.push_back(t);
+    }
     auto opt = [](const auto& v) { return v ? json(*v) : json(nullptr); };
     return json{{"kinematics", m.kinematics},
                 {"axis_min", axes_json(m.axis_min)},
@@ -357,6 +439,7 @@ json fit_machine_json(const FitMachine& m) {
                 {"tool_count", opt(m.tool_count)},
                 {"tool_count_confirmed", m.tool_count_confirmed},
                 {"nozzle_diameters", nozzles},
+                {"nozzle_volume_types", types},
                 {"model", m.model}};
 }
 
@@ -379,6 +462,11 @@ json fit_finding_json(const FitFinding& f) {
     case FitKind::NozzleMismatch:
         kind = "nozzle_mismatch";
         detail = {{"tool", f.tool}, {"file", f.value}, {"printer", f.limit}};
+        break;
+    case FitKind::NozzleFlowMismatch:
+        kind = "nozzle_flow_mismatch";
+        detail = {
+            {"tool", f.tool}, {"file", f.file_volume_type}, {"printer", f.printer_volume_type}};
         break;
     case FitKind::PrinterModelMismatch:
         kind = "printer_model_mismatch";
@@ -421,6 +509,13 @@ std::string fit_finding_text(const FitFinding& f) {
         return fmt::format(fmt::runtime(lv_tr("Sliced for a {:g} mm nozzle on T{}; the printer "
                                               "has {:g} mm.")),
                            f.value, f.tool, f.limit);
+    case FitKind::NozzleFlowMismatch:
+        return fmt::format(fmt::runtime(f.file_volume_type == "high_flow"
+                                            ? lv_tr("Sliced for a High Flow nozzle on T{}; the "
+                                                    "printer has a standard one.")
+                                            : lv_tr("Sliced for a standard nozzle on T{}; the "
+                                                    "printer has High Flow.")),
+                           f.tool);
     case FitKind::PrinterModelMismatch:
         return fmt::format(fmt::runtime(lv_tr("Sliced for {}, not {}.")), f.file_model,
                            f.printer_model);
@@ -456,7 +551,8 @@ FitHeadFacts fit_head_facts(std::string_view head) {
             const std::string_view text = text_io::trim(line.substr(1));
             if (const size_t eq = text.find(" = "); eq != std::string_view::npos) {
                 const std::string_view key = text_io::trim(text.substr(0, eq));
-                if (key == "printer_model" || key == "nozzle_diameter") {
+                if (key == "printer_model" || key == "nozzle_diameter" ||
+                    key == "nozzle_volume_type") {
                     config[std::string(key)] = std::string(text_io::trim(text.substr(eq + 3)));
                 }
             } else if (const size_t colon = text.find(':'); colon != std::string_view::npos) {
@@ -490,6 +586,9 @@ FitHeadFacts fit_head_facts(std::string_view head) {
     }
     if (auto it = config.find("nozzle_diameter"); it != config.end()) {
         facts.nozzle_diameters = numbers_in(it->second);
+    }
+    if (auto it = config.find("nozzle_volume_type"); it != config.end()) {
+        facts.nozzle_volume_types = volume_types_in(it->second);
     }
     if (facts.nozzle_diameters.empty()) {
         for (const auto& [key, value] : cura_nozzles) {
@@ -534,8 +633,23 @@ FitFile fit_file_from_sources(const std::optional<FitFile>& record, const FitHea
     if (file.nozzle_diameters.empty() && head != nullptr) {
         file.nozzle_diameters = head->nozzle_diameters;
     }
-    if (file.nozzle_diameters.empty() && metadata && metadata->nozzle_diameter > 0.0) {
-        file.nozzle_diameters.push_back(metadata->nozzle_diameter);
+    if (file.nozzle_diameters.empty() && metadata) {
+        if (!metadata->nozzle_diameter_list.empty()) {
+            file.nozzle_diameters = metadata->nozzle_diameter_list;
+        } else if (metadata->nozzle_diameter > 0.0) {
+            file.nozzle_diameters.push_back(metadata->nozzle_diameter);
+        }
+    }
+    const auto none_known = [](const std::vector<std::string>& types) {
+        return std::all_of(types.begin(), types.end(),
+                           [](const std::string& t) { return fit_nozzle_volume_type(t).empty(); });
+    };
+    if (none_known(file.nozzle_volume_types) && head != nullptr) {
+        file.nozzle_volume_types = head->nozzle_volume_types;
+    }
+    if (none_known(file.nozzle_volume_types) && metadata) {
+        // Listed by filament; filament i is taken to print on extruder i.
+        file.nozzle_volume_types = known_volume_types(metadata->filament_volume_types);
     }
     if (!tools.empty()) {
         file.tools = std::move(tools);

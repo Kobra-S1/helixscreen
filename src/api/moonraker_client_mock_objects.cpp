@@ -672,8 +672,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 }
             }
 
-            // The U1 reports each head's calibrated offset on its extruder, and
-            // the offset calibration state on machine_state_manager.
+            // The U1 reports each head's calibrated offset and its fitted nozzle
+            // (stock: 0.4 mm standard, kept outside the config) on its extruder,
+            // and the offset calibration state on machine_state_manager.
             if (self->get_printer_type() == MoonrakerClientMock::PrinterType::SNAPMAKER_U1) {
                 if (objects.contains("machine_state_manager")) {
                     status_obj["machine_state_manager"]["main_state"] =
@@ -687,6 +688,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     if (objects.contains(name)) {
                         const auto o = self->nozzle_offset(head);
                         status_obj[name]["extruder_offset"] = {o[0], o[1], o[2]};
+                        status_obj[name]["nozzle_diameter"] = 0.4;
+                        status_obj[name]["nozzle_volume_type"] = "standard";
                     }
                 }
             }

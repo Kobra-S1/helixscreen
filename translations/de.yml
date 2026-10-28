@@ -3703,6 +3703,8 @@ translations:
   Sleep {} min: Ruhezustand nach {} Min.
   Sliced colors: Slice-Farben
   Sliced for a Different Setup: 'Für ein anderes Setup gesliced'
+  Sliced for a High Flow nozzle on T{}; the printer has a standard one.: 'Für eine High-Flow-Düse an T{} gesliced; der Drucker hat eine Standarddüse.'
+  Sliced for a standard nozzle on T{}; the printer has High Flow.: 'Für eine Standarddüse an T{} gesliced; der Drucker hat eine High-Flow-Düse.'
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Für eine {:g}-mm-Düse an T{} gesliced; der Drucker hat {:g} mm.'
   Sliced for {}, not {}.: 'Für {} gesliced, nicht für {}.'
   Slicer: Slicer

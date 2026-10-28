@@ -3382,6 +3382,8 @@
   <translation tag="Sleep {} min" ja="{}分でスリープ"/>
   <translation tag="Sliced colors" ja="スライスした色"/>
   <translation tag="Sliced for a Different Setup" ja="別の構成用にスライスされています"/>
+  <translation tag="Sliced for a High Flow nozzle on T{}; the printer has a standard one." ja="High Flowノズル（T{}）用にスライスされています。プリンターは標準ノズルです。"/>
+  <translation tag="Sliced for a standard nozzle on T{}; the printer has High Flow." ja="標準ノズル（T{}）用にスライスされています。プリンターはHigh Flowノズルです。"/>
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." ja="{:g} mmノズル（T{}）用にスライスされています。プリンターは{:g} mmです。"/>
   <translation tag="Sliced for {}, not {}." ja="{}用にスライスされています。{}用ではありません。"/>
   <translation tag="Slicer" ja="スライサー"/>

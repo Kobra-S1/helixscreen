@@ -3382,6 +3382,8 @@
   <translation tag="Sleep {} min" pt="Suspender em {} min"/>
   <translation tag="Sliced colors" pt="Cores fatiadas"/>
   <translation tag="Sliced for a Different Setup" pt="Fatiado para outra configuração"/>
+  <translation tag="Sliced for a High Flow nozzle on T{}; the printer has a standard one." pt="Fatiado para um bico High Flow em T{}; a impressora tem um bico padrão."/>
+  <translation tag="Sliced for a standard nozzle on T{}; the printer has High Flow." pt="Fatiado para um bico padrão em T{}; a impressora tem um bico High Flow."/>
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." pt="Fatiado para um bico de {:g} mm em T{}; a impressora tem {:g} mm."/>
   <translation tag="Sliced for {}, not {}." pt="Fatiado para {}, não para {}."/>
   <translation tag="Slicer" pt="Fatiador"/>

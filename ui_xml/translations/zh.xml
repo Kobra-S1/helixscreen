@@ -3382,6 +3382,8 @@
   <translation tag="Sleep {} min" zh="{} 分钟后休眠"/>
   <translation tag="Sliced colors" zh="切片颜色"/>
   <translation tag="Sliced for a Different Setup" zh="为不同配置切片"/>
+  <translation tag="Sliced for a High Flow nozzle on T{}; the printer has a standard one." zh="按 High Flow 喷嘴（T{}）切片；打印机为标准喷嘴。"/>
+  <translation tag="Sliced for a standard nozzle on T{}; the printer has High Flow." zh="按标准喷嘴（T{}）切片；打印机为 High Flow 喷嘴。"/>
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." zh="按 {:g} mm 喷嘴（T{}）切片；打印机为 {:g} mm。"/>
   <translation tag="Sliced for {}, not {}." zh="为 {} 切片，而不是 {}。"/>
   <translation tag="Slicer" zh="切片软件"/>

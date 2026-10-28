@@ -369,6 +369,11 @@ struct FileMetadata {
     double first_layer_bed_temp = 0.0;
     double first_layer_extr_temp = 0.0;
     double nozzle_diameter = 0.0; ///< mm, the slicer's; 0 when the file states none
+    /// mm by extruder (`nozzle_diameter_list`, which some Moonraker forks add); empty when absent.
+    std::vector<double> nozzle_diameter_list;
+    /// Each filament's nozzle flow type as the file writes it (`filament_volume_type`, which
+    /// some Moonraker forks add); empty when absent.
+    std::vector<std::string> filament_volume_types;
     uint64_t gcode_start_byte = 0;
     uint64_t gcode_end_byte = 0;
     std::string uuid;                      // Slicer-generated UUID (for history matching)

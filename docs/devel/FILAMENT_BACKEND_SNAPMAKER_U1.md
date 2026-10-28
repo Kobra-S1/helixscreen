@@ -673,6 +673,12 @@ The commands are registered in Python by `ExtruderOffsetCalibration` in `<klippe
 
 Mock: the `snapmaker_u1` persona lists the hook macros, and `MoonrakerClientMock::simulate_nozzle_offset_calibration` answers each step after a beat, models the state gate, and moves the probed head's `extruder_offset`. `HELIX_MOCK_NOZZLE_CAL_PLATE_REFUSE=<n>` refuses the first n plate checks; `HELIX_MOCK_NOZZLE_CAL_FAIL=<n>` fails head n's probe.
 
+### Fitted Nozzles
+
+The U1's heads take swappable nozzles, and the firmware keeps each head's fitted nozzle outside `printer.cfg`: `PrinterExtruder.__init__` in `<klipper>/klippy/kinematics/extruder.py` loads a per-extruder file from the persistent Snapmaker config directory (`diameter`, `volume_type`; default 0.4 and `standard`) and lets it replace the config's `nozzle_diameter`. `get_status()` reports both as `nozzle_diameter` and `nozzle_volume_type` (`standard` or `high_flow`), while `configfile.settings` keeps the config's value, so a printer with a 0.2, two 0.4 High Flow and a 0.6 nozzle reads 0.4 four times there. The firmware's own check (`<klipper>/klippy/extras/print_task_config.py`, run only for the `SET_PRINT_TASK_PARAMETERS` Snapmaker's Orca writes) refuses a used head whose diameter differs (code 14) or whose file flow type differs while the head is not `high_flow` (code 19).
+
+HelixScreen subscribes both extruder fields for every printer (stock Klipper has neither and answers null), and the fit check prefers them to the config's (`src/printer/print_start_inputs.cpp#current_fit_machine`, `fit_machine_with_live_nozzles()`); the plugin queries the same fields before it checks a slicer's upload-and-print. The file's flow types come from Orca's `; nozzle_volume_type = Standard,High Flow,...` config comment, else from the `filament_volume_type` list Snapmaker's Moonraker adds to the metadata, beside `nozzle_diameter_list`. File tool i is compared with head i; a Filament Mapping remap is not followed. The mock persona reports 0.4 mm `standard` on all four heads.
+
 ### Key Files
 
 | File | Purpose |
