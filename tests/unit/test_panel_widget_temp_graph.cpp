@@ -1075,10 +1075,69 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(dialog != nullptr);
     lv_obj_t* swatch = lv_obj_find_by_name(dialog, "sensor_swatch_0");
     REQUIRE(swatch != nullptr);
-    CHECK(helix::ui::has_swatch_paint(swatch));
-    CHECK(lv_obj_get_style_radius(swatch, LV_PART_MAIN) == LV_RADIUS_CIRCLE);
-    CHECK(lv_color_eq(helix::ui::swatch_color_of(swatch), kTempGraphSeriesColors[2]));
+    lv_obj_t* disc = lv_obj_find_by_name(swatch, "color_swatch_disc");
+    REQUIRE(disc != nullptr);
+    CHECK(helix::ui::has_swatch_paint(disc));
+    CHECK(lv_obj_get_style_radius(disc, LV_PART_MAIN) == LV_RADIUS_CIRCLE);
+    CHECK(lv_color_eq(helix::ui::swatch_color_of(disc), kTempGraphSeriesColors[2]));
 
     lv_obj_send_event(swatch, LV_EVENT_CLICKED, nullptr);
-    CHECK(lv_color_eq(helix::ui::swatch_color_of(swatch), kTempGraphSeriesColors[3]));
+    CHECK(lv_color_eq(helix::ui::swatch_color_of(disc), kTempGraphSeriesColors[3]));
+}
+
+// ============================================================================
+// Config modal: rows are the XML temp_graph_series_row bound to subjects
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "TempGraphWidget config: one bound row per series, switches and follow save",
+                 "[temp_graph][panel_widget][config][rows]") {
+    TempGraphWidget widget("test_rows");
+    widget.set_config({{"sensors",
+                        {
+                            {{"name", "extruder"}, {"enabled", true}},
+                            {{"name", "heater_bed"}, {"enabled", true}},
+                        }}});
+    REQUIRE(widget.on_edit_configure());
+    helix::ui::UpdateQueue::instance().drain();
+
+    lv_obj_t* dialog = ModalStack::instance().top_dialog();
+    REQUIRE(dialog != nullptr);
+
+    lv_obj_t* name0 = lv_obj_find_by_name(dialog, "sensor_name_0");
+    lv_obj_t* name1 = lv_obj_find_by_name(dialog, "sensor_name_1");
+    REQUIRE(name0 != nullptr);
+    REQUIRE(name1 != nullptr);
+    CHECK(std::string(lv_label_get_text(name0)) ==
+          TempGraphWidgetTestAccess::sensor_display_name("extruder"));
+    CHECK(std::string(lv_label_get_text(name1)) == "Bed");
+    CHECK(lv_obj_find_by_name(dialog, "sensor_name_2") == nullptr);
+
+    lv_obj_t* sw0 = lv_obj_find_by_name(dialog, "sensor_switch_0");
+    lv_obj_t* sw1 = lv_obj_find_by_name(dialog, "sensor_switch_1");
+    REQUIRE(sw0 != nullptr);
+    REQUIRE(sw1 != nullptr);
+    CHECK(lv_obj_has_state(sw0, LV_STATE_CHECKED));
+    CHECK(lv_obj_has_state(sw1, LV_STATE_CHECKED));
+
+    // The user turns the bed off and follow on.
+    lv_obj_remove_state(sw1, LV_STATE_CHECKED);
+    lv_obj_send_event(sw1, LV_EVENT_VALUE_CHANGED, nullptr);
+    lv_obj_t* follow = lv_obj_find_by_name(dialog, "follow_switch");
+    REQUIRE(follow != nullptr);
+    lv_obj_add_state(follow, LV_STATE_CHECKED);
+    lv_obj_send_event(follow, LV_EVENT_VALUE_CHANGED, nullptr);
+
+    lv_obj_t* ok = lv_obj_find_by_name(dialog, "btn_primary");
+    REQUIRE(ok != nullptr);
+    lv_obj_send_event(ok, LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto& saved = TempGraphWidgetTestAccess::get_config(widget);
+    REQUIRE(saved["sensors"].size() == 2);
+    CHECK(saved["sensors"][0]["name"] == "extruder");
+    CHECK(saved["sensors"][0]["enabled"] == true);
+    CHECK(saved["sensors"][1]["name"] == "heater_bed");
+    CHECK(saved["sensors"][1]["enabled"] == false);
+    CHECK(saved["follow_overlay"] == true);
 }

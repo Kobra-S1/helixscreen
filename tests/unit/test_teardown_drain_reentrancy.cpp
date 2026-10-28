@@ -261,6 +261,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "home widget carousel bind and detach run no
         helix::sensors::TemperatureSensorManager::instance().init_subjects();
         helix::sensors::TemperatureSensorManager::instance().discover(helix::test::discovery_of(
             {"temperature_sensor helix_drain_a", "temperature_sensor helix_drain_b"}));
+        // Discovery publishes its count from the queue; let that land before the
+        // widget observes it, or it reads as a later change of the sensor set.
+        helix::ui::UpdateQueue::instance().drain();
         std::optional<PanelWidgetHarness<ThermistorWidget>> h;
         lv_obj_t* temp_label = nullptr;
         check_runs_no_queued_callback("attach binds the carousel", [&] {
