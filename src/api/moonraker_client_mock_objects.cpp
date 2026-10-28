@@ -223,7 +223,8 @@ json get_mock_probe_config(helix::mock::PrinterType type) {
     if (probe_type == "cartographer") {
         cfg["cartographer"] = {{"z_offset", "0.000"}, {"speed", "5"}};
     } else if (probe_type == "beacon") {
-        cfg["beacon"] = {{"z_offset", "0.000"}, {"speed", "5"}};
+        // accel_axes_map is what a Beacon with its onboard accelerometer configures.
+        cfg["beacon"] = {{"z_offset", "0.000"}, {"speed", "5"}, {"accel_axes_map", "x,y,z"}};
     } else if (probe_type == "bltouch") {
         cfg["bltouch"] = {
             {"z_offset", "-1.850"}, {"x_offset", "-40.0"}, {"y_offset", "-10.0"}, {"speed", "5"}};
@@ -410,7 +411,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 // Gcode macro templates for param detection testing
                 config_section.merge_patch(get_mock_gcode_macro_config());
 
-                // Probe section — where ProbeSensorManager::discover_from_config()
+                // Probe section — where ProbeSensorManager::on_discovered()
                 // reads z_offset from on the real discovery path.
                 config_section.merge_patch(get_mock_probe_config(self->get_printer_type()));
 

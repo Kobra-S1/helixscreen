@@ -288,7 +288,7 @@ void AmsState::install_motion_sensor_observer() {
     motion_sensor_observer_ = helix::ui::observe<int>(
         sensors.get_motion_signature_subject(), this,
         [](AmsState* self, int /*signature*/) { self->resync_clog_meter(); },
-        sensors.get_subjects_lifetime());
+        sensors.subjects_lifetime());
 }
 
 void AmsState::set_source_override(int source) {

@@ -115,7 +115,7 @@ void GuidedLoadModal::on_show() {
     last_runout_ = lv_subject_get_int(runout);
     runout_observer_ = observe<int>(
         runout, this, [](GuidedLoadModal* self, int value) { self->on_runout_value(value); },
-        sensors.get_subjects_lifetime());
+        sensors.subjects_lifetime());
 }
 
 void GuidedLoadModal::on_hide() {

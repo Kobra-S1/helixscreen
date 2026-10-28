@@ -3216,7 +3216,7 @@ void MoonrakerAdvancedAPI::detect_belt_hardware(BeltHardwareCallback on_complete
             // configfile.config alongside the probe manager
             // (moonraker_discovery_sequence.cpp). Accelerometer modules have no
             // get_status(), so configfile is the only place they appear at all.
-            hw.has_adxl = helix::sensors::AccelSensorManager::instance().has_sensors();
+            hw.has_adxl = helix::sensors::AccelSensorManager::instance().sensor_count() > 0;
 
             spdlog::info("[MoonrakerAPI] Belt HW scan: adxl={}", hw.has_adxl);
 

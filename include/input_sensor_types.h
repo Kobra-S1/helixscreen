@@ -17,33 +17,12 @@ enum class InputSensorRole {
     DOOR = 1, ///< A door, lid or cover switch: the door-open print-start gate reads it
 };
 
-/// @brief Kind of Klipper object an input comes from.
-enum class InputSensorType {
-    GCODE_BUTTON = 1, ///< [gcode_button] (state: "PRESSED" / "RELEASED")
-};
-
-/// @brief Configuration for one on/off input
-struct InputSensorConfig {
-    std::string klipper_name; ///< Full Klipper name (e.g., "gcode_button frontDoor")
-    std::string sensor_name;  ///< Short name (e.g., "frontDoor")
-    InputSensorType type = InputSensorType::GCODE_BUTTON;
-    InputSensorRole role = InputSensorRole::NONE;
-    bool enabled = true;
+/// @brief One input's live reading and polarity.
+struct InputReading {
+    bool pressed = false;  ///< Last reported state
+    bool reported = false; ///< A state has arrived since discovery
     /// A door switch reads closed while pressed. Inverted, it reads closed while released.
     bool inverted = false;
-
-    InputSensorConfig() = default;
-
-    InputSensorConfig(std::string klipper_name_, std::string sensor_name_, InputSensorType type_)
-        : klipper_name(std::move(klipper_name_)), sensor_name(std::move(sensor_name_)),
-          type(type_) {}
-};
-
-/// @brief Runtime state for one on/off input
-struct InputSensorState {
-    bool pressed = false;   ///< Last reported state
-    bool reported = false;  ///< A state has arrived since discovery
-    bool available = false; ///< Present in the current Klipper config
 };
 
 inline constexpr EnumName<InputSensorRole> kInputSensorRoles[] = {
@@ -53,14 +32,6 @@ inline constexpr EnumName<InputSensorRole> kInputSensorRoles[] = {
 
 [[nodiscard]] inline std::string input_role_to_string(InputSensorRole role) {
     return enum_id(kInputSensorRoles, role);
-}
-
-[[nodiscard]] inline InputSensorRole input_role_from_string(const std::string& str) {
-    return enum_from_id(kInputSensorRoles, str);
-}
-
-[[nodiscard]] inline std::string input_type_to_string(InputSensorType /*type*/) {
-    return "gcode_button";
 }
 
 /// @brief Which edges of an input the printer's own config already acts on: a
@@ -78,9 +49,9 @@ struct InputConfigReaction {
 /// says door, lid or cover (any case), else none.
 [[nodiscard]] InputSensorRole default_input_role(std::string_view sensor_name);
 
-/// @brief Whether a Door input reads open. An input with no reported state, or
-/// any role other than Door, never does.
-[[nodiscard]] bool input_reads_open(const InputSensorConfig& config, const InputSensorState& state);
+/// @brief Whether an input of @p role reads open. An input with no reported
+/// state, or any role other than Door, never does.
+[[nodiscard]] bool input_reads_open(InputSensorRole role, const InputReading& reading);
 
 /// @brief The doors in @p now that are not in @p before: the ones that just
 /// opened, each owed one mid-print warning.

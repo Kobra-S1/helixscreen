@@ -1917,16 +1917,16 @@ SubjectLifetime gate_subject_lifetime(const char* name) {
         return AmsState::instance().get_subjects_lifetime();
     }
     if (std::strcmp(name, "filament_sensor_count") == 0) {
-        return FilamentSensorManager::instance().get_subjects_lifetime();
+        return FilamentSensorManager::instance().subjects_lifetime();
     }
     if (std::strcmp(name, "humidity_sensor_count") == 0) {
-        return sensors::HumiditySensorManager::instance().get_subjects_lifetime();
+        return sensors::HumiditySensorManager::instance().subjects_lifetime();
     }
     if (std::strcmp(name, "temp_sensor_count") == 0) {
-        return sensors::TemperatureSensorManager::instance().get_subjects_lifetime();
+        return sensors::TemperatureSensorManager::instance().subjects_lifetime();
     }
     if (std::strcmp(name, "width_sensor_count") == 0) {
-        return sensors::WidthSensorManager::instance().get_subjects_lifetime();
+        return sensors::WidthSensorManager::instance().subjects_lifetime();
     }
     if (std::strcmp(name, "led_controllable") == 0 || std::strcmp(name, "led_has_devices") == 0) {
         return led::LedController::instance().get_subjects_lifetime();

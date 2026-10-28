@@ -34,6 +34,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ad5x_ifs_test_access.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../ui_test_utils.h"
@@ -156,11 +157,11 @@ class DwellFixture : public LVGLTestFixture {
         fsm.init_subjects();
         PostUnloadGraceTestAccess::reset(fsm);
         fsm.set_master_enabled(true);
-        fsm.discover_sensors({kHeadSensor});
-        fsm.set_sensor_role(kHeadSensor, FilamentSensorRole::RUNOUT);
+        discover_filament_sensors(fsm, {kHeadSensor});
+        fsm.set_role(kHeadSensor, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
 
         // Filament present, and the startup grace spent, before anything is
-        // asserted. discover_sensors() re-anchors that grace, so it has to be
+        // asserted. discover() re-anchors that grace, so it has to be
         // cleared after the sensors are installed, not before.
         fsm.update_from_status(head_status(true));
         PostUnloadGraceTestAccess::clear_startup_grace(fsm);

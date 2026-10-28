@@ -4956,6 +4956,7 @@ translations:
   '{} turns': "{} voltas"
   '{} updated': 'Atualização de {}'
   '{} widgets': '{} widgets'
+  '{} width sensor': 'Sensor de largura {}'
   ? '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
   : '{} mudará para um slot cujo tipo de filamento E cor correspondam ao carretel ativo e cujo próprio sensor de porta detecte filamento presente.'
   '{} · {}': '{} · {}'

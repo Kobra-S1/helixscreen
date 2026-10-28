@@ -70,7 +70,7 @@ flowchart TB
 
 Across the fourteen headers (orchestrator + domains) there are well over a hundred fixed subjects, a count that moves almost every release, plus heap-allocated dynamic subjects created at runtime (per-extruder `ExtruderInfo`, rediscovered fans and sensors).
 
-Status frames do not go to `PrinterState` alone. `dispatch_status_frame()` ([`src/printer/status_dispatch.cpp#dispatch_status_frame`](../../../src/printer/status_dispatch.cpp)), called on the main thread from `MoonrakerManager`, hands each frame to `PrinterState::update_from_status()`, then `ToolState`, the LED controller's strip-colour cache and every sensor manager through `for_each_sensor_manager()`; `dispatch_status()` is the same hand-off for a one-off `printer.objects.query` result. `PrinterState::update_from_status()` updates only its own domains, so a new consumer of status joins the dispatch rather than growing a call inside `PrinterState`.
+Status frames do not go to `PrinterState` alone. `dispatch_status_frame()` ([`src/printer/status_dispatch.cpp#dispatch_status_frame`](../../../src/printer/status_dispatch.cpp)), called on the main thread from `MoonrakerManager`, hands each frame to `PrinterState::update_from_status()`, then `ToolState`, the LED controller's strip-colour cache and every sensor manager through `sensors::sensor_managers()`; `dispatch_status()` is the same hand-off for a one-off `printer.objects.query` result. `PrinterState::update_from_status()` updates only its own domains, so a new consumer of status joins the dispatch rather than growing a call inside `PrinterState`.
 
 Lifecycle is a fan-out, not thirteen registrations. `PrinterState::init_subjects()` ([`src/printer/printer_state.cpp#init_subjects`](../../../src/printer/printer_state.cpp)) calls each domain's `init_subjects(register_xml)` in a fixed order, then self-registers **one** cleanup entry (`"PrinterState"`) with `StaticSubjectRegistry`. `deinit_subjects()` ([`src/printer/printer_state.cpp#deinit_subjects`](../../../src/printer/printer_state.cpp)) runs the mirror: drop its own `StaticSubjectRegistry` entry, invalidate the `AsyncLifetimeGuard` (drops setter callbacks still queued on the UpdateQueue), unregister the per-printer cache invalidator from `PrinterCacheRegistry`, flip the `SubjectLifetime` death token **before** tearing anything down (so surviving `ObserverGuard`s skip removal on soon-to-be-freed observer lists), then deinit all thirteen domains plus the orchestrator's own subject (`active_printer_name_`). Domains never register themselves; the single orchestrator entry covers them. The destructor also drops the registry entry, so a per-test `PrinterState` cannot leave a dangling deinit callback behind.
 
@@ -121,9 +121,9 @@ The tree has **74 classes with a `static X& instance()` (or pointer) declaration
 | `PrintControlButtons` | [`print_control_buttons.h`](../../../include/print_control_buttons.h) | Shared pause/resume/stop subjects + callbacks |
 | `PowerDeviceState` | [`power_device_state.h`](../../../include/power_device_state.h) | Moonraker power-device state. Rediscovery (every Klipper restart) keeps a still-present device's subject and lifetime and updates it in place, so tiles observing it keep working |
 | `PerformanceState` | [`performance_state.h`](../../../include/performance_state.h) | Per-metric ring buffers (~60 s history) |
-| `SensorState` | [`sensor_state.h`](../../../include/sensor_state.h) | Discovered Moonraker sensor metadata |
+| `SensorState` | [`sensor_state.h`](../../../include/sensor_state.h) | Moonraker `[sensor]` components (power meters); a `SensorManager` subclass |
 | `AbortManager` | [`abort_manager.h`](../../../include/abort_manager.h) | Print cancellation with progressive escalation |
-| **Sensor managers** | | |
+| **Sensor managers** (each derives [`sensor_manager.h`](../../../include/sensor_manager.h)) | | |
 | `TemperatureSensorManager` | [`temperature_sensor_manager.h`](../../../include/temperature_sensor_manager.h) | `temperature_sensor` / `temperature_fan` objects |
 | `HumiditySensorManager` | [`humidity_sensor_manager.h`](../../../include/humidity_sensor_manager.h) | BME280, HTU21D, SHT3X, AHT10/20/20-F |
 | `WidthSensorManager` | [`width_sensor_manager.h`](../../../include/width_sensor_manager.h) | Filament width sensors (TSL1401CL, Hall) |
@@ -132,6 +132,7 @@ The tree has **74 classes with a `static X& instance()` (or pointer) declaration
 | `FilamentSensorManager` | [`filament_sensor_manager.h`](../../../include/filament_sensor_manager.h) | Filament sensor discovery + runout state; owns the bypass⇄runout arming policy (`on_bypass_active_changed`) |
 | `DetectionManager` | [`detection_manager.h`](../../../include/detection_manager.h) | Detection-source registry + policy dispatch |
 | `LoadCellManager` | [`load_cell_manager.h`](../../../include/load_cell_manager.h) | `load_cell` sensors (a sensor manager) |
+| `InputSensorManager` | [`input_sensor_manager.h`](../../../include/input_sensor_manager.h) | `gcode_button` inputs (doors, buttons) |
 | **Filament & spools** | | |
 | `SpoolmanManager` | [`spoolman_manager.h`](../../../include/spoolman_manager.h) | Spoolman polling, circuit breaker, identity cache |
 | `FilamentConsumptionTracker` | [`filament_consumption_tracker.h`](../../../include/filament_consumption_tracker.h) | Per-spool filament consumption accounting |

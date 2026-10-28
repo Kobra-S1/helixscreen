@@ -24,6 +24,7 @@
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "probe_sensor_manager.h"
 #include "settings_manager.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/update_queue_test_access.h"
@@ -53,6 +54,12 @@ class CalibrationSendFixture : public LVGLTestFixture {
         // The discovery snapshot persists on the process-wide state across test
         // cases; start each one plain so only set_zmod() cases see the provider.
         state().set_hardware(helix::PrinterDiscovery{});
+        // The calibrate command follows the discovered probe's type, and the probe
+        // manager is process-wide: start each case with no probe, as a plain
+        // printer has, so a scan probe another case discovered cannot pick it.
+        auto& probes = helix::sensors::ProbeSensorManager::instance();
+        probes.discover(helix::PrinterDiscovery{});
+        probes.set_probe_type_override(helix::sensors::ProbeSensorType::STANDARD);
     }
 
     ~CalibrationSendFixture() override {

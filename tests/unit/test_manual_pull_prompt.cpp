@@ -22,12 +22,17 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
+#include "../test_helpers/post_unload_grace_test_access.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "filament_sensor_manager.h"
+#include "filament_sensor_types.h"
 
 #include <string>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using helix::FilamentSensorManager;
 
@@ -42,6 +47,9 @@ class ManualPullFixture : public LVGLTestFixture {
   public:
     ManualPullFixture() {
         FilamentSensorManager::instance().init_subjects();
+        // The manager publishes its first reading through the queue. Land it now,
+        // or the first drain inside a case overwrites the value the case set.
+        helix::ui::UpdateQueue::instance().drain();
         toolhead_ = FilamentSensorManager::instance().get_toolhead_detected_subject();
         REQUIRE(toolhead_ != nullptr);
         // The info hook sees the prompt whether it reaches the toast stack or the
@@ -162,4 +170,38 @@ TEST_CASE_METHOD(ManualPullFixture, "Manual pull: never fires without being arme
     set_toolhead(0);
     helix::ui::manual_pull_unload_finished();
     CHECK(prompts_fired() == 0);
+}
+
+TEST_CASE_METHOD(ManualPullFixture,
+                 "Manual pull: a real sensor edge prompts once the manager's publish drains",
+                 "[manual_pull][bypass]") {
+    // The app's path: Klipper status reaches the manager, which publishes the
+    // toolhead subject through the queue (sync mode off, as in the app), and the
+    // prompt observes that subject.
+    constexpr const char* kSensor = "filament_switch_sensor toolhead_sensor";
+    auto status = [kSensor](bool detected) {
+        return nlohmann::json{{kSensor, {{"filament_detected", detected}, {"enabled", true}}}};
+    };
+    auto& fsm = FilamentSensorManager::instance();
+    helix::PostUnloadGraceTestAccess::reset(fsm);
+    helix::discover_filament_sensors(fsm, {kSensor});
+    fsm.set_role(kSensor, static_cast<uint8_t>(helix::FilamentSensorRole::TOOLHEAD));
+    fsm.set_sync_mode(false);
+
+    // Each drain_all() runs the queue to a fixpoint, as successive app ticks do:
+    // the manager's publish sets the subject, and the observer it wakes queues
+    // its own body behind it.
+    fsm.update_from_status(status(true));
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(lv_subject_get_int(fsm.get_toolhead_detected_subject()) == 1);
+    helix::ui::arm_manual_pull_prompt();
+    CHECK(prompts_fired() == 0);
+
+    fsm.update_from_status(status(false));
+    CHECK(prompts_fired() == 0); // nothing reaches the subject until the queue drains
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(lv_subject_get_int(fsm.get_toolhead_detected_subject()) == 0);
+    CHECK(prompts_fired() == 1);
+
+    helix::FilamentSensorManagerTestAccess::reset(fsm);
 }

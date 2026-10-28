@@ -405,11 +405,11 @@ void PrinterManagerOverlay::observe_chip_inputs() {
     }
 
     auto& accel = helix::sensors::AccelSensorManager::instance();
-    watch(accel.get_sensor_count_subject(), accel.get_subjects_lifetime());
+    watch(accel.count_subject(), accel.subjects_lifetime());
     auto& filament = helix::FilamentSensorManager::instance();
-    watch(filament.get_sensor_count_subject(), filament.get_subjects_lifetime());
+    watch(filament.count_subject(), filament.subjects_lifetime());
     auto& width = helix::sensors::WidthSensorManager::instance();
-    watch(width.get_sensor_count_subject(), width.get_subjects_lifetime());
+    watch(width.count_subject(), width.subjects_lifetime());
 
     auto& ams = AmsState::instance();
     watch(ams.get_backend_count_subject(), ams.get_subjects_lifetime());

@@ -10,13 +10,12 @@
 // HELIX_WRITE_GOLDENS=1 rewrites the files from the current builder output.
 
 #include "../helix_test_fixture.h"
-#include "klipper_extruder_naming.h"
+#include "../test_helpers/golden_json.h"
+#include "hardware_object_table.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_discovery_sequence.h"
 #include "printer_discovery.h"
 
-#include <cstdlib>
-#include <fstream>
 #include <string>
 #include <vector>
 
@@ -25,22 +24,13 @@
 
 using helix::MoonrakerDiscoverySequence;
 using helix::PrinterDiscovery;
+using helix::test::check_against_golden;
 using nlohmann::json;
 
 namespace {
 
-std::string golden_path(const std::string& name) {
-    std::string src = __FILE__;
-    auto pos = src.rfind("/tests/unit/");
-    std::string root = pos != std::string::npos ? src.substr(0, pos) + "/" : std::string{};
-    return root + "tests/fixtures/subscription_parity/" + name + ".json";
-}
-
-/// One printer's object list, bucketed the way parse_objects() buckets it.
+/// One printer's object list.
 struct Printer {
-    std::vector<std::string> heaters{"extruder", "heater_bed"};
-    std::vector<std::string> fans{"fan"};
-    std::vector<std::string> filament_sensors;
     json all_objects = json::array({"extruder", "heater_bed", "fan"});
     json status_claim;
 
@@ -52,9 +42,7 @@ struct Printer {
         return obj(name);
     }
     Printer& sensor(const std::string& name) {
-        all_objects.push_back(name);
-        filament_sensors.push_back(name);
-        return *this;
+        return obj(name);
     }
 
     json build() const {
@@ -63,43 +51,22 @@ struct Printer {
         if (!status_claim.is_null()) {
             hw.settle_status_claims(status_claim);
         }
-        return MoonrakerDiscoverySequence::build_subscription_objects(hw, heaters, {}, {}, fans, {},
-                                                                      filament_sensors, {});
+        return MoonrakerDiscoverySequence::build_subscription_objects(hw);
     }
 };
-
-void check_against_golden(const std::string& name, const json& actual) {
-    const std::string path = golden_path(name);
-    const char* write = std::getenv("HELIX_WRITE_GOLDENS");
-    if (write != nullptr && std::string(write) == "1") {
-        std::ofstream out(path);
-        REQUIRE(out.good());
-        out << actual.dump(2) << "\n";
-        WARN("wrote golden " << path);
-        return;
-    }
-    std::ifstream in(path);
-    INFO("golden missing or unreadable: " << path);
-    REQUIRE(in.good());
-    json expected = json::parse(in, nullptr, false);
-    REQUIRE_FALSE(expected.is_discarded());
-    INFO("actual:\n" << actual.dump(2));
-    INFO("expected:\n" << expected.dump(2));
-    CHECK(actual == expected);
-}
 
 } // namespace
 
 TEST_CASE("subscription objects are unchanged for every backend fixture", "[subscription_parity]") {
     SECTION("plain printer") {
         Printer p;
-        check_against_golden("plain", p.build());
+        check_against_golden("subscription_parity", "plain", p.build());
     }
 
     SECTION("Happy Hare") {
         Printer p;
         p.obj("mmu");
-        check_against_golden("happy_hare", p.build());
+        check_against_golden("subscription_parity", "happy_hare", p.build());
     }
 
     SECTION("AFC BoxTurtle") {
@@ -111,49 +78,49 @@ TEST_CASE("subscription objects are unchanged for every backend fixture", "[subs
             .afc("AFC_hub Turtle_1")
             .afc("AFC_extruder extruder")
             .afc("AFC_buffer Turtle_1");
-        check_against_golden("afc_boxturtle", p.build());
+        check_against_golden("subscription_parity", "afc_boxturtle", p.build());
     }
 
     SECTION("ACE with named instances") {
         Printer p;
         p.obj("ace_instance_0").obj("ace_instance_1");
-        check_against_golden("ace_named", p.build());
+        check_against_golden("subscription_parity", "ace_named", p.build());
     }
 
     SECTION("ACE published as the plain ace object") {
         Printer p;
         p.obj("ace");
-        check_against_golden("ace_plain", p.build());
+        check_against_golden("subscription_parity", "ace_plain", p.build());
     }
 
     SECTION("ACE published as filament_hub") {
         Printer p;
         p.obj("filament_hub");
-        check_against_golden("ace_filament_hub", p.build());
+        check_against_golden("subscription_parity", "ace_filament_hub", p.build());
     }
 
     SECTION("CFS") {
         Printer p;
         p.obj("box");
-        check_against_golden("cfs", p.build());
+        check_against_golden("subscription_parity", "cfs", p.build());
     }
 
     SECTION("Snapmaker with the batch macro") {
         Printer p;
         p.obj("filament_detect").obj("gcode_macro Auto_Feeding_Batch");
-        check_against_golden("snapmaker_batch", p.build());
+        check_against_golden("subscription_parity", "snapmaker_batch", p.build());
     }
 
     SECTION("Snapmaker without the batch macro") {
         Printer p;
         p.obj("filament_detect");
-        check_against_golden("snapmaker_no_batch", p.build());
+        check_against_golden("subscription_parity", "snapmaker_no_batch", p.build());
     }
 
     SECTION("QIDI Box") {
         Printer p;
         p.obj("box_stepper slot0").obj("box_stepper slot1").obj("box_extras");
-        check_against_golden("qidi_box", p.build());
+        check_against_golden("subscription_parity", "qidi_box", p.build());
     }
 
 #if HELIX_HAS_IFS
@@ -163,7 +130,7 @@ TEST_CASE("subscription objects are unchanged for every backend fixture", "[subs
             .obj("ifs_materials")
             .obj("save_variables")
             .sensor("filament_switch_sensor lane1");
-        check_against_golden("ad5x_ifs_module", p.build());
+        check_against_golden("subscription_parity", "ad5x_ifs_module", p.build());
     }
 
     SECTION("AD5X IFS on native Z-Mod") {
@@ -175,7 +142,7 @@ TEST_CASE("subscription objects are unchanged for every backend fixture", "[subs
             .obj("zmod_color")
             .obj("gcode_macro END_CHANGE_FILAMENT")
             .obj("save_variables");
-        check_against_golden("ad5x_ifs_zmod", p.build());
+        check_against_golden("subscription_parity", "ad5x_ifs_zmod", p.build());
     }
 #endif // HELIX_HAS_IFS
 
@@ -184,14 +151,13 @@ TEST_CASE("subscription objects are unchanged for every backend fixture", "[subs
         p.obj("oams_manager");
         p.status_claim =
             json{{"oams_manager", {{"api_version", 1}, {"schema", "openams.manager"}}}};
-        check_against_golden("openams", p.build());
+        check_against_golden("subscription_parity", "openams", p.build());
     }
 
     SECTION("klipper-toolchanger") {
         Printer p;
         p.obj("toolchanger").obj("tool T0").obj("tool T1").obj("extruder1");
-        p.heaters.push_back("extruder1");
-        check_against_golden("toolchanger", p.build());
+        check_against_golden("subscription_parity", "toolchanger", p.build());
     }
 
     SECTION("Bondtech INDX") {
@@ -205,11 +171,11 @@ TEST_CASE("subscription objects are unchanged for every backend fixture", "[subs
             .obj("gcode_macro LOAD_FILAMENT")
             .obj("gcode_macro T0")
             .obj("gcode_macro T1");
-        check_against_golden("indx", p.build());
+        check_against_golden("subscription_parity", "indx", p.build());
     }
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "backend sensor prefixes bucket as filament sensors",
+TEST_CASE_METHOD(HelixTestFixture, "backend sensor prefixes subscribe as filament sensors",
                  "[subscription_parity]") {
     MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerDiscoverySequence discovery(mock);
@@ -218,17 +184,12 @@ TEST_CASE_METHOD(HelixTestFixture, "backend sensor prefixes bucket as filament s
                      "zmod_ifs_switch_sensor head", "zmod_ifs_motion_sensor ifs_motion_sensor",
                      "zmod_ifs", "zmod_ifs_status"}));
 
-    const auto& sensors = discovery.filament_sensors();
-    CHECK(sensors == std::vector<std::string>{"filament_switch_sensor runout",
-                                              "filament_motion_sensor encoder",
-                                              "zmod_ifs_switch_sensor head",
-                                              "zmod_ifs_motion_sensor ifs_motion_sensor"});
+    const std::vector<std::string> sensors{
+        "filament_switch_sensor runout", "filament_motion_sensor encoder",
+        "zmod_ifs_switch_sensor head", "zmod_ifs_motion_sensor ifs_motion_sensor"};
 
     const json fields = json::array({"filament_detected", "enabled", "detection_count"});
-    PrinterDiscovery hw;
-    hw.parse_objects(json::array({"extruder"}));
-    const json subs =
-        MoonrakerDiscoverySequence::build_subscription_objects(hw, {}, {}, {}, {}, {}, sensors, {});
+    const json subs = MoonrakerDiscoverySequence::build_subscription_objects(discovery.hardware());
     for (const auto& name : sensors) {
         INFO(name);
         CHECK(subs.value(name, json()) == fields);
@@ -244,8 +205,9 @@ TEST_CASE_METHOD(HelixTestFixture,
     // The Snapmaker U1 lists extruder_offset_calibration beside its four extruders.
     discovery.parse_objects(json::array({"heater_bed", "extruder_offset_calibration", "extruder",
                                          "extruder1", "extruder2", "extruder3"}));
-    CHECK(discovery.heaters() == std::vector<std::string>{"heater_bed", "extruder", "extruder1",
-                                                          "extruder2", "extruder3"});
+    CHECK(discovery.hardware().heaters() == std::vector<std::string>{"heater_bed", "extruder",
+                                                                     "extruder1", "extruder2",
+                                                                     "extruder3"});
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "discovery and the hardware snapshot share one heater rule",
@@ -256,7 +218,7 @@ TEST_CASE_METHOD(HelixTestFixture, "discovery and the hardware snapshot share on
          "extruder_offset_calibration", "heater_bedx", "fan"});
     std::vector<std::string> expected;
     for (const auto& o : objects) {
-        if (helix::is_heater_object_name(o.get<std::string>())) {
+        if (helix::hw::is_heater(helix::hw::classify_object(o.get<std::string>()).kind)) {
             expected.push_back(o.get<std::string>());
         }
     }
@@ -266,7 +228,7 @@ TEST_CASE_METHOD(HelixTestFixture, "discovery and the hardware snapshot share on
     MoonrakerClientMock mock(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerDiscoverySequence sequence(mock);
     sequence.parse_objects(objects);
-    CHECK(sequence.heaters() == expected);
+    CHECK(sequence.hardware().heaters() == expected);
 
     PrinterDiscovery hw;
     hw.parse_objects(objects);

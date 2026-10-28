@@ -3,17 +3,15 @@
 
 /**
  * @file test_accel_discovery_wiring.cpp
- * @brief Regression guard for prestonbrown/helixscreen#1262
+ * @brief Accelerometers reach AccelSensorManager from configfile sections
+ *        (prestonbrown/helixscreen#1262)
  *
- * AccelSensorManager's sensor list is only ever filled by
- * discover_from_config(), which the discovery sequence must call itself: left
- * uncalled, Settings > Sensors shows an empty accelerometer list with a 0
- * badge, telemetry reports accel:0, and detect_belt_hardware() sources has_adxl
- * from the same empty manager.
- *
- * These tests drive the REAL discovery sequence (not the mock override) against
- * a mock transport whose configfile.config carries [adxl345], and assert the
- * manager and its downstream consumers see the sensor.
+ * Klipper accelerometers have no get_status(), so they exist only in
+ * configfile.config. The discovery sequence's configfile arm records those
+ * sections in PrinterDiscovery; the registry's discover(hw) turns them into
+ * manager entries. Left unwired, Settings > Sensors shows an empty list, telemetry
+ * reports accel:0 and detect_belt_hardware() sources has_adxl from the same empty
+ * manager.
  */
 
 #include "ui_update_queue.h"
@@ -23,24 +21,25 @@
 #include "moonraker_advanced_api.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
 
 using json = nlohmann::json;
+using helix::PrinterDiscovery;
+using helix::sensors::AccelSensorManager;
+using helix::sensors::AccelSensorType;
+using helix::sensors::SensorEntry;
 
 namespace {
 
-/**
- * @brief Mock transport that runs the REAL discovery sequence
- *
- * MoonrakerClientMock overrides discover_printer() with its own shortcut.
- * Calling the base implementation exercises MoonrakerDiscoverySequence while
- * still dispatching send_jsonrpc() through the mock handler registry — the
- * same technique as TestDiscoveryClient in test_discovery_klippy_gate.cpp.
- */
+/// Mock transport that runs the REAL discovery sequence: MoonrakerClientMock
+/// overrides discover_printer() with a shortcut, so the base implementation is
+/// called directly while send_jsonrpc() still dispatches through the mock.
 class AccelDiscoveryClient : public MoonrakerClientMock {
   public:
     using MoonrakerClientMock::MoonrakerClientMock;
@@ -50,91 +49,97 @@ class AccelDiscoveryClient : public MoonrakerClientMock {
     }
 };
 
-/// Clear the singleton so a previous test's discovery can't mask the result.
-/// discover_from_config() drops sensors_ and prunes states_, so an empty
-/// object is a full reset through the public API.
+PrinterDiscovery discovery_with_config(const json& config) {
+    PrinterDiscovery hw;
+    hw.parse_config_keys(config);
+    return hw;
+}
+
+/// Discovering an empty PrinterDiscovery drops every entry.
 void reset_accel_manager() {
-    // Drain first: a callback another test queued would otherwise repopulate
-    // the singleton on our own drain, after the reset.
     helix::ui::UpdateQueue::instance().drain();
-    helix::sensors::AccelSensorManager::instance().discover_from_config(json::object());
+    AccelSensorManager::instance().discover(PrinterDiscovery{});
     helix::ui::UpdateQueue::instance().drain();
 }
 
 } // namespace
 
-TEST_CASE("Discovery sequence populates AccelSensorManager from configfile", "[sensors][1262]") {
+TEST_CASE("Discovery sequence's configfile arm records accelerometer sections", "[sensors][1262]") {
     LVGLTestFixture fixture;
-    reset_accel_manager();
-
-    auto& mgr = helix::sensors::AccelSensorManager::instance();
-    REQUIRE(mgr.sensor_count() == 0); // precondition: nothing carried over
 
     AccelDiscoveryClient client(MoonrakerClientMock::PrinterType::VORON_24);
     client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
     client.discover_printer_real();
 
-    // discover_from_config() runs through ui_queue_update() — it sets LVGL
-    // subjects, so the sequence must not call it on the WebSocket thread.
-    helix::ui::UpdateQueue::instance().drain();
-
-    CHECK(mgr.has_sensors());
-    CHECK(mgr.sensor_count() >= 1); // the Settings > Sensors badge reads this
-
-    bool found_adxl = false;
-    for (const auto& sensor : mgr.get_sensors()) {
-        if (sensor.klipper_name == "adxl345") {
-            found_adxl = true;
-            CHECK(sensor.type == helix::sensors::AccelSensorType::ADXL345);
-        }
-    }
-    CHECK(found_adxl);
+    const auto sections = client.hardware().sections_of({helix::hw::ObjectKind::Accelerometer});
+    CHECK(std::find(sections.begin(), sections.end(), "adxl345") != sections.end());
 }
 
-TEST_CASE("Discovery sequence leaves AccelSensorManager empty without an accel section",
-          "[sensors][1262]") {
-    // Mutation guard: the wiring must read the payload, not unconditionally
-    // invent a sensor. A config with no accelerometer section must discover
-    // nothing even though the identical code path ran.
+TEST_CASE("A configfile-only accelerometer reaches AccelSensorManager", "[sensors][1262]") {
     LVGLTestFixture fixture;
     reset_accel_manager();
+    auto& mgr = AccelSensorManager::instance();
+    REQUIRE(mgr.sensor_count() == 0);
 
-    auto& mgr = helix::sensors::AccelSensorManager::instance();
-    json cfg = {{"printer", {{"kinematics", "corexy"}}}, {"heater_bed", json::object()}};
-    mgr.discover_from_config(cfg);
-    helix::ui::UpdateQueue::instance().drain();
+    mgr.discover(discovery_with_config({{"adxl345", json::object()}}));
 
-    CHECK_FALSE(mgr.has_sensors());
+    REQUIRE(mgr.sensor_count() == 1);
+    SensorEntry entry;
+    REQUIRE(mgr.find("adxl345", entry));
+    CHECK(entry.type == static_cast<uint8_t>(AccelSensorType::ADXL345));
+    reset_accel_manager();
+}
+
+TEST_CASE("A Beacon onboard accelerometer found only in configfile reaches the manager",
+          "[sensors][1262]") {
+    LVGLTestFixture fixture;
+    reset_accel_manager();
+    auto& mgr = AccelSensorManager::instance();
+
+    // The objects pass alone names the probe; the accelerometer is in the config.
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"beacon", "probe"}));
+    mgr.discover(hw);
+    REQUIRE(mgr.sensor_count() == 0);
+
+    hw.parse_config_keys({{"beacon", {{"accel_scale", "16g"}, {"serial", "/dev/ttyACM0"}}}});
+    mgr.discover(hw);
+
+    REQUIRE(mgr.sensor_count() == 1);
+    SensorEntry beacon;
+    REQUIRE(mgr.find("beacon", beacon));
+    CHECK(beacon.type == static_cast<uint8_t>(AccelSensorType::LIS2DW));
+    reset_accel_manager();
+}
+
+TEST_CASE("Discovery leaves AccelSensorManager empty without an accel section", "[sensors][1262]") {
+    LVGLTestFixture fixture;
+    reset_accel_manager();
+    auto& mgr = AccelSensorManager::instance();
+
+    mgr.discover(discovery_with_config(
+        {{"printer", {{"kinematics", "corexy"}}}, {"heater_bed", json::object()}}));
+
     CHECK(mgr.sensor_count() == 0);
 }
 
 TEST_CASE("Repeated discovery does not duplicate accelerometer entries", "[sensors][1262]") {
-    // Discovery re-runs on reconnect and on FIRMWARE_RESTART. Entries must not
-    // accumulate across runs.
     LVGLTestFixture fixture;
     reset_accel_manager();
+    auto& mgr = AccelSensorManager::instance();
+    const PrinterDiscovery hw =
+        discovery_with_config({{"adxl345", json::object()}, {"adxl345 bed", json::object()}});
 
-    auto& mgr = helix::sensors::AccelSensorManager::instance();
+    mgr.discover(hw);
+    REQUIRE(mgr.sensor_count() == 2);
+    mgr.discover(hw);
 
-    AccelDiscoveryClient client(MoonrakerClientMock::PrinterType::VORON_24);
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
-
-    client.discover_printer_real();
-    helix::ui::UpdateQueue::instance().drain();
-    const size_t after_first = mgr.sensor_count();
-    REQUIRE(after_first >= 1);
-
-    client.discover_printer_real();
-    helix::ui::UpdateQueue::instance().drain();
-
-    CHECK(mgr.sensor_count() == after_first);
+    CHECK(mgr.sensor_count() == 2);
+    reset_accel_manager();
 }
 
-TEST_CASE("detect_belt_hardware reports has_adxl once discovery has run", "[sensors][1262]") {
-    // moonraker_advanced_api.cpp calls AccelSensorManager::has_sensors() and
-    // documents it as the single source of truth for accelerometer presence.
-    // With the manager never populated that flag was false on every printer,
-    // which downgraded belt tension to strobe-only.
+TEST_CASE("detect_belt_hardware reports has_adxl once the manager has discovered",
+          "[sensors][1262]") {
     LVGLTestFixture fixture;
 
     helix::PrinterState state;
@@ -142,35 +147,23 @@ TEST_CASE("detect_belt_hardware reports has_adxl once discovery has run", "[sens
     AccelDiscoveryClient client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, state);
     MoonrakerAdvancedAPI advanced(client, api);
-
-    // Reset after construction so nothing the mock queued on the way up is
-    // mistaken for the discovery under test.
     reset_accel_manager();
 
-    // Before discovery the manager is empty, so the flag must be false.
-    helix::calibration::BeltTensionHardware before;
-    bool before_done = false;
-    advanced.detect_belt_hardware(
-        [&](const helix::calibration::BeltTensionHardware& hw) {
-            before = hw;
-            before_done = true;
-        },
-        [](const MoonrakerError&) {});
-    REQUIRE(before_done);
-    CHECK_FALSE(before.has_adxl);
+    auto detect = [&]() {
+        helix::calibration::BeltTensionHardware out;
+        bool done = false;
+        advanced.detect_belt_hardware(
+            [&](const helix::calibration::BeltTensionHardware& hw) {
+                out = hw;
+                done = true;
+            },
+            [](const MoonrakerError&) {});
+        REQUIRE(done);
+        return out;
+    };
 
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
-    client.discover_printer_real();
-    helix::ui::UpdateQueue::instance().drain();
-
-    helix::calibration::BeltTensionHardware after;
-    bool after_done = false;
-    advanced.detect_belt_hardware(
-        [&](const helix::calibration::BeltTensionHardware& hw) {
-            after = hw;
-            after_done = true;
-        },
-        [](const MoonrakerError&) {});
-    REQUIRE(after_done);
-    CHECK(after.has_adxl);
+    CHECK_FALSE(detect().has_adxl);
+    AccelSensorManager::instance().discover(discovery_with_config({{"adxl345", json::object()}}));
+    CHECK(detect().has_adxl);
+    reset_accel_manager();
 }

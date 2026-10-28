@@ -467,7 +467,7 @@ void TemperatureHistoryManager::subscribe_to_subjects() {
     }
 
     auto& sensor_mgr = helix::sensors::TemperatureSensorManager::instance();
-    if (lv_subject_t* sensor_count = sensor_mgr.get_sensor_count_subject()) {
+    if (lv_subject_t* sensor_count = sensor_mgr.count_subject()) {
         sensor_count_observer_ = ObserverGuard(
             sensor_count,
             [](lv_observer_t* observer, lv_subject_t*) {
@@ -478,7 +478,7 @@ void TemperatureHistoryManager::subscribe_to_subjects() {
                 }
             },
             this);
-        sensor_count_observer_.set_alive_token(sensor_mgr.get_subjects_lifetime());
+        sensor_count_observer_.set_alive_token(sensor_mgr.subjects_lifetime());
     }
 
     resubscribe();

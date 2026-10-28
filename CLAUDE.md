@@ -38,7 +38,7 @@ ps -eo pid,etime,time,pcpu,comm --sort=-time | head   # abandoned spinners
 - Dying at the same step twice **can** be a resource ceiling, but rule out a peer first: a second `make` in the SAME tree deletes your freshly linked binary (`prune-orphan-test-objs` in `mk/tests.mk` runs `rm -f $(TEST_BIN)` as a sibling prerequisite of the link, so `-j` gives them no order). The tell: `[LD] helix-tests`, then `✓ Unit test binary ready`, NO `✗ Test linking failed!`, then every shard reports `No such file or directory`. Nothing is wrong with your code; a starved link fails loudly and stops make.
 - **A build here goes minutes at a time printing nothing, and that is normal.** Judge liveness by the log growing, and compare its mtime against `date` in the SAME command before calling it stale - an `etime` and an mtime are not comparable by eye. A parent `make` in `do_wait` and a sub-make in `poll_schedule_timeout` are a make waiting on children and a jobserver poll, not a deadlock. Nothing short of a log that has not grown across two checks minutes apart justifies killing someone's build.
 - Who else is building, and in which tree, is a question you ask them: `ListAgents` + `SendMessage`, not a `pgrep` guess.
-- **The commit hook builds too.** `scripts/quality-checks.sh` verifies an incremental build of the app with a bounded `-j` from `helix-claim jobs` (`qc_build_jobs`), so N sessions committing never become N unbounded builds; under the jobpool shim the pool bounds it instead. `HELIX_QC_JOBS` overrides it. `scripts/qc_timing.py [--staged-only]` runs the gate and prints where its time went, which is how you find out whether you are waiting on that build or on a check.
+- **The commit hook runs only the fast gates, in seconds.** A commit waits for its slowest gate, so the slow ones (`QC_PUSH_ONLY` in `scripts/quality-checks.sh`: the python suite, the hidden tests, the declarative-UI scan, translation coverage, the ESP32 checks) run at pre-push and in `land-gate`, and a commit syntax-checks its staged sources (plus one includer per staged header) instead of building the app. `HELIX_QC_ALL_AT_COMMIT=1` runs every gate at commit; `HELIX_QC_FULL_BUILD=1` builds. `scripts/qc_timing.py [--staged-only]` prints where a run's time went.
 
 ```bash
 make                                 # Build ONLY the program binary (NOT tests); it picks its own -j
@@ -211,7 +211,8 @@ every agent you brief: put this table in the brief, because agents default to ov
 | When | Run | Not then |
 |---|---|---|
 | **While building** - each task, each agent, each review fix | `make t F='[tags the change touches]'` once after the change. A new or changed test: break the line it pins once, see it go red, restore (one `make t` cycle) | `mutate-diff`, `unit-sweep`, `full-test-run`, `land-gate`, screenshots, ASAN, re-reviews |
-| **Finish** - once per batch (every branch landing together) | 1. One review of the batch; a second round only for a crash, lifetime, data-loss or wrong-hardware-command finding (anything else is fixed without re-review). 2. `make mutate-diff MUTATE_ARGS="--tests '[touched tags]'"`: the batch's own hunks against only the tests for the code it touched, never the whole suite. 3. One screenshot per changed screen. 4. ONE `make land-gate` on the combined result | a gate per branch; a second full gate for a docs-only or test-only fix |
+| **Finish** - once per batch (every branch landing together) | 1. One review of the batch; a second round only for a crash, lifetime, data-loss or wrong-hardware-command finding (anything else is fixed without re-review). 2. One screenshot per changed screen. 3. ONE `make land-gate` on the combined result, on the fastest free machine (thelio, then zeus; never a Mac) | a gate per branch; a second full gate for a docs-only or test-only fix; waiting on mutation |
+| **Landed** - right after the push, every batch, never skipped | `make mutate-diff MUTATE_ARGS="--base <the origin/main it landed on>"` from the landed tree, in the background: on a host without reflink copies it runs on the test host. Each changed file runs against its own tests, capped at 30 minutes. A survivor is a follow-up fix (a test that pins it), landed like any other | blocking the merge on it; a run over 30 minutes |
 | **Gate red** | Fix it, rerun only the failing stage's command (`build/land-gate/<stage>.log` names it), then one more `land-gate` only if the fix touched `src/` or `include/` | rerunning the whole gate to "be sure" |
 | **Release** | Whole-branch mutation, ASAN on the test host, device checks | |
 
@@ -225,9 +226,9 @@ batches"). A branch that lands alone while others are a few minutes from ready c
 a second gate.
 
 What keeps this from leaving holes: every new test is proven red once while it is written,
-every changed hunk is mutated once at the finish, and the full suite runs once in CI's layout
-before anything reaches main. Each line of code is checked once, by the cheapest check that
-can see it.
+the full suite runs once in CI's layout before anything reaches main, and every changed hunk
+is mutated once right after it lands. Each line of code is checked once, by the cheapest check
+that can see it; only the mutation runs after the merge, so it never holds one up.
 
 ---
 
@@ -418,7 +419,7 @@ Features, refactors, new panels/widgets/managers — **scope AFTER investigating
 | **Constant names** | `constexpr int MAX_RETRY_COUNT = 3;` | `constexpr int kMaxRetryCount = 3;` - `UPPER_SNAKE_CASE` is for macros only: a macro ignores scope and silently rewrites a same-named constant. Added lines gated by `scripts/check_constant_naming.py`, escape hatch `// CONST_NAME_OK: <reason>`; `scripts/rename_constants.py` converts a branch |
 | **No std::regex** | `std::regex`, `#include <regex>` in app code | `helix::Regex` (`include/helix_regex.h`, heap backtracking). libstdc++'s matcher recurses per input character and overflows musl's small thread stacks with no crash file. Lint-gated in `tests/shell/test_code_lint.bats`; escape hatch `// STD_REGEX_OK: <reason>` |
 | **Bug commits** | Filing an issue just so the commit can cite one | Cite the issue when one already exists: `fix(scope): thing (prestonbrown/helixscreen#123)`. No issue? `fix(scope): thing` is complete on its own — the commit body carries the explanation. |
-| **Unproven tests** | "Tests pass" as evidence the change is tested | A hand break while writing the test, then `make mutate-diff` scoped to the touched tags, once per batch at the finish (§ Verification Cadence). A green suite is not evidence. `tests/CLAUDE.md` § "Proving a test can fail" |
+| **Unproven tests** | "Tests pass" as evidence the change is tested | A hand break while writing the test, then `make mutate-diff` over the landed batch, right after it lands (§ Verification Cadence). A green suite is not evidence. `tests/CLAUDE.md` § "Proving a test can fail" |
 | **Commit body length** | 3-paragraph Tests / Verification / Mutation essay | Subject + ~4-line paragraph. Reserve the long form for genuine state-machine fixes that touch multiple subsystems |
 | **Comment archaeology** | `// unlike the three widgets 3d0875bff fixed`, `// this used to memcpy the whole canvas`, `// pre-fix the stream wrote into freed memory` | State the constraint, not the history: `// Invalidating here freezes a fullscreen view the user is watching`. § below |
 | **Submodule mods** | Edit `lib/lvgl/...` / `lib/libhv/...` directly | `patches/*.patch`; `lib/helix-xml/` is ours and edited directly. `.claude/rules/submodules.md` |

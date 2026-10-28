@@ -16,6 +16,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -643,7 +644,8 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
                  "[temp_graph_overlay][heater_generic]") {
     auto& tsm = helix::sensors::TemperatureSensorManager::instance();
     tsm.init_subjects();
-    tsm.discover({"heater_generic filament_dryer", "temperature_sensor mcu_temp"});
+    tsm.discover(helix::test::discovery_of(
+        {"heater_generic filament_dryer", "temperature_sensor mcu_temp"}));
 
     auto& overlay = get_global_temp_graph_overlay();
     TempGraphOverlayTestAccess::set_deps(overlay, &state, nullptr);

@@ -559,12 +559,12 @@ void ControlsPanel::register_observers() {
 
     // Sensor discovery can land off the main thread; the link's subjects are touched there.
     temp_sensor_count_observer_ = observe<int>(
-        helix::sensors::TemperatureSensorManager::instance().get_sensor_count_subject(), this,
+        helix::sensors::TemperatureSensorManager::instance().count_subject(), this,
         [](ControlsPanel* self, int /* count */) {
             self->object_lifetime_.defer("ControlsPanel::update_more_sensors",
                                          [self]() { self->update_more_sensors(); });
         },
-        helix::sensors::TemperatureSensorManager::instance().get_subjects_lifetime());
+        helix::sensors::TemperatureSensorManager::instance().subjects_lifetime());
 
     // Subscribe to pending Z-offset delta (for unsaved adjustment banner)
     pending_z_offset_observer_ = observe<int>(

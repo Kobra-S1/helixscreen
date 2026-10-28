@@ -21,6 +21,7 @@
 #include "../../include/temperature_sensor_manager.h"
 #include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
+#include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/temperature_history_manager_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
@@ -742,7 +743,7 @@ TEST_CASE_METHOD(TemperatureHistoryManagerTestFixture,
     auto& tsm = helix::sensors::TemperatureSensorManager::instance();
     tsm.init_subjects();
     tsm.set_sync_mode(true);
-    tsm.discover({"heater_generic filament_dryer"});
+    tsm.discover(helix::test::discovery_of({"heater_generic filament_dryer"}));
     // A manager built after discovery subscribes to what discovery found. (The
     // fixture's was built before the sensor manager's subjects existed here.)
     manager_ = std::make_unique<TemperatureHistoryManager>(printer_state_);

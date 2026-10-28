@@ -4686,6 +4686,7 @@ translations:
   '{} turns': "{} 圈"
   '{} updated': '{} 已更新'
   '{} widgets': '{} 个小组件'
+  '{} width sensor': '{} 宽度传感器'
   ? '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
   : '{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的槽位。'
   '{} · {}': '{} · {}'

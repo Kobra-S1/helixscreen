@@ -147,7 +147,7 @@ Key the choice on the question you actually have, not on a phase of work:
 | **Can this test fail at all?** | break the line it covers, rerun that one case, restore | one `make t` cycle |
 | Do any assertions only look like assertions? | `make check-tautology`, `make test-vacuous` | 3s, seconds |
 | Does any test even reach this code? | `make cov-diff` | minutes |
-| Do my changed lines have detection? | `make mutate-diff MUTATE_ARGS="--tests '[touched tags]'"`, **once per batch, at the finish** | per hunk: one rebuild + those tags |
+| Do my changed lines have detection? | `make mutate-diff MUTATE_ARGS="--base <origin/main it landed on>"`, **once per batch, right after it lands** | per hunk: one rebuild + that file's tests |
 | Did I break something elsewhere in C++? | `make unit-sweep` | ~50s idle, minutes loaded |
 | Will CI's unit job pass? | `make unit-sweep NPROCS=8`: CI runs 8 shards, split four apiece across two 4-core runners, so tests share a process with different neighbours than the local 96 | ~100s |
 | Am I finished - did I break anything, anywhere? | `make full-test-run` | ~2m, **once, at the end** |
@@ -323,8 +323,9 @@ they arrive in changes.
 
 **A run is bounded, and any stop leaves the tree as it found it.**
 
-- `--max-minutes N` (default 45, `0` for none) caps the whole run, baseline
-  included. At the cap the in-flight hunk is stopped and restored, and it and
+- `--max-minutes N` (default and maximum 30; `--release` lifts the cap, and
+  only then does `0` mean none) caps the whole run, baseline included. At the
+  cap the in-flight hunk is stopped and restored, and it and
   every hunk after it are listed `UNEXAMINED`: the run is `INCOMPLETE`, never
   `CLEAN`.
 - SIGINT, SIGTERM and SIGHUP all stop it the same way: every child (make and
@@ -447,16 +448,32 @@ Only reverting the hunk and watching for red finds it.
 
 ### When to run it, and where the record goes
 
-Run `make mutate-diff` once per batch, at the finish: after the batch's one review, before
-its one `land-gate`, over the hunks the batch changed, scoped to the tests that cover them
-(`MUTATE_ARGS="--tests '[tag1],[tag2]'"`). Each hunk then rebuilds and reruns only those
-tags, not the suite. When several branches land together, it runs once over the merged
-result, never once per branch. A review fix after that is the delta since the proven commit,
-which the next run picks up on its own. Never run it per task, per commit or per agent while
-work is in progress: hunks a later commit rewrites get mutated twice for nothing. A
-whole-branch run against the full suite is a release check, not a landing check. While
-building, a new test's proof is one hand break of the line it pins (above). Root
-`CLAUDE.md` § Verification Cadence has the whole schedule.
+Run `make mutate-diff` once per batch, right after the batch lands, from the landed tree:
+`MUTATE_ARGS="--base <the origin/main it landed on>"`, in the background. It never holds
+up a merge, and it is never skipped: the landing session starts it as soon as the push is
+verified, and a survivor becomes a follow-up fix (a test that pins the hunk), landed like any
+other. When several branches land together, it runs once over the merged result, never once
+per branch. Never run it per task, per commit or per agent while work is in progress: hunks a
+later commit rewrites get mutated twice for nothing. A whole-branch run against the full
+suite is a release check (`--release`), not a landing check. While building, a new test's
+proof is one hand break of the line it pins (above). Root `CLAUDE.md` § Verification
+Cadence has the whole schedule.
+
+**Each changed file runs against its own tests.** A run prints `tests per file:` first. A
+file gets the filter of the first `--tests-for GLOB=FILTER` it matches, else the test files
+that name its stem as a whole word (Catch2's `[#test_<file>]` tags, under `-#`; a stem more
+than 12 files name counts as none), else `--tests`. Files sharing a filter run as one group,
+each group a child run with its own baseline, inside the one 30-minute budget; the worst
+group's exit is the run's. `--no-auto-tests` puts every unmapped file on `--tests`.
+Generated output (`src/generated/`) is not mutated: its source is, and the regeneration
+gates pin the two together.
+
+**`make mutate-diff` runs where workers can run** (`scripts/mutate-diff.sh`). Parallel
+workers need reflink copies; a host without them (a Mac, an ext4 home) hands the run to the
+test host, which mutates the PUSHED HEAD, so it refuses with uncommitted code or an
+unpushed HEAD instead of judging another tree. `MUTATE_LOCAL=1` runs it here, serially. On
+the test host the run first makes its checkout's venv from `requirements.txt`, since script
+hunks are judged by pytest as well as bats and the image has no pytest.
 
 Red-green is invisible after the fact. A test that was mutated and verified is
 indistinguishable from one nobody checked, which is why the discipline decays.

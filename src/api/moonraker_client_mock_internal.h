@@ -218,8 +218,8 @@ std::string mock_probe_type(helix::mock::PrinterType type);
  * — so all three stay in step. Returns an empty object for "none".
  *
  * Values are STRINGS, matching Klipper: configfile.config is the verbatim
- * printer.cfg text, and ProbeSensorManager::discover_from_config() parses
- * z_offset with std::stof.
+ * printer.cfg text, and ProbeSensorManager seeds its Z offset from the section,
+ * parsing z_offset as a string.
  *
  * The "loadcell" profile deliberately disagrees with the status payload, which
  * reports z_offset: null. That is the flashforge_loadcell shape the config

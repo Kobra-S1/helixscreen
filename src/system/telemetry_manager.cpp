@@ -34,6 +34,7 @@
 #include "random_bytes.h"
 #include "screen_locality.h"
 #include "screensaver_registry.h"
+#include "sensor_manager.h"
 #include "system/crash_handler.h"
 #include "system/crash_history.h"
 #include "system/ingest_client.h"
@@ -60,6 +61,7 @@
 #include <iomanip>
 #include <random>
 #include <sstream>
+#include <string_view>
 #include <sys/utsname.h>
 #include <unistd.h>
 
@@ -1890,11 +1892,13 @@ nlohmann::json TelemetryManager::build_hw_fans_section(const helix::PrinterDisco
 
 nlohmann::json TelemetryManager::build_hw_sensors_section(const helix::PrinterDiscovery& hw) {
     json sensors;
-    sensors["filament"] = static_cast<int>(FilamentSensorManager::instance().sensor_count());
-    sensors["load_cell"] = static_cast<int>(sensors::LoadCellManager::instance().sensor_count());
+    sensors["filament"] = static_cast<int>(helix::FilamentSensorManager::instance().sensor_count());
+    sensors["load_cell"] =
+        static_cast<int>(helix::sensors::LoadCellManager::instance().sensor_count());
     sensors["temperature_extra"] =
-        static_cast<int>(sensors::TemperatureSensorManager::instance().sensor_count());
-    sensors["accel"] = static_cast<int>(sensors::AccelSensorManager::instance().sensor_count());
+        static_cast<int>(helix::sensors::TemperatureSensorManager::instance().sensor_count());
+    sensors["accel"] =
+        static_cast<int>(helix::sensors::AccelSensorManager::instance().sensor_count());
 
     // Name-level data for printer detection analysis
     constexpr size_t cap = 200;

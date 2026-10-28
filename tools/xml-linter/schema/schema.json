@@ -1769,6 +1769,9 @@
         "variant": {
           "type": "enum",
           "enum": "ui_variant"
+        },
+        "bind_text": {
+          "type": "string"
         }
       },
       "inherits": "lv_obj"

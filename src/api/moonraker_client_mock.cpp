@@ -11,9 +11,10 @@
 #include "chamber_heater_backend.h"
 #include "env_knobs.h"
 #include "gcode_parser.h"
+#include "hardware_object_table.h"
 #include "helix_thread.h"
 #include "home_layout_share.h"
-#include "input_sensor_manager.h"
+#include "input_sensor_types.h"
 #include "macro_param_cache.h"
 #include "mock_persona.h"
 #include "mock_planted_gcodes.h"
@@ -5036,11 +5037,11 @@ void MoonrakerClientMock::dispatch_initial_state() {
     // HELIX_MOCK_DOOR_OPEN is set; every other button reads RELEASED.
     {
         const bool doors_open = std::getenv("HELIX_MOCK_DOOR_OPEN") != nullptr;
-        for (const auto& input : helix::sensors::InputSensorManager::inputs_in(
-                 discovery_.hardware().printer_objects())) {
-            const bool is_door = input.role == helix::sensors::InputSensorRole::DOOR;
-            initial_status[input.klipper_name] = {
-                {"state", is_door && !doors_open ? "PRESSED" : "RELEASED"}};
+        for (const auto& name : discovery_.hardware().objects_of({helix::hw::ObjectKind::Input})) {
+            const bool is_door =
+                helix::sensors::default_input_role(helix::hw::classify_object(name).instance) ==
+                helix::sensors::InputSensorRole::DOOR;
+            initial_status[name] = {{"state", is_door && !doors_open ? "PRESSED" : "RELEASED"}};
         }
     }
 

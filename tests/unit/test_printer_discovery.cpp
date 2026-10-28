@@ -1085,10 +1085,11 @@ TEST_CASE("PrinterDiscovery detects accelerometers from config keys", "[printer_
         REQUIRE(hw.has_accelerometer());
     }
 
-    SECTION("detects resonance_tester") {
+    SECTION("a bare resonance_tester names no accelerometer") {
         json config = {{"resonance_tester", json::object()}};
         hw.parse_config_keys(config);
-        REQUIRE(hw.has_accelerometer());
+        REQUIRE_FALSE(hw.has_accelerometer());
+        REQUIRE(hw.sections_of({helix::hw::ObjectKind::Accelerometer}).empty());
     }
 
     SECTION("detects lis3dh") {
@@ -2111,19 +2112,63 @@ TEST_CASE("PrinterDiscovery: build volume rejects unusable payloads",
     }
 }
 
-TEST_CASE("temperature_sensor_objects adds every heater_generic to the sensors",
-          "[printer_discovery][heater_generic]") {
-    helix::PrinterDiscovery hw;
-    hw.parse_objects(json{"extruder", "heater_bed", "heater_generic chamber",
-                          "heater_generic filament_dryer", "temperature_sensor mcu_temp"});
+// ============================================================================
+// Stored classes: objects_of / sections_of / section / mcus
+// ============================================================================
 
-    const auto objects = helix::temperature_sensor_objects(hw);
-    auto has = [&](const char* name) {
-        return std::find(objects.begin(), objects.end(), name) != objects.end();
-    };
-    CHECK(has("temperature_sensor mcu_temp"));
-    CHECK(has("heater_generic chamber"));
-    CHECK(has("heater_generic filament_dryer"));
-    CHECK_FALSE(has("extruder"));
-    CHECK_FALSE(has("heater_bed"));
+TEST_CASE("PrinterDiscovery objects_of returns objects of the asked kinds in discovery order",
+          "[printer_discovery]") {
+    using helix::hw::ObjectKind;
+    PrinterDiscovery hw;
+    hw.parse_objects(json{"extruder", "temperature_sensor chamber", "fan",
+                          "temperature_fan exhaust", "temperature_sensor mcu_temp",
+                          "heater_generic bed2"});
+
+    CHECK(hw.objects_of({ObjectKind::TemperatureSensor}) ==
+          std::vector<std::string>{"temperature_sensor chamber", "temperature_sensor mcu_temp"});
+    CHECK(hw.objects_of({ObjectKind::TemperatureSensor, ObjectKind::TemperatureFan}) ==
+          std::vector<std::string>{"temperature_sensor chamber", "temperature_fan exhaust",
+                                   "temperature_sensor mcu_temp"});
+    CHECK(hw.objects_of({ObjectKind::Probe}).empty());
+}
+
+TEST_CASE("PrinterDiscovery sections_of and section read the classified config",
+          "[printer_discovery]") {
+    using helix::hw::ObjectKind;
+    PrinterDiscovery hw;
+    hw.parse_config_keys(json{{"adxl345", {{"cs_pin", "PA1"}}},
+                              {"lis2dw toolhead", json::object()},
+                              {"stepper_x", json::object()}});
+
+    CHECK(hw.sections_of({ObjectKind::Accelerometer}) ==
+          std::vector<std::string>{"adxl345", "lis2dw toolhead"});
+    REQUIRE(hw.section("adxl345") != nullptr);
+    CHECK((*hw.section("adxl345"))["cs_pin"] == "PA1");
+    CHECK(hw.section("not_a_section") == nullptr);
+}
+
+TEST_CASE("PrinterDiscovery mcus lists every MCU object", "[printer_discovery]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json{"mcu", "mcu toolhead", "temperature_sensor mcu_temp", "mcu_stuff"});
+    CHECK(hw.mcus() == std::vector<std::string>{"mcu", "mcu toolhead"});
+}
+
+TEST_CASE("PrinterDiscovery sensors include humidity chips", "[printer_discovery]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json{"temperature_sensor a", "aht20_f heater_box1", "bme280 enclosure"});
+    CHECK(hw.sensors() == std::vector<std::string>{"temperature_sensor a", "aht20_f heater_box1",
+                                                   "bme280 enclosure"});
+}
+
+TEST_CASE("PrinterDiscovery probe XY offset reads every probe kind's section",
+          "[printer_discovery][probe]") {
+    for (const char* name : {"load_cell_probe", "dockable_probe", "cartographer", "beacon"}) {
+        DYNAMIC_SECTION(name) {
+            PrinterDiscovery hw;
+            hw.parse_probe_xy_offset(json{{name, {{"x_offset", -12.0}, {"y_offset", 3.5}}}});
+            REQUIRE(hw.probe_xy_offset().has_value());
+            CHECK(hw.probe_xy_offset()->x == -12.0);
+            CHECK(hw.probe_xy_offset()->y == 3.5);
+        }
+    }
 }

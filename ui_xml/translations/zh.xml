@@ -4509,6 +4509,7 @@
   <translation tag="{} turns" zh="{} 圈"/>
   <translation tag="{} updated" zh="{} 已更新"/>
   <translation tag="{} widgets" zh="{} 个小组件"/>
+  <translation tag="{} width sensor" zh="{} 宽度传感器"/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." zh="{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的槽位。"/>
   <translation tag="{} · {}" zh="{} · {}"/>
   <translation tag="{} · {} · {}" zh="{} · {} · {}"/>

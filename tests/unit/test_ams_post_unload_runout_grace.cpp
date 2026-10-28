@@ -35,6 +35,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/print_status_widget_test_access.h"
@@ -376,8 +377,8 @@ class IdleRunoutGraceFixture : public LVGLTestFixture {
         auto& fsm = FilamentSensorManager::instance();
         PostUnloadGraceTestAccess::reset(fsm);
         fsm.set_master_enabled(true);
-        fsm.discover_sensors({SENSOR});
-        fsm.set_sensor_role(SENSOR, FilamentSensorRole::RUNOUT);
+        discover_filament_sensors(fsm, {SENSOR});
+        fsm.set_role(SENSOR, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
         // Baseline present, then empty — the state a runout leaves behind.
         fsm.update_from_status(sensor_status(true));
         fsm.update_from_status(sensor_status(false));

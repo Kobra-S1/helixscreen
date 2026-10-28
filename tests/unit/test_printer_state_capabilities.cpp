@@ -19,6 +19,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
+#include "../test_helpers/sensors_forget.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
@@ -709,6 +710,7 @@ const json kTopFitted = {{"purifier", {{"power_detected", true}, {"mode", 0}}}};
 
 TEST_CASE("PrinterState: the enclosure top follows status frames",
           "[printer_state][enclosure_top]") {
+    helix::test::SensorsForget forget;
     lv_init_safe();
     PrinterState& state = get_printer_state();
     PrinterStateTestAccess::reset(state);

@@ -3,20 +3,14 @@
 
 #pragma once
 
-#include "async_lifetime_guard.h"
 #include "input_sensor_types.h"
-#include "lvgl.h"
-#include "sensor_collection.h"
-#include "subject_managed_panel.h"
+#include "sensor_manager.h"
 
-#include <array>
 #include <map>
-#include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::sensors {
 
@@ -31,48 +25,23 @@ namespace helix::sensors {
  * consumer is the door-open print-start gate, which reads the Door inputs. A
  * name containing "door", "lid" or "cover" starts as Door, everything else as
  * Other, and the user's choice is persisted per printer under "input_sensors".
+ * set_option() is the Invert switch.
  *
  * Inputs whose meaning belongs to a subsystem (a tool changer's dock and
  * carriage buttons) are listed here as plain inputs; that subsystem keeps
  * owning what they mean.
  *
- * The settings overlay draws one row per input from the indexed subjects
- * input_sensor_{name,state,alert,role,inverted}_<i>, i < kMaxRows, in
- * discovery order; input_sensor_count says how many rows exist.
+ * Settings > Sensors lists each input through row(): its live state, its role
+ * and the Invert switch.
  *
  * Status JSON format:
  * @code
  * { "gcode_button frontDoor": { "state": "PRESSED" } }
  * @endcode
  */
-class InputSensorManager {
+class InputSensorManager : public SensorManager {
   public:
-    /// Rows the settings overlay can show. Inputs past this still count for
-    /// the door gate; they only go unlisted.
-    static constexpr size_t kMaxRows = 16;
-
     static InputSensorManager& instance();
-
-    InputSensorManager(const InputSensorManager&) = delete;
-    InputSensorManager& operator=(const InputSensorManager&) = delete;
-
-    // ---- discovery, status, config ----
-
-    /// @note MUST be called from main LVGL thread (updates subjects directly)
-    void discover(const std::vector<std::string>& klipper_objects);
-
-    /// The inputs among @p klipper_objects, in order, with default roles.
-    [[nodiscard]] static std::vector<InputSensorConfig>
-    inputs_in(const std::vector<std::string>& klipper_objects);
-
-    /// The status objects (and fields) this manager reads, for the subscription.
-    [[nodiscard]] static nlohmann::json
-    required_status_objects(const std::vector<std::string>& klipper_objects);
-
-    void update_from_status(const nlohmann::json& status);
-
-    /// Reads which inputs the printer's config already acts on (configfile.config).
-    void discover_from_config(const nlohmann::json& config_keys);
 
     /// Whether the printer's own config reacts when this Door input opens. The
     /// mid-print warning skips such a door rather than repeat the printer's own.
@@ -86,28 +55,6 @@ class InputSensorManager {
     mid_print_door_warnings(const std::vector<std::string>& newly_open,
                             const std::vector<std::string>& print_materials) const;
 
-    /// @note MUST be called from main LVGL thread (updates subjects directly)
-    void load_config(const nlohmann::json& config);
-    [[nodiscard]] nlohmann::json save_config() const;
-    void load_config_from_file();
-    void save_config_to_file();
-
-    // ---- subjects ----
-
-    void init_subjects();
-    void deinit_subjects();
-
-    [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
-        return subjects_.get_subjects_lifetime();
-    }
-
-    // ---- queries ----
-
-    [[nodiscard]] bool has_sensors() const;
-    [[nodiscard]] size_t sensor_count() const;
-    [[nodiscard]] std::vector<InputSensorConfig> get_sensors() const;
-    [[nodiscard]] std::optional<InputSensorState> get_state(const std::string& klipper_name) const;
-
     /// Whether any input holds the Door role.
     [[nodiscard]] bool has_door_input() const;
 
@@ -117,57 +64,54 @@ class InputSensorManager {
     /// Whether the door-open print-start check runs. Until the user sets it, on
     /// exactly when the printer has a Door input.
     [[nodiscard]] bool door_check_enabled() const;
-
-    // ---- configuration ----
-
-    /// @note MUST be called from main LVGL thread (updates subjects directly)
-    void set_sensor_role(const std::string& klipper_name, InputSensorRole role);
-    void set_sensor_inverted(const std::string& klipper_name, bool inverted);
     void set_door_check_enabled(bool enabled);
 
-    /// The input shown in overlay row @p row; empty when there is none.
-    [[nodiscard]] std::string klipper_name_at(size_t row) const;
+    /// Invert: a door switch then reads closed while released.
+    void set_option(std::string_view klipper_name, bool inverted) override;
 
-    /// Test mode: update_from_status() updates subjects synchronously.
-    void set_sync_mode(bool enabled);
+    /// Adds the live state (door wording for a Door input; alert while open)
+    /// and the Invert value.
+    [[nodiscard]] SensorRowView row(size_t index) const override;
 
-    void update_subjects_on_main_thread();
-
-    friend class InputSensorManagerTestAccess;
+  protected:
+    void register_subjects(SubjectManager& subjects) override;
+    void refresh_subjects() override;
+    bool parse_status(const nlohmann::json& status) override;
+    void on_discovered(const PrinterDiscovery& hw) override;
+    void on_entries_changed() override;
+    void read_entry_extra(SensorEntry& entry, const nlohmann::json& saved) override;
+    void write_entry_extra(const SensorEntry& entry, nlohmann::json& out) const override;
+    void read_extra_settings(const nlohmann::json& saved) override;
+    void write_extra_settings(nlohmann::json& out) const override;
 
   private:
+    friend class InputSensorManagerTestAccess;
+
     InputSensorManager();
-    ~InputSensorManager();
+    static Options make_options();
 
-    /// @note Main LVGL thread only
-    /// @param status_changed a status frame changed an input, so a door that
-    ///        now reads open was opened and may be owed a mid-print toast
-    void update_subjects(bool status_changed = false);
+    /// Mutex held: the reading for @p klipper_name, or an unreported one.
+    [[nodiscard]] const InputReading& reading_locked(const std::string& klipper_name) const;
+    /// Mutex held.
+    [[nodiscard]] bool reads_open_locked(const SensorEntry& entry) const;
+    [[nodiscard]] bool has_door_locked() const;
 
-    mutable std::recursive_mutex mutex_;
-    SensorCollection<InputSensorConfig, InputSensorState> sensors_;
+    std::map<std::string, InputReading> readings_; ///< by klipper_name
     /// The user's door-check choice; nullopt follows has_door_input().
     std::optional<bool> door_check_;
-    /// Klipper names of the Door inputs that read open at the last subject
-    /// update, for the one-toast-per-opening rule.
-    std::vector<std::string> open_doors_seen_;
+    /// Names present at the last discovery: only a name new to this set gets a
+    /// default role, so a rediscovery never undoes the user's choice.
+    std::set<std::string> known_;
     /// Per gcode_button klipper name, the edges its config acts on.
     std::map<std::string, InputConfigReaction> config_reactions_;
-    bool sync_mode_ = false;
+    /// A status frame changed an input since the last refresh: a door that now
+    /// reads open was opened and may be owed a mid-print toast.
+    bool status_frame_ = false;
+    /// Klipper names of the Door inputs that read open at the last refresh, for
+    /// the one-toast-per-opening rule. Main thread only.
+    std::vector<std::string> open_doors_seen_;
 
-    bool subjects_initialized_ = false;
-    SubjectManager subjects_;
-    helix::AsyncLifetimeGuard lifetime_;
-    lv_subject_t sensor_count_{};
     lv_subject_t door_check_subject_{};
-
-    struct Row {
-        std::string name_id, state_id, alert_id, role_id, inverted_id;
-        lv_subject_t name{}, state{}, alert{}, role{}, inverted{};
-        char name_buf[64]{};
-        char state_buf[32]{};
-    };
-    std::array<Row, kMaxRows> rows_{};
 };
 
 } // namespace helix::sensors

@@ -325,7 +325,7 @@ void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
                 self->saw_filament_present_ = true;
             }
         },
-        fsm.get_subjects_lifetime());
+        fsm.subjects_lifetime());
 
     // Observe job queue count to show/hide queue row
     auto* jq_count_subj = lv_xml_get_subject(nullptr, "job_queue_count");

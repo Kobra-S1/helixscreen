@@ -11,11 +11,13 @@
  * - State updates from Moonraker status JSON
  */
 
+#include "../test_helpers/sensor_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
 #include "config.h"
 #include "lane_source_store.h"
 #include "load_cell_manager.h"
+#include "printer_discovery.h"
 
 #include <spdlog/spdlog.h>
 
@@ -35,13 +37,24 @@ namespace helix::sensors {
 class LoadCellManagerTestAccess {
   public:
     static void reset(LoadCellManager& obj) {
-        std::lock_guard<std::recursive_mutex> lock(obj.mutex_);
-        obj.sensors_.clear();
-        obj.sync_mode_ = true;
+        obj.set_sync_mode(true);
+        SensorManagerTestAccess::reconcile(obj, {});
+        std::lock_guard<std::recursive_mutex> lock(obj.mutex());
+        obj.readings_.clear();
         obj.deinit_subjects();
     }
 };
 } // namespace helix::sensors
+
+namespace {
+
+PrinterDiscovery discovery_of(const std::vector<std::string>& objects) {
+    PrinterDiscovery hw;
+    hw.parse_objects(json(objects));
+    return hw;
+}
+
+} // namespace
 
 // ============================================================================
 // Test Fixture
@@ -92,7 +105,11 @@ class LoadCellTestFixture {
     // Helper to discover standard test sensors using config keys (how production works)
     void discover_test_sensors() {
         std::vector<std::string> klipper_objects = {"load_cell", "load_cell spool_weight"};
-        mgr().discover(klipper_objects);
+        discover(klipper_objects);
+    }
+
+    void discover(const std::vector<std::string>& objects) {
+        mgr().discover(discovery_of(objects));
     }
 
     // Helper to simulate Moonraker status update
@@ -135,7 +152,7 @@ TEST_CASE_METHOD(LoadCellTestFixture, "LoadCellManager - state updates", "[load_
 
     SECTION("Treats a single unnamed load cell as spool weight") {
         std::vector<std::string> klipper_objects = {"load_cell"};
-        mgr().discover(klipper_objects);
+        discover(klipper_objects);
         REQUIRE(mgr().sensor_count() == 1);
 
         update_sensor_state("load_cell", 300.0);
@@ -144,7 +161,7 @@ TEST_CASE_METHOD(LoadCellTestFixture, "LoadCellManager - state updates", "[load_
 
     SECTION("Treats a single named load cell as spool weight, regardless of its name") {
         std::vector<std::string> klipper_objects = {"load_cell name_does_not_matter"};
-        mgr().discover(klipper_objects);
+        discover(klipper_objects);
         REQUIRE(mgr().sensor_count() == 1);
 
         update_sensor_state("load_cell name_does_not_matter", 300.0);
@@ -219,4 +236,111 @@ TEST_CASE_METHOD(LoadCellTestFixture, "LoadCellManager - state updates", "[load_
 
         REQUIRE(mgr().sensor_count() == 2);
     }
+}
+
+// ============================================================================
+// Roles and the AmsState push
+// ============================================================================
+
+namespace {
+constexpr uint8_t kSpool = static_cast<uint8_t>(LoadCellRole::SPOOL_WEIGHT);
+constexpr uint8_t kNoRole = static_cast<uint8_t>(LoadCellRole::NONE);
+} // namespace
+
+TEST_CASE_METHOD(LoadCellTestFixture,
+                 "LoadCellManager - SPOOL_WEIGHT is assigned by name or sole cell",
+                 "[load_cell][roles]") {
+    SECTION("a cell named for a spool holds the role, the other does not") {
+        discover_test_sensors();
+        SensorEntry spool;
+        SensorEntry plain;
+        REQUIRE(mgr().find("load_cell spool_weight", spool));
+        REQUIRE(mgr().find("load_cell", plain));
+        REQUIRE(spool.role == kSpool);
+        REQUIRE(plain.role == kNoRole);
+        REQUIRE(mgr().has_spool_weight_load_cell());
+    }
+
+    SECTION("two cells with no spool name leave the role unheld") {
+        discover({"load_cell a", "load_cell b"});
+        REQUIRE(mgr().sensor_count() == 2);
+        REQUIRE_FALSE(mgr().has_spool_weight_load_cell());
+    }
+
+    SECTION("the role is exclusive and not offered") {
+        discover({"load_cell spool_a", "load_cell spool_b"});
+        SensorEntry a;
+        SensorEntry b;
+        REQUIRE(mgr().find("load_cell spool_a", a));
+        REQUIRE(mgr().find("load_cell spool_b", b));
+        REQUIRE(a.role == kSpool);
+        REQUIRE(b.role == kNoRole);
+        mgr().set_role("load_cell spool_b", kSpool);
+        REQUIRE(mgr().find("load_cell spool_a", a));
+        REQUIRE(mgr().find("load_cell spool_b", b));
+        REQUIRE(a.role == kNoRole);
+        REQUIRE(b.role == kSpool);
+        REQUIRE(mgr().offered_roles().empty());
+    }
+
+    SECTION("get_sensors_sorted lists the spool cell first") {
+        discover({"load_cell aaa", "load_cell spool_weight"});
+        const auto sorted = mgr().get_sensors_sorted();
+        REQUIRE(sorted.size() == 2);
+        REQUIRE(sorted[0].klipper_name == "load_cell spool_weight");
+    }
+}
+
+TEST_CASE_METHOD(LoadCellTestFixture,
+                 "LoadCellManager - a new force_g reaches AmsState once, noise does not",
+                 "[load_cell][ams]") {
+    discover_test_sensors();
+
+    // The raw record changes only when the manager pushes, so planting a marker
+    // there shows whether a later frame pushed again.
+    const auto raw_weight = [] {
+        return AmsState::instance().raw_external_spool_info().value().remaining_weight_g;
+    };
+    const auto plant_marker = [&] {
+        auto info = AmsState::instance().raw_external_spool_info().value();
+        info.remaining_weight_g = 12345.0f;
+        AmsState::instance().set_external_spool_info_in_memory(info);
+    };
+
+    update_sensor_state("load_cell spool_weight", 300.0);
+    REQUIRE(raw_weight() == 300.0f);
+
+    SECTION("an identical frame does not push") {
+        // Marker 12345 would be overwritten by any push (delta is far past threshold).
+        plant_marker();
+        update_sensor_state("load_cell spool_weight", 300.0);
+        REQUIRE(raw_weight() == 12345.0f);
+    }
+
+    SECTION("a changed frame pushes exactly the new reading") {
+        plant_marker();
+        update_sensor_state("load_cell spool_weight", 310.0);
+        REQUIRE(raw_weight() == 310.0f);
+    }
+
+    SECTION("a sub-threshold change does not push") {
+        update_sensor_state("load_cell spool_weight", 300.4);
+        update_sensor_state("load_cell spool_weight", 300.9);
+        REQUIRE(raw_weight() == 300.0f);
+    }
+}
+
+// A reading belongs to the sensor discovery lists; when the cell vanishes its
+// reading goes too, so a later printer's cell of the same name starts empty.
+TEST_CASE_METHOD(LoadCellTestFixture,
+                 "LoadCellManager - a reconnect without the load cell drops its reading",
+                 "[load_cell][state]") {
+    discover({"load_cell"});
+    update_sensor_state("load_cell", 300.0);
+    REQUIRE(ams_state_spool_info().remaining_weight_g == 300.0);
+
+    discover({});
+    AmsState::instance().clear_external_spool_info();
+    discover({"load_cell"});
+    CHECK_FALSE(has_external_spool());
 }

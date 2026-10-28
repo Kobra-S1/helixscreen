@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "hardware_object_table.h"
 #include "sensor_enum_names.h"
 
 #include <string>
@@ -59,42 +60,21 @@ struct HumiditySensorChip {
     return chips;
 }
 
-/// @brief Match a Klipper object name against the chip table by prefix.
+/// @brief Match a Klipper object name against the chip table (via the object table).
 /// @return descriptor pointer if the object is a known humidity chip, else nullptr.
 [[nodiscard]] inline const HumiditySensorChip*
 humidity_chip_for_object(const std::string& klipper_name) {
+    const auto cls = helix::hw::classify_object(klipper_name);
+    if (cls.kind != helix::hw::ObjectKind::HumidityChip) {
+        return nullptr;
+    }
     for (const auto& c : humidity_sensor_chips()) {
-        if (klipper_name.size() >= c.klipper_prefix.size() &&
-            std::string_view(klipper_name).substr(0, c.klipper_prefix.size()) == c.klipper_prefix) {
+        if (static_cast<uint8_t>(c.type) == cls.chip) {
             return &c;
         }
     }
     return nullptr;
 }
-
-/// @brief Configuration for a humidity sensor
-struct HumiditySensorConfig {
-    std::string klipper_name; ///< Full Klipper name (e.g., "bme280 chamber")
-    std::string sensor_name;  ///< Short name (e.g., "chamber")
-    HumiditySensorType type = HumiditySensorType::BME280;
-    HumiditySensorRole role = HumiditySensorRole::NONE;
-    bool enabled = true;
-
-    HumiditySensorConfig() = default;
-
-    HumiditySensorConfig(std::string klipper_name_, std::string sensor_name_,
-                         HumiditySensorType type_)
-        : klipper_name(std::move(klipper_name_)), sensor_name(std::move(sensor_name_)),
-          type(type_) {}
-};
-
-/// @brief Runtime state for a humidity sensor
-struct HumiditySensorState {
-    float humidity = 0.0f;    ///< Humidity percentage (0-100)
-    float pressure = 0.0f;    ///< Pressure in hPa (BME280 only, 0 for HTU21D)
-    float temperature = 0.0f; ///< Temperature in degrees C
-    bool available = false;   ///< Sensor available in current config
-};
 
 inline constexpr EnumName<HumiditySensorRole> kHumiditySensorRoles[] = {
     {HumiditySensorRole::NONE, "none", "Unassigned"},

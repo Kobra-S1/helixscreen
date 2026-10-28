@@ -3,6 +3,7 @@
 
 #include "../../src/api/moonraker_client_mock_internal.h"
 #include "../helix_test_fixture.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
 #include "printer_detector.h"
@@ -33,7 +34,7 @@ helix::PrinterDiscovery discover(const helix::mock::PersonaEntry& p) {
         hw = mock.hardware();
     }
     // Discovery queues UI-thread callbacks; run them before the test ends.
-    helix::ui::UpdateQueue::instance().drain();
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     return hw;
 }
 

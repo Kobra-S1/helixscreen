@@ -4696,6 +4696,7 @@ translations:
   '{} turns': "{}回転"
   '{} updated': '{} を更新しました'
   '{} widgets': ウィジェット {} 個
+  '{} width sensor': '{} 幅センサー'
   ? '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
   : '{} は、フィラメントの種類と色の両方がアクティブなスプールと一致し、かつ自身のポートセンサーがフィラメントを検知しているスロットに切り替えます。'
   '{} · {}': '{} · {}'

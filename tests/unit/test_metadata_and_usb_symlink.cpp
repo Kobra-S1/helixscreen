@@ -22,6 +22,7 @@
 #include "../test_helpers/moonraker_file_api_test_access.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/scoped_try_reserve_failure.h"
+#include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include <atomic>
@@ -78,7 +79,7 @@ class MetadataAPITestFixture {
     ~MetadataAPITestFixture() {
         // Drain while `state` is still alive — discover_printer() in the ctor
         // leaves PrinterCapabilitiesState's deferred setters queued (#1166).
-        helix::ui::UpdateQueue::instance().drain();
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
 
         mock_client.stop_temperature_simulation();
         mock_client.disconnect();

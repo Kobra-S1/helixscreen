@@ -215,6 +215,7 @@ src/printer/filament_mapper.cpp
 src/printer/filament_variants.cpp
 src/printer/firmware_error_envelope.cpp
 src/printer/firmware_fault_codes.cpp
+src/printer/hardware_object_table.cpp
 src/printer/hardware_role_registry.cpp
 src/printer/hardware_validator.cpp
 src/printer/happy_hare_status_parse.cpp
@@ -303,10 +304,12 @@ src/printer/tool_offsets.cpp
 src/printer/tool_state.cpp
 src/printer/tool_offsets.cpp
 src/sensors/accel_sensor_manager.cpp
+src/sensors/dynamic_subject_map.cpp
 src/sensors/humidity_sensor_manager.cpp
 src/sensors/input_sensor_manager.cpp
 src/sensors/load_cell_manager.cpp
 src/sensors/probe_sensor_manager.cpp
+src/sensors/sensor_manager.cpp
 src/sensors/temperature_sensor_manager.cpp
 src/sensors/width_sensor_manager.cpp
 src/system/lan_sweep.cpp

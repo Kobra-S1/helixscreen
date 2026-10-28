@@ -12,6 +12,8 @@
 
 #include "config.h"
 #include "device_display_name.h"
+#include "fan_gcode.h"
+#include "hardware_object_table.h"
 #include "hardware_role_registry.h"
 #include "json_utils.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -171,9 +173,11 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
     // Check for other fan types in the status update
     // Moonraker sends fan objects as top-level keys: "heater_fan hotend_fan", "fan_generic xyz"
     for (const auto& [key, value] : status.items()) {
-        // Skip non-fan objects
-        if (key.rfind("heater_fan ", 0) == 0 || key.rfind("fan_generic ", 0) == 0 ||
-            key.rfind("controller_fan ", 0) == 0 || key.rfind("temperature_fan ", 0) == 0) {
+        const hw::ObjectKind kind = hw::classify_object(key).kind;
+
+        // Fan objects other than the bare part fan and output_pin fans report "speed"
+        if (hw::is_fan(kind) && kind != hw::ObjectKind::Fan &&
+            kind != hw::ObjectKind::OutputPinFan) {
             if (value.is_object() && value.contains("speed") && value["speed"].is_number()) {
                 double speed = value["speed"].get<double>();
                 update_fan_speed(key, speed);
@@ -189,7 +193,7 @@ void PrinterFanState::update_from_status(const nlohmann::json& status) {
 
         // Handle output_pin fan objects (Creality-style)
         // These report {"value": 0.0-1.0} instead of {"speed": 0.0-1.0}
-        if (key.rfind("output_pin ", 0) == 0) {
+        if (kind == hw::ObjectKind::OutputPinFan) {
             if (value.is_object() && value.contains("value") && value["value"].is_number()) {
                 double speed = value["value"].get<double>();
                 update_fan_speed(key, speed);
@@ -243,20 +247,19 @@ FanType PrinterFanState::classify_fan_type(const std::string& object_name,
     if (!configured_part_fan.empty() && object_name == configured_part_fan) {
         return FanType::PART_COOLING;
     }
-    if (object_name.rfind("heater_fan ", 0) == 0) {
+    const auto cls = hw::classify_object(object_name);
+    switch (cls.kind) {
+    case hw::ObjectKind::HeaterFan:
         return FanType::HEATER_FAN;
-    } else if (object_name.rfind("controller_fan ", 0) == 0) {
+    case hw::ObjectKind::ControllerFan:
         return FanType::CONTROLLER_FAN;
-    } else if (object_name.rfind("temperature_fan ", 0) == 0) {
+    case hw::ObjectKind::TemperatureFan:
         return FanType::TEMPERATURE_FAN;
-    } else if (object_name.rfind("output_pin ", 0) == 0) {
-        // Check if the short name starts with "fan" (e.g., "output_pin fan0")
-        std::string short_name = object_name.substr(11);
-        if (short_name.rfind("fan", 0) == 0) {
-            return FanType::OUTPUT_PIN_FAN;
-        }
-        return FanType::GENERIC_FAN;
-    } else {
+    case hw::ObjectKind::OutputPinFan:
+        // A hotend-area pin is driven with the heater: shown like a heater_fan, never commanded.
+        return output_pin_fan_is_firmware_driven(cls.instance) ? FanType::HEATER_FAN
+                                                               : FanType::OUTPUT_PIN_FAN;
+    default:
         return FanType::GENERIC_FAN;
     }
 }

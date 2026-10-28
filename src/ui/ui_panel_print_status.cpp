@@ -700,7 +700,7 @@ void PrintStatusPanel::init_subjects() {
                         return;
                     self->recompute_scoped_runout();
                 },
-                FilamentSensorManager::instance().get_subjects_lifetime());
+                FilamentSensorManager::instance().subjects_lifetime());
         }
     }
     {

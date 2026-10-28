@@ -19,6 +19,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/filament_sensor_manager_test_access.h"
 #include "../test_helpers/post_unload_grace_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/toolchanger_test_helper.h"
@@ -108,7 +109,7 @@ class ScopedSensorLanes {
                 {{"klipper_name", klipper}, {"role", "runout"}, {"enabled", true}, {"lane", lane}});
         }
         node = nlohmann::json{{"master_enabled", true}, {"sensors", sensors}};
-        fsm.load_config_from_file();
+        fsm.load_settings();
     }
     /// Head N's sensor watches lane N.
     ScopedSensorLanes(FilamentSensorManager& fsm, std::initializer_list<const char*> heads)
@@ -172,7 +173,7 @@ class FirmwareEnabledFixture : public LVGLTestFixture {
         for (const char* name : klipper_names) {
             names.emplace_back(name);
         }
-        fsm.discover_sensors(names);
+        discover_filament_sensors(fsm, names);
         for (const auto& name : names) {
             PostUnloadGraceTestAccess::force_role(fsm, name, role);
         }
@@ -483,7 +484,7 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "RUNOUT keeps one holder per lane",
     };
 
     // Re-picking one head's switch in settings leaves the other heads alone.
-    fsm.set_sensor_role(kHead1, FilamentSensorRole::RUNOUT);
+    fsm.set_role(kHead1, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
     CHECK(role_of(kHead0) == FilamentSensorRole::RUNOUT);
     CHECK(role_of(kHead1) == FilamentSensorRole::RUNOUT);
     CHECK(role_of(kHead2) == FilamentSensorRole::RUNOUT);
@@ -491,7 +492,7 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "RUNOUT keeps one holder per lane",
 
     // The lane survives a save.
     int saved_lanes = 0;
-    const nlohmann::json saved = fsm.save_config();
+    const nlohmann::json saved = helix::sensors::SensorManagerTestAccess::settings_json(fsm);
     for (const auto& entry : saved["sensors"]) {
         if (entry.value("klipper_name", "") == kHead3) {
             CHECK(entry.value("lane", -1) == 3);
@@ -501,14 +502,14 @@ TEST_CASE_METHOD(FirmwareEnabledFixture, "RUNOUT keeps one holder per lane",
     CHECK(saved_lanes == 1);
 
     // A sensor watching no lane is the whole printer's: it takes the role alone.
-    fsm.set_sensor_role(kShared, FilamentSensorRole::RUNOUT);
+    fsm.set_role(kShared, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
     CHECK(role_of(kShared) == FilamentSensorRole::RUNOUT);
     CHECK(role_of(kHead0) == FilamentSensorRole::NONE);
     CHECK(role_of(kHead2) == FilamentSensorRole::NONE);
 
     // Every other role keeps a single holder, lanes or not.
-    fsm.set_sensor_role(kHead0, FilamentSensorRole::TOOLHEAD);
-    fsm.set_sensor_role(kHead1, FilamentSensorRole::TOOLHEAD);
+    fsm.set_role(kHead0, static_cast<uint8_t>(FilamentSensorRole::TOOLHEAD));
+    fsm.set_role(kHead1, static_cast<uint8_t>(FilamentSensorRole::TOOLHEAD));
     CHECK(role_of(kHead0) == FilamentSensorRole::NONE);
     CHECK(role_of(kHead1) == FilamentSensorRole::TOOLHEAD);
 }

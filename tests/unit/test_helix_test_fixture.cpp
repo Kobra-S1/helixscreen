@@ -4,6 +4,7 @@
 #include "ui_emergency_stop.h"
 
 #include "../helix_test_fixture.h"
+#include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/emergency_stop_test_access.h"
 #include "system_settings_manager.h"
 #include "temperature_sensor_manager.h"
@@ -65,7 +66,7 @@ TEST_CASE_METHOD(HelixTestFixture,
 
     REQUIRE(sensors.get_sensors_sorted().empty());
 
-    sensors.discover({"temperature_sensor helix_reset_all_probe"});
+    sensors.discover(helix::test::discovery_of({"temperature_sensor helix_reset_all_probe"}));
     REQUIRE_FALSE(sensors.get_sensors_sorted().empty());
 
     HelixTestFixture::reset_all();
