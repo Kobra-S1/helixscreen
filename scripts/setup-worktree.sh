@@ -953,6 +953,16 @@ if [[ -d "$MAIN_GEN" && ! -d "$WORKTREE_PATH/build/generated" ]]; then
     cp -Rc "$MAIN_GEN" "$WORKTREE_PATH/build/generated" 2>/dev/null \
         || cp -a "$MAIN_GEN" "$WORKTREE_PATH/build/generated"
     echo -e "  build/generated: ${GREEN}cloned${RESET}"
+    # The clone describes the main tree's branch. When this branch's generator
+    # or its input differs, the copied header can still read newer than both and
+    # make keeps it, compiling another branch's contributor table here.
+    for input in CONTRIBUTORS.txt scripts/gen-contributors.sh; do
+        if ! cmp -s "$MAIN_TREE/$input" "$WORKTREE_PATH/$input"; then
+            rm -f "$WORKTREE_PATH/build/generated/contributors.h"
+            echo -e "  build/generated/contributors.h: ${YELLOW}dropped ($input differs from the main tree's)${RESET}"
+            break
+        fi
+    done
 fi
 
 # Step 3c: Copy compile_commands.json for clangd support
@@ -1418,6 +1428,16 @@ if [[ "$PRIVATE_SUBMODULES_NEED_PATCHES" != "true" ]] \
    && ! diff -rq "$MAIN_TREE/patches" "$WORKTREE_PATH/patches" >/dev/null 2>&1; then
     PRIVATE_SUBMODULES_NEED_PATCHES=true
     echo -e "${YELLOW}patches/ differs from the main tree's${RESET}"
+fi
+# Matching patches/ proves only that the main tree SHOULD carry them. Its own
+# checkout can be pristine (never built, or reset since), and a copy of it then
+# compiles as an unpatched submodule. The marker table greps for each patch's
+# effect, so it answers what the copy actually holds, without a build.
+if [[ "$PRIVATE_SUBMODULES_NEED_PATCHES" != "true" && -f scripts/check_patch_markers.py ]] \
+   && ! python3 scripts/check_patch_markers.py --mk mk/patches.mk --tsv mk/patch-markers.tsv \
+        --patch-dir patches --lvgl lib/lvgl --libhv lib/libhv --lua lib/lua >/dev/null 2>&1; then
+    PRIVATE_SUBMODULES_NEED_PATCHES=true
+    echo -e "${YELLOW}the private submodules copied from the main tree are missing patches${RESET}"
 fi
 if [[ "$PRIVATE_SUBMODULES_NEED_PATCHES" == "true" ]]; then
     echo -e "${CYAN}Applying this branch's patches to the private submodules...${RESET}"
