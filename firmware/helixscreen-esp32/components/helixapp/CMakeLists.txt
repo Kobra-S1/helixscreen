@@ -97,6 +97,12 @@ idf_component_register(
 # The PCH -include is C++-only: font/image .c sources compile as plain C.
 target_compile_options(${COMPONENT_LIB} PRIVATE
     $<$<COMPILE_LANGUAGE:CXX>:-std=gnu++17>
+    # GCC clones inline functions per translation unit ($isra, $constprop, $part)
+    # as local symbols the linker cannot merge, so every TU carries its own copy of
+    # the same std::string, json and ObserverGuard helpers.
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-ipa-sra>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-ipa-cp-clone>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-partial-inlining>
     -w
     $<$<COMPILE_LANGUAGE:CXX>:-include>
     $<$<COMPILE_LANGUAGE:CXX>:${REPO_ROOT}/include/lvgl_pch.h>)
