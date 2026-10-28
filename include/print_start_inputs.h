@@ -63,6 +63,15 @@ struct FileStartFacts {
 effective_file_mappings(std::vector<ToolMapping> card_mappings,
                         const std::vector<GcodeToolInfo>& used_tool_info);
 
+/// The mapping the remap modal opens with: the user's picks in @p card_mappings
+/// laid over the modal's suggestions for @p used_tool_info against the live slots
+/// (AmsState::seed_tool_mappings() with the effective auto-colour answer). The
+/// suggestions keep colour matches even where Print carries out no stored pick,
+/// because the modal's apply carries them out itself.
+[[nodiscard]] std::vector<ToolMapping>
+remap_modal_mappings(const std::vector<ToolMapping>& card_mappings,
+                     const std::vector<GcodeToolInfo>& used_tool_info);
+
 /// The tool-to-slot remap @p mappings send: only genuine remaps, judged against
 /// the backend's firmware routing.
 [[nodiscard]] std::map<int, int> effective_file_remap(const std::vector<ToolMapping>& mappings);

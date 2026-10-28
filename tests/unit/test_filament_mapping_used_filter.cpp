@@ -33,6 +33,7 @@
 #include "../mapping_card_render_fixture.h"
 #include "../test_helpers/mock_bypass.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "ams_state.h"
 #include "filament_chip_model.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "print_start_inputs.h"
@@ -969,5 +970,54 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     CHECK(chip_int(1, "_slot_state") == 0);
     // The print-start gate reads the same mapping and blocks it.
     CHECK(helix::file_preflight(card.get_tool_info(), card.get_mappings()).has_block());
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(
+    MappingCardRenderFixture,
+    "Where Print carries out no stored pick, the card seeds each tool on its routed head",
+    "[filament_mapping][chip][preflight]") {
+    // GcodeRewrite: the Print button prints the file as sliced, so T0 prints
+    // from the head it routes to even though another lane holds its colour.
+    struct AutoColorOn {
+        bool prev;
+        AutoColorOn() {
+            helix::SettingsManager::instance().init_subjects();
+            prev = helix::SettingsManager::instance().get_auto_color_map();
+            helix::SettingsManager::instance().set_auto_color_map(true);
+        }
+        ~AutoColorOn() {
+            helix::SettingsManager::instance().set_auto_color_map(prev);
+        }
+    } auto_color_on;
+
+    mock->set_remap_strategy(helix::AmsBackend::RemapStrategy::GcodeRewrite);
+    mock->force_slot_status(0, helix::SlotStatus::EMPTY);
+    load_lane(mock, 1, 0x00FF00, "PLA");
+    load_lane(mock, 2, 0xFF0000, "PLA");
+    helix::ui::UpdateQueue::instance().drain();
+    // Colour matching is on, so a seed that colour-matched would pick lane 3.
+    REQUIRE(helix::AmsState::instance().effective_auto_match());
+
+    card.update({"#FF0000", "#00FF00"}, {"PLA", "PLA"});
+    const auto seeded = card.get_mappings();
+    REQUIRE(seeded.size() == 2);
+    CHECK(seeded[0].mapped_slot == 0);
+    CHECK(seeded[1].mapped_slot == 1);
+
+    const auto preflight = helix::file_preflight(card.get_tool_info(), seeded);
+    REQUIRE(preflight.checks.size() == 2);
+    CHECK(preflight.checks[0].severity == helix::ToolCheck::Severity::EmptySlot);
+    CHECK(preflight.has_block());
+
+    REQUIRE(chip_count() == 2);
+    CHECK(chip_int(0, "_severity") == 2);
+    CHECK(chip_int(0, "_slot_state") == 2);
+
+    // The rewrite modal still suggests the colour match: its apply rewrites the
+    // job, so the suggestion prints as shown.
+    const auto suggested = helix::remap_modal_mappings(seeded, card.get_tool_info());
+    REQUIRE(suggested.size() == 2);
+    CHECK(suggested[0].mapped_slot == 2);
     process_lvgl(100);
 }

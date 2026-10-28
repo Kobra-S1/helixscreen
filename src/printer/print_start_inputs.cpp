@@ -64,6 +64,15 @@ std::vector<ToolMapping> effective_file_mappings(std::vector<ToolMapping> card_m
     return ams.seed_tool_mappings(used_tool_info, ams.collect_available_slots());
 }
 
+std::vector<ToolMapping> remap_modal_mappings(const std::vector<ToolMapping>& card_mappings,
+                                              const std::vector<GcodeToolInfo>& used_tool_info) {
+    auto& ams = AmsState::instance();
+    auto mappings = ams.seed_tool_mappings(used_tool_info, ams.collect_available_slots(),
+                                           ams.effective_auto_match());
+    FilamentMapper::apply_picks(mappings, card_mappings);
+    return mappings;
+}
+
 std::map<int, int> effective_file_remap(const std::vector<ToolMapping>& mappings) {
     // Only genuine remaps survive the identity filter: a real slot assignment
     // that differs from the firmware-default head for that tool. Judged against

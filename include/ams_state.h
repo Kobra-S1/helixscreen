@@ -649,6 +649,12 @@ class AmsState {
      * view each re-assembled it, and two of them cleared firmware mappings
      * before colour matching while a third did not.
      *
+     * On a strategy whose Print carries out no stored pick (GcodeRewrite,
+     * None: helix::printer::print_carries_out_stored_pick()), every tool is
+     * seeded on the head the firmware routes it to, with no colour match and no
+     * free-lane guess, so the chips and every print-start gate judge the lane
+     * Print really uses.
+     *
      * @param slots pass the SAME list you display, so the seed and the picker
      *              cannot disagree about what is loaded.
      */
@@ -656,9 +662,14 @@ class AmsState {
     seed_tool_mappings(const std::vector<helix::GcodeToolInfo>& tools,
                        const std::vector<helix::AvailableSlot>& slots) const;
 
-    /// As above, but with the auto-colour answer supplied by the caller. Only
-    /// for the mapping modal, which lets the user flip it live before
-    /// committing; everything else must use the effective predicate.
+    /// The lanes the mapping modal suggests, with the auto-colour answer supplied
+    /// by the caller: the modal lets the user flip it live before committing.
+    /// Colour matches and free-lane guesses are offered on every strategy, since
+    /// the modal's apply carries them out (GcodeRewrite rewrites the job there and
+    /// then). The two-argument form differs on a strategy whose Print carries out
+    /// no stored pick (helix::printer::print_carries_out_stored_pick()): it seeds
+    /// every tool on its routed head, the lane that Print really uses. Everything
+    /// but the modal must use that form.
     [[nodiscard]] std::vector<helix::ToolMapping>
     seed_tool_mappings(const std::vector<helix::GcodeToolInfo>& tools,
                        const std::vector<helix::AvailableSlot>& slots, bool auto_color_map) const;
