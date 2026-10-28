@@ -17,8 +17,10 @@ once per component, with that component's include path: helixnet has no LVGL.
 
 Advisory, never blocking, when it cannot answer: no docker, no IDF image (it is
 not pulled, ~9GB), or the configure fails. esp32-build CI stays the backstop.
+--require turns every such answer into exit 3, for a caller whose verdict must
+mean the firmware compiled (make land-gate).
 
-usage: esp32_syntax_check.py --base SHA [--head SHA] [--tree DIR] [--jobs N]
+usage: esp32_syntax_check.py --base SHA [--head SHA] [--tree DIR] [--jobs N] [--require]
        esp32_syntax_check.py --staged
        HELIX_ESP32_SYNTAX=0 skips it.
 
@@ -212,6 +214,16 @@ def run_jobs(jobs_file, jobs):
     return 0
 
 
+# Exit status under --require when nothing was compiled because nothing could be.
+kCannotAnswer = 3
+
+
+def cannot_answer(args, message):
+    """Report a check that could not run: advisory, or exit 3 under --require."""
+    print(message)
+    return kCannotAnswer if args.require else 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base")
@@ -219,12 +231,13 @@ def main():
     ap.add_argument("--tree")
     ap.add_argument("--jobs", type=int, default=0)
     ap.add_argument("--staged", action="store_true")
+    ap.add_argument("--require", action="store_true")
     ap.add_argument("--run-jobs", help=argparse.SUPPRESS)
     args = ap.parse_args()
     if args.run_jobs:
         return run_jobs(args.run_jobs, args.jobs or 4)
     if os.environ.get("HELIX_ESP32_SYNTAX") == "0":
-        return 0
+        return cannot_answer(args, "⚠️  esp32 syntax check skipped: HELIX_ESP32_SYNTAX=0")
 
     tree = os.path.realpath(args.tree or git(".", "rev-parse", "--show-toplevel").strip())
     primary = os.path.dirname(
@@ -238,23 +251,21 @@ def main():
         return 0
     if not shutil.which("docker") or subprocess.run(
             ["docker", "image", "inspect", IDF_IMAGE], capture_output=True).returncode != 0:
-        print(f"⚠️  esp32 syntax check skipped: needs docker and {IDF_IMAGE}")
-        return 0
+        return cannot_answer(args, f"⚠️  esp32 syntax check skipped: needs docker and {IDF_IMAGE}")
 
     mounts = [tree, primary]
     cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / \
         "helixscreen" / "esp32-syntax" / config_key(tree, args.head)
     if not (cache / "compile_commands.json").exists():
         if args.staged:
-            print("ℹ️  esp32 syntax check: no cached firmware flags for this CMake state; "
-                  "pre-push configures them (minutes, once)")
-            return 0
+            return cannot_answer(args, "ℹ️  esp32 syntax check: no cached firmware flags for "
+                                 "this CMake state; pre-push configures them (minutes, once)")
         # Each configure is ~33MB; keep the newest few.
         for old in sorted(cache.parent.glob("*"), key=lambda p: p.stat().st_mtime)[:-3]:
             shutil.rmtree(old, ignore_errors=True)
         print("🔧 esp32 syntax check: configuring firmware flags (once per CMake change)...")
         if not configure(tree, cache, mounts):
-            return 0
+            return cannot_answer(args, "⚠️  esp32 syntax check: no firmware flags, nothing compiled")
     src_root = (cache / "source_root.txt").read_text().strip()
     units = firmware_units(json.loads((cache / "compile_commands.json").read_text()), src_root)
 
@@ -303,8 +314,8 @@ def check_units(args, units, changed, src_root, source_tree, fallbacks, cache, m
     try:
         failed = json.loads(res.stdout.strip().splitlines()[-1])
     except (IndexError, ValueError):
-        print(f"⚠️  esp32 syntax check could not run, skipping\n{res.stderr[-800:]}")
-        return 0
+        return cannot_answer(
+            args, f"⚠️  esp32 syntax check could not run, skipping\n{res.stderr[-800:]}")
     if not failed:
         print(f"✅ esp32 syntax check: {len(picked)} firmware unit(s) compile")
         return 0
