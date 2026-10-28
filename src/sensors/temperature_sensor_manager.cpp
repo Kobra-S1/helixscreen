@@ -105,6 +105,19 @@ bool sorts_before(const TemperatureSensorConfig& a, const TemperatureSensorConfi
     return a.display_name < b.display_name;
 }
 
+/// Stable insertion sort. These lists hold a handful of sensors, where
+/// std::sort and std::stable_sort cost firmware flash and buy nothing.
+template <typename T, typename Less> void sort_small(std::vector<T>& items, Less less) {
+    for (size_t i = 1; i < items.size(); ++i) {
+        T item = std::move(items[i]);
+        size_t j = i;
+        for (; j > 0 && less(item, items[j - 1]); --j) {
+            items[j] = std::move(items[j - 1]);
+        }
+        items[j] = std::move(item);
+    }
+}
+
 } // namespace
 
 TemperatureSensorManager::Options TemperatureSensorManager::make_options() {
@@ -150,9 +163,8 @@ std::vector<size_t> TemperatureSensorManager::settings_rows() const {
     for (const auto& e : all) {
         configs.push_back(config_of(e));
     }
-    std::stable_sort(rows.begin(), rows.end(), [&configs](size_t a, size_t b) {
-        return sorts_before(configs[a], configs[b]);
-    });
+    sort_small(rows,
+               [&configs](size_t a, size_t b) { return sorts_before(configs[a], configs[b]); });
     return rows;
 }
 
@@ -296,7 +308,7 @@ std::vector<TemperatureSensorConfig> TemperatureSensorManager::get_sensors() con
 
 std::vector<TemperatureSensorConfig> TemperatureSensorManager::get_sensors_sorted() const {
     auto sorted = get_sensors();
-    std::sort(sorted.begin(), sorted.end(), sorts_before);
+    sort_small(sorted, sorts_before);
     return sorted;
 }
 
