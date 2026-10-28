@@ -1748,3 +1748,61 @@ TEST_CASE_METHOD(ExpectedHardwareSuppressFixture,
     // absence — result.expected_missing has nothing to assert here.
     REQUIRE_FALSE(has_newly_discovered(result, "heater_fan chamber_fan"));
 }
+
+namespace {
+json runout_sensor_settings(const std::string& klipper_name) {
+    return {{"sensors", json::array({{{"klipper_name", klipper_name},
+                                      {"role", "runout"},
+                                      {"enabled", true},
+                                      {"type", "switch"}}})}};
+}
+
+bool reports_filament_sensor_missing(const HardwareValidationResult& result,
+                                     const std::string& name) {
+    return std::any_of(result.expected_missing.begin(), result.expected_missing.end(),
+                       [&](const HardwareIssue& issue) {
+                           return issue.hardware_type == HardwareType::FILAMENT_SENSOR &&
+                                  issue.hardware_name == name;
+                       });
+}
+} // namespace
+
+TEST_CASE_METHOD(HardwareValidatorConfigFixture,
+                 "a configured filament sensor that disappeared is flagged",
+                 "[hardware][hwvalidate][filament]") {
+    MoonrakerClientMock client;
+    client.set_heaters({"extruder", "heater_bed"});
+    client.set_filament_sensors({"filament_switch_sensor other"});
+    setup_printer_data({{"moonraker_host", "127.0.0.1"},
+                        {"moonraker_port", 7125},
+                        {"filament_sensors", runout_sensor_settings("filament_switch_sensor gone")},
+                        {"hardware",
+                         {{"optional", json::array()},
+                          {"expected", json::array()},
+                          {"last_snapshot", json::object()}}}});
+
+    HardwareValidator validator;
+    auto result = validator.validate(&config, client.hardware());
+
+    REQUIRE(reports_filament_sensor_missing(result, "filament_switch_sensor gone"));
+}
+
+TEST_CASE_METHOD(HardwareValidatorConfigFixture,
+                 "a configured filament sensor still present is not flagged",
+                 "[hardware][hwvalidate][filament]") {
+    MoonrakerClientMock client;
+    client.set_heaters({"extruder", "heater_bed"});
+    client.set_filament_sensors({"filament_switch_sensor here"});
+    setup_printer_data({{"moonraker_host", "127.0.0.1"},
+                        {"moonraker_port", 7125},
+                        {"filament_sensors", runout_sensor_settings("filament_switch_sensor here")},
+                        {"hardware",
+                         {{"optional", json::array()},
+                          {"expected", json::array()},
+                          {"last_snapshot", json::object()}}}});
+
+    HardwareValidator validator;
+    auto result = validator.validate(&config, client.hardware());
+
+    REQUIRE_FALSE(reports_filament_sensor_missing(result, "filament_switch_sensor here"));
+}

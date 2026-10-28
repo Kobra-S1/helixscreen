@@ -47,6 +47,31 @@ std::string json_string_member(const json& obj, const char* key) {
     return it->get<std::string>();
 }
 
+/// Klipper names of the filament sensors saved in settings. The saved entries
+/// carry "klipper_name" (the shape FilamentSensorManager persists under
+/// "filament_sensors"); the manager's own entries() hold only what discovery
+/// currently lists, so they cannot name a sensor that has disappeared.
+std::vector<std::string> configured_filament_sensors(Config* config) {
+    std::vector<std::string> names;
+    if (config == nullptr) {
+        return names;
+    }
+    const json* sensors_config = config->try_get_json(config->df() + "filament_sensors/sensors");
+    if (sensors_config == nullptr || !sensors_config->is_array()) {
+        return names;
+    }
+    for (const auto& sensor : *sensors_config) {
+        if (!sensor.is_object()) {
+            continue;
+        }
+        std::string klipper_name = json_string_member(sensor, "klipper_name");
+        if (!klipper_name.empty()) {
+            names.push_back(std::move(klipper_name));
+        }
+    }
+    return names;
+}
+
 /// Whether a configured strip id is something printer.objects can report.
 /// A configured strip list spans every LED backend: macro devices are synthetic
 /// "macro:NAME" ids and WLED strips are served over Moonraker's HTTP proxy, so
@@ -603,25 +628,12 @@ void HardwareValidator::validate_configured_hardware(Config* config,
     }
 
     // Check configured filament sensors
-    {
-        const json* sensors_config =
-            config->try_get_json(config->df() + "filament_sensors/sensors");
-        if (sensors_config != nullptr && sensors_config->is_array()) {
-            for (const auto& sensor : *sensors_config) {
-                if (!sensor.is_object()) {
-                    continue;
-                }
-                const std::string sensor_name = json_string_member(sensor, "name");
-                if (sensor_name.empty()) {
-                    continue;
-                }
-                if (!contains_name(filament_sensors, sensor_name) &&
-                    !is_hardware_optional(config, sensor_name)) {
-                    result.expected_missing.push_back(
-                        HardwareIssue::warning(sensor_name, HardwareType::FILAMENT_SENSOR,
-                                               TR_NOOP("Configured filament sensor not found")));
-                }
-            }
+    for (const auto& sensor_name : configured_filament_sensors(config)) {
+        if (!contains_name(filament_sensors, sensor_name) &&
+            !is_hardware_optional(config, sensor_name)) {
+            result.expected_missing.push_back(
+                HardwareIssue::warning(sensor_name, HardwareType::FILAMENT_SENSOR,
+                                       TR_NOOP("Configured filament sensor not found")));
         }
     }
 
@@ -719,23 +731,7 @@ void HardwareValidator::validate_new_hardware(Config* config,
 
     // Check for filament sensors not in config
     const auto& discovered_sensors = hardware.filament_sensor_names();
-    std::vector<std::string> configured_names;
-
-    if (config) {
-        const json* sensors_config =
-            config->try_get_json(config->df() + "filament_sensors/sensors");
-        if (sensors_config != nullptr && sensors_config->is_array()) {
-            for (const auto& sensor : *sensors_config) {
-                if (!sensor.is_object()) {
-                    continue;
-                }
-                std::string klipper_name = json_string_member(sensor, "klipper_name");
-                if (!klipper_name.empty()) {
-                    configured_names.push_back(std::move(klipper_name));
-                }
-            }
-        }
-    }
+    const std::vector<std::string> configured_names = configured_filament_sensors(config);
 
     // Find sensors in discovery but not in config
     for (const auto& sensor : discovered_sensors) {
