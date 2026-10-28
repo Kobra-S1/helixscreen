@@ -3213,7 +3213,7 @@ void discover_afc(AmsBackendAfcTestHelper& helper, bool afclite) {
 }
 } // namespace
 
-TEST_CASE("AFC over a firmware that maps tools per print offers no remap and sends no SET_MAP",
+TEST_CASE("Z-Mod's lane-picking shim offers no remap and sends no SET_MAP",
           "[ams][afc][tool_mapping]") {
     AmsBackendAfcTestHelper helper;
     discover_afc(helper, /*afclite=*/true);
