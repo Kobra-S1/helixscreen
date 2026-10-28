@@ -1297,3 +1297,52 @@ def test_each_script_runs_only_the_bats_file_that_names_it(tmp_path):
     # Baseline plus mutant for each, and never the other script's file.
     assert sorted(set(ran)) == ["test_alpha", "test_beta"]
     assert ran.count("test_alpha") == 2 and ran.count("test_beta") == 2, ran
+
+
+# ---------------------------------------------------------------------------
+# Script cases red at baseline are set aside, not a reason to refuse
+# ---------------------------------------------------------------------------
+def test_failing_tests_names_bats_and_pytest_failures():
+    bats = "ok 1 fine\nnot ok 2 needs a jobpool\nnot ok 3 skipped thing # TODO later\nok 4 x\n"
+    assert md.failing_tests("bats", bats) == {"needs a jobpool", "skipped thing"}
+    py = "FAILED tests/python/test_a.py::test_x - AssertionError\n1 failed, 3 passed\n"
+    assert md.failing_tests("pytest", py) == {"tests/python/test_a.py::test_x"}
+    assert md.failing_tests("catch2", "t.cpp:1: FAILED:\n") == set()
+
+
+def _script_with_bats(tmp_path, body):
+    work = _fixture(tmp_path)
+    (work / "tests" / "shell").mkdir(parents=True)
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho old\n")
+    (work / "tests" / "shell" / "test_tool.bats").write_text(body)
+    _git(work, "add", ".")
+    _git(work, "commit", "-qm", "tool")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho NEW\n")
+    return work, base
+
+
+ENV_RED = '@test "needs the environment" {\n  false\n}\n'
+
+
+@needs_bats
+def test_a_case_red_at_baseline_is_set_aside_and_the_rest_still_judge(tmp_path):
+    work, base = _script_with_bats(tmp_path, ENV_RED + (
+        '@test "tool is new" {\n'
+        '  grep -q NEW "$BATS_TEST_DIRNAME/../../scripts/tool.sh"\n'
+        '}\n'))
+    r = _mutate(work, "--base", base, "--only", "scripts/tool.sh", "--no-auto-tests",
+                "--shell-tests", "tests/shell/test_tool.bats", "--python-tests", "")
+    assert r.returncode == 0, r.stdout
+    assert "1 case(s) red at baseline here, set aside" in r.stdout
+    assert "needs the environment" in r.stdout
+    assert "VERDICT: CLEAN" in r.stdout
+
+
+@needs_bats
+def test_a_mutant_only_a_baseline_red_case_notices_survives(tmp_path):
+    work, base = _script_with_bats(tmp_path, ENV_RED + '@test "unrelated" {\n  true\n}\n')
+    r = _mutate(work, "--base", base, "--only", "scripts/tool.sh", "--no-auto-tests",
+                "--shell-tests", "tests/shell/test_tool.bats", "--python-tests", "")
+    assert r.returncode == 1, r.stdout
+    assert "SURVIVED" in r.stdout
