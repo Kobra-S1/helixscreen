@@ -1518,14 +1518,14 @@ check_observer_guard_move_clears_cleanup() {
 }
 
 @test "ObserverGuard's move paths clear the moved-from cleanup" {
-    run check_observer_guard_move_clears_cleanup include/ui_observer_guard.h
+    run check_observer_guard_move_clears_cleanup src/ui/ui_observer_guard.cpp
     [ "$status" -eq 0 ]
 }
 
 @test "the ObserverGuard move gate fires when std::move comes back" {
-    local mutated="${BATS_TEST_TMPDIR}/ui_observer_guard_moved.h"
+    local mutated="${BATS_TEST_TMPDIR}/ui_observer_guard_moved.cpp"
     sed -e 's@std::exchange(other\.cleanup_, nullptr)@std::move(other.cleanup_)@' \
-        include/ui_observer_guard.h > "$mutated"
+        src/ui/ui_observer_guard.cpp > "$mutated"
 
     run check_observer_guard_move_clears_cleanup "$mutated"
     [ "$status" -eq 1 ]
@@ -1533,9 +1533,9 @@ check_observer_guard_move_clears_cleanup() {
 }
 
 @test "the ObserverGuard move gate fails closed when a move path disappears" {
-    local mutated="${BATS_TEST_TMPDIR}/ui_observer_guard_dropped.h"
+    local mutated="${BATS_TEST_TMPDIR}/ui_observer_guard_dropped.cpp"
     awk '/cleanup_.*other\.cleanup_/ && !seen { seen = 1; next } { print }' \
-        include/ui_observer_guard.h > "$mutated"
+        src/ui/ui_observer_guard.cpp > "$mutated"
 
     run check_observer_guard_move_clears_cleanup "$mutated"
     [ "$status" -eq 1 ]
