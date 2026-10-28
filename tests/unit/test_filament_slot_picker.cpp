@@ -197,3 +197,18 @@ TEST_CASE_METHOD(SlotPickerFixture,
     REQUIRE(chosen.has_value());
     CHECK(chosen->slot_index == static_cast<int>(FilamentSlotPicker::kMaxPickerRows) - 1);
 }
+
+TEST_CASE_METHOD(SlotPickerFixture, "Two single-unit backends list their rows apart",
+                 "[slot_picker]") {
+    std::vector<AvailableSlot> s = slots(1);
+    AvailableSlot other = s[0];
+    other.backend_index = 1;
+    s.push_back(other);
+    show(s, {});
+    const auto label = [](int k) {
+        const std::string name = "filament_picker_row_" + std::to_string(k) + "_label";
+        return std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, name.c_str())));
+    };
+    CHECK(label(0) == "1 \xc2\xb7 Slot 1");
+    CHECK(label(1) == "2 \xc2\xb7 Slot 1");
+}

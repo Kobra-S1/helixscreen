@@ -149,6 +149,31 @@ TEST_CASE("chip_slot_label: two backends whose units are both index 0 still diff
     CHECK(chip_slot_label(slots[1], slots) == std::string("2") + helix::ui::kUnitSeparator + "1");
 }
 
+TEST_CASE("slot_row_label: the dropdown names the unit the chip numbers", "[filament_chip]") {
+    // One unit: the lane alone.
+    std::vector<AvailableSlot> one = {make_slot(0, 0, "PLA"), make_slot(1, 0, "PLA")};
+    CHECK(slot_row_label(one[1], one) == "Slot 2");
+
+    // Several units of one backend: the backend's own unit name.
+    auto a = make_slot(0, 0, "PLA", false, 0, 0, 0);
+    a.unit_display_name = "Turtle 1";
+    auto b = make_slot(4, 0, "PLA", false, 0, 1, 0);
+    b.unit_display_name = "Turtle 2";
+    std::vector<AvailableSlot> turtles = {a, b};
+    CHECK(chip_slot_label(turtles[1], turtles) == "2\xc2\xb7"
+                                                  "1");
+    CHECK(slot_row_label(turtles[1], turtles) == "Turtle 2 \xc2\xb7 Slot 1");
+
+    // Two single-unit backends: no unit names, so the chip's unit number.
+    std::vector<AvailableSlot> two = {make_slot(0, 0, "PLA", false, 0, 0, 0),
+                                      make_slot(0, 0, "PLA", false, 1, 0, 0)};
+    CHECK(chip_unit_number(two[0], two) == 1);
+    CHECK(chip_unit_number(two[1], two) == 2);
+    CHECK(slot_row_label(two[0], two) == "1 \xc2\xb7 Slot 1");
+    CHECK(slot_row_label(two[1], two) == "2 \xc2\xb7 Slot 1");
+    CHECK(slot_row_label(two[0], two) != slot_row_label(two[1], two));
+}
+
 // =============================================================================
 // rank_slots_for_tool / slot_fit_text
 // =============================================================================

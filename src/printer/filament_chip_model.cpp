@@ -32,24 +32,56 @@ ChipSeverity mapping_severity(const GcodeToolInfo& tool, const ToolMapping& mapp
     return chip_severity(tool, lane);
 }
 
-std::string chip_slot_label(const AvailableSlot& slot,
-                            const std::vector<AvailableSlot>& all_slots) {
-    std::vector<std::pair<int, int>> units; // (backend_index, unit_index), first-seen order
+namespace {
+
+/// (backend_index, unit_index) of every unit in @p all_slots, in first-seen order.
+std::vector<std::pair<int, int>> units_of(const std::vector<AvailableSlot>& all_slots) {
+    std::vector<std::pair<int, int>> units;
     for (const auto& s : all_slots) {
         const std::pair<int, int> unit{s.backend_index, s.unit_index};
         if (std::find(units.begin(), units.end(), unit) == units.end()) {
             units.push_back(unit);
         }
     }
-    const std::string number = helix::ui::lane_number_text(slot.local_slot_index);
+    return units;
+}
+
+} // namespace
+
+int chip_unit_number(const AvailableSlot& slot, const std::vector<AvailableSlot>& all_slots) {
+    const auto units = units_of(all_slots);
     if (units.size() <= 1) {
-        return number;
+        return 0;
     }
     const auto it = std::find(units.begin(), units.end(),
                               std::pair<int, int>{slot.backend_index, slot.unit_index});
-    const int unit_pos = static_cast<int>(it - units.begin());
-    return fmt::format("{}{}{}", helix::ui::lane_number_text(unit_pos), helix::ui::kUnitSeparator,
-                       number);
+    return helix::ui::lane_number(static_cast<int>(it - units.begin()));
+}
+
+std::string chip_slot_label(const AvailableSlot& slot,
+                            const std::vector<AvailableSlot>& all_slots) {
+    const std::string number = helix::ui::lane_number_text(slot.local_slot_index);
+    const int unit = chip_unit_number(slot, all_slots);
+    if (unit <= 0) {
+        return number;
+    }
+    return fmt::format("{}{}{}", unit, helix::ui::kUnitSeparator, number);
+}
+
+std::string slot_row_label(const AvailableSlot& slot, const std::vector<AvailableSlot>& all_slots) {
+    const int unit = chip_unit_number(slot, all_slots);
+    if (unit <= 0) {
+        return helix::ui::lane_label(slot.noun, slot.local_slot_index);
+    }
+    const bool one_backend =
+        std::all_of(all_slots.begin(), all_slots.end(), [&slot](const AvailableSlot& s) {
+            return s.backend_index == slot.backend_index;
+        });
+    if (one_backend && !slot.unit_display_name.empty()) {
+        return helix::ui::lane_label(slot.noun, slot.unit_display_name, slot.local_slot_index);
+    }
+    return helix::ui::unit_scoped_label(std::to_string(unit),
+                                        helix::ui::lane_label(slot.noun, slot.local_slot_index));
 }
 
 namespace {

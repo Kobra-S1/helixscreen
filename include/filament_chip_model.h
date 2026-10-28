@@ -38,6 +38,19 @@ enum class ChipSeverity { Ok, Warn, Block };
 [[nodiscard]] std::string chip_slot_label(const AvailableSlot& slot,
                                           const std::vector<AvailableSlot>& all_slots);
 
+/// The unit number chip_slot_label() prints for @p slot: the 1-based position of
+/// (backend_index, unit_index) in the order the units first appear in @p all_slots, or 0 when
+/// @p all_slots spans one unit.
+[[nodiscard]] int chip_unit_number(const AvailableSlot& slot,
+                                   const std::vector<AvailableSlot>& all_slots);
+
+/// The dropdown row naming @p slot, in agreement with its chip_slot_label(): "Lane 3" across one
+/// unit; "Turtle 2 · Lane 1" (the unit's own name) across several units of one backend; and
+/// "2 · Lane 1" (chip_unit_number()) across several backends, whose unit names repeat or are
+/// empty.
+[[nodiscard]] std::string slot_row_label(const AvailableSlot& slot,
+                                         const std::vector<AvailableSlot>& all_slots);
+
 /// Why a slot sits where it does in the dropdown, best first.
 enum class SlotFit { Exact, ColorDiffers, MaterialDiffers, Empty };
 

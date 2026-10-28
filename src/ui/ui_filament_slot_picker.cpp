@@ -4,7 +4,7 @@
 
 #include "ui_utils.h"
 
-#include "display_numbering.h"
+#include "filament_chip_model.h"
 #include "filament_variants.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "helix_psram_attr.h"
@@ -216,8 +216,7 @@ void FilamentSlotPicker::publish(const Options& options, const std::vector<std::
 
     for (std::size_t k = 0; k < rows_.size(); ++k) {
         const helix::AvailableSlot& slot = slots_[rows_[k]];
-        s_row_label.set_string(
-            k, helix::ui::lane_label(slot.noun, slot.unit_display_name, slot.local_slot_index));
+        s_row_label.set_string(k, helix::slot_row_label(slot, slots_));
         s_row_material.set_string(k, slot.is_empty ? std::string(lv_tr("Empty")) : slot.material);
         s_row_reason.set_string(k, k < reasons.size() ? reasons[k] : std::string{});
         s_row_color.set_color(k, slot.color_rgb);
