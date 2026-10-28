@@ -178,6 +178,7 @@ TEST_CASE_METHOD(CrashReporterTestFixture,
     CHECK(report.recorded_by == "watchdog");
     CHECK(cr.report_to_json(report)["recorded_by"] == "watchdog");
     CHECK(cr.report_to_text(report).find("by the watchdog") != std::string::npos);
+    CHECK(cr.generate_github_url(report).find("watchdog") != std::string::npos);
 }
 
 // Regression: bundle CHUQCNAE (2026-05-05, AD5X v0.99.53) shipped a crash.txt

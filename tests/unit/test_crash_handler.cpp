@@ -267,6 +267,34 @@ TEST_CASE_METHOD(CrashTestFixture,
     CHECK(result["signal_name"] == expected);
 }
 
+TEST_CASE_METHOD(CrashTestFixture, "Crash: a trap instruction records its fault code by name",
+                 "[telemetry][crash][subprocess]") {
+    // __builtin_trap is `brk` on aarch64 and `ud2` (or `udf`) elsewhere.
+#if defined(__aarch64__)
+    const int expected_sig = SIGTRAP;
+    const char* const expected_code = "TRAP_BRKPT";
+#else
+    const int expected_sig = SIGILL;
+    const char* const expected_code = "ILL_ILLOPN";
+#endif
+    pid_t pid = fork();
+    if (pid == 0) {
+        crash_handler::install(crash_path());
+        __builtin_trap();
+    }
+    REQUIRE(pid > 0);
+
+    int status = 0;
+    REQUIRE(waitpid(pid, &status, 0) == pid);
+    REQUIRE(WIFEXITED(status));
+    CHECK(WEXITSTATUS(status) == 128 + expected_sig);
+
+    auto result = crash_handler::read_crash_file(crash_path());
+    REQUIRE_FALSE(result.is_null());
+    CHECK(result["signal"] == expected_sig);
+    CHECK(result.value("fault_code_name", "") == expected_code);
+}
+
 TEST_CASE_METHOD(CrashTestFixture, "Crash: an external record reads back as a crash",
                  "[telemetry][crash]") {
     REQUIRE(helix::crash_record::write_external(crash_path(), SIGILL, "1.2.3", 1707350400,
@@ -1045,7 +1073,7 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: TelemetryManager enqueues crash event
     {
         std::ofstream ofs(tm_crash_path);
         ofs << "signal:11\nname:SIGSEGV\nversion:0.9.6\ntimestamp:1707350400\nuptime:3600\n"
-            << "bt:0x0040abcd\nbt:0x0040ef01\n";
+            << "recorded_by:watchdog\nbt:0x0040abcd\nbt:0x0040ef01\n";
     }
 
     // Enable telemetry via Config singleton (single source of truth since
@@ -1086,6 +1114,7 @@ TEST_CASE_METHOD(CrashTestFixture, "Crash: TelemetryManager enqueues crash event
             REQUIRE(event["uptime_sec"] == 3600);
             REQUIRE(event.contains("backtrace"));
             REQUIRE(event["backtrace"].size() == 2);
+            CHECK(event.value("recorded_by", "") == "watchdog");
             break;
         }
     }
