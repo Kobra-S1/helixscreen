@@ -545,6 +545,37 @@ def group_by_filter(paths, filter_of):
     return list(groups.items())
 
 
+# Pytest runs with -x, so each baseline pass names at most one more failure;
+# a suite this red is broken, not environment-dependent.
+MAX_BASELINE_RED_PASSES = 25
+
+
+def adopt_baseline_reds(suites, suite):
+    """Record a script suite's baseline-red cases and re-run until it is green.
+
+    Inside the test container some bats and pytest cases fail on the environment
+    alone (root, no jobpool, no shellcheck). They can neither detect nor miss a
+    mutant, so they are set aside by name and every other case judges. Returns the
+    suite's state once they are: GREEN, or DETECTED/INCONCLUSIVE when it never
+    settles. Catch2 is never adopted: its baseline is red only when the tree is.
+    """
+    for _ in range(MAX_BASELINE_RED_PASSES):
+        text = suites.last_output
+        reds = failing_tests(suite, text)
+        new = reds - suites.known_red.get(suite, set())
+        if not new:
+            return DETECTED
+        suites.known_red.setdefault(suite, set()).update(new)
+        state, _ = suites.run(suite)
+        if state != DETECTED or RUN_STATE.out_of_time:
+            names = sorted(suites.known_red[suite])
+            shown = ', '.join(names[:8]) + (f' (+{len(names) - 8} more)' if len(names) > 8 else '')
+            print(f'  {suite}: {len(names)} case(s) red at baseline here, set aside '
+                  f'(they cannot judge a mutant): {shown}')
+            return state
+    return DETECTED
+
+
 def describe_key(key):
     """One line naming what a group runs: its Catch2 filter and script test files."""
     filt, shell, python = key
@@ -1252,6 +1283,22 @@ SUITE_FAILURE_EVIDENCE = {
 }
 
 
+# The failing cases a script suite names, so a case red at baseline can be told
+# from one a mutant turned red. A bats line is `not ok N <name>[ # directive]`;
+# pytest summarises each failure as `FAILED <node id>[ - reason]`.
+_BATS_NOT_OK = re.compile(r'^not ok \d+ (.*?)(?:\s+#\s.*)?$', re.M)
+_PYTEST_FAILED = re.compile(r'^FAILED (\S+)', re.M)
+
+
+def failing_tests(name, output):
+    """The set of failing cases a bats or pytest run names; empty for Catch2."""
+    if name == 'bats':
+        return set(_BATS_NOT_OK.findall(output))
+    if name == 'pytest':
+        return set(_PYTEST_FAILED.findall(output))
+    return set()
+
+
 def suite_detected(name, output):
     """True when a suite's own output reports a failing test."""
     for rx in SUITE_FAILURE_EVIDENCE[name]:
@@ -1903,9 +1950,13 @@ class Suites:
         # are per shard, in its plan.
         self.timeouts = {}
         self.catch2 = Catch2Plan(args.shards, args.shards)
+        # suite -> cases already red at baseline here (bats, pytest). They cannot
+        # judge a mutant, so a mutant is detected only by a case that was green.
+        self.known_red = {}
         # Wall seconds of the last suite run, excluding any binary-recovery
         # build before it: what adopt_baseline() measures.
         self.last_secs = None
+        self.last_output = ''             # what the last bats/pytest run printed
 
     def _set_root(self, root):
         self.root = root
@@ -2043,6 +2094,14 @@ class Suites:
             untrack_proc(p)
         out = out or ''
         self.log.write(out)
+        self.last_output = out
+        known = self.known_red.get(name)
+        if known:
+            failing = failing_tests(name, out)
+            if failing - known:
+                return DETECTED, ''
+            if failing:
+                return GREEN, ''          # only the cases red at baseline failed
         return suite_outcome(name, p.returncode, out, who)
 
     def _dispatch(self, name, scale):
@@ -2077,7 +2136,9 @@ class Suites:
             return state, why, f'{name} ({timeout:.0f}s)' if why == TIMED_OUT else ''
         if name == 'pytest':
             state, why = self._run_group(
-                [self.python, '-m', 'pytest', *suite_paths(self.args.python_tests), '-q', '-x'],
+                [self.python, '-m', 'pytest', *suite_paths(self.args.python_tests), '-q', '-x',
+                 *[a for node in sorted(self.known_red.get('pytest', ()))
+                   for a in ('--deselect', node)]],
                 name, 'pytest', timeout)
             return state, why, f'{name} ({timeout:.0f}s)' if why == TIMED_OUT else ''
         raise AssertionError(name)
@@ -3174,6 +3235,10 @@ def main():
             state, why = suites.run(suite)
             if RUN_STATE.out_of_time:
                 raise OutOfTime()
+            if state == DETECTED and suite in ('bats', 'pytest'):
+                state = adopt_baseline_reds(suites, suite)
+                if RUN_STATE.out_of_time:
+                    raise OutOfTime()
             if state == DETECTED:
                 print(f'FAIL: baseline {suite} suite is RED. Fix it first, or every '
                       f'mutant will read as killed. See {args.log}', file=sys.stderr)

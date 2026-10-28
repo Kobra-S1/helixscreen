@@ -465,7 +465,9 @@ that name its stem as a whole word (Catch2's `[#test_<file>]` tags, under `-#`; 
 than 12 files name counts as none), else `--tests`. A script under `scripts/` runs the
 `.bats` and pytest files that name it (its file name, or a Python script's import stem):
 with only one of the two, that one judges it; with neither, both whole suites do, which is
-slow and, inside the test container, red on environment alone. Files sharing what judges
+slow. A bats or pytest case red at baseline (inside the test container some fail on
+the environment alone: root, no jobpool) is set aside by name, printed, and every other
+case judges; a red Catch2 baseline still stops the run. Files sharing what judges
 them run as one group, each group a child run with its own baseline, inside the one
 30-minute budget; the worst group's exit is the run's. `--no-auto-tests` puts every file on
 `--tests`, `--shell-tests` and `--python-tests`.

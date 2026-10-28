@@ -77,3 +77,33 @@ with_driver() {
   [ "$status" -eq 0 ]
   [ "$output" = "[end]" ]
 }
+
+# qc_staged_compile_units over a staged list; prints both results.
+staged_units() {
+  bash -c '. scripts/qc/_lib.sh; qc_staged_compile_units "$1"; echo "UNITS<$CHECK_UNITS>"; echo "UNREACHED<$UNREACHED_HDR>"' _ "$1"
+}
+
+@test "a commit compiles each staged source and an includer of each staged header" {
+  run staged_units $'src/api/moonraker_client.cpp\ninclude/utils/network_validation.h\ndocs/x.md'
+  [ "$status" -eq 0 ]
+  contains "src/api/moonraker_client.cpp" "$output"
+  lacks "docs/x.md" "$output"
+  contains "UNREACHED<>" "$output"
+  # The staged source plus one includer of the header: two units, the header itself none.
+  [ "$(printf '%s\n' "$output" | grep -cE '^(UNITS<)?(src|tests)/.*\.(cpp|cc|mm)')" -eq 2 ] \
+    || fail "expected the source and one includer: $output"
+}
+
+@test "a header no source includes is named, not silently dropped" {
+  run staged_units 'include/helix_no_such_header_xyz.h'
+  [ "$status" -eq 0 ]
+  contains "UNITS<>" "$output"
+  contains "UNREACHED< include/helix_no_such_header_xyz.h>" "$output"
+}
+
+@test "a commit with no source staged compiles nothing" {
+  run staged_units $'docs/a.md\nui_xml/x.xml'
+  [ "$status" -eq 0 ]
+  contains "UNITS<>" "$output"
+  contains "UNREACHED<>" "$output"
+}

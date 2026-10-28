@@ -1297,3 +1297,108 @@ def test_each_script_runs_only_the_bats_file_that_names_it(tmp_path):
     # Baseline plus mutant for each, and never the other script's file.
     assert sorted(set(ran)) == ["test_alpha", "test_beta"]
     assert ran.count("test_alpha") == 2 and ran.count("test_beta") == 2, ran
+
+
+# ---------------------------------------------------------------------------
+# Script cases red at baseline are set aside, not a reason to refuse
+# ---------------------------------------------------------------------------
+def test_failing_tests_names_bats_and_pytest_failures():
+    bats = "ok 1 fine\nnot ok 2 needs a jobpool\nnot ok 3 skipped thing # TODO later\nok 4 x\n"
+    assert md.failing_tests("bats", bats) == {"needs a jobpool", "skipped thing"}
+    py = "FAILED tests/python/test_a.py::test_x - AssertionError\n1 failed, 3 passed\n"
+    assert md.failing_tests("pytest", py) == {"tests/python/test_a.py::test_x"}
+    assert md.failing_tests("catch2", "t.cpp:1: FAILED:\n") == set()
+
+
+def _script_with_bats(tmp_path, body):
+    work = _fixture(tmp_path)
+    (work / "tests" / "shell").mkdir(parents=True)
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho old\n")
+    (work / "tests" / "shell" / "test_tool.bats").write_text(body)
+    _git(work, "add", ".")
+    _git(work, "commit", "-qm", "tool")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho NEW\n")
+    return work, base
+
+
+ENV_RED = '@test "needs the environment" {\n  false\n}\n'
+
+
+@needs_bats
+def test_a_case_red_at_baseline_is_set_aside_and_the_rest_still_judge(tmp_path):
+    work, base = _script_with_bats(tmp_path, ENV_RED + (
+        '@test "tool is new" {\n'
+        '  grep -q NEW "$BATS_TEST_DIRNAME/../../scripts/tool.sh"\n'
+        '}\n'))
+    r = _mutate(work, "--base", base, "--only", "scripts/tool.sh", "--no-auto-tests",
+                "--shell-tests", "tests/shell/test_tool.bats", "--python-tests", "")
+    assert r.returncode == 0, r.stdout
+    assert "1 case(s) red at baseline here, set aside" in r.stdout
+    assert "needs the environment" in r.stdout
+    assert "VERDICT: CLEAN" in r.stdout
+
+
+@needs_bats
+def test_a_mutant_only_a_baseline_red_case_notices_survives(tmp_path):
+    work, base = _script_with_bats(tmp_path, ENV_RED + '@test "unrelated" {\n  true\n}\n')
+    r = _mutate(work, "--base", base, "--only", "scripts/tool.sh", "--no-auto-tests",
+                "--shell-tests", "tests/shell/test_tool.bats", "--python-tests", "")
+    assert r.returncode == 1, r.stdout
+    assert "SURVIVED" in r.stdout
+
+
+def test_the_catch2_runner_turns_on_file_tags_for_a_file_tag_filter(tmp_path):
+    seen = tmp_path / "argv"
+    exe = tmp_path / "helix-tests"
+    exe.write_text(f'#!/usr/bin/env bash\necho "$*" > {seen}\n'
+                   'echo "All tests passed (1 assertion in 1 test case)"\n')
+    exe.chmod(0o755)
+    plan = md.Catch2Plan(1, 1)
+    state, _, _ = md.run_catch2(tmp_path, exe, "[#test_foo]~[.]~[slow]", plan,
+                                open(os.devnull, "w"))
+    assert state == md.GREEN
+    assert "-#" in seen.read_text().split()
+
+
+@needs_bats
+def test_a_script_named_by_two_bats_files_runs_both(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "tests" / "shell").mkdir(parents=True)
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho old\n")
+    for name in ("one", "two"):
+        (work / "tests" / "shell" / f"test_{name}.bats").write_text(
+            f'@test "{name}" {{\n'
+            f'  echo {name} >> "$BATS_TEST_DIRNAME/../../.ran"\n'
+            f'  grep -q NEW "$BATS_TEST_DIRNAME/../../scripts/tool.sh"  # tool.sh\n'
+            f'}}\n')
+    _git(work, "add", ".")
+    _git(work, "commit", "-qm", "tool")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "scripts" / "tool.sh").write_text("#!/bin/sh\necho NEW\n")
+    r = _mutate(work, "--base", base, "--python-tests", "")
+    assert r.returncode == 0, r.stdout
+    assert "tests/shell/test_one.bats,tests/shell/test_two.bats" in r.stdout
+    # The baseline runs both files; the mutant stops at whichever fails first.
+    assert {"one", "two"} <= set((work / ".ran").read_text().split())
+
+
+def test_a_pytest_case_red_at_baseline_is_deselected_and_the_rest_judge(tmp_path):
+    work = _fixture(tmp_path)
+    (work / "tests" / "python").mkdir(parents=True)
+    (work / "scripts" / "tool.py").write_text("VALUE = 'old'\n")
+    (work / "tests" / "python" / "test_tool.py").write_text(
+        "import pathlib\n"
+        "SRC = pathlib.Path(__file__).resolve().parents[2] / 'scripts' / 'tool.py'\n"
+        "def test_env_red():\n    assert False\n"
+        "def test_new():\n    assert 'NEW' in SRC.read_text()\n")
+    _git(work, "add", ".")
+    _git(work, "commit", "-qm", "tool")
+    base = _git(work, "rev-parse", "HEAD").strip()
+    (work / "scripts" / "tool.py").write_text("VALUE = 'NEW'\n")
+    r = _mutate(work, "--base", base, "--no-auto-tests", "--shell-tests", "",
+                "--python-tests", "tests/python/test_tool.py")
+    assert r.returncode == 0, r.stdout
+    assert "pytest: 1 case(s) red at baseline here, set aside" in r.stdout
+    assert "test_env_red" in r.stdout
+    assert "VERDICT: CLEAN" in r.stdout
