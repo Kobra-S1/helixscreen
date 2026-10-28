@@ -212,3 +212,18 @@ TEST_CASE_METHOD(SlotPickerFixture, "Two single-unit backends list their rows ap
     CHECK(label(0) == "1 \xc2\xb7 Slot 1");
     CHECK(label(1) == "2 \xc2\xb7 Slot 1");
 }
+
+TEST_CASE_METHOD(SlotPickerFixture, "Auto as the current answer is ringed on screen",
+                 "[slot_picker]") {
+    FilamentSlotPicker::Options options;
+    options.offer_auto = true;
+    options.extra_choice = "More options";
+    show(slots(2), options, FilamentSlotPicker::Selection{-1, -1, true});
+    lv_obj_t* auto_row = find("auto_choice");
+    lv_obj_t* extra = find("extra_choice");
+    REQUIRE(auto_row != nullptr);
+    REQUIRE(extra != nullptr);
+    CHECK(lv_obj_get_style_bg_opa(auto_row, LV_PART_MAIN) == 40);
+    CHECK(lv_obj_get_style_bg_opa(extra, LV_PART_MAIN) == 0);
+    CHECK(lv_obj_get_style_bg_opa(find("filament_picker_row_0"), LV_PART_MAIN) == 0);
+}

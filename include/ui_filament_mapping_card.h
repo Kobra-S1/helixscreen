@@ -250,11 +250,6 @@ class FilamentMappingCard {
     static void chip_clicked_cb(lv_event_t* e);
 
     /**
-     * @brief Check if any mappings have material mismatches
-     */
-    [[nodiscard]] bool has_mismatch() const;
-
-    /**
      * @brief Whether the card should be visible after the latest `update()`
      *
      * True iff AMS is available, bypass is not suppressing a single-lane
@@ -411,9 +406,6 @@ class FilamentMappingCard {
     /// Publish the filament_chip_* subjects for the current tools, mappings and
     /// slots: severity and colours are judged against the slots as they are now.
     void publish_chips();
-
-    /// Check if any mappings have material mismatches
-    bool has_any_mismatch() const;
 
     lv_obj_t* card_ = nullptr;
     lv_obj_t* rows_container_ = nullptr;

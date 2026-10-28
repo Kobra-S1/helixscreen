@@ -19,9 +19,8 @@
       <text_body name="filament_picker_title" bind_text="filament_picker_title">
         <bind_flag_if_eq subject="filament_picker_has_title" flag="hidden" ref_value="0"/>
       </text_body>
-      <filament_slot_picker_choice name="auto_choice"
-                                   choice="auto" text_subject="filament_picker_auto_text"
-                                   selected_subject="filament_picker_auto_selected">
+      <filament_slot_picker_choice name="auto_choice" choice="auto" text_subject="filament_picker_auto_text">
+        <bind_style_if_eq name="styles.picker_row_selected" subject="filament_picker_auto_selected" ref_value="1"/>
         <bind_flag_if_eq subject="filament_picker_offer_auto" flag="hidden" ref_value="0"/>
       </filament_slot_picker_choice>
       <lv_obj name="filament_picker_rows"

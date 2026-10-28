@@ -51,7 +51,8 @@ class IndexedSubjectPool {
     // Type::Color only. @p rgb is 0xRRGGBB.
     void set_color(size_t i, uint32_t rgb);
 
-    // Type::String only. Value is truncated to string_cap - 1 chars by LVGL.
+    // Type::String only. Value is truncated to string_cap - 1 bytes, never inside a
+    // UTF-8 codepoint.
     void set_string(size_t i, const std::string& v);
 
     lv_subject_t* at(size_t i);

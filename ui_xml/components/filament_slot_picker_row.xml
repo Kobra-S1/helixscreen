@@ -12,10 +12,6 @@
     <prop name="index" type="string" default="0"/>
   </api>
   <styles>
-    <!-- Inline style attributes outrank bound styles, so the properties the
-         selection and press styles change start here instead. -->
-    <style name="row_base" bg_opa="0" border_width="0"/>
-    <style name="row_selected" bg_color="#primary" bg_opa="40" border_width="1" border_color="#primary"/>
     <!-- An empty bay stays selectable (mapping a tool to a bay about to be
          loaded is legitimate) but reads as clearly not ready. -->
     <style name="row_empty" opa="30%"/>
@@ -23,9 +19,9 @@
   <view extends="lv_obj"
         width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="#space_md"
         style_pad_gap="#space_md" style_radius="#space_sm" scrollable="false" clickable="true">
-    <style name="row_base"/>
+    <style name="styles.picker_row_base"/>
     <style name="styles.press_wash" selector="pressed"/>
-    <bind_style_if_eq name="row_selected" subject="filament_picker_row_${index}_selected" ref_value="1"/>
+    <bind_style_if_eq name="styles.picker_row_selected" subject="filament_picker_row_${index}_selected" ref_value="1"/>
     <bind_style_if_eq name="row_empty" subject="filament_picker_row_${index}_empty" ref_value="1"/>
     <color_dot name="swatch"
                size="#space_2xl" color_subject="filament_picker_row_${index}_color"

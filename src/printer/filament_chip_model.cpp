@@ -13,15 +13,35 @@
 
 namespace helix {
 
-ChipSeverity chip_severity(const GcodeToolInfo& tool, const AvailableSlot* resolved) {
-    if (!resolved || resolved->is_empty) {
-        return ChipSeverity::Block;
+namespace {
+
+SlotFit fit_of(const GcodeToolInfo& tool, const AvailableSlot& slot) {
+    if (slot.is_empty) {
+        return SlotFit::Empty;
     }
-    const MismatchFlags flags = FilamentMapper::classify_mismatches(tool, *resolved);
+    const MismatchFlags flags = FilamentMapper::classify_mismatches(tool, slot);
     if (flags.material_mismatch) {
+        return SlotFit::MaterialDiffers;
+    }
+    return flags.color_mismatch ? SlotFit::ColorDiffers : SlotFit::Exact;
+}
+
+} // namespace
+
+ChipSeverity chip_severity(const GcodeToolInfo& tool, const AvailableSlot* resolved) {
+    if (!resolved) {
         return ChipSeverity::Block;
     }
-    return flags.color_mismatch ? ChipSeverity::Warn : ChipSeverity::Ok;
+    switch (fit_of(tool, *resolved)) {
+    case SlotFit::Exact:
+        return ChipSeverity::Ok;
+    case SlotFit::ColorDiffers:
+        return ChipSeverity::Warn;
+    case SlotFit::MaterialDiffers:
+    case SlotFit::Empty:
+        return ChipSeverity::Block;
+    }
+    return ChipSeverity::Block;
 }
 
 ChipSeverity mapping_severity(const GcodeToolInfo& tool, const ToolMapping& mapping,
@@ -83,21 +103,6 @@ std::string slot_row_label(const AvailableSlot& slot, const std::vector<Availabl
     return helix::ui::unit_scoped_label(std::to_string(unit),
                                         helix::ui::lane_label(slot.noun, slot.local_slot_index));
 }
-
-namespace {
-
-SlotFit fit_of(const GcodeToolInfo& tool, const AvailableSlot& slot) {
-    if (slot.is_empty) {
-        return SlotFit::Empty;
-    }
-    const MismatchFlags flags = FilamentMapper::classify_mismatches(tool, slot);
-    if (flags.material_mismatch) {
-        return SlotFit::MaterialDiffers;
-    }
-    return flags.color_mismatch ? SlotFit::ColorDiffers : SlotFit::Exact;
-}
-
-} // namespace
 
 std::vector<RankedSlot> rank_slots_for_tool(const GcodeToolInfo& tool,
                                             const std::vector<AvailableSlot>& slots,

@@ -493,10 +493,6 @@ void FilamentMappingCard::set_used_tools(std::optional<std::set<int>> used) {
     publish_chips();
 }
 
-bool FilamentMappingCard::has_mismatch() const {
-    return has_any_mismatch();
-}
-
 void FilamentMappingCard::on_ui_destroyed() {
     card_ = nullptr;
     rows_container_ = nullptr;
@@ -576,15 +572,6 @@ void FilamentMappingCard::publish_chips() {
                   capacity, overflow ? " + overflow pill" : "");
 }
 
-bool FilamentMappingCard::has_any_mismatch() const {
-    for (const auto& m : mappings_) {
-        if (m.material_mismatch) {
-            return true;
-        }
-    }
-    return false;
-}
-
 // ============================================================================
 // Color queries
 // ============================================================================
@@ -654,7 +641,8 @@ void FilamentMappingCard::open_slot_picker(size_t chip, lv_obj_t* trigger) {
     FilamentSlotPicker::Options options;
     options.title = tool.material.empty()
                         ? helix::ui::tool_label(tool.tool_index)
-                        : helix::ui::tool_label(tool.tool_index) + " · " + tool.material;
+                        : fmt::format("{} {} {}", helix::ui::tool_label(tool.tool_index),
+                                      helix::ui::kUnitSeparator, tool.material);
     // The chip's outline is its severity; the picker must not repaint it.
     options.highlight_trigger = false;
     options.offer_auto = true;
