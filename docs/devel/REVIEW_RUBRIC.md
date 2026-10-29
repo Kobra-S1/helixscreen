@@ -107,7 +107,7 @@ Noise makes a review ignorable, and these all look like problems but aren't:
 ```bash
 ./scripts/quality-checks.sh              # everything the gates check
 make -j                                  # it has to build
-make test-run                            # parallel; excludes [slow] and hidden
+make unit-sweep                          # parallel; excludes [slow] and hidden
 ./build/bin/helix-tests "[tag]" "~[.]"   # one area
 make test-asan                           # suspected UAF or leak
 make test-tsan                           # suspected race

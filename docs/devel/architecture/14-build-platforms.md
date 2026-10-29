@@ -353,7 +353,7 @@ Read in this order; about 25 minutes total.
 1. `Makefile#"CRITICAL: Always use 'make'"` - the header contract: always `make`, never invoke the compiler directly, and what the build system handles for you.
 2. `mk/rules.mk#"Phase 1: Check for unlimited -j"` - the two-phase `all` target: toolchain check, then re-invocation under a bounded `-j`; then `mk/rules.mk#"$(TARGET) $(FBDEV_TARGET)"` for what a build actually gates on (`apply-patches` first).
 3. [`mk/rules.mk#TOOLCHAIN_MARKER`](../../../mk/rules.mk) - the `.build-target` target-and-compiler marker and auto-clean.
-4. [`mk/tests.mk#test`](../../../mk/tests.mk) - the `test` (build-only) vs `test-run` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
+4. [`mk/tests.mk#test`](../../../mk/tests.mk) - the `test` (build-only) vs `unit-sweep` (parallel shards) split, and the `~[.] ~[slow]` filter convention.
 5. [`mk/cross.mk`](../../../mk/cross.mk) - the commented platform menu; then `mk/cross.mk#"$(PLATFORM_TARGET),pi)"` (pi: DRM+GLES, all font tiers) against `mk/cross.mk#"else ifeq ($(PLATFORM_TARGET),ad5m)"` (ad5m: `-Os -flto -static`, label-printer gate off, trimmed fonts) to see how far the knobs turn.
 6. [`mk/cross.mk`](../../../mk/cross.mk) - the `native` block: SDL backend, and why dev conveniences live here rather than in cross builds.
 7. `Makefile#"ENABLE_REMOTE_CONTROL ?= no"` - `ENABLE_REMOTE_CONTROL`'s developer-on / packaging-off wiring, keyed on `HELIX_PACKAGING`; `Makefile#"ENABLE_DEV_PANELS ?= yes"` shows the simpler native-only shape for dev panels.

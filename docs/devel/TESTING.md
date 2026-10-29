@@ -9,7 +9,9 @@
 
 ```bash
 make test              # Build tests (does not run)
-make test-run          # Run unit tests in parallel (~4-8x faster)
+make t F='[tag]'       # Build, then run one tag or case
+make unit-sweep        # Run unit tests in parallel (~4-8x faster)
+make full-test-run     # unit-sweep plus the bats shell suite
 make test-fast         # Skip [slow] tests
 make test-serial       # Sequential (for debugging)
 make test-all          # Everything including [slow]
@@ -31,7 +33,7 @@ Tests are tagged by **feature/importance**, not layer/speed. This enables runnin
 | Tag | Count | Purpose |
 |-----|-------|---------|
 | `[core]` | ~12 | Critical tests - if these fail, the app is fundamentally broken |
-| `[slow]` | ~36 | Tests with network/timing - excluded from `test-run` |
+| `[slow]` | ~36 | Tests with network/timing - excluded from `unit-sweep` |
 | `[eventloop]` | ~2 | Uses `hv::EventLoop` - very slow, always paired with `[slow]` |
 | `[serial]` | 0 | A `[slow]` test that fails when it shares the box with other `[slow]` shards - `test-all` and `test-slow` run it alone, after the sharded tier. Add it only for a failure seen sharded and not serially |
 
@@ -102,8 +104,10 @@ These validate fundamental functionality:
 
 | Target | Behavior |
 |--------|----------|
-| `make test-run` | Parallel, excludes `[slow]` and hidden |
-| `make test-fast` | Same as test-run |
+| `make unit-sweep` | Parallel, excludes `[slow]` and hidden |
+| `make test-fast` | Same as unit-sweep |
+| `make full-test-run` | `unit-sweep` plus the bats shell suite |
+| `make test-run` | Runs nothing: prints which target fits and exits non-zero |
 | `make test-all` | Fast tests in `NPROCS` shards, then `[slow]` in `SLOW_SHARDS` (16) shards in `SLOW_ORDER` (fixed-seed shuffle), then `[slow][serial]` alone |
 | `make test-slow` | Only `[slow]`: the same two slow tiers as `test-all` |
 | `make test-eventloop` | Only `[eventloop]` tests (5-10 min) |
@@ -137,7 +141,7 @@ suite (CMake + Unity). See [helix-xml Engine Tests](#helix-xml-engine-tests-sepa
 Tests run in parallel by default using Catch2's sharding. Each shard runs in a separate process with its own LVGL instance.
 
 ```bash
-# What make test-run does internally:
+# What make unit-sweep does internally:
 for i in $(seq 0 $((NPROCS-1))); do
     ./build/bin/helix-tests "~[.] ~[slow]" --shard-count $NPROCS --shard-index $i &
 done
@@ -219,7 +223,7 @@ shard 95
 
 ## Excluded Tests Breakdown
 
-The default `make test-run` uses filter `~[.] ~[slow]` to exclude tests that would slow down fast iteration. Here's what's excluded:
+The default `make unit-sweep` uses filter `~[.] ~[slow]` to exclude tests that would slow down fast iteration. Here's what's excluded:
 
 ### Test Count Summary
 
@@ -228,7 +232,7 @@ The default `make test-run` uses filter `~[.] ~[slow]` to exclude tests that wou
 | **Test files** | 627 | All in `tests/unit/` |
 | **TEST_CASE macros** | thousands | Individual test definitions |
 | **SECTION blocks** | thousands | Subsections within test cases |
-| **Slow tests** `[slow]` | ~200 | Excluded from `test-run` |
+| **Slow tests** `[slow]` | ~200 | Excluded from `unit-sweep` |
 | **Hidden tests** `[.]` | dozens | Require explicit invocation |
 
 *Counts drift as the suite grows — regenerate with `grep -rc` if you need exact figures.*
@@ -252,7 +256,7 @@ per-file coverage notes: `HIDDEN_TESTS_TRACKER.md`.
 
 ### Slow Tests `[slow]` (~185 tests)
 
-Slow tests are excluded from `test-run` but can be run with `make test-slow`.
+Slow tests are excluded from `unit-sweep` but can be run with `make test-slow`.
 
 | File | Count | Why Slow |
 |------|------:|----------|
@@ -318,7 +322,7 @@ Tests fall into three timing categories based on their execution characteristics
 The majority of tests complete quickly and are suitable for rapid iteration during development.
 
 ```bash
-make test-run    # Default: runs fast tests in parallel shards
+make unit-sweep  # Default: runs fast tests in parallel shards
 ```
 
 **Characteristics:**
@@ -354,7 +358,7 @@ Tests using `hv::EventLoop` for real network operations. These are the slowest t
 # Run eventloop tests specifically
 ./build/bin/helix-tests "[eventloop]" "~[.]"
 
-# These are already excluded by make test-run (via ~[slow])
+# These are already excluded by make unit-sweep (via ~[slow])
 ```
 
 **Why very slow:**
@@ -372,13 +376,13 @@ Tests using `hv::EventLoop` for real network operations. These are the slowest t
 | `test_moonraker_api_security.cpp` | 2 | API lifecycle |
 | `test_moonraker_connection_retry.cpp` | 1 | Connection retry logic |
 
-**Important:** All `[eventloop]` tests MUST also be tagged `[slow]` to ensure they are excluded from `make test-run`.
+**Important:** All `[eventloop]` tests MUST also be tagged `[slow]` to ensure they are excluded from `make unit-sweep`.
 
 ### Test Execution Matrix
 
 | Command | Fast | Slow (non-eventloop) | EventLoop | Hidden |
 |---------|:----:|:--------------------:|:---------:|:------:|
-| `make test-run` | Yes | No | No | No |
+| `make unit-sweep` | Yes | No | No | No |
 | `make test-fast` | Yes | No | No | No |
 | `make test-slow` | No | Yes | Yes | No |
 | `make test-all` | Yes | Yes | Yes | No |

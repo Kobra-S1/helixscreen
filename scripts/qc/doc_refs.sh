@@ -31,4 +31,4 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_doc_refs='\.md$|^scripts/check_doc_refs\.py$'
+QC_TRIGGER_qc_doc_refs='\.md$|^scripts/check_doc_refs\.py$|^Makefile$|^mk/.*\.mk$'

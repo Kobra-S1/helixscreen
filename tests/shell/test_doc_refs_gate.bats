@@ -259,3 +259,39 @@ EOF
     contains "zz_modified_not_created.h" "$output"
     contains "zz_never_anywhere.h" "$output"
 }
+
+@test "make: a command naming no Makefile target fails with file:line" {
+    cat > "$FIX/mk_bad.md" <<'EOF2'
+Run `make zz-no-such-target` to see it.
+EOF2
+    run python3 "$CHECK" --devel "$FIX/mk_bad.md"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"mk_bad.md:1: \`make zz-no-such-target\`"* ]]
+}
+
+@test "make: a bogus target in a fenced block fails past options and VAR= args" {
+    cat > "$FIX/mk_fence.md" <<'EOF2'
+```bash
+JOBPOOL=0 make -k V=1 zz-fenced-missing
+```
+EOF2
+    run python3 "$CHECK" --devel "$FIX/mk_fence.md"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"zz-fenced-missing"* ]]
+}
+
+@test "make: real, pattern-rule and non-command uses pass" {
+    cat > "$FIX/mk_good.md" <<'EOF2'
+Use `make unit-sweep`, `make t F='[ams]'` and `make print-var-CXX`.
+Placeholders `make deploy-<platform>` and `make release-*` are skipped, and so
+is prose: run `systemctl disable` to make it stick.
+```bash
+# make zz-in-a-comment is not a command
+cd lib/x && make -C sub zz-other-project
+brew install cmake make bash
+make -j && ./build/bin/helix-screen --test -vv   # make zz-trailing-comment
+```
+EOF2
+    run python3 "$CHECK" --devel "$FIX/mk_good.md"
+    [ "$status" -eq 0 ]
+}

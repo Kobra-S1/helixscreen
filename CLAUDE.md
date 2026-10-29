@@ -298,7 +298,7 @@ What is shared here:
   ```bash
   scripts/helix-claim check worktree:main        # FREE | LIVE | STALE  (exit 1 if LIVE)
   if scripts/helix-claim take device:k2plus deploy --pid $$ --note 192.168.1.50; then  # gate on the exit code; never pipe take
-      trap 'scripts/helix-claim release-if-owned-by $$ device:k2plus' EXIT; make deploy-k2plus; fi
+      trap 'scripts/helix-claim release-if-owned-by $$ device:k2plus' EXIT; make deploy-k2 K2_HOST=192.168.1.50; fi
   scripts/helix-claim take worktree:main edit --session   # owner = this session's `claude` process (--pid auto); errors if none is an ancestor
   scripts/helix-claim take worktree:main edit --ack-red-main   # worktree:main is refused while Build / Code Quality is red on origin/main; fails open without gh; the merge hook always acks
   scripts/helix-claim list                       # everything, with derived liveness

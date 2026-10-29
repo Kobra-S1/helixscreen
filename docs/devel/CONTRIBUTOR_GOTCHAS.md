@@ -450,7 +450,7 @@ Run through this before opening a PR:
 - [ ] **Modified translation YAML?** Rebuild, then `git add` the regenerated `ui_xml/translations/translations.xml`.
 - [ ] **Added an observer on a dynamic subject?** The `SubjectLifetime` you fetched is passed to the `observe<V>` factory, not swapped for `{}` or `subject_never_freed()`.
 - [ ] **Tested at multiple sizes?** At minimum: `480x320`, `800x480`, `1024x600`. See `docs/devel/UI_CONTRIBUTOR_GUIDE.md` § Screen Breakpoints.
-- [ ] **`make test-run` passes.**
+- [ ] **`make full-test-run` passes.**
 
 ---
 

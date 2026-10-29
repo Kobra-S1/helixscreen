@@ -1051,7 +1051,7 @@ REQUIRE(count == 2);          // fired again on change
 ### Commands
 
 ```bash
-make test-run      # parallel, excludes [slow] and hidden
+make unit-sweep    # parallel, excludes [slow] and hidden
 make test-serial   # sequential, for debugging
 make test-asan     # AddressSanitizer — UAF, leaks, overflows
 make test-tsan     # ThreadSanitizer — data races, deadlocks
@@ -1065,7 +1065,7 @@ Always append `"~[.]"` when running by tag, to exclude hidden tests that may han
 
 Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecycle),
 `[application]` (lifecycle/shutdown), `[core]` (must-pass), `[slow]` (>500ms, excluded from
-`test-run`).
+`unit-sweep`).
 
 ---
 

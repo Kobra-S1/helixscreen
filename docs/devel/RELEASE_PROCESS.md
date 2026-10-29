@@ -173,7 +173,7 @@ A dry run creates no GitHub release and sends nothing to Play, Discord or the we
    ```bash
    git checkout main
    git pull origin main
-   make test-run  # Run tests
+   make land-gate  # Run tests
    ```
 
 2. **Bump `VERSION.txt` and add the CHANGELOG entry, in one `chore(release):` commit.**
@@ -248,7 +248,7 @@ The workflow auto-generates basic release notes if no annotation is provided.
 
 ### Before Tagging
 
-- [ ] All tests pass (`make test-run`)
+- [ ] All tests pass (`make land-gate`)
 - [ ] No critical bugs in issue tracker
 - [ ] Documentation updated for new features
 - [ ] Tested on real hardware (Pi and/or AD5M)
