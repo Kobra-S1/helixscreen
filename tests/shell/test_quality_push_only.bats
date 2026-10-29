@@ -34,6 +34,50 @@ with_driver() {
   contains "qc_decl_ui" "$output"
 }
 
+@test "the repo-wide test and vendor lints wait for the push" {
+  run with_driver true 'for g in qc_test_tautology qc_test_widget_registry qc_vendor_branches qc_hold_ends_press; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:$QC_DEFERRED"'
+  [ "$status" -eq 0 ]
+  lacks "RAN " "$output"
+  contains "deferred: qc_test_tautology qc_test_widget_registry qc_vendor_branches qc_hold_ends_press" "$output"
+}
+
+# These are slow too, but a commit that fails them does not build or load.
+@test "the gates that keep a commit buildable still run at commit" {
+  run with_driver true 'QC_STAGED_ALL="ui_xml/a.xml"; for g in qc_phase2 qc_xml_tools qc_xml_linter qc_design_pixels; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:[$QC_DEFERRED]"'
+  [ "$status" -eq 0 ]
+  contains "RAN qc_phase2" "$output"
+  contains "RAN qc_xml_tools" "$output"
+  contains "RAN qc_xml_linter" "$output"
+  contains "RAN qc_design_pixels" "$output"
+  contains "deferred:[]" "$output"
+}
+
+@test "pre-push runs no doc-anchor scan" {
+  run bash -c "grep -v '^[[:space:]]*#' .githooks/pre-push | grep -nE 'doc_anchors|check-doc-anchors'"
+  [ "$status" -eq 1 ] || fail "pre-push still runs the anchor scan: $output"
+}
+
+# qc_now_ms from the real driver, with a `date` stub that prints $1 for %s%N.
+now_ms_with_date() {
+  local bin="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$bin"
+  printf '#!/bin/sh\ncase "$1" in +%%s%%N) echo "%s" ;; *) echo 1700000000 ;; esac\n' "$1" > "$bin/date"
+  chmod +x "$bin/date"
+  PATH="$bin:$PATH" bash -c 'eval "$(sed -n "/^qc_now_ms() {/,/^}/p" scripts/quality-checks.sh)"; qc_now_ms'
+}
+
+@test "gate times are milliseconds where date has %N" {
+  run now_ms_with_date 1700000000123456789
+  [ "$status" -eq 0 ]
+  [ "$output" = "1700000000123" ] || fail "$output"
+}
+
+@test "gate times fall back to whole seconds where date prints a literal N" {
+  run now_ms_with_date 1700000000N
+  [ "$status" -eq 0 ]
+  [ "$output" = "1700000000000" ] || fail "$output"
+}
+
 @test "HELIX_QC_ALL_AT_COMMIT=1 runs the push-only gates at commit" {
   run with_driver true 'export HELIX_QC_ALL_AT_COMMIT=1; qc_wanted qc_python_tests && echo RAN; echo "deferred:[$QC_DEFERRED]"'
   [ "$status" -eq 0 ]
