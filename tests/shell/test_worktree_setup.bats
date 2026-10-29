@@ -801,3 +801,12 @@ mark_tree() {
         || fail "objects built against another lvgl revision were seeded"
     rm -rf "$tmp"
 }
+
+@test "the initial build picks gmake only on macOS" {
+    # On Linux `make` may be the jobpool shim; /usr/bin/gmake bypasses it and
+    # the worktree's cold build runs its own -j beside every pooled build.
+    run bash -c "sed -n '/Step 10: Build/,/Build successful/p' '$SCRIPT'"
+    lacks 'command -v gmake ||' "$output"
+    contains 'MAKE_BIN="gmake"' "$output"
+    contains '"$(uname -s)" == Darwin' "$output"
+}
