@@ -112,29 +112,21 @@ void JobQueueState::init_subjects() {
     lv_subject_init_int(&job_queue_automatic_transition_subject_, automatic_transition_ ? 1 : 0);
     subjects_.publish("job_queue_automatic_transition", &job_queue_automatic_transition_subject_);
 
-    SubjectDebugRegistry::instance().register_subject(&job_queue_count_subject_, "job_queue_count",
-                                                      LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
-    SubjectDebugRegistry::instance().register_subject(&job_queue_run_state_subject_,
-                                                      "job_queue_run_state", LV_SUBJECT_TYPE_INT,
-                                                      __FILE__, __LINE__);
-    SubjectDebugRegistry::instance().register_subject(&job_queue_revision_subject_,
-                                                      "job_queue_revision", LV_SUBJECT_TYPE_INT,
-                                                      __FILE__, __LINE__);
-    SubjectDebugRegistry::instance().register_subject(&job_queue_start_in_flight_subject_,
-                                                      "job_queue_start_in_flight",
-                                                      LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
-    SubjectDebugRegistry::instance().register_subject(&job_queue_next_estimate_subject_,
-                                                      "job_queue_next_estimate",
-                                                      LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
-    SubjectDebugRegistry::instance().register_subject(&job_queue_next_thumbnail_subject_,
-                                                      "job_queue_next_thumbnail",
-                                                      LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
-    SubjectDebugRegistry::instance().register_subject(&job_queue_up_next_text_subject_,
-                                                      "job_queue_up_next_text",
-                                                      LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
-    SubjectDebugRegistry::instance().register_subject(&job_queue_start_next_text_subject_,
-                                                      "job_queue_start_next_text",
-                                                      LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+    HELIX_SUBJECT_DEBUG_REGISTER(&job_queue_count_subject_, "job_queue_count", LV_SUBJECT_TYPE_INT);
+    HELIX_SUBJECT_DEBUG_REGISTER(&job_queue_run_state_subject_, "job_queue_run_state",
+                                 LV_SUBJECT_TYPE_INT);
+    HELIX_SUBJECT_DEBUG_REGISTER(&job_queue_revision_subject_, "job_queue_revision",
+                                 LV_SUBJECT_TYPE_INT);
+    HELIX_SUBJECT_DEBUG_REGISTER(&job_queue_start_in_flight_subject_, "job_queue_start_in_flight",
+                                 LV_SUBJECT_TYPE_INT);
+    HELIX_SUBJECT_DEBUG_REGISTER(&job_queue_next_estimate_subject_, "job_queue_next_estimate",
+                                 LV_SUBJECT_TYPE_INT);
+    HELIX_SUBJECT_DEBUG_REGISTER(&job_queue_next_thumbnail_subject_, "job_queue_next_thumbnail",
+                                 LV_SUBJECT_TYPE_STRING);
+    HELIX_SUBJECT_DEBUG_REGISTER(&job_queue_up_next_text_subject_, "job_queue_up_next_text",
+                                 LV_SUBJECT_TYPE_STRING);
+    HELIX_SUBJECT_DEBUG_REGISTER(&job_queue_start_next_text_subject_, "job_queue_start_next_text",
+                                 LV_SUBJECT_TYPE_STRING);
 
     subjects_initialized_ = true;
 

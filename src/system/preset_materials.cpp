@@ -139,20 +139,17 @@ void init_subjects() {
         lv_subject_init_string(&s.name_subjects[i], s.name_bufs[i].data(), nullptr,
                                s.name_bufs[i].size(), s.name_bufs[i].data());
         s.subjects.publish(kNameSubjects[i], &s.name_subjects[i]);
-        SubjectDebugRegistry::instance().register_subject(
-            &s.name_subjects[i], kNameSubjects[i], LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s.name_subjects[i], kNameSubjects[i], LV_SUBJECT_TYPE_STRING);
 
         lv_subject_init_string(&s.temp_subjects[i], s.temp_bufs[i].data(), nullptr,
                                s.temp_bufs[i].size(), s.temp_bufs[i].data());
         s.subjects.publish(kTempSubjects[i], &s.temp_subjects[i]);
-        SubjectDebugRegistry::instance().register_subject(
-            &s.temp_subjects[i], kTempSubjects[i], LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s.temp_subjects[i], kTempSubjects[i], LV_SUBJECT_TYPE_STRING);
     }
 
     lv_subject_init_int(&s.count_subject, kPresetCount);
     s.subjects.publish("preset_material_count", &s.count_subject);
-    SubjectDebugRegistry::instance().register_subject(&s.count_subject, "preset_material_count",
-                                                      LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+    HELIX_SUBJECT_DEBUG_REGISTER(&s.count_subject, "preset_material_count", LV_SUBJECT_TYPE_INT);
 
     s.ready = true;
 

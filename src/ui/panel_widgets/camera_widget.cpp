@@ -51,9 +51,8 @@ static void camera_widget_init_subjects() {
         lv_subject_init_string(&s_camera_status_subject, s_camera_status_buffer, nullptr,
                                sizeof(s_camera_status_buffer), lv_tr(s_camera_status_key));
         s_subjects.publish("camera_status_text", &s_camera_status_subject);
-        SubjectDebugRegistry::instance().register_subject(
-            &s_camera_status_subject, "camera_status_text", LV_SUBJECT_TYPE_STRING, __FILE__,
-            __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_camera_status_subject, "camera_status_text",
+                                     LV_SUBJECT_TYPE_STRING);
 
         spdlog::debug("[CameraWidget] Subjects initialized");
     });

@@ -170,9 +170,8 @@ void SensorRowSection::grow(size_t rows) {
             }
             helix::xml::register_subject_in_current_scope(id.c_str(), &subject);
             subjects_.register_subject(&subject, id.c_str());
-            SubjectDebugRegistry::instance().register_subject(
-                &subject, id.c_str(), is_string ? LV_SUBJECT_TYPE_STRING : LV_SUBJECT_TYPE_INT,
-                __FILE__, __LINE__);
+            HELIX_SUBJECT_DEBUG_REGISTER(&subject, id.c_str(),
+                                         is_string ? LV_SUBJECT_TYPE_STRING : LV_SUBJECT_TYPE_INT);
         }
         rows_.push_back(std::move(row));
     }

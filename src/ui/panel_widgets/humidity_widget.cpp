@@ -23,9 +23,8 @@ static void humidity_widget_init_subjects() {
             lv_subject_init_string(&s_chamber_humidity_text, s_chamber_humidity_text_buf, nullptr,
                                    sizeof(s_chamber_humidity_text_buf), "--");
             s_subjects.publish("chamber_humidity_text", &s_chamber_humidity_text);
-            SubjectDebugRegistry::instance().register_subject(
-                &s_chamber_humidity_text, "chamber_humidity_text", LV_SUBJECT_TYPE_STRING, __FILE__,
-                __LINE__);
+            HELIX_SUBJECT_DEBUG_REGISTER(&s_chamber_humidity_text, "chamber_humidity_text",
+                                         LV_SUBJECT_TYPE_STRING);
 
             // Observe raw humidity int and format for display
             auto* raw_subj =
