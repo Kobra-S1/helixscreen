@@ -479,3 +479,26 @@ teardown() {
     [ "$status" -ne 0 ]
     [ "$(awk '{print $3}' "$LAND_GATE_HISTORY")" = FAIL ]
 }
+
+@test "on macOS a local C++ run refuses in one line naming the test host" {
+    mock_command_script uname 'echo Darwin'
+    run "$GATE"
+    [ "$status" -eq 2 ]
+    [ "${#lines[@]}" -eq 1 ]
+    contains "TEST_HOST=1 make land-gate sends it to testhost.invalid" "$output"
+    [ ! -s "$CALLS" ]
+}
+
+@test "on macOS with no test host configured the refusal says how to name one" {
+    mock_command_script uname 'echo Darwin'
+    HELIX_TEST_HOST= run "$GATE"
+    [ "$status" -eq 2 ]
+    contains "set HELIX_TEST_HOST in ~/.config/helixscreen/build-hosts.env" "$output"
+}
+
+@test "on macOS a C++ run already routed to the test host runs the gate" {
+    mock_command_script uname 'echo Darwin'
+    TEST_HOST=1 run "$GATE"
+    [ "$status" -eq 0 ]
+    grep -qx "host-run sweep NPROCS=8 SHARD_TIMEOUT=600 SHARD_CRASH_FAILS=1" "$CALLS"
+}
