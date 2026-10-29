@@ -2420,6 +2420,7 @@ translations:
   Motor drive fault: Guasto del driver del motore
   Motor parameter setup failed: Impostazione dei parametri del motore non riuscita
   Motor speeds and acceleration: 'Velocità dei motori e accelerazione'
+  Motor sync: Sincronizzazione motori
   Motors: Motori
   Motors Off: Motori spenti
   'Motors disable failed: {}': 'Disabilitazione motori fallita: {}'
@@ -3921,6 +3922,8 @@ translations:
   Switching to {}: Passaggio a {}
   Sync during printing: Sincronizza durante la stampa
   Sync with Spoolman: Sincronizza con Spoolman
+  Syncing Motors...: Sincronizzazione motori...
+  Syncing motors...: Sincronizzazione motori...
   Sysfs: Sysfs
   System: Sistema
   System Keyboard: Tastiera di sistema

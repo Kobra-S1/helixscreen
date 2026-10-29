@@ -1175,6 +1175,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         return !active_bed_mesh_.probed_matrix.empty();
     }
 
+    /// Whether the printer reports motors-sync's `motors_sync` object (an AWD
+    /// printer; HELIX_MOCK_OBJECTS="motors_sync" adds it to any persona). Its
+    /// simulated print start then runs a motor sync after homing.
+    [[nodiscard]] bool has_motors_sync() const;
+
     /**
      * @brief Serve configfile.settings.bed_mesh.probe_count from objects.query
      *
@@ -2366,12 +2371,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         NONE = 0,
         PRINT_START_MARKER = 1, // "PRINT_START" detected
         HOMING = 2,             // "G28" dispatched
-        HEATING_BED = 3,        // "M190 S60" dispatched
-        HEATING_NOZZLE = 4,     // "M109 S210" dispatched
-        QGL = 5,                // "QUAD_GANTRY_LEVEL" dispatched
-        BED_MESH = 6,           // "BED_MESH_CALIBRATE" dispatched
-        PURGING = 7,            // "VORON_PURGE" dispatched
-        LAYER_1 = 8             // "SET_PRINT_STATS_INFO CURRENT_LAYER=1" dispatched
+        MOTOR_SYNC = 3,         // "Motors synchronization started", with motors_sync only
+        HEATING_BED = 4,        // "M190 S60" dispatched
+        HEATING_NOZZLE = 5,     // "M109 S210" dispatched
+        QGL = 6,                // "QUAD_GANTRY_LEVEL" dispatched
+        BED_MESH = 7,           // "BED_MESH_CALIBRATE" dispatched
+        PURGING = 8,            // "VORON_PURGE" dispatched
+        LAYER_1 = 9             // "SET_PRINT_STATS_INFO CURRENT_LAYER=1" dispatched
     };
     std::atomic<uint8_t> simulated_print_start_phase_{0};
 

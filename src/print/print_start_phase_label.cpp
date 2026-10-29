@@ -11,6 +11,8 @@ const char* print_start_phase_step_key(PrintStartPhase phase) {
     switch (phase) {
     case PrintStartPhase::HOMING:
         return TR_NOOP("Homing");
+    case PrintStartPhase::MOTOR_SYNC:
+        return TR_NOOP("Motor sync");
     case PrintStartPhase::HEATING_BED:
         return TR_NOOP("Heating bed");
     case PrintStartPhase::SOAKING:
@@ -49,6 +51,8 @@ const char* print_start_phase_signal_message(PrintStartPhase phase) {
         return lv_tr("Preparing Print...");
     case PrintStartPhase::HOMING:
         return lv_tr("Homing...");
+    case PrintStartPhase::MOTOR_SYNC:
+        return lv_tr("Syncing Motors...");
     case PrintStartPhase::HEATING_BED:
         return lv_tr("Heating Bed...");
     case PrintStartPhase::SOAKING:
@@ -105,6 +109,8 @@ std::optional<PrintStartPhase> phase_of_category(OperationCategory category) {
         return PrintStartPhase::HOMING;
     case OperationCategory::CHAMBER_SOAK:
         return PrintStartPhase::SOAKING;
+    case OperationCategory::MOTOR_SYNC:
+        return PrintStartPhase::MOTOR_SYNC;
     case OperationCategory::BED_LEVEL:
     case OperationCategory::SKEW_CORRECT:
     case OperationCategory::START_PRINT:

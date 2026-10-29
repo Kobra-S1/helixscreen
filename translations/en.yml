@@ -2364,6 +2364,7 @@ translations:
   Motor drive fault: Motor drive fault
   Motor parameter setup failed: Motor parameter setup failed
   Motor speeds and acceleration: Motor speeds and acceleration
+  Motor sync: Motor sync
   Motors: Motors
   Motors Off: Motors Off
   'Motors disable failed: {}': 'Motors disable failed: {}'
@@ -3834,6 +3835,8 @@ translations:
   Switching to {}: Switching to {}
   Sync during printing: Sync during printing
   Sync with Spoolman: Sync with Spoolman
+  Syncing Motors...: Syncing Motors...
+  Syncing motors...: Syncing motors...
   Sysfs: Sysfs
   System: System
   System Keyboard: System Keyboard

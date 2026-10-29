@@ -2295,6 +2295,7 @@ translations:
   Motor drive fault: モータードライバーの異常
   Motor parameter setup failed: モーターパラメーターの設定に失敗しました
   Motor speeds and acceleration: 'モーター速度と加速度'
+  Motor sync: モーター同期
   Motors: モーター
   Motors Off: モーターオフ
   'Motors disable failed: {}': 'モーターの無効化に失敗しました: {}'
@@ -3717,6 +3718,8 @@ translations:
   Switching to {}: '{}に切り替えています'
   Sync during printing: 印刷中に同期
   Sync with Spoolman: Spoolman と同期
+  Syncing Motors...: モーターを同期中...
+  Syncing motors...: モーターを同期中...
   Sysfs: Sysfs
   System: システム
   System Keyboard: システムキーボード

@@ -609,6 +609,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **K2 with the k2-improvements mod** - its print start sequence is recognised, so the
   preparation steps are named correctly, heat soak and the chamber wait show as soaking, and
   the bed is no longer meshed twice.
+- **Motor sync step at print start** - AWD printers running motors-sync's `SYNC_MOTORS` in
+  their start sequence now see a Syncing Motors step while the belt motors are synchronized,
+  instead of the previous step's label sitting there. A `SYNC_MOTORS RESTORE_SYNC=1`, which
+  only reapplies the last sync, shows no step (prestonbrown/helixscreen#1880).
 - **Camera button on remote screens** - running HelixScreen against a printer on another
   machine, the print screen gains a Camera button for the full-screen webcam view. It stays
   hidden on the printer's own screen.

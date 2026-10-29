@@ -268,6 +268,13 @@ Boot the mock printer straight into an active print so print-gated features can 
 | **Default** | unset (no auto-print) |
 | **File** | `src/application/moonraker_manager.cpp` (sets `mock_auto_start_print`); consumed in `src/api/moonraker_client_mock.cpp` |
 
+The simulated print start runs a motors-sync motor sync after homing only when the printer reports the `motors_sync` object:
+
+```bash
+# AWD printer: the print start shows the Motor sync step
+HELIX_MOCK_OBJECTS="motors_sync" HELIX_MOCK_AUTO_PRINT=1 ./build/bin/helix-screen --test --sim-speed 6 -vv
+```
+
 ### `HELIX_MOCK_REPLAY`
 
 Replay a captured print-start sequence through the mock client's real dispatch paths (`notify_gcode_response`, `notify_status_update`) so the full observer chain — manager wiring, MoonrakerAPI callbacks, collector — runs against real data with no printer attached. Pair with `HELIX_MOCK_PRINTER=k1` (the K1C capture's persona) and `--sim-speed` to fast-forward: a 386s capture replays in ~7s at `--sim-speed 60`.

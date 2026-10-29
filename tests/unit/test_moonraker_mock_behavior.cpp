@@ -3631,12 +3631,32 @@ TEST_CASE("MoonrakerClientMock: print-start steps show the macro chatter a print
     CHECK(std::string(Mock::print_start_display_message(0)) == "Heating...");
     CHECK(std::string(Mock::print_start_display_message(1)) == "Homing...");
     CHECK(std::string(Mock::print_start_display_message(2)) == "Homing...");
-    CHECK(std::string(Mock::print_start_display_message(3)) == "Heating bed...");
-    CHECK(std::string(Mock::print_start_display_message(4)) == "Heating nozzle...");
-    CHECK(std::string(Mock::print_start_display_message(5)) == "Leveling Gantry...");
-    CHECK(std::string(Mock::print_start_display_message(6)) == "Calibrating bed mesh...");
-    CHECK(std::string(Mock::print_start_display_message(7)) == "Purging nozzle");
+    CHECK(std::string(Mock::print_start_display_message(3)) == "Syncing motors...");
+    CHECK(std::string(Mock::print_start_display_message(4)) == "Heating bed...");
+    CHECK(std::string(Mock::print_start_display_message(5)) == "Heating nozzle...");
+    CHECK(std::string(Mock::print_start_display_message(6)) == "Leveling Gantry...");
+    CHECK(std::string(Mock::print_start_display_message(7)) == "Calibrating bed mesh...");
     CHECK(std::string(Mock::print_start_display_message(8)) == "Purging nozzle");
+    CHECK(std::string(Mock::print_start_display_message(9)) == "Purging nozzle");
+}
+
+TEST_CASE("MoonrakerClientMock: HELIX_MOCK_OBJECTS adds motors-sync to a persona",
+          "[mock][motor_sync]") {
+    SECTION("without it the printer has no motors_sync object") {
+        helix::ScopedEnv env("HELIX_MOCK_OBJECTS", nullptr);
+        TestableMoonrakerMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+        mock.connect("ws://mock/websocket", []() {}, []() {});
+        CHECK_FALSE(mock.has_motors_sync());
+        mock.disconnect();
+    }
+
+    SECTION("with it the printer reports motors_sync") {
+        helix::ScopedEnv env("HELIX_MOCK_OBJECTS", "motors_sync");
+        TestableMoonrakerMock mock(MoonrakerClientMock::PrinterType::VORON_24);
+        mock.connect("ws://mock/websocket", []() {}, []() {});
+        CHECK(mock.has_motors_sync());
+        mock.disconnect();
+    }
 }
 
 TEST_CASE("MoonrakerClientMock: HELIX_MOCK_DISPLAY_MESSAGE presets the display message",

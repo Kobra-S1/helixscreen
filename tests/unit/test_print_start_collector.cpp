@@ -285,6 +285,24 @@ TEST_CASE("PrintStart: Z_TILT phase detection", "[print][leveling]") {
     REQUIRE(default_phase("QUAD_GANTRY_LEVEL") == PrintStartPhase::QGL);
 }
 
+TEST_CASE("PrintStart: motor sync phase detection", "[print][motor_sync]") {
+    // motors-sync's cmd_SYNC_MOTORS announces a sync through respond_info,
+    // which reaches the console with Klipper's "// " prefix.
+    REQUIRE(default_phase("// Motors synchronization started") == PrintStartPhase::MOTOR_SYNC);
+    REQUIRE(default_phase("Motors synchronization started") == PrintStartPhase::MOTOR_SYNC);
+
+    // RESTORE_SYNC=1 only reapplies the stored phase offsets and returns
+    // before that line, so neither its command nor its reply is a sync.
+    REQUIRE(default_phase("SYNC_MOTORS RESTORE_SYNC=1") == PrintStartPhase::IDLE);
+    REQUIRE(default_phase("// Motors sync position already restored or nothing to restore") ==
+            PrintStartPhase::IDLE);
+
+    // The per-axis progress lines a running sync prints name no other phase.
+    REQUIRE(default_phase("// x-Initial magnitude: 2045") == PrintStartPhase::IDLE);
+    REQUIRE(default_phase("// x-Motors adjusted by 3/16 step, magnitude 2045 --> 120") ==
+            PrintStartPhase::IDLE);
+}
+
 // ============================================================================
 // Bed Mesh Phase Tests
 // ============================================================================
@@ -1145,6 +1163,68 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::BED_MESH);
     display("Purging");
     REQUIRE(get_current_phase() == PrintStartPhase::PURGING);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: a motor sync after homing shows its own phase",
+                 "[print][collector][motor_sync]") {
+    collector().start();
+    drain_async_updates();
+    drain_async_updates();
+
+    send_gcode_response("PRINT_START");
+    send_gcode_response("G28");
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+
+    send_gcode_response("// Motors synchronization started");
+    REQUIRE(get_current_phase() == PrintStartPhase::MOTOR_SYNC);
+    REQUIRE(get_current_message() == "Syncing Motors...");
+
+    send_gcode_response("// x-Initial magnitude: 2045");
+    send_gcode_response("// Motors magnitudes are in tolerance: x: 100.0, y: 100.0");
+    REQUIRE(get_current_phase() == PrintStartPhase::MOTOR_SYNC);
+
+    send_gcode_response("M190 S60");
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: a motor sync run after heating still shows",
+                 "[print][collector][motor_sync]") {
+    // MOTOR_SYNC sits before the heating phases, but a macro may sync once the
+    // bed is warm. The first explicit line of a phase is entered whatever its
+    // place in the order.
+    collector().start();
+    drain_async_updates();
+    drain_async_updates();
+
+    send_gcode_response("PRINT_START");
+    send_gcode_response("G28");
+    send_gcode_response("M190 S60");
+    send_gcode_response("M109 S210");
+    REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
+
+    send_gcode_response("// Motors synchronization started");
+    REQUIRE(get_current_phase() == PrintStartPhase::MOTOR_SYNC);
+
+    send_gcode_response("QUAD_GANTRY_LEVEL");
+    REQUIRE(get_current_phase() == PrintStartPhase::QGL);
+}
+
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "PrintStartCollector: SYNC_MOTORS RESTORE_SYNC=1 enters no motor sync phase",
+                 "[print][collector][motor_sync]") {
+    collector().start();
+    drain_async_updates();
+    drain_async_updates();
+
+    send_gcode_response("PRINT_START");
+    send_gcode_response("G28");
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+
+    send_gcode_response("SYNC_MOTORS RESTORE_SYNC=1");
+    send_gcode_response("// Motors sync position already restored or nothing to restore");
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
 }
 
 // ============================================================================

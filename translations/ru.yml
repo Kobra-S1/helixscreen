@@ -2460,6 +2460,7 @@ translations:
   Motor drive fault: Неисправность драйвера двигателя
   Motor parameter setup failed: Не удалась настройка параметров двигателя
   Motor speeds and acceleration: 'Скорости моторов и ускорение'
+  Motor sync: Синхронизация моторов
   Motors: Двигатели
   Motors Off: Отключить моторы
   'Motors disable failed: {}': 'Ошибка отключения моторов: {}'
@@ -3970,6 +3971,8 @@ translations:
   Switching to {}: Переключение на {}
   Sync during printing: Синхронизация во время печати
   Sync with Spoolman: Синхронизация со Spoolman
+  Syncing Motors...: Синхронизация моторов...
+  Syncing motors...: Синхронизация моторов...
   Sysfs: Sysfs
   System: Система
   System Keyboard: Системная клавиатура

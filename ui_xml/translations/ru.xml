@@ -2256,6 +2256,7 @@
   <translation tag="Motor drive fault" ru="Неисправность драйвера двигателя"/>
   <translation tag="Motor parameter setup failed" ru="Не удалась настройка параметров двигателя"/>
   <translation tag="Motor speeds and acceleration" ru="Скорости моторов и ускорение"/>
+  <translation tag="Motor sync" ru="Синхронизация моторов"/>
   <translation tag="Motors" ru="Двигатели"/>
   <translation tag="Motors Off" ru="Отключить моторы"/>
   <translation tag="Motors disable failed: {}" ru="Ошибка отключения моторов: {}"/>
@@ -3646,6 +3647,8 @@
   <translation tag="Sync" ru="Синхр."/>
   <translation tag="Sync during printing" ru="Синхронизация во время печати"/>
   <translation tag="Sync with Spoolman" ru="Синхронизация со Spoolman"/>
+  <translation tag="Syncing Motors..." ru="Синхронизация моторов..."/>
+  <translation tag="Syncing motors..." ru="Синхронизация моторов..."/>
   <translation tag="Sysfs" ru="Sysfs"/>
   <translation tag="System" ru="Система"/>
   <translation tag="System Keyboard" ru="Системная клавиатура"/>

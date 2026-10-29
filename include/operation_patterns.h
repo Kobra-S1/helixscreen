@@ -42,6 +42,7 @@ enum class OperationCategory {
     HOMING,       ///< Homing axes (G28)
     CHAMBER_SOAK, ///< Chamber heat soak (HEAT_SOAK)
     SKEW_CORRECT, ///< Skew correction (SKEW_PROFILE, SET_SKEW)
+    MOTOR_SYNC,   ///< AWD belt motor sync (motors-sync's SYNC_MOTORS)
     START_PRINT,  ///< The print start macro itself (PRINT_START, START_PRINT)
     UNKNOWN,      ///< Unrecognized operation
 };
@@ -106,6 +107,12 @@ inline const OperationKeyword kOperationKeywords[] = {
     {"SKEW_PROFILE",         OperationCategory::SKEW_CORRECT, "SKIP_SKEW",         false},
     {"SET_SKEW",             OperationCategory::SKEW_CORRECT, "SKIP_SKEW",         false},
     {"SKEW",                 OperationCategory::SKEW_CORRECT, "SKIP_SKEW",         false},
+
+    // === Motor Sync ===
+    // Exact: SYNC_MOTORS_CALIBRATE and SYNC_MOTORS_STATS are not a sync.
+    // motors-sync has no skip parameter; a macro skips the command behind
+    // printer.motors_sync.applied instead.
+    {"SYNC_MOTORS",          OperationCategory::MOTOR_SYNC,   "",                  true},
 };
 // clang-format on
 
@@ -276,6 +283,8 @@ inline const char* category_name(OperationCategory cat) {
         return "Chamber heat soak";
     case OperationCategory::SKEW_CORRECT:
         return "Skew correction";
+    case OperationCategory::MOTOR_SYNC:
+        return "Motor sync";
     case OperationCategory::START_PRINT:
         return "Start print";
     case OperationCategory::UNKNOWN:
@@ -307,6 +316,8 @@ inline const char* category_key(OperationCategory cat) {
         return "chamber_soak";
     case OperationCategory::SKEW_CORRECT:
         return "skew_correct";
+    case OperationCategory::MOTOR_SYNC:
+        return "motor_sync";
     case OperationCategory::START_PRINT:
         return "start_print";
     case OperationCategory::UNKNOWN:

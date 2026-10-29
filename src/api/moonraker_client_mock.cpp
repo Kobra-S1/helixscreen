@@ -670,6 +670,12 @@ int MoonrakerClientMock::get_total_layers() const {
     return static_cast<int>(print_metadata_.layer_count);
 }
 
+bool MoonrakerClientMock::has_motors_sync() const {
+    std::lock_guard<std::mutex> discovery_lock(discovery_mutex_);
+    const auto& objects = discovery_.hardware().printer_objects();
+    return std::find(objects.begin(), objects.end(), "motors_sync") != objects.end();
+}
+
 bool MoonrakerClientMock::has_chamber_sensor() const {
     // The simulation thread calls this every iteration while discover_printer()
     // is still reassigning discovery_.sensors() on the calling thread — the same
@@ -7399,6 +7405,8 @@ const char* MoonrakerClientMock::print_start_display_message(uint8_t simulated_p
     case SimulatedPrintStartPhase::PRINT_START_MARKER:
     case SimulatedPrintStartPhase::HOMING:
         return "Homing...";
+    case SimulatedPrintStartPhase::MOTOR_SYNC:
+        return "Syncing motors...";
     case SimulatedPrintStartPhase::HEATING_BED:
         return "Heating bed...";
     case SimulatedPrintStartPhase::HEATING_NOZZLE:
@@ -7462,7 +7470,19 @@ void MoonrakerClientMock::advance_print_start_simulation() {
         return;
     }
 
-    // Phase 3: Heating bed (when bed starts warming, ~10% toward target)
+    // Phase 3: Motor sync (motors-sync on an AWD printer), right after homing
+    if (current_phase < static_cast<uint8_t>(SimulatedPrintStartPhase::MOTOR_SYNC)) {
+        simulated_print_start_phase_.store(
+            static_cast<uint8_t>(SimulatedPrintStartPhase::MOTOR_SYNC));
+        if (has_motors_sync()) {
+            dispatch_gcode_response("// Motors synchronization started");
+            dispatch_gcode_response("// x-Initial magnitude: 2045");
+            dispatch_gcode_response("// Motors magnitudes are in tolerance: x: 100.0, y: 100.0");
+            return;
+        }
+    }
+
+    // Phase 4: Heating bed (when bed starts warming, ~10% toward target)
     double bed_progress =
         (bed_target > kRoomTemp) ? (bed_temp - kRoomTemp) / (bed_target - kRoomTemp) : 1.0;
     if (current_phase < static_cast<uint8_t>(SimulatedPrintStartPhase::HEATING_BED) &&
@@ -7475,7 +7495,7 @@ void MoonrakerClientMock::advance_print_start_simulation() {
         return;
     }
 
-    // Phase 4: Heating nozzle (when extruder starts warming, ~10% toward target)
+    // Phase 5: Heating nozzle (when extruder starts warming, ~10% toward target)
     double ext_progress =
         (ext_target > kRoomTemp) ? (ext_temp - kRoomTemp) / (ext_target - kRoomTemp) : 1.0;
     if (current_phase < static_cast<uint8_t>(SimulatedPrintStartPhase::HEATING_NOZZLE) &&
@@ -7488,7 +7508,7 @@ void MoonrakerClientMock::advance_print_start_simulation() {
         return;
     }
 
-    // Phase 5: QGL (when bed is ~50% heated - simulate while heating)
+    // Phase 6: QGL (when bed is ~50% heated - simulate while heating)
     if (current_phase < static_cast<uint8_t>(SimulatedPrintStartPhase::QGL) && bed_progress > 0.4) {
         if (consume_skip(helix::skip_wrappers::Op::Qgl)) {
             dispatch_gcode_response("HelixScreen: quad gantry level skipped for this print");
@@ -7500,7 +7520,7 @@ void MoonrakerClientMock::advance_print_start_simulation() {
         return;
     }
 
-    // Phase 6: Bed mesh (when bed is ~70% heated)
+    // Phase 7: Bed mesh (when bed is ~70% heated)
     if (current_phase < static_cast<uint8_t>(SimulatedPrintStartPhase::BED_MESH) &&
         bed_progress > 0.65) {
         if (consume_skip(helix::skip_wrappers::Op::BedMesh)) {
@@ -7514,7 +7534,7 @@ void MoonrakerClientMock::advance_print_start_simulation() {
         return;
     }
 
-    // Phase 7: Purge line (when temps are nearly ready, ~90%)
+    // Phase 8: Purge line (when temps are nearly ready, ~90%)
     if (current_phase < static_cast<uint8_t>(SimulatedPrintStartPhase::PURGING) &&
         bed_progress > 0.85 && ext_progress > 0.85) {
         dispatch_gcode_response("VORON_PURGE");
@@ -7523,7 +7543,7 @@ void MoonrakerClientMock::advance_print_start_simulation() {
         return;
     }
 
-    // Phase 8: Layer 1 marker (when transitioning to PRINTING phase)
+    // Phase 9: Layer 1 marker (when transitioning to PRINTING phase)
     // This is handled in the simulation loop when temps are stable
 }
 

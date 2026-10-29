@@ -72,6 +72,7 @@ number then names a different one.
 | IDLE | `IDLE` | Not in PRINT_START |
 | INITIALIZING | `INITIALIZING` | PRINT_START detected |
 | HOMING | `HOMING` | G28 / Home All Axes |
+| MOTOR_SYNC | `MOTOR_SYNC` | motors-sync SYNC_MOTORS (AWD) |
 | HEATING_BED | `HEATING_BED` | M140/M190 |
 | SOAKING | `SOAKING` | Holding at temperature: heat-soak dwell or chamber wait |
 | HEATING_NOZZLE | `HEATING_NOZZLE` | M104/M109 |
@@ -83,7 +84,7 @@ number then names a different one.
 | COMPLETE | `COMPLETE` | Transition to printing |
 
 `print_start_phase_stores_duration()` is the single answer to which of these the
-history keeps a duration for: HOMING, SOAKING, QGL, Z_TILT, BED_MESH, CLEANING
+history keeps a duration for: HOMING, MOTOR_SYNC, SOAKING, QGL, Z_TILT, BED_MESH, CLEANING
 and PURGING. IDLE, INITIALIZING and COMPLETE are lifecycle markers with no dwell
 of their own, and the two heating phases are owned by `ThermalRateModel`, which
 predicts them from measured heat rates.

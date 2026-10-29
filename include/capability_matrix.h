@@ -398,6 +398,9 @@ inline OperationCategory CapabilityMatrix::category_from_key(const std::string& 
     if (key == "skew_correct") {
         return OperationCategory::SKEW_CORRECT;
     }
+    if (key == "motor_sync") {
+        return OperationCategory::MOTOR_SYNC;
+    }
     return OperationCategory::UNKNOWN;
 }
 

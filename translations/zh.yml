@@ -2289,6 +2289,7 @@ translations:
   Motor drive fault: 电机驱动器故障
   Motor parameter setup failed: 电机参数设置失败
   Motor speeds and acceleration: '电机速度与加速度'
+  Motor sync: 电机同步
   Motors: 电机
   Motors Off: 关闭电机
   'Motors disable failed: {}': '禁用电机失败: {}'
@@ -3709,6 +3710,8 @@ translations:
   Switching to {}: 正在切换到 {}
   Sync during printing: 打印期间同步
   Sync with Spoolman: 与 Spoolman 同步
+  Syncing Motors...: 正在同步电机...
+  Syncing motors...: 正在同步电机...
   Sysfs: Sysfs
   System: 系统
   System Keyboard: 系统键盘

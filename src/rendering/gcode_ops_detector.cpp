@@ -156,7 +156,8 @@ void GCodeOpsDetector::init_default_patterns() {
             pattern == "QUAD_GANTRY_LEVEL" || pattern == "QGL" ||
             pattern.find("Z_TILT") == 0 || // Z_TILT, Z_TILT_ADJUST
             pattern.find("SET_HEATER_TEMPERATURE") == 0 ||
-            pattern.find("SKEW") == 0) { // SKEW_PROFILE, SET_SKEW
+            pattern.find("SKEW") == 0 || // SKEW_PROFILE, SET_SKEW
+            pattern == "SYNC_MOTORS") {
             embedding = OperationEmbedding::DIRECT_COMMAND;
         }
 

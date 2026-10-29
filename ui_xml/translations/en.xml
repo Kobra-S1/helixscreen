@@ -2211,6 +2211,7 @@
   <translation tag="Motor drive fault" en="Motor drive fault"/>
   <translation tag="Motor parameter setup failed" en="Motor parameter setup failed"/>
   <translation tag="Motor speeds and acceleration" en="Motor speeds and acceleration"/>
+  <translation tag="Motor sync" en="Motor sync"/>
   <translation tag="Motors" en="Motors"/>
   <translation tag="Motors Off" en="Motors Off"/>
   <translation tag="Motors disable failed: {}" en="Motors disable failed: {}"/>
@@ -3586,6 +3587,8 @@
   <translation tag="Sync" en="Sync"/>
   <translation tag="Sync during printing" en="Sync during printing"/>
   <translation tag="Sync with Spoolman" en="Sync with Spoolman"/>
+  <translation tag="Syncing Motors..." en="Syncing Motors..."/>
+  <translation tag="Syncing motors..." en="Syncing motors..."/>
   <translation tag="Sysfs" en="Sysfs"/>
   <translation tag="System" en="System"/>
   <translation tag="System Keyboard" en="System Keyboard"/>

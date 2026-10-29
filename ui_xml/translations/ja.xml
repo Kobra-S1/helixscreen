@@ -2211,6 +2211,7 @@
   <translation tag="Motor drive fault" ja="モータードライバーの異常"/>
   <translation tag="Motor parameter setup failed" ja="モーターパラメーターの設定に失敗しました"/>
   <translation tag="Motor speeds and acceleration" ja="モーター速度と加速度"/>
+  <translation tag="Motor sync" ja="モーター同期"/>
   <translation tag="Motors" ja="モーター"/>
   <translation tag="Motors Off" ja="モーターオフ"/>
   <translation tag="Motors disable failed: {}" ja="モーターの無効化に失敗しました: {}"/>
@@ -3586,6 +3587,8 @@
   <translation tag="Sync" ja="同期"/>
   <translation tag="Sync during printing" ja="印刷中に同期"/>
   <translation tag="Sync with Spoolman" ja="Spoolman と同期"/>
+  <translation tag="Syncing Motors..." ja="モーターを同期中..."/>
+  <translation tag="Syncing motors..." ja="モーターを同期中..."/>
   <translation tag="Sysfs" ja="Sysfs"/>
   <translation tag="System" ja="システム"/>
   <translation tag="System Keyboard" ja="システムキーボード"/>

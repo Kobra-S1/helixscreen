@@ -160,17 +160,18 @@ These are the `PrintStartPhase` enum values from `include/print_start_phase.h`. 
 | `IDLE` | 0 | `IDLE` | Not in PRINT_START | - |
 | `INITIALIZING` | 1 | `INITIALIZING` | PRINT_START detected | - |
 | `HOMING` | 2 | `HOMING` | G28, Home All Axes | 10 |
-| `HEATING_BED` | 3 | `HEATING_BED` | M190, M140 S>0 | 20 |
-| `SOAKING` | 4 | `SOAKING` | Heat-soak dwell, chamber temperature wait | - |
-| `HEATING_NOZZLE` | 5 | `HEATING_NOZZLE` | M109, M104 S>0 | 20 |
-| `QGL` | 6 | `QGL` | QUAD_GANTRY_LEVEL | 15 |
-| `Z_TILT` | 7 | `Z_TILT` | Z_TILT_ADJUST | 15 |
-| `BED_MESH` | 8 | `BED_MESH` | BED_MESH_CALIBRATE | 10 |
-| `CLEANING` | 9 | `CLEANING` | CLEAN_NOZZLE, WIPE_NOZZLE | 5 |
-| `PURGING` | 10 | `PURGING` | VORON_PURGE, LINE_PURGE | 5 |
-| `COMPLETE` | 11 | `COMPLETE` | Layer 1 detected, HELIX:READY | - |
+| `MOTOR_SYNC` | 3 | `MOTOR_SYNC` | motors-sync's "Motors synchronization started" (SYNC_MOTORS, not `RESTORE_SYNC=1`) | 10 |
+| `HEATING_BED` | 4 | `HEATING_BED` | M190, M140 S>0 | 20 |
+| `SOAKING` | 5 | `SOAKING` | Heat-soak dwell, chamber temperature wait | - |
+| `HEATING_NOZZLE` | 6 | `HEATING_NOZZLE` | M109, M104 S>0 | 20 |
+| `QGL` | 7 | `QGL` | QUAD_GANTRY_LEVEL | 15 |
+| `Z_TILT` | 8 | `Z_TILT` | Z_TILT_ADJUST | 15 |
+| `BED_MESH` | 9 | `BED_MESH` | BED_MESH_CALIBRATE | 10 |
+| `CLEANING` | 10 | `CLEANING` | CLEAN_NOZZLE, WIPE_NOZZLE | 5 |
+| `PURGING` | 11 | `PURGING` | VORON_PURGE, LINE_PURGE | 5 |
+| `COMPLETE` | 12 | `COMPLETE` | Layer 1 detected, HELIX:READY | - |
 
-Aliases accepted alongside the canonical names, for macros already emitting them (`kPrintStartPhaseAliases`): `START`/`STARTING` (INITIALIZING), `DONE` (COMPLETE), `BED_HEATING` (HEATING_BED), `HEAT_SOAK`/`SOAK` (SOAKING), `NOZZLE_HEATING`/`HEATING_HOTEND` (HEATING_NOZZLE), `QUAD_GANTRY_LEVEL` (QGL), `Z_TILT_ADJUST` (Z_TILT), `BED_LEVELING` (BED_MESH), `NOZZLE_CLEAN` (CLEANING), `PURGE`/`PRIMING` (PURGING).
+Aliases accepted alongside the canonical names, for macros already emitting them (`kPrintStartPhaseAliases`): `START`/`STARTING` (INITIALIZING), `DONE` (COMPLETE), `SYNC_MOTORS` (MOTOR_SYNC), `BED_HEATING` (HEATING_BED), `HEAT_SOAK`/`SOAK` (SOAKING), `NOZZLE_HEATING`/`HEATING_HOTEND` (HEATING_NOZZLE), `QUAD_GANTRY_LEVEL` (QGL), `Z_TILT_ADJUST` (Z_TILT), `BED_LEVELING` (BED_MESH), `NOZZLE_CLEAN` (CLEANING), `PURGE`/`PRIMING` (PURGING).
 
 Notes:
 - `IDLE` and `COMPLETE` are lifecycle states, not matchable phases in profiles.
@@ -379,6 +380,7 @@ Format: `HELIX:PHASE:{PHASE_NAME}`
 |--------|---------------|
 | `HELIX:PHASE:STARTING` or `HELIX:PHASE:START` | INITIALIZING |
 | `HELIX:PHASE:HOMING` | HOMING |
+| `HELIX:PHASE:MOTOR_SYNC` or `HELIX:PHASE:SYNC_MOTORS` | MOTOR_SYNC |
 | `HELIX:PHASE:HEATING_BED` or `HELIX:PHASE:BED_HEATING` | HEATING_BED |
 | `HELIX:PHASE:HEATING_NOZZLE` or `HELIX:PHASE:NOZZLE_HEATING` or `HELIX:PHASE:HEATING_HOTEND` | HEATING_NOZZLE |
 | `HELIX:PHASE:QGL` or `HELIX:PHASE:QUAD_GANTRY_LEVEL` | QGL |
