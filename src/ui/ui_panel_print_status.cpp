@@ -770,9 +770,8 @@ void PrintStatusPanel::init_subjects() {
     helix::xml::register_subject_in_current_scope("exclude_objects_available",
                                                   &exclude_objects_available_subject_);
     subjects_.register_subject(&exclude_objects_available_subject_, "exclude_objects_available");
-    SubjectDebugRegistry::instance().register_subject(&exclude_objects_available_subject_,
-                                                      "exclude_objects_available",
-                                                      LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+    HELIX_SUBJECT_DEBUG_REGISTER(&exclude_objects_available_subject_, "exclude_objects_available",
+                                 LV_SUBJECT_TYPE_INT);
 
     // Register XML event callbacks for print status panel buttons
     // (tune overlay subjects/callbacks registered by singleton on first show())

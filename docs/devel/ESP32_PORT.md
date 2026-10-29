@@ -81,6 +81,7 @@ bench-only values there, never in a committed file:
 | `CONFIG_HELIX_HIL_MOONRAKER_URL` | First-boot Moonraker host (`ws://host:7125/websocket`); never overrides a host saved in Settings |
 | `CONFIG_HELIX_MOCK_PRINTER=y` | Synthetic printer, no network (chapter 17, Mock mode) |
 | `CONFIG_HELIX_LOG_STRIP_DEBUG=n` | Keep `spdlog::debug`/`trace`; stripped by default, so a debug line you add does not print |
+| `CONFIG_HELIX_SUBJECT_DEBUG_STRIP=n` | Keep the subject macros' `SubjectDebugRegistry` records, so an LVGL subject warning names the subject |
 | `CONFIG_HELIX_AMS_HTTP_POLL_BACKENDS=y` | Let the ACE and AD5X IFS backends run |
 | `CONFIG_HELIX_FAULT_CRASH_HOST` | Abort when connected to a matching host, to exercise the boot crash guard (#1750) |
 | `CONFIG_HELIX_NET_HIL` / `CONFIG_HELIX_HTTP_HIL` | Test-only transport and HTTP-lane probes |

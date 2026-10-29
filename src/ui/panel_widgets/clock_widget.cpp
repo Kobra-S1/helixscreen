@@ -71,27 +71,24 @@ static void clock_widget_init_subjects() {
         lv_subject_init_string(&s_time_subject, s_time_buffer, nullptr, sizeof(s_time_buffer),
                                "--:--");
         s_subjects.publish("clock_time_text", &s_time_subject);
-        SubjectDebugRegistry::instance().register_subject(
-            &s_time_subject, "clock_time_text", LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_time_subject, "clock_time_text", LV_SUBJECT_TYPE_STRING);
 
         // Date text (e.g. "Fri, Feb 28")
         lv_subject_init_string(&s_date_subject, s_date_buffer, nullptr, sizeof(s_date_buffer), "");
         s_subjects.publish("clock_date_text", &s_date_subject);
-        SubjectDebugRegistry::instance().register_subject(
-            &s_date_subject, "clock_date_text", LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_date_subject, "clock_date_text", LV_SUBJECT_TYPE_STRING);
 
         // Uptime text (e.g. "Up: 3d 14h")
         lv_subject_init_string(&s_uptime_subject, s_uptime_buffer, nullptr, sizeof(s_uptime_buffer),
                                "");
         s_subjects.publish("clock_uptime_text", &s_uptime_subject);
-        SubjectDebugRegistry::instance().register_subject(
-            &s_uptime_subject, "clock_uptime_text", LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_uptime_subject, "clock_uptime_text",
+                                     LV_SUBJECT_TYPE_STRING);
 
         // Size mode (0=compact/1x1, 1=normal/2x1, 2=expanded/2x2+)
         lv_subject_init_int(&s_size_mode_subject, 1);
         s_subjects.publish("clock_size_mode", &s_size_mode_subject);
-        SubjectDebugRegistry::instance().register_subject(&s_size_mode_subject, "clock_size_mode",
-                                                          LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_size_mode_subject, "clock_size_mode", LV_SUBJECT_TYPE_INT);
 
         spdlog::debug("[ClockWidget] Subjects initialized");
     });

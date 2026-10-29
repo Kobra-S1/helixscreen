@@ -30,9 +30,8 @@ static void network_widget_init_subjects() {
         // Integer subject: 0=disconnected, 1-4=wifi strength, 5=ethernet
         lv_subject_init_int(&s_network_icon_state, 0);
         s_subjects.publish("home_network_icon_state", &s_network_icon_state);
-        SubjectDebugRegistry::instance().register_subject(&s_network_icon_state,
-                                                          "home_network_icon_state",
-                                                          LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_network_icon_state, "home_network_icon_state",
+                                     LV_SUBJECT_TYPE_INT);
 
         spdlog::debug("[NetworkWidget] Subjects initialized (icon_state + label)");
     });

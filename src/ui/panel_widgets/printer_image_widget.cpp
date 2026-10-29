@@ -126,18 +126,16 @@ static void printer_image_widget_init_subjects() {
         lv_subject_init_string(&s_printer_type_subject, s_printer_type_buffer, nullptr,
                                sizeof(s_printer_type_buffer), "");
         s_subjects.publish("printer_type_text", &s_printer_type_subject);
-        SubjectDebugRegistry::instance().register_subject(
-            &s_printer_type_subject, "printer_type_text", LV_SUBJECT_TYPE_STRING, __FILE__,
-            __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_printer_type_subject, "printer_type_text",
+                                     LV_SUBJECT_TYPE_STRING);
 
         // String subject for hostname/IP
 
         // Integer subject: 0=hidden, 1=visible
         lv_subject_init_int(&s_printer_info_visible, 0);
         s_subjects.publish("printer_info_visible", &s_printer_info_visible);
-        SubjectDebugRegistry::instance().register_subject(&s_printer_info_visible,
-                                                          "printer_info_visible",
-                                                          LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_printer_info_visible, "printer_info_visible",
+                                     LV_SUBJECT_TYPE_INT);
 
         // Live callout subjects. Every int starts at 0 (CalloutMode::ImageOnly for
         // the mode subject, "not shown" for the rest) so the callout layer and
@@ -163,8 +161,7 @@ static void printer_image_widget_init_subjects() {
             // "not shown"/"not merged"/"not heating" for the rest.
             lv_subject_init_int(s.subject, 0);
             s_subjects.publish(s.name, s.subject);
-            SubjectDebugRegistry::instance().register_subject(
-                s.subject, s.name, LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
+            HELIX_SUBJECT_DEBUG_REGISTER(s.subject, s.name, LV_SUBJECT_TYPE_INT);
         }
 
         static const struct {
@@ -187,8 +184,7 @@ static void printer_image_widget_init_subjects() {
         for (const auto& s : text_subjects) {
             lv_subject_init_string(s.subject, s.buf, nullptr, s.buf_size, "");
             s_subjects.publish(s.name, s.subject);
-            SubjectDebugRegistry::instance().register_subject(
-                s.subject, s.name, LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+            HELIX_SUBJECT_DEBUG_REGISTER(s.subject, s.name, LV_SUBJECT_TYPE_STRING);
         }
 
         spdlog::debug(

@@ -72,8 +72,7 @@ static void tips_widget_init_subjects() {
         lv_subject_init_string(&s_status_subject, s_status_buffer, nullptr, sizeof(s_status_buffer),
                                "Welcome to HelixScreen");
         s_subjects.publish("status_text", &s_status_subject);
-        SubjectDebugRegistry::instance().register_subject(
-            &s_status_subject, "status_text", LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_status_subject, "status_text", LV_SUBJECT_TYPE_STRING);
 
         spdlog::debug("[TipsWidget] Subjects initialized (status_text)");
     });
