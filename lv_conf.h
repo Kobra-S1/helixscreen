@@ -419,6 +419,13 @@
 #define LV_USE_ASSERT_MEM_INTEGRITY 0   /*Check the integrity of `lv_mem` after critical operations. (Slow)*/
 #define LV_USE_ASSERT_OBJ           0   /*Check the object's type and existence (e.g. not deleted). (Slow)*/
 
+/*Call helix_lvgl_thread_check() (src/system/lvgl_thread_check.cpp) at the subject, timer and
+ *object-delete entry points, so --test and the unit tests catch LVGL calls made off the LVGL
+ *thread (lvgl_thread_check_hook.patch). Release builds compile the checks out.*/
+#ifndef HELIX_RELEASE_BUILD
+#define LV_HELIX_THREAD_CHECK       1
+#endif
+
 /*Add a custom handler when assert happens e.g. to restart the MCU*/
 #define LV_ASSERT_HANDLER_INCLUDE "lvgl_assert_handler.h"
 #define LV_ASSERT_HANDLER helix_lvgl_assert_handler(__FILE__, __LINE__, __func__);   /*Log and continue*/

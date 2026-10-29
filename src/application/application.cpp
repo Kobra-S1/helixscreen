@@ -193,6 +193,7 @@
 #include "system/crash_history.h"
 #include "system/crash_reporter.h"
 #include "system/diagnostics.h"
+#include "system/lvgl_thread_check.h"
 #include "system/telemetry_manager.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
@@ -558,6 +559,13 @@ int Application::run(int argc, char** argv) {
 
     spdlog::info("[Application] ========================");
     spdlog::info("[Application] HelixScreen {} ({})", helix_version(), helix_git_hash());
+
+    // --test reports every LVGL call made off the LVGL thread, as the unit tests
+    // do; HELIX_LVGL_THREAD_CHECK=abort makes the first one fatal.
+    {
+        using namespace helix::lvgl_thread_check;
+        set_mode(mode_from_env(get_runtime_config()->is_test_mode() ? Mode::Report : Mode::Off));
+    }
 
     // Every path this process uses is chosen by a cascade with a user override
     // on every rung, so the log has to carry the resolved values: a support case
