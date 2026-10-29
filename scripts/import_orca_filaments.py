@@ -172,6 +172,12 @@ def build_product(resolved: dict, base_type_range):
     return product
 
 
+def _own_filament_id(resolved: dict, profile: dict) -> dict:
+    """Mark whether `resolved`'s filament_id is the profile's own or its parent's."""
+    resolved["_filament_id_inherited"] = "filament_id" not in profile
+    return resolved
+
+
 # @System / @<printer> / @base suffixes to strip from profile names for display.
 _SUFFIX_RE = re.compile(r"\s*@.*$")
 
@@ -211,11 +217,31 @@ def _add_product(products, seen, resolved, profile_name, type_ranges):
     resolved["_product_name"] = _display_name(profile_name, brand)
     orca_type = first_scalar(resolved.get("filament_type")) or ""
     product = build_product(resolved, type_ranges.get(map_type(orca_type)))
+    if product.get("orca_id") and resolved.get("_filament_id_inherited"):
+        product["_orca_id_inherited"] = True
     key = (product["brand"], product["name"])
     if key in seen:
         return
     seen.add(key)
     products.append(product)
+
+
+def _drop_shared_inherited_orca_ids(products):
+    """Drop an orca_id a product inherited when another product carries it too.
+
+    A vendor template that declares filament_id and is shared by several products
+    (Elegoo's "PLA @base" under 14 PLA variants) hands all of them its id, and
+    an id naming many products names none of them for OrcaSlicer's exact-preset
+    match. An inherited id carried by one product alone is that product's, and a
+    profile's own id always stands.
+    """
+    holders = {}
+    for p in products:
+        if p.get("orca_id"):
+            holders[p["orca_id"]] = holders.get(p["orca_id"], 0) + 1
+    for p in products:
+        if p.pop("_orca_id_inherited", False) and holders[p["orca_id"]] > 1:
+            del p["orca_id"]
 
 
 def resolve_vendor_profile(profile: dict, by_name: dict) -> dict:
@@ -258,7 +284,7 @@ def build_catalog(orca_root, seed, type_ranges, library_marker="OrcaFilamentLibr
             continue  # templates, not user-facing products
         if library_marker and library_marker not in profile.get("_src", ""):
             continue  # skip printer-specific profiles outside the library
-        resolved = resolve_inherits(profile, by_name)
+        resolved = _own_filament_id(resolve_inherits(profile, by_name), profile)
         orca_type = first_scalar(resolved.get("filament_type")) or ""
         # RAW type — this is the vocabulary Orca matches on. Must NOT be
         # map_type()'d: our catalog deliberately carries finer types than Orca.
@@ -278,8 +304,9 @@ def build_catalog(orca_root, seed, type_ranges, library_marker="OrcaFilamentLibr
             # machine; the base profile is the product.
             if profile.get("instantiation") != "true" or "@" in pname:
                 continue
-            resolved = resolve_vendor_profile(profile, vendor_by_name)
+            resolved = _own_filament_id(resolve_vendor_profile(profile, vendor_by_name), profile)
             _add_product(products, seen, resolved, pname, type_ranges)
+    _drop_shared_inherited_orca_ids(products)
     _merge_seed(products, seed)
     _dedupe_ids(products)
     _assert_no_degenerate_ranges(products)

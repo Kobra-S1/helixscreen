@@ -444,7 +444,8 @@ scripts/setup-worktree.sh feature/my-contribution
 ```bash
 make -j                              # build binary only
 ./build/bin/helix-screen --test -vv  # run with mock printer, verbose logs
-make test-run                        # build and run the full test suite
+make t F='[tag]'                     # build, then run the tests for one area
+make full-test-run                   # C++ suite plus the bats shell suite
 ```
 
 For UI iteration without rebuilding after every XML edit — hot reload is ON by default for native builds, so just run:

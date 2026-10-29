@@ -130,6 +130,52 @@ def test_build_catalog_is_deterministic():
     assert json.dumps(a) == json.dumps(b)               # stable order + shape
 
 
+def _write_library(root, profiles):
+    lib = root / "OrcaFilamentLibrary" / "filament"
+    lib.mkdir(parents=True)
+    for i, p in enumerate(profiles):
+        (lib / f"p{i}.json").write_text(json.dumps({"type": "filament", **p}))
+    return str(root)
+
+
+def _orca_ids(tmp_path, profiles):
+    cat, _ = imp.build_catalog(_write_library(tmp_path, profiles), [], type_ranges={})
+    assert not [k for p in cat for k in p if k.startswith("_")]  # no bookkeeping keys ship
+    return {p["name"]: p.get("orca_id") for p in cat}
+
+
+def test_inherited_filament_id_shared_by_two_products_is_dropped(tmp_path):
+    ids = _orca_ids(tmp_path, [
+        {"name": "Acme PLA @base", "instantiation": "false", "filament_id": "ACME00",
+         "filament_vendor": ["Acme"], "filament_type": ["PLA"]},
+        {"name": "Acme PLA Matte @System", "inherits": "Acme PLA @base", "instantiation": "true"},
+        {"name": "Acme PLA Silk @System", "inherits": "Acme PLA @base", "instantiation": "true"},
+    ])
+    assert ids == {"PLA Matte": None, "PLA Silk": None}
+
+
+def test_own_filament_id_stands_beside_a_sibling_that_inherits_it(tmp_path):
+    ids = _orca_ids(tmp_path, [
+        {"name": "Acme PLA @base", "instantiation": "false", "filament_id": "ACME00",
+         "filament_vendor": ["Acme"], "filament_type": ["PLA"]},
+        {"name": "Acme PLA @System", "inherits": "Acme PLA @base", "instantiation": "true",
+         "filament_id": "ACME00"},
+        {"name": "Acme PLA Matte @System", "inherits": "Acme PLA @base", "instantiation": "true"},
+        {"name": "Acme PLA Silk @System", "inherits": "Acme PLA @base", "instantiation": "true",
+         "filament_id": "ACME02"},
+    ])
+    assert ids == {"PLA": "ACME00", "PLA Matte": None, "PLA Silk": "ACME02"}
+
+
+def test_inherited_filament_id_of_a_single_product_template_is_kept(tmp_path):
+    ids = _orca_ids(tmp_path, [
+        {"name": "Acme ASA @base", "instantiation": "false", "filament_id": "ACME10",
+         "filament_vendor": ["Acme"], "filament_type": ["ASA"]},
+        {"name": "Acme ASA @System", "inherits": "Acme ASA @base", "instantiation": "true"},
+    ])
+    assert ids == {"ASA": "ACME10"}
+
+
 def test_slug_preserves_plus_suffix():
     # "PLA+" must NOT collapse to the same slug as "PLA" — distinct products.
     assert imp._slug("Generic", "PLA+") != imp._slug("Generic", "PLA")

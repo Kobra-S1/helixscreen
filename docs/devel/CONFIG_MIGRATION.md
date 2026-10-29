@@ -231,10 +231,10 @@ The standard pattern creates a temp config file with pre-migration data, runs `C
 ### Running migration tests
 
 ```bash
-# Build and run all migration tests
-make test-run
+# Build and run the migration tests
+make t F='[migration]'
 
-# Run only versioning/migration tests
+# Run only versioning/migration tests, without a rebuild
 ./build/bin/helix-tests "[migration][versioning]"
 
 # Run all config tests

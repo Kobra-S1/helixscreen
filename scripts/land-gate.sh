@@ -37,6 +37,7 @@
 #
 # The C++ step runs on the test host when full-test-run's sweep would
 # (scripts/lib/sweep_location.sh: TEST_HOST=1, 0 or unset for the probe).
+# On macOS a gate whose C++ step would run here refuses instead.
 # Everything else runs here, in parallel lanes beside it. Each step logs to $LAND_GATE_LOGDIR/<step>.log
 # (default build/land-gate) and is killed after LAND_GATE_STEP_TIMEOUT seconds
 # (default 3600, far above any healthy step), which its row reports as TIMEOUT.
@@ -177,6 +178,16 @@ export LAND_GATE_ACTIVE=$$
 # shellcheck source-path=SCRIPTDIR source=../.githooks/lib/land-gate-stamp.sh
 . "$(dirname "$SELF")/../.githooks/lib/land-gate-stamp.sh"
 resolve_sweep_location || exit $?
+# macOS is a development platform, and the C++ suite has known failures there
+# on the environment alone (#1776): a local run there reds every gate.
+if [ "$SWEEP_WHERE" = local ] && [ "$(uname -s)" = Darwin ]; then
+    if [ -n "${HELIX_TEST_HOST:-}" ]; then
+        echo "✗ land-gate does not run the C++ suite on macOS: TEST_HOST=1 make land-gate sends it to $HELIX_TEST_HOST" >&2
+    else
+        echo "✗ land-gate does not run the C++ suite on macOS: set HELIX_TEST_HOST in ~/.config/helixscreen/build-hosts.env (docs/devel/BUILD_SYSTEM.md), or gate on Linux" >&2
+    fi
+    exit 2
+fi
 export SWEEP_WHERE MAKE TEST_HOST_RUN CI_SHARDS CI_SHARD_TIMEOUT LAND_GATE_LOGDIR LAND_GATE_STEP_TIMEOUT ROWS_DIR
 
 # build:<tree> is taken for this run's pid. The two claims exclude each other

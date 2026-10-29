@@ -687,10 +687,10 @@ if (SoundManager::instance().is_available()) {
 ./build/bin/helix-tests "[sound][m300]"      # M300 backend
 
 # Full suite with sharding (recommended)
-make test-run
+make unit-sweep
 ```
 
-**Important**: Do NOT run `./build/bin/helix-tests` without a tag filter or `make test-run` sharding -- some non-sound tests hang in single-process mode.
+**Important**: Do NOT run `./build/bin/helix-tests` without a tag filter or `make unit-sweep` sharding -- some non-sound tests hang in single-process mode.
 
 ### Testing Backends Without Hardware
 

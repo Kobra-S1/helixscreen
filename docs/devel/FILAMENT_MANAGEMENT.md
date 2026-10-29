@@ -1072,6 +1072,14 @@ of the base profile, and a profile that changes material from its template
 keeps only the temps, range and density it sets itself. Pack types never join
 `orca_library_types`: Orca shows those presets on that vendor's printers only.
 
+A product's `orca_id` is the `filament_id` its profile declares, or the one it
+inherits from a template when no other product inherits that same id. A
+template shared by several products (Elegoo's `PLA @base` under fourteen PLA
+variants) names none of them, so those products carry no `orca_id` and Orca
+matches them by material type. The shipped catalog takes its temps from v2.4.1
+and its `orca_id`s from v2.5.0-beta (`_attribution` says so); a single-tag
+`make regen-filaments` does not reproduce that split.
+
 `assets/filaments.json` is **generated but committed** (same pattern as fonts
 and translations) — cross-compiled targets need the file present without
 running Python/git-clone during the build.

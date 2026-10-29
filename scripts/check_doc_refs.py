@@ -19,6 +19,8 @@
 # Five checks:
 #   refs   — every backticked path in an agent-facing doc resolves
 #   links  — every markdown [text](target) link in a scanned doc resolves
+#   make   — every `make <target>` command in a scanned doc names a target that
+#            Makefile or mk/*.mk defines (README.md and CONTRIBUTING.md too)
 #   index  — every doc in docs/devel/ is listed in docs/devel/CLAUDE.md
 #   counts — README.md and docs/user/ state the shipped filament systems,
 #            theme presets and printer database size truthfully
@@ -431,6 +433,108 @@ def check_refs(targets, allpaths, devel=False, created=()):
     return problems
 
 
+# Docs outside the refs scan whose `make` commands are still checked: the root
+# README and CONTRIBUTING are where a new contributor learns the commands.
+MAKE_EXTRA_DOCS = ('README.md', 'CONTRIBUTING.md')
+
+MAKEFILES = ('Makefile', 'mk/*.mk')
+
+# A rule line: targets, then ':' or '::', not an assignment (`:=`, `::=`).
+# Recipe lines start with a tab and are skipped before this runs.
+_RULE_RE = re.compile(r'^([^\s#=:][^#=:]*?)\s*::?(?!=)')
+
+_FENCE_RE = re.compile(r'^\s*(```|~~~)')
+_SPAN_RE = re.compile(r'`([^`\n]+)`')
+
+# `make` where a shell command starts (line start, after `&&`, `||`, `;`, `|`,
+# `(` or `$(`, past any VAR=value prefixes), then its options and VAR=value
+# arguments, then the first target. `brew install make` and prose such as
+# "to make it stick" are not commands.
+_MAKE_CMD_RE = re.compile(
+    r'(?:^|&&|\|\||[;|(])\s*(?:[A-Za-z_][A-Za-z0-9_]*=(?:\'[^\']*\'|"[^"]*"|\S*)\s+)*'
+    r'g?make((?:\s+(?:--?[A-Za-z][\w-]*(?:=\S+)?|[A-Za-z_][A-Za-z0-9_]*='
+    r'(?:\'[^\']*\'|"[^"]*"|\S*)))*)\s+([^\s;&|)`\'"]+)')
+_MAKE_TARGET_RE = re.compile(r'^[a-z][a-z0-9_.+-]*$')
+
+
+def make_targets(root='.'):
+    """(names, patterns): every target Makefile and mk/*.mk spell out literally.
+
+    A target built from a variable (`$(TEST_BIN):`) cannot be named in a doc
+    as a literal anyway, so it is skipped. `%` rules come back as fnmatch
+    patterns: `print-var-%` admits `make print-var-CXX`.
+    """
+    import glob
+    names, patterns = set(), []
+    for pat in MAKEFILES:
+        for path in sorted(glob.glob(os.path.join(root, pat))):
+            try:
+                lines = open(path, encoding='utf-8', errors='ignore').read().split('\n')
+            except OSError:
+                continue
+            for line in lines:
+                if line.startswith('\t'):
+                    continue
+                m = _RULE_RE.match(line)
+                if not m:
+                    continue
+                for t in m.group(1).split():
+                    if '$' in t or t.startswith('.'):
+                        continue
+                    if '%' in t:
+                        patterns.append(t.replace('%', '*'))
+                    else:
+                        names.add(t)
+    return names, patterns
+
+
+def doc_make_commands(text):
+    """(line, target) for each `make <target>` in a fenced block or code span."""
+    out = []
+    in_fence = False
+    for lineno, line in enumerate(text.split('\n'), 1):
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            if line.lstrip().startswith('#'):
+                continue
+            chunks = [line.split(' #', 1)[0]]
+        else:
+            chunks = _SPAN_RE.findall(line)
+        for chunk in chunks:
+            for m in _MAKE_CMD_RE.finditer(chunk):
+                opts, target = m.group(1), m.group(2)
+                # -C / -f run some other project's makefile.
+                if re.search(r'(?:^|\s)-(?:C|f)\b|--(?:directory|file|makefile)\b', opts):
+                    continue
+                if any(c in target for c in PLACEHOLDER_CHARS) or '...' in target:
+                    continue
+                if not _MAKE_TARGET_RE.match(target):
+                    continue
+                out.append((lineno, target))
+    return out
+
+
+def check_make_targets(targets, root='.'):
+    """Every `make <target>` a doc tells the reader to run must exist."""
+    import fnmatch
+    names, patterns = make_targets(root)
+    if not names:
+        return []
+    problems = []
+    for target in targets:
+        try:
+            text = open(target, errors='ignore').read()
+        except OSError:
+            continue
+        for line, name in doc_make_commands(text):
+            if name in names or any(fnmatch.fnmatchcase(name, p) for p in patterns):
+                continue
+            problems.append((target, line, 'make ' + name))
+    return problems
+
+
 def check_links(targets):
     """Markdown links must resolve relative to the doc's own directory.
 
@@ -740,6 +844,9 @@ def main():
         problems = check_refs(targets, repo_files(), devel=devel,
                               created=patch_created_files(targets))
         link_problems = check_links(targets)
+        make_docs = targets if args.devel_paths else sorted(
+            set(targets) | {d for d in MAKE_EXTRA_DOCS if os.path.isfile(d)})
+        make_problems = check_make_targets(make_docs)
         skipped = uninitialized_submodules()
 
         def under_missing_submodule(ref):
@@ -799,6 +906,14 @@ def main():
             exit_code = 1
         else:
             print('✅ Doc links: all resolve (%d files scanned)' % len(targets))
+        if make_problems:
+            print('❌ Doc `make` commands naming no target in Makefile or mk/*.mk:')
+            for target, line, ref in make_problems:
+                print('   %s:%d: `%s`' % (target, line, ref))
+            print('   Name the target that exists, or a <placeholder> if it is illustrative.')
+            exit_code = 1
+        else:
+            print('✅ Doc make targets: all exist (%d files scanned)' % len(make_docs))
 
     if do_index:
         unindexed, present = check_index()

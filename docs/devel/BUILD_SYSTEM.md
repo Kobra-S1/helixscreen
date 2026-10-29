@@ -719,7 +719,7 @@ cd .worktrees/my-feature
 make -j && ./build/bin/helix-screen --test -vv
 
 # 3. Run the relevant tests before committing
-make test-run
+make t F='[tag]'
 
 # 4. Commit in the worktree (it's a normal checkout on its own branch)
 git add -A && git commit -m "feat(scope): ..."
@@ -1789,7 +1789,10 @@ The build system has 30+ test targets by feature area; see **[TESTING.md](TESTIN
 | Target | What it does |
 |--------|--------------|
 | `make test` | Build tests (does **not** run them) |
-| `make test-run` | Build **and** run tests in parallel (recommended, ~4–8× faster) |
+| `make t F='[tag]'` | Build, then run one tag or case |
+| `make unit-sweep` | Build **and** run the C++ suite in parallel shards |
+| `make full-test-run` | `unit-sweep` plus the bats shell suite |
+| `make test-run` | Runs nothing: prints which of the targets above fits and exits non-zero |
 | `make test-serial` | Run sequentially (debugging thread issues) |
 | `make test-smoke` | Quick smoke subset (~30s) for rapid iteration |
 | `make test-all` | All tests incl. `[slow]` |

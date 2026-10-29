@@ -205,8 +205,9 @@ make -j
 # -v (INFO), -vv (DEBUG), -vvv (TRACE) for logging
 ./build/bin/helix-screen --test -vv
 
-# Run tests
-make test-run
+# Run one area's tests, then the C++ suite and the shell suite
+make t F='[tag]'
+make full-test-run
 ```
 
 XML layouts hot-reload by default on native builds — edit `ui_xml/*.xml`, save, watch the running UI update live.
