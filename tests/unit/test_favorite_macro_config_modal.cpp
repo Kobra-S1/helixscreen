@@ -152,6 +152,53 @@ TEST_CASE_METHOD(FavoriteMacroRunFixture,
     CHECK_FALSE(widget_script_sent_containing(mock_client, "MY_MACRO TEMP"));
 }
 
+TEST_CASE_METHOD(FavoriteMacroRunFixture,
+                 "favorite macro widget with confirmation off sends an UNKNOWN macro's saved text",
+                 "[macro][favorite_config][wiring]") {
+    // Registered with Klipper, absent from configfile: its parameters are unknown.
+    helix::MacroParamCache::instance().populate_from_configfile(nlohmann::json::object(),
+                                                                {"MY_MACRO"});
+    REQUIRE(helix::MacroParamCache::instance().get("MY_MACRO").knowledge ==
+            helix::MacroParamKnowledge::UNKNOWN);
+
+    helix::MacroParamDefaultRecord record;
+    record.values = {{"PURGE", "1"}};
+    record.ask_for_params = false;
+    helix::MacroParamDefaults::instance().set("MY_MACRO", record);
+
+    attach_widget(/*require_confirmation=*/false);
+    widget.handle_clicked();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(widget_script_sent_containing(mock_client, "MY_MACRO PURGE=1"));
+    helix::MacroParamDefaults::instance().clear("MY_MACRO");
+}
+
+TEST_CASE_METHOD(FavoriteMacroRunFixture,
+                 "favorite macro widget asking for an UNKNOWN macro prefills the free-form text",
+                 "[macro][favorite_config][wiring]") {
+    helix::MacroParamCache::instance().populate_from_configfile(nlohmann::json::object(),
+                                                                {"MY_MACRO"});
+
+    helix::MacroParamDefaultRecord record;
+    record.values = {{"PURGE", "1"}};
+    helix::MacroParamDefaults::instance().set("MY_MACRO", record);
+
+    attach_widget(/*require_confirmation=*/true);
+    widget.handle_clicked();
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(widget_script_sent_containing(mock_client, "MY_MACRO"));
+    lv_obj_t* prompt = lv_obj_find_by_name(lv_screen_active(), "macro_param_modal");
+    REQUIRE(prompt != nullptr);
+    lv_obj_t* field = lv_obj_find_by_name(prompt, "field_input");
+    REQUIRE(field != nullptr);
+    CHECK(std::string(lv_textarea_get_text(field)) == "PURGE=1");
+    helix::MacroParamModal::cancel_cb(nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    helix::MacroParamDefaults::instance().clear("MY_MACRO");
+}
+
 // =============================================================================
 // Options tab: the "Default Parameters" entry and its editor
 // =============================================================================
@@ -173,9 +220,11 @@ class ConfigModalDefaultsFixture : public XMLTestFixture {
 
     /// populate_from_configfile() clears the cache on every call, so every
     /// macro the case needs goes in through ONE call.
-    static void cache_macros(std::initializer_list<std::pair<const char*, const char*>> macros) {
+    /// @p unknown names are registered with Klipper but absent from configfile.
+    static void cache_macros(std::initializer_list<std::pair<const char*, const char*>> macros,
+                             std::initializer_list<const char*> unknown = {}) {
         nlohmann::json cfg;
-        std::vector<std::string> names;
+        std::vector<std::string> names(unknown.begin(), unknown.end());
         for (const auto& [name, gcode] : macros) {
             cfg[std::string("gcode_macro ") + name]["gcode"] = gcode;
             names.emplace_back(name);
@@ -218,9 +267,10 @@ class ConfigModalDefaultsFixture : public XMLTestFixture {
 } // namespace
 
 TEST_CASE_METHOD(ConfigModalDefaultsFixture,
-                 "Options shows Default Parameters only for macros with known params",
+                 "Options shows Default Parameters only for macros that take parameters",
                  "[macro][favorite_config][defaults]") {
-    cache_macros({{"MY_MACRO", "G1 E{params.TEMP|default(10)}"}, {"PLAIN_MACRO", "G28"}});
+    cache_macros({{"MY_MACRO", "G1 E{params.TEMP|default(10)}"}, {"PLAIN_MACRO", "G28"}},
+                 {"PY_LOAD"});
 
     // The visibility bind lives on the wrapper (a hidden flex child drops out of
     // layout); the row itself never carries the flag.
@@ -237,6 +287,41 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture,
     lv_obj_t* plain_wrap = lv_obj_find_by_name(without_params.dialog(), "default_params_wrap");
     REQUIRE(plain_wrap != nullptr);
     CHECK(lv_obj_has_flag(plain_wrap, LV_OBJ_FLAG_HIDDEN));
+
+    without_params.hide();
+    helix::ui::UpdateQueue::instance().drain();
+
+    auto& unknown_params = show_config_for("PY_LOAD");
+    lv_obj_t* unknown_wrap = lv_obj_find_by_name(unknown_params.dialog(), "default_params_wrap");
+    REQUIRE(unknown_wrap != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(unknown_wrap, LV_OBJ_FLAG_HIDDEN));
+}
+
+TEST_CASE_METHOD(ConfigModalDefaultsFixture,
+                 "Default Parameters for an UNKNOWN macro saves its free-form text",
+                 "[macro][favorite_config][defaults]") {
+    cache_macros({}, {"PY_LOAD"});
+
+    show_config_for("PY_LOAD");
+    helix::FavoriteMacroConfigModal::defaults_cb(nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    lv_obj_t* editor = lv_obj_find_by_name(lv_screen_active(), "macro_param_modal");
+    REQUIRE(editor != nullptr);
+    REQUIRE_FALSE(
+        lv_obj_has_flag(lv_obj_find_by_name(editor, "modal_title_save"), LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* field = lv_obj_find_by_name(editor, "field_input");
+    REQUIRE(field != nullptr);
+    lv_textarea_set_text(field, "purge=1");
+
+    helix::MacroParamModal::save_cb(nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    const helix::MacroParamDefaultRecord saved =
+        helix::MacroParamDefaults::instance().get("PY_LOAD");
+    CHECK(saved.values == std::map<std::string, std::string>{{"PURGE", "1"}});
+    CHECK(saved.ask_for_params);
+    helix::MacroParamDefaults::instance().clear("PY_LOAD");
 }
 
 TEST_CASE_METHOD(ConfigModalDefaultsFixture,

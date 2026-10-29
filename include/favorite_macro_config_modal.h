@@ -50,8 +50,8 @@ class FavoriteMacroConfigModal : public Modal {
     void select_icon(const std::string& name);
     void select_color(uint32_t color);
     void select_require_confirmation(bool enabled);
-    /// Opens the macro's saved-defaults editor (KNOWN_PARAMS macros only; the
-    /// Options row is hidden otherwise). Stays open behind it.
+    /// Opens the macro's saved-defaults editor (macro_takes_saved_defaults()
+    /// macros only; the Options row is hidden otherwise). Stays open behind it.
     void open_defaults_editor();
     /// Republishes fav_macro_has_param_defaults from the configured macro's
     /// parameter knowledge.

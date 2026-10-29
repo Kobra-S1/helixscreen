@@ -73,7 +73,7 @@ void run_macro_after_confirm(MacroExecCtx ctx) {
                                                 std::move(on_result), decision.params);
     } else {
         get_shared_param_modal().show_for_unknown_params(ctx.parent_screen, ctx.macro_name,
-                                                         std::move(on_result));
+                                                         std::move(on_result), decision.params);
     }
 }
 
