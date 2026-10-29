@@ -389,10 +389,16 @@ namespace {
 /// caller's known_values — the computed one wins where both name a parameter —
 /// each filtered to the names this macro declares. Saved and known keys are
 /// spelled the way the macro declares them, so an exact-name match is the
-/// filter; undeclared names belong to some other macro's signature.
+/// filter; undeclared names belong to some other macro's signature. An
+/// UNKNOWN macro declares nothing to filter by, so it sends its saved values
+/// as typed and no known_values: those were computed for a declared name.
 std::map<std::string, std::string> plain_run_params(const CachedMacroInfo& cached,
                                                     const MacroRunRequest& req) {
     std::map<std::string, std::string> out;
+    if (cached.knowledge == MacroParamKnowledge::UNKNOWN) {
+        // Nothing to filter against: the user typed these for this macro.
+        return req.saved_values;
+    }
     if (cached.knowledge != MacroParamKnowledge::KNOWN_PARAMS) {
         return out;
     }
@@ -451,7 +457,12 @@ MacroRunDecision decide_macro_run(const CachedMacroInfo& cached, const MacroRunR
         return {MacroRunAction::Prompt, std::move(prefill)};
     }
 
-    return {MacroRunAction::PromptUnknown, {}};
+    return {MacroRunAction::PromptUnknown, req.saved_values};
+}
+
+bool macro_takes_saved_defaults(MacroParamKnowledge knowledge) {
+    return knowledge == MacroParamKnowledge::KNOWN_PARAMS ||
+           knowledge == MacroParamKnowledge::UNKNOWN;
 }
 
 MacroParamResult macro_param_result_from_values(const std::vector<MacroParam>& params,

@@ -98,11 +98,13 @@ If HelixScreen can't determine the parameters (e.g., complex Jinja2 templates), 
 If you type the same values every time, save them once:
 
 1. Open the editor: in the Macros panel, press-and-hold to enter edit mode and tap the **tune icon** on the macro's row — or, on a home panel Macro Button, open **Customize → Options → Default Parameters**
-2. Fill in the values you want remembered
+2. Fill in the values you want remembered. For a macro whose parameters HelixScreen can't determine, type them into the single text field as `KEY=VALUE` pairs separated by spaces (for example `PURGE=1 LENGTH=50`); text that isn't in that form is refused with a warning
 3. Leave **Ask for parameters** on, or switch it off
 4. Tap **Save**
 
 With **Ask for parameters** on (the default), tapping the macro still opens the form — but every field starts filled with your saved values, so you can adjust one and run. With it off, the macro runs immediately using the saved values, with no form at all.
+
+The editor is offered for any macro that takes parameters, including commands added by Klipper plugins (AFC, Happy Hare and similar) that only accept the free-form text. Macros that take no parameters have nothing to save, so they don't show it.
 
 > **Note:** The dangerous-macro confirmation is never skipped by saved defaults, and a Macro Button with "Require Confirmation?" off runs with the saved values directly. Saved defaults are kept per printer, like your hidden-macro choices.
 

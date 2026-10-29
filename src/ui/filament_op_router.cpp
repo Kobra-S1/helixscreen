@@ -31,7 +31,7 @@ void show_shared_param_modal(const std::string& macro_name, const helix::CachedM
         return;
     }
     get_filament_param_modal().show_for_unknown_params(lv_screen_active(), macro_name,
-                                                       std::move(on_execute));
+                                                       std::move(on_execute), prefill);
 }
 
 } // namespace

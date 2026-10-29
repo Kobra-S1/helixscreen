@@ -3,6 +3,7 @@
 
 #include "macro_param_modal.h"
 
+#include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -14,6 +15,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <iterator>
+#include <vector>
 
 using namespace helix;
 
@@ -78,10 +81,11 @@ void MacroParamModal::show_for_macro(lv_obj_t* parent, const std::string& macro_
 }
 
 void MacroParamModal::show_for_unknown_params(lv_obj_t* parent, const std::string& macro_name,
-                                              MacroExecuteCallback on_execute) {
+                                              MacroExecuteCallback on_execute,
+                                              const std::map<std::string, std::string>& prefill) {
     macro_name_ = macro_name;
     params_.clear();
-    prefill_.clear();
+    prefill_ = prefill;
     on_execute_ = std::move(on_execute);
     raw_mode_ = true;
     save_mode_ = false;
@@ -99,7 +103,7 @@ void MacroParamModal::show_for_defaults(lv_obj_t* parent, const std::string& mac
     prefill_ = record.values;
     on_execute_ = nullptr;
     on_save_ = std::move(on_save);
-    raw_mode_ = false;
+    raw_mode_ = params.empty();
     save_mode_ = true;
     register_modal_subjects();
     lv_subject_set_int(&s_save_mode_subject, 1);
@@ -141,6 +145,9 @@ void MacroParamModal::on_ok() {
         on_save_clicked();
         return;
     }
+    if (refuse_unparsed_raw_text()) {
+        return;
+    }
     if (on_execute_) {
         on_execute_(collect_values());
     }
@@ -148,6 +155,9 @@ void MacroParamModal::on_ok() {
 }
 
 void MacroParamModal::on_save_clicked() {
+    if (refuse_unparsed_raw_text()) {
+        return;
+    }
     if (on_save_) {
         // Every field the user filled becomes a saved value, whatever side of
         // the params/variables split it would run on; the run path re-splits
@@ -156,6 +166,11 @@ void MacroParamModal::on_save_clicked() {
         MacroParamDefaultRecord record;
         record.values = collected.params;
         record.values.insert(collected.variables.begin(), collected.variables.end());
+        // A bare KEY= in the free-form text leaves the macro its own default,
+        // which is what an absent value already means.
+        for (auto it = record.values.begin(); it != record.values.end();) {
+            it = it->second.empty() ? record.values.erase(it) : std::next(it);
+        }
         record.ask_for_params = lv_subject_get_int(&s_ask_subject) != 0;
         on_save_(record);
     }
@@ -196,6 +211,9 @@ void MacroParamModal::populate_param_fields() {
         lv_obj_t* field = static_cast<lv_obj_t*>(lv_xml_create(param_list, "form_field", attrs));
         if (field) {
             raw_textarea_ = lv_obj_find_by_name(field, "field_input");
+        }
+        if (raw_textarea_ && !prefill_.empty()) {
+            lv_textarea_set_text(raw_textarea_, format_raw_macro_params(prefill_).c_str());
         }
         spdlog::debug("[MacroParamModal] Created raw param field for {}", macro_name_);
         return;
@@ -262,6 +280,20 @@ MacroParamResult MacroParamModal::collect_values() const {
     }
 
     return result;
+}
+
+bool MacroParamModal::refuse_unparsed_raw_text() const {
+    if (!raw_mode_ || !raw_textarea_) {
+        return false;
+    }
+    const char* text = lv_textarea_get_text(raw_textarea_);
+    std::vector<std::string> rejected;
+    (void)parse_raw_macro_params(text ? text : "", &rejected);
+    if (rejected.empty()) {
+        return false;
+    }
+    NOTIFY_WARNING("{}: {}", lv_tr("Invalid parameter"), rejected.front());
+    return true;
 }
 
 // Static callbacks

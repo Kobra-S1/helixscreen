@@ -315,7 +315,7 @@ helix::macros::RowValues MacrosPanel::row_values(size_t item) const {
     return helix::macros::compute_row_values(
         edit_mode_, pending_hidden_.count(macro) > 0, !cached.description.empty(),
         cached.knowledge == helix::MacroParamKnowledge::KNOWN_NO_PARAMS,
-        cached.knowledge == helix::MacroParamKnowledge::KNOWN_PARAMS);
+        helix::macro_takes_saved_defaults(cached.knowledge));
 }
 
 void MacrosPanel::fill_slot(size_t slot, size_t item) {
@@ -611,7 +611,7 @@ void MacrosPanel::fetch_params_and_run(const std::string& macro_name) {
     if (decision.action == helix::MacroRunAction::Prompt) {
         param_modal_.show_for_macro(screen, macro_name, cached.params, on_result, decision.params);
     } else {
-        param_modal_.show_for_unknown_params(screen, macro_name, on_result);
+        param_modal_.show_for_unknown_params(screen, macro_name, on_result, decision.params);
     }
 }
 
@@ -661,11 +661,10 @@ void MacrosPanel::handle_defaults_clicked(size_t i) {
     const std::string& macro = displayed_[i];
 
     auto cached = helix::MacroParamCache::instance().get(macro);
-    if (cached.knowledge != helix::MacroParamKnowledge::KNOWN_PARAMS) {
-        // No declared parameter list to edit. The button is hidden for these
-        // rows; this is the belt for a stale row index after a rebuild.
-        spdlog::debug("[{}] No saved-defaults editor for '{}' (knowledge != KNOWN_PARAMS)",
-                      get_name(), macro);
+    if (!helix::macro_takes_saved_defaults(cached.knowledge)) {
+        // The macro takes no parameters. The button is hidden for these rows;
+        // this is the belt for a stale row index after a rebuild.
+        spdlog::debug("[{}] No saved-defaults editor for '{}' (no parameters)", get_name(), macro);
         return;
     }
 

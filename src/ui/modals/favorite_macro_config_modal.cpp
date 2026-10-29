@@ -14,6 +14,7 @@
 #include "favorite_macro_config.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
+#include "macro_executor.h"
 #include "macro_param_cache.h"
 #include "macro_param_defaults.h"
 #include "panel_widget_config.h"
@@ -34,8 +35,8 @@ namespace helix {
 namespace {
 lv_subject_t s_tab_subject{};
 lv_subject_t s_require_confirm_subject{};
-/// 1 while the configured macro declares a parameter list, so the Options tab
-/// can show the "Default Parameters" row only for macros that have one.
+/// 1 while the configured macro takes parameters (declared or free-form), so
+/// the Options tab shows the "Default Parameters" row only for those.
 lv_subject_t s_has_param_defaults_subject{};
 bool s_subjects_registered = false;
 SubjectManager s_subjects;
@@ -165,10 +166,9 @@ IMoonrakerAPI* FavoriteMacroConfigModal::get_api() const {
 }
 
 void FavoriteMacroConfigModal::refresh_param_defaults_visible() {
-    const bool has_params = macro_name_.empty()
-                                ? false
-                                : helix::MacroParamCache::instance().get(macro_name_).knowledge ==
-                                      helix::MacroParamKnowledge::KNOWN_PARAMS;
+    const bool has_params =
+        !macro_name_.empty() && helix::macro_takes_saved_defaults(
+                                    helix::MacroParamCache::instance().get(macro_name_).knowledge);
     lv_subject_set_int(&s_has_param_defaults_subject, has_params ? 1 : 0);
 }
 
@@ -182,10 +182,10 @@ void FavoriteMacroConfigModal::defaults_cb(lv_event_t* e) {
 
 void FavoriteMacroConfigModal::open_defaults_editor() {
     auto cached = helix::MacroParamCache::instance().get(macro_name_);
-    if (cached.knowledge != helix::MacroParamKnowledge::KNOWN_PARAMS) {
+    if (!helix::macro_takes_saved_defaults(cached.knowledge)) {
         // The Options row is hidden for these macros; this guards a stale
         // subject value after the configured macro changed.
-        spdlog::debug("[FavoriteMacroConfigModal] No defaults editor for '{}' (no known params)",
+        spdlog::debug("[FavoriteMacroConfigModal] No defaults editor for '{}' (no parameters)",
                       macro_name_);
         return;
     }
