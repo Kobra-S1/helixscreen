@@ -5,6 +5,7 @@
 #include "../../include/temp_graph_tooltip.h"
 #include "../../include/theme_manager.h"
 #include "../../include/ui_temp_graph.h"
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "lvgl/lvgl.h"
 
@@ -22,13 +23,9 @@ using helix::temp_graph_internal::tooltip_hit_test;
 // Mirrors TempGraphTestFixture in test_temp_graph.cpp (headless display + a
 // parent screen). Kept local rather than shared because that fixture is defined
 // inline in its own TU.
-class TooltipTestFixture {
+class TooltipTestFixture : public LVGLTestFixture {
   public:
     TooltipTestFixture() {
-        lv_init_safe();
-        lv_display_t* disp = lv_display_create(800, 480);
-        alignas(64) static lv_color_t buf1[800 * 10];
-        lv_display_set_buffers(disp, buf1, NULL, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
         screen = lv_obj_create(NULL);
     }
     lv_obj_t* screen;

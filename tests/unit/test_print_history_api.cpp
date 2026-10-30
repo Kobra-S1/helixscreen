@@ -17,6 +17,7 @@
 #include "../../include/print_history_parse.h"
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -30,32 +31,12 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// Global LVGL Initialization
-// ============================================================================
-
-namespace {
-struct LVGLInitializerHistory {
-    LVGLInitializerHistory() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerHistory lvgl_init;
-} // namespace
 
 // ============================================================================
 // Test Fixture
 // ============================================================================
 
-class PrintHistoryTestFixture {
+class PrintHistoryTestFixture : public LVGLTestFixture {
   public:
     PrintHistoryTestFixture() : client_(MoonrakerClientMock::PrinterType::VORON_24, 1000.0) {
         printer_state_.init_subjects(false);

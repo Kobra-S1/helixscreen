@@ -7,6 +7,7 @@
 #include "../../include/temp_graph_controller.h"
 #include "../../include/temp_graph_internal.h"
 #include "../../include/ui_temp_graph.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/temp_graph_controller_test_access.h"
 #include "../ui_test_utils.h"
@@ -27,15 +28,9 @@ using namespace helix;
 // Test Fixture
 // ============================================================================
 
-class TempGraphControllerFixture {
+class TempGraphControllerFixture : public LVGLTestFixture {
   public:
     TempGraphControllerFixture() {
-        lv_init_safe();
-
-        lv_display_t* disp = lv_display_create(800, 480);
-        alignas(64) static lv_color_t buf1[800 * 10];
-        lv_display_set_buffers(disp, buf1, NULL, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
-
         screen = lv_obj_create(NULL);
 
         // Initialize PrinterState subjects (needed by controller's setup_observers)

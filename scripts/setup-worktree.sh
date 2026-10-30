@@ -1441,10 +1441,18 @@ if [[ "$PRIVATE_SUBMODULES_NEED_PATCHES" != "true" && -f scripts/check_patch_mar
     PRIVATE_SUBMODULES_NEED_PATCHES=true
     echo -e "${YELLOW}the private submodules copied from the main tree are missing patches${RESET}"
 fi
+# Homebrew installs GNU make as gmake; Apple's /usr/bin/make is 3.81 and
+# the Makefile hard-errors below 4.2. On Linux plain `make` stays: there it
+# may be the jobpool shim, which `gmake` would bypass.
+if [[ "$(uname -s)" == Darwin ]] && command -v gmake >/dev/null 2>&1; then
+    MAKE_BIN="gmake"
+else
+    MAKE_BIN="make"
+fi
 if [[ "$PRIVATE_SUBMODULES_NEED_PATCHES" == "true" ]]; then
     echo -e "${CYAN}Applying this branch's patches to the private submodules...${RESET}"
     unapply_main_tree_patches
-    if make reapply-patches; then
+    if "$MAKE_BIN" reapply-patches; then
         echo -e "${GREEN}✓ Patches match this branch${RESET}"
     else
         echo -e "${RED}✗ make reapply-patches failed — this worktree's submodules do not match patches/${RESET}"
@@ -1461,14 +1469,6 @@ if [[ "$NO_BUILD" == "false" ]]; then
     echo ""
     echo -e "${BOLD}${CYAN}Running initial build...${RESET}"
     cd "$WORKTREE_PATH"
-    # Homebrew installs GNU make as gmake; Apple's /usr/bin/make is 3.81 and
-    # the Makefile hard-errors below 4.2. On Linux plain `make` stays: there it
-    # may be the jobpool shim, which `gmake` would bypass.
-    if [[ "$(uname -s)" == Darwin ]] && command -v gmake >/dev/null 2>&1; then
-        MAKE_BIN="gmake"
-    else
-        MAKE_BIN="make"
-    fi
     if "$MAKE_BIN" -j; then
         echo ""
         echo -e "${GREEN}${BOLD}✓ Build successful!${RESET}"

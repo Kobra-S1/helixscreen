@@ -11,6 +11,7 @@
  * - State updates from Moonraker status JSON
  */
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/sensor_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
@@ -60,27 +61,9 @@ PrinterDiscovery discovery_of(const std::vector<std::string>& objects) {
 // Test Fixture
 // ============================================================================
 
-class LoadCellTestFixture {
+class LoadCellTestFixture : public LVGLTestFixture {
   public:
     LoadCellTestFixture() {
-        // Initialize LVGL (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a headless display for testing
-        if (!display_created_) {
-            display_ = lv_display_create(480, 320);
-            alignas(64) static lv_color_t buf[480 * 10];
-            lv_display_set_buffers(display_, buf, nullptr, sizeof(buf),
-                                   LV_DISPLAY_RENDER_MODE_PARTIAL);
-            lv_display_set_flush_cb(display_,
-                                    [](lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
-                                        lv_display_flush_ready(disp);
-                                        (void)area;
-                                        (void)px_map;
-                                    });
-            display_created_ = true;
-        }
-
         // Reset state for test isolation first
         LoadCellManagerTestAccess::reset(mgr());
 
@@ -131,13 +114,9 @@ class LoadCellTestFixture {
     }
 
   private:
-    static lv_display_t* display_;
-    static bool display_created_;
 };
 
 // Static members
-lv_display_t* LoadCellTestFixture::display_ = nullptr;
-bool LoadCellTestFixture::display_created_ = false;
 
 // ============================================================================
 // State Update Tests

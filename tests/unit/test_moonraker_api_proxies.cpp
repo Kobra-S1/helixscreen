@@ -13,38 +13,19 @@
 #include "../../include/moonraker_api.h"
 #include "../../include/moonraker_client_mock.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// Global LVGL Initialization
-// ============================================================================
-
-namespace {
-struct LVGLInitializerProxies {
-    LVGLInitializerProxies() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerProxies lvgl_init;
-} // namespace
 
 // ============================================================================
 // Test Fixture
 // ============================================================================
 
-class ProxyTestFixture {
+class ProxyTestFixture : public LVGLTestFixture {
   public:
     ProxyTestFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
         state.init_subjects(false);

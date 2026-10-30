@@ -8,6 +8,7 @@
 #include "../../include/ui_overlay_temp_graph.h"
 #include "../../include/ui_temp_graph.h"
 #include "../../src/ui/panel_widgets/temp_graph_widget.h"
+#include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/sensors_forget.h"
@@ -77,13 +78,9 @@ class helix::TempGraphWidgetTestAccess {
 };
 
 // Reuse the same lightweight fixture as test_temp_graph.cpp
-class TempGraphFeatureFixture {
+class TempGraphFeatureFixture : public LVGLTestFixture {
   public:
     TempGraphFeatureFixture() {
-        lv_init_safe();
-        lv_display_t* disp = lv_display_create(800, 480);
-        alignas(64) static lv_color_t buf1[800 * 10];
-        lv_display_set_buffers(disp, buf1, NULL, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
         screen = lv_obj_create(NULL);
     }
 

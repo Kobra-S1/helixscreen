@@ -10,6 +10,7 @@
 #include "../../include/storage_report.h"
 #include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 
 #include <atomic>
@@ -20,30 +21,12 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// Global LVGL Initialization
-// ============================================================================
-
-struct LVGLInitializerHelixPrint {
-    LVGLInitializerHelixPrint() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerHelixPrint lvgl_init_helix;
 
 // ============================================================================
 // Test Fixtures
 // ============================================================================
 
-class HelixPrintAPITestFixture {
+class HelixPrintAPITestFixture : public LVGLTestFixture {
   public:
     HelixPrintAPITestFixture() {
         state.init_subjects(false);

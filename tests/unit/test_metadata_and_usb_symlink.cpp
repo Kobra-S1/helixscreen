@@ -19,6 +19,7 @@
 #include "../../include/moonraker_file_api.h"
 #include "../../include/ui_print_select_usb_source.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_file_api_test_access.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/scoped_try_reserve_failure.h"
@@ -32,26 +33,6 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// Global LVGL Initialization (called once)
-// ============================================================================
-
-namespace {
-struct LVGLInitializerMetadataUSB {
-    LVGLInitializerMetadataUSB() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerMetadataUSB lvgl_init;
-} // namespace
 
 // ============================================================================
 // Test Fixtures
@@ -60,7 +41,7 @@ static LVGLInitializerMetadataUSB lvgl_init;
 /**
  * @brief Test fixture for MoonrakerAPI metadata operations
  */
-class MetadataAPITestFixture {
+class MetadataAPITestFixture : public LVGLTestFixture {
   public:
     MetadataAPITestFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
         // Initialize printer state

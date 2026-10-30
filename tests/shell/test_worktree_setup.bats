@@ -802,11 +802,17 @@ mark_tree() {
     rm -rf "$tmp"
 }
 
-@test "the initial build picks gmake only on macOS" {
+@test "every make the script runs picks gmake only on macOS" {
     # On Linux `make` may be the jobpool shim; /usr/bin/gmake bypasses it and
     # the worktree's cold build runs its own -j beside every pooled build.
-    run bash -c "sed -n '/Step 10: Build/,/Build successful/p' '$SCRIPT'"
-    lacks 'command -v gmake ||' "$output"
-    contains 'MAKE_BIN="gmake"' "$output"
-    contains '"$(uname -s)" == Darwin' "$output"
+    # On macOS bare `make` is Apple's 3.81, which the Makefile refuses.
+    lacks 'command -v gmake ||' "$(cat "$SCRIPT")"
+    contains 'MAKE_BIN="gmake"' "$(cat "$SCRIPT")"
+    contains '"$(uname -s)" == Darwin' "$(cat "$SCRIPT")"
+    contains '"$MAKE_BIN" reapply-patches' "$(cat "$SCRIPT")"
+    contains '"$MAKE_BIN" -j' "$(cat "$SCRIPT")"
+    # A make run as a command (not inside echo text or a comment) goes
+    # through MAKE_BIN.
+    run bash -c "grep -nE '^[[:space:]]*(if !? *)?make[[:space:]]' '$SCRIPT'"
+    [ -z "$output" ] || fail "bare make invocation: $output"
 }

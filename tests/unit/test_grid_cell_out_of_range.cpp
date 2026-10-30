@@ -28,6 +28,7 @@
  * @see test_grid_zero_track.cpp (sibling guard for the empty-template case)
  */
 
+#include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "lvgl/lvgl.h"
 
@@ -40,25 +41,7 @@
 static const int32_t kTwoFrDsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
 static const int32_t kOneFrDsc[] = {LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
 
-namespace {
-
-bool g_lvgl_initialized = false;
-lv_display_t* g_display = nullptr;
-alignas(64) lv_color_t g_display_buf[800 * 10];
-
-void ensure_lvgl_init() {
-    if (!g_lvgl_initialized) {
-        lv_init_safe();
-        g_display = lv_display_create(800, 480);
-        lv_display_set_buffers(g_display, g_display_buf, nullptr, sizeof(g_display_buf),
-                               LV_DISPLAY_RENDER_MODE_PARTIAL);
-        g_lvgl_initialized = true;
-    }
-}
-
-} // namespace
-
-class GridCellOutOfRangeFixture {
+class GridCellOutOfRangeFixture : public LVGLTestFixture {
   public:
     // An odd size no track of the 400x300 grid stretches a child to.
     static constexpr int32_t kChildW = 37;
@@ -67,7 +50,6 @@ class GridCellOutOfRangeFixture {
     lv_obj_t* screen = nullptr;
 
     GridCellOutOfRangeFixture() {
-        ensure_lvgl_init();
         screen = lv_screen_active();
         lv_obj_clean(screen);
     }
