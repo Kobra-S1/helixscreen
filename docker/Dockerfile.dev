@@ -7,26 +7,35 @@
 # container is not; this one is, so a NAS with Docker can take over a build
 # host's work: remote-build's REMOTE_HOST, land-gate, the shell suite.
 #
-# Build on the host, from this directory, with the uid and gid that own the
-# mounted home so files written there keep their owner:
+# Build on the host, from this directory, with the user that owns the mounted
+# home, so files written there keep their owner:
 #
 #   sudo docker build -t helixscreen/dev -f Dockerfile.dev \
-#       --build-arg USER_NAME=$(id -un) --build-arg USER_UID=$(id -u) --build-arg USER_GID=$(id -g) .
-#   sudo docker run -d --init --name helix-dev --hostname helix-dev \
-#       --memory 64g --memory-swap 64g --pids-limit 16384 \
-#       -p 2223:22 -v /path/to/helix-dev-home:/home/$(id -un) helixscreen/dev
+#       --build-arg USER_NAME=$(id -un) --build-arg USER_UID=$(id -u) \
+#       --build-arg USER_GID=$(id -g) --build-arg USER_HOME=$HOME/helix-dev \
+#       --build-arg DOCKER_GID=$(getent group docker | cut -d: -f3) .
+#   sudo docker run -d --init --restart unless-stopped --name helix-dev --hostname helix-dev \
+#       --memory 64g --memory-swap 64g --pids-limit 16384 -p 2223:22 \
+#       -v $HOME/helix-dev:$HOME/helix-dev -v /var/run/docker.sock:/var/run/docker.sock \
+#       helixscreen/dev
 #
 # The memory limit is not optional: a build that outgrows it is killed inside
 # the container instead of the host's other services, and scripts/helix-claim
-# sizes -j from it (scripts/lib/mem_available.sh). Log in with a key placed in
-# the mounted home's .ssh/authorized_keys.
+# sizes -j from it (scripts/lib/mem_available.sh). The home is mounted at the
+# same path it has on the host because the host's Docker socket resolves
+# `docker run -v` paths on the host: the ESP32 syntax check mounts the tree
+# into the IDF container that way, under its own memory limit. Log in with a
+# key placed in the home's .ssh/authorized_keys.
 
 ARG BASE=helixscreen/sanitizer:latest
+FROM docker:27-cli AS dockercli
 FROM ${BASE}
 
 ARG USER_NAME=dev
 ARG USER_UID=1000
 ARG USER_GID=1000
+ARG USER_HOME=/home/dev
+ARG DOCKER_GID=999
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         shellcheck python3-pip python3-venv openssh-server rsync busybox less \
@@ -36,10 +45,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # run --separate-stderr); CI installs it from npm, and so does this.
 RUN npm install -g bats@1.11.1
 
+COPY --from=dockercli /usr/local/bin/docker /usr/local/bin/docker
+
 RUN groupadd -g "$USER_GID" "$USER_NAME" \
-    && useradd -m -u "$USER_UID" -g "$USER_GID" -s /bin/bash "$USER_NAME" \
+    && groupadd -g "$DOCKER_GID" docker-host \
+    && useradd -M -d "$USER_HOME" -u "$USER_UID" -g "$USER_GID" -G docker-host -s /bin/bash "$USER_NAME" \
     && mkdir -p /run/sshd \
     && sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config
 
+# The host key lives in the mounted home, so a rebuilt image keeps the
+# identity clients already trust.
+ENV SSHD_KEYS=${USER_HOME}/.sshd
 EXPOSE 22
-CMD ["/usr/sbin/sshd", "-D", "-e"]
+CMD ["/bin/sh", "-c", "mkdir -p \"$SSHD_KEYS\" && chmod 700 \"$SSHD_KEYS\" && { [ -f \"$SSHD_KEYS/ssh_host_ed25519_key\" ] || ssh-keygen -q -t ed25519 -N '' -f \"$SSHD_KEYS/ssh_host_ed25519_key\"; } && exec /usr/sbin/sshd -D -e -h \"$SSHD_KEYS/ssh_host_ed25519_key\""]
