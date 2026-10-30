@@ -37,9 +37,14 @@ ARG USER_GID=1000
 ARG USER_HOME=/home/dev
 ARG DOCKER_GID=999
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        shellcheck python3-pip python3-venv openssh-server rsync busybox less \
+# What the bats suite and quality-checks.sh call that the test image lacks:
+# the same tools CI's ubuntu-latest runner carries.
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        shellcheck python3-pip python3-venv python3-yaml python3-pil openssh-server rsync busybox less \
+        jq zip unzip bsdextrautils xxd file xz-utils zstd wget imagemagick cmake locales \
+    && sed -i 's/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen && locale-gen && update-locale LANG=en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
+ENV LANG=en_US.UTF-8
 
 # The distribution's bats is too old for the suite (bats_require_minimum_version,
 # run --separate-stderr); CI installs it from npm, and so does this.
