@@ -51,7 +51,7 @@ void send_cancel_macro(IMoonrakerAPI* api, const std::string& log_prefix) {
 
 void restart_print_from_beginning(IMoonrakerAPI* api, const std::string& filename,
                                   const std::string& log_prefix,
-                                  const std::function<void()>& on_failure) {
+                                  const helix::SharedCallback<void()>& on_failure) {
     if (!api) {
         spdlog::error("{} restart_confirm: api is null", log_prefix);
         if (on_failure)
@@ -154,7 +154,7 @@ void restart_print_from_beginning(IMoonrakerAPI* api, const std::string& filenam
 
 void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename,
                                  const std::string& authored_reason, std::string log_prefix,
-                                 std::function<void()> on_failure) {
+                                 helix::SharedCallback<void()> on_failure) {
     // Prefer the backend's authored reason. Fall back to Klipper's raw
     // print_stats.message only when none was supplied, so a backend not yet
     // taught to author copy still tells the user why restart is needed.
@@ -201,7 +201,7 @@ void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename
 }
 
 void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
-                              std::function<void()> on_failure) {
+                              helix::SharedCallback<void()> on_failure) {
     if (!api) {
         spdlog::warn("{} dispatch_prepared_resume: api is null", log_prefix);
         if (on_failure)
@@ -278,7 +278,7 @@ void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
 }
 
 void dispatch_cancel_print(IMoonrakerAPI* api, std::string log_prefix,
-                           std::function<void()> on_confirmed) {
+                           helix::SharedCallback<void()> on_confirmed) {
     if (!api) {
         spdlog::warn("{} dispatch_cancel_print: api is null", log_prefix);
         return;
