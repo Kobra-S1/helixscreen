@@ -57,7 +57,8 @@ most, because it is the one that is not always connected and cannot afford to re
 | `moonraker-plugin/helix_file_queue.py` | What a feature keeping one record per gcodes file shares: `file_event` / `FileTracker` (filelist_changed, directory events fanned out per record, hidden staging paths), `WorkQueue` (one at a time, `front`, a `ready` gate, an item's exception logged), `RecordStore` / `namespace_items` (a namespace keyed by path, with the `ns_items` fallback), `scan_files`, `IDLE_JOB_STATES`; and the upload-hook helpers `upload_hook_shape_ok`, `upload_print_request`, `store_without_print`, `print_result`, `already_started`, `start_or_queue` and the hold limit `UPLOAD_HOLD_S`. Used by analysis, .3mf conversion and the fit check |
 | `moonraker-plugin/helix_capabilities.py` | `print_extensions`: the extensions Moonraker prints, read from its own file manager |
 | `moonraker-plugin/helix_gcode_reader.py` | Shared pure helpers beyond the G-code reader: `WorkerProcess`, `worker_argv`, `worker_nice`, `worker_timeout`, `atomic_write_bytes`, `atomic_publish`, `fsync_dir` |
-| `moonraker-plugin/remote-install.sh` | Remote installer; `PLUGIN_FILES` names every file it downloads |
+| `moonraker-plugin/remote-install.sh` | Remote installer: a release's tarball from the release CDN, else that release's own copy from GitHub; `PLUGIN_FILES` names every file it ships. The CDN copy, https://releases.helixscreen.org/plugin/remote-install.sh, is overwritten by every release, so it keeps accepting `<ref> [--uninstall]` |
+| `scripts/package-helix-plugin.sh` | Packs `PLUGIN_FILES` into the `helix-print-plugin.tar.gz` the release workflow uploads to `releases/v<version>/` |
 | `moonraker-plugin/tests/test_helix_features.py` | Framework tests: status entries, a sibling that fails to import, opt-in defaults |
 | `include/helix_plugin_features.h`, `src/printer/helix_plugin_features.cpp` | `parse_plugin_features`, `plugin_feature_state`, `plugin_feature_opted_in`, `plugin_switch_mode`, `fallback_sender_role`, the `local_screen` presence record, `kKnownPluginFeatures`, `PluginFeatureHome`, `plugin_feature_lines` |
 | `include/fallback_sender.h`, `src/printer/fallback_sender.cpp` | `resolve_fallback_sender_role()`: reads the presence record and answers `fallback_sender_role` for every fallback that acts on the printer |
@@ -1251,9 +1252,9 @@ Backend details: [FILAMENT_BACKEND_AD5X_IFS.md](FILAMENT_BACKEND_AD5X_IFS.md),
    plugin and a start that raises; a module checks `feature_enabled(name)` before it acts. A
    start-of-job feature acts from history `added` and checks `helix_initiated()`; a path that
    starts a job marks it.
-3. **Install list.** Add the file to `PLUGIN_FILES` in `moonraker-plugin/remote-install.sh`.
-   `tests/shell/test_plugin_remote_install.bats` fails for any shipped `.py` or `.sh` the
-   wrapper does not fetch.
+3. **Install list.** Add the file to `PLUGIN_FILES` in `moonraker-plugin/remote-install.sh`;
+   the release tarball is packed from the same list. `tests/shell/test_plugin_remote_install.bats`
+   fails for any shipped `.py` or `.sh` the wrapper does not fetch.
 4. **Allowlist.** A read endpoint joins `kReadonlyMethods` in
    `src/plugin/plugin_permissions.cpp` under its exact JSON-RPC name. A write endpoint stays out,
    and `reject_plugin_rpc` refuses it.

@@ -10,6 +10,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "system/child_process.h"
+#include "system/update_checker.h"
 #include "text_io.h"
 
 #include <spdlog/spdlog.h>
@@ -606,8 +607,12 @@ std::string plugin_release_ref(std::string_view version) {
 std::string plugin_remote_install_command(std::string_view ref) {
     // -f: an HTTP error pipes nothing into sh rather than an error page.
     const std::string r(ref);
-    return "curl -fsSL https://raw.githubusercontent.com/prestonbrown/helixscreen/" + r +
-           "/moonraker-plugin/remote-install.sh | sh -s -- " + r;
+    if (r == "main") {
+        return "curl -fsSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/"
+               "moonraker-plugin/remote-install.sh | sh -s -- main";
+    }
+    return std::string("curl -fsSL ") + UpdateChecker::kDefaultR2BaseUrl +
+           "/plugin/remote-install.sh | sh -s -- " + r;
 }
 
 std::string HelixPluginInstaller::get_remote_install_command() const {

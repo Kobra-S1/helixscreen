@@ -253,9 +253,10 @@ std::string plugin_release_ref(std::string_view version);
 /**
  * @brief The shell one-liner that installs the plugin of git ref @p ref
  *
- * Fetches that ref's moonraker-plugin/remote-install.sh and runs it with sh,
- * pinned to the same ref, so the plugin files and the installer that places
- * them both come from it.
+ * A release fetches remote-install.sh from the release CDN, which installs
+ * that release's plugin tarball (or, for a release the CDN has pruned, runs
+ * the release's own copy from GitHub). main fetches main's remote-install.sh
+ * from GitHub. Either way the wrapper is pinned to @p ref.
  */
 std::string plugin_remote_install_command(std::string_view ref);
 

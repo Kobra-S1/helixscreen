@@ -287,14 +287,21 @@ TEST_CASE("remember_plugin_self_heal: what the startup check keeps for the next 
     }
 }
 
-TEST_CASE("the remote install command runs one release's wrapper with sh, pinned to it",
+TEST_CASE("the remote install command fetches a release's wrapper from the release CDN",
           "[plugin_installer]") {
     const std::string cmd = plugin_remote_install_command("v1.1.0-beta.10");
 
-    CHECK(cmd == "curl -fsSL https://raw.githubusercontent.com/prestonbrown/helixscreen/"
-                 "v1.1.0-beta.10/moonraker-plugin/remote-install.sh | sh -s -- v1.1.0-beta.10");
+    CHECK(cmd == "curl -fsSL https://releases.helixscreen.org/plugin/remote-install.sh"
+                 " | sh -s -- v1.1.0-beta.10");
     CHECK(cmd.find("bash") == std::string::npos);
-    CHECK(cmd.find("/main/") == std::string::npos);
+    CHECK(cmd.find("githubusercontent") == std::string::npos);
+}
+
+TEST_CASE("the remote install command for main fetches main's wrapper from GitHub",
+          "[plugin_installer]") {
+    CHECK(plugin_remote_install_command("main") ==
+          "curl -fsSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/"
+          "moonraker-plugin/remote-install.sh | sh -s -- main");
 }
 
 // ============================================================================

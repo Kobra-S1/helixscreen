@@ -13,10 +13,14 @@ When HelixScreen runs on another machine, the same screen shows a command to run
 the printer, pinned to the app's release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/prestonbrown/helixscreen/v1.2.0/moonraker-plugin/remote-install.sh | sh -s -- v1.2.0
+curl -fsSL https://releases.helixscreen.org/plugin/remote-install.sh | sh -s -- v1.2.0
 ```
 
-It downloads that release's plugin files to `~/helix_print` and runs their `install.sh --auto`:
+It downloads that release's plugin from the release CDN as one tarball
+(`releases/v1.2.0/helix-print-plugin.tar.gz`, published by the release workflow), or, for a
+release the CDN no longer holds, runs that release's own `remote-install.sh` from GitHub, which
+fetches its files one by one. A `main` build's command fetches `main` from GitHub. Either way the
+files go to `~/helix_print` and their `install.sh --auto` runs:
 the Moonraker symlink, the `[helix_print]` section and a Moonraker restart. It needs `sh` and
 one of curl, wget or python3, and no git. Add `--uninstall` after the release to remove the
 plugin, its config sections and `~/helix_print`. After the app updates, run the command it

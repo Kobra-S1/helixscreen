@@ -25,10 +25,10 @@ when HelixScreen has checked your printer and found no plugin.
   installs the plugin version that matches your HelixScreen release.
 - **On a screen that is not attached** (K-Touch, tablet, desktop), the screen cannot reach the
   printer's files, so it shows a one-line command instead. Run that command on the printer over
-  SSH. It looks like this, with your HelixScreen version in both places:
+  SSH. It looks like this, with your HelixScreen version at the end:
 
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/prestonbrown/helixscreen/v1.2.0/moonraker-plugin/remote-install.sh | sh -s -- v1.2.0
+  curl -fsSL https://releases.helixscreen.org/plugin/remote-install.sh | sh -s -- v1.2.0
   ```
 
   Copy the command the screen shows rather than this example, so the plugin matches your app.
