@@ -16,6 +16,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "printer_state.h"
+#include "sort_small.h"
 #include "static_panel_registry.h"
 #include "text_io.h"
 #include "theme_manager.h"
@@ -757,8 +758,8 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
     // Sort by usage (highest first) and take top 4 (limited space in side panel)
     std::vector<std::pair<std::string, double>> sorted_types(filament_by_type.begin(),
                                                              filament_by_type.end());
-    std::sort(sorted_types.begin(), sorted_types.end(),
-              [](const auto& a, const auto& b) { return a.second > b.second; });
+    helix::sort_small(sorted_types.begin(), sorted_types.end(),
+                      [](const auto& a, const auto& b) { return a.second > b.second; });
 
     if (sorted_types.size() > 4) {
         sorted_types.resize(4);

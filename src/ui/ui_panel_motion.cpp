@@ -28,6 +28,7 @@
 #include "observer_factory.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "sort_small.h"
 #include "standard_macros.h"
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"
@@ -80,7 +81,7 @@ std::vector<float> helix::unique_sorted_steps(std::vector<float> distances) {
     // Settings store floats typed on a keypad, so two "equal" distances can
     // differ in the last bits; a step button per bit pattern would repeat.
     constexpr float kSameStepMm = 0.001f;
-    std::sort(distances.begin(), distances.end());
+    helix::sort_small(distances.begin(), distances.end());
     std::vector<float> steps;
     for (float mm : distances) {
         if (steps.empty() || mm - steps.back() > kSameStepMm) {

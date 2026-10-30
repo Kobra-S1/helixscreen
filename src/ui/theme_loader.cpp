@@ -8,6 +8,7 @@
 #include "exception_policy.h"
 #include "helix_fs.h"
 #include "json_utils.h"
+#include "sort_small.h"
 #include "system/sha256_util.h"
 #include "text_io.h"
 
@@ -602,7 +603,7 @@ std::vector<ThemeInfo> discover_themes(const std::string& themes_dir) {
     scan_directory(defaults_dir, true);
 
     // Sort alphabetically by display name
-    std::sort(themes.begin(), themes.end(), [](const ThemeInfo& a, const ThemeInfo& b) {
+    helix::sort_small(themes.begin(), themes.end(), [](const ThemeInfo& a, const ThemeInfo& b) {
         return a.display_name < b.display_name;
     });
 

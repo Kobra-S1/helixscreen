@@ -9,6 +9,7 @@
 #include "moonraker_types.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"
+#include "sort_small.h"
 #include "spdlog/spdlog.h"
 #include "theme_manager.h"
 #include "tool_state.h"
@@ -398,10 +399,10 @@ std::string build_cooldown_gcode(const std::string& macro_gcode,
         }
     }
     // Shorter first, so extruder2 precedes extruder10.
-    std::sort(extra_extruders.begin(), extra_extruders.end(),
-              [](const std::string& a, const std::string& b) {
-                  return a.size() != b.size() ? a.size() < b.size() : a < b;
-              });
+    helix::sort_small(extra_extruders.begin(), extra_extruders.end(),
+                      [](const std::string& a, const std::string& b) {
+                          return a.size() != b.size() ? a.size() < b.size() : a < b;
+                      });
     extra_extruders.erase(std::unique(extra_extruders.begin(), extra_extruders.end()),
                           extra_extruders.end());
 

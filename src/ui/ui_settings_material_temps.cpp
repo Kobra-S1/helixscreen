@@ -17,6 +17,7 @@
 #include "i_moonraker_api.h"
 #include "material_settings_manager.h"
 #include "printer_state.h"
+#include "sort_small.h"
 #include "temperature_controller.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -138,8 +139,9 @@ void MaterialTempsOverlay::populate_material_list() {
     for (const auto& mat : *table) {
         sorted.push_back(&mat);
     }
-    std::sort(sorted.begin(), sorted.end(),
-              [](const auto* a, const auto* b) { return strcasecmp(a->name, b->name) < 0; });
+    helix::sort_small(sorted.begin(), sorted.end(), [](const auto* a, const auto* b) {
+        return strcasecmp(a->name, b->name) < 0;
+    });
 
     auto& mgr = MaterialSettingsManager::instance();
 

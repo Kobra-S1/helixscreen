@@ -27,6 +27,7 @@
 #include "prerendered_images.h"
 #include "printer_image_manager.h"
 #include "printer_images.h"
+#include "sort_small.h"
 #include "ui/ui_widget_helpers.h"
 #include "usb_manager.h"
 
@@ -313,7 +314,7 @@ void PrinterImageOverlay::populate_custom_images() {
         merged.push_back({&img, true});
     for (const auto& img : invalid_images)
         merged.push_back({&img, false});
-    std::sort(merged.begin(), merged.end(), [](const CustomEntry& a, const CustomEntry& b) {
+    helix::sort_small(merged.begin(), merged.end(), [](const CustomEntry& a, const CustomEntry& b) {
         return a.info->display_name < b.info->display_name;
     });
 

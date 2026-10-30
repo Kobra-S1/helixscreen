@@ -35,6 +35,7 @@
 #include "operation_timeout_guard.h"
 #include "printer_state.h"
 #include "quick_action_slots.h"
+#include "sort_small.h"
 #include "standard_macros.h"
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"
@@ -794,10 +795,10 @@ void ControlsPanel::populate_secondary_fans() {
             secondary_fans.push_back(&fan);
         }
     }
-    std::sort(secondary_fans.begin(), secondary_fans.end(),
-              [](const helix::FanInfo* a, const helix::FanInfo* b) {
-                  return fan_display_priority(*a) < fan_display_priority(*b);
-              });
+    helix::sort_small(secondary_fans.begin(), secondary_fans.end(),
+                      [](const helix::FanInfo* a, const helix::FanInfo* b) {
+                          return fan_display_priority(*a) < fan_display_priority(*b);
+                      });
 
     constexpr int max_visible = 2;
     int visible_count = 0;
