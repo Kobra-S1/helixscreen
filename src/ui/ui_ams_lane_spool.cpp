@@ -23,6 +23,7 @@
 #include "static_subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
+#include "widget_data_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -30,7 +31,6 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
-#include <unordered_map>
 
 using namespace helix;
 
@@ -251,24 +251,22 @@ struct LaneSpoolData {
     ObserverGuard theme_observer; ///< a lit glow re-reads the accent
 };
 
-static std::unordered_map<lv_obj_t*, LaneSpoolData*> s_lane_spool_registry;
+static helix::WidgetDataRegistry<LaneSpoolData> s_lane_spool_registry;
 
 static LaneSpoolData* get_lane_spool_data(lv_obj_t* obj) {
-    auto it = s_lane_spool_registry.find(obj);
-    return (it != s_lane_spool_registry.end()) ? it->second : nullptr;
+    return s_lane_spool_registry.get(obj);
 }
 
 static void register_lane_spool_data(lv_obj_t* obj, LaneSpoolData* data) {
-    s_lane_spool_registry[obj] = data;
+    s_lane_spool_registry.set(obj, data);
 }
 
 /**
  * @brief Unregister and cleanup spool data (normal widget deletion path).
  */
 static void unregister_lane_spool_data(lv_obj_t* obj) {
-    auto it = s_lane_spool_registry.find(obj);
-    if (it != s_lane_spool_registry.end()) {
-        std::unique_ptr<LaneSpoolData> data(it->second);
+    if (LaneSpoolData* registered = s_lane_spool_registry.get(obj)) {
+        std::unique_ptr<LaneSpoolData> data(registered);
         if (data) {
             // Expire a secondary backend's token before its observers (#705
             // ordering, as in ui_ams_slot.cpp).
@@ -281,7 +279,7 @@ static void unregister_lane_spool_data(lv_obj_t* obj) {
             data->severity_observer.reset();
             data->theme_observer.reset();
         }
-        s_lane_spool_registry.erase(it);
+        s_lane_spool_registry.take(obj);
     }
 }
 
@@ -293,9 +291,9 @@ static void unregister_lane_spool_data(lv_obj_t* obj) {
  * switch, so an observer left on it would stay attached for the rest of the process.
  */
 static void cleanup_all_lane_spool_data() {
-    for (auto& [obj, data] : s_lane_spool_registry) {
+    s_lane_spool_registry.for_each([](lv_obj_t* /*obj*/, LaneSpoolData* data) {
         if (!data)
-            continue;
+            return;
         data->lifetime.reset();
         data->lane_state_observer.reset();
         data->color_observer.reset();
@@ -305,7 +303,7 @@ static void cleanup_all_lane_spool_data() {
         data->severity_observer.reset();
         data->theme_observer.reset();
         delete data;
-    }
+    });
     s_lane_spool_registry.clear();
     spdlog::debug("[AmsLaneSpool] Pre-deinit cleanup: all lane spool data released");
 }

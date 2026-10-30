@@ -12,6 +12,7 @@
 #include "lvgl/lvgl.h"
 #include "sort_small.h"
 #include "theme_manager.h"
+#include "widget_data_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -20,7 +21,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
 // ============================================================================
@@ -71,11 +71,10 @@ struct EndlessSpoolArrowsData {
 };
 
 // Registry of widget data
-static std::unordered_map<lv_obj_t*, EndlessSpoolArrowsData*> s_registry;
+static helix::WidgetDataRegistry<EndlessSpoolArrowsData> s_registry;
 
 static EndlessSpoolArrowsData* get_data(lv_obj_t* obj) {
-    auto it = s_registry.find(obj);
-    return (it != s_registry.end()) ? it->second : nullptr;
+    return s_registry.get(obj);
 }
 
 // Load theme-aware colors
@@ -527,10 +526,8 @@ static void endless_spool_arrows_draw_cb(lv_event_t* e) {
 
 static void endless_spool_arrows_delete_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
-    auto it = s_registry.find(obj);
-    if (it != s_registry.end()) {
-        std::unique_ptr<EndlessSpoolArrowsData> data(it->second);
-        s_registry.erase(it);
+    if (EndlessSpoolArrowsData* registered = s_registry.take(obj)) {
+        std::unique_ptr<EndlessSpoolArrowsData> data(registered);
         // data automatically freed when unique_ptr goes out of scope
     }
 }
@@ -549,7 +546,7 @@ static void* endless_spool_arrows_xml_create(lv_xml_parser_state_t* state, const
     }
 
     auto data_ptr = std::make_unique<EndlessSpoolArrowsData>();
-    s_registry[obj] = data_ptr.get();
+    s_registry.set(obj, data_ptr.get());
     auto* data = data_ptr.release();
 
     // Load theme-aware colors
@@ -628,7 +625,7 @@ lv_obj_t* ui_endless_spool_arrows_create(lv_obj_t* parent) {
     }
 
     auto data_ptr = std::make_unique<EndlessSpoolArrowsData>();
-    s_registry[obj] = data_ptr.get();
+    s_registry.set(obj, data_ptr.get());
     auto* data = data_ptr.release();
 
     // Load theme-aware colors

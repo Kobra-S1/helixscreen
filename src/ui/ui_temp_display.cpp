@@ -18,6 +18,7 @@
 #include "lvgl/lvgl.h"
 #include "printer_temperature_state.h" // helix::ChamberMode
 #include "theme_manager.h"
+#include "widget_data_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -25,7 +26,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
-#include <unordered_map>
 
 using helix::ui::temperature::deci_to_degrees;
 using helix::ui::temperature::deci_to_degrees_f;
@@ -105,11 +105,10 @@ struct TempDisplayData {
 };
 
 // Static registry for safe cleanup
-static std::unordered_map<lv_obj_t*, TempDisplayData*> s_registry;
+static helix::WidgetDataRegistry<TempDisplayData> s_registry;
 
 static TempDisplayData* get_data(lv_obj_t* obj) {
-    auto it = s_registry.find(obj);
-    return (it != s_registry.end()) ? it->second : nullptr;
+    return s_registry.get(obj);
 }
 
 // ============================================================================
@@ -308,10 +307,8 @@ static void on_click(lv_event_t* e) {
 /** Cleanup callback when widget is deleted */
 static void on_delete(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
-    auto it = s_registry.find(obj);
-    if (it != s_registry.end()) {
-        std::unique_ptr<TempDisplayData> data(it->second);
-        s_registry.erase(it);
+    if (TempDisplayData* registered = s_registry.take(obj)) {
+        std::unique_ptr<TempDisplayData> data(registered);
 
         // Detach child labels from ALL subjects (both external and owned) FIRST.
         // This removes observers AND their unsubscribe_on_delete_cb events from
@@ -541,13 +538,13 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
         lv_label_bind_text(data_ptr->current_label, &data_ptr->current_text_subject, nullptr);
 
     // Register data and cleanup
-    s_registry[container] = data_ptr.release();
+    s_registry.set(container, data_ptr.release());
     lv_obj_add_event_cb(container, on_delete, LV_EVENT_DELETE, nullptr);
 
     // Hook reactive target visibility once data is registered. Observer target
     // is the container so on_delete's lv_obj_remove_from_subject(container, ...)
     // removes it before TempDisplayData is freed.
-    auto* registered = s_registry[container];
+    auto* registered = s_registry.get(container);
     if (registered->hide_target_below_bp >= 0) {
         if (lv_subject_t* bp_subj = theme_manager_get_breakpoint_subject()) {
             lv_subject_add_observer_obj(bp_subj, bp_observer_cb, container, nullptr);

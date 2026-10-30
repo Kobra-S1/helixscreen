@@ -17,6 +17,7 @@
 #include "spool_vents.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
+#include "widget_data_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -214,11 +215,10 @@ struct SpoolCanvasData {
     bool has_rendered = false;
 };
 
-static std::unordered_map<lv_obj_t*, SpoolCanvasData*> s_registry;
+static helix::WidgetDataRegistry<SpoolCanvasData> s_registry;
 
 static SpoolCanvasData* get_data(lv_obj_t* obj) {
-    auto it = s_registry.find(obj);
-    return (it != s_registry.end()) ? it->second : nullptr;
+    return s_registry.get(obj);
 }
 
 // Size @p canvas's draw buffer to @p size plus @p margin on every side. The
@@ -1066,9 +1066,8 @@ static bool redraw_spool_pixels(SpoolCanvasData* data) {
 static void spool_canvas_event_cb(lv_event_t* e) {
     if (lv_event_get_code(e) == LV_EVENT_DELETE) {
         lv_obj_t* obj = lv_event_get_target_obj(e);
-        auto it = s_registry.find(obj);
-        if (it != s_registry.end()) {
-            std::unique_ptr<SpoolCanvasData> data(it->second);
+        if (SpoolCanvasData* registered = s_registry.get(obj)) {
+            std::unique_ptr<SpoolCanvasData> data(registered);
             // The canvas was a composite source until this delete; a blend of
             // it may still be in flight.
             if (data) {
@@ -1076,7 +1075,7 @@ static void spool_canvas_event_cb(lv_event_t* e) {
             }
             unbind_glows(obj);
             lv_obj_set_user_data(obj, nullptr);
-            s_registry.erase(it);
+            s_registry.take(obj);
             // data automatically freed
         }
     }
@@ -1097,7 +1096,7 @@ static void* spool_canvas_xml_create(lv_xml_parser_state_t* state, const char** 
     data_ptr->fill_level = 1.0f;
 
     sync_draw_buf(data_ptr.get());
-    s_registry[canvas] = data_ptr.get();
+    s_registry.set(canvas, data_ptr.get());
     lv_obj_add_event_cb(canvas, spool_canvas_event_cb, LV_EVENT_DELETE, nullptr);
 
     SpoolCanvasData* data = data_ptr.release();
@@ -1183,7 +1182,7 @@ lv_obj_t* ui_spool_canvas_create(lv_obj_t* parent, int32_t size) {
         helix::ui::safe_delete(canvas);
         return nullptr;
     }
-    s_registry[canvas] = data_ptr.get();
+    s_registry.set(canvas, data_ptr.get());
     lv_obj_add_event_cb(canvas, spool_canvas_event_cb, LV_EVENT_DELETE, nullptr);
 
     SpoolCanvasData* data = data_ptr.release();
@@ -1294,11 +1293,11 @@ void ui_spool_canvas_invalidate_cache(void) {
     s_cache_list.clear();
     s_cache_index.clear();
     clear_glow_cache();
-    for (auto& [canvas, data] : s_registry) {
+    s_registry.for_each([](lv_obj_t* /*canvas*/, SpoolCanvasData* data) {
         if (data) {
             data->has_rendered = false;
         }
-    }
+    });
     spdlog::debug("[SpoolCanvas] Render cache invalidated");
 }
 
