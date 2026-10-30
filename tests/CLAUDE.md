@@ -258,6 +258,24 @@ of production's, and it drifts silently. `scripts/check_test_mirrors.py` flags i
 `stub-logic` against the `MIRROR_MAX` ratchet (prestonbrown/helixscreen#1220). To test the
 logic, link the real object: drop it from the filter list.
 
+### A test earns its place
+
+A large suite is not evidence of a tested codebase. A test that reaches private state,
+restates the implementation or pins an incidental pixel costs every refactor and catches
+little, so a branch does not grow the suite: `scripts/check_test_budget.py` (pre-push and
+`land-gate`) measures the branch from its fork point and fails when
+
+- **C++ test lines grow.** Pay for a new test by cutting or folding a weaker one. A branch
+  that adds a genuinely new subsystem grants itself lines with a commit message line
+  `Test-budget: +N <reason>`; the reason is what a reviewer reads.
+- **`TestAccess` references grow.** Seed and observe through the public API instead.
+- **`friend` declarations grow** in `src/` or `include/`.
+
+Before adding a case, check what it buys: it fails when the behaviour it names breaks
+(the hand break below), nothing else already fails for the same break, and its name says
+the behaviour, not the issue that found it. A case that fails none of those is the one to
+cut (prestonbrown/helixscreen#1965).
+
 ### Proving a test can fail
 
 "A test must FAIL if the feature is removed" is the rule, and a green suite is not
