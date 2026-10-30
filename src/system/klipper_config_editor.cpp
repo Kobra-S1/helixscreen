@@ -540,7 +540,7 @@ constexpr const char* kBackupSuffix = ".helix_backup";
 /// Create each directory of @p dirs in turn, then run @p done. A directory
 /// that already exists answers with an error, which is what most of these are.
 void create_config_dirs(IMoonrakerAPI& api, std::vector<std::string> dirs, std::size_t index,
-                        std::function<void()> done) {
+                        helix::SharedCallback<void()> done) {
     if (index >= dirs.size()) {
         done();
         return;
