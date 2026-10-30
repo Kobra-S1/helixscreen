@@ -170,8 +170,15 @@ def index_overlay(tree, dest):
     return dest
 
 
+# The IDF container's memory limit, with no swap. Its compiles are syntax-only
+# and light, but they run --jobs wide on whatever host runs this, often beside
+# a build: a runaway is killed inside the container, not on the host.
+DOCKER_MEMORY = "16g"
+
+
 def docker_base(mounts):
-    cmd = ["docker", "run", "--rm", "-u", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp"]
+    cmd = ["docker", "run", "--rm", "-u", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp",
+           "--memory", DOCKER_MEMORY, "--memory-swap", DOCKER_MEMORY]
     for m in sorted(set(mounts)):
         cmd += ["-v", f"{m}:{m}"]
     return cmd + [IDF_IMAGE]

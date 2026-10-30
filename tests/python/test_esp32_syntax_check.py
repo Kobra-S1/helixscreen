@@ -116,6 +116,13 @@ def test_the_component_comes_from_the_command_when_the_entry_has_no_output():
     assert esc.component_of({"command": "g++ -c x.cpp", "file": "x.cpp"}) == "?"
 
 
+def test_the_idf_container_runs_under_a_memory_limit_with_no_swap():
+    cmd = esc.docker_base(["/src"])
+    assert cmd[cmd.index("--memory") + 1] == esc.DOCKER_MEMORY
+    assert cmd[cmd.index("--memory-swap") + 1] == esc.DOCKER_MEMORY
+    assert cmd.index("--memory") < cmd.index(esc.IDF_IMAGE)
+
+
 def test_require_makes_a_check_that_could_not_run_exit_3(monkeypatch, capsys):
     monkeypatch.setenv("HELIX_ESP32_SYNTAX", "0")
     monkeypatch.setattr(esc.sys, "argv", ["esp32_syntax_check.py", "--base", "HEAD"])
