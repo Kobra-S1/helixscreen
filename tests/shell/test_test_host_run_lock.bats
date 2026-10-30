@@ -80,6 +80,10 @@ case "$1" in
                 fi
                 exit 1
                 ;;
+            *"base64 -d | sh"*)
+                echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG"
+                [ -z "${MOCK_CONTAINER_MEM_KB:-}" ] || echo "$MOCK_CONTAINER_MEM_KB"
+                ;;
             *) echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG" ;;
         esac ;;
     *) echo "unhandled docker call: $*" >&2; exit 1 ;;
@@ -151,7 +155,7 @@ wait_for_line() { # <substring> <file>
     # line that follows the lock (job sizing onward) is still absent.
     wait_for_line "busy:" "$out"
     grep -q "busy: held by pid.*: mutate 0123456 since " "$out"
-    refute_grep "MemAvailable" "$out"
+    refute_grep "available to helix-test" "$out"
 
     kill "$holder"
     wait "$holder" 2>/dev/null || true
@@ -182,6 +186,27 @@ wait_for_line() { # <substring> <file>
     run "$SCRIPT" --commit test
     [ "$status" -eq 0 ]
     grep -qF "pgrep -x -r R,S,D,T,t make" "$MOCK_PGREP_LOG"
+}
+
+@test "-j is sized from what the container says it may allocate" {
+    export MOCK_CONTAINER_MEM_KB=$(( 6 * 1048576 ))
+    run "$SCRIPT" --commit test '[x]'
+    [ "$status" -eq 0 ]
+    contains "6GB available to helix-test" "$output"
+}
+
+@test "the container's memory probe carries lib/mem_available.sh and runs under sh" {
+    run "$SCRIPT" --commit test '[x]'
+    [ "$status" -eq 0 ]
+    b64=$(sed -n 's/.*echo \([A-Za-z0-9+\/=]*\) | base64 -d | sh.*/\1/p' "$MOCK_DOCKER_LOG" | head -1)
+    [ -n "$b64" ] || fail "no probe in: $(cat "$MOCK_DOCKER_LOG")"
+    mkdir -p "$BATS_TEST_TMPDIR/cg"
+    printf '10737418240\n' > "$BATS_TEST_TMPDIR/cg/memory.max"
+    printf 'anon 0\n' > "$BATS_TEST_TMPDIR/cg/memory.stat"
+    printf 'MemAvailable: 167000000 kB\n' > "$BATS_TEST_TMPDIR/meminfo"
+    run env HELIX_CGROUP_ROOT="$BATS_TEST_TMPDIR/cg" HELIX_MEMINFO="$BATS_TEST_TMPDIR/meminfo" \
+        sh -c 'echo "$1" | base64 -d | sh' _ "$b64"
+    [ "$output" = "10485760" ]
 }
 
 @test "every docker exec names the container and a command" {

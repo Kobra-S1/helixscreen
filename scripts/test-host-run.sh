@@ -230,6 +230,16 @@ sync_files() { # <list file> [rsync args...]
 
 # The remote snippet that starts the container when a NAS reboot left it
 # stopped. Starting is idempotent and costs nothing when it is already up.
+# The host command that prints, from inside the container, what it may still
+# allocate in kB (lib/mem_available.sh). The script travels in the command, as
+# ccache_shared_cmd's does, so it is this tree's copy whatever the container has.
+container_mem_cmd() {
+    local b64
+    b64=$( { cat "$(dirname "${BASH_SOURCE[0]}")/lib/mem_available.sh"; echo helix_mem_available_kb; } |
+        base64 | tr -d '\n') || return 1
+    printf 'sudo -n docker exec %q bash -lc %q' "$CONTAINER" "echo $b64 | base64 -d | sh"
+}
+
 container_up() {
     cat <<SNIPPET
 if ! sudo -n docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
@@ -890,10 +900,17 @@ if _sf=\$(cat "\$ARC_SYS_FREE" 2>/dev/null) && [ "\${_sf:-0}" -lt $((SYS_FREE_FL
     echo "⚠ zfs_arc_sys_free is \$_sf bytes, under ${SYS_FREE_FLOOR_GB} GiB: a burst of compilers can outrun ARC reclaim (see the test-host-run.sh header)" >&2
 fi
 
-# Derive the job count from what is free NOW, bounded by cores.
-HELIX_J=\$(awk -v per=$GB_PER_JOB -v cpus="\$(nproc)" '
-    /^MemAvailable/ { j = int((\$2/1048576) / per); if (j > cpus) j = cpus; if (j < 4) j = 4; print j }
-' /proc/meminfo)
+# The container has no restart policy, so a NAS reboot leaves it stopped and
+# docker exec fails several steps before anything explains why.
+$(container_up)
+
+# Derive the job count from what is free NOW, bounded by cores. The container
+# answers, so a memory limit on it bounds -j: the host's MemAvailable alone
+# would size past the limit and the kernel would kill compilers inside it.
+_avail_kb=\$($(container_mem_cmd) 2>/dev/null)
+case "\$_avail_kb" in '' | *[!0-9]*) _avail_kb=\$(awk '/^MemAvailable/{print \$2}' /proc/meminfo) ;; esac
+HELIX_J=\$(awk -v per=$GB_PER_JOB -v cpus="\$(nproc)" -v kb="\$_avail_kb" '
+    BEGIN { j = int((kb/1048576) / per); if (j > cpus) j = cpus; if (j < 4) j = 4; print j }')
 # A background job outside the pool and the lock sized its -j from the same
 # free memory a gate or a second background job may be sizing from now, so it
 # takes half.
@@ -904,15 +921,11 @@ if [ "\$YIELD_UNPOOLED" = 1 ]; then
 fi
 if [ -n "\$POOL_ENV" ]; then
     HELIX_JFLAG=""
-    echo "→ MemAvailable \$(awk '/^MemAvailable/{printf "%.0fGB", \$2/1048576}' /proc/meminfo), joining jobpool: \$("\$JP" status --json 2>/dev/null | sed -n 's/.*"target":\([0-9]*\).*/target \1/p')"
+    echo "→ \$(( _avail_kb / 1048576 ))GB available to $CONTAINER, joining jobpool: \$("\$JP" status --json 2>/dev/null | sed -n 's/.*"target":\([0-9]*\).*/target \1/p')"
 else
     HELIX_JFLAG="-j\$HELIX_J"
-    echo "→ MemAvailable \$(awk '/^MemAvailable/{printf "%.0fGB", \$2/1048576}' /proc/meminfo), using -j\$HELIX_J"
+    echo "→ \$(( _avail_kb / 1048576 ))GB available to $CONTAINER, using -j\$HELIX_J"
 fi
-
-# The container has no restart policy, so a NAS reboot leaves it stopped and
-# docker exec fails several steps before anything explains why.
-$(container_up)
 
 D() { sudo -n docker exec -w "$RUNDIR" $GIT_SAFE_ENV -e CCACHE_DIR="$CCACHE" -e HELIX_J="\$HELIX_J" -e HELIX_JFLAG="\$HELIX_JFLAG" "$CONTAINER" bash -lc "\$1"; }
 

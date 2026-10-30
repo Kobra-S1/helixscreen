@@ -284,11 +284,11 @@ hold_lock() { # <lock file> <ready marker>: prints the holder pid
     "$TEST_HOST_RUN" test >"$out" 2>&1 &
     runner=$!
     wait_for_line "no jobpool on" "$out"
-    refute_grep "MemAvailable" "$out"
+    refute_grep "available to" "$out"
     kill "$holder"
     wait "$holder" 2>/dev/null || true
     wait "$runner"
-    grep -q "MemAvailable" "$out"
+    grep -q "available to" "$out"
 }
 
 @test "the provenance line and log name carry -dirty and the diff hash only when dirty" {

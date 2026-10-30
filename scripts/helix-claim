@@ -311,6 +311,21 @@ fi
 HOST
 }
 
+# Memory a new job may take, in kB: lib/mem_available.sh, which bounds
+# MemAvailable by a container's own limit. A copy of this script run without
+# its lib/ (the helix-claim bats copy it alone) reads MemAvailable directly.
+mem_available_kb() {
+    local lib
+    lib="$(dirname "${BASH_SOURCE[0]}")/lib/mem_available.sh"
+    if [ -r "$lib" ]; then
+        # shellcheck source-path=SCRIPTDIR source=lib/mem_available.sh
+        . "$lib"
+        helix_mem_available_kb
+    else
+        awk '/^MemAvailable:/{print $2}' /proc/meminfo 2>/dev/null
+    fi
+}
+
 # The live jobpool's target, or exit 1 when there is none. `jobpool target`
 # takes no lock and moves no tokens, so this is safe on every make and under a
 # timeout. JOBPOOL=0 is jobpool's own bypass, so it bypasses here too.
@@ -546,7 +561,7 @@ jobs)
     # pool divides it between builds as they run. Without it (CI, a Mac, a
     # contributor's box) it is the cores, capped by memory at ~1GB per
     # compile.
-    avail_kb=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo 2>/dev/null)
+    avail_kb=$(mem_available_kb)
     mem_gb=$(( ${avail_kb:-0} / 1048576 ))
     if target=$(pool_target); then
         if [ "${1:-}" = "-v" ]; then
@@ -632,7 +647,7 @@ resources)
     remote=1
     [ "${1:-}" = "--no-test-host" ] && remote=0
     if [ -r /proc/meminfo ]; then
-        avail_kb=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo)
+        avail_kb=$(mem_available_kb)
         read -r l1 l5 l15 _ < /proc/loadavg
     else
         # macOS: free, inactive and speculative pages are what it hands out

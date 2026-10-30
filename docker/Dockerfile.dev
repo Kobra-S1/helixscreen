@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# A build-and-gate host in a container: the test image's toolchain
+# (Dockerfile.sanitizer) plus what the bats suite and `make land-gate` need
+# that the test container lacks, run as an ordinary user. The bats suite
+# expects a non-root user with shellcheck on PATH, which the root test
+# container is not; this one is, so a NAS with Docker can take over a build
+# host's work: remote-build's REMOTE_HOST, land-gate, the shell suite.
+#
+# Build on the host, from this directory, with the uid and gid that own the
+# mounted home so files written there keep their owner:
+#
+#   sudo docker build -t helixscreen/dev -f Dockerfile.dev \
+#       --build-arg USER_NAME=$(id -un) --build-arg USER_UID=$(id -u) --build-arg USER_GID=$(id -g) .
+#   sudo docker run -d --init --name helix-dev --hostname helix-dev \
+#       --memory 64g --memory-swap 64g --pids-limit 16384 \
+#       -p 2223:22 -v /path/to/helix-dev-home:/home/$(id -un) helixscreen/dev
+#
+# The memory limit is not optional: a build that outgrows it is killed inside
+# the container instead of the host's other services, and scripts/helix-claim
+# sizes -j from it (scripts/lib/mem_available.sh). Log in with a key placed in
+# the mounted home's .ssh/authorized_keys.
+
+ARG BASE=helixscreen/sanitizer:latest
+FROM ${BASE}
+
+ARG USER_NAME=dev
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        shellcheck python3-pip python3-venv openssh-server rsync busybox less \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -g "$USER_GID" "$USER_NAME" \
+    && useradd -m -u "$USER_UID" -g "$USER_GID" -s /bin/bash "$USER_NAME" \
+    && mkdir -p /run/sshd \
+    && sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config
+
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D", "-e"]
