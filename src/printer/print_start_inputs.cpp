@@ -561,7 +561,7 @@ void FileStartFactsLoader::start_full_scan(uint32_t generation, ScanRequest req,
 
 void FileStartFactsLoader::download_to_temp(
     const std::string& file_key, uint32_t generation,
-    std::function<void(bool ok, const std::string& local_path)> done) {
+    helix::SharedCallback<void(bool ok, const std::string& local_path)> done) {
     const std::string dir = get_helix_cache_dir("gcode_temp");
     if (!api_ || dir.empty() || !api_->transfers().supports_local_copies()) {
         done(false, {});

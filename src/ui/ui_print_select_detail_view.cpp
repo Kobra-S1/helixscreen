@@ -853,7 +853,7 @@ std::string PrintSelectDetailView::current_file_key() const {
 }
 
 void PrintSelectDetailView::ensure_gcode_downloaded(
-    std::function<void(bool ok, const std::string& path)> cb) {
+    helix::SharedCallback<void(bool ok, const std::string& path)> cb) {
     if (!api_ || get_helix_cache_dir("gcode_temp").empty()) {
         spdlog::warn("[DetailView] No API or cache dir for shared G-code download");
         cb(false, {});
@@ -2012,7 +2012,7 @@ void PrintSelectDetailView::on_color_card_clicked() {
     }
 }
 
-void PrintSelectDetailView::run_when_loaded(std::function<void()> cb) {
+void PrintSelectDetailView::run_when_loaded(helix::SharedCallback<void()> cb) {
     if (!cb) {
         return;
     }
@@ -2033,7 +2033,7 @@ void PrintSelectDetailView::fire_on_loaded() {
     }
 }
 
-void PrintSelectDetailView::run_when_preflight_ready(std::function<void()> cb) {
+void PrintSelectDetailView::run_when_preflight_ready(helix::SharedCallback<void()> cb) {
     if (!cb) {
         return;
     }
@@ -2346,7 +2346,7 @@ void PrintSelectDetailView::kick_off_headless_tools_scan() {
     req.on_moonraker = current_local_path_.empty();
     // ONE shared transfer: the viewer preview joins it, and the copy stays for
     // the preview until view teardown.
-    req.download = [this](std::function<void(bool, const std::string&)> done) {
+    req.download = [this](helix::SharedCallback<void(bool, const std::string&)> done) {
         ensure_gcode_downloaded(std::move(done));
     };
 

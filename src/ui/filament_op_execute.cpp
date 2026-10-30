@@ -423,8 +423,8 @@ FilamentOpSurface deferred_surface(const FilamentOpSurface& surface) {
 /// request's ticket. A preheat that ends without running reaches the surface's
 /// on_preheat_ended.
 void preheat_then(FilamentHeatOp op, PreheatSkip skip, int slot, const FilamentOpSurface& surface,
-                  std::function<void(FilamentOpTicket)> now,
-                  std::function<void(FilamentOpTicket)> later) {
+                  helix::SharedCallback<void(FilamentOpTicket)> now,
+                  helix::SharedCallback<void(FilamentOpTicket)> later) {
     FilamentOpHeater* heater = get_filament_op_heater();
     if (!heater) {
         spdlog::warn("{} No FilamentOpHeater — running {} with no preheat", surface.log_tag,

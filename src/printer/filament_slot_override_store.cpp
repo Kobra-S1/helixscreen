@@ -1289,7 +1289,8 @@ bool is_absent_namespace(const MoonrakerError& err) {
 
 } // namespace
 
-void FilamentSlotOverrideStore::reload_async(ReloadCallback cb, std::function<void()> on_failure) {
+void FilamentSlotOverrideStore::reload_async(ReloadCallback cb,
+                                             helix::SharedCallback<void()> on_failure) {
     if (!cb) {
         return;
     }

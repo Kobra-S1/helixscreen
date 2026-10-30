@@ -8,6 +8,7 @@
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
 #include "filament_mapper.h"
+#include "helix_shared_callback.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
 
@@ -55,12 +56,12 @@ class PrintPreparationManager;
  */
 class PrintStartController {
   public:
-    using PrintStartedCallback = std::function<void()>;
-    using PrintCancelledCallback = std::function<void()>;
-    using UpdatePrintButtonCallback = std::function<void()>;
-    using HideDetailViewCallback = std::function<void()>;
-    using ShowDetailViewCallback = std::function<void()>;
-    using NavigateToPrintStatusCallback = std::function<void()>;
+    using PrintStartedCallback = helix::SharedCallback<void()>;
+    using PrintCancelledCallback = helix::SharedCallback<void()>;
+    using UpdatePrintButtonCallback = helix::SharedCallback<void()>;
+    using HideDetailViewCallback = helix::SharedCallback<void()>;
+    using ShowDetailViewCallback = helix::SharedCallback<void()>;
+    using NavigateToPrintStatusCallback = helix::SharedCallback<void()>;
 
     /**
      * @brief Construct controller with required dependencies
@@ -118,7 +119,7 @@ class PrintStartController {
     /// Runs when a start with no detail view meets a printer-stopping command
     /// check that did not run: the start ends there (then the cancelled
     /// callback), since nothing on screen can stand in for that check.
-    void set_on_file_unchecked(std::function<void()> cb) {
+    void set_on_file_unchecked(helix::SharedCallback<void()> cb) {
         on_file_unchecked_ = std::move(cb);
     }
 
@@ -168,12 +169,13 @@ class PrintStartController {
     /// the main thread; a later read supersedes an unanswered one.
     /// @p read bounds the file read: a caller that cannot wait on a download
     /// passes FileRead::Footer.
-    void read_file_tools(const std::string& filename, std::function<void(std::set<int>)> on_tools,
+    void read_file_tools(const std::string& filename,
+                         helix::SharedCallback<void(std::set<int>)> on_tools,
                          helix::FileRead read = helix::FileRead::Whole);
 
     void initiate_reprint(const std::string& filename, const std::string& path,
-                          const std::set<int>& tools_used, std::function<void()> on_started,
-                          std::function<void()> on_error, int archive_plate = 0);
+                          const std::set<int>& tools_used, helix::SharedCallback<void()> on_started,
+                          helix::SharedCallback<void()> on_error, int archive_plate = 0);
 
     /**
      * @brief initiate_reprint() with a routing the caller knows.
@@ -183,8 +185,8 @@ class PrintStartController {
      */
     void initiate_reprint_with_routing(const std::string& filename, const std::set<int>& tools_used,
                                        const std::map<int, int>& routing,
-                                       std::function<void()> on_started,
-                                       std::function<void()> on_error);
+                                       helix::SharedCallback<void()> on_started,
+                                       helix::SharedCallback<void()> on_error);
 
     /**
      * @brief Check if controller is ready to start a print
@@ -274,14 +276,15 @@ class PrintStartController {
     void reprint_impl(const std::string& filename, const std::string& path,
                       const std::set<int>& tools_used,
                       const std::optional<std::map<int, int>>& routing,
-                      std::function<void()> on_started, std::function<void()> on_error,
-                      int archive_plate);
+                      helix::SharedCallback<void()> on_started,
+                      helix::SharedCallback<void()> on_error, int archive_plate);
 
     /// @p routed false sends the backend's unrouted step for @p tools_used
     /// (build_unrouted_preprint_gcode()) instead of a map.
     void send_backend_preprint_then(const std::set<int>& tools_used,
-                                    const std::map<int, int>& remap, std::function<void()> on_done,
-                                    std::function<void()> on_abort, bool routed = true);
+                                    const std::map<int, int>& remap,
+                                    helix::SharedCallback<void()> on_done,
+                                    helix::SharedCallback<void()> on_abort, bool routed = true);
 
     /// The "Print setup failed" modal for a pre-print send that did not
     /// happen: @p reason when one is known, else the printer-refusal text.
@@ -331,7 +334,7 @@ class PrintStartController {
     std::vector<std::string> exclude_picks_;
     std::string thumbnail_path_; ///< Pre-extracted thumbnail for USB/embedded files
     std::string scan_key_;
-    std::function<void()> on_file_unchecked_;
+    helix::SharedCallback<void()> on_file_unchecked_;
 
     // === Gate Pipeline State ===
     std::vector<helix::PrintStartGate> gate_list_; ///< ctor-seeded; overridable in tests

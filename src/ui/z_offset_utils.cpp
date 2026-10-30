@@ -125,8 +125,9 @@ bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool_index, do
 }
 
 void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
-                    ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
-                    std::function<void(const std::string& error)> on_error, PrinterState* ps) {
+                    ZOffsetCalibrationStrategy strategy, helix::SharedCallback<void()> on_success,
+                    helix::SharedCallback<void(const std::string& error)> on_error,
+                    PrinterState* ps) {
     // Both success paths below (the FIRMWARE_MANAGED early return and the
     // APPLY -> SAVE_CONFIG chain) funnel through this wrapper, so the pending
     // Z-offset delta is cleared exactly once, wherever the save actually
@@ -611,8 +612,9 @@ void save_dirty_offsets_shared() {
 
 void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                         ZOffsetCalibrationStrategy strategy, const helix::PrinterDiscovery& hw,
-                        bool global_dirty, std::function<void()> on_success,
-                        std::function<void(const std::string& error)> on_error, PrinterState* ps) {
+                        bool global_dirty, helix::SharedCallback<void()> on_success,
+                        helix::SharedCallback<void(const std::string& error)> on_error,
+                        PrinterState* ps) {
     if (!api) {
         if (on_error) {
             on_error("No printer connection");

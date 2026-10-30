@@ -351,6 +351,17 @@ struct UnhomedMacroLoad {
         helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
     }
 
+    /// How many sent scripts start with @p word.
+    [[nodiscard]] long count_sent(const std::string& word) const {
+        long n = 0;
+        for (const auto& line : h.client.gcode_script_history()) {
+            if (line == word || line.rfind(word + " ", 0) == 0) {
+                ++n;
+            }
+        }
+        return n;
+    }
+
     /// Position of the first sent script starting with @p word, or -1.
     [[nodiscard]] long first_sent(const std::string& word) const {
         const auto& sent = h.client.gcode_script_history();
@@ -390,6 +401,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(home >= 0);
     REQUIRE(load >= 0);
     CHECK(home < load);
+    CHECK(t.count_sent("LOAD_FILAMENT") == 1);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "A home that fails before a macro-tier load sends no macro",

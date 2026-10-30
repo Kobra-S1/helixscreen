@@ -3,6 +3,7 @@
 
 #include "ams_types.h"
 #include "filament_slot_override.h"
+#include "helix_shared_callback.h"
 #include "lane_source_store.h"
 
 #include <chrono>
@@ -155,7 +156,7 @@ class FilamentSlotOverrideStore {
     // exception-boundary comment on the definition.
     std::unordered_map<int, FilamentSlotOverride> load_blocking();
 
-    using ReloadCallback = std::function<void(std::unordered_map<int, LaneDataRecord>)>;
+    using ReloadCallback = helix::SharedCallback<void(std::unordered_map<int, LaneDataRecord>)>;
 
     /// Re-fetch this store's namespace and hand the parsed records to @p cb.
     ///
@@ -168,9 +169,9 @@ class FilamentSlotOverrideStore {
     /// when given, is called instead, for a caller holding work until the read
     /// lands. Exactly one of the two runs, on the API's callback thread;
     /// marshal from there.
-    void reload_async(ReloadCallback cb, std::function<void()> on_failure = nullptr);
+    void reload_async(ReloadCallback cb, helix::SharedCallback<void()> on_failure = nullptr);
 
-    using SaveCallback = std::function<void(bool success, std::string error)>;
+    using SaveCallback = helix::SharedCallback<void(bool success, std::string error)>;
     void save_async(int slot_index, const FilamentSlotOverride& override, SaveCallback cb);
     void clear_async(int slot_index, SaveCallback cb);
 
@@ -212,8 +213,8 @@ class FilamentSlotOverrideStore {
     /// before anything classifies them; @p amend also gets the slot and the
     /// raw document the record came from. Only this view changes: persisting
     /// the repair is the caller's save.
-    void amend_loaded_records(const std::function<void(int slot, FilamentSlotOverride&,
-                                                       const nlohmann::json& wire)>& amend) {
+    void amend_loaded_records(const helix::Callback<void(int slot, FilamentSlotOverride&,
+                                                         const nlohmann::json& wire)>& amend) {
         for (auto& [slot, entry] : lane_data_records_) {
             amend(slot, entry.record, entry.wire);
         }
@@ -604,7 +605,7 @@ class SlotFingerprintTracker {
     /// The sink runs inline in observe(), under whatever lock the caller
     /// already holds there, so it may touch the caller's override map without
     /// taking its own.
-    using BaselineSink = std::function<void(int, const std::string&)>;
+    using BaselineSink = helix::SharedCallback<void(int, const std::string&)>;
     void set_baseline_sink(BaselineSink sink) {
         baseline_sink_ = std::move(sink);
     }

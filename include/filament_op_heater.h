@@ -33,6 +33,7 @@
 
 #include "filament_op_execute.h"
 #include "filament_op_slot_resolver.h"
+#include "helix_shared_callback.h"
 
 #include <chrono>
 #include <cstdint>
@@ -156,11 +157,11 @@ struct PreheatRequest {
     /// It is handed the request's ticket, which its completion passes to
     /// op_succeeded() / op_failed(). Must outlive the surface: capture nothing a
     /// closing surface frees.
-    std::function<void(FilamentOpTicket)> run;
+    helix::SharedCallback<void(FilamentOpTicket)> run;
 
     /// Phase reports, on the main thread. Wrap anything that touches the surface
     /// in its lifetime token: a report can land after the surface is gone.
-    std::function<void(const PreheatProgress&)> on_progress;
+    helix::SharedCallback<void(const PreheatProgress&)> on_progress;
 };
 
 /**

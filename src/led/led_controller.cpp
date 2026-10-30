@@ -611,7 +611,7 @@ bool require_api(const IMoonrakerAPI* api, const char* call, const std::string& 
 }
 
 /// The MoonrakerError adapter every backend hands the API.
-std::function<void(const MoonrakerError&)>
+helix::SharedCallback<void(const MoonrakerError&)>
 forward_error(const NativeBackend::ErrorCallback& on_error) {
     return [on_error](const MoonrakerError& err) {
         if (on_error) {
@@ -1109,7 +1109,7 @@ bool WledBackend::has_strip_state(const std::string& strip_id) const {
     return strip_states_.count(strip_id) > 0;
 }
 
-void WledBackend::poll_status(std::function<void()> on_complete) {
+void WledBackend::poll_status(helix::SharedCallback<void()> on_complete) {
     if (!api_) {
         spdlog::debug("[WledBackend] poll_status: no API available");
         if (on_complete)
@@ -1840,7 +1840,7 @@ void LedController::update_from_status(const nlohmann::json& status) {
     }
 }
 
-void LedController::refresh_wled_state(std::function<void()> on_done) {
+void LedController::refresh_wled_state(helix::SharedCallback<void()> on_done) {
     auto tok = lifetime_.token();
     wled_.poll_status([this, tok, on_done]() {
         tok.defer("LedController::wled_state", [this, on_done]() {

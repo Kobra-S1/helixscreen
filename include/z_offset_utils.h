@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "printer_state.h" // ZOffsetCalibrationStrategy
 
 #include <cstddef>
@@ -164,8 +165,8 @@ bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool_index, do
 /// @param ps            When non-null, cleared via clear_pending_z_offset_delta()
 ///                      once the save actually succeeds (either success path).
 void apply_and_save(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
-                    ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
-                    std::function<void(const std::string& error)> on_error,
+                    ZOffsetCalibrationStrategy strategy, helix::SharedCallback<void()> on_success,
+                    helix::SharedCallback<void(const std::string& error)> on_error,
                     PrinterState* ps = nullptr);
 
 /// The facts the "is there an offset worth saving" decision is made from.
@@ -303,8 +304,8 @@ void reset_shared_save();
 
 void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                         ZOffsetCalibrationStrategy strategy, const PrinterDiscovery& hw,
-                        bool global_dirty, std::function<void()> on_success,
-                        std::function<void(const std::string& error)> on_error,
+                        bool global_dirty, helix::SharedCallback<void()> on_success,
+                        helix::SharedCallback<void(const std::string& error)> on_error,
                         PrinterState* ps = nullptr);
 
 /// Tracks Klipper restart activity observed while a SAVE_CONFIG is in flight.

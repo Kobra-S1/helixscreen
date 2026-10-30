@@ -2730,9 +2730,7 @@ void FilamentPanel::execute_load() {
         // macro still goes out if the user leaves the panel during the G28.
         surface.before_macro = [this](helix::SharedCallback<void()> send,
                                       helix::SharedCallback<void(const MoonrakerError&)> fail) {
-            helix::ensure_homed_then(
-                api_, object_lifetime_, [send]() { send(); },
-                [fail](const MoonrakerError& err) { fail(err); });
+            helix::ensure_homed_then(api_, object_lifetime_, std::move(send), std::move(fail));
         };
     }
 

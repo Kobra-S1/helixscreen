@@ -122,7 +122,7 @@ void prepare_plate(const Material& material, bool with_appliance) {
 
 } // namespace
 
-void unload_before_drying(BedDryingController& ctrl, std::function<void()> then) {
+void unload_before_drying(BedDryingController& ctrl, helix::SharedCallback<void()> then) {
     AmsBackend* backend = AmsState::instance().get_backend();
     AmsSystemInfo info;
     int slot = -1;

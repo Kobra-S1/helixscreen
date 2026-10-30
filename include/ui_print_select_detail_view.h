@@ -13,6 +13,7 @@
 #include "ams_remap.h"
 #include "gcode_footer_summary.h"
 #include "gcode_preview_fetcher.h"
+#include "helix_shared_callback.h"
 #include "moonraker_types.h"
 #include "overlay_base.h"
 #include "preflight_validator.h"
@@ -72,7 +73,7 @@ namespace helix::ui {
 /**
  * @brief Callback when delete is confirmed
  */
-using DeleteConfirmedCallback = std::function<void()>;
+using DeleteConfirmedCallback = helix::SharedCallback<void()>;
 
 /**
  * @brief Detail view overlay manager
@@ -178,7 +179,7 @@ class PrintSelectDetailView : public OverlayBase {
      * The tap is only offered when current_remap_block() answers None, which
      * also drives the chevron and the card's clickable flag.
      */
-    void set_on_remap_requested(std::function<void()> callback) {
+    void set_on_remap_requested(helix::SharedCallback<void()> callback) {
         on_remap_requested_ = std::move(callback);
     }
 
@@ -189,7 +190,7 @@ class PrintSelectDetailView : public OverlayBase {
      * panel to the plugin install modal, so a card that refuses a remap offers
      * the one action that would make it work instead of dead-ending.
      */
-    void set_on_plugin_setup_requested(std::function<void()> callback) {
+    void set_on_plugin_setup_requested(helix::SharedCallback<void()> callback) {
         on_plugin_setup_requested_ = std::move(callback);
     }
 
@@ -202,7 +203,7 @@ class PrintSelectDetailView : public OverlayBase {
      * panel wires its back-out bookkeeping (a pending queued start) here so
      * those paths cannot miss it.
      */
-    void set_on_dismissed(std::function<void()> callback) {
+    void set_on_dismissed(helix::SharedCallback<void()> callback) {
         on_dismissed_cb_ = std::move(callback);
     }
 
@@ -214,7 +215,7 @@ class PrintSelectDetailView : public OverlayBase {
 
     /// Set callback fired when file_check_pending() may have changed: the
     /// shown file's scan was asked for or answered, or an option row changed.
-    void set_on_print_readiness_changed(std::function<void()> callback) {
+    void set_on_print_readiness_changed(helix::SharedCallback<void()> callback) {
         on_print_readiness_changed_cb_ = std::move(callback);
     }
 
@@ -396,7 +397,7 @@ class PrintSelectDetailView : public OverlayBase {
      * callback is tracked; a later call overwrites an earlier pending one.
      * Cleared on show() so a stale attempt from a previous file can't fire.
      */
-    void run_when_loaded(std::function<void()> cb);
+    void run_when_loaded(helix::SharedCallback<void()> cb);
 
     /**
      * @brief Run @p cb once a Print tap can be evaluated (is_print_start_ready()).
@@ -409,7 +410,7 @@ class PrintSelectDetailView : public OverlayBase {
      * wedge the print: the print proceeds without those checks rather than never
      * starting.
      */
-    void run_when_preflight_ready(std::function<void()> cb);
+    void run_when_preflight_ready(helix::SharedCallback<void()> cb);
 
     // === Pre-start object picks ===
 
@@ -903,7 +904,7 @@ class PrintSelectDetailView : public OverlayBase {
     // Pending print-attempt (or other) callback registered via run_when_loaded()
     // while a parse was still in flight. Fired once from the load callback after
     // preflight_result_ is fresh, then cleared. Reset on show().
-    std::function<void()> on_loaded_cb_;
+    helix::SharedCallback<void()> on_loaded_cb_;
 
     // --- Shared gcode download (ONE file + ONE download per open) ---
     // The headless tools scan and the viewer preview share a single canonical
@@ -962,7 +963,7 @@ class PrintSelectDetailView : public OverlayBase {
     // Pending callback registered via run_when_preflight_ready() while neither the
     // viewer parse nor the headless scan had completed. Fired once when readiness
     // arrives (or on the safety timeout), then cleared. Reset on show().
-    std::function<void()> on_preflight_ready_cb_;
+    helix::SharedCallback<void()> on_preflight_ready_cb_;
     lv_timer_t* preflight_ready_timeout_timer_ = nullptr; // safety fallback; never wedge a print
 
     // Safety fallback: if neither the viewer parse nor the headless scan reports
@@ -1084,11 +1085,11 @@ class PrintSelectDetailView : public OverlayBase {
     // open the remap modal — the same entry point the preflight-check modal's
     // "Map Filament…" button uses. Empty on backends where the card is purely
     // informational.
-    std::function<void()> on_remap_requested_;
-    std::function<void()> on_plugin_setup_requested_;
-    std::function<void()> on_dismissed_cb_;
+    helix::SharedCallback<void()> on_remap_requested_;
+    helix::SharedCallback<void()> on_plugin_setup_requested_;
+    helix::SharedCallback<void()> on_dismissed_cb_;
     MacroAnalysisCallback on_macro_analysis_cb_;
-    std::function<void()> on_print_readiness_changed_cb_;
+    helix::SharedCallback<void()> on_print_readiness_changed_cb_;
     void notify_print_readiness_changed() const;
 
     // === Internal Methods ===
@@ -1160,7 +1161,7 @@ class PrintSelectDetailView : public OverlayBase {
      * resolves (main thread). ok=false on download error / no API / no cache
      * dir.
      */
-    void ensure_gcode_downloaded(std::function<void(bool ok, const std::string& path)> cb);
+    void ensure_gcode_downloaded(helix::SharedCallback<void(bool ok, const std::string& path)> cb);
 
     /**
      * @brief Point the viewer at @p path and start loading it

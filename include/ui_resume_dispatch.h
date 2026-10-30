@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
+
 #include <functional>
 #include <string>
 
@@ -41,7 +43,7 @@ namespace helix::ui {
 ///                     error path AFTER the failure has been reported.
 ///                     Default: no-op.
 void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
-                              std::function<void()> on_failure = {});
+                              helix::SharedCallback<void()> on_failure = {});
 
 /// Confirm, then cancel the running print through the configured Cancel
 /// StandardMacro.
@@ -80,7 +82,7 @@ void dispatch_prepared_resume(IMoonrakerAPI* api, std::string log_prefix,
 ///                     this callback's job rather than the button hook's. Guard
 ///                     it with a lifetime token like any retained callback.
 void dispatch_cancel_print(IMoonrakerAPI* api, std::string log_prefix,
-                           std::function<void()> on_confirmed = {});
+                           helix::SharedCallback<void()> on_confirmed = {});
 
 /// Start the paused print's file over: SDCARD_RESET_FILE + CANCEL_PRINT_BASE
 /// to drop the job the printer cannot resume, then start_print(@p filename).
@@ -88,7 +90,7 @@ void dispatch_cancel_print(IMoonrakerAPI* api, std::string log_prefix,
 /// Failures toast and run @p on_failure (may be null) on the main thread.
 void restart_print_from_beginning(IMoonrakerAPI* api, const std::string& filename,
                                   const std::string& log_prefix,
-                                  const std::function<void()>& on_failure);
+                                  const helix::SharedCallback<void()>& on_failure);
 
 /// Show the "Print Was Terminated — Restart from the beginning?" modal.
 /// Exposed so post-resume backstops (e.g. AmsBackendSnapmaker) can surface it
@@ -102,6 +104,6 @@ void restart_print_from_beginning(IMoonrakerAPI* api, const std::string& filenam
 /// @param on_failure      May be null.
 void show_restart_required_modal(IMoonrakerAPI* api, const std::string& filename,
                                  const std::string& authored_reason, std::string log_prefix,
-                                 std::function<void()> on_failure);
+                                 helix::SharedCallback<void()> on_failure);
 
 } // namespace helix::ui

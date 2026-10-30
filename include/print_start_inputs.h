@@ -16,6 +16,7 @@
 #include "file_version.h"
 #include "fit_check.h"
 #include "gcode_footer_summary.h"
+#include "helix_shared_callback.h"
 #include "moonraker_types.h"
 #include "preflight_validator.h"
 #include "print_start_checks.h"
@@ -119,9 +120,9 @@ enum class FileRead {
 class FileStartFactsLoader {
   public:
     /// Downloads the file and answers ok plus a local path the scan may read.
-    using DownloadFn =
-        std::function<void(std::function<void(bool ok, const std::string& local_path)>)>;
-    using ReadyFn = std::function<void(FileStartFacts facts)>;
+    using DownloadFn = helix::SharedCallback<void(
+        helix::SharedCallback<void(bool ok, const std::string& local_path)>)>;
+    using ReadyFn = helix::SharedCallback<void(FileStartFacts facts)>;
 
     explicit FileStartFactsLoader(IMoonrakerAPI* api);
     ~FileStartFactsLoader();
@@ -132,7 +133,7 @@ class FileStartFactsLoader {
 
     /// Hears the metadata read's answer (nullopt when it failed) before the
     /// file is read, so a caller can size its wait from the file.
-    using MetadataFn = std::function<void(const std::optional<FileMetadata>& metadata)>;
+    using MetadataFn = helix::SharedCallback<void(const std::optional<FileMetadata>& metadata)>;
 
     /// Gather facts for @p filename and answer once, on the main thread. A
     /// failed metadata read, footer read or download still answers, with what
@@ -150,7 +151,7 @@ class FileStartFactsLoader {
         size_t palette_size = 0; ///< the whole-file scan stops once every palette tool is seen
         /// A readable copy on this host to read the tail from, or empty. Asked
         /// only when the footer read is issued.
-        std::function<std::string()> local_source;
+        helix::SharedCallback<std::string()> local_source;
         bool on_moonraker = true; ///< false for a USB file Moonraker has no copy of
         DownloadFn download;      ///< null: download to a temp file, deleted after the scan
         /// false: a footer that does not answer ends the read; no download.
@@ -165,13 +166,13 @@ class FileStartFactsLoader {
     struct ScanHooks {
         /// The footer answered what it was read for. @p tools_answered: it
         /// was read for the tools and its summary.tools_used is the answer.
-        std::function<void(const gcode::GcodeFooterSummary& summary, bool tools_answered)>
+        helix::SharedCallback<void(const gcode::GcodeFooterSummary& summary, bool tools_answered)>
             on_footer;
         /// The footer did not answer. @p full_scan_follows is need.full_scan_justified().
-        std::function<void(bool full_scan_follows)> on_footer_unanswered;
+        helix::SharedCallback<void(bool full_scan_follows)> on_footer_unanswered;
         /// The whole-file scan finished. @p read_file is false when the file
         /// could not be had, in which case @p tools is empty and says nothing.
-        std::function<void(std::set<int> tools, bool read_file)> on_tools_scanned;
+        helix::SharedCallback<void(std::set<int> tools, bool read_file)> on_tools_scanned;
     };
 
     enum class ScanStart {
@@ -192,7 +193,7 @@ class FileStartFactsLoader {
     /// Download to a temp file named for this scan (@p generation), so an
     /// earlier scan of the same file deleting its own copy cannot take this one.
     void download_to_temp(const std::string& file_key, uint32_t generation,
-                          std::function<void(bool ok, const std::string& local_path)> done);
+                          helix::SharedCallback<void(bool ok, const std::string& local_path)> done);
 
     IMoonrakerAPI* api_ = nullptr;
     uint32_t generation_ = 0;

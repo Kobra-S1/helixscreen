@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
 #include "thumbnail_load_context.h"
 #include "thumbnail_processor.h"
@@ -117,10 +118,10 @@ class ThumbnailCache {
     /// FAILURE through this success channel, handing back the raw PNG. It still
     /// renders, just without the pre-scale, and callers could not previously
     /// tell the two apart.
-    using SuccessCallback = std::function<void(const std::string& path, bool degraded)>;
+    using SuccessCallback = helix::SharedCallback<void(const std::string& path, bool degraded)>;
 
     /// Callback for failed thumbnail fetch (receives error message)
-    using ErrorCallback = std::function<void(const std::string& error)>;
+    using ErrorCallback = helix::SharedCallback<void(const std::string& error)>;
 
     /**
      * @brief Default constructor - auto-sizes based on available disk space

@@ -7,6 +7,7 @@
 #include "ui_timer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "helix_shared_callback.h"
 
 #include <functional>
 #include <lvgl.h>
@@ -38,10 +39,10 @@ class PrinterSwitchFlow {
     /// Teardown releases the current printer, rebuild brings up the active one and reports
     /// whether it started connecting, land_home shows the home panel.
     struct Restart {
-        std::function<void()> teardown;
+        helix::SharedCallback<void()> teardown;
         /// Returns whether a connection to the new printer was started.
-        std::function<bool()> rebuild;
-        std::function<void()> land_home;
+        helix::SharedCallback<bool()> rebuild;
+        helix::SharedCallback<void()> land_home;
     };
 
     /// `config` is read through the reference because its owner assigns it after
@@ -147,7 +148,7 @@ class PrinterSwitchFlow {
     void dismiss_interstitial();
 
     /// The latest switch or add request waiting for the next tick; empty when none is.
-    std::function<void()> m_pending_request;
+    helix::SharedCallback<void()> m_pending_request;
     /// A wizard cancel restored the previous printer and its restart waits for the tick.
     bool m_cancel_restart_pending = false;
     /// The tick that runs the waiting work is already posted.
@@ -159,12 +160,12 @@ class PrinterSwitchFlow {
     /// The tick: a waiting cancel's restart, then the waiting request.
     void run_waiting_restarts();
     /// Makes `request` the one that runs on the next tick, replacing any request waiting.
-    void post_request(std::function<void()> request);
+    void post_request(helix::SharedCallback<void()> request);
 
     /// During an UpdateQueue drain, posts `work` through post_request() and returns true.
     /// Otherwise this call is newer than anything waiting: it runs a waiting cancel's
     /// restart in place, drops a waiting request, and returns false for the caller to go on.
-    bool deferred_out_of_drain(const char* entry, std::function<void()> work);
+    bool deferred_out_of_drain(const char* entry, helix::SharedCallback<void()> work);
 
     /// The teardown hook. Entered inside an UpdateQueue drain it asserts in debug builds and
     /// logs an error in release builds, where the teardown still runs.

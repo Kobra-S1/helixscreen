@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "helix_shared_callback.h"
+
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -131,7 +133,7 @@ plugin_config_edit_backups(const nlohmann::json& result);
 
 class KlipperConfigEditor {
   public:
-    using FeatureStateSource = std::function<PluginFeatureState()>;
+    using FeatureStateSource = helix::SharedCallback<PluginFeatureState()>;
 
     KlipperConfigEditor();
 
@@ -143,9 +145,9 @@ class KlipperConfigEditor {
     /// workers stop. Without this join the monitor keeps polling a freed editor.
     ~KlipperConfigEditor();
 
-    using SuccessCallback = std::function<void()>;
-    using ErrorCallback = std::function<void(const std::string& error)>;
-    using SectionMapCallback = std::function<void(std::map<std::string, SectionLocation>)>;
+    using SuccessCallback = helix::SharedCallback<void()>;
+    using ErrorCallback = helix::SharedCallback<void(const std::string& error)>;
+    using SectionMapCallback = helix::SharedCallback<void(std::map<std::string, SectionLocation>)>;
 
     static ConfigStructure parse_structure(const std::string& content);
 
@@ -260,8 +262,8 @@ class KlipperConfigEditor {
     /// How a restart that Klipper does not survive is undone, and what a
     /// restart it survives cleans up.
     struct RestartRecovery {
-        std::function<void(IMoonrakerAPI&, SuccessCallback, ErrorCallback)> restore;
-        std::function<void(IMoonrakerAPI&, SuccessCallback)> cleanup;
+        helix::SharedCallback<void(IMoonrakerAPI&, SuccessCallback, ErrorCallback)> restore;
+        helix::SharedCallback<void(IMoonrakerAPI&, SuccessCallback)> cleanup;
     };
 
     /// The file-API route: load, apply, back up, upload, then restart.
