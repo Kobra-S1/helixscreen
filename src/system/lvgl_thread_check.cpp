@@ -129,6 +129,7 @@ void reset_reported_sites() noexcept {
 
 } // namespace helix::lvgl_thread_check
 
+// NAMESPACE_OK: C linkage; the patched LVGL entry points call this symbol by name
 extern "C" void helix_lvgl_thread_check(const char* entry, const void* caller) {
     using namespace helix::lvgl_thread_check;
 
