@@ -25,6 +25,7 @@
 #include "panel_widget_size.h"
 #include "printer_detector.h"
 #include "printer_state.h" // PrinterState, complete for get_print_lifecycle()
+#include "sort_small.h"
 #include "theme_manager.h"
 #include "tool_change_request.h"
 #include "ui/ams_drawing_utils.h"
@@ -178,7 +179,7 @@ void build_lid(const tray::TrayBox& unit_box, float lid_h, float x0, float x1, L
         pts[i] = lid.left[i];
         pts[kCapPoints + i] = lid.right[i];
     }
-    std::sort(pts, pts + 2 * kCapPoints, [](tray::PointF a, tray::PointF b) {
+    helix::sort_small(pts, pts + 2 * kCapPoints, [](tray::PointF a, tray::PointF b) {
         return a.x < b.x || (a.x == b.x && a.y < b.y);
     });
     int k = 0;

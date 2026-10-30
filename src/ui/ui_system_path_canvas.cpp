@@ -18,6 +18,7 @@
 #include "lvgl/lvgl.h"
 #include "nozzle_renderer_dispatch.h"
 #include "theme_manager.h"
+#include "widget_data_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -25,7 +26,6 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
-#include <unordered_map>
 
 using namespace helix::ui::syspath;
 namespace fpath = helix::ui::fpath;
@@ -35,11 +35,10 @@ static constexpr int32_t kDefaultWidth = 300;
 static constexpr int32_t kDefaultHeight = 150;
 
 // Registry of widget data
-static std::unordered_map<lv_obj_t*, SystemPathData*> s_registry;
+static helix::WidgetDataRegistry<SystemPathData> s_registry;
 
 static SystemPathData* get_data(lv_obj_t* obj) {
-    auto it = s_registry.find(obj);
-    return (it != s_registry.end()) ? it->second : nullptr;
+    return s_registry.get(obj);
 }
 
 const SystemPathData* helix::ui::syspath::system_path_data(lv_obj_t* obj) {
@@ -314,10 +313,8 @@ static void system_path_draw_cb(lv_event_t* e) {
 
 static void system_path_delete_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
-    auto it = s_registry.find(obj);
-    if (it != s_registry.end()) {
-        std::unique_ptr<SystemPathData> data(it->second);
-        s_registry.erase(it);
+    if (SystemPathData* registered = s_registry.take(obj)) {
+        std::unique_ptr<SystemPathData> data(registered);
         // data automatically freed when unique_ptr goes out of scope
     }
 }
@@ -335,7 +332,7 @@ static void* system_path_xml_create(lv_xml_parser_state_t* state, const char** a
         return nullptr;
 
     auto data_ptr = std::make_unique<SystemPathData>();
-    s_registry[obj] = data_ptr.get();
+    s_registry.set(obj, data_ptr.get());
     auto* data = data_ptr.release();
 
     load_theme_colors(data);
@@ -419,7 +416,7 @@ lv_obj_t* ui_system_path_canvas_create(lv_obj_t* parent) {
     }
 
     auto data_ptr = std::make_unique<SystemPathData>();
-    s_registry[obj] = data_ptr.get();
+    s_registry.set(obj, data_ptr.get());
     auto* data = data_ptr.release();
 
     load_theme_colors(data);

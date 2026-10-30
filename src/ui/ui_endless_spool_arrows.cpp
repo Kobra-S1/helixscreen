@@ -10,7 +10,9 @@
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "lvgl/lvgl.h"
+#include "sort_small.h"
 #include "theme_manager.h"
+#include "widget_data_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -19,7 +21,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
 // ============================================================================
@@ -70,11 +71,10 @@ struct EndlessSpoolArrowsData {
 };
 
 // Registry of widget data
-static std::unordered_map<lv_obj_t*, EndlessSpoolArrowsData*> s_registry;
+static helix::WidgetDataRegistry<EndlessSpoolArrowsData> s_registry;
 
 static EndlessSpoolArrowsData* get_data(lv_obj_t* obj) {
-    auto it = s_registry.find(obj);
-    return (it != s_registry.end()) ? it->second : nullptr;
+    return s_registry.get(obj);
 }
 
 // Load theme-aware colors
@@ -143,15 +143,15 @@ static int mark_max_pos(const EndlessSpoolMark& m) {
 // every mark it overlaps, so a chain alternates between two levels rather than
 // stepping down per hop.
 static void assign_height_levels(std::vector<EndlessSpoolMark>& marks) {
-    std::stable_sort(marks.begin(), marks.end(),
-                     [](const EndlessSpoolMark& a, const EndlessSpoolMark& b) {
-                         const int span_a = mark_max_pos(a) - mark_min_pos(a);
-                         const int span_b = mark_max_pos(b) - mark_min_pos(b);
-                         if (span_a != span_b) {
-                             return span_a > span_b;
-                         }
-                         return mark_min_pos(a) < mark_min_pos(b);
-                     });
+    helix::sort_small(marks.begin(), marks.end(),
+                      [](const EndlessSpoolMark& a, const EndlessSpoolMark& b) {
+                          const int span_a = mark_max_pos(a) - mark_min_pos(a);
+                          const int span_b = mark_max_pos(b) - mark_min_pos(b);
+                          if (span_a != span_b) {
+                              return span_a > span_b;
+                          }
+                          return mark_min_pos(a) < mark_min_pos(b);
+                      });
 
     for (size_t i = 0; i < marks.size(); ++i) {
         EndlessSpoolMark& mark = marks[i];
@@ -200,10 +200,10 @@ static void assign_bar_gaps(std::vector<EndlessSpoolMark>& marks) {
                 }
             }
         }
-        std::sort(lower.bar_gaps.begin(), lower.bar_gaps.end(),
-                  [](const EndlessSpoolColumn& a, const EndlessSpoolColumn& b) {
-                      return column_pos(a) < column_pos(b);
-                  });
+        helix::sort_small(lower.bar_gaps.begin(), lower.bar_gaps.end(),
+                          [](const EndlessSpoolColumn& a, const EndlessSpoolColumn& b) {
+                              return column_pos(a) < column_pos(b);
+                          });
     }
 }
 
@@ -526,10 +526,8 @@ static void endless_spool_arrows_draw_cb(lv_event_t* e) {
 
 static void endless_spool_arrows_delete_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
-    auto it = s_registry.find(obj);
-    if (it != s_registry.end()) {
-        std::unique_ptr<EndlessSpoolArrowsData> data(it->second);
-        s_registry.erase(it);
+    if (EndlessSpoolArrowsData* registered = s_registry.take(obj)) {
+        std::unique_ptr<EndlessSpoolArrowsData> data(registered);
         // data automatically freed when unique_ptr goes out of scope
     }
 }
@@ -548,7 +546,7 @@ static void* endless_spool_arrows_xml_create(lv_xml_parser_state_t* state, const
     }
 
     auto data_ptr = std::make_unique<EndlessSpoolArrowsData>();
-    s_registry[obj] = data_ptr.get();
+    s_registry.set(obj, data_ptr.get());
     auto* data = data_ptr.release();
 
     // Load theme-aware colors
@@ -627,7 +625,7 @@ lv_obj_t* ui_endless_spool_arrows_create(lv_obj_t* parent) {
     }
 
     auto data_ptr = std::make_unique<EndlessSpoolArrowsData>();
-    s_registry[obj] = data_ptr.get();
+    s_registry.set(obj, data_ptr.get());
     auto* data = data_ptr.release();
 
     // Load theme-aware colors

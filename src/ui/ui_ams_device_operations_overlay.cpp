@@ -23,6 +23,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
 #include "settings_manager.h"
+#include "sort_small.h"
 #include "static_panel_registry.h"
 #include "ui/ams_drawing_utils.h"
 #include "ui/ui_widget_helpers.h"
@@ -466,8 +467,9 @@ void AmsDeviceOperationsOverlay::populate_section_list() {
     cached_sections_ = backend->get_device_sections();
 
     // Sort by display_order
-    std::sort(cached_sections_.begin(), cached_sections_.end(),
-              [](const auto& a, const auto& b) { return a.display_order < b.display_order; });
+    helix::sort_small(
+        cached_sections_.begin(), cached_sections_.end(),
+        [](const auto& a, const auto& b) { return a.display_order < b.display_order; });
 
     // Only show sections that have actions
     auto all_actions = backend->get_device_actions();

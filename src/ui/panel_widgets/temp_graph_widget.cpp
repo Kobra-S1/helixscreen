@@ -22,6 +22,7 @@
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "printer_state.h"
+#include "sort_small.h"
 #include "temperature_sensor_manager.h"
 #include "theme_manager.h"
 #include "widget_subjects.h"
@@ -646,7 +647,7 @@ void TempGraphWidget::TempGraphConfigModal::populate_sensor_list() {
                    is_extruder_name(entry["name"].get<std::string>());
         };
         auto split = std::stable_partition(arr.begin(), arr.end(), entry_is_extruder);
-        std::sort(arr.begin(), split, [](const nlohmann::json& a, const nlohmann::json& b) {
+        helix::sort_small(arr.begin(), split, [](const nlohmann::json& a, const nlohmann::json& b) {
             return a["name"].get<std::string>() < b["name"].get<std::string>();
         });
     }

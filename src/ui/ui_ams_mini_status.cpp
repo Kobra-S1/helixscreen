@@ -24,6 +24,7 @@
 #include "panel_widget_size.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
+#include "widget_data_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -32,7 +33,6 @@
 #include <cstring>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 // ============================================================================
@@ -208,11 +208,10 @@ struct AmsMiniStatusData {
 };
 
 // Static registry for safe cleanup
-static std::unordered_map<lv_obj_t*, AmsMiniStatusData*> s_registry;
+static helix::WidgetDataRegistry<AmsMiniStatusData> s_registry;
 
 static AmsMiniStatusData* get_data(lv_obj_t* obj) {
-    auto it = s_registry.find(obj);
-    return (it != s_registry.end()) ? it->second : nullptr;
+    return s_registry.get(obj);
 }
 
 // Forward declarations for internal functions
@@ -1086,15 +1085,14 @@ static void rebuild(AmsMiniStatusData* data) {
 /** Cleanup callback when widget is deleted */
 static void on_delete(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
-    auto it = s_registry.find(obj);
-    if (it != s_registry.end()) {
-        std::unique_ptr<AmsMiniStatusData> data(it->second);
+    if (AmsMiniStatusData* registered = s_registry.get(obj)) {
+        std::unique_ptr<AmsMiniStatusData> data(registered);
         if (data) {
             data->slots_version_observer.reset();
             data->current_slot_observer.reset();
         }
         // data automatically freed when unique_ptr goes out of scope
-        s_registry.erase(it);
+        s_registry.take(obj);
     }
 }
 
@@ -1173,7 +1171,7 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
 
     // Register and set up cleanup
     AmsMiniStatusData* data = data_ptr.release();
-    s_registry[container] = data;
+    s_registry.set(container, data);
     lv_obj_add_event_cb(container, on_delete, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(container, on_size_changed, LV_EVENT_SIZE_CHANGED, nullptr);
 
@@ -1512,7 +1510,7 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
 
     // Register and set up cleanup
     AmsMiniStatusData* data = data_ptr.release();
-    s_registry[container] = data;
+    s_registry.set(container, data);
     lv_obj_add_event_cb(container, on_delete, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(container, on_size_changed, LV_EVENT_SIZE_CHANGED, nullptr);
 

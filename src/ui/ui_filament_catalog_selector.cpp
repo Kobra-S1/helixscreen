@@ -8,6 +8,7 @@
 #include "filament_favorites.h"
 #include "filament_variants.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "sort_small.h"
 #include "text_io.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -34,8 +35,8 @@ const std::string kFavoritesVendor = "\x01"
 
 bool FilamentCatalogSelector::callbacks_registered_ = false;
 
-std::map<lv_obj_t*, FilamentCatalogSelector*>& FilamentCatalogSelector::registry() {
-    static std::map<lv_obj_t*, FilamentCatalogSelector*> instances;
+WidgetDataRegistry<FilamentCatalogSelector>& FilamentCatalogSelector::registry() {
+    static WidgetDataRegistry<FilamentCatalogSelector> instances;
     return instances;
 }
 
@@ -43,9 +44,8 @@ FilamentCatalogSelector* FilamentCatalogSelector::from_event(lv_event_t* e) {
     // Walk up from the event target until we hit a registered fragment root.
     auto* obj = static_cast<lv_obj_t*>(lv_event_get_target(e));
     while (obj) {
-        auto it = registry().find(obj);
-        if (it != registry().end()) {
-            return it->second;
+        if (FilamentCatalogSelector* selector = registry().get(obj)) {
+            return selector;
         }
         obj = lv_obj_get_parent(obj);
     }
@@ -117,13 +117,13 @@ void FilamentCatalogSelector::attach(lv_obj_t* fragment_root) {
     detach();
     root_ = fragment_root;
     if (root_) {
-        registry()[root_] = this;
+        registry().set(root_, this);
     }
 }
 
 void FilamentCatalogSelector::detach() {
     if (root_) {
-        registry().erase(root_);
+        registry().take(root_);
         root_ = nullptr;
     }
 }
@@ -528,16 +528,16 @@ FilamentCatalogSelector::ordered_products_for(const std::string& vendor,
             if (p && type_allowed(p->type))
                 products.push_back(p);
         }
-        std::sort(products.begin(), products.end(),
-                  [](const helix::printer::EffectiveFilament* a,
-                     const helix::printer::EffectiveFilament* b) {
-                      const std::string na = helix::text_io::to_lower(a->name);
-                      const std::string nb = helix::text_io::to_lower(b->name);
-                      if (na != nb)
-                          return na < nb;
-                      return helix::text_io::to_lower(a->brand) <
-                             helix::text_io::to_lower(b->brand);
-                  });
+        helix::sort_small(products.begin(), products.end(),
+                          [](const helix::printer::EffectiveFilament* a,
+                             const helix::printer::EffectiveFilament* b) {
+                              const std::string na = helix::text_io::to_lower(a->name);
+                              const std::string nb = helix::text_io::to_lower(b->name);
+                              if (na != nb)
+                                  return na < nb;
+                              return helix::text_io::to_lower(a->brand) <
+                                     helix::text_io::to_lower(b->brand);
+                          });
         return products;
     }
 

@@ -19,6 +19,7 @@
 #include "log_redact.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "network_tester.h"
+#include "sort_small.h"
 #include "static_panel_registry.h"
 #include "system_settings_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -719,10 +720,10 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
 
     // Sort by signal strength
     std::vector<WiFiNetwork> sorted_networks = networks;
-    std::sort(sorted_networks.begin(), sorted_networks.end(),
-              [](const WiFiNetwork& a, const WiFiNetwork& b) {
-                  return a.signal_strength > b.signal_strength;
-              });
+    helix::sort_small(sorted_networks.begin(), sorted_networks.end(),
+                      [](const WiFiNetwork& a, const WiFiNetwork& b) {
+                          return a.signal_strength > b.signal_strength;
+                      });
 
     // Connected network SSID
     const std::string& connected_ssid = status.ssid;

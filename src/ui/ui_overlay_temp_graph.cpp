@@ -18,6 +18,7 @@
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "printer_temperature_state.h"
+#include "sort_small.h"
 #include "static_panel_registry.h"
 #include "temp_graph_tooltip.h"
 #include "temperature_controller.h"
@@ -418,8 +419,8 @@ void TempGraphOverlay::discover_series() {
         for (const auto& [name, info] : extruders) {
             sorted_extruders.push_back(&info);
         }
-        std::sort(sorted_extruders.begin(), sorted_extruders.end(),
-                  [](const auto* a, const auto* b) { return a->name < b->name; });
+        helix::sort_small(sorted_extruders.begin(), sorted_extruders.end(),
+                          [](const auto* a, const auto* b) { return a->name < b->name; });
 
         for (const auto* ext : sorted_extruders) {
             SeriesInfo s;
@@ -943,8 +944,8 @@ void TempGraphOverlay::rebuild_extruder_selector() {
     for (const auto& [name, info] : extruders) {
         sorted.push_back(&info);
     }
-    std::sort(sorted.begin(), sorted.end(),
-              [](const auto* a, const auto* b) { return a->name < b->name; });
+    helix::sort_small(sorted.begin(), sorted.end(),
+                      [](const auto* a, const auto* b) { return a->name < b->name; });
 
     // Touch-friendly pill sizing (esp. Tiny breakpoint / 480x320): the four tool
     // pills share the narrow 33% control column. Grow each pill to fill the row

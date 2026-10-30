@@ -44,6 +44,7 @@
 #include "printer_event_journal.h"
 #include "printer_state.h"
 #include "runtime_config.h"
+#include "sort_small.h"
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/print_status_library_layout.h"
 #include "standard_macros.h"
@@ -2080,7 +2081,7 @@ std::vector<PrintStatusWidget::NozzleToolOption> PrintStatusWidget::build_nozzle
     // extruders() is an unordered_map, so impose the printer's own order:
     // "extruder" first, then extruder1, extruder2, ... A plain name sort would
     // put extruder10 ahead of extruder2.
-    std::sort(options.begin(), options.end(), [](const auto& a, const auto& b) {
+    helix::sort_small(options.begin(), options.end(), [](const auto& a, const auto& b) {
         return helix::tool_number_for_extruder(a.extruder_name).value_or(0) <
                helix::tool_number_for_extruder(b.extruder_name).value_or(0);
     });

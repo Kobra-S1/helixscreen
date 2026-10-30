@@ -16,6 +16,7 @@
 #include "static_subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
+#include "widget_data_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -23,7 +24,6 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
-#include <unordered_map>
 
 using namespace helix;
 
@@ -75,24 +75,22 @@ struct LaneBarData {
 // Static registry mapping lv_obj_t* -> LaneBarData*. Used for safe cleanup
 // during lv_deinit() when user_data may be unreliable (mirrors s_slot_registry
 // in ui_ams_slot.cpp).
-static std::unordered_map<lv_obj_t*, LaneBarData*> s_lane_bar_registry;
+static helix::WidgetDataRegistry<LaneBarData> s_lane_bar_registry;
 
 static LaneBarData* get_lane_bar_data(lv_obj_t* obj) {
-    auto it = s_lane_bar_registry.find(obj);
-    return (it != s_lane_bar_registry.end()) ? it->second : nullptr;
+    return s_lane_bar_registry.get(obj);
 }
 
 static void register_lane_bar_data(lv_obj_t* obj, LaneBarData* data) {
-    s_lane_bar_registry[obj] = data;
+    s_lane_bar_registry.set(obj, data);
 }
 
 /**
  * @brief Unregister and cleanup lane bar data (normal widget deletion path).
  */
 static void unregister_lane_bar_data(lv_obj_t* obj) {
-    auto it = s_lane_bar_registry.find(obj);
-    if (it != s_lane_bar_registry.end()) {
-        std::unique_ptr<LaneBarData> data(it->second);
+    if (LaneBarData* registered = s_lane_bar_registry.get(obj)) {
+        std::unique_ptr<LaneBarData> data(registered);
         if (data) {
             // Reset the dynamic-subject lifetime BEFORE its observer so the
             // observer's weak_ptr is already expired (#705 ordering).
@@ -104,7 +102,7 @@ static void unregister_lane_bar_data(lv_obj_t* obj) {
             data->has_error_observer.reset();
             data->severity_observer.reset();
         }
-        s_lane_bar_registry.erase(it);
+        s_lane_bar_registry.take(obj);
     }
 }
 
@@ -115,9 +113,9 @@ static void unregister_lane_bar_data(lv_obj_t* obj) {
  * cleanup_all_slot_data() in ui_ams_slot.cpp.
  */
 static void cleanup_all_lane_bar_data() {
-    for (auto& [obj, data] : s_lane_bar_registry) {
+    s_lane_bar_registry.for_each([](lv_obj_t* /*obj*/, LaneBarData* data) {
         if (!data)
-            continue;
+            return;
         data->active_loaded_lifetime.reset();
         data->lane_state_observer.reset();
         data->color_observer.reset();
@@ -126,7 +124,7 @@ static void cleanup_all_lane_bar_data() {
         data->has_error_observer.reset();
         data->severity_observer.reset();
         delete data;
-    }
+    });
     s_lane_bar_registry.clear();
     spdlog::debug("[AmsLaneBar] Pre-deinit cleanup: all lane bar data released");
 }

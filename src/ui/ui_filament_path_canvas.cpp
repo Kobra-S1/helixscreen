@@ -22,6 +22,7 @@
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "theme_manager.h"
+#include "widget_data_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -29,7 +30,6 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
-#include <unordered_map>
 
 using namespace helix::ui::fpath;
 
@@ -37,13 +37,12 @@ using namespace helix::ui::fpath;
 // Registry + theme
 // ============================================================================
 
-static std::unordered_map<lv_obj_t*, FilamentPathData*> s_registry;
+static helix::WidgetDataRegistry<FilamentPathData> s_registry;
 
 namespace helix::ui::fpath {
 
 FilamentPathData* get_data(lv_obj_t* obj) {
-    auto it = s_registry.find(obj);
-    return (it != s_registry.end()) ? it->second : nullptr;
+    return s_registry.get(obj);
 }
 
 } // namespace helix::ui::fpath
@@ -331,16 +330,15 @@ static void filament_path_click_cb(lv_event_t* e) {
 
 static void filament_path_delete_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
-    auto it = s_registry.find(obj);
-    if (it != s_registry.end()) {
+    if (FilamentPathData* registered = s_registry.get(obj)) {
         // Stop any running animations before deleting
-        std::unique_ptr<FilamentPathData> data(it->second);
+        std::unique_ptr<FilamentPathData> data(registered);
         if (data) {
             delete_all_animations(obj);
             // Cancel any pending canvas refresh + free draw buffers.
             layered_teardown(obj, data.get());
         }
-        s_registry.erase(it);
+        s_registry.take(obj);
         // data automatically freed when unique_ptr goes out of scope
     }
 }
@@ -355,7 +353,7 @@ static lv_obj_t* create_widget(lv_obj_t* parent) {
         return nullptr;
 
     auto data_ptr = std::make_unique<FilamentPathData>();
-    s_registry[obj] = data_ptr.get();
+    s_registry.set(obj, data_ptr.get());
     auto* data = data_ptr.release();
 
     refresh_theme_colors(data);

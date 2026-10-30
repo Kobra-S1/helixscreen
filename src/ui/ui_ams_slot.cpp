@@ -30,6 +30,7 @@
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 #include "ui/ui_widget_helpers.h"
+#include "widget_data_registry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -39,7 +40,6 @@
 #include <cstring>
 #include <initializer_list>
 #include <memory>
-#include <unordered_map>
 
 using namespace helix;
 
@@ -128,30 +128,28 @@ struct AmsSlotData {
 
 // Static registry mapping lv_obj_t* -> AmsSlotData*
 // Used for safe cleanup during lv_deinit() when user_data may be unreliable
-static std::unordered_map<lv_obj_t*, AmsSlotData*> s_slot_registry;
+static helix::WidgetDataRegistry<AmsSlotData> s_slot_registry;
 
 /**
  * @brief Get AmsSlotData for an object from the registry
  */
 static AmsSlotData* get_slot_data(lv_obj_t* obj) {
-    auto it = s_slot_registry.find(obj);
-    return (it != s_slot_registry.end()) ? it->second : nullptr;
+    return s_slot_registry.get(obj);
 }
 
 /**
  * @brief Register slot data in the registry
  */
 static void register_slot_data(lv_obj_t* obj, AmsSlotData* data) {
-    s_slot_registry[obj] = data;
+    s_slot_registry.set(obj, data);
 }
 
 /**
  * @brief Unregister and cleanup slot data
  */
 static void unregister_slot_data(lv_obj_t* obj) {
-    auto it = s_slot_registry.find(obj);
-    if (it != s_slot_registry.end()) {
-        std::unique_ptr<AmsSlotData> data(it->second);
+    if (AmsSlotData* registered = s_slot_registry.get(obj)) {
+        std::unique_ptr<AmsSlotData> data(registered);
         if (data) {
             // Use reset() to properly unsubscribe from subjects (which are alive
             // during normal widget deletion). This frees the LambdaObserverContext,
@@ -178,7 +176,7 @@ static void unregister_slot_data(lv_obj_t* obj) {
             data->action_observer.reset();
             data->target_slot_observer.reset();
         }
-        s_slot_registry.erase(it);
+        s_slot_registry.take(obj);
     }
 }
 
@@ -192,9 +190,9 @@ static void unregister_slot_data(lv_obj_t* obj) {
  * DELETE events fired later find nothing in the registry and are no-ops.
  */
 static void cleanup_all_slot_data() {
-    for (auto& [obj, data] : s_slot_registry) {
+    s_slot_registry.for_each([](lv_obj_t* /*obj*/, AmsSlotData* data) {
         if (!data)
-            continue;
+            return;
 
         // Reset the dynamic-subject lifetime first (same #705 ordering as above).
         data->status_lifetime.reset();
@@ -213,7 +211,7 @@ static void cleanup_all_slot_data() {
         data->target_slot_observer.reset();
 
         delete data;
-    }
+    });
     s_slot_registry.clear();
     spdlog::debug("[AmsSlot] Pre-deinit cleanup: all slot data released");
 }
