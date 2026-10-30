@@ -347,7 +347,7 @@ class AmsOperationSidebar {
     /// sidebar lives; @p run must not need the sidebar.
     void run_backend_op_after_preheat(helix::ui::FilamentHeatOp op, helix::ui::PreheatSkip skip,
                                       int slot_index,
-                                      std::function<void(helix::ui::FilamentOpTicket)> run);
+                                      helix::SharedCallback<void(helix::ui::FilamentOpTicket)> run);
 
     // ---- Shared dispatch plan (filament_op_dispatch.h) ----------------------
     // Read the live backend's capabilities into the planner's plain-value form.

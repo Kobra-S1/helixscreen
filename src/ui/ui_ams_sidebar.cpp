@@ -1949,9 +1949,9 @@ void AmsOperationSidebar::handle_load_with_preheat(int slot_index) {
         [slot_index](FilamentOpTicket ticket) { dispatch_backend_load(slot_index, ticket); });
 }
 
-void AmsOperationSidebar::run_backend_op_after_preheat(FilamentHeatOp op, PreheatSkip skip,
-                                                       int slot_index,
-                                                       std::function<void(FilamentOpTicket)> run) {
+void AmsOperationSidebar::run_backend_op_after_preheat(
+    FilamentHeatOp op, PreheatSkip skip, int slot_index,
+    helix::SharedCallback<void(FilamentOpTicket)> run) {
     FilamentOpHeater* heater = get_filament_op_heater();
     if (!heater) {
         spdlog::warn("[AmsSidebar] No FilamentOpHeater — running {} with no preheat",

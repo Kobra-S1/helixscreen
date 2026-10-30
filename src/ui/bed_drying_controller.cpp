@@ -92,8 +92,8 @@ void BedDryingController::check_print_alarm() {
     print_alarm_raised_ = alarm;
 }
 
-void BedDryingController::await_unload(std::function<void()> on_done,
-                                       std::function<void(bool started)> on_failed) {
+void BedDryingController::await_unload(helix::SharedCallback<void()> on_done,
+                                       helix::SharedCallback<void(bool started)> on_failed) {
     drop_unload_wait();
     unload_done_ = std::move(on_done);
     unload_failed_ = std::move(on_failed);
@@ -275,8 +275,8 @@ void BedDryingController::restore() {
 }
 
 void BedDryingController::prepare(const Material& material, bool with_appliance,
-                                  std::function<void()> on_ready,
-                                  std::function<void(const std::string&)> on_error) {
+                                  helix::SharedCallback<void()> on_ready,
+                                  helix::SharedCallback<void(const std::string&)> on_error) {
     if (!api_ || record_.latched || pre_run_ == PreRun::Preparing) {
         if (on_error) {
             on_error(lv_tr("Drying is already running"));
