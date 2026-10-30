@@ -1777,6 +1777,26 @@ HELIX_CRASH_TEST=1 ./helix-screen -vv
 
 **Do not combine with `--test`.** The crash handler is *not* installed in test mode (crashes during development are deliberately not recorded), but this variable is checked unconditionally afterwards — so `--test` gives you a bare segfault with no crash report, which is not what you were trying to verify.
 
+### `HELIX_LVGL_THREAD_CHECK`
+
+What to do when an LVGL entry point is called from a thread other than the LVGL (main) thread. The checked entry points are every subject write (`lv_subject_set_int`/`_float`/`_pointer`/`_color`, `lv_subject_copy_string`, `lv_subject_snprintf`) and `lv_subject_notify`, `lv_timer_create`/`lv_timer_delete` (which covers `lv_async_call` and `lv_obj_delete_async`), and `lv_obj_delete`/`lv_obj_clean`.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `off` (or `0`), `report`, `abort`; anything else keeps the default |
+| **Default** | `report` under `--test` and in `helix-tests`; `off` otherwise |
+| **File** | `src/system/lvgl_thread_check.cpp` (hook), `patches/lvgl_thread_check_hook.patch` (call sites) |
+
+`report` writes one stderr block per distinct call site (the entry point, the thread's name and a backtrace) and an `[LvglThreadCheck]` error line to the log, then carries on. `abort` writes the first one and calls `abort()`, so the run fails at the call that crossed the thread.
+
+```bash
+# Make the first off-thread LVGL call fatal
+HELIX_LVGL_THREAD_CHECK=abort ./build/bin/helix-screen --test -vv
+HELIX_LVGL_THREAD_CHECK=abort ./build/bin/helix-tests '[tag]'
+```
+
+The backtrace names only exported symbols; resolve the `(+0x...)` offsets against the same binary with `nm -C`. **Release builds compile the check out** of LVGL (`LV_HELIX_THREAD_CHECK` in `lv_conf.h` is unset under `HELIX_RELEASE_BUILD`, and the ESP32 firmware never sets it), so the variable does nothing on a shipped device.
+
 ### `HELIX_STRICT_OVERLAY_CHECK`
 
 Turn overlay-registration violations from a warning into a hard failure. Mirrors the `HELIX_STRICT_BG_THREAD_CHECK` machinery below: opt-in, dev/test only, compiled out of release builds.

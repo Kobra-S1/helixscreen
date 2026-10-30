@@ -27,6 +27,7 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "http_executor.h"
 #include "moonraker_client_mock.h"
+#include "system/lvgl_thread_check.h"
 #include "thumbnail_processor.h"
 
 #include <spdlog/sinks/null_sink.h>
@@ -199,6 +200,11 @@ class IsolationListener : public Catch::EventListenerBase {
         auto null_sink = std::make_shared<spdlog::sinks::null_sink_mt>();
         auto null_logger = std::make_shared<spdlog::logger>("null", null_sink);
         spdlog::set_default_logger(std::move(null_logger));
+
+        // Report every LVGL call made off the LVGL thread (stderr, once per call
+        // site); HELIX_LVGL_THREAD_CHECK=abort makes the first one fail the run.
+        helix::lvgl_thread_check::set_mode(
+            helix::lvgl_thread_check::mode_from_env(helix::lvgl_thread_check::Mode::Report));
 
         // Pre-warm process-wide worker pools ONCE before any per-test thread
         // baseline is captured. ThumbnailProcessor is a Meyer's singleton whose
