@@ -186,7 +186,11 @@ if ! tail -1 lib/libhv/hconfig.h 2>/dev/null | grep -q '#endif'; then
         || echo "⚠ libhv configure failed"
 fi
 
-JOBS_ARG="${JOBS:--j\$(nproc)}"
+# No -j unless JOBS names one: the remote's own make then picks it through
+# helix-claim jobs, which reads its jobpool, else its cores bounded by the memory
+# it may use, a container's limit included. A bare core count would ignore that
+# memory.
+JOBS_ARG="${JOBS:-}"
 
 # patches/ is per-branch. Moving this clone between branches leaves the
 # submodules carrying the previous branch's hunks, and the apply guard reads the
