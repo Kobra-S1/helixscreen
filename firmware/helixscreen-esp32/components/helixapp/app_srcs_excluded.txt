@@ -228,6 +228,7 @@ src/system/log_collector.cpp  # not in the v1 Core+AMS cut
 src/system/log_path_probe.cpp  # not in the v1 Core+AMS cut
 src/system/logging_init.cpp  # not in the v1 Core+AMS cut
 src/system/lvgl_log_handler.cpp  # not in the v1 Core+AMS cut
+src/system/lvgl_thread_check.cpp  # debug-only thread check; the firmware lv_conf.h never enables the hook
 src/system/makeid_bt_printer.cpp  # not in the v1 Core+AMS cut
 src/system/makeid_protocol.cpp  # not in the v1 Core+AMS cut
 src/system/memory_profiling.cpp  # not in the v1 Core+AMS cut
