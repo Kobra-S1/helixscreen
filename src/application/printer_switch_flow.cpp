@@ -205,7 +205,7 @@ void PrinterSwitchFlow::run_waiting_restarts() {
     }
 }
 
-void PrinterSwitchFlow::post_request(std::function<void()> request) {
+void PrinterSwitchFlow::post_request(helix::SharedCallback<void()> request) {
     if (m_pending_request) {
         spdlog::info("[PrinterSwitchFlow] A newer request replaces the one waiting for the tick");
     }
@@ -213,7 +213,8 @@ void PrinterSwitchFlow::post_request(std::function<void()> request) {
     arm_restart_tick();
 }
 
-bool PrinterSwitchFlow::deferred_out_of_drain(const char* entry, std::function<void()> work) {
+bool PrinterSwitchFlow::deferred_out_of_drain(const char* entry,
+                                              helix::SharedCallback<void()> work) {
     if (!ui::UpdateQueue::instance().is_draining()) {
         // Made in place, this call is newer than anything waiting: a cancel's restart runs
         // first, as it would have on the tick, and a waiting request is dropped.
