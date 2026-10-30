@@ -32,6 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         shellcheck python3-pip python3-venv openssh-server rsync busybox less \
     && rm -rf /var/lib/apt/lists/*
 
+# The distribution's bats is too old for the suite (bats_require_minimum_version,
+# run --separate-stderr); CI installs it from npm, and so does this.
+RUN npm install -g bats@1.11.1
+
 RUN groupadd -g "$USER_GID" "$USER_NAME" \
     && useradd -m -u "$USER_UID" -g "$USER_GID" -s /bin/bash "$USER_NAME" \
     && mkdir -p /run/sshd \
