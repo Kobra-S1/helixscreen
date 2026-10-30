@@ -118,9 +118,45 @@ via_shell() { run bash -c '. "$1"; echo "host=[${REMOTE_HOST:-}] dir=[${REMOTE_D
     [ "$status" -eq 0 ]
     for k in HELIX_TEST_HOST HELIX_TEST_CONTAINER HELIX_TEST_WORKDIR HELIX_TEST_TREES_HOST \
              HELIX_TEST_TREES HELIX_TEST_CCACHE HELIX_TEST_LOCK_DIR HELIX_TEST_HOST_AUTO \
-             REMOTE_HOST REMOTE_USER REMOTE_DIR REMOTE_BUILD_DIR; do
+             HELIX_TEST_MEMORY REMOTE_HOST REMOTE_USER REMOTE_DIR REMOTE_BUILD_DIR; do
         contains "$k" "$output"
     done
+}
+
+@test "the test container's memory limit is a key the file can set" {
+    hosts HELIX_TEST_MEMORY=96g
+    run bash -c '. "$1"; echo "mem=[${HELIX_TEST_MEMORY:-}]"' _ "$LIB"
+    [ "$status" -eq 0 ]
+    contains "mem=[96g]" "$output"
+    lacks "is not a build-hosts key" "$output"
+}
+
+# An ssh that saves what each call reads on stdin (the remote scripts
+# remote-build.sh sends) and succeeds without reaching anything.
+capture_ssh() {
+    mock_command_script ssh 'n=$(ls "$BATS_TEST_TMPDIR"/ssh-in-* 2>/dev/null | wc -l | tr -d " ")
+case " $* " in *" -O "*) exit 0 ;; esac
+cat > "$BATS_TEST_TMPDIR/ssh-in-$n"; exit 0'
+    mock_command_script scp 'exit 0'
+}
+
+@test "remote-build.sh passes no -j unless JOBS names one, so the remote make sizes its own" {
+    capture_ssh
+    hosts REMOTE_HOST=ok.invalid
+    # It reads only git (a diff, the untracked list) and writes a temp dir, so the
+    # real checkout is safe; the scratch tree has no .git for it to read.
+    cd "$ROOT"
+    run scripts/remote-build.sh test
+    [ "$status" -eq 0 ] || fail "remote-build failed: $output"
+    build=$(grep -l "JOBS_ARG=" "$BATS_TEST_TMPDIR"/ssh-in-*)
+    [ -n "$build" ] || fail "no build script captured: $(ls "$BATS_TEST_TMPDIR")"
+    grep -qx 'JOBS_ARG=""' "$build" || fail "$(grep JOBS_ARG= "$build")"
+
+    rm -f "$BATS_TEST_TMPDIR"/ssh-in-*
+    JOBS=-j7 run scripts/remote-build.sh test
+    [ "$status" -eq 0 ] || fail "remote-build failed: $output"
+    build=$(grep -l "JOBS_ARG=" "$BATS_TEST_TMPDIR"/ssh-in-*)
+    grep -qx 'JOBS_ARG="-j7"' "$build" || fail "$(grep JOBS_ARG= "$build")"
 }
 
 @test "a file that exists but cannot be read says so" {
