@@ -195,6 +195,33 @@ run_wrapper() {
     cmp -s "$REPO_ROOT/moonraker-plugin/helix_print.py" "$home/helix_print/helix_print.py"
 }
 
+@test "a CDN tarball cut off mid-stream is not installed" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_home "$home"
+    mkdir -p "$CDN_ROOT/releases/v1.2.3"
+    # The gzip stream ends early, right after a whole member: tar alone sees a
+    # shorter archive that holds the files the content check reads, and only
+    # gzip can tell it was cut.
+    python3 - "$REPO_ROOT/moonraker-plugin" "$CDN_ROOT/releases/v1.2.3/helix-print-plugin.tar.gz" <<'PY'
+import gzip, io, sys, tarfile
+src, out = sys.argv[1], sys.argv[2]
+buf = io.BytesIO()
+t = tarfile.open(fileobj=buf, mode="w", format=tarfile.USTAR_FORMAT)
+for name in ("install.sh", "helix_print_conf.sh", "helix_print.py"):
+    t.add(f"{src}/{name}", arcname=name)
+data = buf.getvalue()
+open(out, "wb").write(gzip.compress(data)[:-8])
+PY
+
+    run_wrapper "$home" v1.2.3
+    [ "$status" -eq 0 ] || fail "install failed: $output"
+    grep -q 'release.test/v1.2.3/moonraker-plugin/helix_print.py' "$FETCH_LOG" ||
+        fail "did not fall back to GitHub: $(cat "$FETCH_LOG")"
+    for f in $(plugin_files); do
+        [ -f "$home/helix_print/$f" ] || fail "$f missing from the install"
+    done
+}
+
 @test "a release the CDN holds uninstalls from its tarball" {
     local home="$BATS_TEST_TMPDIR/home"
     setup_home "$home"
@@ -235,6 +262,13 @@ run_wrapper() {
     [ "$status" -eq 0 ] || fail "package failed: $output"
     [ "$(tar -tzf "$tgz" | sort)" = "$(plugin_files | tr ' ' '\n' | sort)" ] ||
         fail "tarball: $(tar -tzf "$tgz" | tr '\n' ' ')"
+}
+
+@test "the plugin tarball's files are owned by root, whoever packed it" {
+    local tgz="$BATS_TEST_TMPDIR/plugin.tar.gz"
+    "$REPO_ROOT/scripts/package-helix-plugin.sh" "$tgz"
+    run python3 -c 'import sys, tarfile; print(sorted({(m.uid, m.gid) for m in tarfile.open(sys.argv[1])}))' "$tgz"
+    [ "$output" = "[(0, 0)]" ] || fail "owners: $output"
 }
 
 @test "packaging refuses a plugin missing a file the wrapper fetches" {

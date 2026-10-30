@@ -160,16 +160,18 @@ fetch_plugin() {
 
 # Unpack release @1's tarball from the CDN into the empty directory @2. Fails,
 # leaving @2 empty, when the CDN does not hold the release or what it serves is
-# not the plugin.
+# not the plugin. Decompressed to a file first: in a pipe only tar's status
+# counts, and a cut-off stream would unpack part of the plugin.
 fetch_plugin_cdn() {
     _fc_tgz="$2/.helix-print-plugin.tar.gz"
+    _fc_tar="$2/.helix-print-plugin.tar"
     if fetch_file "$PLUGIN_CDN_URL/releases/$1/helix-print-plugin.tar.gz" "$_fc_tgz" &&
-        gzip -dc "$_fc_tgz" 2>/dev/null | (cd "$2" && tar -xf - 2>/dev/null) &&
+        gzip -dc "$_fc_tgz" > "$_fc_tar" 2>/dev/null &&
+        (cd "$2" && tar -xf "$_fc_tar" 2>/dev/null) &&
         is_plugin_download "$2"; then
-        rm -f "$_fc_tgz"
+        rm -f "$_fc_tgz" "$_fc_tar"
         return 0
     fi
-    rm -f "$_fc_tgz"
     rm -rf "$2" && mkdir "$2"
     return 1
 }

@@ -1460,19 +1460,7 @@ jobs:
           s3cp "$zip" "s3://${R2_BUCKET}/${R2_PREFIX}releases/v${RELEASE_VERSION}/${filename}"
         done
 
-        # 3. Upload the HelixPrint plugin tarball beside the release's other
-        #    artifacts, and the remote installer the app's plugin command fetches.
-        #    Before the manifest: the app it publishes shows that command. The
-        #    installer is one file every release overwrites, so a pruned release
-        #    still has it; it falls back to GitHub for a tarball it cannot find.
-        echo "=== Uploading the HelixPrint plugin ==="
-        scripts/package-helix-plugin.sh plugin-out/helix-print-plugin.tar.gz
-        s3cp plugin-out/helix-print-plugin.tar.gz \
-          "s3://${R2_BUCKET}/${R2_PREFIX}releases/v${RELEASE_VERSION}/helix-print-plugin.tar.gz"
-        s3cp moonraker-plugin/remote-install.sh "s3://${R2_BUCKET}/${R2_PREFIX}plugin/remote-install.sh" \
-          --content-type "text/x-shellscript"
-
-        # 4. Generate and upload the per-channel manifests. This is the artifact
+        # 3. Generate and upload the per-channel manifests. This is the artifact
         #    that makes a release visible to in-app updaters, so it is published as
         #    early as possible — right after its referenced tarballs/zips and BEFORE
         #    the install.sh / symbol uploads, whose transient failures must never be
@@ -1542,10 +1530,21 @@ jobs:
           echo "=== ${CHANNEL} manifest uploaded and verified (v${served}) ==="
         done
 
-        # 5. Upload install.sh AFTER the manifest — it is not manifest-referenced,
+        # 4. Upload install.sh AFTER the manifest — it is not manifest-referenced,
         #    so a transient failure here must never gate release visibility.
         echo "Uploading install.sh..."
         s3cp installer/install.sh "s3://${R2_BUCKET}/${R2_PREFIX}install.sh" \
+          --content-type "text/x-shellscript"
+
+        # 5. The HelixPrint plugin tarball beside the release's other artifacts,
+        #    and the remote installer the app's plugin command fetches. Also after
+        #    the manifest: the installer every release overwrites stays from the
+        #    previous release, and it falls back to GitHub for a tarball it lacks.
+        echo "Uploading the HelixPrint plugin..."
+        scripts/package-helix-plugin.sh plugin-out/helix-print-plugin.tar.gz
+        s3cp plugin-out/helix-print-plugin.tar.gz \
+          "s3://${R2_BUCKET}/${R2_PREFIX}releases/v${RELEASE_VERSION}/helix-print-plugin.tar.gz"
+        s3cp moonraker-plugin/remote-install.sh "s3://${R2_BUCKET}/${R2_PREFIX}plugin/remote-install.sh" \
           --content-type "text/x-shellscript"
 
         # Symbol maps and debug info are published separately by the upload-symbols

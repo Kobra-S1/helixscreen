@@ -27,9 +27,17 @@ for f in $files; do
 done
 [ -z "$missing" ] || { echo "missing from $plugin_dir:$missing" >&2; exit 1; }
 
+# Owned by root:root rather than the packing user: a printer that unpacks as
+# root would otherwise restore a uid that does not exist there.
+if tar --version 2>/dev/null | grep -q 'GNU tar'; then
+    owner_flags=(--owner=0 --group=0 --numeric-owner)
+else
+    owner_flags=(--uid 0 --gid 0)
+fi
+
 mkdir -p "$(dirname "$out")"
 tmp="$out.tmp.$$"
 trap 'rm -f "$tmp"' EXIT
 # shellcheck disable=SC2086  # one word per file
-tar -czf "$tmp" -C "$plugin_dir" $files
+tar "${owner_flags[@]}" -czf "$tmp" -C "$plugin_dir" $files
 mv "$tmp" "$out"
