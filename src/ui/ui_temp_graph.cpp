@@ -6,6 +6,7 @@
 #include "ui_format_utils.h"
 #include "ui_swatch.h"
 
+#include "flat_map.h"
 #include "lv_draw_buf_guard.h"
 #include "system/crash_handler.h"
 #include "temp_graph_column_map.h"
@@ -18,7 +19,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <map>
 #include <memory>
 #include <stdlib.h>
 #include <string.h>
@@ -315,7 +315,7 @@ struct overrange_save_t {
 // pointers before chart A's DRAW_MAIN_END could restore them, leaving chart A's
 // over-range points stuck at LV_CHART_POINT_NONE (line gaps / frozen segments)
 // until the next data write.
-static std::map<ui_temp_graph_t*, std::vector<overrange_save_t>> s_overrange_saved;
+static helix::FlatMap<ui_temp_graph_t*, std::vector<overrange_save_t>> s_overrange_saved;
 
 // DRAW_MAIN_BEGIN: mask over-range points before LVGL draws chart lines
 static void mask_overrange_begin_cb(lv_event_t* e) {

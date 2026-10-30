@@ -35,8 +35,8 @@ const std::string kFavoritesVendor = "\x01"
 
 bool FilamentCatalogSelector::callbacks_registered_ = false;
 
-std::map<lv_obj_t*, FilamentCatalogSelector*>& FilamentCatalogSelector::registry() {
-    static std::map<lv_obj_t*, FilamentCatalogSelector*> instances;
+WidgetDataRegistry<FilamentCatalogSelector>& FilamentCatalogSelector::registry() {
+    static WidgetDataRegistry<FilamentCatalogSelector> instances;
     return instances;
 }
 
@@ -44,9 +44,8 @@ FilamentCatalogSelector* FilamentCatalogSelector::from_event(lv_event_t* e) {
     // Walk up from the event target until we hit a registered fragment root.
     auto* obj = static_cast<lv_obj_t*>(lv_event_get_target(e));
     while (obj) {
-        auto it = registry().find(obj);
-        if (it != registry().end()) {
-            return it->second;
+        if (FilamentCatalogSelector* selector = registry().get(obj)) {
+            return selector;
         }
         obj = lv_obj_get_parent(obj);
     }
@@ -118,13 +117,13 @@ void FilamentCatalogSelector::attach(lv_obj_t* fragment_root) {
     detach();
     root_ = fragment_root;
     if (root_) {
-        registry()[root_] = this;
+        registry().set(root_, this);
     }
 }
 
 void FilamentCatalogSelector::detach() {
     if (root_) {
-        registry().erase(root_);
+        registry().take(root_);
         root_ = nullptr;
     }
 }
