@@ -1270,8 +1270,8 @@ std::string ThumbnailCache::get_if_cached(const ThumbnailRequest& req) const {
 namespace {
 
 /// @p on_error, run on the main thread whichever thread reports.
-std::function<void(const std::string&)> main_thread_error(const char* tag,
-                                                          ThumbnailCache::ErrorCallback on_error) {
+helix::SharedCallback<void(const std::string&)>
+main_thread_error(const char* tag, ThumbnailCache::ErrorCallback on_error) {
     return [tag, on_error](const std::string& message) {
         helix::ui::queue_update(tag, [on_error, message]() { // QUEUE_TAG_OK: callers pass literals
             if (on_error) {
@@ -1288,7 +1288,7 @@ void cache_extracted_png(ThumbnailSource source, const std::string& id,
                          const std::vector<uint8_t>& png, time_t source_modified,
                          IMoonrakerAPI* api, const helix::ThumbnailTarget& target,
                          ThumbnailLoadContext ctx, ThumbnailCache::SuccessCallback on_success,
-                         const std::function<void(const std::string&)>& report_error) {
+                         const helix::SharedCallback<void(const std::string&)>& report_error) {
     if (get_thumbnail_cache().save_raw_png(source, id, png).empty()) {
         spdlog::warn("[ThumbnailCache] Failed to cache extracted thumbnail for {}", id);
         report_error("failed to cache extracted thumbnail for " + id);
