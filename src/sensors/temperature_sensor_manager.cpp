@@ -5,6 +5,7 @@
 
 #include "device_display_name.h"
 #include "humidity_sensor_types.h"
+#include "sort_small.h"
 #include "spdlog/spdlog.h"
 #include "text_io.h"
 #include "unit_conversions.h"
@@ -108,19 +109,6 @@ bool sorts_before(const TemperatureSensorConfig& a, const TemperatureSensorConfi
         return a.priority < b.priority;
     }
     return a.display_name < b.display_name;
-}
-
-/// Stable insertion sort. These lists hold a handful of sensors, where
-/// std::sort and std::stable_sort cost firmware flash and buy nothing.
-template <typename T, typename Less> void sort_small(std::vector<T>& items, Less less) {
-    for (size_t i = 1; i < items.size(); ++i) {
-        T item = std::move(items[i]);
-        size_t j = i;
-        for (; j > 0 && less(item, items[j - 1]); --j) {
-            items[j] = std::move(items[j - 1]);
-        }
-        items[j] = std::move(item);
-    }
 }
 
 } // namespace
