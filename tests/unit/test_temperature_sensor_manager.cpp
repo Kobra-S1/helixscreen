@@ -15,6 +15,7 @@
  * - Sorted output by priority
  */
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/sensor_manager_test_access.h"
@@ -62,25 +63,9 @@ class TemperatureSensorManagerTestAccess {
 // Test Fixture
 // ============================================================================
 
-class TemperatureSensorTestFixture {
+class TemperatureSensorTestFixture : public LVGLTestFixture {
   public:
     TemperatureSensorTestFixture() {
-        // Initialize LVGL (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a headless display for testing
-        if (!display_created_) {
-            display_ = lv_display_create(480, 320);
-            alignas(64) static lv_color_t buf[480 * 10];
-            lv_display_set_buffers(display_, buf, nullptr, sizeof(buf),
-                                   LV_DISPLAY_RENDER_MODE_PARTIAL);
-            lv_display_set_flush_cb(display_,
-                                    [](lv_display_t* disp, const lv_area_t* area, uint8_t* px_map) {
-                                        lv_display_flush_ready(disp);
-                                    });
-            display_created_ = true;
-        }
-
         // Reset state for test isolation first (clears subjects)
         TemperatureSensorManagerTestAccess::reset(mgr());
 
@@ -123,13 +108,9 @@ class TemperatureSensorTestFixture {
     }
 
   private:
-    static lv_display_t* display_;
-    static bool display_created_;
 };
 
 // Static members
-lv_display_t* TemperatureSensorTestFixture::display_ = nullptr;
-bool TemperatureSensorTestFixture::display_created_ = false;
 
 // ============================================================================
 // Type Helper Tests (temperature_sensor_types.h)

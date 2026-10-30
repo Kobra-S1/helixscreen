@@ -16,6 +16,7 @@
 
 #include "ui_update_queue.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_language.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
@@ -192,16 +193,13 @@ namespace {
 
 // Test-mode mock WiFi backend + headless display, mirroring the auth-debounce
 // fixture so start_scan() exercises the real WiFiManager code path.
-struct OsLinkBehaviorFixture {
+struct OsLinkBehaviorFixture : LVGLTestFixture {
     ScopedRuntimeConfig scoped_config;
 
     OsLinkBehaviorFixture() {
         auto* rc = get_runtime_config();
         rc->test_mode = true;
         rc->use_real_wifi = false;
-        lv_init_safe();
-        ensure_headless_display();
-        helix::ui::UpdateQueue::instance().init();
     }
 
     ~OsLinkBehaviorFixture() {

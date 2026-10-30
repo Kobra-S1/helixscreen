@@ -18,6 +18,7 @@
 
 #include "ui_format_utils.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "print_completion.h"
@@ -34,24 +35,9 @@ using json = nlohmann::json;
 // Test Fixture
 // ============================================================================
 
-class PrintCompletionTestFixture {
+class PrintCompletionTestFixture : public LVGLTestFixture {
   public:
     PrintCompletionTestFixture() {
-        // Initialize LVGL (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a headless display for testing
-        if (!display_created_) {
-            display_ = lv_display_create(480, 320);
-            alignas(64) static lv_color_t buf[480 * 10];
-            lv_display_set_buffers(display_, buf, nullptr, sizeof(buf),
-                                   LV_DISPLAY_RENDER_MODE_PARTIAL);
-            lv_display_set_flush_cb(display_, [](lv_display_t* disp, const lv_area_t*, uint8_t*) {
-                lv_display_flush_ready(disp);
-            });
-            display_created_ = true;
-        }
-
         // Reset PrinterState for test isolation
         PrinterStateTestAccess::reset(state_);
 
@@ -150,8 +136,6 @@ class PrintCompletionTestFixture {
     }
 
     PrinterState state_;
-    static lv_display_t* display_;
-    static bool display_created_;
 
     lv_observer_t* observer_ = nullptr;
     PrintJobState prev_print_state_ = PrintJobState::STANDBY;
@@ -160,9 +144,6 @@ class PrintCompletionTestFixture {
     int completion_callback_count_ = 0;
     PrintJobState last_completion_state_ = PrintJobState::STANDBY;
 };
-
-lv_display_t* PrintCompletionTestFixture::display_ = nullptr;
-bool PrintCompletionTestFixture::display_created_ = false;
 
 // ============================================================================
 // First Callback Skipping Tests

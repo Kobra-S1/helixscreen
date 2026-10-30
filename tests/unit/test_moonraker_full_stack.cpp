@@ -32,6 +32,7 @@
 #include "../../include/printer_state.h"
 #include "../../lvgl/lvgl.h"
 #include "../helix_test_fixture.h"
+#include "../lvgl_test_fixture.h"
 #include "../mocks/mock_printer_state.h"
 #include "../test_helpers/mock_personas.h"
 #include "../test_helpers/update_queue_test_access.h"
@@ -49,26 +50,6 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
-// Global LVGL Initialization (called once per test session)
-// ============================================================================
-
-namespace {
-struct LVGLInitializerFullStack {
-    LVGLInitializerFullStack() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerFullStack lvgl_init;
-} // namespace
 
 // ============================================================================
 // Full Stack Test Fixture
@@ -85,7 +66,7 @@ static LVGLInitializerFullStack lvgl_init;
  *
  * This fixture verifies that all layers work together correctly.
  */
-class FullStackTestFixture {
+class FullStackTestFixture : public LVGLTestFixture {
   public:
     FullStackTestFixture()
         : client_(MoonrakerClientMock::PrinterType::VORON_24,
@@ -334,7 +315,7 @@ class TestableMoonrakerClientMock : public MoonrakerClientMock {
     }
 };
 
-class EventIntegrationFixture {
+class EventIntegrationFixture : public LVGLTestFixture {
   public:
     EventIntegrationFixture() : client_(MoonrakerClientMock::PrinterType::VORON_24, 1000.0) {
         shared_state_ = std::make_shared<MockPrinterState>();

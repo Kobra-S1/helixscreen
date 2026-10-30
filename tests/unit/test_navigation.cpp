@@ -5,7 +5,7 @@
 
 #include "../../include/theme_manager.h"
 #include "../../include/ui_nav_manager.h"
-#include "../helix_test_fixture.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../ui_test_utils.h"
 #include "lvgl/lvgl.h"
@@ -21,22 +21,13 @@ using namespace helix;
 
 // Test fixture for navigation tests.
 //
-// Derives from HelixTestFixture so the UpdateQueue is drained on the way out:
+// Derives from LVGLTestFixture so the UpdateQueue is drained on the way out:
 // panel switching notifies subjects, and observe<int> defers every apply,
 // so a hand-rolled fixture returns with those applies still queued and hands
 // them to whichever test runs next (tests/CLAUDE.md, "inherit, don't hand-roll").
-class NavigationTestFixture : public HelixTestFixture {
+class NavigationTestFixture : public LVGLTestFixture {
   public:
     NavigationTestFixture() {
-        // Initialize LVGL for testing (safe version avoids "already initialized" warnings)
-        lv_init_safe();
-
-        // Create a display for testing (headless)
-        // LVGL 9 requires aligned buffers - use alignas(64) for portability
-        lv_display_t* disp = lv_display_create(800, 480);
-        alignas(64) static lv_color_t buf1[800 * 10];
-        lv_display_set_buffers(disp, buf1, NULL, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
-
         // Initialize navigation system
         NavigationManager::instance().init();
     }

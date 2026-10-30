@@ -1215,6 +1215,72 @@ EOF
     [ -z "$output" ]
 }
 
+# --- One LVGL display per test process --------------------------------------
+#
+# LVGLTestFixture owns the test binary's display. A test that creates another
+# and keeps it makes that one the default, so every responsive decision after
+# it (breakpoints, px tokens, fonts) reads a geometry production never sees,
+# and every later lv_timer_handler() refreshes it too. A display made in a
+# static initializer is worse: it exists in every process the file links into,
+# whether or not one of its cases runs (prestonbrown/helixscreen#1943).
+#
+# File-level on purpose. A test that needs a second display for its own body
+# (a flush-wait probe, a rotation case) deletes it in the same file; the gate
+# asks only that each lv_display_create has an lv_display_delete beside it.
+# tests/lvgl_test_fixture.cpp makes the one display that is meant to live.
+
+# Calls on a line of their own count; comment lines that name one do not.
+display_calls() {
+    grep -E "$1[[:space:]]*\\(" "$2" | grep -cvE '^[[:space:]]*(//|\*)'
+}
+
+unreleased_display_files() {
+    local f creates deletes
+    for f in $(grep -rlE 'lv_display_create[[:space:]]*\(' "$@" 2>/dev/null); do
+        [[ "$f" == */lvgl_test_fixture.cpp ]] && continue
+        creates=$(display_calls lv_display_create "$f")
+        deletes=$(display_calls lv_display_delete "$f")
+        [ "$deletes" -lt "$creates" ] && echo "$f"
+    done
+    return 0
+}
+
+@test "every test display beside the fixture's is deleted in the same file" {
+    run unreleased_display_files tests/ --include='*.cpp' --include='*.h'
+    [ "$status" -eq 0 ]
+    [ -z "$output" ] || fail "derive from LVGLTestFixture instead of creating a display: $output"
+}
+
+@test "the display gate fires on a kept display and stays quiet on a deleted one" {
+    local d="${BATS_TEST_TMPDIR}/displays"
+    mkdir -p "$d/tests"
+    cat > "$d/kept.cpp" <<'EOF'
+struct Init {
+    Init() { lv_display_t* disp = lv_display_create(800, 480); (void)disp; }
+};
+static Init init;
+EOF
+    cat > "$d/prose.cpp" <<'EOF'
+// The fixture builds its display with a bare lv_display_create(), no driver.
+ * lv_display_create() is never called here.
+EOF
+    cat > "$d/scoped.cpp" <<'EOF'
+TEST_CASE("a second display for one body") {
+    lv_display_t* disp = lv_display_create(64, 32);
+    lv_display_delete(disp);
+}
+EOF
+    cat > "$d/tests/lvgl_test_fixture.cpp" <<'EOF'
+void ensure() { s_display = lv_display_create(800, 480); }
+EOF
+    run unreleased_display_files "$d" --include='*.cpp'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"kept.cpp"* ]] || fail "kept display not reported: $output"
+    lacks "scoped.cpp" "$output"
+    lacks "prose.cpp" "$output"
+    lacks "lvgl_test_fixture.cpp" "$output"
+}
+
 # --- AmsState is initialized with its XML names, always -------------------------
 #
 # AmsState is a process-wide singleton, so a single init_subjects(false) -

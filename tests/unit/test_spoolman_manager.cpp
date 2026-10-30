@@ -13,6 +13,7 @@
 #include "ui_spoolman_overlay.h"
 #include "ui_update_queue.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/ad5x_ifs_test_access.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/registered_backend.h"
@@ -124,27 +125,11 @@ using TA = SpoolmanManagerTestAccess;
 // LVGL Init (once per translation unit, idempotent)
 // ============================================================================
 
-namespace {
-struct LVGLInitializerSpoolman {
-    LVGLInitializerSpoolman() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, nullptr, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-static LVGLInitializerSpoolman lvgl_init;
-} // namespace
-
 // ============================================================================
 // Fixture — reset singleton state between tests (L053)
 // ============================================================================
 
-struct SpoolmanFixture {
+struct SpoolmanFixture : public LVGLTestFixture {
     static bool queue_initialized;
 
     SpoolmanFixture() {

@@ -22,6 +22,7 @@
 #include "../../include/ui_filename_utils.h"
 #include "../../include/ui_update_queue.h"
 #include "../../lvgl/lvgl.h"
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/history_call_counting_api.h"
 #include "../test_helpers/print_history_manager_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
@@ -38,31 +39,10 @@
 using namespace helix;
 using namespace helix::ui;
 // ============================================================================
-// Global LVGL Initialization
-// ============================================================================
-
-namespace {
-struct LVGLInitializerHistoryManager {
-    LVGLInitializerHistoryManager() {
-        static bool initialized = false;
-        if (!initialized) {
-            lv_init_safe();
-            lv_display_t* disp = lv_display_create(800, 480);
-            alignas(64) static lv_color_t buf[800 * 10];
-            lv_display_set_buffers(disp, buf, NULL, sizeof(buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
-            initialized = true;
-        }
-    }
-};
-
-static LVGLInitializerHistoryManager lvgl_init;
-} // namespace
-
-// ============================================================================
 // Test Fixture
 // ============================================================================
 
-class HistoryManagerTestFixture {
+class HistoryManagerTestFixture : public LVGLTestFixture {
     static bool queue_initialized;
 
   public:

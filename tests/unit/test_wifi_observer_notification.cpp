@@ -16,6 +16,7 @@
 
 #include "ui_update_queue.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_runtime_config.h"
 #include "../test_helpers/wifi_manager_test_access.h"
 #include "../ui_test_utils.h"
@@ -35,16 +36,13 @@ namespace {
 
 // Enables test mode (idle mock WiFi backend, no wpa_supplicant probing)
 // and a headless LVGL display for the duration of the test.
-struct ObserverNotificationFixture {
+struct ObserverNotificationFixture : LVGLTestFixture {
     ScopedRuntimeConfig scoped_config;
 
     ObserverNotificationFixture() {
         auto* rc = get_runtime_config();
         rc->test_mode = true;
         rc->use_real_wifi = false;
-        lv_init_safe();
-        ensure_headless_display();
-        helix::ui::UpdateQueue::instance().init();
     }
 
     std::shared_ptr<WiFiManager> make_manager() {
