@@ -7,6 +7,8 @@
 
 #include "ui_toolhead_badge.h"
 
+#include "sort_small.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -522,7 +524,7 @@ void resolve_hub_row(const SystemPathData& data, const SysLayout& L, GlobalRoute
 // PARALLEL by end_x ascending (leftmost tool first → bottom horizontal); HUB
 // after parallel, by distance descending.
 void sort_routes(GlobalRoute* routes, int n) {
-    std::stable_sort(routes, routes + n, [](const GlobalRoute& a, const GlobalRoute& b) {
+    helix::sort_small(routes, routes + n, [](const GlobalRoute& a, const GlobalRoute& b) {
         if (a.is_hub != b.is_hub)
             return !a.is_hub;
         return a.is_hub ? a.dist > b.dist : a.end_x < b.end_x;
@@ -654,7 +656,7 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
         float fan_end_x = (float)hub.hub_x;
         if (shared) {
             // Lanes enter the box top left to right, in stem order.
-            std::sort(members, members + member_count, [&](int a, int b) {
+            helix::sort_small(members, members + member_count, [&](int a, int b) {
                 return unit_stem_x(data, L, a) < unit_stem_x(data, L, b);
             });
             pg::MergeLaneIn in[SystemPathData::kMaxUnits];

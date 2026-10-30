@@ -10,6 +10,7 @@
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "lvgl/lvgl.h"
+#include "sort_small.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -143,15 +144,15 @@ static int mark_max_pos(const EndlessSpoolMark& m) {
 // every mark it overlaps, so a chain alternates between two levels rather than
 // stepping down per hop.
 static void assign_height_levels(std::vector<EndlessSpoolMark>& marks) {
-    std::stable_sort(marks.begin(), marks.end(),
-                     [](const EndlessSpoolMark& a, const EndlessSpoolMark& b) {
-                         const int span_a = mark_max_pos(a) - mark_min_pos(a);
-                         const int span_b = mark_max_pos(b) - mark_min_pos(b);
-                         if (span_a != span_b) {
-                             return span_a > span_b;
-                         }
-                         return mark_min_pos(a) < mark_min_pos(b);
-                     });
+    helix::sort_small(marks.begin(), marks.end(),
+                      [](const EndlessSpoolMark& a, const EndlessSpoolMark& b) {
+                          const int span_a = mark_max_pos(a) - mark_min_pos(a);
+                          const int span_b = mark_max_pos(b) - mark_min_pos(b);
+                          if (span_a != span_b) {
+                              return span_a > span_b;
+                          }
+                          return mark_min_pos(a) < mark_min_pos(b);
+                      });
 
     for (size_t i = 0; i < marks.size(); ++i) {
         EndlessSpoolMark& mark = marks[i];
@@ -200,10 +201,10 @@ static void assign_bar_gaps(std::vector<EndlessSpoolMark>& marks) {
                 }
             }
         }
-        std::sort(lower.bar_gaps.begin(), lower.bar_gaps.end(),
-                  [](const EndlessSpoolColumn& a, const EndlessSpoolColumn& b) {
-                      return column_pos(a) < column_pos(b);
-                  });
+        helix::sort_small(lower.bar_gaps.begin(), lower.bar_gaps.end(),
+                          [](const EndlessSpoolColumn& a, const EndlessSpoolColumn& b) {
+                              return column_pos(a) < column_pos(b);
+                          });
     }
 }
 

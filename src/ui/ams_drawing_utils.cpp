@@ -5,6 +5,7 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "display_numbering.h"
+#include "sort_small.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -448,7 +449,7 @@ SystemToolLayout compute_system_tool_layout(const helix::AmsSystemInfo& info,
             // to shares it, exactly as a PARALLEL lane does; the rest take new
             // positions. The hub group shares too when its lanes agree on one
             // named extruder that is already placed.
-            std::sort(direct_tools.begin(), direct_tools.end());
+            helix::sort_small(direct_tools.begin(), direct_tools.end());
             std::string hub_extruder;
             for (const std::string& name : hub_extruders) {
                 if (name.empty())
@@ -740,8 +741,8 @@ SystemToolLayout compute_system_tool_layout(const helix::AmsSystemInfo& info,
     }
     result.display_order.resize(result.units.size());
     std::iota(result.display_order.begin(), result.display_order.end(), 0);
-    std::stable_sort(result.display_order.begin(), result.display_order.end(),
-                     [&order_key](int a, int b) { return order_key[a] < order_key[b]; });
+    helix::sort_small(result.display_order.begin(), result.display_order.end(),
+                      [&order_key](int a, int b) { return order_key[a] < order_key[b]; });
 
     // Physical→extruder-name map. Positions no branch could identify stay empty.
     result.physical_to_extruder_name.assign(total_physical, std::string());

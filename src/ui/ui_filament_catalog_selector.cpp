@@ -8,6 +8,7 @@
 #include "filament_favorites.h"
 #include "filament_variants.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "sort_small.h"
 #include "text_io.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -528,16 +529,16 @@ FilamentCatalogSelector::ordered_products_for(const std::string& vendor,
             if (p && type_allowed(p->type))
                 products.push_back(p);
         }
-        std::sort(products.begin(), products.end(),
-                  [](const helix::printer::EffectiveFilament* a,
-                     const helix::printer::EffectiveFilament* b) {
-                      const std::string na = helix::text_io::to_lower(a->name);
-                      const std::string nb = helix::text_io::to_lower(b->name);
-                      if (na != nb)
-                          return na < nb;
-                      return helix::text_io::to_lower(a->brand) <
-                             helix::text_io::to_lower(b->brand);
-                  });
+        helix::sort_small(products.begin(), products.end(),
+                          [](const helix::printer::EffectiveFilament* a,
+                             const helix::printer::EffectiveFilament* b) {
+                              const std::string na = helix::text_io::to_lower(a->name);
+                              const std::string nb = helix::text_io::to_lower(b->name);
+                              if (na != nb)
+                                  return na < nb;
+                              return helix::text_io::to_lower(a->brand) <
+                                     helix::text_io::to_lower(b->brand);
+                          });
         return products;
     }
 
