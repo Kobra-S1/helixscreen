@@ -261,7 +261,7 @@ struct AnalysisLoaderFixture : LVGLUITestFixture {
         std::optional<FileStartFacts> answer;
         loader.load(
             name, [&answer](FileStartFacts facts) { answer = std::move(facts); },
-            [](std::function<void(bool, const std::string&)> done) { done(false, {}); });
+            [](helix::SharedCallback<void(bool, const std::string&)> done) { done(false, {}); });
         drain();
         return answer;
     }

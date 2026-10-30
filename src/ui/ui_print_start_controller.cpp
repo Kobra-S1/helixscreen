@@ -401,8 +401,9 @@ void PrintStartController::execute_print_start() {
 
 void PrintStartController::send_backend_preprint_then(const std::set<int>& tools_used,
                                                       const std::map<int, int>& remap,
-                                                      std::function<void()> on_done,
-                                                      std::function<void()> on_abort, bool routed) {
+                                                      helix::SharedCallback<void()> on_done,
+                                                      helix::SharedCallback<void()> on_abort,
+                                                      bool routed) {
     AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend) {
         // No backend — nothing to pre-send; proceed with the start step.
@@ -489,7 +490,7 @@ void PrintStartController::send_backend_preprint_then(const std::set<int>& tools
 }
 
 void PrintStartController::read_file_tools(const std::string& filename,
-                                           std::function<void(std::set<int>)> on_tools,
+                                           helix::SharedCallback<void(std::set<int>)> on_tools,
                                            helix::FileRead read) {
     if (!reprint_facts_) {
         reprint_facts_ = std::make_unique<helix::FileStartFactsLoader>(api_);
@@ -534,8 +535,9 @@ bool PrintStartController::divert_to_spool_removal() {
 
 void PrintStartController::initiate_reprint(const std::string& filename, const std::string& path,
                                             const std::set<int>& tools_used,
-                                            std::function<void()> on_started,
-                                            std::function<void()> on_error, int archive_plate) {
+                                            helix::SharedCallback<void()> on_started,
+                                            helix::SharedCallback<void()> on_error,
+                                            int archive_plate) {
     reprint_impl(filename, path, tools_used, std::nullopt, std::move(on_started),
                  std::move(on_error), archive_plate);
 }
@@ -543,16 +545,16 @@ void PrintStartController::initiate_reprint(const std::string& filename, const s
 void PrintStartController::initiate_reprint_with_routing(const std::string& filename,
                                                          const std::set<int>& tools_used,
                                                          const std::map<int, int>& routing,
-                                                         std::function<void()> on_started,
-                                                         std::function<void()> on_error) {
+                                                         helix::SharedCallback<void()> on_started,
+                                                         helix::SharedCallback<void()> on_error) {
     reprint_impl(filename, "", tools_used, routing, std::move(on_started), std::move(on_error), 0);
 }
 
 void PrintStartController::reprint_impl(const std::string& filename, const std::string& path,
                                         const std::set<int>& tools_used,
                                         const std::optional<std::map<int, int>>& routing,
-                                        std::function<void()> on_started,
-                                        std::function<void()> on_error, int archive_plate) {
+                                        helix::SharedCallback<void()> on_started,
+                                        helix::SharedCallback<void()> on_error, int archive_plate) {
     // path is used for the preparing-job identity; the start RPC takes the bare name.
 
     if (!api_) {

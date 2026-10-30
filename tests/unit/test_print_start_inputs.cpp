@@ -300,7 +300,7 @@ TEST_CASE_METHOD(LoaderFixture, "a footer that names its tools answers without a
     std::optional<FileStartFacts> answer;
     loader.load(
         file.name(), [&answer](FileStartFacts facts) { answer = std::move(facts); },
-        [&downloads](std::function<void(bool, const std::string&)> done) {
+        [&downloads](helix::SharedCallback<void(bool, const std::string&)> done) {
             ++downloads;
             done(false, {});
         });
@@ -325,7 +325,7 @@ TEST_CASE_METHOD(LoaderFixture, "a failed metadata read still answers",
     std::optional<FileStartFacts> answer;
     loader.load(
         file.name(), [&answer](FileStartFacts facts) { answer = std::move(facts); },
-        [](std::function<void(bool, const std::string&)> done) { done(false, {}); });
+        [](helix::SharedCallback<void(bool, const std::string&)> done) { done(false, {}); });
     drain();
 
     REQUIRE(answer.has_value());
@@ -346,7 +346,7 @@ TEST_CASE_METHOD(LoaderFixture, "a metadata-only load reads nothing of the file"
     std::optional<FileStartFacts> answer;
     loader.load(
         file.name(), [&answer](FileStartFacts facts) { answer = std::move(facts); },
-        [&downloads](std::function<void(bool, const std::string&)> done) {
+        [&downloads](helix::SharedCallback<void(bool, const std::string&)> done) {
             ++downloads;
             done(false, {});
         },
@@ -380,7 +380,7 @@ TEST_CASE_METHOD(LoaderFixture, "a footer-bounded load reads the footer and neve
                  "[print_start_inputs][loader]") {
     FileStartFactsLoader loader(api.get());
     int downloads = 0;
-    auto download = [&downloads](std::function<void(bool, const std::string&)> done) {
+    auto download = [&downloads](helix::SharedCallback<void(bool, const std::string&)> done) {
         ++downloads;
         done(false, {});
     };

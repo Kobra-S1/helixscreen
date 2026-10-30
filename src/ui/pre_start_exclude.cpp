@@ -160,8 +160,8 @@ void send_pre_start_exclusions(IMoonrakerAPI* api, std::vector<std::string> name
     }
 }
 
-std::function<void()> with_pre_start_exclusions(std::function<void()> on_confirmed,
-                                                std::vector<std::string> names) {
+helix::SharedCallback<void()> with_pre_start_exclusions(helix::SharedCallback<void()> on_confirmed,
+                                                        std::vector<std::string> names) {
     if (names.empty()) {
         return on_confirmed;
     }
