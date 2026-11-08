@@ -12,6 +12,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <poll.h>
+#include <sys/syscall.h>
 #include <system_error>
 #include <unistd.h>
 
@@ -27,6 +28,29 @@ constexpr auto kReapInterval = std::chrono::milliseconds(10);
 // drain() wakes at least this often to let waitpid notice a child that died
 // without closing its stdout, which a pipe alone would never report.
 constexpr int kChildCheckMs = 60000;
+
+// Linux's number on every architecture this builds for; the armhf toolchain's
+// headers predate it.
+#ifndef SYS_close_range
+constexpr long SYS_close_range = 436;
+#endif
+// For kernels before 5.9, which have no close_range. Not the descriptor limit:
+// that can be a million, and this runs before nmcli can start. The app never
+// comes near this many open descriptors.
+constexpr int kCloseWithoutSyscallLimit = 4096;
+
+// Nothing above stderr is nmcli's. Sockets the app opened without close-on-exec
+// would outlive a crashed app in this nmcli, keeping its listening port taken and
+// its connections open until nmcli next tries to print. Runs between fork and
+// exec, so it only makes system calls.
+void close_descriptors_above_stderr() {
+    if (::syscall(SYS_close_range, STDERR_FILENO + 1, ~0U, 0U) == 0) {
+        return;
+    }
+    for (int fd = STDERR_FILENO + 1; fd < kCloseWithoutSyscallLimit; ++fd) {
+        ::close(fd);
+    }
+}
 
 } // namespace
 
@@ -119,6 +143,7 @@ void NmcliMonitor::run_nmcli() {
         if (devnull >= 0) {
             ::dup2(devnull, STDERR_FILENO);
         }
+        close_descriptors_above_stderr();
         ::execlp("nmcli", "nmcli", "monitor", static_cast<char*>(nullptr));
         ::_exit(127);
     }

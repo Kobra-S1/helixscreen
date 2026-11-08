@@ -1038,7 +1038,9 @@ TEST_CASE("NM backend: an announced change refreshes the status at once",
     // refresh is 30s away.
     const std::string read = "GENERAL device show";
     REQUIRE(helix_test::wait_until([&] { return fake.count(read) == 2; }, 3000));
-    CHECK(fake.count("monitor") == 1);
+    // The refresh for nmcli's start is asked for as it is forked, so its reads
+    // can come before it has run.
+    REQUIRE(helix_test::wait_until([&] { return fake.count("monitor") == 1; }, 3000));
 
     fake.announce();
     CHECK(helix_test::wait_until([&] { return fake.count(read) == 3; }, 2000));
