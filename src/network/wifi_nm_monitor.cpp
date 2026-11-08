@@ -105,6 +105,8 @@ void NmcliMonitor::run_nmcli() {
         spdlog::error("[NmcliMonitor] pipe2() failed: {}", std::strerror(errno));
         return;
     }
+    // Asked here: sysconf is not on the list of what is safe after a fork.
+    const long open_max = ::sysconf(_SC_OPEN_MAX);
     const pid_t pid = ::fork();
     if (pid < 0) {
         spdlog::error("[NmcliMonitor] fork() failed: {}", std::strerror(errno));
@@ -118,6 +120,12 @@ void NmcliMonitor::run_nmcli() {
         const int devnull = ::open("/dev/null", O_WRONLY | O_CLOEXEC);
         if (devnull >= 0) {
             ::dup2(devnull, STDERR_FILENO);
+        }
+        // Nothing else here is nmcli's. Sockets the app opened without close-on-exec
+        // would outlive a crashed app in this nmcli, keeping its listening port
+        // taken and its connections open until nmcli next tries to print.
+        for (long fd = STDERR_FILENO + 1; fd < open_max; ++fd) {
+            ::close(static_cast<int>(fd));
         }
         ::execlp("nmcli", "nmcli", "monitor", static_cast<char*>(nullptr));
         ::_exit(127);
