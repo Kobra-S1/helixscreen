@@ -4,15 +4,18 @@
 #include "../../include/wifi_nm_monitor.h"
 #include "netd_test_server.h" // helix_test::wait_until
 
+#include <algorithm>
 #include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -30,7 +33,8 @@ namespace {
 
 /// A throwaway dir holding a fake `nmcli`. FAKE_NMCLI_MODE picks what it does
 /// once started: "announce" prints one line and stays up, "quiet" stays up
-/// silently, "exit" ends at once. Each start appends its pid and argv.
+/// silently, "listfds" records its open descriptors and stays up, "exit" ends
+/// at once. Each start appends its pid and argv.
 struct FakeMonitorNmcli {
     std::string dir;
 
@@ -45,6 +49,10 @@ printf '%s\n' "$*" >> "$FAKE_NMCLI_DIR/argv"
 case "$FAKE_NMCLI_MODE" in
   announce) echo "wlan0: connected"; exec sleep 1000 ;;
   quiet) exec sleep 1000 ;;
+  listfds)
+    ls "/proc/$$/fd" > "$FAKE_NMCLI_DIR/fds.tmp"
+    mv "$FAKE_NMCLI_DIR/fds.tmp" "$FAKE_NMCLI_DIR/fds"
+    exec sleep 1000 ;;
   *) exit 1 ;;
 esac
 )SH";
@@ -145,6 +153,32 @@ TEST_CASE("NmcliMonitor: stop during the pause before a restart returns at once"
     monitor.stop();
     CHECK(Clock::now() - began < milliseconds(1000));
     CHECK(fake.starts() == 1);
+}
+
+TEST_CASE("NmcliMonitor: nmcli inherits none of the app's descriptors",
+          "[network][nm][nm-monitor][slow]") {
+    // What the app has open when the monitor starts, as libhv leaves its sockets:
+    // without close-on-exec. Above the low numbers a shell uses for itself.
+    int leaky[2];
+    REQUIRE(::pipe(leaky) == 0);
+    constexpr int kAboveShellFds = 200;
+    const int inherited = ::fcntl(leaky[0], F_DUPFD, kAboveShellFds);
+    REQUIRE(inherited >= kAboveShellFds);
+
+    FakeMonitorNmcli fake("listfds");
+    helix::wifi::NmcliMonitor monitor([] {});
+    REQUIRE(monitor.start());
+    REQUIRE(helix_test::wait_until([&fake] { return !fake.lines("fds").empty(); }, 2000));
+    monitor.stop();
+
+    const std::vector<std::string> fds = fake.lines("fds");
+    CHECK(std::find(fds.begin(), fds.end(), std::to_string(inherited)) == fds.end());
+    // The monitor's own output must have survived the cleanup.
+    CHECK(std::find(fds.begin(), fds.end(), "1") != fds.end());
+
+    ::close(inherited);
+    ::close(leaky[0]);
+    ::close(leaky[1]);
 }
 
 TEST_CASE("NmcliMonitor: start and stop are idempotent", "[network][nm][nm-monitor][slow]") {
