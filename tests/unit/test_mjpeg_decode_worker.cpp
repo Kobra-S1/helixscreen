@@ -9,9 +9,22 @@
 #include <condition_variable>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+
+namespace helix {
+
+class MjpegDecodeWorkerTestAccess {
+  public:
+    static bool stop_requested(MjpegDecodeWorker& worker) {
+        std::lock_guard<std::mutex> lock(worker.mutex_);
+        return worker.stopping_;
+    }
+};
+
+} // namespace helix
 
 using helix::MjpegDecodeWorker;
 
@@ -213,9 +226,14 @@ TEST_CASE("MjpegDecodeWorker: stop with a frame waiting drops it", "[camera]") {
     worker.publish("first");
     REQUIRE(helix_test::wait_until([&] { return consumer.count.load() == 1; }, 2000));
     worker.publish("waiting");
-    consumer.release();
-    worker.stop();
 
-    // Either the worker took "waiting" before it saw the stop, or it never will.
-    CHECK(consumer.count.load() <= 2);
+    // The worker stays in its first consume until stop() has been asked for, so
+    // the frame is still waiting when it next looks.
+    std::thread stopper([&] { worker.stop(); });
+    REQUIRE(helix_test::wait_until(
+        [&] { return helix::MjpegDecodeWorkerTestAccess::stop_requested(worker); }, 2000));
+    consumer.release();
+    stopper.join();
+
+    CHECK(consumer.count.load() == 1);
 }

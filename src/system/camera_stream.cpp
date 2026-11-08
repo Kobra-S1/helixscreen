@@ -84,7 +84,7 @@ CameraFrame CameraStream::latest_running_frame(const WebcamInfo& feed, int max_w
     for (CameraStream* s : g_streams) {
         std::lock_guard<std::mutex> lock(s->buf_mutex_);
         if (!s->running_.load() || !s->has_frame_ || s->stream_url_ != feed.stream_url ||
-            s->snapshot_url_ != feed.snapshot_url)
+            s->snapshot_url_ != feed.snapshot_url || s->crop_w_.load() > 0)
             continue;
         return downscale_bgr(static_cast<const uint8_t*>(s->front_buf_->data), s->frame_width_,
                              s->frame_height_, static_cast<int>(s->front_buf_->header.stride),
@@ -428,8 +428,8 @@ void CameraStream::stream_thread_func() {
                 }
             };
 
-            // Stopped before anything below decodes on this thread: the single
-            // JPEG case and the snapshot fallback share the decoder's state.
+            // Stopped before anything below decodes on this thread: the snapshot
+            // fallback shares the decoder's state.
             HttpResponsePtr resp;
             {
                 start_decoder(thread_token);
@@ -521,7 +521,7 @@ void CameraStream::stream_thread_func() {
 
 void CameraStream::on_stream_body(const char* data, size_t size) {
     if (boundary_.empty()) {
-        return; // Not multipart: stream_thread_func() decodes the whole body as one JPEG
+        return; // Not multipart: stream_thread_func() counts it as a failed attempt
     }
     splitter_.append(data, size);
 
@@ -1167,6 +1167,19 @@ void CameraStream::destroy_draw_buf(lv_draw_buf_t* buf) {
     free(buf);
 }
 
+lv_draw_buf_t* CameraStream::take_buffer_of_size(uint32_t w, uint32_t h) {
+    const auto set_aside =
+        std::find_if(retired_bufs_.begin(), retired_bufs_.end(), [w, h](const lv_draw_buf_t* buf) {
+            return buf->header.w == w && buf->header.h == h;
+        });
+    if (set_aside == retired_bufs_.end()) {
+        return create_draw_buf(w, h, LV_COLOR_FORMAT_RGB888);
+    }
+    lv_draw_buf_t* buf = *set_aside;
+    retired_bufs_.erase(set_aside);
+    return buf;
+}
+
 void CameraStream::ensure_buffers(int width, int height) {
     std::lock_guard<std::mutex> lock(buf_mutex_);
 
@@ -1174,30 +1187,37 @@ void CameraStream::ensure_buffers(int width, int height) {
         return;
     }
 
-    spdlog::debug("[CameraStream] Allocating buffers for {}x{}", width, height);
+    spdlog::debug("[CameraStream] Switching buffers to {}x{}", width, height);
     has_frame_ = false;
 
-    // Retire old front buffer — LVGL may still reference it via lv_image_set_src
-    // until the widget processes the next frame and updates the source pointer.
-    // Retired buffers are freed in free_buffers() after the thread joins.
+    // Neither current buffer can be freed: both have been delivered to a view, and
+    // an image keeps the last one it was given until it gets another. The home
+    // widget does so behind the fullscreen view, whose crop box changes the size.
+    // They are set aside until free_buffers(), after the images have let go, and
+    // used again when the size returns, so each size costs one pair at most. An
+    // image still holding one then shows a newer frame, torn at worst.
     if (front_buf_) {
         retired_bufs_.push_back(front_buf_);
         front_buf_ = nullptr;
     }
     if (back_buf_) {
-        destroy_draw_buf(back_buf_);
+        retired_bufs_.push_back(back_buf_);
         back_buf_ = nullptr;
     }
 
     auto w = static_cast<uint32_t>(width);
     auto h = static_cast<uint32_t>(height);
-    front_buf_ = create_draw_buf(w, h, LV_COLOR_FORMAT_RGB888);
-    back_buf_ = create_draw_buf(w, h, LV_COLOR_FORMAT_RGB888);
+    front_buf_ = take_buffer_of_size(w, h);
+    back_buf_ = take_buffer_of_size(w, h);
 
     if (!front_buf_ || !back_buf_) {
         spdlog::error("[CameraStream] Failed to allocate draw buffers for {}x{}", width, height);
-        destroy_draw_buf(front_buf_);
-        destroy_draw_buf(back_buf_);
+        if (front_buf_) {
+            retired_bufs_.push_back(front_buf_);
+        }
+        if (back_buf_) {
+            retired_bufs_.push_back(back_buf_);
+        }
         front_buf_ = nullptr;
         back_buf_ = nullptr;
         return;
