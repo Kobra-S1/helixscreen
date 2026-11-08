@@ -111,6 +111,7 @@ src/network/wifi_backend_mock.cpp  # not in the v1 Core+AMS cut
 src/network/wifi_backend_netd.cpp  # not in the v1 Core+AMS cut
 src/network/wifi_backend_networkmanager.cpp  # not in the v1 Core+AMS cut
 src/network/wifi_backend_wpa_supplicant.cpp  # not in the v1 Core+AMS cut
+src/network/wifi_nm_monitor.cpp  # not in the v1 Core+AMS cut
 src/network/wifi_regdomain.cpp  # not in the v1 Core+AMS cut
 src/network/wifi_saved_config.cpp  # not in the v1 Core+AMS cut
 src/app_globals.cpp  # not in the v1 Core+AMS cut

@@ -100,14 +100,7 @@ WiFiError WifiBackendNetworkManager::start() {
         spdlog::debug("[WifiBackend] NM: WiFi radio is {}", *radio ? "on" : "off");
     }
 
-    // Start background status polling thread. Wrap — EAGAIN throws ([L083]).
-    status_running_ = true;
-    try {
-        status_thread_ = helix::make_thread(&WifiBackendNetworkManager::status_thread_func, this);
-    } catch (const std::system_error& e) {
-        spdlog::error("[WifiBackend] Failed to spawn status thread: {}", e.what());
-        status_running_ = false;
-    }
+    start_status_threads();
 
     country_settable_.store(helix::wifi::regdomain::find_iw() != nullptr &&
                             helix::wifi::regdomain::process_may_set());
@@ -201,6 +194,7 @@ void WifiBackendNetworkManager::stop() {
 
     // Stop status polling thread — hold CV mutex to ensure notify
     // is not lost if thread is between lock release and wait_for
+    monitor_.stop();
     {
         std::lock_guard<std::mutex> lock(status_cv_mutex_);
         status_running_ = false;
@@ -1072,9 +1066,11 @@ std::optional<WifiBackend::ConnectionStatus> WifiBackendNetworkManager::poll_sta
     // GENERAL.CONNECTION gives the NM profile name which can be "preconfigured"
     // or other non-SSID values. The wifi list gives the real broadcast SSID.
     if (status.connected) {
-        // Get actual SSID and signal from the IN-USE network in wifi list
-        std::string wifi_info =
-            exec_nmcli("-t -f IN-USE,SSID,SIGNAL device wifi list ifname " + wifi_interface_);
+        // Get actual SSID and signal from the IN-USE network in wifi list.
+        // Without --rescan no, nmcli has NetworkManager scan whenever its last
+        // scan is older than 30s, so every status read cost the radio a scan.
+        std::string wifi_info = exec_nmcli("-t -f IN-USE,SSID,SIGNAL device wifi list ifname " +
+                                           wifi_interface_ + " --rescan no");
         if (!wifi_info.empty()) {
             std::istringstream wifi_stream(wifi_info);
             std::string wifi_line;
@@ -1135,11 +1131,30 @@ bool WifiBackendNetworkManager::supports_5ghz() const {
 // Background Status Polling
 // ============================================================================
 
+void WifiBackendNetworkManager::start_status_threads() {
+    // Wrap — EAGAIN throws ([L083]).
+    status_running_ = true;
+    try {
+        status_thread_ = helix::make_thread(&WifiBackendNetworkManager::status_thread_func, this);
+    } catch (const std::system_error& e) {
+        spdlog::error("[WifiBackend] Failed to spawn status thread: {}", e.what());
+        status_running_ = false;
+        return;
+    }
+    if (!monitor_.start()) {
+        spdlog::warn("[WifiBackend] NM: nmcli monitor not running; changes show at the next "
+                     "periodic refresh");
+    }
+}
+
 void WifiBackendNetworkManager::status_thread_func() {
     spdlog::debug("[WifiBackend] NM: Status polling thread started");
 
-    constexpr auto kPollInterval = std::chrono::seconds(5);
-    // While DHCP is pending the address is the news the UI is waiting for.
+    // monitor_ wakes this thread for every change NetworkManager announces.
+    // Signal strength and an address renewed on a live connection are never
+    // announced, so they still refresh on this interval. While DHCP is pending
+    // the address is the news the UI is waiting for, and that still polls.
+    constexpr auto kUnannouncedRefreshInterval = std::chrono::seconds(30);
     constexpr auto kAwaitingIpv4PollInterval = std::chrono::seconds(1);
 
     while (status_running_) {
@@ -1182,7 +1197,7 @@ void WifiBackendNetworkManager::status_thread_func() {
         {
             std::unique_lock<std::mutex> lock(status_cv_mutex_);
             status_cv_.wait_for(
-                lock, awaiting_ipv4 ? kAwaitingIpv4PollInterval : kPollInterval,
+                lock, awaiting_ipv4 ? kAwaitingIpv4PollInterval : kUnannouncedRefreshInterval,
                 [this] { return !status_running_.load() || status_refresh_requested_.load(); });
             status_refresh_requested_ = false;
         }
