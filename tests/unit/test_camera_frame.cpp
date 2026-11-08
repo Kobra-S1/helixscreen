@@ -17,6 +17,8 @@
 
 #include <fstream>
 #include <iterator>
+#include <utility>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -65,6 +67,110 @@ struct FakeCamera {
 };
 
 } // namespace
+
+namespace {
+
+/// A BGR image whose blue channel is its column and green channel its row.
+std::vector<uint8_t> coordinate_image(int w, int h) {
+    std::vector<uint8_t> image(static_cast<size_t>(w) * h * 3);
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            uint8_t* pixel = image.data() + (static_cast<size_t>(y) * w + x) * 3;
+            pixel[0] = static_cast<uint8_t>(x);
+            pixel[1] = static_cast<uint8_t>(y);
+            pixel[2] = 77;
+        }
+    }
+    return image;
+}
+
+/// The source column and row of a pixel crop_cover_bgr wrote.
+std::pair<int, int> source_of(const std::vector<uint8_t>& out, int stride, int x, int y) {
+    const uint8_t* pixel =
+        out.data() + static_cast<size_t>(y) * stride + static_cast<size_t>(x) * 3;
+    return {pixel[0], pixel[1]};
+}
+
+} // namespace
+
+TEST_CASE("crop_cover_bgr: the same proportions and size copy every pixel", "[camera_frame]") {
+    const auto src = coordinate_image(4, 3);
+    std::vector<uint8_t> out(4 * 3 * 3);
+
+    REQUIRE(crop_cover_bgr(src.data(), 4, 3, 12, out.data(), 4, 3, 12));
+
+    CHECK(out == src);
+}
+
+TEST_CASE("crop_cover_bgr: a wider source loses its left and right", "[camera_frame]") {
+    // 8x4 into a square: the window is the middle 4x4, columns 2 to 5.
+    const auto src = coordinate_image(8, 4);
+    std::vector<uint8_t> out(4 * 4 * 3);
+
+    REQUIRE(crop_cover_bgr(src.data(), 8, 4, 24, out.data(), 4, 4, 12));
+
+    CHECK(source_of(out, 12, 0, 0) == std::pair<int, int>{2, 0});
+    CHECK(source_of(out, 12, 3, 0) == std::pair<int, int>{5, 0});
+    CHECK(source_of(out, 12, 0, 3) == std::pair<int, int>{2, 3});
+    CHECK(source_of(out, 12, 3, 3) == std::pair<int, int>{5, 3});
+}
+
+TEST_CASE("crop_cover_bgr: a taller source loses its top and bottom", "[camera_frame]") {
+    // 4x8 into a square: the window is the middle 4x4, rows 2 to 5.
+    const auto src = coordinate_image(4, 8);
+    std::vector<uint8_t> out(4 * 4 * 3);
+
+    REQUIRE(crop_cover_bgr(src.data(), 4, 8, 12, out.data(), 4, 4, 12));
+
+    CHECK(source_of(out, 12, 0, 0) == std::pair<int, int>{0, 2});
+    CHECK(source_of(out, 12, 3, 3) == std::pair<int, int>{3, 5});
+}
+
+TEST_CASE("crop_cover_bgr: the window is scaled down to the box", "[camera_frame]") {
+    const auto src = coordinate_image(8, 8);
+    std::vector<uint8_t> out(2 * 2 * 3);
+
+    REQUIRE(crop_cover_bgr(src.data(), 8, 8, 24, out.data(), 2, 2, 6));
+
+    CHECK(source_of(out, 6, 0, 0) == std::pair<int, int>{0, 0});
+    CHECK(source_of(out, 6, 1, 1) == std::pair<int, int>{4, 4});
+}
+
+TEST_CASE("crop_cover_bgr: a smaller source is enlarged to fill the box", "[camera_frame]") {
+    const auto src = coordinate_image(2, 2);
+    std::vector<uint8_t> out(4 * 4 * 3);
+
+    REQUIRE(crop_cover_bgr(src.data(), 2, 2, 6, out.data(), 4, 4, 12));
+
+    CHECK(source_of(out, 12, 3, 3) == std::pair<int, int>{1, 1});
+}
+
+TEST_CASE("crop_cover_bgr: strides wider than the pixels are honoured", "[camera_frame]") {
+    constexpr int kSrcStride = 16;
+    constexpr int kDstStride = 20;
+    std::vector<uint8_t> src(kSrcStride * 2, 0);
+    src[kSrcStride + 3] = 9; // Pixel (1, 1), blue
+    std::vector<uint8_t> out(kDstStride * 2, 0xEE);
+
+    REQUIRE(crop_cover_bgr(src.data(), 2, 2, kSrcStride, out.data(), 2, 2, kDstStride));
+
+    CHECK(out[kDstStride + 3] == 9);
+    CHECK(out[6] == 0xEE); // Past the row's pixels: left alone
+}
+
+TEST_CASE("crop_cover_bgr: degenerate input fails and writes nothing", "[camera_frame]") {
+    const auto src = coordinate_image(2, 2);
+    std::vector<uint8_t> out(12, 0xEE);
+    const auto untouched = out;
+
+    CHECK_FALSE(crop_cover_bgr(nullptr, 2, 2, 6, out.data(), 2, 2, 6));
+    CHECK_FALSE(crop_cover_bgr(src.data(), 2, 2, 6, nullptr, 2, 2, 6));
+    CHECK_FALSE(crop_cover_bgr(src.data(), 0, 2, 6, out.data(), 2, 2, 6));
+    CHECK_FALSE(crop_cover_bgr(src.data(), 2, 0, 6, out.data(), 2, 2, 6));
+    CHECK_FALSE(crop_cover_bgr(src.data(), 2, 2, 6, out.data(), 0, 2, 6));
+    CHECK_FALSE(crop_cover_bgr(src.data(), 2, 2, 6, out.data(), 2, -1, 6));
+    CHECK(out == untouched);
+}
 
 TEST_CASE("downscale_bgr fits the box, keeps aspect, never enlarges", "[camera_frame]") {
     auto big = solid(640, 360);

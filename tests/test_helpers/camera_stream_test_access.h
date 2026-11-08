@@ -42,6 +42,11 @@ class CameraStreamTestAccess {
         s.boundary_ = boundary;
         s.splitter_.set_boundary(boundary);
         s.running_.store(true);
+        s.start_decoder(s.lifetime_.token());
+    }
+
+    static uint64_t frames_published(const CameraStream& s) {
+        return s.decoder_->frames_published();
     }
 
     static void feed_body(CameraStream& s, const std::string& data) {
@@ -58,6 +63,7 @@ class CameraStreamTestAccess {
 
     /// Ends what begin_multipart() began.
     static void end_multipart(CameraStream& s) {
+        s.decoder_.reset();
         s.running_.store(false);
     }
 

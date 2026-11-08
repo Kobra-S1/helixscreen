@@ -428,7 +428,14 @@ void CameraStream::stream_thread_func() {
                 }
             };
 
-            auto resp = requests::request(req);
+            // Stopped before anything below decodes on this thread: the single
+            // JPEG case and the snapshot fallback share the decoder's state.
+            HttpResponsePtr resp;
+            {
+                start_decoder(thread_token);
+                ScopeExit stop_decoder([this] { decoder_.reset(); });
+                resp = requests::request(req);
+            }
             // No need to clear active_req_ — it's a weak_ptr that expires
             // naturally when the local `req` goes out of scope at loop end.
 
@@ -528,44 +535,39 @@ void CameraStream::on_stream_body(const char* data, size_t size) {
     process_stream_data();
 }
 
-int CameraStream::process_stream_data() {
-    int frames_decoded = 0;
-
+void CameraStream::process_stream_data() {
     while (running_.load()) {
         const std::optional<std::string_view> jpeg = splitter_.next_part();
         if (!jpeg) {
             break;
         }
-
-        // FPS gate — skip decode entirely when paused or rate-limited.
-        // Checked here (before decode_jpeg) to avoid wasting CPU on frames
-        // that will be discarded anyway.
-        bool skip_frame = false;
-        {
-            int fps = max_fps_.load(std::memory_order_relaxed);
-            if (fps == 0) {
-                // Paused — discard frame, consume data to keep parser in sync
-                skip_frame = true;
-            } else if (fps > 0) {
-                auto now = std::chrono::steady_clock::now();
-                auto min_interval = std::chrono::microseconds(1000000 / fps);
-                if (now - last_frame_time_ < min_interval) {
-                    skip_frame = true;
-                }
-            }
-        }
-
-        bool decoded = false;
-        if (!jpeg->empty() && !skip_frame) {
-            decoded = decode_jpeg(reinterpret_cast<const uint8_t*>(jpeg->data()), jpeg->size());
-            if (decoded) {
-                deliver_frame();
-                frames_decoded++;
-            }
+        // Paused: consume the part to keep the parser in sync, without the copy.
+        if (!jpeg->empty() && max_fps_.load(std::memory_order_relaxed) != 0) {
+            decoder_->publish(*jpeg);
         }
     }
+}
 
-    return frames_decoded;
+void CameraStream::start_decoder(const helix::LifetimeToken& token) {
+    decoder_ = std::make_unique<MjpegDecodeWorker>(
+        [this, token](std::string_view jpeg) { decode_and_deliver(jpeg, token); },
+        [this] { return max_fps_.load(std::memory_order_relaxed); });
+    // A failure to start throws, and stream_thread_func() reports it.
+    decoder_->start();
+}
+
+void CameraStream::decode_and_deliver(std::string_view jpeg, const helix::LifetimeToken& token) {
+    try {
+        if (decode_jpeg(reinterpret_cast<const uint8_t*>(jpeg.data()), jpeg.size())) {
+            deliver_frame();
+        }
+    } catch (const std::exception& e) {
+        // running_ false makes the stream's http_cb cancel the request, which
+        // ends the stream thread the way an exception of its own would.
+        spdlog::error("[CameraStream] Decode failed: {}", e.what());
+        running_.store(false);
+        report_error(token, e.what());
+    }
 }
 
 void CameraStream::snapshot_poll_loop() {
@@ -841,8 +843,12 @@ void CameraStream::transform_pixels(const uint8_t* src, int src_w, int src_h, in
 // ============================================================================
 
 CameraStream::ScaledSize CameraStream::compute_scaled_size(int src_w, int src_h) const {
-    int tw = target_w_.load();
-    int th = target_h_.load();
+    int tw = crop_w_.load();
+    int th = crop_h_.load();
+    if (tw <= 0 || th <= 0) {
+        tw = target_w_.load();
+        th = target_h_.load();
+    }
 
     if (tw <= 0 || th <= 0 || !fn_get_scaling_factors_) {
         return {src_w, src_h};
@@ -941,6 +947,13 @@ bool CameraStream::decode_jpeg_turbojpeg(const uint8_t* data, size_t len) {
     int decode_w = scaled.w;
     int decode_h = scaled.h;
 
+    const int box_w = crop_w_.load();
+    const int box_h = crop_h_.load();
+    if (box_w > 0 && box_h > 0) {
+        return decompress_to_temp(data, len, decode_w, decode_h) &&
+               crop_temp_into_back_buffer(decode_w, decode_h, box_w, box_h);
+    }
+
     auto params = resolve_transform(decode_w, decode_h);
     ensure_buffers(params.out_w, params.out_h);
 
@@ -960,21 +973,10 @@ bool CameraStream::decode_jpeg_turbojpeg(const uint8_t* data, size_t len) {
             return false;
         }
     } else {
-        // Decode to reusable temp buffer, then transform
-        int src_stride = decode_w * 3;
-        auto temp_size = static_cast<size_t>(src_stride) * static_cast<size_t>(decode_h);
-        if (temp_size > decode_temp_size_) {
-            decode_temp_ = std::make_unique<uint8_t[]>(temp_size);
-            decode_temp_size_ = temp_size;
-        }
-
-        if (fn_decompress_(tj_, data, static_cast<unsigned long>(len), decode_temp_.get(), decode_w,
-                           src_stride, decode_h, kTjPixelformatBgr, kTjFlagFastdct) != 0) {
-            spdlog::debug("[CameraStream] JPEG decode failed: {}", fn_get_error_(tj_));
+        if (!decompress_to_temp(data, len, decode_w, decode_h)) {
             return false;
         }
-
-        apply_pixel_transform(decode_temp_.get(), decode_w, decode_h, src_stride, false, params);
+        apply_pixel_transform(decode_temp_.get(), decode_w, decode_h, decode_w * 3, false, params);
     }
 
     if (decode_w != width || decode_h != height) {
@@ -984,6 +986,55 @@ bool CameraStream::decode_jpeg_turbojpeg(const uint8_t* data, size_t len) {
         spdlog::trace("[CameraStream] Decoded frame {}x{} → {}x{} (turbojpeg)", width, height,
                       params.out_w, params.out_h);
     }
+    return true;
+}
+
+bool CameraStream::decompress_to_temp(const uint8_t* data, size_t len, int decode_w, int decode_h) {
+    const int stride = decode_w * 3;
+    const auto size = static_cast<size_t>(stride) * static_cast<size_t>(decode_h);
+    if (size > decode_temp_size_) {
+        decode_temp_ = std::make_unique<uint8_t[]>(size);
+        decode_temp_size_ = size;
+    }
+    if (fn_decompress_(tj_, data, static_cast<unsigned long>(len), decode_temp_.get(), decode_w,
+                       stride, decode_h, kTjPixelformatBgr, kTjFlagFastdct) != 0) {
+        spdlog::debug("[CameraStream] JPEG decode failed: {}", fn_get_error_(tj_));
+        return false;
+    }
+    return true;
+}
+
+bool CameraStream::crop_temp_into_back_buffer(int decode_w, int decode_h, int box_w, int box_h) {
+    ensure_buffers(box_w, box_h);
+    if (!back_buf_) {
+        return false;
+    }
+    const int decode_stride = decode_w * 3;
+    auto* back = static_cast<uint8_t*>(back_buf_->data);
+    const int back_stride = static_cast<int>(back_buf_->header.stride);
+
+    // Cropped first and transformed after, so the transform handles only the
+    // pixels that are shown. A quarter turn swaps the box the crop has to fill.
+    const bool turned = resolve_transform(box_w, box_h).needs_transpose;
+    const int crop_w = turned ? box_h : box_w;
+    const int crop_h = turned ? box_w : box_h;
+    const TransformParams params = resolve_transform(crop_w, crop_h);
+
+    if (!params.flip_h && !params.flip_v && !params.needs_transpose) {
+        return crop_cover_bgr(decode_temp_.get(), decode_w, decode_h, decode_stride, back, box_w,
+                              box_h, back_stride);
+    }
+    const int crop_stride = crop_w * 3;
+    const auto size = static_cast<size_t>(crop_stride) * static_cast<size_t>(crop_h);
+    if (size > crop_temp_size_) {
+        crop_temp_ = std::make_unique<uint8_t[]>(size);
+        crop_temp_size_ = size;
+    }
+    if (!crop_cover_bgr(decode_temp_.get(), decode_w, decode_h, decode_stride, crop_temp_.get(),
+                        crop_w, crop_h, crop_stride)) {
+        return false;
+    }
+    apply_pixel_transform(crop_temp_.get(), crop_w, crop_h, crop_stride, false, params);
     return true;
 }
 

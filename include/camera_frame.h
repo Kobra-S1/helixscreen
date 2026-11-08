@@ -31,6 +31,13 @@ struct CameraFrame {
 /// aspect preserved, never enlarged. Empty for degenerate input.
 CameraFrame downscale_bgr(const uint8_t* src, int w, int h, int stride, int max_w, int max_h);
 
+/// Nearest-neighbour crop and scale of a BGR888 image to exactly @p dst_w x
+/// @p dst_h: the largest centred window with the box's proportions fills it, as
+/// LV_IMAGE_ALIGN_COVER would draw it. @p dst holds dst_h rows of @p dst_stride
+/// bytes. False, with @p dst untouched, for degenerate input.
+bool crop_cover_bgr(const uint8_t* src, int w, int h, int stride, uint8_t* dst, int dst_w,
+                    int dst_h, int dst_stride);
+
 /// LVGL draw buffer holding a copy of @p f (caller frees with lv_draw_buf_destroy).
 /// Main thread only. Null for an empty frame.
 lv_draw_buf_t* to_draw_buf(const CameraFrame& f);

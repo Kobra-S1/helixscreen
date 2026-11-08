@@ -228,6 +228,7 @@ src/system/lvgl_log_handler.cpp  # not in the v1 Core+AMS cut
 src/system/makeid_bt_printer.cpp  # not in the v1 Core+AMS cut
 src/system/makeid_protocol.cpp  # not in the v1 Core+AMS cut
 src/system/memory_profiling.cpp  # not in the v1 Core+AMS cut
+src/system/mjpeg_decode_worker.cpp  # not in the v1 Core+AMS cut
 src/system/mjpeg_part_splitter.cpp  # not in the v1 Core+AMS cut
 src/system/mock_performance_source.cpp  # not in the v1 Core+AMS cut
 src/system/moonraker_local_probe.cpp  # not in the v1 Core+AMS cut

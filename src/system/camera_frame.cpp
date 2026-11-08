@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstring>
 #include <optional>
+#include <vector>
 
 #if HELIX_HAS_CAMERA
 #include "camera_stream.h"
@@ -35,6 +36,39 @@ CameraFrame downscale_bgr(const uint8_t* src, int w, int h, int stride, int max_
             std::memcpy(dst + x * 3, row + static_cast<size_t>(x * w / out.w) * 3, 3);
     }
     return out;
+}
+
+bool crop_cover_bgr(const uint8_t* src, int w, int h, int stride, uint8_t* dst, int dst_w,
+                    int dst_h, int dst_stride) {
+    if (!src || !dst || w <= 0 || h <= 0 || dst_w <= 0 || dst_h <= 0)
+        return false;
+    // The largest window of the source with the box's proportions, centred.
+    const int64_t source_wider = static_cast<int64_t>(w) * dst_h - static_cast<int64_t>(h) * dst_w;
+    const int crop_w =
+        source_wider > 0 ? std::max<int>(1, static_cast<int64_t>(h) * dst_w / dst_h) : w;
+    const int crop_h =
+        source_wider > 0 ? h : std::max<int>(1, static_cast<int64_t>(w) * dst_h / dst_w);
+    const int left = (w - crop_w) / 2;
+    const int top = (h - crop_h) / 2;
+
+    std::vector<int> source_offset(static_cast<size_t>(dst_w));
+    for (int x = 0; x < dst_w; x++)
+        source_offset[static_cast<size_t>(x)] =
+            (left + static_cast<int>(static_cast<int64_t>(x) * crop_w / dst_w)) * 3;
+
+    for (int y = 0; y < dst_h; y++) {
+        const uint8_t* row =
+            src + static_cast<size_t>(top + static_cast<int64_t>(y) * crop_h / dst_h) * stride;
+        uint8_t* out = dst + static_cast<size_t>(y) * dst_stride;
+        for (int x = 0; x < dst_w; x++) {
+            const uint8_t* pixel = row + source_offset[static_cast<size_t>(x)];
+            out[0] = pixel[0];
+            out[1] = pixel[1];
+            out[2] = pixel[2];
+            out += 3;
+        }
+    }
+    return true;
 }
 
 lv_draw_buf_t* to_draw_buf(const CameraFrame& f) {
