@@ -9,6 +9,7 @@
 
 #include "async_lifetime_guard.h"
 #include "camera_frame.h"
+#include "mjpeg_part_splitter.h"
 #include "moonraker_types.h"
 
 #include <atomic>
@@ -236,6 +237,7 @@ class CameraStream {
   private:
     friend class CameraStreamTestAccess;
 
+    void on_stream_body(const char* data, size_t size);
     int process_stream_data();
     void stream_thread_func();
     void snapshot_poll_loop();
@@ -294,7 +296,7 @@ class CameraStream {
     size_t decode_temp_size_ = 0;
 
     // MJPEG parser state
-    std::vector<uint8_t> recv_buf_;
+    MjpegPartSplitter splitter_;
     std::string boundary_;
 
     // Active HTTP request — weak_ptr avoids refcount races between the stream
@@ -316,6 +318,7 @@ class CameraStream {
 
     static constexpr int kMaxStreamFailures = 3;
     static constexpr int kSnapshotIntervalMs = 2000;
+    static constexpr size_t kMaxBufferedStreamBytes = 4 * 1024 * 1024;
     static constexpr int kStreamConnectTimeoutSec = 5; // Initial connection attempt
     static constexpr int kStreamTimeoutSec = 300;      // Active stream — reconnects on timeout
 

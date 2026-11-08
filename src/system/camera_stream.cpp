@@ -254,7 +254,7 @@ void CameraStream::stop() {
 
             while (!joined->load()) {
                 if (std::chrono::steady_clock::now() > deadline) {
-                    // The worker still uses `this` (running_, recv_buf_, its
+                    // The worker still uses `this` (running_, splitter_, its
                     // exit-path ScopeExit) with no lifetime_ check. Every owner
                     // must see was_detached() and leak this object, never free it.
                     spdlog::error("[CameraStream] Thread join timed out after {}ms, "
@@ -286,7 +286,7 @@ void CameraStream::stop() {
         if (thread_joined) {
             // Thread exited — safe to free everything
             free_buffers();
-            recv_buf_.clear();
+            splitter_.clear();
             boundary_.clear();
             {
                 std::lock_guard<std::mutex> lock(cb_mutex_);
@@ -364,8 +364,7 @@ void CameraStream::stream_thread_func() {
 
     try {
         spdlog::debug("[CameraStream] Stream thread started for {}", stream_url_);
-        recv_buf_.clear();
-        recv_buf_.reserve(256 * 1024);
+        splitter_.clear();
         boundary_.clear();
         got_stream_data_.store(false);
         bool ever_connected = false;
@@ -414,6 +413,7 @@ void CameraStream::stream_thread_func() {
                 if (state == HP_HEADERS_COMPLETE) {
                     std::string content_type = resp->GetHeader("Content-Type");
                     boundary_ = parse_boundary(content_type);
+                    splitter_.set_boundary(boundary_);
                     if (boundary_.empty()) {
                         spdlog::warn("[CameraStream] No boundary in Content-Type: {}",
                                      content_type);
@@ -423,16 +423,7 @@ void CameraStream::stream_thread_func() {
                     spdlog::debug("[CameraStream] Stream connected, boundary='{}'", boundary_);
                 } else if (state == HP_BODY) {
                     if (data && size > 0) {
-                        recv_buf_.insert(recv_buf_.end(), data, data + size);
-
-                        // Cap buffer growth — if camera sends faster than we decode,
-                        // drop stale data to prevent unbounded memory growth
-                        if (recv_buf_.size() > 4 * 1024 * 1024) {
-                            spdlog::warn("[CameraStream] recv_buf_ exceeded 4MB, clearing");
-                            recv_buf_.clear();
-                        } else if (!boundary_.empty()) {
-                            process_stream_data();
-                        }
+                        on_stream_body(data, size);
                     }
                 }
             };
@@ -476,7 +467,7 @@ void CameraStream::stream_thread_func() {
             }
 
             // Clear partial data before reconnecting
-            recv_buf_.clear();
+            splitter_.clear();
             boundary_.clear();
             got_stream_data_.store(false);
 
@@ -506,10 +497,9 @@ void CameraStream::stream_thread_func() {
         spdlog::debug("[CameraStream] Stream thread exiting");
     } catch (const std::bad_alloc& e) {
         spdlog::error("[CameraStream] Out of memory in stream thread: {}", e.what());
-        if (!thread_token.expired_no_lvgl()) { // L081_OK: stream_thread_ dtor-joined; recv_buf_
+        if (!thread_token.expired_no_lvgl()) { // L081_OK: stream_thread_ dtor-joined; splitter_
                                                // thread-exclusive
-            recv_buf_.clear();
-            recv_buf_.shrink_to_fit();
+            splitter_.release_memory();
             report_error(thread_token, "Out of memory");
         }
     } catch (const std::exception& e) {
@@ -522,43 +512,29 @@ void CameraStream::stream_thread_func() {
 // Incremental MJPEG Parser
 // ============================================================================
 
+void CameraStream::on_stream_body(const char* data, size_t size) {
+    if (boundary_.empty()) {
+        return; // Not multipart: stream_thread_func() decodes the whole body as one JPEG
+    }
+    splitter_.append(data, size);
+
+    // Cap buffer growth: a part this large is not a camera frame
+    if (splitter_.buffered() > kMaxBufferedStreamBytes) {
+        spdlog::warn("[CameraStream] {} bytes without a complete frame, clearing",
+                     splitter_.buffered());
+        splitter_.clear();
+        return;
+    }
+    process_stream_data();
+}
+
 int CameraStream::process_stream_data() {
     int frames_decoded = 0;
 
     while (running_.load()) {
-        // Find boundary in the receive buffer (string_view avoids copying)
-        std::string_view buf_view(reinterpret_cast<const char*>(recv_buf_.data()),
-                                  recv_buf_.size());
-        auto bpos = buf_view.find(boundary_);
-        if (bpos == std::string::npos) {
+        const std::optional<std::string_view> jpeg = splitter_.next_part();
+        if (!jpeg) {
             break;
-        }
-
-        // Find end of part headers (double CRLF after boundary)
-        auto header_end = buf_view.find("\r\n\r\n", bpos);
-        if (header_end == std::string::npos) {
-            // Incomplete headers — wait for more data
-            break;
-        }
-        size_t jpeg_start = header_end + 4;
-
-        // Find next boundary to delimit JPEG data end
-        auto next_bpos = buf_view.find(boundary_, jpeg_start);
-        if (next_bpos == std::string::npos) {
-            // No closing boundary yet — wait for more data (unless buffer is huge,
-            // in which case the data before the current boundary is stale)
-            if (bpos > 0) {
-                // Trim everything before the current boundary to limit growth
-                recv_buf_.erase(recv_buf_.begin(), recv_buf_.begin() + static_cast<long>(bpos));
-            }
-            break;
-        }
-
-        // Extract JPEG data, strip trailing CRLF
-        size_t jpeg_len = next_bpos - jpeg_start;
-        while (jpeg_len > 0 && (recv_buf_[jpeg_start + jpeg_len - 1] == '\r' ||
-                                recv_buf_[jpeg_start + jpeg_len - 1] == '\n')) {
-            jpeg_len--;
         }
 
         // FPS gate — skip decode entirely when paused or rate-limited.
@@ -580,16 +556,13 @@ int CameraStream::process_stream_data() {
         }
 
         bool decoded = false;
-        if (jpeg_len > 0 && !skip_frame) {
-            decoded = decode_jpeg(recv_buf_.data() + jpeg_start, jpeg_len);
+        if (!jpeg->empty() && !skip_frame) {
+            decoded = decode_jpeg(reinterpret_cast<const uint8_t*>(jpeg->data()), jpeg->size());
             if (decoded) {
                 deliver_frame();
                 frames_decoded++;
             }
         }
-
-        // Erase consumed data up to the next boundary
-        recv_buf_.erase(recv_buf_.begin(), recv_buf_.begin() + static_cast<long>(next_bpos));
     }
 
     return frames_decoded;
