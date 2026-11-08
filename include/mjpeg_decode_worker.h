@@ -49,6 +49,8 @@ class MjpegDecodeWorker {
     }
 
   private:
+    friend class MjpegDecodeWorkerTestAccess;
+
     void run();
 
     std::function<void(std::string_view)> consume_;

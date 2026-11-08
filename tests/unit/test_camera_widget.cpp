@@ -6,6 +6,9 @@
 #include "panel_widget.h"
 #include "panel_widget_registry.h"
 
+#include <algorithm>
+#include <set>
+
 #include "../catch_amalgamated.hpp"
 
 #if HELIX_HAS_CAMERA
@@ -337,6 +340,59 @@ TEST_CASE("CameraStream: each complete part goes to the decoder", "[camera]") {
 
     CHECK(CameraStreamTestAccess::frames_published(stream) == 2);
     CameraStreamTestAccess::end_multipart(stream);
+}
+
+TEST_CASE("CameraStream: a size change frees no buffer an image may still show", "[camera]") {
+    CameraStream stream;
+    CameraStreamTestAccess::ensure_buffers(stream, 8, 8);
+    const auto [front, back] = CameraStreamTestAccess::active_buffers(stream);
+
+    // Either may be what a covered image still points at: the home widget keeps
+    // the frame it last showed while the fullscreen view changes the crop box.
+    CameraStreamTestAccess::ensure_buffers(stream, 4, 4);
+
+    const auto held = CameraStreamTestAccess::held_buffers(stream);
+    CHECK(std::find(held.begin(), held.end(), front) != held.end());
+    CHECK(std::find(held.begin(), held.end(), back) != held.end());
+    // Still whole, and still the size such an image was given.
+    CHECK(front->header.w == 8);
+    CHECK(back->header.w == 8);
+}
+
+TEST_CASE("CameraStream: opening and closing fullscreen does not grow memory", "[camera]") {
+    CameraStream stream;
+    CameraStreamTestAccess::ensure_buffers(stream, 8, 8);
+    const auto whole = CameraStreamTestAccess::active_buffers(stream);
+    CameraStreamTestAccess::ensure_buffers(stream, 4, 4);
+    const size_t held_for_two_sizes = CameraStreamTestAccess::held_buffers(stream).size();
+
+    for (int toggle = 0; toggle < 10; toggle++) {
+        CameraStreamTestAccess::ensure_buffers(stream, 8, 8);
+        CameraStreamTestAccess::ensure_buffers(stream, 4, 4);
+    }
+    CHECK(CameraStreamTestAccess::held_buffers(stream).size() == held_for_two_sizes);
+
+    CameraStreamTestAccess::ensure_buffers(stream, 8, 8);
+    const auto again = CameraStreamTestAccess::active_buffers(stream);
+    CHECK(std::set<const lv_draw_buf_t*>{whole.first, whole.second} ==
+          std::set<const lv_draw_buf_t*>{again.first, again.second});
+}
+
+TEST_CASE("CameraStream: other consumers get no cropped frame from a running stream", "[camera]") {
+    CameraStream stream;
+    stream.start("", "", [](lv_draw_buf_t*) {}, [](const char*) {});
+    CameraStreamTestAccess::pretend_running_with_frame(stream, 8, 8);
+
+    const WebcamInfo feed; // Empty URLs, as this stream was started with
+    CHECK_FALSE(CameraStream::latest_running_frame(feed, 8, 8).empty());
+
+    // Empty sends acquire_camera_frame() to the snapshot, which is a whole frame.
+    stream.set_crop_box(4, 4);
+    CHECK(CameraStream::latest_running_frame(feed, 8, 8).empty());
+
+    stream.set_crop_box(0, 0);
+    CHECK_FALSE(CameraStream::latest_running_frame(feed, 8, 8).empty());
+    stream.stop();
 }
 
 TEST_CASE("CameraStream: the crop box outranks the target size when choosing a decode size",

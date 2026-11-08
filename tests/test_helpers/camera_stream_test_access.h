@@ -14,6 +14,8 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
 namespace helix {
 
@@ -43,6 +45,31 @@ class CameraStreamTestAccess {
         s.splitter_.set_boundary(boundary);
         s.running_.store(true);
         s.start_decoder(s.lifetime_.token());
+    }
+
+    static void ensure_buffers(CameraStream& s, int w, int h) {
+        s.ensure_buffers(w, h);
+    }
+
+    /// Every draw buffer the stream holds, in use or set aside.
+    static std::vector<const lv_draw_buf_t*> held_buffers(const CameraStream& s) {
+        std::vector<const lv_draw_buf_t*> held(s.retired_bufs_.begin(), s.retired_bufs_.end());
+        held.push_back(s.front_buf_);
+        held.push_back(s.back_buf_);
+        return held;
+    }
+
+    /// The buffers frames are decoded into and shown from right now.
+    static std::pair<const lv_draw_buf_t*, const lv_draw_buf_t*>
+    active_buffers(const CameraStream& s) {
+        return {s.front_buf_, s.back_buf_};
+    }
+
+    /// As if the stream, already registered by start(), had decoded a frame.
+    static void pretend_running_with_frame(CameraStream& s, int w, int h) {
+        s.running_.store(true);
+        s.ensure_buffers(w, h);
+        s.has_frame_ = true;
     }
 
     static uint64_t frames_published(const CameraStream& s) {

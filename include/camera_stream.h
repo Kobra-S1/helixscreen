@@ -101,10 +101,11 @@ class CameraStream {
      *
      * For a view that fills the display: an image already its widget's size
      * reaches the framebuffer without LVGL scaling it on every redraw. The
-     * centre is kept, as LV_IMAGE_ALIGN_COVER would. Frames fetched from this
-     * stream with latest_running_frame() are cropped too, so a view much smaller
-     * than the camera has no use for this. Takes precedence over the target
-     * size. Pass (0, 0) for whole frames. Needs turbojpeg: the stb_image path
+     * centre is kept, as LV_IMAGE_ALIGN_COVER would. While set,
+     * latest_running_frame() finds nothing here, since other consumers want the
+     * whole frame. Each size in use keeps a pair of frame buffers until stop().
+     * Takes precedence over the target size. Pass (0, 0) for whole frames.
+     * Needs turbojpeg: the stb_image path
      * delivers whole frames, which LVGL then covers as before.
      * Thread-safe — takes effect on next decoded frame.
      */
@@ -226,7 +227,8 @@ class CameraStream {
      * @brief Downscaled copy of the newest frame of the running stream showing @p feed.
      *
      * The copy is owned by the caller; nothing points into a stream's buffers.
-     * Empty when that stream is not running or has not decoded a frame yet.
+     * Empty when that stream is not running, has not decoded a frame yet, or is
+     * cropping its frames for a fullscreen view (see set_crop_box()).
      */
     static CameraFrame latest_running_frame(const WebcamInfo& feed, int max_w, int max_h);
 
@@ -269,6 +271,7 @@ class CameraStream {
     bool crop_temp_into_back_buffer(int decode_w, int decode_h, int box_w, int box_h);
     void deliver_frame();
     void ensure_buffers(int width, int height);
+    lv_draw_buf_t* take_buffer_of_size(uint32_t w, uint32_t h); // Caller holds buf_mutex_
     void free_buffers();
 
     // Thread-safe error reporting: copies on_error_ under cb_mutex_, invokes outside lock.
@@ -312,8 +315,9 @@ class CameraStream {
     std::mutex buf_mutex_;
     std::mutex cb_mutex_; // Protects on_frame_ / on_error_ against TOCTOU races
 
-    // Old front buffers awaiting safe cleanup — LVGL may still reference
-    // them via lv_image_set_src until the widget clears the source
+    // Buffers of another size than the current frame, awaiting safe cleanup or
+    // that size's return — LVGL may still reference them via lv_image_set_src
+    // until the widget clears the source
     std::vector<lv_draw_buf_t*> retired_bufs_;
 
     // Scratch buffers reused across frames to avoid per-frame heap allocation
