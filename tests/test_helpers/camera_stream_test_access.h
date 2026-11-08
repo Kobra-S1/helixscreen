@@ -36,6 +36,37 @@ class CameraStreamTestAccess {
         return CameraStream::kMaxStreamFailures;
     }
 
+    /// Puts the stream where stream_thread_func() has it once the response
+    /// headers are in, without a worker or a connection.
+    static void begin_multipart(CameraStream& s, const std::string& boundary) {
+        s.boundary_ = boundary;
+        s.splitter_.set_boundary(boundary);
+        s.running_.store(true);
+        s.start_decoder(s.lifetime_.token());
+    }
+
+    static uint64_t frames_published(const CameraStream& s) {
+        return s.decoder_->frames_published();
+    }
+
+    static void feed_body(CameraStream& s, const std::string& data) {
+        s.on_stream_body(data.data(), data.size());
+    }
+
+    static size_t buffered_stream_bytes(const CameraStream& s) {
+        return s.splitter_.buffered();
+    }
+
+    static constexpr size_t max_buffered_stream_bytes() {
+        return CameraStream::kMaxBufferedStreamBytes;
+    }
+
+    /// Ends what begin_multipart() began.
+    static void end_multipart(CameraStream& s) {
+        s.decoder_.reset();
+        s.running_.store(false);
+    }
+
     /// Spawn the worker on a real std::thread (stored in `stream_thread_`,
     /// exactly as start() does) with its failure budget already exhausted and
     /// no snapshot URL, so it runs only the post-loop fallback block and

@@ -313,6 +313,72 @@ TEST_CASE("CameraStream: copy_pixels_to_lvgl BGR with vertical flip", "[camera]"
 // Boundary parsing from Content-Type
 // ============================================================================
 
+TEST_CASE("CameraStream: body bytes are parsed as they arrive", "[camera]") {
+    CameraStream stream;
+    stream.set_max_fps(0); // Paused: parts are consumed without being decoded
+    CameraStreamTestAccess::begin_multipart(stream, "--frame");
+
+    const std::string part = "--frame\r\n\r\n" + std::string(1000, 'x') + "\r\n";
+    CameraStreamTestAccess::feed_body(stream, part + part + "--frame");
+
+    // Only the boundary that opens the next part is left.
+    CHECK(CameraStreamTestAccess::buffered_stream_bytes(stream) == std::string("--frame").size());
+    CHECK(CameraStreamTestAccess::frames_published(stream) == 0);
+    CameraStreamTestAccess::end_multipart(stream);
+}
+
+TEST_CASE("CameraStream: each complete part goes to the decoder", "[camera]") {
+    CameraStream stream;
+    stream.set_max_fps(-1);
+    CameraStreamTestAccess::begin_multipart(stream, "--frame");
+
+    const std::string part = "--frame\r\n\r\n" + std::string(1000, 'x') + "\r\n";
+    CameraStreamTestAccess::feed_body(stream, part + part + "--frame");
+
+    CHECK(CameraStreamTestAccess::frames_published(stream) == 2);
+    CameraStreamTestAccess::end_multipart(stream);
+}
+
+TEST_CASE("CameraStream: the crop box outranks the target size when choosing a decode size",
+          "[camera]") {
+    CameraStream stream;
+    CameraStreamTestAccess::install_turbojpeg_scaling_factors(stream);
+    stream.set_target_size(1280, 720);
+    stream.set_crop_box(272, 480);
+
+    // 3/4 is the smallest factor whose height still reaches 480: 5/8 gives 450.
+    auto scaled = stream.compute_scaled_size(1280, 720);
+    CHECK(scaled.w == 960);
+    CHECK(scaled.h == 540);
+
+    stream.set_crop_box(0, 0);
+    scaled = stream.compute_scaled_size(1280, 720);
+    CHECK(scaled.w == 1280);
+    CHECK(scaled.h == 720);
+}
+
+TEST_CASE("CameraStream: a part past the buffer cap is dropped", "[camera]") {
+    CameraStream stream;
+    CameraStreamTestAccess::begin_multipart(stream, "--frame");
+
+    const size_t cap = CameraStreamTestAccess::max_buffered_stream_bytes();
+    CameraStreamTestAccess::feed_body(stream, "--frame\r\n\r\n" + std::string(cap - 100, 'x'));
+    CHECK(CameraStreamTestAccess::buffered_stream_bytes(stream) > 0);
+
+    CameraStreamTestAccess::feed_body(stream, std::string(200, 'x'));
+    CHECK(CameraStreamTestAccess::buffered_stream_bytes(stream) == 0);
+    CameraStreamTestAccess::end_multipart(stream);
+}
+
+TEST_CASE("CameraStream: a response without a boundary is not buffered", "[camera]") {
+    CameraStream stream;
+    CameraStreamTestAccess::begin_multipart(stream, "");
+
+    CameraStreamTestAccess::feed_body(stream, std::string(1000, 'x'));
+    CHECK(CameraStreamTestAccess::buffered_stream_bytes(stream) == 0);
+    CameraStreamTestAccess::end_multipart(stream);
+}
+
 TEST_CASE("CameraStream: parse_boundary extracts boundary from Content-Type", "[camera]") {
     SECTION("standard boundary") {
         auto b = CameraStream::parse_boundary("multipart/x-mixed-replace;boundary=myboundary");

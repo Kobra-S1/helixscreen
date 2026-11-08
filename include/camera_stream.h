@@ -9,6 +9,8 @@
 
 #include "async_lifetime_guard.h"
 #include "camera_frame.h"
+#include "mjpeg_decode_worker.h"
+#include "mjpeg_part_splitter.h"
 #include "moonraker_types.h"
 
 #include <atomic>
@@ -92,6 +94,23 @@ class CameraStream {
     void set_target_size(int w, int h) {
         target_w_.store(w);
         target_h_.store(h);
+    }
+
+    /**
+     * @brief Crop and scale each frame to exactly this box, on the decode thread.
+     *
+     * For a view that fills the display: an image already its widget's size
+     * reaches the framebuffer without LVGL scaling it on every redraw. The
+     * centre is kept, as LV_IMAGE_ALIGN_COVER would. Frames fetched from this
+     * stream with latest_running_frame() are cropped too, so a view much smaller
+     * than the camera has no use for this. Takes precedence over the target
+     * size. Pass (0, 0) for whole frames. Needs turbojpeg: the stb_image path
+     * delivers whole frames, which LVGL then covers as before.
+     * Thread-safe — takes effect on next decoded frame.
+     */
+    void set_crop_box(int w, int h) {
+        crop_w_.store(w);
+        crop_h_.store(h);
     }
 
     /**
@@ -236,13 +255,18 @@ class CameraStream {
   private:
     friend class CameraStreamTestAccess;
 
-    int process_stream_data();
+    void on_stream_body(const char* data, size_t size);
+    void process_stream_data();
+    void start_decoder(const helix::LifetimeToken& token);
+    void decode_and_deliver(std::string_view jpeg, const helix::LifetimeToken& token);
     void stream_thread_func();
     void snapshot_poll_loop();
     void fetch_snapshot();
     bool decode_jpeg(const uint8_t* data, size_t len);
     bool decode_jpeg_turbojpeg(const uint8_t* data, size_t len);
     bool decode_jpeg_stb(const uint8_t* data, size_t len);
+    bool decompress_to_temp(const uint8_t* data, size_t len, int decode_w, int decode_h);
+    bool crop_temp_into_back_buffer(int decode_w, int decode_h, int box_w, int box_h);
     void deliver_frame();
     void ensure_buffers(int width, int height);
     void free_buffers();
@@ -266,8 +290,13 @@ class CameraStream {
     std::atomic<int> rotation_{0}; // CameraRotation cast to int
     std::atomic<int> target_w_{0}; // Target display width (0 = no downscaling)
     std::atomic<int> target_h_{0}; // Target display height
+    std::atomic<int> crop_w_{0};   // Box each frame is cropped to (0 = whole frames)
+    std::atomic<int> crop_h_{0};
     std::atomic<int> max_fps_{-1}; // -1 = unlimited (default until widget configures)
-    std::chrono::steady_clock::time_point last_frame_time_; // Only accessed from stream thread
+    // The decode state below (this, the draw buffers' writes, tj_, the scratch
+    // buffers) belongs to decoder_'s thread while it runs and to the stream
+    // thread otherwise. The stream thread stops decoder_ before touching it.
+    std::chrono::steady_clock::time_point last_frame_time_;
 
     // Draw buffer helpers — use system malloc (thread-safe) instead of
     // lv_draw_buf_create which calls lv_malloc (NOT thread-safe)
@@ -292,10 +321,13 @@ class CameraStream {
     size_t transpose_buf_size_ = 0;
     std::unique_ptr<uint8_t[]> decode_temp_; // temp for decode+transform path
     size_t decode_temp_size_ = 0;
+    std::unique_ptr<uint8_t[]> crop_temp_; // temp for crop+transform path
+    size_t crop_temp_size_ = 0;
 
     // MJPEG parser state
-    std::vector<uint8_t> recv_buf_;
+    MjpegPartSplitter splitter_;
     std::string boundary_;
+    std::unique_ptr<MjpegDecodeWorker> decoder_; // Exists while a stream request runs
 
     // Active HTTP request — weak_ptr avoids refcount races between the stream
     // thread and libhv's internal thread pool.  stop() locks the weak_ptr
@@ -316,6 +348,7 @@ class CameraStream {
 
     static constexpr int kMaxStreamFailures = 3;
     static constexpr int kSnapshotIntervalMs = 2000;
+    static constexpr size_t kMaxBufferedStreamBytes = 4 * 1024 * 1024;
     static constexpr int kStreamConnectTimeoutSec = 5; // Initial connection attempt
     static constexpr int kStreamTimeoutSec = 300;      // Active stream — reconnects on timeout
 

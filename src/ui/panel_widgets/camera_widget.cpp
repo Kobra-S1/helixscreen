@@ -68,6 +68,17 @@ static helix::CameraWidget* s_fullscreen_owner = nullptr;
 // open a second concurrent connection (which most MJPEG streamers reject).
 static std::vector<helix::CameraWidget*> s_attached_widgets;
 
+// Has the stream crop to this image's box, so LVGL need not scale each redraw;
+// no image means whole frames. Asked on every frame because a layout can change
+// the box. A box that comes out wrong only costs that scaling: the image still
+// covers its widget.
+static void aim_crop_at(helix::CameraStream* stream, lv_obj_t* image) {
+    if (stream) {
+        stream->set_crop_box(image ? lv_obj_get_content_width(image) : 0,
+                             image ? lv_obj_get_content_height(image) : 0);
+    }
+}
+
 static void on_camera_fullscreen_close(lv_event_t* /*e*/) {
     if (s_fullscreen_owner) {
         s_fullscreen_owner->close_fullscreen();
@@ -409,6 +420,8 @@ void CameraWidget::start_stream() {
             token.defer("CameraWidget::frame", [this, frame]() {
                 // Re-evaluate fps on the UI thread (overlay/edit state is UI-thread only)
                 update_stream_fps();
+                // Only fullscreen crops: other views of this stream want whole frames.
+                aim_crop_at(stream_.get(), fullscreen_image_);
 
                 // Deliver frame to fullscreen image if open, otherwise widget image
                 lv_obj_t* target = fullscreen_image_ ? fullscreen_image_ : camera_image_;
@@ -859,6 +872,7 @@ void open_standalone_camera_fullscreen(lv_obj_t* parent_screen) {
             token.defer("StandaloneCameraFullscreen::frame", [frame]() {
                 if (!s_standalone || !s_standalone->image)
                     return;
+                aim_crop_at(s_standalone->stream.get(), s_standalone->image);
                 lv_image_set_src(s_standalone->image, frame);
                 // First frame: hide the "Connecting…" spinner
                 if (s_standalone->spinner &&
