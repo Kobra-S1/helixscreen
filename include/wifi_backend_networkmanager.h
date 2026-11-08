@@ -4,6 +4,7 @@
 #pragma once
 
 #include "wifi_backend.h"
+#include "wifi_nm_monitor.h"
 
 #ifndef __APPLE__
 // ============================================================================
@@ -31,6 +32,8 @@
  * - All nmcli commands run via popen() (read-only) or fork/exec (connect)
  * - std::thread for async scan/connect (same pattern as WifiBackendMock)
  * - Event callbacks broadcast to registered handlers
+ * - Status refreshes when `nmcli monitor` announces a change (NmcliMonitor),
+ *   plus a slow periodic one for what NetworkManager never announces
  * - Zero external dependencies beyond nmcli binary
  *
  * This is a fallback backend - the factory tries wpa_supplicant first.
@@ -111,6 +114,7 @@ class WifiBackendNetworkManager : public WifiBackend {
     std::atomic<bool> status_refresh_requested_{false};
     ConnectionStatus cached_status_{};        // Protected by status_mutex_
     std::atomic<bool> prev_connected_{false}; // Track transitions for event firing
+    helix::wifi::NmcliMonitor monitor_{[this] { request_status_refresh(); }};
 
     // 5GHz support — computed once at start(), never changes
     std::atomic<bool> supports_5ghz_cached_{false};
@@ -262,6 +266,9 @@ class WifiBackendNetworkManager : public WifiBackend {
     std::optional<bool> query_radio_enabled();
 
     // Status polling
+    /// Starts the status thread and the nmcli monitor that wakes it. Split out
+    /// of start() so tests can run both without a live NetworkManager.
+    void start_status_threads();
     void status_thread_func();
 
     /// Cache one freshly polled status, then fire CONNECTED / DISCONNECTED if the

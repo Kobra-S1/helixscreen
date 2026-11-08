@@ -13,8 +13,10 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sys/stat.h>
 #include <thread>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -47,7 +49,9 @@ class TestableNMBackend : public WifiBackendNetworkManager {
     using WifiBackendNetworkManager::connect_argv;
     using WifiBackendNetworkManager::is_polkit_permission_error;
     using WifiBackendNetworkManager::parse_scan_output;
+    using WifiBackendNetworkManager::poll_status_now;
     using WifiBackendNetworkManager::split_nmcli_fields;
+    using WifiBackendNetworkManager::start_status_threads;
     using WifiBackendNetworkManager::validate_input;
 
     // Friend access allows TestableNMBackend to reach private members.
@@ -936,6 +940,109 @@ TEST_CASE("NM backend implements radio power instead of inheriting the base no-o
     // opposite direction; pin the override explicitly so removing it fails.
     WifiBackend& as_base = backend;
     CHECK_FALSE(as_base.set_radio_enabled(false).success());
+}
+
+// ============================================================================
+// Status refresh: announced by nmcli monitor, not polled for
+// ============================================================================
+
+namespace {
+
+/// A fake nmcli answering the status reads for a connected wlan0. Its
+/// `monitor` stays silent until announce() is called, then prints one line.
+/// Every invocation's argv is appended to the calls file.
+struct FakeStatusNmcli {
+    std::string dir;
+    std::string old_path;
+
+    FakeStatusNmcli() {
+        char tmpl[] = "/tmp/helix-fake-nm-status-XXXXXX";
+        dir = ::mkdtemp(tmpl);
+        std::ofstream(dir + "/nmcli") << R"SH(#!/bin/sh
+printf '%s\n' "$*" >> "$FAKE_NMCLI_DIR/calls"
+case "$*" in
+  monitor)
+    while [ ! -e "$FAKE_NMCLI_DIR/announce" ]; do sleep 0.05; done
+    echo "wlan0: connected"
+    exec sleep 1000 ;;
+  *"GENERAL device show"*) echo "GENERAL.STATE:100 (connected)" ;;
+  *"device wifi list"*) echo "*:HomeNet:70" ;;
+  *"IP4.ADDRESS device show"*) echo "IP4.ADDRESS[1]:192.168.1.5/24" ;;
+  "radio wifi") echo "enabled" ;;
+esac
+)SH";
+        ::chmod((dir + "/nmcli").c_str(), 0755);
+        ::setenv("FAKE_NMCLI_DIR", dir.c_str(), 1);
+        const char* path = ::getenv("PATH");
+        old_path = path ? path : "";
+        ::setenv("PATH", (dir + ":" + old_path).c_str(), 1);
+    }
+    ~FakeStatusNmcli() {
+        ::setenv("PATH", old_path.c_str(), 1);
+        ::unsetenv("FAKE_NMCLI_DIR");
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
+    }
+
+    void announce() const {
+        std::ofstream(dir + "/announce") << "1";
+    }
+    std::vector<std::string> calls() const {
+        std::ifstream f(dir + "/calls");
+        std::vector<std::string> out;
+        for (std::string line; std::getline(f, line);) {
+            out.push_back(line);
+        }
+        return out;
+    }
+    size_t count(const std::string& needle) const {
+        auto all = calls();
+        return std::count_if(all.begin(), all.end(), [&needle](const std::string& c) {
+            return c.find(needle) != std::string::npos;
+        });
+    }
+};
+
+} // namespace
+
+TEST_CASE("NM backend: the status read does not make NetworkManager rescan",
+          "[network][nm][nm-monitor][slow]") {
+    FakeStatusNmcli fake;
+    TestableNMBackend backend;
+    backend.force_running("wlan0");
+
+    std::optional<WifiBackend::ConnectionStatus> status = backend.poll_status_now();
+    REQUIRE(status);
+    CHECK(status->connected);
+    CHECK(status->signal_strength == 70);
+
+    // `device wifi list` defaults to --rescan auto: a scan whenever the last
+    // one is older than 30s, which a periodic status read always finds.
+    std::vector<std::string> calls = fake.calls();
+    auto list = std::find_if(calls.begin(), calls.end(), [](const std::string& c) {
+        return c.find("device wifi list") != std::string::npos;
+    });
+    REQUIRE(list != calls.end());
+    CHECK(list->find("--rescan no") != std::string::npos);
+}
+
+TEST_CASE("NM backend: an announced change refreshes the status at once",
+          "[network][nm][nm-monitor][slow]") {
+    FakeStatusNmcli fake;
+    TestableNMBackend backend;
+    backend.force_running("wlan0");
+    backend.start_status_threads();
+
+    // The thread's first read, then the one the monitor asks for when nmcli
+    // starts. Nothing else reads until something is announced: the periodic
+    // refresh is 30s away.
+    const std::string read = "GENERAL device show";
+    REQUIRE(helix_test::wait_until([&] { return fake.count(read) == 2; }, 3000));
+    CHECK(fake.count("monitor") == 1);
+
+    fake.announce();
+    CHECK(helix_test::wait_until([&] { return fake.count(read) == 3; }, 2000));
+    backend.stop();
 }
 
 #else
