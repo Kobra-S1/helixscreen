@@ -153,6 +153,26 @@ TEST_CASE_METHOD(CameraViewFixture,
     drain();
 }
 
+TEST_CASE_METHOD(CameraViewFixture, "CameraView: crop_to aims the stream at an image's box",
+                 "[camera]") {
+    lv_obj_t* image = lv_image_create(test_screen());
+    lv_obj_set_size(image, 120, 80);
+    lv_obj_update_layout(test_screen());
+
+    auto stream = std::make_unique<CameraStream>();
+    const CameraStream* aimed = stream.get();
+    CameraView view;
+    CameraViewTestAccess::adopt(view, std::move(stream), feed());
+
+    view.crop_to(image);
+    CHECK(CameraStreamTestAccess::crop_box(*aimed) == std::pair<int, int>{120, 80});
+
+    view.crop_to(nullptr);
+    CHECK(CameraStreamTestAccess::crop_box(*aimed) == std::pair<int, int>{0, 0});
+
+    view.stop({});
+}
+
 TEST_CASE_METHOD(CameraViewFixture, "CameraView: starting a camera stops other views of it",
                  "[camera][camera_view]") {
     CameraView first;

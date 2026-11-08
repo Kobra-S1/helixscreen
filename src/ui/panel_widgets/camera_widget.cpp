@@ -364,6 +364,8 @@ void CameraWidget::start_stream() {
         [this](lv_draw_buf_t* frame) {
             // Re-evaluate fps on the UI thread (overlay/edit state is UI-thread only)
             update_stream_fps();
+            // Only fullscreen crops: other views of this stream want whole frames.
+            view_.crop_to(fullscreen_image_);
 
             // Deliver frame to fullscreen image if open, otherwise widget image
             lv_obj_t* target = fullscreen_image_ ? fullscreen_image_ : camera_image_;
@@ -699,6 +701,7 @@ bool StandaloneCameraViewer::open(lv_obj_t* parent_screen) {
             if (!viewer->image_) {
                 return;
             }
+            viewer->view_.crop_to(viewer->image_);
             lv_image_set_src(viewer->image_, frame);
             // First frame: hide the "Connecting..." spinner
             set_camera_subject(&s_camera_fullscreen_connecting_subject, 0);

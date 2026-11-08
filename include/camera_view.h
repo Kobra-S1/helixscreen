@@ -96,6 +96,13 @@ class CameraView {
     /// Cap decoding at @p fps; 0 pauses. No-op without a stream.
     void set_max_fps(int fps);
 
+    /// Have the stream crop each frame to @p image's box, sparing LVGL a scale on
+    /// every redraw; nullptr means whole frames. For an image filling the display
+    /// (see CameraStream::set_crop_box()). The owner calls this with each frame,
+    /// since a layout can change the box. A box that comes out wrong only costs
+    /// that scaling: the image still covers its widget. No-op without a stream.
+    void crop_to(lv_obj_t* image);
+
     /// Re-apply rotation/flip from @p transform_config to the running stream.
     void apply_transform(const nlohmann::json& transform_config);
 

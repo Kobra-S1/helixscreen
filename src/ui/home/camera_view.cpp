@@ -176,6 +176,13 @@ void CameraView::set_max_fps(int fps) {
     }
 }
 
+void CameraView::crop_to(lv_obj_t* image) {
+    if (stream_) {
+        stream_->set_crop_box(image ? lv_obj_get_content_width(image) : 0,
+                              image ? lv_obj_get_content_height(image) : 0);
+    }
+}
+
 void CameraView::apply_transform(const nlohmann::json& transform_config) {
     if (!stream_) {
         return;
