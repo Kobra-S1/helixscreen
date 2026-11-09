@@ -6,7 +6,14 @@
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "core/update_queue.h"
+#include "app_globals.h"
+#include "fake_moonraker_client.h"
+#include "moonraker_api.h"
 #include "printer_discovery.h"
+#include "printer_state.h"
+
+#include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -724,6 +731,65 @@ TEST_CASE_METHOD(MultiBackendFixture, "AmsState: init_backends skips when no sys
     // Verify detection returns empty - no systems to init
     REQUIRE(hw.detected_ams_systems().empty());
 
+    ams.deinit_subjects();
+}
+
+// A Klipper restart re-runs discovery with the backends already built. The ACE
+// backend only trims units from the instance list it got when built, so a unit
+// removed from the config stayed on the panel until the app restarted.
+TEST_CASE_METHOD(MultiBackendFixture, "AmsState follows a hardware change across rediscovery",
+                 "[ams][multi-backend]") {
+    lv_init_safe();
+    AmsState& ams = AmsState::instance();
+    ams.deinit_subjects();
+    ams.init_subjects(false);
+
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerAPI api(client, get_printer_state());
+    const auto discover = [](std::vector<std::string> objects) {
+        helix::PrinterDiscovery hw;
+        objects.insert(objects.end(), {"extruder", "heater_bed", "gcode_move"});
+        hw.parse_objects(nlohmann::json(objects));
+        return hw;
+    };
+    const auto last_query_objects = [&client]() {
+        for (auto call = client.rpc_calls.rbegin(); call != client.rpc_calls.rend(); ++call) {
+            if (call->method == "printer.objects.query") {
+                return call->params["objects"];
+            }
+        }
+        FAIL("no printer.objects.query was sent");
+        return nlohmann::json();
+    };
+
+    ams.init_backends_from_hardware(discover({"ace", "ace_instance_0", "ace_instance_1"}), &api,
+                                    &client);
+    REQUIRE(ams.backend_count() == 1);
+    const auto* first_backend = ams.get_backend(0);
+    REQUIRE(last_query_objects().contains("ace_instance_1"));
+    const size_t calls_after_build = client.rpc_calls.size();
+
+    SECTION("the same hardware keeps the running backend") {
+        ams.init_backends_from_hardware(discover({"ace_instance_1", "ace_instance_0", "ace"}),
+                                        &api, &client);
+        CHECK(ams.get_backend(0) == first_backend);
+        CHECK(client.rpc_calls.size() == calls_after_build);
+    }
+
+    SECTION("a unit taken out of the config leaves the backend's query") {
+        ams.init_backends_from_hardware(discover({"ace", "ace_instance_0"}), &api, &client);
+        REQUIRE(ams.backend_count() == 1);
+        CHECK(client.rpc_calls.size() > calls_after_build);
+        CHECK(last_query_objects().contains("ace_instance_0"));
+        CHECK_FALSE(last_query_objects().contains("ace_instance_1"));
+    }
+
+    SECTION("the whole system taken out of the config drops its backend") {
+        ams.init_backends_from_hardware(discover({}), &api, &client);
+        CHECK(ams.backend_count() == 0);
+    }
+
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     ams.deinit_subjects();
 }
 

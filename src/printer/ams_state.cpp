@@ -38,6 +38,7 @@
 #include "filament_database.h"
 #include "filament_display_name.h"
 #include "filament_sensor_manager.h"
+#include "hardware_fingerprint.h"
 #include "helix_lvgl_anomaly.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
@@ -263,22 +264,29 @@ void AmsState::init_backend_from_hardware(const helix::PrinterDiscovery& hardwar
 
 void AmsState::init_backends_from_hardware(const helix::PrinterDiscovery& hardware,
                                            IMoonrakerAPI* api, IMoonrakerClient* client) {
-    const auto& systems = hardware.detected_ams_systems();
-    if (systems.empty()) {
-        spdlog::debug("[AMS State] No AMS systems detected, skipping");
-        assert_main_thread();
-        reclaim_orphaned_bypass_record();
-        return;
-    }
-
     if (get_runtime_config()->should_mock_ams()) {
         spdlog::debug("[AMS State] Mock mode active, skipping real backend initialization");
         return;
     }
 
     assert_main_thread();
+    // A Klipper restart re-runs discovery with the backends built. What a backend took from
+    // discovery (unit objects, bypass macros) is only set when it is built, so new hardware
+    // needs a new backend; unchanged hardware keeps it, mid-operation state included.
+    const size_t fingerprint = compute_hardware_fingerprint(hardware);
     if (registry_.count() > 0) {
-        spdlog::debug("[AMS State] Backends already initialized, skipping");
+        if (!backends_built_from_ || *backends_built_from_ == fingerprint) {
+            spdlog::debug("[AMS State] Backends already initialized, skipping");
+            return;
+        }
+        spdlog::info("[AMS State] Hardware changed, rebuilding backends");
+        clear_backends();
+    }
+
+    const auto& systems = hardware.detected_ams_systems();
+    if (systems.empty()) {
+        spdlog::debug("[AMS State] No AMS systems detected, skipping");
+        reclaim_orphaned_bypass_record();
         return;
     }
 
@@ -304,6 +312,7 @@ void AmsState::init_backends_from_hardware(const helix::PrinterDiscovery& hardwa
         }
     }
 
+    backends_built_from_ = fingerprint;
     spdlog::info("[AMS State] Initialized {} backends", backend_count());
 
     // Sync immediately to propagate static system_info (total_slots, type, etc.)
@@ -388,6 +397,7 @@ void AmsState::clear_backends() {
 
     registry_.clear();
     ++backend_generation_;
+    backends_built_from_.reset();
     invalidate_system_info();
     system_info_snapshots_.clear();
 

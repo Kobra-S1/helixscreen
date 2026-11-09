@@ -374,7 +374,10 @@ class AmsState {
      *
      * Called after Moonraker discovery completes. Creates a backend for each
      * detected system (MMU, tool changer, AFC, etc.). Supports multiple
-     * concurrent backends for printers with multiple filament systems.
+     * concurrent backends for printers with multiple filament systems. Called again
+     * with the backends built (Klipper restart, reconnect), it keeps them while the
+     * hardware fingerprint is unchanged and rebuilds them when it differs. A backend
+     * not built here (mock, set_backend) stays.
      *
      * @param hardware Discovered printer hardware
      * @param api IMoonrakerAPI instance for making API calls
@@ -2643,6 +2646,8 @@ class AmsState {
     /// subject starts at SHUTDOWN, so the session's first READY is the connect,
     /// not a restart.
     bool klippy_ready_seen_ = false;
+    /// Fingerprint of the discovery that built the backends; empty for any other backend.
+    std::optional<size_t> backends_built_from_;
 
     /// Wire (or rewire) klippy_state_observer_. Idempotent.
     void install_klippy_state_observer();
