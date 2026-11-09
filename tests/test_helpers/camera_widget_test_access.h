@@ -6,7 +6,11 @@
 
 #if HELIX_HAS_CAMERA
 
+#include "camera_view_test_access.h"
 #include "src/ui/panel_widgets/camera_widget.h"
+
+#include <memory>
+#include <utility>
 
 namespace helix {
 
@@ -25,6 +29,19 @@ namespace helix {
 /// on CameraWidget.
 class CameraWidgetTestAccess {
   public:
+    /// Hand the widget a stream without a camera, as if start_stream() had.
+    static void adopt_stream(CameraWidget& w, std::unique_ptr<CameraStream> stream) {
+        CameraViewTestAccess::adopt(w.view_, std::move(stream), WebcamInfo{});
+    }
+    static CameraView& view(CameraWidget& w) {
+        return w.view_;
+    }
+    static void update_stream_fps(CameraWidget& w) {
+        w.update_stream_fps();
+    }
+    static void set_fullscreen_overlay(CameraWidget& w, lv_obj_t* overlay) {
+        w.fullscreen_overlay_ = overlay;
+    }
     static int start_stream_calls(const CameraWidget& w) {
         return w.start_stream_calls_;
     }

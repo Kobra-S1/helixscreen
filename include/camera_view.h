@@ -22,7 +22,8 @@ namespace helix {
  * @brief One live camera feed shown in LVGL images.
  *
  * Owns the CameraStream for a view that displays a webcam: resolves the feed,
- * applies its rotation/flip, decodes at display resolution, hands every frame
+ * applies its rotation/flip, decodes at display resolution unless the owner
+ * names a smaller image (decode_for()), hands every frame
  * and status message to the owner on the UI thread, and tears the stream down
  * so no image is left pointing at a freed frame buffer.
  *
@@ -102,6 +103,12 @@ class CameraView {
     /// since a layout can change the box. A box that comes out wrong only costs
     /// that scaling: the image still covers its widget. No-op without a stream.
     void crop_to(lv_obj_t* image);
+
+    /// Have the stream decode whole frames just large enough to cover @p image,
+    /// instead of the whole display. A crop box (crop_to()) takes precedence. The
+    /// owner calls this with each frame, since a layout can change the box; an
+    /// image not laid out yet changes nothing. No-op without a stream or image.
+    void decode_for(lv_obj_t* image);
 
     /// Re-apply rotation/flip from @p transform_config to the running stream.
     void apply_transform(const nlohmann::json& transform_config);

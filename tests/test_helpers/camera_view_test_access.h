@@ -27,6 +27,10 @@ class CameraViewTestAccess {
         return CameraView::leaked_streams_.load();
     }
 
+    static void set_target_fps(CameraView& v, int fps) {
+        v.target_fps_ = fps;
+    }
+
     static void adopt(CameraView& v, std::unique_ptr<CameraStream> stream, WebcamInfo feed) {
         v.stream_ = std::move(stream);
         v.feed_ = std::move(feed);

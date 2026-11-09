@@ -381,6 +381,49 @@ TEST_CASE("CameraStream: opening and closing fullscreen does not grow memory", "
           std::set<const lv_draw_buf_t*>{again.first, again.second});
 }
 
+TEST_CASE("CameraStream: other consumers get no frame smaller than they asked for", "[camera]") {
+    CameraStream stream;
+    stream.start("", "", [](lv_draw_buf_t*) {}, [](const char*) {});
+    CameraStreamTestAccess::pretend_running_with_frame(stream, 8, 8);
+
+    const WebcamInfo feed; // Empty URLs, as this stream was started with
+    // Decoded for a small widget, it would be enlarged: the snapshot is whole-size.
+    CHECK(CameraStream::latest_running_frame(feed, 16, 16).empty());
+    // One side reaching the box is enough to fit it without enlarging.
+    CHECK_FALSE(CameraStream::latest_running_frame(feed, 8, 16).empty());
+    CHECK_FALSE(CameraStream::latest_running_frame(feed, 16, 8).empty());
+    CHECK_FALSE(CameraStream::latest_running_frame(feed, 4, 4).empty());
+    stream.stop();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "CameraWidget caps the home preview, not the fullscreen view",
+                 "[camera]") {
+    CameraWidget widget;
+    auto owned = std::make_unique<CameraStream>();
+    const CameraStream* stream = owned.get();
+    CameraWidgetTestAccess::adopt_stream(widget, std::move(owned));
+
+    SECTION("a preview runs at the cap") {
+        CameraViewTestAccess::set_target_fps(CameraWidgetTestAccess::view(widget), 15);
+        CameraWidgetTestAccess::update_stream_fps(widget);
+        CHECK(stream->get_max_fps() == 5);
+    }
+    SECTION("a camera configured below the cap keeps its own rate") {
+        CameraViewTestAccess::set_target_fps(CameraWidgetTestAccess::view(widget), 3);
+        CameraWidgetTestAccess::update_stream_fps(widget);
+        CHECK(stream->get_max_fps() == 3);
+    }
+    SECTION("fullscreen gets the camera's configured rate") {
+        CameraViewTestAccess::set_target_fps(CameraWidgetTestAccess::view(widget), 15);
+        CameraWidgetTestAccess::set_fullscreen_overlay(widget, test_screen());
+        CameraWidgetTestAccess::update_stream_fps(widget);
+        CHECK(stream->get_max_fps() == 15);
+        CameraWidgetTestAccess::set_fullscreen_overlay(widget, nullptr);
+    }
+
+    CameraWidgetTestAccess::view(widget).stop({});
+}
+
 TEST_CASE("CameraStream: other consumers get no cropped frame from a running stream", "[camera]") {
     CameraStream stream;
     stream.start("", "", [](lv_draw_buf_t*) {}, [](const char*) {});

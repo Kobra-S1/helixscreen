@@ -173,6 +173,51 @@ TEST_CASE_METHOD(CameraViewFixture, "CameraView: crop_to aims the stream at an i
     view.stop({});
 }
 
+TEST_CASE_METHOD(CameraViewFixture, "CameraView: decode_for sizes the decode to an image",
+                 "[camera]") {
+    // The K3's home widget: a 1280x720 camera shown in a 131x129 image needs 320x180,
+    // where the whole 272x480 display would need 960x540.
+    auto stream = std::make_unique<CameraStream>();
+    CameraStream* aimed = stream.get();
+    CameraStreamTestAccess::install_turbojpeg_scaling_factors(*aimed);
+    aimed->set_target_size(272, 480);
+    CameraView view;
+    CameraViewTestAccess::adopt(view, std::move(stream), feed());
+    const auto decode_size = [aimed] {
+        const auto size = aimed->compute_scaled_size(1280, 720);
+        return std::pair<int, int>{size.w, size.h};
+    };
+    REQUIRE(decode_size() == std::pair<int, int>{960, 540});
+
+    lv_obj_t* image = lv_image_create(test_screen());
+
+    SECTION("an image laid out at its size") {
+        lv_obj_set_size(image, 131, 129);
+        lv_obj_update_layout(test_screen());
+        view.decode_for(image);
+        CHECK(decode_size() == std::pair<int, int>{320, 180});
+
+        SECTION("a crop box still wins") {
+            aimed->set_crop_box(272, 480);
+            CHECK(decode_size() == std::pair<int, int>{960, 540});
+        }
+    }
+
+    SECTION("an image with no size yet changes nothing") {
+        lv_obj_set_size(image, 0, 0);
+        lv_obj_update_layout(test_screen());
+        view.decode_for(image);
+        CHECK(decode_size() == std::pair<int, int>{960, 540});
+    }
+
+    SECTION("no image changes nothing") {
+        view.decode_for(nullptr);
+        CHECK(decode_size() == std::pair<int, int>{960, 540});
+    }
+
+    view.stop({});
+}
+
 TEST_CASE_METHOD(CameraViewFixture, "CameraView: starting a camera stops other views of it",
                  "[camera][camera_view]") {
     CameraView first;

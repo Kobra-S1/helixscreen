@@ -48,6 +48,7 @@ static helix::Subject s_camera_compact_subject;
 static helix::Subject s_camera_fullscreen_connecting_subject;
 static helix::WidgetSubjects s_subjects{"CameraWidgetSubjects"};
 static const char* const kDefaultCameraStatusKey = TR_NOOP("No Camera");
+static constexpr int kHomePreviewMaxFps = 5;
 // The translation key the status text was produced from, so a language switch
 // can render it again; nullptr while it shows text that is not a key.
 static const char* s_camera_status_key = kDefaultCameraStatusKey;
@@ -366,6 +367,7 @@ void CameraWidget::start_stream() {
             update_stream_fps();
             // Only fullscreen crops: other views of this stream want whole frames.
             view_.crop_to(fullscreen_image_);
+            view_.decode_for(camera_image_);
 
             // Deliver frame to fullscreen image if open, otherwise widget image
             lv_obj_t* target = fullscreen_image_ ? fullscreen_image_ : camera_image_;
@@ -481,7 +483,10 @@ void CameraWidget::update_stream_fps() {
         return;
     }
 
-    view_.set_max_fps(view_.target_fps()); // Normal — capped at configured fps
+    // Fullscreen shows the camera's configured rate; a preview on the home screen only
+    // has to look alive, and decoding is the largest cost on a single-core board.
+    view_.set_max_fps(fullscreen_overlay_ ? view_.target_fps()
+                                          : std::min(view_.target_fps(), kHomePreviewMaxFps));
 }
 
 void CameraWidget::set_status_text(const char* text) {

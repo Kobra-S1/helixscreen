@@ -183,6 +183,17 @@ void CameraView::crop_to(lv_obj_t* image) {
     }
 }
 
+void CameraView::decode_for(lv_obj_t* image) {
+    if (!stream_ || !image) {
+        return;
+    }
+    const int width = lv_obj_get_content_width(image);
+    const int height = lv_obj_get_content_height(image);
+    if (width > 0 && height > 0) {
+        stream_->set_target_size(width, height);
+    }
+}
+
 void CameraView::apply_transform(const nlohmann::json& transform_config) {
     if (!stream_) {
         return;

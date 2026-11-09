@@ -93,7 +93,8 @@ CameraFrame CameraStream::latest_running_frame(const WebcamInfo& feed, int max_w
     for (CameraStream* s : g_streams) {
         std::lock_guard<std::mutex> lock(s->buf_mutex_);
         if (!s->running_.load() || !s->has_frame_ || s->stream_url_ != feed.stream_url ||
-            s->snapshot_url_ != feed.snapshot_url || s->crop_w_.load() > 0)
+            s->snapshot_url_ != feed.snapshot_url || s->crop_w_.load() > 0 ||
+            (s->frame_width_ < max_w && s->frame_height_ < max_h))
             continue;
         return downscale_bgr(static_cast<const uint8_t*>(s->front_buf_->data), s->frame_width_,
                              s->frame_height_, static_cast<int>(s->front_buf_->header.stride),
