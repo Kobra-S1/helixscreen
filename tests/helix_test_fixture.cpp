@@ -32,6 +32,7 @@
 #include "filament_slot_override_store.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lane_source_store.h"
+#include "led/led_controller.h"
 #include "logging_init.h"
 #include "lvgl_log_handler.h"
 #include "macro_param_cache.h"
@@ -39,12 +40,14 @@
 #include "pending_startup_warnings.h"
 #include "post_op_cooldown_manager.h"
 #include "printer_discovery.h"
+#include "printer_image_manager.h"
 #include "region_defaults.h"
 #include "rpc_error_correlation.h"
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
 #include "screensaver_canvas.h"
 #include "screensaver_registry.h"
+#include "sensor_manager.h"
 #include "settings_manager.h"
 #include "sound_manager.h"
 #include "standard_macros.h"
@@ -65,6 +68,7 @@
 #include "tool_heads_model.h"
 #include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
+#include "xml_registration.h"
 
 #include <spdlog/spdlog.h>
 
@@ -334,12 +338,27 @@ void HelixTestFixture::reset_printer_state() {
     }
 }
 
+void HelixTestFixture::restart_printer_state_observers() {
+    // AmsState's re-entry rebinds the PrinterState observers it holds and keeps its
+    // subjects and their XML names; a first init publishes the names.
+    auto& ams = helix::AmsState::instance();
+    ams.init_subjects(!helix::AmsStateTestAccess::initialized(ams));
+
+    // PrintControlButtons is a process singleton observing the global PrinterState,
+    // and its init_subjects() is a no-op once up, so the observers a PrinterState
+    // re-init dropped would never come back. Torn down and brought up fresh: the app
+    // initializes it before Print Status exists, and the panel binds its subjects
+    // unconditionally.
+    helix::ui::PrintControlButtonsTestAccess::reset();
+    helix::ui::PrintControlButtons::instance().init_subjects();
+}
+
 void HelixTestFixture::keep_logger_for_exit() {
     static const auto* kept = new std::shared_ptr<spdlog::logger>(spdlog::default_logger());
     (void)kept;
 }
 
-void HelixTestFixture::reset_all() {
+void HelixTestFixture::reset_all(bool case_start) {
     // A board override a test set must not leak into the next case in the shard.
     helix::board::set_current_override(std::nullopt);
 
@@ -393,6 +412,15 @@ void HelixTestFixture::reset_all() {
     // Drain any callbacks queued by a prior test before we touch state they read.
     helix::ui::UpdateQueue::instance().drain();
 
+    // The app initializes these subjects at startup and keeps them live for the whole
+    // session (SubjectInitializer, in this order), so code under test binds them
+    // without asking. A case that runs with one of them down has each such binding
+    // refused by LVGL, and the observer it wanted never fires (#2125).
+    // init_subjects() is a no-op for an owner already up. The owners that observe
+    // PrinterState restart further down, once the settings they read are up.
+    get_printer_state().init_subjects(true);
+    helix::ToolState::instance().init_subjects(true);
+
     reset_printer_state();
 
     // SystemSettingsManager language back to "en" (matches config default).
@@ -420,6 +448,28 @@ void HelixTestFixture::reset_all() {
     StandardMacros::instance().load_from_config();
     helix::SystemSettingsManager::instance().init_subjects();
     helix::SystemSettingsManager::instance().set_language("en");
+
+    // The rest of the owners the app brings up before any panel exists
+    // (SubjectInitializer, PrinterSession::init_core_subjects()), here because they
+    // read the config reset above. LedController's API arrives with discovery.
+    helix::SettingsManager::instance().init_subjects();
+    helix::PrinterImageManager::instance().init_subjects();
+    StandardMacros::instance().init_subjects();
+    for (auto* manager : helix::sensors::sensor_managers()) {
+        manager->init_subjects();
+    }
+    if (!helix::led::LedController::instance().is_initialized()) {
+        helix::led::LedController::instance().init(nullptr, nullptr);
+    }
+    // AmsState's hundreds of lane subjects would otherwise carry one case's values
+    // into the next. Once per case: a full cycle costs more than the re-entry below.
+    if (case_start) {
+        helix::AmsState::instance().deinit_subjects();
+    }
+    restart_printer_state_observers();
+    // XML binds an empty subject attribute to this; a fixture that tore the XML
+    // subjects down would leave every such binding refused.
+    helix::register_xml_noop_subject();
     // Every formatter reads the display unit; a test that shows °F must not
     // leave the rest of the binary reading it.
     helix::units::set_display_temp_unit(helix::units::TempUnit::Celsius);
@@ -487,21 +537,6 @@ void HelixTestFixture::reset_all() {
     // reason described below, and no longer needs to be: its PrinterState
     // observers now carry that state's SubjectLifetime, so their guards learn the
     // subjects were deinited rather than walking freed observer nodes.
-
-    // Tear down the PrintControlButtons singleton, which still does need it.
-    // The controller persists across tests (it's a process
-    // singleton) and observes the GLOBAL print_state_enum subject. A later test
-    // calling PrinterStateTestAccess::reset(ps) — or process exit — deinits that
-    // subject; lv_subject_deinit frees the observer node, leaving the
-    // controller's ObserverGuard with a dangling lv_observer_t*. The next
-    // destructor that walks it (the singleton's own static teardown at exit, or
-    // the next fixture's reset()) calls lv_observer_delete() on freed memory →
-    // SIGSEGV / heap corruption. This surfaced as nightly [slow] crashes:
-    // a segfault in ~PrintControlButtons at process exit, plus mid-run
-    // "malloc(): unaligned tcache chunk detected" aborts. Removing the observer
-    // here — while print_state_enum is still alive — closes the window. No-op
-    // when the controller was never initialized.
-    helix::ui::PrintControlButtonsTestAccess::reset();
 
     // AmsState is a process singleton whose `ams_slot_count` gate subject is
     // registered in the global XML scope and driven >0 when an AMS test runs

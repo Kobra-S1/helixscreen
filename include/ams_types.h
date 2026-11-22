@@ -1100,6 +1100,9 @@ struct SlotInfo {
     /// How the multi-color list runs: "gradient" or "coaxial"
     /// (filament_color_mode.h); empty while the slot is one color.
     std::string color_mode;
+    /// A clear or see-through filament: its color is drawn tinted over a
+    /// checkerboard. One level; any source alpha below FF sets it.
+    bool translucent = false;
     std::string material; ///< Material type (e.g., "PLA", "PETG", "ABS")
     std::string brand;    ///< Brand name (e.g., "Polymaker", "eSUN")
 
@@ -1228,10 +1231,10 @@ struct SlotInfo {
 
     /**
      * @brief A key for how a swatch paints this slot beyond its colour: its
-     *        multi-colour list and finish. Equal keys paint alike.
+     *        multi-color list, finish and translucency. Equal keys paint alike.
      */
     [[nodiscard]] int paint_key() const {
-        uint32_t h = 2166136261u ^ static_cast<uint32_t>(finish());
+        uint32_t h = 2166136261u ^ static_cast<uint32_t>(finish()) ^ (translucent ? 0x100u : 0u);
         for (char c : multi_color_hexes) {
             h = (h ^ static_cast<unsigned char>(c)) * 16777619u;
         }
@@ -1292,8 +1295,8 @@ struct SlotInfo {
     bool assign_filament_fields(const SlotInfo& other) {
         auto fields = [](auto& s) {
             return std::tuple_cat(identity_fields(s),
-                                  std::tie(s.multi_color_hexes, s.color_mode, s.nozzle_temp_min,
-                                           s.nozzle_temp_max, s.bed_temp));
+                                  std::tie(s.multi_color_hexes, s.color_mode, s.translucent,
+                                           s.nozzle_temp_min, s.nozzle_temp_max, s.bed_temp));
         };
         const bool changed = fields(*this) != fields(other);
         fields(*this) = fields(other);
@@ -1540,6 +1543,13 @@ struct AmsUnit {
         return &slots[local_index];
     }
 };
+
+/// A unit's identity across rebuilds and restarts: its name, or its first slot when it has
+/// none. The position in the backend's list is not stable, and neither is the slot a unit
+/// starts at when a backend that sorts its units gains one. Units of one name share it.
+inline std::string ams_unit_identity(const AmsUnit& unit) {
+    return unit.name.empty() ? "#" + std::to_string(unit.first_slot_global_index) : unit.name;
+}
 
 // ============================================================================
 // Spoolman Integration Mode (Happy Hare v4)

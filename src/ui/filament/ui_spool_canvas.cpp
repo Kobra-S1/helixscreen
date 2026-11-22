@@ -27,6 +27,7 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <iterator>
 #include <list>
 #include <memory>
 #include <unordered_map>
@@ -121,8 +122,12 @@ static inline float fast_sqrt_01(float x) {
 // size). Rendering a 64x64 spool costs ~10 gradient-fill scanline loops; a
 // cache hit collapses that to a single memcpy (~16KB). Fill level is bucketed
 // into 10% steps — visually indistinguishable at this scale, and it keeps the
-// working set small while scrolling a list of many spools.
-static constexpr size_t kCacheMaxEntries = 128;
+// working set small while scrolling a list of many spools. The cache is bounded
+// by bytes (spool_render_cache_budget): a canvas keeps its own pixels, so an
+// unchanged spool never needs it, and the entries it holds are only states a
+// canvas may return to.
+static constexpr size_t kCacheBudgetBytes = 2u * 1024u * 1024u;
+static constexpr size_t kCacheBudgetReducedBytes = 256u * 1024u;
 static constexpr int kFillBuckets = 10;
 // At or below this the spool is drawn empty: no filament, its bare core.
 // Bucket 0 holds only empty spools, since they render differently from the
@@ -150,6 +155,15 @@ using SpoolCacheIndex =
 
 static SpoolCacheList s_cache_list;
 static SpoolCacheIndex s_cache_index;
+static size_t s_cache_bytes = 0;
+
+size_t helix::ui::spool_render_cache_budget(bool reduced_effects) {
+    return reduced_effects ? kCacheBudgetReducedBytes : kCacheBudgetBytes;
+}
+
+size_t helix::ui::spool_render_cache_bytes() {
+    return s_cache_bytes;
+}
 
 static uint8_t compute_fill_bucket(float fill) {
     float clamped = fill < 0.0f ? 0.0f : (fill > 1.0f ? 1.0f : fill);
@@ -172,17 +186,21 @@ static const SpoolCacheEntry* cache_get(const SpoolCacheKey& key) {
     return &(*it->second);
 }
 
+static void cache_erase(SpoolCacheList::iterator it) {
+    s_cache_bytes -= it->pixels.size();
+    s_cache_index.erase(it->key);
+    s_cache_list.erase(it);
+}
+
 static void cache_put(const SpoolCacheKey& key, std::vector<uint8_t>&& pixels) {
-    auto idx_it = s_cache_index.find(key);
-    if (idx_it != s_cache_index.end()) {
-        idx_it->second->pixels = std::move(pixels);
-        s_cache_list.splice(s_cache_list.begin(), s_cache_list, idx_it->second);
+    if (auto idx_it = s_cache_index.find(key); idx_it != s_cache_index.end())
+        cache_erase(idx_it->second);
+    const size_t budget = helix::ui::spool_render_cache_budget(helix::ui::reduced_effects());
+    if (pixels.size() > budget)
         return;
-    }
-    if (s_cache_list.size() >= kCacheMaxEntries) {
-        s_cache_index.erase(s_cache_list.back().key);
-        s_cache_list.pop_back();
-    }
+    while (!s_cache_list.empty() && s_cache_bytes + pixels.size() > budget)
+        cache_erase(std::prev(s_cache_list.end()));
+    s_cache_bytes += pixels.size();
     s_cache_list.push_front({key, std::move(pixels)});
     s_cache_index[key] = s_cache_list.begin();
 }
@@ -758,6 +776,17 @@ static void render_front_pixels(SpoolCanvasData* data) {
             }
         }
         helix::ui::swatch_paint_finish_pixels(buf, disc, LV_RADIUS_CIRCLE, data->finish);
+        if (data->translucent) {
+            const helix::ui::SwatchCoverage wound_disc = [=](float x, float y) {
+                return std::clamp(filament_r -
+                                      dist(static_cast<int32_t>(x), static_cast<int32_t>(y)) + 0.5f,
+                                  0.0f, 1.0f);
+            };
+            helix::ui::swatch_paint_check_pixels(
+                buf, disc, wound_disc,
+                helix::ui::swatch_check_cell_px(static_cast<int32_t>(filament_r)),
+                helix::ui::swatch_check_tones());
+        }
     }
 
     // Pass 2: the flange over it. Solid flange is smoked where filament lies
@@ -919,6 +948,12 @@ static void render_spool_pixels(SpoolCanvasData* data) {
             return std::clamp((1.0f - d) * cap_rx + 0.5f, 0.0f, 1.0f);
         };
         helix::ui::swatch_paint_finish_pixels(data->draw_buf, visible, wound, data->finish);
+        if (data->translucent) {
+            helix::ui::swatch_paint_check_pixels(
+                data->draw_buf, visible, wound,
+                helix::ui::swatch_check_cell_px(fil_bottom - fil_top + 1),
+                helix::ui::swatch_check_tones());
+        }
 
         // 2c: Front face ellipse (will be covered by front flange anyway)
         lv_color_t front_light = ams_draw::lighten_color(filament_color, 70);
@@ -987,7 +1022,7 @@ static void render_spool_pixels(SpoolCanvasData* data) {
 
 // Folds the multi-colour list and finish into the render cache key.
 static uint32_t filament_hash(const SpoolCanvasData& d) {
-    uint32_t h = static_cast<uint32_t>(d.finish) * 0x01000193u;
+    uint32_t h = (static_cast<uint32_t>(d.finish) ^ (d.translucent ? 0x80u : 0u)) * 0x01000193u;
     for (lv_color_t c : d.colors)
         h = (h ^ color_to_rgb24(c)) * 0x01000193u;
     return h;
@@ -1193,12 +1228,13 @@ void ui_spool_canvas_set_color(lv_obj_t* canvas, lv_color_t color) {
     // + lookup on the common scroll-recycle-same-color path).
     if (data->has_rendered && data->color.red == color.red && data->color.green == color.green &&
         data->color.blue == color.blue && data->colors.empty() &&
-        data->finish == helix::ui::SwatchFinish::Plain) {
+        data->finish == helix::ui::SwatchFinish::Plain && !data->translucent) {
         return;
     }
     data->color = color;
     data->colors.clear();
     data->finish = helix::ui::SwatchFinish::Plain;
+    data->translucent = false;
     redraw_spool(data);
 }
 
@@ -1237,7 +1273,7 @@ void ui_spool_canvas_redraw(lv_obj_t* canvas) {
 namespace helix::ui {
 
 void spool_canvas_set_filament(lv_obj_t* canvas, uint32_t rgb, const std::string& multi_color_hexes,
-                               SwatchFinish finish) {
+                               SwatchFinish finish, bool translucent) {
     auto* data = spool_canvas_data(canvas);
     if (!data)
         return;
@@ -1247,6 +1283,7 @@ void spool_canvas_set_filament(lv_obj_t* canvas, uint32_t rgb, const std::string
     data->color = lv_color_hex(rgb);
     data->colors = std::move(colors);
     data->finish = finish;
+    data->translucent = translucent;
     redraw_spool(data);
 }
 
@@ -1265,7 +1302,7 @@ SpoolView spool_canvas_get_view(lv_obj_t* canvas) {
 
 void spool_canvas_set_filament(lv_obj_t* canvas, const SlotInfo& slot) {
     spool_canvas_set_filament(canvas, slot.color_rgb, slot.multi_color_hexes,
-                              swatch_finish_of(slot));
+                              swatch_finish_of(slot), slot.translucent);
 }
 
 } // namespace helix::ui
@@ -1283,6 +1320,7 @@ lv_color_t ui_spool_canvas_get_color(lv_obj_t* canvas) {
 void ui_spool_canvas_invalidate_cache(void) {
     s_cache_list.clear();
     s_cache_index.clear();
+    s_cache_bytes = 0;
     clear_glow_cache();
     s_registry.for_each([](lv_obj_t* /*canvas*/, SpoolCanvasData* data) {
         if (data) {

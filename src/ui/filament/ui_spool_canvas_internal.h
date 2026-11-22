@@ -8,6 +8,7 @@
 #include "lvgl/lvgl.h"
 #include "spool_spin.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -23,7 +24,7 @@ struct SpoolCacheKey {
     uint16_t size;
     uint8_t fill_bucket; // 0..kFillBuckets
     SpoolGlow glow;
-    uint32_t filament_hash = 0; // multi-colour list and finish; 0 for a plain single colour
+    uint32_t filament_hash = 0; // multi-color list, finish, translucency; 0 for plain
     helix::ui::SpoolView view = helix::ui::SpoolView::Side;
     uint8_t vent_phase = 0; // rotation of the vents; 0 unless the spool has turned
 
@@ -44,6 +45,7 @@ struct SpoolCanvasData {
     /// is split the way every swatch splits (helix::ui::swatch_split_thresholds).
     std::vector<lv_color_t> colors;
     helix::ui::SwatchFinish finish = helix::ui::SwatchFinish::Plain;
+    bool translucent = false; // the filament is drawn over the swatch checkerboard
     helix::ui::SpoolView view = helix::ui::SpoolView::Side;
     helix::ui::SpoolSpin spin;
     int vent_phase = 0; ///< current rotation, kept across a stop so the vents hold still
@@ -58,5 +60,14 @@ SpoolCanvasData* spool_canvas_data(lv_obj_t* obj);
 
 /// Paint the spool's pixels; false when the draw buffer is unavailable.
 bool redraw_spool_pixels(SpoolCanvasData* data);
+
+/// The most bytes of rendered spools the render cache keeps. Where spools turn,
+/// it holds a full turn of a large tray spool (24 vent phases of 36 KB at 96 px)
+/// beside a screen of still ones; where they never turn (@p reduced_effects), only
+/// a few still renders, since every canvas keeps its own pixels.
+size_t spool_render_cache_budget(bool reduced_effects);
+
+/// Bytes of rendered pixels the render cache holds now.
+size_t spool_render_cache_bytes();
 
 } // namespace helix::ui
